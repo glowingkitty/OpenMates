@@ -3233,7 +3233,7 @@
         "text": "чтобы открыть все функции, сохранить чаты и получать к ним доступ на всех ваших устройствах."
       },
       "daily_credits_exhausted": {
-        "text": "Вы израсходовали бесплатные дневные кредиты. Зарегистрируйтесь и купите кредиты, чтобы полноценно пользоваться OpenMates."
+        "text": "Вы достигли лимита бесплатного использования. Зарегистрируйтесь, чтобы продолжить."
       }
     },
     "interactive_question_failed": {
@@ -8408,6 +8408,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Улучшаем расшифровку…"
+      },
+      "removing_filler_words": {
+        "text": "Убираем слова-паразиты…"
+      },
+      "making_more_concise": {
+        "text": "Делаем текст короче…"
+      },
       "recording": {
         "text": "Запись..."
       },
@@ -8488,6 +8497,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Сравнение аэрофритюрниц в Германии"
+      },
+      "summary": {
+        "text": "Сравнение популярных аэрофритюрниц на Amazon в Германии по цене, объёму и оценкам с рекомендацией Philips Airfryer серии 2000 для семьи из двух человек."
+      },
+      "message_1": {
+        "text": "Найди аэрофритюрницы, которые можно купить онлайн в Германии, включая предложения Amazon. Сравни текущие цены, объём и оценки покупателей, затем порекомендуй модель для семьи из двух человек со ссылками на источники."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nНиже — сравнение аэрофритюрниц с высокими оценками, которые сейчас продаются на Amazon в Германии: цены, объём и оценки покупателей.\n\n---\n\n### Сравнение популярных моделей в Германии\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Главная рекомендация для семьи из двух человек\n\n#### **Основной выбор: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Почему она лучше всего подходит двоим:**\n  * **Оптимальный объём (6.2 L):** Корзина меньше 4.5–5 L может потребовать готовить в несколько заходов даже на двоих. Корзина объёмом 6.2 L позволяет разложить два филе лосося и полноценный гарнир из овощей или картофеля одним слоем для равномерной готовки.\n  * **Место на кухне:** Модели с двумя зонами (например, Ninja или Russell Hobbs) занимают много места на столешнице. Одна корзина объёмом 6 L даёт достаточно пространства, оставаясь относительно компактной для обычной кухни в Германии.\n  * **Прозрачное окошко:** Позволяет следить за подрумяниванием, не выдвигая корзину и не теряя тепло.\n  * **Соотношение цены и качества:** За €99.99 модель предлагает стабильное поддержание температуры от [Philips](wiki:Philips) по разумной цене.\n\n#### **Альтернатива (если вы часто готовите два блюда при разной температуре): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nЕсли вам нужно одновременно готовить белковые продукты и овощной гарнир при разных температурах и с разным временем приготовления (например, куриную грудку при 180 °C и хрустящий картофель при 200 °C), эта модель сейчас продаётся со скидкой за €119.99 и умеет синхронизировать завершение готовки.\n\n---\n\n### Что учитывать перед покупкой\n1. **Форма корзины:** В квадратные корзины (например, Cosori и Philips) плоские продукты (стейки, формы для выпечки, шпажки) помещаются намного лучше, чем в круглые корзины того же объёма.\n2. **Размер посудомоечной машины:** Убедитесь, что в ней достаточно места по высоте для одной корзины объёмом 6 L. Чтобы продлить срок службы антипригарного покрытия, его можно мыть вручную."
+      },
+      "follow_up_1": {
+        "text": "Найти рецепты специально для аэрофритюрниц"
+      },
+      "follow_up_2": {
+        "text": "Объяснить основные различия между аэрофритюрницами с одной и двумя корзинами"
+      },
+      "follow_up_3": {
+        "text": "Найти совместимые аксессуары для выпечки для этой аэрофритюрницы"
+      },
+      "follow_up_4": {
+        "text": "Подобрать простые рецепты ужина в аэрофритюрнице для начинающих"
+      },
+      "follow_up_5": {
+        "text": "Проверить текущие показатели энергопотребления этих моделей"
+      },
+      "follow_up_6": {
+        "text": "Сравнить требования к очистке и уходу за керамическим и тефлоновым покрытием"
       }
     },
     "artemis_ii_mission": {
@@ -10974,6 +11015,38 @@
         "text": "Объясни выбор развязывающих конденсаторов"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Вегетарианские рецепты из продуктов в холодильнике"
+      },
+      "summary": {
+        "text": "Пользователь попросил идеи вегетарианских рецептов со шпинатом, морковью, болгарским перцем и нутом; ассистент предложил три варианта."
+      },
+      "message_1": {
+        "text": "Посоветуешь вегетарианские рецепты? У меня в холодильнике остались шпинат, морковь, болгарский перец и нут."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nИмея под рукой **шпинат, морковь, болгарский перец и нут**, у тебя есть отличная основа для вкусных вегетарианских блюд, богатых клетчаткой. \n\nВот три разных кулинарных направления в зависимости от того, чего тебе хочется:\n\n---\n\n### 1. Свежий и хрустящий: рубленый салат в тайском стиле\nЕсли хочется чего-то быстрого, легкого и хрустящего, смешай мелко нарезанный сырой перец, морковь и шпинат с нутом в пикантной [арахисовой](wiki:Peanut) заправке с лаймом.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Аппетитные котлетки: хрустящие оладьи из нута и овощей\nЕсли тебе хочется чего-то теплого и порционного (отлично подходит для роллов, питы или с йогуртовым соусом), разомни нут и добавь в него измельченную морковь, перец и припущенный шпинат.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Быстрый вариант на ужин: теплое карри из нута и овощей на сковороде\nЕсли тебе нужно блюдо в одной сковороде из базовых продуктов (таких как консервированное кокосовое молоко или протертые томаты):\n1. **Обжарь ароматные ингредиенты:** разогрей оливковое масло в сковороде, затем обжарь нарезанный кубиками лук, измельченный чеснок и имбирь до появления аромата.\n2. **Добавь твердые овощи:** нарежь морковь и болгарский перец небольшими кусочками. Добавь их к луку вместе с молотым кумином, [куркумой](wiki:Turmeric) и щепоткой порошка чили или карри.\n3. **Потуши:** добавь промытый нут вместе со стаканом овощного бульона или кокосового молока. Накрой крышкой и туши 10–12 минут, пока морковь не станет мягкой.\n4. **Добавь шпинат:** в самом конце добавь свежий шпинат на 1–2 минуты, пока он не станет мягким и ярко-зеленым. В конце сбрызни лимонным соком.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Какой вариант приготовления ты выберешь сегодня?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Свежий и хрустящий рубленый салат\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Хрустящие жареные оладьи или котлетки\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Горячее карри или рагу в одной сковороде\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Найти более подробные инструкции и точные пропорции ингредиентов для карри на сковороде"
+      },
+      "follow_up_2": {
+        "text": "Объяснить, как подготовить и хранить готовые оладьи из нута для заготовок"
+      },
+      "follow_up_3": {
+        "text": "Найти рецепты веганских соусов на основе йогурта к оладьям из нута"
+      },
+      "follow_up_4": {
+        "text": "Предложить простые замены специй, если нет порошка карри для блюда на сковороде"
+      },
+      "follow_up_5": {
+        "text": "Найти альтернативные рецепты заправок с тахини для тайского рубленого салата"
+      },
+      "follow_up_6": {
+        "text": "Сравнить содержание белка и клетчатки в этих трех вегетарианских рецептах"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Финансовые показатели Vital Farms в SEC"
@@ -11036,70 +11109,6 @@
       },
       "follow_up_6": {
         "text": "Сравнить различные методы превращения устных идей в организованные задачи"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Вегетарианские рецепты из продуктов в холодильнике"
-      },
-      "summary": {
-        "text": "Пользователь попросил идеи вегетарианских рецептов со шпинатом, морковью, болгарским перцем и нутом; ассистент предложил три варианта."
-      },
-      "message_1": {
-        "text": "Посоветуешь вегетарианские рецепты? У меня в холодильнике остались шпинат, морковь, болгарский перец и нут."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nИмея под рукой **шпинат, морковь, болгарский перец и нут**, у тебя есть отличная основа для вкусных вегетарианских блюд, богатых клетчаткой. \n\nВот три разных кулинарных направления в зависимости от того, чего тебе хочется:\n\n---\n\n### 1. Свежий и хрустящий: рубленый салат в тайском стиле\nЕсли хочется чего-то быстрого, легкого и хрустящего, смешай мелко нарезанный сырой перец, морковь и шпинат с нутом в пикантной [арахисовой](wiki:Peanut) заправке с лаймом.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Аппетитные котлетки: хрустящие оладьи из нута и овощей\nЕсли тебе хочется чего-то теплого и порционного (отлично подходит для роллов, питы или с йогуртовым соусом), разомни нут и добавь в него измельченную морковь, перец и припущенный шпинат.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Быстрый вариант на ужин: теплое карри из нута и овощей на сковороде\nЕсли тебе нужно блюдо в одной сковороде из базовых продуктов (таких как консервированное кокосовое молоко или протертые томаты):\n1. **Обжарь ароматные ингредиенты:** разогрей оливковое масло в сковороде, затем обжарь нарезанный кубиками лук, измельченный чеснок и имбирь до появления аромата.\n2. **Добавь твердые овощи:** нарежь морковь и болгарский перец небольшими кусочками. Добавь их к луку вместе с молотым кумином, [куркумой](wiki:Turmeric) и щепоткой порошка чили или карри.\n3. **Потуши:** добавь промытый нут вместе со стаканом овощного бульона или кокосового молока. Накрой крышкой и туши 10–12 минут, пока морковь не станет мягкой.\n4. **Добавь шпинат:** в самом конце добавь свежий шпинат на 1–2 минуты, пока он не станет мягким и ярко-зеленым. В конце сбрызни лимонным соком.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Какой вариант приготовления ты выберешь сегодня?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Свежий и хрустящий рубленый салат\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Хрустящие жареные оладьи или котлетки\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Горячее карри или рагу в одной сковороде\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Найти более подробные инструкции и точные пропорции ингредиентов для карри на сковороде"
-      },
-      "follow_up_2": {
-        "text": "Объяснить, как подготовить и хранить готовые оладьи из нута для заготовок"
-      },
-      "follow_up_3": {
-        "text": "Найти рецепты веганских соусов на основе йогурта к оладьям из нута"
-      },
-      "follow_up_4": {
-        "text": "Предложить простые замены специй, если нет порошка карри для блюда на сковороде"
-      },
-      "follow_up_5": {
-        "text": "Найти альтернативные рецепты заправок с тахини для тайского рубленого салата"
-      },
-      "follow_up_6": {
-        "text": "Сравнить содержание белка и клетчатки в этих трех вегетарианских рецептах"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Сравнение аэрофритюрниц в Германии"
-      },
-      "summary": {
-        "text": "Сравнение популярных аэрофритюрниц на Amazon в Германии по цене, объёму и оценкам с рекомендацией Philips Airfryer серии 2000 для семьи из двух человек."
-      },
-      "message_1": {
-        "text": "Найди аэрофритюрницы, которые можно купить онлайн в Германии, включая предложения Amazon. Сравни текущие цены, объём и оценки покупателей, затем порекомендуй модель для семьи из двух человек со ссылками на источники."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nНиже — сравнение аэрофритюрниц с высокими оценками, которые сейчас продаются на Amazon в Германии: цены, объём и оценки покупателей.\n\n---\n\n### Сравнение популярных моделей в Германии\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Главная рекомендация для семьи из двух человек\n\n#### **Основной выбор: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Почему она лучше всего подходит двоим:**\n  * **Оптимальный объём (6.2 L):** Корзина меньше 4.5–5 L может потребовать готовить в несколько заходов даже на двоих. Корзина объёмом 6.2 L позволяет разложить два филе лосося и полноценный гарнир из овощей или картофеля одним слоем для равномерной готовки.\n  * **Место на кухне:** Модели с двумя зонами (например, Ninja или Russell Hobbs) занимают много места на столешнице. Одна корзина объёмом 6 L даёт достаточно пространства, оставаясь относительно компактной для обычной кухни в Германии.\n  * **Прозрачное окошко:** Позволяет следить за подрумяниванием, не выдвигая корзину и не теряя тепло.\n  * **Соотношение цены и качества:** За €99.99 модель предлагает стабильное поддержание температуры от [Philips](wiki:Philips) по разумной цене.\n\n#### **Альтернатива (если вы часто готовите два блюда при разной температуре): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nЕсли вам нужно одновременно готовить белковые продукты и овощной гарнир при разных температурах и с разным временем приготовления (например, куриную грудку при 180 °C и хрустящий картофель при 200 °C), эта модель сейчас продаётся со скидкой за €119.99 и умеет синхронизировать завершение готовки.\n\n---\n\n### Что учитывать перед покупкой\n1. **Форма корзины:** В квадратные корзины (например, Cosori и Philips) плоские продукты (стейки, формы для выпечки, шпажки) помещаются намного лучше, чем в круглые корзины того же объёма.\n2. **Размер посудомоечной машины:** Убедитесь, что в ней достаточно места по высоте для одной корзины объёмом 6 L. Чтобы продлить срок службы антипригарного покрытия, его можно мыть вручную."
-      },
-      "follow_up_1": {
-        "text": "Найти рецепты специально для аэрофритюрниц"
-      },
-      "follow_up_2": {
-        "text": "Объяснить основные различия между аэрофритюрницами с одной и двумя корзинами"
-      },
-      "follow_up_3": {
-        "text": "Найти совместимые аксессуары для выпечки для этой аэрофритюрницы"
-      },
-      "follow_up_4": {
-        "text": "Подобрать простые рецепты ужина в аэрофритюрнице для начинающих"
-      },
-      "follow_up_5": {
-        "text": "Проверить текущие показатели энергопотребления этих моделей"
-      },
-      "follow_up_6": {
-        "text": "Сравнить требования к очистке и уходу за керамическим и тефлоновым покрытием"
       }
     }
   },

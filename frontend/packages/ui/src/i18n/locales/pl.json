@@ -3233,7 +3233,7 @@
         "text": "aby odblokować wszystkie funkcje, zachować czaty i mieć do nich dostęp na wszystkich swoich urządzeniach."
       },
       "daily_credits_exhausted": {
-        "text": "Wykorzystałeś bezpłatne dzienne kredyty. Zarejestruj się i kup kredyty, aby w pełni korzystać z OpenMates."
+        "text": "Osiągnięto limit bezpłatnego korzystania. Zarejestruj się, aby kontynuować."
       }
     },
     "interactive_question_failed": {
@@ -8408,6 +8408,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Ulepszanie transkrypcji…"
+      },
+      "removing_filler_words": {
+        "text": "Usuwanie słów wypełniających…"
+      },
+      "making_more_concise": {
+        "text": "Skracanie tekstu…"
+      },
       "recording": {
         "text": "Nagrywanie..."
       },
@@ -8488,6 +8497,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Porównanie frytkownic beztłuszczowych w Niemczech"
+      },
+      "summary": {
+        "text": "Porównano najpopularniejsze frytkownice beztłuszczowe na Amazon Niemcy pod kątem ceny, pojemności i ocen, rekomendując model Philips Airfryer z serii 2000 dla dwuosobowego gospodarstwa domowego."
+      },
+      "message_1": {
+        "text": "Znajdź frytkownice beztłuszczowe, które mogę kupić online w Niemczech, w tym oferty na Amazonie. Porównaj aktualne ceny, pojemności i oceny, a następnie poleć jedną dla dwuosobowego gospodarstwa domowego wraz z linkami źródłowymi."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nOto porównanie najwyżej ocenianych frytkownic beztłuszczowych dostępnych obecnie na Amazon Germany, uwzględniające cenę, pojemność i oceny klientów.\n\n---\n\n### Porównanie popularnych modeli w Niemczech\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Najlepsza rekomendacja dla gospodarstwa domowego 2-osobowego\n\n#### **Główny wybór: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Dlaczego najlepiej pasuje dla dwóch osób:**\n  * **Optymalna pojemność (6,2 l):** Kosze mniejsze niż 4,5–5 l wymagają gotowania w kilku partiach nawet dla dwóch osób. Kosz o pojemności 6,2 l pozwala na ułożenie dwóch filetów z łososia i pełnej porcji warzyw lub frytek płasko w jednej warstwie, co zapewnia równomierne chrupanie.\n  * **Miejsce w kuchni:** Urządzenia dwustrefowe (takie jak Ninja czy Russell Hobbs) zajmują dużo miejsca na blacie. Pojedynczy kosz o pojemności 6 l zapewnia dużą objętość, zachowując jednocześnie kompaktowe wymiary, odpowiednie dla typowych niemieckich blatów kuchennych.\n  * **Przezroczyste okienko:** Pozwala sprawdzić stopień zarumienienia bez wysuwania szuflady i utraty ciepła.\n  * **Wartość:** W cenie 99,99 € oferuje niezawodną stabilność temperatury od firmy [Philips](wiki:Philips) w rozsądnej cenie.\n\n#### **Alternatywa (jeśli często gotujesz dwa dania w różnych temperaturach): [Philips Dual Basket 3000 Series (9,0 l)](embed:philips-airfryer-dual-pjD)**\nJeśli Ty i Twój partner wolicie przygotowywać białka i warzywa jednocześnie w różnych temperaturach i czasie (np. piersi z kurczaka w 180°C i chrupiące ziemniaki w 200°C), ten model jest obecnie przeceniony na 119,99 € i posiada funkcję synchronizacji czasu gotowania.\n\n---\n\n### Kluczowe czynniki, o których warto pamiętać przed zakupem\n1. **Kształt szuflady:** Kwadratowe kosze (takie jak Cosori i Philips) znacznie lepiej mieszczą płaskie produkty (steki, formy do pieczenia, szaszłyki) niż okrągłe kosze o tej samej pojemności litrowej.\n2. **Miejsce w zmywarce:** Upewnij się, że Twoja zmywarka ma wystarczającą wysokość kosza na pojedynczą szufladę o pojemności 6 l, lub rozważ ręczne mycie powłok nieprzywierających, aby przedłużyć ich żywotność."
+      },
+      "follow_up_1": {
+        "text": "Szukaj przepisów przeznaczonych specjalnie do frytkownic beztłuszczowych"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij główne różnice między frytkownicami z jednym a dwoma koszami"
+      },
+      "follow_up_3": {
+        "text": "Znajdź kompatybilne akcesoria do pieczenia dla tej frytkownicy"
+      },
+      "follow_up_4": {
+        "text": "Wymień proste przepisy na obiad z frytkownicy beztłuszczowej dla początkujących"
+      },
+      "follow_up_5": {
+        "text": "Sprawdź aktualne klasy zużycia energii dla tych modeli"
+      },
+      "follow_up_6": {
+        "text": "Porównaj wymagania dotyczące czyszczenia i konserwacji powłok ceramicznych i teflonowych"
       }
     },
     "artemis_ii_mission": {
@@ -10974,6 +11015,38 @@
         "text": "Wyjaśnij dobór kondensatorów odsprzęgających"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Wegetariańskie pomysły na dania z zapasów z lodówki"
+      },
+      "summary": {
+        "text": "Użytkownik poprosił o wegetariańskie przepisy z wykorzystaniem szpinaku, marchwi, papryki i ciecierzycy; asystent zaproponował trzy opcje."
+      },
+      "message_1": {
+        "text": "Jakieś polecenia na wegetariańskie przepisy? Mam w lodówce szpinak, marchew, paprykę i ciecierzycę."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMając **szpinak, marchewkę, paprykę i ciecierzycę**, masz solidną bazę do przygotowania pysznych, bogatych w błonnik wegetariańskich posiłków. \n\nOto trzy różne kierunki kulinarne, w zależności od tego, na co masz ochotę:\n\n---\n\n### 1. Świeża i chrupiąca: Sałatka siekana w stylu tajskim\nJeśli chcesz czegoś szybkiego, lekkiego i chrupiącego, połącz drobno posiekaną surową paprykę, marchewkę i szpinak z ciecierzycą w wyrazistym [orzechowym](wiki:Peanut) sosie z limonką.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Wytrawne placuszki: Chrupiące kotleciki z ciecierzycy i warzyw\nJeśli masz ochotę na coś ciepłego i w sam raz na jeden kęs (świetne do wrapów, chlebków pita lub z dipem jogurtowym), rozgnieć ciecierzycę i wymieszaj z posiekaną marchewką, papryką i podduszonym szpinakiem.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Szybka alternatywa na kolację: Rozgrzewające curry z ciecierzycą i warzywami z patelni\nJeśli chcesz dania jednogarnkowego z podstawowych produktów (takich jak mleczko kokosowe w puszce lub krojone pomidory):\n1. **Podsmaż bazę:** Rozgrzej oliwę na patelni, a następnie podsmaż pokrojoną w kostkę cebulę, posiekany czosnek i imbir, aż zaczną pachnieć.\n2. **Dodaj twarde warzywa:** Pokrój marchewkę i paprykę na kawałki wielkości kęsa. Wrzuć je na patelnię wraz z mielonym kminem rzymskim, [kurkumą](wiki:Turmeric) oraz szczyptą chili lub przyprawy curry.\n3. **Duś:** Dodaj opłukaną ciecierzycę wraz ze szklanką bulionu warzywnego lub mleczka kokosowego. Przykryj i duś przez 10–12 minut, aż marchewka zmięknie.\n4. **Dodaj szpinak:** Na samym końcu wrzuć świeży szpinak i gotuj przez 1–2 minuty, aż zwiędnie i nabierze intensywnego koloru. Wykończ danie odrobiną soku z cytryny.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Który styl gotowania wybierasz dzisiaj?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Świeża i chrupiąca sałatka siekana\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Chrupiące smażone placuszki lub kotleciki\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Rozgrzewające curry lub gulasz jednogarnkowy\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Wyszukaj bardziej szczegółowe instrukcje i dokładne proporcje składników dla curry z patelni"
+      },
+      "follow_up_2": {
+        "text": "Wyjaśnij, jak przygotować i przechowywać resztki smażonych placuszków z ciecierzycy w ramach meal prepu"
+      },
+      "follow_up_3": {
+        "text": "Wyszukaj przepisy na wegańskie dipy jogurtowe, które dobrze pasują do placuszków z ciecierzycy"
+      },
+      "follow_up_4": {
+        "text": "Wymień proste zamienniki przypraw, jeśli nie mam przyprawy curry do dania z patelni"
+      },
+      "follow_up_5": {
+        "text": "Wyszukaj alternatywne przepisy na dressing z tahini do sałatki siekanej w stylu tajskim"
+      },
+      "follow_up_6": {
+        "text": "Porównaj zawartość białka i błonnika w tych trzech wegetariańskich przepisach"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Dane finansowe Vital Farms z SEC"
@@ -11036,70 +11109,6 @@
       },
       "follow_up_6": {
         "text": "Porównaj różne metody zamiany wypowiedzianych pomysłów w uporządkowane zadania"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Wegetariańskie pomysły na dania z zapasów z lodówki"
-      },
-      "summary": {
-        "text": "Użytkownik poprosił o wegetariańskie przepisy z wykorzystaniem szpinaku, marchwi, papryki i ciecierzycy; asystent zaproponował trzy opcje."
-      },
-      "message_1": {
-        "text": "Jakieś polecenia na wegetariańskie przepisy? Mam w lodówce szpinak, marchew, paprykę i ciecierzycę."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMając **szpinak, marchewkę, paprykę i ciecierzycę**, masz solidną bazę do przygotowania pysznych, bogatych w błonnik wegetariańskich posiłków. \n\nOto trzy różne kierunki kulinarne, w zależności od tego, na co masz ochotę:\n\n---\n\n### 1. Świeża i chrupiąca: Sałatka siekana w stylu tajskim\nJeśli chcesz czegoś szybkiego, lekkiego i chrupiącego, połącz drobno posiekaną surową paprykę, marchewkę i szpinak z ciecierzycą w wyrazistym [orzechowym](wiki:Peanut) sosie z limonką.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Wytrawne placuszki: Chrupiące kotleciki z ciecierzycy i warzyw\nJeśli masz ochotę na coś ciepłego i w sam raz na jeden kęs (świetne do wrapów, chlebków pita lub z dipem jogurtowym), rozgnieć ciecierzycę i wymieszaj z posiekaną marchewką, papryką i podduszonym szpinakiem.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Szybka alternatywa na kolację: Rozgrzewające curry z ciecierzycą i warzywami z patelni\nJeśli chcesz dania jednogarnkowego z podstawowych produktów (takich jak mleczko kokosowe w puszce lub krojone pomidory):\n1. **Podsmaż bazę:** Rozgrzej oliwę na patelni, a następnie podsmaż pokrojoną w kostkę cebulę, posiekany czosnek i imbir, aż zaczną pachnieć.\n2. **Dodaj twarde warzywa:** Pokrój marchewkę i paprykę na kawałki wielkości kęsa. Wrzuć je na patelnię wraz z mielonym kminem rzymskim, [kurkumą](wiki:Turmeric) oraz szczyptą chili lub przyprawy curry.\n3. **Duś:** Dodaj opłukaną ciecierzycę wraz ze szklanką bulionu warzywnego lub mleczka kokosowego. Przykryj i duś przez 10–12 minut, aż marchewka zmięknie.\n4. **Dodaj szpinak:** Na samym końcu wrzuć świeży szpinak i gotuj przez 1–2 minuty, aż zwiędnie i nabierze intensywnego koloru. Wykończ danie odrobiną soku z cytryny.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Który styl gotowania wybierasz dzisiaj?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Świeża i chrupiąca sałatka siekana\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Chrupiące smażone placuszki lub kotleciki\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Rozgrzewające curry lub gulasz jednogarnkowy\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Wyszukaj bardziej szczegółowe instrukcje i dokładne proporcje składników dla curry z patelni"
-      },
-      "follow_up_2": {
-        "text": "Wyjaśnij, jak przygotować i przechowywać resztki smażonych placuszków z ciecierzycy w ramach meal prepu"
-      },
-      "follow_up_3": {
-        "text": "Wyszukaj przepisy na wegańskie dipy jogurtowe, które dobrze pasują do placuszków z ciecierzycy"
-      },
-      "follow_up_4": {
-        "text": "Wymień proste zamienniki przypraw, jeśli nie mam przyprawy curry do dania z patelni"
-      },
-      "follow_up_5": {
-        "text": "Wyszukaj alternatywne przepisy na dressing z tahini do sałatki siekanej w stylu tajskim"
-      },
-      "follow_up_6": {
-        "text": "Porównaj zawartość białka i błonnika w tych trzech wegetariańskich przepisach"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Porównanie frytkownic beztłuszczowych w Niemczech"
-      },
-      "summary": {
-        "text": "Porównano najpopularniejsze frytkownice beztłuszczowe na Amazon Niemcy pod kątem ceny, pojemności i ocen, rekomendując model Philips Airfryer z serii 2000 dla dwuosobowego gospodarstwa domowego."
-      },
-      "message_1": {
-        "text": "Znajdź frytkownice beztłuszczowe, które mogę kupić online w Niemczech, w tym oferty na Amazonie. Porównaj aktualne ceny, pojemności i oceny, a następnie poleć jedną dla dwuosobowego gospodarstwa domowego wraz z linkami źródłowymi."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nOto porównanie najwyżej ocenianych frytkownic beztłuszczowych dostępnych obecnie na Amazon Germany, uwzględniające cenę, pojemność i oceny klientów.\n\n---\n\n### Porównanie popularnych modeli w Niemczech\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Najlepsza rekomendacja dla gospodarstwa domowego 2-osobowego\n\n#### **Główny wybór: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Dlaczego najlepiej pasuje dla dwóch osób:**\n  * **Optymalna pojemność (6,2 l):** Kosze mniejsze niż 4,5–5 l wymagają gotowania w kilku partiach nawet dla dwóch osób. Kosz o pojemności 6,2 l pozwala na ułożenie dwóch filetów z łososia i pełnej porcji warzyw lub frytek płasko w jednej warstwie, co zapewnia równomierne chrupanie.\n  * **Miejsce w kuchni:** Urządzenia dwustrefowe (takie jak Ninja czy Russell Hobbs) zajmują dużo miejsca na blacie. Pojedynczy kosz o pojemności 6 l zapewnia dużą objętość, zachowując jednocześnie kompaktowe wymiary, odpowiednie dla typowych niemieckich blatów kuchennych.\n  * **Przezroczyste okienko:** Pozwala sprawdzić stopień zarumienienia bez wysuwania szuflady i utraty ciepła.\n  * **Wartość:** W cenie 99,99 € oferuje niezawodną stabilność temperatury od firmy [Philips](wiki:Philips) w rozsądnej cenie.\n\n#### **Alternatywa (jeśli często gotujesz dwa dania w różnych temperaturach): [Philips Dual Basket 3000 Series (9,0 l)](embed:philips-airfryer-dual-pjD)**\nJeśli Ty i Twój partner wolicie przygotowywać białka i warzywa jednocześnie w różnych temperaturach i czasie (np. piersi z kurczaka w 180°C i chrupiące ziemniaki w 200°C), ten model jest obecnie przeceniony na 119,99 € i posiada funkcję synchronizacji czasu gotowania.\n\n---\n\n### Kluczowe czynniki, o których warto pamiętać przed zakupem\n1. **Kształt szuflady:** Kwadratowe kosze (takie jak Cosori i Philips) znacznie lepiej mieszczą płaskie produkty (steki, formy do pieczenia, szaszłyki) niż okrągłe kosze o tej samej pojemności litrowej.\n2. **Miejsce w zmywarce:** Upewnij się, że Twoja zmywarka ma wystarczającą wysokość kosza na pojedynczą szufladę o pojemności 6 l, lub rozważ ręczne mycie powłok nieprzywierających, aby przedłużyć ich żywotność."
-      },
-      "follow_up_1": {
-        "text": "Szukaj przepisów przeznaczonych specjalnie do frytkownic beztłuszczowych"
-      },
-      "follow_up_2": {
-        "text": "Wyjaśnij główne różnice między frytkownicami z jednym a dwoma koszami"
-      },
-      "follow_up_3": {
-        "text": "Znajdź kompatybilne akcesoria do pieczenia dla tej frytkownicy"
-      },
-      "follow_up_4": {
-        "text": "Wymień proste przepisy na obiad z frytkownicy beztłuszczowej dla początkujących"
-      },
-      "follow_up_5": {
-        "text": "Sprawdź aktualne klasy zużycia energii dla tych modeli"
-      },
-      "follow_up_6": {
-        "text": "Porównaj wymagania dotyczące czyszczenia i konserwacji powłok ceramicznych i teflonowych"
       }
     }
   },

@@ -447,6 +447,7 @@ describe("anonymousChatStorage", () => {
     const result = await storage.sendTextMessage({ markdown: "Search official docs" });
     const messages = await storage.getMessagesForChat(result.chat.chat_id);
 
+    expect(result.rejectionReason).toBe("anonymous_usage_limit");
     expect(result.userMessage.status).toBe("synced");
     expect(result.assistantMessage).toEqual(expect.objectContaining({
       message_id: "limited-assistant",
@@ -487,6 +488,7 @@ describe("anonymousChatStorage", () => {
     const storage = await loadStorage();
     const result = await storage.sendTextMessage({ markdown: "A costly request" });
 
+    expect(result.rejectionReason).toBe("anonymous_usage_limit");
     expect(result.assistantMessage).toEqual(expect.objectContaining({ content: notice, status: "failed" }));
     expect(await storage.getMessagesForChat(result.chat.chat_id)).toEqual(expect.arrayContaining([
       expect.objectContaining({ role: "user", content: "A costly request", status: "synced" }),

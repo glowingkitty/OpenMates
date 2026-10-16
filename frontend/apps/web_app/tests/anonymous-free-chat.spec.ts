@@ -870,10 +870,10 @@ test.describe('Anonymous free chat', () => {
 		await page.locator('[data-action="send-message"]').click();
 
 		await expect(page.getByTestId('notification').filter({
-			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
+			hasText: "You've reached the free usage limit. Sign up to continue."
 		})).toBeVisible({ timeout: 5000 });
 		const exhaustedNotification = page.getByTestId('notification').filter({
-			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
+			hasText: "You've reached the free usage limit. Sign up to continue."
 		});
 		await expect(exhaustedNotification.getByTestId('notification-action')).toContainText('Sign up');
 		await exhaustedNotification.getByTestId('notification-action').click();

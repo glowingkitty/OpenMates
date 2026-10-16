@@ -3233,7 +3233,7 @@
         "text": "لفتح جميع الميزات والاحتفاظ بمحادثاتك والوصول إليها من جميع أجهزتك."
       },
       "daily_credits_exhausted": {
-        "text": "لقد استخدمت رصيدك اليومي المجاني. سجّل واشترِ رصيدًا للاستفادة الكاملة من OpenMates."
+        "text": "لقد وصلت إلى حد الاستخدام المجاني. سجّل للمتابعة."
       }
     },
     "interactive_question_failed": {
@@ -8408,6 +8408,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "جارٍ تحسين النص المفرّغ…"
+      },
+      "removing_filler_words": {
+        "text": "جارٍ إزالة الكلمات الحشو…"
+      },
+      "making_more_concise": {
+        "text": "جارٍ جعل النص أكثر إيجازًا…"
+      },
       "recording": {
         "text": "جاري التسجيل..."
       },
@@ -8488,6 +8497,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "مقارنة القلايات الهوائية في ألمانيا"
+      },
+      "summary": {
+        "text": "مقارنة لأفضل القلايات الهوائية على أمازون ألمانيا من حيث السعر والسعة والتقييمات، مع التوصية بـ Philips Airfryer 2000 Series لأسرة مكونة من شخصين."
+      },
+      "message_1": {
+        "text": "ابحث عن قلايات هوائية يمكنني شراؤها عبر الإنترنت في ألمانيا، بما في ذلك قوائم أمازون. قارن بين الأسعار الحالية والسعات وتقييمات المراجعات، ثم رشح واحدة لأسرة مكونة من شخصين مع روابط المصادر."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nإليك مقارنة بين أفضل المقالي الهوائية المتاحة حاليًا على أمازون ألمانيا، مع مقارنة السعر والسعة وتقييمات العملاء.\n\n---\n\n### مقارنة بين الموديلات الشهيرة في ألمانيا\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### أفضل توصية لمنزل مكون من شخصين\n\n#### **الاختيار الأساسي: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **لماذا تناسب شخصين بشكل أفضل:**\n  * **سعة مثالية (6.2 لتر):** السلال الأصغر من 4.5-5 لتر تتطلب الطهي على دفعات متعددة حتى لشخصين. تتيح لك السلة بسعة 6.2 لتر وضع شريحتين من السلمون مع كمية كاملة من الخضار أو البطاطس المقلية في طبقة واحدة للحصول على قرمشة متساوية.\n  * **المساحة في المطبخ:** الأجهزة ذات المنطقتين (مثل Ninja أو Russell Hobbs) تشغل مساحة كبيرة على سطح العمل. توفر السلة الواحدة بسعة 6 لتر حجمًا وافرًا مع الحفاظ على حجم مدمج مناسب لأسطح عمل المطابخ الألمانية التقليدية.\n  * **نافذة شفافة:** تسمح بالتحقق من درجة التحمير دون فتح الدرج وفقدان الحرارة.\n  * **القيمة:** بسعر 99.99 يورو، توفر ثباتًا موثوقًا في درجة الحرارة من [Philips](wiki:Philips) بسعر معقول.\n\n#### **بديل (إذا كنت تطهو طبقين بانتظام بدرجات حرارة مختلفة): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nإذا كنت تفضل أنت وشريكك تحضير البروتينات والخضروات الجانبية في وقت واحد بدرجات حرارة وتوقيتات مختلفة (مثل صدور الدجاج عند 180 درجة مئوية والبطاطس المقرمشة عند 200 درجة مئوية)، فإن هذا الموديل مخفض حاليًا إلى 119.99 يورو ويتميز بأوقات طهي متزامنة.\n\n---\n\n### عوامل رئيسية يجب مراعاتها قبل الشراء\n1. **شكل الدرج:** السلال المربعة (مثل Cosori وPhilips) تستوعب الأطعمة المسطحة (شرائح اللحم، صواني الخبز، الأسياخ) بشكل أفضل بكثير من السلال المستديرة ذات السعة اللترية المماثلة.\n2. **مساحة غسالة الأطباق:** تأكد من أن غسالة الأطباق لديك بها ارتفاع كافٍ للرف لدرج واحد سعة 6 لتر، أو فكر في غسل الطبقات غير اللاصقة يدويًا لإطالة عمرها الافتراضي."
+      },
+      "follow_up_1": {
+        "text": "ابحث عن وصفات مصممة خصيصاً للقلايات الهوائية"
+      },
+      "follow_up_2": {
+        "text": "اشرح الفروق الرئيسية بين القلايات الهوائية ذات السلة الواحدة والمزدوجة"
+      },
+      "follow_up_3": {
+        "text": "ابحث عن ملحقات خبز متوافقة لهذه القلاية الهوائية"
+      },
+      "follow_up_4": {
+        "text": "أدرج وصفات عشاء سهلة للمبتدئين في القلاية الهوائية"
+      },
+      "follow_up_5": {
+        "text": "تحقق من تقييمات استهلاك الطاقة الحالية لهذه الموديلات"
+      },
+      "follow_up_6": {
+        "text": "قارن بين متطلبات التنظيف والصيانة لطلاء السيراميك مقابل التيفلون"
       }
     },
     "artemis_ii_mission": {
@@ -10974,6 +11015,38 @@
         "text": "اشرح أسباب اختيار مكثفات الفصل (decoupling capacitors)"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "أفكار لوصفات نباتية بمكونات الثلاجة الأساسية"
+      },
+      "summary": {
+        "text": "طلب المستخدم أفكاراً لوصفات نباتية باستخدام السبانخ والجزر والفلفل الحلو والحمص؛ وقدم المساعد ثلاثة خيارات."
+      },
+      "message_1": {
+        "text": "هل لديك توصيات لوصفات نباتية؟ لا يزال لدي سبانخ وجزر وفلفل حلو وحمص في الثلاجة."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nمع **السبانخ، والجزر، والفلفل الحلو، والحمص**، لديك أساس متين لوجبات نباتية لذيذة وغنية بالألياف. \n\nإليك ثلاثة اتجاهات طهي مختلفة بناءً على نوع الطبق الذي تشتهيه:\n\n---\n\n### 1. طازجة ومقرمشة: سلطة مقطعة على الطريقة التايلاندية\nإذا كنت تريد شيئاً سريعاً وخفيفاً ومقرمشاً، امزج الفلفل النيئ المقطع ناعماً والجزر والسبانخ مع الحمص في تتبيلة [الفول السوداني](wiki:Peanut) والليمون الحامضة.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. فطائر مالحة: عجة الحمص والخضروات المقرمشة\nإذا كنت تفضل شيئاً دافئاً وبحجم اللقمة (رائع في السندويشات، أو خبز البيتا، أو مع تغميسة الزبادي)، اهرس الحمص وأضف إليه الجزر المفروم والفلفل والسبانخ المذبلة.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. بديل سريع لأيام الأسبوع: كاري الحمص والخضروات الدافئ في المقلاة\nإذا كنت تريد وجبة في مقلاة واحدة باستخدام المكونات الأساسية المتوفرة (مثل حليب جوز الهند المعلب أو الطماطم المهروسة):\n1. **شوّح المنكهات:** سخن زيت الزيتون في مقلاة، ثم اطبخ البصل المقطع والثوم المفروم والزنجبيل حتى تظهر رائحتهم.\n2. **أضف الخضروات الصلبة:** قطع الجزر والفلفل الحلو إلى قطع صغيرة. أضفها مع الكمون المطحون، و[الكركم](wiki:Turmeric)، ورشة من مسحوق الفلفل الحار أو مسحوق الكاري.\n3. **اتركها على نار هادئة:** أضف الحمص المغسول مع كوب من مرق الخضار أو حليب جوز الهند. غطِ المقلاة واتركها على نار هادئة لمدة 10–12 دقيقة حتى ينضج الجزر.\n4. **ذبل السبانخ:** أضف السبانخ الطازجة في النهاية لمدة 1–2 دقيقة حتى تذبل ويصبح لونها أخضر زاهياً. اختم الوجبة بعصرة من عصير الليمون.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"أي أسلوب طهي تفضل إعداده اليوم؟\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"سلطة مقطعة طازجة ومقرمشة\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"فطائر أو عجة مقلية مقرمشة\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"كاري أو يخنة دافئة في مقلاة واحدة\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "ابحث عن تعليمات أكثر تفصيلاً ومقادير المكونات الكاملة لطبق الكاري في المقلاة"
+      },
+      "follow_up_2": {
+        "text": "اشرح كيفية تحضير وتخزين بقايا فطائر الحمص المطهوة لتجهيز الوجبات مسبقاً"
+      },
+      "follow_up_3": {
+        "text": "ابحث عن وصفات لغموس الزبادي النباتي التي تتناسب مع فطائر الحمص"
+      },
+      "follow_up_4": {
+        "text": "اذكر بدائل بسيطة للتوابل إذا لم يتوفر لدي مسحوق الكاري لطبق المقلاة"
+      },
+      "follow_up_5": {
+        "text": "ابحث عن وصفات بديلة لصلصة السلطة باستخدام الطحينة للسلطة المقطعة على الطريقة التايلاندية"
+      },
+      "follow_up_6": {
+        "text": "قارن بين محتوى البروتين والألياف لخيارات الوصفات النباتية الثلاثة هذه"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "البيانات المالية لشركة Vital Farms من SEC"
@@ -11036,70 +11109,6 @@
       },
       "follow_up_6": {
         "text": "قارن بين الطرق المختلفة لتحويل الأفكار المنطوقة إلى مهام منظمة"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "أفكار لوصفات نباتية بمكونات الثلاجة الأساسية"
-      },
-      "summary": {
-        "text": "طلب المستخدم أفكاراً لوصفات نباتية باستخدام السبانخ والجزر والفلفل الحلو والحمص؛ وقدم المساعد ثلاثة خيارات."
-      },
-      "message_1": {
-        "text": "هل لديك توصيات لوصفات نباتية؟ لا يزال لدي سبانخ وجزر وفلفل حلو وحمص في الثلاجة."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nمع **السبانخ، والجزر، والفلفل الحلو، والحمص**، لديك أساس متين لوجبات نباتية لذيذة وغنية بالألياف. \n\nإليك ثلاثة اتجاهات طهي مختلفة بناءً على نوع الطبق الذي تشتهيه:\n\n---\n\n### 1. طازجة ومقرمشة: سلطة مقطعة على الطريقة التايلاندية\nإذا كنت تريد شيئاً سريعاً وخفيفاً ومقرمشاً، امزج الفلفل النيئ المقطع ناعماً والجزر والسبانخ مع الحمص في تتبيلة [الفول السوداني](wiki:Peanut) والليمون الحامضة.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. فطائر مالحة: عجة الحمص والخضروات المقرمشة\nإذا كنت تفضل شيئاً دافئاً وبحجم اللقمة (رائع في السندويشات، أو خبز البيتا، أو مع تغميسة الزبادي)، اهرس الحمص وأضف إليه الجزر المفروم والفلفل والسبانخ المذبلة.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. بديل سريع لأيام الأسبوع: كاري الحمص والخضروات الدافئ في المقلاة\nإذا كنت تريد وجبة في مقلاة واحدة باستخدام المكونات الأساسية المتوفرة (مثل حليب جوز الهند المعلب أو الطماطم المهروسة):\n1. **شوّح المنكهات:** سخن زيت الزيتون في مقلاة، ثم اطبخ البصل المقطع والثوم المفروم والزنجبيل حتى تظهر رائحتهم.\n2. **أضف الخضروات الصلبة:** قطع الجزر والفلفل الحلو إلى قطع صغيرة. أضفها مع الكمون المطحون، و[الكركم](wiki:Turmeric)، ورشة من مسحوق الفلفل الحار أو مسحوق الكاري.\n3. **اتركها على نار هادئة:** أضف الحمص المغسول مع كوب من مرق الخضار أو حليب جوز الهند. غطِ المقلاة واتركها على نار هادئة لمدة 10–12 دقيقة حتى ينضج الجزر.\n4. **ذبل السبانخ:** أضف السبانخ الطازجة في النهاية لمدة 1–2 دقيقة حتى تذبل ويصبح لونها أخضر زاهياً. اختم الوجبة بعصرة من عصير الليمون.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"أي أسلوب طهي تفضل إعداده اليوم؟\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"سلطة مقطعة طازجة ومقرمشة\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"فطائر أو عجة مقلية مقرمشة\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"كاري أو يخنة دافئة في مقلاة واحدة\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "ابحث عن تعليمات أكثر تفصيلاً ومقادير المكونات الكاملة لطبق الكاري في المقلاة"
-      },
-      "follow_up_2": {
-        "text": "اشرح كيفية تحضير وتخزين بقايا فطائر الحمص المطهوة لتجهيز الوجبات مسبقاً"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن وصفات لغموس الزبادي النباتي التي تتناسب مع فطائر الحمص"
-      },
-      "follow_up_4": {
-        "text": "اذكر بدائل بسيطة للتوابل إذا لم يتوفر لدي مسحوق الكاري لطبق المقلاة"
-      },
-      "follow_up_5": {
-        "text": "ابحث عن وصفات بديلة لصلصة السلطة باستخدام الطحينة للسلطة المقطعة على الطريقة التايلاندية"
-      },
-      "follow_up_6": {
-        "text": "قارن بين محتوى البروتين والألياف لخيارات الوصفات النباتية الثلاثة هذه"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "مقارنة القلايات الهوائية في ألمانيا"
-      },
-      "summary": {
-        "text": "مقارنة لأفضل القلايات الهوائية على أمازون ألمانيا من حيث السعر والسعة والتقييمات، مع التوصية بـ Philips Airfryer 2000 Series لأسرة مكونة من شخصين."
-      },
-      "message_1": {
-        "text": "ابحث عن قلايات هوائية يمكنني شراؤها عبر الإنترنت في ألمانيا، بما في ذلك قوائم أمازون. قارن بين الأسعار الحالية والسعات وتقييمات المراجعات، ثم رشح واحدة لأسرة مكونة من شخصين مع روابط المصادر."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nإليك مقارنة بين أفضل المقالي الهوائية المتاحة حاليًا على أمازون ألمانيا، مع مقارنة السعر والسعة وتقييمات العملاء.\n\n---\n\n### مقارنة بين الموديلات الشهيرة في ألمانيا\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### أفضل توصية لمنزل مكون من شخصين\n\n#### **الاختيار الأساسي: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **لماذا تناسب شخصين بشكل أفضل:**\n  * **سعة مثالية (6.2 لتر):** السلال الأصغر من 4.5-5 لتر تتطلب الطهي على دفعات متعددة حتى لشخصين. تتيح لك السلة بسعة 6.2 لتر وضع شريحتين من السلمون مع كمية كاملة من الخضار أو البطاطس المقلية في طبقة واحدة للحصول على قرمشة متساوية.\n  * **المساحة في المطبخ:** الأجهزة ذات المنطقتين (مثل Ninja أو Russell Hobbs) تشغل مساحة كبيرة على سطح العمل. توفر السلة الواحدة بسعة 6 لتر حجمًا وافرًا مع الحفاظ على حجم مدمج مناسب لأسطح عمل المطابخ الألمانية التقليدية.\n  * **نافذة شفافة:** تسمح بالتحقق من درجة التحمير دون فتح الدرج وفقدان الحرارة.\n  * **القيمة:** بسعر 99.99 يورو، توفر ثباتًا موثوقًا في درجة الحرارة من [Philips](wiki:Philips) بسعر معقول.\n\n#### **بديل (إذا كنت تطهو طبقين بانتظام بدرجات حرارة مختلفة): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nإذا كنت تفضل أنت وشريكك تحضير البروتينات والخضروات الجانبية في وقت واحد بدرجات حرارة وتوقيتات مختلفة (مثل صدور الدجاج عند 180 درجة مئوية والبطاطس المقرمشة عند 200 درجة مئوية)، فإن هذا الموديل مخفض حاليًا إلى 119.99 يورو ويتميز بأوقات طهي متزامنة.\n\n---\n\n### عوامل رئيسية يجب مراعاتها قبل الشراء\n1. **شكل الدرج:** السلال المربعة (مثل Cosori وPhilips) تستوعب الأطعمة المسطحة (شرائح اللحم، صواني الخبز، الأسياخ) بشكل أفضل بكثير من السلال المستديرة ذات السعة اللترية المماثلة.\n2. **مساحة غسالة الأطباق:** تأكد من أن غسالة الأطباق لديك بها ارتفاع كافٍ للرف لدرج واحد سعة 6 لتر، أو فكر في غسل الطبقات غير اللاصقة يدويًا لإطالة عمرها الافتراضي."
-      },
-      "follow_up_1": {
-        "text": "ابحث عن وصفات مصممة خصيصاً للقلايات الهوائية"
-      },
-      "follow_up_2": {
-        "text": "اشرح الفروق الرئيسية بين القلايات الهوائية ذات السلة الواحدة والمزدوجة"
-      },
-      "follow_up_3": {
-        "text": "ابحث عن ملحقات خبز متوافقة لهذه القلاية الهوائية"
-      },
-      "follow_up_4": {
-        "text": "أدرج وصفات عشاء سهلة للمبتدئين في القلاية الهوائية"
-      },
-      "follow_up_5": {
-        "text": "تحقق من تقييمات استهلاك الطاقة الحالية لهذه الموديلات"
-      },
-      "follow_up_6": {
-        "text": "قارن بين متطلبات التنظيف والصيانة لطلاء السيراميك مقابل التيفلون"
       }
     }
   },

@@ -359,29 +359,29 @@ anonymous_free_usage.signup_benefits:
   he: כדי לפתוח את כל התכונות, לשמור את הצ׳אטים שלכם ולגשת אליהם מכל המכשירים שלכם.
   verified_by_human: []
 anonymous_free_usage.daily_credits_exhausted:
-  context: Notification shown when an anonymous user tries to send after the free daily credits are used up
-  en: You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.
-  de: Du hast deine kostenlosen Tagescredits aufgebraucht. Registriere dich und kaufe Credits, um OpenMates vollständig zu nutzen.
-  zh: 你已用完今日免费匿名额度。注册并购买积分，即可完整使用 OpenMates。
-  es: Has agotado tus créditos diarios gratuitos. Regístrate y compra créditos para aprovechar OpenMates al máximo.
-  fr: Vous avez utilisé vos crédits quotidiens gratuits. Inscrivez-vous et achetez des crédits pour profiter pleinement d'OpenMates.
-  pt: Você usou seus créditos diários gratuitos. Cadastre-se e compre créditos para aproveitar o OpenMates por completo.
-  ru: Вы израсходовали бесплатные дневные кредиты. Зарегистрируйтесь и купите кредиты, чтобы полноценно пользоваться OpenMates.
-  ja: 無料の1日分クレジットを使い切りました。OpenMates を最大限に利用するには、登録してクレジットを購入してください。
-  ko: 무료 일일 크레딧을 모두 사용했습니다. 가입하고 크레딧을 구매하여 OpenMates를 충분히 활용하세요.
-  it: Hai esaurito i crediti gratuiti giornalieri. Registrati e acquista crediti per usare OpenMates al meglio.
-  tr: Ücretsiz günlük kredilerinizi kullandınız. OpenMates'ten tam olarak yararlanmak için kaydolun ve kredi satın alın.
-  vi: Bạn đã dùng hết tín dụng miễn phí hằng ngày. Hãy đăng ký và mua tín dụng để sử dụng đầy đủ OpenMates.
-  id: Anda telah menghabiskan kredit harian gratis. Daftar dan beli kredit untuk menggunakan OpenMates sepenuhnya.
-  pl: Wykorzystałeś bezpłatne dzienne kredyty. Zarejestruj się i kup kredyty, aby w pełni korzystać z OpenMates.
-  nl: Je hebt je gratis dagelijkse credits opgebruikt. Meld je aan en koop credits om OpenMates volledig te gebruiken.
-  ar: لقد استخدمت رصيدك اليومي المجاني. سجّل واشترِ رصيدًا للاستفادة الكاملة من OpenMates.
-  hi: आपने अपने मुफ्त दैनिक क्रेडिट इस्तेमाल कर लिए हैं। OpenMates का पूरा उपयोग करने के लिए साइन अप करें और क्रेडिट खरीदें।
-  th: คุณใช้เครดิตฟรีรายวันหมดแล้ว สมัครสมาชิกและซื้อเครดิตเพื่อใช้ OpenMates ได้เต็มที่
-  cs: Vyčerpali jste své bezplatné denní kredity. Zaregistrujte se a kupte kredity, abyste mohli OpenMates využívat naplno.
-  sv: Du har använt upp dina kostnadsfria dagliga krediter. Registrera dig och köp krediter för att använda OpenMates fullt ut.
-  he: ניצלת את הקרדיטים היומיים החינמיים שלך. הירשם וקנה קרדיטים כדי להשתמש ב-OpenMates במלואו.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+  context: Notification when a guest reaches the free usage limit and needs to sign up to continue
+  en: You've reached the free usage limit. Sign up to continue.
+  de: Du hast das Limit für die kostenlose Nutzung erreicht. Registriere dich, um fortzufahren.
+  zh: 你已达到免费使用限额。注册即可继续。
+  es: Has alcanzado el límite de uso gratuito. Regístrate para continuar.
+  fr: Vous avez atteint la limite d'utilisation gratuite. Inscrivez-vous pour continuer.
+  pt: Você atingiu o limite de uso gratuito. Cadastre-se para continuar.
+  ru: Вы достигли лимита бесплатного использования. Зарегистрируйтесь, чтобы продолжить.
+  ja: 無料利用の上限に達しました。続けるには登録してください。
+  ko: 무료 사용 한도에 도달했습니다. 계속하려면 가입하세요.
+  it: Hai raggiunto il limite di utilizzo gratuito. Registrati per continuare.
+  tr: Ücretsiz kullanım sınırına ulaştınız. Devam etmek için kaydolun.
+  vi: Bạn đã đạt giới hạn sử dụng miễn phí. Đăng ký để tiếp tục.
+  id: Anda telah mencapai batas penggunaan gratis. Daftar untuk melanjutkan.
+  pl: Osiągnięto limit bezpłatnego korzystania. Zarejestruj się, aby kontynuować.
+  nl: Je hebt de limiet voor gratis gebruik bereikt. Meld je aan om door te gaan.
+  ar: لقد وصلت إلى حد الاستخدام المجاني. سجّل للمتابعة.
+  hi: आप मुफ्त उपयोग की सीमा तक पहुँच गए हैं। जारी रखने के लिए साइन अप करें।
+  th: คุณใช้ครบขีดจำกัดการใช้งานฟรีแล้ว สมัครสมาชิกเพื่อใช้งานต่อ
+  cs: Dosáhli jste limitu bezplatného používání. Zaregistrujte se a pokračujte.
+  sv: Du har nått gränsen för kostnadsfri användning. Registrera dig för att fortsätta.
+  he: הגעת למגבלת השימוש החינמי. יש להירשם כדי להמשיך.
+  verified_by_human: []
 interactive_question_failed:
   context: Fallback shown when an interactive question payload cannot be parsed or displayed
   en: Failed to display question.

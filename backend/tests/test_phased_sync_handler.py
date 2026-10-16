@@ -701,6 +701,36 @@ def test_phase2_metadata_current_handles_missing_cached_message_version() -> Non
     ) is True
 
 
+@pytest.mark.parametrize("cached_messages,stored_messages,client_messages,expected", [
+    (3, None, 3, True),
+    (3, None, 2, False),
+    (None, 3, 3, True),
+    (None, 3, 2, False),
+    (None, None, 0, True),
+])
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
+def test_phase2_metadata_handles_nullable_message_counters(cached_messages, stored_messages, client_messages, expected) -> None:
+    assert _phase2_metadata_is_current(
+        {"messages_v": client_messages, "title_v": 1, "metadata_v": 1, "draft_v": 0},
+        SimpleNamespace(messages_v=cached_messages, title_v=1, metadata_v=1),
+        {"messages_v": stored_messages, "draft_v": None},
+    ) is expected
+
+
+# contract-test: supporting surface=gui.web assertions=sync.phase2.metadata-only,sync.phase2.drafts.authoritative-encrypted
+def test_phase2_nullable_metadata_preserves_newer_server_versions() -> None:
+    assert _phase2_metadata_is_current(
+        {"messages_v": None, "title_v": None, "metadata_v": None, "draft_v": None},
+        SimpleNamespace(messages_v=None, title_v=None, metadata_v=None),
+        {"messages_v": None, "draft_v": None},
+    )
+    assert not _phase2_metadata_is_current(
+        {"messages_v": 3, "title_v": 1, "metadata_v": None, "draft_v": 0},
+        SimpleNamespace(messages_v=3, title_v=1, metadata_v=2),
+        {"messages_v": None, "draft_v": None},
+    )
+
+
 def test_phase1_metadata_invariant_reports_missing_titled_header() -> None:
     violations = _phase1_metadata_invariant_violations(
         {

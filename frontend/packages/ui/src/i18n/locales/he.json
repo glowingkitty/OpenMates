@@ -3233,7 +3233,7 @@
         "text": "כדי לפתוח את כל התכונות, לשמור את הצ׳אטים שלכם ולגשת אליהם מכל המכשירים שלכם."
       },
       "daily_credits_exhausted": {
-        "text": "ניצלת את הקרדיטים היומיים החינמיים שלך. הירשם וקנה קרדיטים כדי להשתמש ב-OpenMates במלואו."
+        "text": "הגעת למגבלת השימוש החינמי. יש להירשם כדי להמשיך."
       }
     },
     "interactive_question_failed": {
@@ -8408,6 +8408,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "משפרים את התמלול…"
+      },
+      "removing_filler_words": {
+        "text": "מסירים מילות מילוי…"
+      },
+      "making_more_concise": {
+        "text": "מקצרים את הניסוח…"
+      },
       "recording": {
         "text": "מקליט..."
       },
@@ -8488,6 +8497,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "השוואת סירי טיגון באוויר חם בגרמניה"
+      },
+      "summary": {
+        "text": "השוואת סירי הטיגון המובילים באמזון גרמניה לפי מחיר, קיבולת ודירוגים, והמלצה על Philips Airfryer 2000 Series למשק בית של שני אנשים."
+      },
+      "message_1": {
+        "text": "מצא סירי טיגון באוויר חם שאפשר לקנות אונליין בגרמניה, כולל רישומים מאמזון. השווה מחירים עדכניים, קיבולות ודירוגי ביקורות, ולאחר מכן המלץ על אחד שמתאים למשק בית של שני אנשים עם קישורים למקורות."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nהנה השוואה של מכשירי הטיגון באוויר (air fryers) בעלי הדירוג הגבוה ביותר הזמינים כעת באמזון גרמניה, תוך השוואת מחיר, קיבולת ודירוגי לקוחות.\n\n---\n\n### השוואה בין דגמים פופולריים בגרמניה\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### המלצה מובילה למשק בית של 2 נפשות\n\n#### **בחירה עיקרית: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **למה הוא הכי מתאים לשני אנשים:**\n  * **קיבולת אופטימלית (6.2 ליטר):** סלסלות קטנות מ-4.5–5 ליטר דורשות בישול בכמה סבבים אפילו עבור שני אנשים. סלסלה של 6.2 ליטר מאפשרת להניח שני פילטים של סלמון ותוספת מלאה של ירקות או צ'יפס בשכבה אחת לקבלת פריכות אחידה.\n  * **שטח פנים במטבח:** מכשירים בעלי אזור כפול (כמו Ninja או Russell Hobbs) תופסים מקום משמעותי על השיש. סלסלה בודדת של 6 ליטר מספקת נפח רב תוך שמירה על שטח פנים קומפקטי המתאים למשטחי עבודה טיפוסיים במטבחים גרמניים.\n  * **חלון שקוף:** מאפשר לבדוק את מידת ההשחמה מבלי לפתוח את המגירה ולאבד חום.\n  * **ערך:** במחיר של €99.99, הוא מציע עקביות טמפרטורה אמינה מבית [Philips](wiki:Philips) במחיר סביר.\n\n#### **חלופה (אם אתם מבשלים לעיתים קרובות שתי מנות בטמפרטורות שונות): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nאם אתם ובני זוגכם מעדיפים להכין חלבונים ותוספות ירקות בו-זמנית בטמפרטורות וזמנים שונים (למשל, חזה עוף ב-180 מעלות צלזיוס וצ'יפס פריך ב-200 מעלות צלזיוס), דגם זה נמצא כעת בהנחה ל-€119.99 וכולל זמני בישול מסונכרנים.\n\n---\n\n### גורמים מרכזיים שיש לקחת בחשבון לפני הקנייה\n1. **צורת המגירה:** סלסלות מרובעות (כמו של Cosori ו-Philips) מתאימות לפריטים שטוחים (סטייקים, תבניות אפייה, שיפודים) הרבה יותר טוב מסלסלות עגולות בעלות קיבולת ליטר זהה.\n2. **מקום במדיח הכלים:** ודאו שבמדיח הכלים שלכם יש מספיק גובה במדף עבור מגירה בודדת של 6 ליטר, או שקלו לשטוף ידנית ציפויים מונעי הידבקות כדי להאריך את חייהם."
+      },
+      "follow_up_1": {
+        "text": "חיפוש מתכונים שתוכננו במיוחד עבור סירי טיגון באוויר חם (Air Fryers)"
+      },
+      "follow_up_2": {
+        "text": "הסבר על ההבדלים העיקריים בין סירי טיגון עם סלסילה אחת לסלסילה כפולה"
+      },
+      "follow_up_3": {
+        "text": "מציאת אביזרי אפייה תואמים לסיר טיגון זה"
+      },
+      "follow_up_4": {
+        "text": "רשימת מתכונים ידידותיים למתחילים להכנת ארוחת ערב בסיר טיגון באוויר חם"
+      },
+      "follow_up_5": {
+        "text": "בדיקת דירוגי צריכת האנרגיה הנוכחיים עבור דגמים אלו"
+      },
+      "follow_up_6": {
+        "text": "השוואת דרישות הניקוי והתחזוקה עבור ציפוי קרמי לעומת ציפוי טפלון"
       }
     },
     "artemis_ii_mission": {
@@ -10974,6 +11015,38 @@
         "text": "הסבר את הבחירה בקבלי הצימוד (Decoupling)"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "רעיונות למתכונים צמחוניים ממוצרים שיש במקרר"
+      },
+      "summary": {
+        "text": "המשתמש ביקש רעיונות למתכונים צמחוניים המשתמשים בתרד, גזר, פלפלים וגרגירי חומוס; העוזר הציע שלוש אפשרויות."
+      },
+      "message_1": {
+        "text": "המלצות למתכונים צמחוניים? נשארו לי במקרר תרד, גזרים, פלפלים וגרגירי חומוס."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nעם **תרד, גזר, פלפלים וחומוס**, יש לך בסיס מצוין לארוחות צמחוניות טעימות ועשירות בסיבים. \n\nהנה שלושה כיוונים קולינריים שונים, בהתאם לסגנון המנה שמתחשק לך:\n\n---\n\n### 1. רענן ופריך: סלט קצוץ בסגנון תאילנדי\nאם מתחשק לך משהו מהיר, קליל ופריך, כדאי לשלב פלפלים חיים קצוצים דק, גזר ותרד עם חומוס ברוטב ליים ו[בוטנים](wiki:Peanut) פיקנטי.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. קציצות מלוחות: לביבות חומוס וירקות פריכות\nאם מתחשק לך משהו חם בגודל ביס (נהדר בטורטייה, בפיתה או לצד מטבל יוגורט), אפשר למעוך את החומוס ולהוסיף גזר קצוץ דק, פלפלים ותרד מאודה.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. חלופה מהירה לאמצע השבוע: תבשיל קארי חומוס וירקות במחבת\nאם מתחשק לך ארוחה במחבת אחת ממרכיבים בסיסיים שיש במזווה (כמו חלב קוקוס בשימורים או עגבניות מרוסקות):\n1. **טיגון הירקות הארומטיים:** מחממים שמן זית במחבת, ומטגנים בצל קצוץ, שום כתוש וג'ינג'ר עד להפצת ריח.\n2. **הוספת הירקות הקשים:** חותכים את הגזר והפלפלים לקוביות בגודל ביס. מוסיפים אותם למחבת יחד עם כמון טחון, [כורכום](wiki:Turmeric) וקורט אבקת צ'ילי או אבקת קארי.\n3. **בישול:** מוסיפים את החומוס השטוף יחד עם כוס ציר ירקות או חלב קוקוס. מכסים ומבשלים על אש קטנה במשך 10–12 דקות עד שהגזר מתרכך.\n4. **הוספת התרד:** מוסיפים את התרד הטרי ממש בסוף למשך 1–2 דקות עד שהוא מצטמצם ומקבל צבע ירוק עז. מסיימים עם סחיטת מיץ לימון.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"איזה סגנון בישול מתחשק לך להכין היום?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"סלט קצוץ רענן ופריך\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"לביבות או קציצות פריכות בטיגון במחבת\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"תבשיל קארי חם במחבת או נזיד\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "חפש הוראות מפורטות יותר וכמויות מדויקות של רכיבים עבור הקארי במחבת"
+      },
+      "follow_up_2": {
+        "text": "הסבר איך להכין ולאחסן לביבות חומוס מבושלות שנותרו עבור הכנת ארוחות מראש (meal prep)"
+      },
+      "follow_up_3": {
+        "text": "חפש מתכונים למטבל יוגורט טבעוני שמשתלבים טוב עם לביבות חומוס"
+      },
+      "follow_up_4": {
+        "text": "פרט תחליפי תבלינים פשוטים אם חסרה לי אבקת קארי עבור התבשיל במחבת"
+      },
+      "follow_up_5": {
+        "text": "חפש מתכונים חלופיים לרוטב המבוססים על טחינה עבור הסלט הקצוץ בסגנון תאילנדי"
+      },
+      "follow_up_6": {
+        "text": "השווה בין תכולת החלבון והסיבים של שלוש אפשרויות המתכונים הצמחוניים האלו"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "נתונים פיננסיים של Vital Farms מה-SEC"
@@ -11036,70 +11109,6 @@
       },
       "follow_up_6": {
         "text": "השוואה בין שיטות שונות להפיכת רעיונות מדוברים למשימות מאורגנות"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "רעיונות למתכונים צמחוניים ממוצרים שיש במקרר"
-      },
-      "summary": {
-        "text": "המשתמש ביקש רעיונות למתכונים צמחוניים המשתמשים בתרד, גזר, פלפלים וגרגירי חומוס; העוזר הציע שלוש אפשרויות."
-      },
-      "message_1": {
-        "text": "המלצות למתכונים צמחוניים? נשארו לי במקרר תרד, גזרים, פלפלים וגרגירי חומוס."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nעם **תרד, גזר, פלפלים וחומוס**, יש לך בסיס מצוין לארוחות צמחוניות טעימות ועשירות בסיבים. \n\nהנה שלושה כיוונים קולינריים שונים, בהתאם לסגנון המנה שמתחשק לך:\n\n---\n\n### 1. רענן ופריך: סלט קצוץ בסגנון תאילנדי\nאם מתחשק לך משהו מהיר, קליל ופריך, כדאי לשלב פלפלים חיים קצוצים דק, גזר ותרד עם חומוס ברוטב ליים ו[בוטנים](wiki:Peanut) פיקנטי.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. קציצות מלוחות: לביבות חומוס וירקות פריכות\nאם מתחשק לך משהו חם בגודל ביס (נהדר בטורטייה, בפיתה או לצד מטבל יוגורט), אפשר למעוך את החומוס ולהוסיף גזר קצוץ דק, פלפלים ותרד מאודה.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. חלופה מהירה לאמצע השבוע: תבשיל קארי חומוס וירקות במחבת\nאם מתחשק לך ארוחה במחבת אחת ממרכיבים בסיסיים שיש במזווה (כמו חלב קוקוס בשימורים או עגבניות מרוסקות):\n1. **טיגון הירקות הארומטיים:** מחממים שמן זית במחבת, ומטגנים בצל קצוץ, שום כתוש וג'ינג'ר עד להפצת ריח.\n2. **הוספת הירקות הקשים:** חותכים את הגזר והפלפלים לקוביות בגודל ביס. מוסיפים אותם למחבת יחד עם כמון טחון, [כורכום](wiki:Turmeric) וקורט אבקת צ'ילי או אבקת קארי.\n3. **בישול:** מוסיפים את החומוס השטוף יחד עם כוס ציר ירקות או חלב קוקוס. מכסים ומבשלים על אש קטנה במשך 10–12 דקות עד שהגזר מתרכך.\n4. **הוספת התרד:** מוסיפים את התרד הטרי ממש בסוף למשך 1–2 דקות עד שהוא מצטמצם ומקבל צבע ירוק עז. מסיימים עם סחיטת מיץ לימון.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"איזה סגנון בישול מתחשק לך להכין היום?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"סלט קצוץ רענן ופריך\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"לביבות או קציצות פריכות בטיגון במחבת\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"תבשיל קארי חם במחבת או נזיד\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "חפש הוראות מפורטות יותר וכמויות מדויקות של רכיבים עבור הקארי במחבת"
-      },
-      "follow_up_2": {
-        "text": "הסבר איך להכין ולאחסן לביבות חומוס מבושלות שנותרו עבור הכנת ארוחות מראש (meal prep)"
-      },
-      "follow_up_3": {
-        "text": "חפש מתכונים למטבל יוגורט טבעוני שמשתלבים טוב עם לביבות חומוס"
-      },
-      "follow_up_4": {
-        "text": "פרט תחליפי תבלינים פשוטים אם חסרה לי אבקת קארי עבור התבשיל במחבת"
-      },
-      "follow_up_5": {
-        "text": "חפש מתכונים חלופיים לרוטב המבוססים על טחינה עבור הסלט הקצוץ בסגנון תאילנדי"
-      },
-      "follow_up_6": {
-        "text": "השווה בין תכולת החלבון והסיבים של שלוש אפשרויות המתכונים הצמחוניים האלו"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "השוואת סירי טיגון באוויר חם בגרמניה"
-      },
-      "summary": {
-        "text": "השוואת סירי הטיגון המובילים באמזון גרמניה לפי מחיר, קיבולת ודירוגים, והמלצה על Philips Airfryer 2000 Series למשק בית של שני אנשים."
-      },
-      "message_1": {
-        "text": "מצא סירי טיגון באוויר חם שאפשר לקנות אונליין בגרמניה, כולל רישומים מאמזון. השווה מחירים עדכניים, קיבולות ודירוגי ביקורות, ולאחר מכן המלץ על אחד שמתאים למשק בית של שני אנשים עם קישורים למקורות."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nהנה השוואה של מכשירי הטיגון באוויר (air fryers) בעלי הדירוג הגבוה ביותר הזמינים כעת באמזון גרמניה, תוך השוואת מחיר, קיבולת ודירוגי לקוחות.\n\n---\n\n### השוואה בין דגמים פופולריים בגרמניה\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### המלצה מובילה למשק בית של 2 נפשות\n\n#### **בחירה עיקרית: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **למה הוא הכי מתאים לשני אנשים:**\n  * **קיבולת אופטימלית (6.2 ליטר):** סלסלות קטנות מ-4.5–5 ליטר דורשות בישול בכמה סבבים אפילו עבור שני אנשים. סלסלה של 6.2 ליטר מאפשרת להניח שני פילטים של סלמון ותוספת מלאה של ירקות או צ'יפס בשכבה אחת לקבלת פריכות אחידה.\n  * **שטח פנים במטבח:** מכשירים בעלי אזור כפול (כמו Ninja או Russell Hobbs) תופסים מקום משמעותי על השיש. סלסלה בודדת של 6 ליטר מספקת נפח רב תוך שמירה על שטח פנים קומפקטי המתאים למשטחי עבודה טיפוסיים במטבחים גרמניים.\n  * **חלון שקוף:** מאפשר לבדוק את מידת ההשחמה מבלי לפתוח את המגירה ולאבד חום.\n  * **ערך:** במחיר של €99.99, הוא מציע עקביות טמפרטורה אמינה מבית [Philips](wiki:Philips) במחיר סביר.\n\n#### **חלופה (אם אתם מבשלים לעיתים קרובות שתי מנות בטמפרטורות שונות): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nאם אתם ובני זוגכם מעדיפים להכין חלבונים ותוספות ירקות בו-זמנית בטמפרטורות וזמנים שונים (למשל, חזה עוף ב-180 מעלות צלזיוס וצ'יפס פריך ב-200 מעלות צלזיוס), דגם זה נמצא כעת בהנחה ל-€119.99 וכולל זמני בישול מסונכרנים.\n\n---\n\n### גורמים מרכזיים שיש לקחת בחשבון לפני הקנייה\n1. **צורת המגירה:** סלסלות מרובעות (כמו של Cosori ו-Philips) מתאימות לפריטים שטוחים (סטייקים, תבניות אפייה, שיפודים) הרבה יותר טוב מסלסלות עגולות בעלות קיבולת ליטר זהה.\n2. **מקום במדיח הכלים:** ודאו שבמדיח הכלים שלכם יש מספיק גובה במדף עבור מגירה בודדת של 6 ליטר, או שקלו לשטוף ידנית ציפויים מונעי הידבקות כדי להאריך את חייהם."
-      },
-      "follow_up_1": {
-        "text": "חיפוש מתכונים שתוכננו במיוחד עבור סירי טיגון באוויר חם (Air Fryers)"
-      },
-      "follow_up_2": {
-        "text": "הסבר על ההבדלים העיקריים בין סירי טיגון עם סלסילה אחת לסלסילה כפולה"
-      },
-      "follow_up_3": {
-        "text": "מציאת אביזרי אפייה תואמים לסיר טיגון זה"
-      },
-      "follow_up_4": {
-        "text": "רשימת מתכונים ידידותיים למתחילים להכנת ארוחת ערב בסיר טיגון באוויר חם"
-      },
-      "follow_up_5": {
-        "text": "בדיקת דירוגי צריכת האנרגיה הנוכחיים עבור דגמים אלו"
-      },
-      "follow_up_6": {
-        "text": "השוואת דרישות הניקוי והתחזוקה עבור ציפוי קרמי לעומת ציפוי טפלון"
       }
     }
   },

@@ -3233,7 +3233,7 @@
         "text": "para desbloquear todas as funcionalidades, guardar as tuas conversas e aceder a elas em todos os teus dispositivos."
       },
       "daily_credits_exhausted": {
-        "text": "Você usou seus créditos diários gratuitos. Cadastre-se e compre créditos para aproveitar o OpenMates por completo."
+        "text": "Você atingiu o limite de uso gratuito. Cadastre-se para continuar."
       }
     },
     "interactive_question_failed": {
@@ -8435,6 +8435,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Melhorando a transcrição…"
+      },
+      "removing_filler_words": {
+        "text": "Removendo palavras de preenchimento…"
+      },
+      "making_more_concise": {
+        "text": "Tornando o texto mais conciso…"
+      },
       "recording": {
         "text": "Gravando..."
       },
@@ -8515,6 +8524,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Comparação de fritadeiras sem óleo na Alemanha"
+      },
+      "summary": {
+        "text": "Comparação das principais fritadeiras sem óleo da Amazon Alemanha por preço, capacidade e avaliações, com recomendação da Philips Airfryer Série 2000 para uma casa de duas pessoas."
+      },
+      "message_1": {
+        "text": "Encontra fritadeiras sem óleo que eu possa comprar online na Alemanha, incluindo ofertas da Amazon. Compara os preços atuais, as capacidades e as avaliações dos clientes e recomenda uma para uma casa de duas pessoas, com ligações às fontes."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAqui está uma comparação de fritadeiras sem óleo bem avaliadas que estão atualmente disponíveis na Amazon Alemanha, com preços, capacidades e avaliações dos clientes.\n\n---\n\n### Comparação de modelos populares na Alemanha\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Principal recomendação para uma casa de duas pessoas\n\n#### **Escolha principal: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Porque é a melhor opção para duas pessoas:**\n  * **Capacidade adequada (6.2 L):** Com cestos inferiores a 4.5–5 L, até duas pessoas podem precisar de cozinhar em várias levas. Um cesto de 6.2 L permite dispor dois filetes de salmão e uma porção completa de legumes ou batatas numa só camada para cozinhar uniformemente.\n  * **Espaço ocupado na cozinha:** Os modelos com duas zonas (como os da Ninja ou da Russell Hobbs) ocupam bastante bancada. Um cesto único de 6 L oferece bom espaço sem ocupar demasiado uma bancada típica de cozinha alemã.\n  * **Janela transparente:** Permite verificar o ponto de cozedura sem abrir a gaveta e perder calor.\n  * **Relação qualidade/preço:** Por €99.99, oferece uma temperatura de cozedura estável da [Philips](wiki:Philips) a um preço razoável.\n\n#### **Alternativa (se cozinhares frequentemente dois pratos a temperaturas diferentes): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nSe tu e outra pessoa gostam de preparar proteína e legumes ao mesmo tempo, mas a temperaturas e tempos diferentes (por exemplo, peito de frango a 180 °C e batatas crocantes a 200 °C), este modelo custa atualmente €119.99 com desconto e sincroniza a conclusão dos dois cestos.\n\n---\n\n### Aspetos importantes antes de comprar\n1. **Formato do cesto:** Os cestos quadrados (como os da Cosori e da Philips) acomodam alimentos planos (bifes, formas, espetos) muito melhor do que cestos redondos com o mesmo volume em litros.\n2. **Espaço na máquina de lavar loiça:** Confirma que a máquina tem altura suficiente para uma gaveta única de 6 L. Se preferires, lava o revestimento antiaderente à mão para prolongar a sua vida útil."
+      },
+      "follow_up_1": {
+        "text": "Pesquisar receitas criadas especificamente para fritadeiras sem óleo"
+      },
+      "follow_up_2": {
+        "text": "Explicar as principais diferenças entre fritadeiras sem óleo de cesto único e de cesto duplo"
+      },
+      "follow_up_3": {
+        "text": "Encontrar acessórios de cozinha compatíveis com esta fritadeira sem óleo"
+      },
+      "follow_up_4": {
+        "text": "Listar receitas de jantar fáceis para principiantes fazerem na fritadeira sem óleo"
+      },
+      "follow_up_5": {
+        "text": "Verificar os dados atuais de consumo de energia destes modelos"
+      },
+      "follow_up_6": {
+        "text": "Comparar os cuidados de limpeza e manutenção dos revestimentos cerâmicos e de teflon"
       }
     },
     "artemis_ii_mission": {
@@ -11001,6 +11042,38 @@
         "text": "Explicar as escolhas dos capacitores de desacoplamento"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Ideias de Receitas Vegetarianas com o que tens no Frigorífico"
+      },
+      "summary": {
+        "text": "O utilizador pediu ideias de receitas vegetarianas usando espinafres, cenouras, pimentos e grão-de-bico; o assistente forneceu três opções."
+      },
+      "message_1": {
+        "text": "Recomendações de receitas vegetarianas? Ainda tenho espinafres, cenouras, pimentos e grão-de-bico no frigorífico."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCom **espinafres, cenouras, pimentos e grão-de-bico**, tens uma base sólida para refeições vegetarianas deliciosas e ricas em fibra. \n\nAqui estão três direções culinárias distintas, dependendo do estilo de prato que te apetece:\n\n---\n\n### 1. Fresca e Crocante: Salada Picada ao Estilo Tailandês\nSe queres algo rápido, leve e crocante, combina pimentos crus, cenouras e espinafres finamente picados com grão-de-bico num molho de [amendoim](wiki:Peanut) e lima acidulado.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Bolinhos Salgados: Bolinhos Crocantes de Grão e Vegetais\nSe preferires algo quente e em porções pequenas (ótimo em wraps, pão pita ou acompanhado com um molho de iogurte), esmaga o grão-de-bico e envolve as cenouras picadas, os pimentos e os espinafres salteados.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa Rápida para os Dias de Semana: Caril de Grão e Vegetais na Frigideira\nSe queres uma refeição de uma só panela usando ingredientes básicos da despensa (como leite de coco em lata ou tomate esmagado):\n1. **Refoga os aromáticos:** Aquece o azeite numa frigideira e depois cozinha a cebola picada, o alho picado e o gengibre até libertarem o aroma.\n2. **Adiciona os vegetais firmes:** Corta as cenouras e os pimentos em pedaços pequenos. Junta-os com cominhos moídos, [curcuma](wiki:Turmeric) e uma pitada de malagueta em pó ou caril em pó.\n3. **Deixa apurar:** Adiciona o grão-de-bico lavado juntamente com uma chávena de caldo de legumes ou leite de coco. Tapa e deixa cozinhar em lume brando por 10–12 minutos até as cenouras estarem tenras.\n4. **Murcha os espinafres:** Envolve os espinafres frescos mesmo no fim durante 1–2 minutos até ficarem com um verde vibrante e murcharem. Finaliza com um pouco de sumo de limão.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Que estilo de cozinha preferes preparar hoje?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Salada picada fresca e crocante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Bolinhos ou hambúrgueres crocantes na frigideira\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Caril ou guisado quente de uma só frigideira\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Pesquisar instruções mais detalhadas e medidas completas de ingredientes para o caril de frigideira"
+      },
+      "follow_up_2": {
+        "text": "Explicar como preparar e guardar sobras de fritos de grão-de-bico cozinhados para preparar refeições antecipadamente"
+      },
+      "follow_up_3": {
+        "text": "Pesquisar receitas de molho de iogurte vegan que combinem bem com fritos de grão-de-bico"
+      },
+      "follow_up_4": {
+        "text": "Listar substituições simples de especiarias se me faltar caril em pó para a refeição de frigideira"
+      },
+      "follow_up_5": {
+        "text": "Pesquisar receitas alternativas de molho usando tahini para a salada picada de estilo tailandês"
+      },
+      "follow_up_6": {
+        "text": "Comparar o teor de proteína e fibra destas três opções de receitas vegetarianas"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Dados Financeiros da Vital Farms na SEC"
@@ -11063,70 +11136,6 @@
       },
       "follow_up_6": {
         "text": "Comparar diferentes métodos para transformar ideias faladas em tarefas organizadas"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Ideias de Receitas Vegetarianas com o que tens no Frigorífico"
-      },
-      "summary": {
-        "text": "O utilizador pediu ideias de receitas vegetarianas usando espinafres, cenouras, pimentos e grão-de-bico; o assistente forneceu três opções."
-      },
-      "message_1": {
-        "text": "Recomendações de receitas vegetarianas? Ainda tenho espinafres, cenouras, pimentos e grão-de-bico no frigorífico."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCom **espinafres, cenouras, pimentos e grão-de-bico**, tens uma base sólida para refeições vegetarianas deliciosas e ricas em fibra. \n\nAqui estão três direções culinárias distintas, dependendo do estilo de prato que te apetece:\n\n---\n\n### 1. Fresca e Crocante: Salada Picada ao Estilo Tailandês\nSe queres algo rápido, leve e crocante, combina pimentos crus, cenouras e espinafres finamente picados com grão-de-bico num molho de [amendoim](wiki:Peanut) e lima acidulado.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Bolinhos Salgados: Bolinhos Crocantes de Grão e Vegetais\nSe preferires algo quente e em porções pequenas (ótimo em wraps, pão pita ou acompanhado com um molho de iogurte), esmaga o grão-de-bico e envolve as cenouras picadas, os pimentos e os espinafres salteados.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa Rápida para os Dias de Semana: Caril de Grão e Vegetais na Frigideira\nSe queres uma refeição de uma só panela usando ingredientes básicos da despensa (como leite de coco em lata ou tomate esmagado):\n1. **Refoga os aromáticos:** Aquece o azeite numa frigideira e depois cozinha a cebola picada, o alho picado e o gengibre até libertarem o aroma.\n2. **Adiciona os vegetais firmes:** Corta as cenouras e os pimentos em pedaços pequenos. Junta-os com cominhos moídos, [curcuma](wiki:Turmeric) e uma pitada de malagueta em pó ou caril em pó.\n3. **Deixa apurar:** Adiciona o grão-de-bico lavado juntamente com uma chávena de caldo de legumes ou leite de coco. Tapa e deixa cozinhar em lume brando por 10–12 minutos até as cenouras estarem tenras.\n4. **Murcha os espinafres:** Envolve os espinafres frescos mesmo no fim durante 1–2 minutos até ficarem com um verde vibrante e murcharem. Finaliza com um pouco de sumo de limão.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Que estilo de cozinha preferes preparar hoje?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Salada picada fresca e crocante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Bolinhos ou hambúrgueres crocantes na frigideira\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Caril ou guisado quente de uma só frigideira\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Pesquisar instruções mais detalhadas e medidas completas de ingredientes para o caril de frigideira"
-      },
-      "follow_up_2": {
-        "text": "Explicar como preparar e guardar sobras de fritos de grão-de-bico cozinhados para preparar refeições antecipadamente"
-      },
-      "follow_up_3": {
-        "text": "Pesquisar receitas de molho de iogurte vegan que combinem bem com fritos de grão-de-bico"
-      },
-      "follow_up_4": {
-        "text": "Listar substituições simples de especiarias se me faltar caril em pó para a refeição de frigideira"
-      },
-      "follow_up_5": {
-        "text": "Pesquisar receitas alternativas de molho usando tahini para a salada picada de estilo tailandês"
-      },
-      "follow_up_6": {
-        "text": "Comparar o teor de proteína e fibra destas três opções de receitas vegetarianas"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Comparação de fritadeiras sem óleo na Alemanha"
-      },
-      "summary": {
-        "text": "Comparação das principais fritadeiras sem óleo da Amazon Alemanha por preço, capacidade e avaliações, com recomendação da Philips Airfryer Série 2000 para uma casa de duas pessoas."
-      },
-      "message_1": {
-        "text": "Encontra fritadeiras sem óleo que eu possa comprar online na Alemanha, incluindo ofertas da Amazon. Compara os preços atuais, as capacidades e as avaliações dos clientes e recomenda uma para uma casa de duas pessoas, com ligações às fontes."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAqui está uma comparação de fritadeiras sem óleo bem avaliadas que estão atualmente disponíveis na Amazon Alemanha, com preços, capacidades e avaliações dos clientes.\n\n---\n\n### Comparação de modelos populares na Alemanha\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Principal recomendação para uma casa de duas pessoas\n\n#### **Escolha principal: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Porque é a melhor opção para duas pessoas:**\n  * **Capacidade adequada (6.2 L):** Com cestos inferiores a 4.5–5 L, até duas pessoas podem precisar de cozinhar em várias levas. Um cesto de 6.2 L permite dispor dois filetes de salmão e uma porção completa de legumes ou batatas numa só camada para cozinhar uniformemente.\n  * **Espaço ocupado na cozinha:** Os modelos com duas zonas (como os da Ninja ou da Russell Hobbs) ocupam bastante bancada. Um cesto único de 6 L oferece bom espaço sem ocupar demasiado uma bancada típica de cozinha alemã.\n  * **Janela transparente:** Permite verificar o ponto de cozedura sem abrir a gaveta e perder calor.\n  * **Relação qualidade/preço:** Por €99.99, oferece uma temperatura de cozedura estável da [Philips](wiki:Philips) a um preço razoável.\n\n#### **Alternativa (se cozinhares frequentemente dois pratos a temperaturas diferentes): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nSe tu e outra pessoa gostam de preparar proteína e legumes ao mesmo tempo, mas a temperaturas e tempos diferentes (por exemplo, peito de frango a 180 °C e batatas crocantes a 200 °C), este modelo custa atualmente €119.99 com desconto e sincroniza a conclusão dos dois cestos.\n\n---\n\n### Aspetos importantes antes de comprar\n1. **Formato do cesto:** Os cestos quadrados (como os da Cosori e da Philips) acomodam alimentos planos (bifes, formas, espetos) muito melhor do que cestos redondos com o mesmo volume em litros.\n2. **Espaço na máquina de lavar loiça:** Confirma que a máquina tem altura suficiente para uma gaveta única de 6 L. Se preferires, lava o revestimento antiaderente à mão para prolongar a sua vida útil."
-      },
-      "follow_up_1": {
-        "text": "Pesquisar receitas criadas especificamente para fritadeiras sem óleo"
-      },
-      "follow_up_2": {
-        "text": "Explicar as principais diferenças entre fritadeiras sem óleo de cesto único e de cesto duplo"
-      },
-      "follow_up_3": {
-        "text": "Encontrar acessórios de cozinha compatíveis com esta fritadeira sem óleo"
-      },
-      "follow_up_4": {
-        "text": "Listar receitas de jantar fáceis para principiantes fazerem na fritadeira sem óleo"
-      },
-      "follow_up_5": {
-        "text": "Verificar os dados atuais de consumo de energia destes modelos"
-      },
-      "follow_up_6": {
-        "text": "Comparar os cuidados de limpeza e manutenção dos revestimentos cerâmicos e de teflon"
       }
     }
   },

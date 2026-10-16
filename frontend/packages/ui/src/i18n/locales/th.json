@@ -3233,7 +3233,7 @@
         "text": "เพื่อปลดล็อกฟีเจอร์ทั้งหมด เก็บแชทของคุณไว้ และเข้าถึงได้จากทุกอุปกรณ์"
       },
       "daily_credits_exhausted": {
-        "text": "คุณใช้เครดิตฟรีรายวันหมดแล้ว สมัครสมาชิกและซื้อเครดิตเพื่อใช้ OpenMates ได้เต็มที่"
+        "text": "คุณใช้ครบขีดจำกัดการใช้งานฟรีแล้ว สมัครสมาชิกเพื่อใช้งานต่อ"
       }
     },
     "interactive_question_failed": {
@@ -8408,6 +8408,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "กำลังปรับปรุงข้อความถอดเสียง…"
+      },
+      "removing_filler_words": {
+        "text": "กำลังลบคำฟุ่มเฟือย…"
+      },
+      "making_more_concise": {
+        "text": "กำลังทำให้ข้อความกระชับขึ้น…"
+      },
       "recording": {
         "text": "กำลังบันทึก..."
       },
@@ -8488,6 +8497,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "เปรียบเทียบหม้อทอดไร้น้ำมันในเยอรมนี"
+      },
+      "summary": {
+        "text": "เปรียบเทียบหม้อทอดไร้น้ำมันยอดนิยมใน Amazon เยอรมนีตามราคา ความจุ และคะแนนรีวิว พร้อมแนะนำ Philips Airfryer 2000 Series สำหรับครัวเรือนที่มี 2 คน"
+      },
+      "message_1": {
+        "text": "ช่วยหาหม้อทอดไร้น้ำมันที่ซื้อออนไลน์ได้ในเยอรมนี รวมถึงรายการสินค้าจาก Amazon เปรียบเทียบราคาปัจจุบัน ความจุ และคะแนนรีวิว จากนั้นช่วยแนะนำรุ่นที่เหมาะสำหรับครัวเรือนที่มี 2 คน พร้อมแนบลิงก์แหล่งที่มา"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nนี่คือการเปรียบเทียบหม้อทอดไร้น้ำมันที่ได้รับคะแนนสูงสุดซึ่งมีจำหน่ายใน Amazon เยอรมนี โดยเปรียบเทียบทั้งราคา ความจุ และคะแนนรีวิวจากลูกค้า\n\n---\n\n### การเปรียบเทียบรุ่นยอดนิยมในเยอรมนี\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### คำแนะนำอันดับต้นๆ สำหรับครัวเรือนที่มี 2 คน\n\n#### **ตัวเลือกหลัก: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **ทำไมรุ่นนี้ถึงเหมาะกับคนสองคนที่สุด:**\n  * **ความจุที่เหมาะสม (6.2 ลิตร):** ตะกร้าที่มีขนาดเล็กกว่า 4.5–5 ลิตร จำเป็นต้องปรุงอาหารหลายรอบแม้จะทานแค่สองคน ตะกร้าขนาด 6.2 ลิตรช่วยให้คุณวางเนื้อปลาแซลมอนสองชิ้นพร้อมผักหรือเฟรนช์ฟรายส์เป็นเครื่องเคียงได้ในชั้นเดียว เพื่อให้ได้ความกรอบที่ทั่วถึง\n  * **พื้นที่จัดวางในครัว:** เครื่องแบบสองโซน (เช่น Ninja หรือ Russell Hobbs) ใช้พื้นที่บนเคาน์เตอร์ค่อนข้างมาก ตะกร้าเดี่ยวขนาด 6 ลิตรให้ความจุที่เพียงพอในขณะที่ยังมีขนาดกะทัดรัด เหมาะสำหรับพื้นที่เตรียมอาหารในห้องครัวเยอรมันทั่วไป\n  * **หน้าต่างโปร่งใส:** ช่วยให้ตรวจสอบความสุกได้โดยไม่ต้องเลื่อนลิ้นชักเปิดออก ซึ่งจะทำให้สูญเสียความร้อน\n  * **ความคุ้มค่า:** ในราคา 99.99 ยูโร รุ่นนี้ให้ความเสถียรของอุณหภูมิที่เชื่อถือได้จาก [Philips](wiki:Philips) ในราคาที่สมเหตุสมผล\n\n#### **ทางเลือกอื่น (หากคุณทำอาหารสองอย่างพร้อมกันด้วยอุณหภูมิที่ต่างกันบ่อยๆ): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nหากคุณและคู่ของคุณชอบเตรียมโปรตีนและผักเครื่องเคียงไปพร้อมๆ กันด้วยอุณหภูมิและเวลาที่ต่างกัน (เช่น อกไก่ที่ 180 °C และมันฝรั่งทอดกรอบที่ 200 °C) รุ่นนี้กำลังลดราคาเหลือ 119.99 ยูโร และมีฟังก์ชันตั้งเวลาทำอาหารให้เสร็จพร้อมกัน\n\n---\n\n### ปัจจัยสำคัญที่ควรพิจารณาก่อนซื้อ\n1. **รูปทรงของลิ้นชัก:** ตะกร้าทรงเหลี่ยม (เช่น Cosori และ Philips) รองรับอาหารที่มีลักษณะแบน (สเต็ก, ถาดอบ, ไม้เสียบย่าง) ได้ดีกว่าตะกร้าทรงกลมที่มีความจุลิตรเท่ากัน\n2. **พื้นที่ในเครื่องล้างจาน:** ตรวจสอบให้แน่ใจว่าเครื่องล้างจานของคุณมีพื้นที่ชั้นวางสูงพอสำหรับลิ้นชักเดี่ยวขนาด 6 ลิตร หรือพิจารณาการล้างด้วยมือเพื่อยืดอายุการใช้งานของสารเคลือบกันติด"
+      },
+      "follow_up_1": {
+        "text": "ค้นหาสูตรอาหารที่ออกแบบมาสำหรับหม้อทอดไร้น้ำมันโดยเฉพาะ"
+      },
+      "follow_up_2": {
+        "text": "อธิบายความแตกต่างหลักระหว่างหม้อทอดไร้น้ำมันแบบตะกร้าเดี่ยวและตะกร้าคู่"
+      },
+      "follow_up_3": {
+        "text": "ค้นหาอุปกรณ์เสริมสำหรับการอบที่ใช้งานร่วมกับหม้อทอดไร้น้ำมันรุ่นนี้ได้"
+      },
+      "follow_up_4": {
+        "text": "รายการสูตรอาหารเย็นที่ทำง่ายสำหรับมือใหม่ด้วยหม้อทอดไร้น้ำมัน"
+      },
+      "follow_up_5": {
+        "text": "ตรวจสอบระดับการใช้พลังงานปัจจุบันของรุ่นเหล่านี้"
+      },
+      "follow_up_6": {
+        "text": "เปรียบเทียบข้อกำหนดในการทำความสะอาดและการบำรุงรักษาระหว่างการเคลือบเซรามิกกับเทฟลอน"
       }
     },
     "artemis_ii_mission": {
@@ -10974,6 +11015,38 @@
         "text": "อธิบายการเลือกตัวเก็บประจุดีคัปปลิ้ง"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "ไอเดียเมนูมังสวิรัติจากของในตู้เย็น"
+      },
+      "summary": {
+        "text": "ผู้ใช้ขอไอเดียเมนูมังสวิรัติโดยใช้ผักโขม แครอท พริกหวาน และถั่วลูกไก่ ผู้ช่วยเสนอให้ 3 ตัวเลือก"
+      },
+      "message_1": {
+        "text": "มีเมนูมังสวิรัติแนะนำไหม? ในตู้เย็นฉันยังมีผักโขม แครอท พริกหวาน และถั่วลูกไก่อยู่เลย"
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nด้วย **ผักโขม, แครอท, พริกหวาน และถั่วลูกไก่** คุณมีวัตถุดิบพื้นฐานชั้นยอดสำหรับเมนูมังสวิรัติที่อร่อยและมีกากใยสูง\n\nนี่คือ 3 แนวทางอาหารที่แตกต่างกัน ขึ้นอยู่กับว่าคุณอยากทานสไตล์ไหน:\n\n---\n\n### 1. สดชื่นและกรุบกรอบ: สลัดผักสับสไตล์ไทย\nหากคุณต้องการอะไรที่รวดเร็ว เบา และกรอบ ให้ผสมพริกหวาน แครอท และผักโขมดิบที่สับละเอียด เข้ากับถั่วลูกไก่ในน้ำสลัดมะนาวผสม [ถั่วลิสง](wiki:Peanut) รสเปรี้ยวจี๊ดจ๊าด\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. แผ่นผักทอดรสกลมกล่อม: ทอดมันถั่วลูกไก่และผักแบบกรอบ\nหากคุณชอบอะไรที่อุ่นและพอดีคำ (เหมาะสำหรับใส่ในแรป, ขนมปังพิต้า หรือทานคู่กับดิปโยเกิร์ต) ให้บดถั่วลูกไก่แล้วผสมแครอทสับ พริกหวาน และผักโขมลวกสุกลงไป\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. ทางเลือกด่วนสำหรับมื้อเย็น: แกงถั่วลูกไก่และผักในกระทะแบบอุ่น\nหากคุณต้องการอาหารมื้อเดียวที่ใช้ของพื้นฐานในครัว (เช่น กะทิกระป๋อง หรือมะเขือเทศบด):\n1. **ผัดเครื่องเทศ:** อุ่นน้ำมันมะกอกในกระทะ จากนั้นผัดหอมหัวใหญ่หั่นเต๋า กระเทียมสับ และขิงจนมีกลิ่นหอม\n2. **ใส่ผักเนื้อแข็ง:** หั่นแครอทและพริกหวานเป็นชิ้นพอดีคำ ใส่ลงไปพร้อมกับยี่หร่าป่น [ขมิ้น](wiki:Turmeric) และพริกป่นหรือผงกะหรี่เล็กน้อย\n3. **เคี่ยว:** ใส่ถั่วลูกไก่ที่ล้างแล้วลงไปพร้อมกับน้ำสต๊อกผักหรือกะทิหนึ่งถ้วย ปิดฝาแล้วเคี่ยวประมาณ 10–12 นาทีจนแครอทนิ่ม\n4. **ใส่ผักโขม:** ใส่ผักโขมสดลงไปในตอนท้ายสุด ผัดต่อ 1–2 นาทีจนผักยุบตัวและมีสีเขียวสด ปิดท้ายด้วยการบีบน้ำมะนาว\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"วันนี้คุณอยากทำอาหารสไตล์ไหน?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"สลัดผักสับที่สดชื่นและกรุบกรอบ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"ทอดมันหรือแผ่นผักทอดกรอบ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"แกงหรือสตูว์ในกระทะแบบอุ่น\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "ค้นหาวิธีทำอย่างละเอียดและปริมาณส่วนผสมทั้งหมดสำหรับเมนูแกงกะหรี่กระทะ"
+      },
+      "follow_up_2": {
+        "text": "อธิบายวิธีเตรียมและเก็บรักษาทอดมันถั่วลูกไก่ที่เหลือสำหรับเตรียมอาหารล่วงหน้า"
+      },
+      "follow_up_3": {
+        "text": "ค้นหาสูตรดิปโยเกิร์ตวีแกนที่เข้ากันได้ดีกับทอดมันถั่วลูกไก่"
+      },
+      "follow_up_4": {
+        "text": "แนะนำเครื่องเทศที่ใช้แทนกันได้ง่ายๆ หากไม่มีผงกะหรี่สำหรับเมนูกระทะ"
+      },
+      "follow_up_5": {
+        "text": "ค้นหาสูตรน้ำสลัดทางเลือกที่ใช้ทาฮินีสำหรับสลัดผักสับสไตล์ไทย"
+      },
+      "follow_up_6": {
+        "text": "เปรียบเทียบปริมาณโปรตีนและใยอาหารของเมนูมังสวิรัติทั้ง 3 ตัวเลือกนี้"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "ข้อมูลทางการเงิน SEC ของ Vital Farms"
@@ -11036,70 +11109,6 @@
       },
       "follow_up_6": {
         "text": "เปรียบเทียบวิธีต่างๆ ในการเปลี่ยนไอเดียจากการพูดให้เป็นงานที่เป็นระเบียบ"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "ไอเดียเมนูมังสวิรัติจากของในตู้เย็น"
-      },
-      "summary": {
-        "text": "ผู้ใช้ขอไอเดียเมนูมังสวิรัติโดยใช้ผักโขม แครอท พริกหวาน และถั่วลูกไก่ ผู้ช่วยเสนอให้ 3 ตัวเลือก"
-      },
-      "message_1": {
-        "text": "มีเมนูมังสวิรัติแนะนำไหม? ในตู้เย็นฉันยังมีผักโขม แครอท พริกหวาน และถั่วลูกไก่อยู่เลย"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nด้วย **ผักโขม, แครอท, พริกหวาน และถั่วลูกไก่** คุณมีวัตถุดิบพื้นฐานชั้นยอดสำหรับเมนูมังสวิรัติที่อร่อยและมีกากใยสูง\n\nนี่คือ 3 แนวทางอาหารที่แตกต่างกัน ขึ้นอยู่กับว่าคุณอยากทานสไตล์ไหน:\n\n---\n\n### 1. สดชื่นและกรุบกรอบ: สลัดผักสับสไตล์ไทย\nหากคุณต้องการอะไรที่รวดเร็ว เบา และกรอบ ให้ผสมพริกหวาน แครอท และผักโขมดิบที่สับละเอียด เข้ากับถั่วลูกไก่ในน้ำสลัดมะนาวผสม [ถั่วลิสง](wiki:Peanut) รสเปรี้ยวจี๊ดจ๊าด\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. แผ่นผักทอดรสกลมกล่อม: ทอดมันถั่วลูกไก่และผักแบบกรอบ\nหากคุณชอบอะไรที่อุ่นและพอดีคำ (เหมาะสำหรับใส่ในแรป, ขนมปังพิต้า หรือทานคู่กับดิปโยเกิร์ต) ให้บดถั่วลูกไก่แล้วผสมแครอทสับ พริกหวาน และผักโขมลวกสุกลงไป\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. ทางเลือกด่วนสำหรับมื้อเย็น: แกงถั่วลูกไก่และผักในกระทะแบบอุ่น\nหากคุณต้องการอาหารมื้อเดียวที่ใช้ของพื้นฐานในครัว (เช่น กะทิกระป๋อง หรือมะเขือเทศบด):\n1. **ผัดเครื่องเทศ:** อุ่นน้ำมันมะกอกในกระทะ จากนั้นผัดหอมหัวใหญ่หั่นเต๋า กระเทียมสับ และขิงจนมีกลิ่นหอม\n2. **ใส่ผักเนื้อแข็ง:** หั่นแครอทและพริกหวานเป็นชิ้นพอดีคำ ใส่ลงไปพร้อมกับยี่หร่าป่น [ขมิ้น](wiki:Turmeric) และพริกป่นหรือผงกะหรี่เล็กน้อย\n3. **เคี่ยว:** ใส่ถั่วลูกไก่ที่ล้างแล้วลงไปพร้อมกับน้ำสต๊อกผักหรือกะทิหนึ่งถ้วย ปิดฝาแล้วเคี่ยวประมาณ 10–12 นาทีจนแครอทนิ่ม\n4. **ใส่ผักโขม:** ใส่ผักโขมสดลงไปในตอนท้ายสุด ผัดต่อ 1–2 นาทีจนผักยุบตัวและมีสีเขียวสด ปิดท้ายด้วยการบีบน้ำมะนาว\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"วันนี้คุณอยากทำอาหารสไตล์ไหน?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"สลัดผักสับที่สดชื่นและกรุบกรอบ\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"ทอดมันหรือแผ่นผักทอดกรอบ\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"แกงหรือสตูว์ในกระทะแบบอุ่น\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "ค้นหาวิธีทำอย่างละเอียดและปริมาณส่วนผสมทั้งหมดสำหรับเมนูแกงกะหรี่กระทะ"
-      },
-      "follow_up_2": {
-        "text": "อธิบายวิธีเตรียมและเก็บรักษาทอดมันถั่วลูกไก่ที่เหลือสำหรับเตรียมอาหารล่วงหน้า"
-      },
-      "follow_up_3": {
-        "text": "ค้นหาสูตรดิปโยเกิร์ตวีแกนที่เข้ากันได้ดีกับทอดมันถั่วลูกไก่"
-      },
-      "follow_up_4": {
-        "text": "แนะนำเครื่องเทศที่ใช้แทนกันได้ง่ายๆ หากไม่มีผงกะหรี่สำหรับเมนูกระทะ"
-      },
-      "follow_up_5": {
-        "text": "ค้นหาสูตรน้ำสลัดทางเลือกที่ใช้ทาฮินีสำหรับสลัดผักสับสไตล์ไทย"
-      },
-      "follow_up_6": {
-        "text": "เปรียบเทียบปริมาณโปรตีนและใยอาหารของเมนูมังสวิรัติทั้ง 3 ตัวเลือกนี้"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "เปรียบเทียบหม้อทอดไร้น้ำมันในเยอรมนี"
-      },
-      "summary": {
-        "text": "เปรียบเทียบหม้อทอดไร้น้ำมันยอดนิยมใน Amazon เยอรมนีตามราคา ความจุ และคะแนนรีวิว พร้อมแนะนำ Philips Airfryer 2000 Series สำหรับครัวเรือนที่มี 2 คน"
-      },
-      "message_1": {
-        "text": "ช่วยหาหม้อทอดไร้น้ำมันที่ซื้อออนไลน์ได้ในเยอรมนี รวมถึงรายการสินค้าจาก Amazon เปรียบเทียบราคาปัจจุบัน ความจุ และคะแนนรีวิว จากนั้นช่วยแนะนำรุ่นที่เหมาะสำหรับครัวเรือนที่มี 2 คน พร้อมแนบลิงก์แหล่งที่มา"
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nนี่คือการเปรียบเทียบหม้อทอดไร้น้ำมันที่ได้รับคะแนนสูงสุดซึ่งมีจำหน่ายใน Amazon เยอรมนี โดยเปรียบเทียบทั้งราคา ความจุ และคะแนนรีวิวจากลูกค้า\n\n---\n\n### การเปรียบเทียบรุ่นยอดนิยมในเยอรมนี\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### คำแนะนำอันดับต้นๆ สำหรับครัวเรือนที่มี 2 คน\n\n#### **ตัวเลือกหลัก: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **ทำไมรุ่นนี้ถึงเหมาะกับคนสองคนที่สุด:**\n  * **ความจุที่เหมาะสม (6.2 ลิตร):** ตะกร้าที่มีขนาดเล็กกว่า 4.5–5 ลิตร จำเป็นต้องปรุงอาหารหลายรอบแม้จะทานแค่สองคน ตะกร้าขนาด 6.2 ลิตรช่วยให้คุณวางเนื้อปลาแซลมอนสองชิ้นพร้อมผักหรือเฟรนช์ฟรายส์เป็นเครื่องเคียงได้ในชั้นเดียว เพื่อให้ได้ความกรอบที่ทั่วถึง\n  * **พื้นที่จัดวางในครัว:** เครื่องแบบสองโซน (เช่น Ninja หรือ Russell Hobbs) ใช้พื้นที่บนเคาน์เตอร์ค่อนข้างมาก ตะกร้าเดี่ยวขนาด 6 ลิตรให้ความจุที่เพียงพอในขณะที่ยังมีขนาดกะทัดรัด เหมาะสำหรับพื้นที่เตรียมอาหารในห้องครัวเยอรมันทั่วไป\n  * **หน้าต่างโปร่งใส:** ช่วยให้ตรวจสอบความสุกได้โดยไม่ต้องเลื่อนลิ้นชักเปิดออก ซึ่งจะทำให้สูญเสียความร้อน\n  * **ความคุ้มค่า:** ในราคา 99.99 ยูโร รุ่นนี้ให้ความเสถียรของอุณหภูมิที่เชื่อถือได้จาก [Philips](wiki:Philips) ในราคาที่สมเหตุสมผล\n\n#### **ทางเลือกอื่น (หากคุณทำอาหารสองอย่างพร้อมกันด้วยอุณหภูมิที่ต่างกันบ่อยๆ): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nหากคุณและคู่ของคุณชอบเตรียมโปรตีนและผักเครื่องเคียงไปพร้อมๆ กันด้วยอุณหภูมิและเวลาที่ต่างกัน (เช่น อกไก่ที่ 180 °C และมันฝรั่งทอดกรอบที่ 200 °C) รุ่นนี้กำลังลดราคาเหลือ 119.99 ยูโร และมีฟังก์ชันตั้งเวลาทำอาหารให้เสร็จพร้อมกัน\n\n---\n\n### ปัจจัยสำคัญที่ควรพิจารณาก่อนซื้อ\n1. **รูปทรงของลิ้นชัก:** ตะกร้าทรงเหลี่ยม (เช่น Cosori และ Philips) รองรับอาหารที่มีลักษณะแบน (สเต็ก, ถาดอบ, ไม้เสียบย่าง) ได้ดีกว่าตะกร้าทรงกลมที่มีความจุลิตรเท่ากัน\n2. **พื้นที่ในเครื่องล้างจาน:** ตรวจสอบให้แน่ใจว่าเครื่องล้างจานของคุณมีพื้นที่ชั้นวางสูงพอสำหรับลิ้นชักเดี่ยวขนาด 6 ลิตร หรือพิจารณาการล้างด้วยมือเพื่อยืดอายุการใช้งานของสารเคลือบกันติด"
-      },
-      "follow_up_1": {
-        "text": "ค้นหาสูตรอาหารที่ออกแบบมาสำหรับหม้อทอดไร้น้ำมันโดยเฉพาะ"
-      },
-      "follow_up_2": {
-        "text": "อธิบายความแตกต่างหลักระหว่างหม้อทอดไร้น้ำมันแบบตะกร้าเดี่ยวและตะกร้าคู่"
-      },
-      "follow_up_3": {
-        "text": "ค้นหาอุปกรณ์เสริมสำหรับการอบที่ใช้งานร่วมกับหม้อทอดไร้น้ำมันรุ่นนี้ได้"
-      },
-      "follow_up_4": {
-        "text": "รายการสูตรอาหารเย็นที่ทำง่ายสำหรับมือใหม่ด้วยหม้อทอดไร้น้ำมัน"
-      },
-      "follow_up_5": {
-        "text": "ตรวจสอบระดับการใช้พลังงานปัจจุบันของรุ่นเหล่านี้"
-      },
-      "follow_up_6": {
-        "text": "เปรียบเทียบข้อกำหนดในการทำความสะอาดและการบำรุงรักษาระหว่างการเคลือบเซรามิกกับเทฟลอน"
       }
     }
   },

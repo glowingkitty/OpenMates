@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: production-chat-errors-oct15
+title: Repair production guest alerts, search availability and history sync
+status: approved
+goal: >-
+  Ok implement the fixes and let me know once I need to start production ssh
+  access so you can apply a hotfix.
+scope:
+  in:
+    - Correct technical-failure alert classification for expected guest limits.
+    - Show the free usage limit notification and replace Send with Sign up, including mid-response limits.
+    - Handle nullable chat sync versions without losing newer metadata or drafts.
+    - Prepare a production-only backport of the existing TOON search compatibility fix.
+    - Verify exact candidate source before requesting the production SSH window.
+  out:
+    - Promoting unrelated dev features to production.
+    - Changing guest budgets, model routing, encryption or schema.
+contracts:
+  - operational-monitoring.chat-failures.email-trigger
+  - sync.startup.bounded-phases
+  - sync.phase2.metadata-only
+  - sync.phase2.drafts.authoritative-encrypted
+checks:
+  required:
+    - Focused notification, anonymous stream, nullable sync and search compatibility units.
+    - Isolated startup sync and guest partial-result browser coverage.
+    - Isolated search skill schema/registry coverage.
+rollout:
+  - Publish the scoped repair to dev through sessions.py after candidate checks.
+  - Preserve the focused main-base hotfix patch and its source identity.
+  - Request production SSH only when the tested hotfix and rollback procedure are ready.
+  - Inspect installed production revision and CLI update plan before applying the hotfix.
+task: TASK-5440

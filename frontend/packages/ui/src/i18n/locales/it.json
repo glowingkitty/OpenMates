@@ -3233,7 +3233,7 @@
         "text": "per sbloccare tutte le funzionalità, conservare le chat e accedervi da tutti i tuoi dispositivi."
       },
       "daily_credits_exhausted": {
-        "text": "Hai esaurito i crediti gratuiti giornalieri. Registrati e acquista crediti per usare OpenMates al meglio."
+        "text": "Hai raggiunto il limite di utilizzo gratuito. Registrati per continuare."
       }
     },
     "interactive_question_failed": {
@@ -8435,6 +8435,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Miglioramento della trascrizione…"
+      },
+      "removing_filler_words": {
+        "text": "Rimozione degli intercalari…"
+      },
+      "making_more_concise": {
+        "text": "Rendendo il testo più conciso…"
+      },
       "recording": {
         "text": "Registrazione in corso..."
       },
@@ -8515,6 +8524,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Confronto tra friggitrici ad aria in Germania"
+      },
+      "summary": {
+        "text": "Confronto delle migliori friggitrici ad aria su Amazon Germania per prezzo, capacità e valutazioni, con raccomandazione della Philips Airfryer Serie 2000 per un nucleo di due persone."
+      },
+      "message_1": {
+        "text": "Trova friggitrici ad aria che posso acquistare online in Germania, inclusi i risultati di Amazon. Confronta prezzi attuali, capacità e valutazioni, quindi consigliane una per un nucleo di due persone con i link alle fonti."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nEcco un confronto delle friggitrici ad aria più votate attualmente disponibili su Amazon Germania, mettendo a confronto prezzo, capacità e valutazioni dei clienti.\n\n---\n\n### Confronto dei modelli popolari in Germania\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Migliore raccomandazione per un nucleo familiare di 2 persone\n\n#### **Scelta principale: [Philips Airfryer Serie 2000 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Perché è la più adatta per due persone:**\n  * **Capacità ottimale (6,2 L):** I cestelli più piccoli di 4,5–5 L richiedono la cottura in più lotti anche per due persone. Un cestello da 6,2 L ti consente di adagiare due filetti di salmone e un contorno completo di verdure o patatine su un unico strato per una croccantezza uniforme.\n  * **Ingombro in cucina:** Le macchine a doppia zona (come Ninja o Russell Hobbs) occupano molto spazio sul bancone. Un singolo cestello da 6 L offre un volume ampio mantenendo un ingombro compatto adatto ai tipici piani di lavoro delle cucine tedesche.\n  * **Finestra trasparente:** Consente di controllare la doratura senza dover aprire il cassetto e disperdere calore.\n  * **Rapporto qualità-prezzo:** A 99,99 €, offre l'affidabilità della costanza di temperatura di [Philips](wiki:Philips) a un prezzo ragionevole.\n\n#### **Alternativa (se cucini spesso due piatti a temperature diverse): [Philips Dual Basket Serie 3000 (9,0L)](embed:philips-airfryer-dual-pjD)**\nSe tu e il tuo partner preferite preparare proteine e contorni di verdure contemporaneamente a temperature e tempi diversi (ad esempio, petti di pollo a 180 °C e patate croccanti a 200 °C), questo modello è attualmente scontato a 119,99 € e dispone di tempi di cottura sincronizzati.\n\n---\n\n### Fattori chiave da tenere a mente prima dell'acquisto\n1. **Forma del cassetto:** I cestelli quadrati (come Cosori e Philips) accolgono cibi piatti (bistecche, teglie, spiedini) molto meglio dei cestelli rotondi di identica capacità in litri.\n2. **Spazio in lavastoviglie:** Assicurati che la tua lavastoviglie abbia un'altezza del cestello sufficiente per un cassetto singolo da 6 L o considera il lavaggio a mano dei rivestimenti antiaderenti per prolungarne la durata."
+      },
+      "follow_up_1": {
+        "text": "Cerca ricette specifiche per friggitrici ad aria"
+      },
+      "follow_up_2": {
+        "text": "Spiega le differenze principali tra friggitrici ad aria a cestello singolo e doppio"
+      },
+      "follow_up_3": {
+        "text": "Trova accessori da forno compatibili per questa friggitrice ad aria"
+      },
+      "follow_up_4": {
+        "text": "Elenca ricette facili per principianti per cucinare la cena in una friggitrice ad aria"
+      },
+      "follow_up_5": {
+        "text": "Controlla le attuali classi di consumo energetico per questi modelli"
+      },
+      "follow_up_6": {
+        "text": "Confronta i requisiti di pulizia e manutenzione per i rivestimenti in ceramica rispetto al teflon"
       }
     },
     "artemis_ii_mission": {
@@ -11001,6 +11042,38 @@
         "text": "Spiega la scelta dei condensatori di disaccoppiamento"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Idee per ricette vegetariane con ingredienti base"
+      },
+      "summary": {
+        "text": "L'utente ha chiesto idee per ricette vegetariane usando spinaci, carote, peperoni e ceci; l'assistente ha fornito tre opzioni."
+      },
+      "message_1": {
+        "text": "Consigli per ricette vegetariane? Ho ancora spinaci, carote, peperoni e ceci in frigo."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCon **spinaci, carote, peperoni e ceci**, hai un'ottima base per piatti vegetariani deliziosi e ricchi di fibre. \n\nEcco tre diverse direzioni culinarie a seconda del tipo di piatto che desideri:\n\n---\n\n### 1. Fresca e croccante: Insalata tritata in stile Thai\nSe vuoi qualcosa di veloce, leggero e croccante, unisci peperoni crudi tritati finemente, carote e spinaci con i ceci in un condimento piccante alle [arachidi](wiki:Peanut) e lime.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Polpette saporite: Frittelle croccanti di ceci e verdure\nSe preferisci qualcosa di caldo e sfizioso (ottimo in wrap, pita o accompagnato da una salsa allo yogurt), schiaccia i ceci e aggiungi carote tritate, peperoni e spinaci saltati.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa veloce per la cena: Curry di ceci e verdure in padella\nSe vuoi un piatto unico usando ingredienti base della dispensa (come latte di cocco in lattina o pomodori pelati):\n1. **Soffriggi gli odori:** scalda l'olio d'oliva in una padella, poi cuoci cipolla a dadini, aglio tritato e zenzero fino a quando non sprigionano il loro profumo.\n2. **Aggiungi le verdure sode:** taglia le carote e i peperoni a pezzetti. Aggiungili in padella con cumino, [curcuma](wiki:Turmeric) e un pizzico di peperoncino o curry in polvere.\n3. **Cuoci a fuoco lento:** aggiungi i ceci sciacquati insieme a una tazza di brodo vegetale o latte di cocco. Copri e cuoci a fuoco lento per 10-12 minuti finché le carote non saranno tenere.\n4. **Appassisci gli spinaci:** aggiungi gli spinaci freschi proprio alla fine per 1-2 minuti finché non saranno appassiti ma ancora di un verde brillante. Rifinisci con una spruzzata di succo di limone.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Quale stile di cucina preferiresti preparare oggi?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Insalata tritata fresca e croccante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Frittelle o polpette croccanti in padella\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Curry o stufato caldo in padella\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Cerca istruzioni più dettagliate e le dosi complete degli ingredienti per il curry in padella"
+      },
+      "follow_up_2": {
+        "text": "Spiega come preparare e conservare le frittelle di ceci avanzate per il meal prep"
+      },
+      "follow_up_3": {
+        "text": "Cerca ricette per salse allo yogurt vegano da abbinare alle frittelle di ceci"
+      },
+      "follow_up_4": {
+        "text": "Elenca semplici sostituzioni di spezie se non ho il curry in polvere per il piatto in padella"
+      },
+      "follow_up_5": {
+        "text": "Cerca ricette alternative per il condimento a base di tahina per l'insalata tritata in stile thailandese"
+      },
+      "follow_up_6": {
+        "text": "Confronta il contenuto di proteine e fibre di queste tre opzioni di ricette vegetariane"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Dati finanziari SEC di Vital Farms"
@@ -11063,70 +11136,6 @@
       },
       "follow_up_6": {
         "text": "Confronta diversi metodi per trasformare idee parlate in compiti organizzati"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Idee per ricette vegetariane con ingredienti base"
-      },
-      "summary": {
-        "text": "L'utente ha chiesto idee per ricette vegetariane usando spinaci, carote, peperoni e ceci; l'assistente ha fornito tre opzioni."
-      },
-      "message_1": {
-        "text": "Consigli per ricette vegetariane? Ho ancora spinaci, carote, peperoni e ceci in frigo."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nCon **spinaci, carote, peperoni e ceci**, hai un'ottima base per piatti vegetariani deliziosi e ricchi di fibre. \n\nEcco tre diverse direzioni culinarie a seconda del tipo di piatto che desideri:\n\n---\n\n### 1. Fresca e croccante: Insalata tritata in stile Thai\nSe vuoi qualcosa di veloce, leggero e croccante, unisci peperoni crudi tritati finemente, carote e spinaci con i ceci in un condimento piccante alle [arachidi](wiki:Peanut) e lime.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Polpette saporite: Frittelle croccanti di ceci e verdure\nSe preferisci qualcosa di caldo e sfizioso (ottimo in wrap, pita o accompagnato da una salsa allo yogurt), schiaccia i ceci e aggiungi carote tritate, peperoni e spinaci saltati.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Alternativa veloce per la cena: Curry di ceci e verdure in padella\nSe vuoi un piatto unico usando ingredienti base della dispensa (come latte di cocco in lattina o pomodori pelati):\n1. **Soffriggi gli odori:** scalda l'olio d'oliva in una padella, poi cuoci cipolla a dadini, aglio tritato e zenzero fino a quando non sprigionano il loro profumo.\n2. **Aggiungi le verdure sode:** taglia le carote e i peperoni a pezzetti. Aggiungili in padella con cumino, [curcuma](wiki:Turmeric) e un pizzico di peperoncino o curry in polvere.\n3. **Cuoci a fuoco lento:** aggiungi i ceci sciacquati insieme a una tazza di brodo vegetale o latte di cocco. Copri e cuoci a fuoco lento per 10-12 minuti finché le carote non saranno tenere.\n4. **Appassisci gli spinaci:** aggiungi gli spinaci freschi proprio alla fine per 1-2 minuti finché non saranno appassiti ma ancora di un verde brillante. Rifinisci con una spruzzata di succo di limone.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Quale stile di cucina preferiresti preparare oggi?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Insalata tritata fresca e croccante\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Frittelle o polpette croccanti in padella\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Curry o stufato caldo in padella\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Cerca istruzioni più dettagliate e le dosi complete degli ingredienti per il curry in padella"
-      },
-      "follow_up_2": {
-        "text": "Spiega come preparare e conservare le frittelle di ceci avanzate per il meal prep"
-      },
-      "follow_up_3": {
-        "text": "Cerca ricette per salse allo yogurt vegano da abbinare alle frittelle di ceci"
-      },
-      "follow_up_4": {
-        "text": "Elenca semplici sostituzioni di spezie se non ho il curry in polvere per il piatto in padella"
-      },
-      "follow_up_5": {
-        "text": "Cerca ricette alternative per il condimento a base di tahina per l'insalata tritata in stile thailandese"
-      },
-      "follow_up_6": {
-        "text": "Confronta il contenuto di proteine e fibre di queste tre opzioni di ricette vegetariane"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Confronto tra friggitrici ad aria in Germania"
-      },
-      "summary": {
-        "text": "Confronto delle migliori friggitrici ad aria su Amazon Germania per prezzo, capacità e valutazioni, con raccomandazione della Philips Airfryer Serie 2000 per un nucleo di due persone."
-      },
-      "message_1": {
-        "text": "Trova friggitrici ad aria che posso acquistare online in Germania, inclusi i risultati di Amazon. Confronta prezzi attuali, capacità e valutazioni, quindi consigliane una per un nucleo di due persone con i link alle fonti."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nEcco un confronto delle friggitrici ad aria più votate attualmente disponibili su Amazon Germania, mettendo a confronto prezzo, capacità e valutazioni dei clienti.\n\n---\n\n### Confronto dei modelli popolari in Germania\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Migliore raccomandazione per un nucleo familiare di 2 persone\n\n#### **Scelta principale: [Philips Airfryer Serie 2000 6,2L](embed:philips-airfryer-2000-fay)**\n\n* **Perché è la più adatta per due persone:**\n  * **Capacità ottimale (6,2 L):** I cestelli più piccoli di 4,5–5 L richiedono la cottura in più lotti anche per due persone. Un cestello da 6,2 L ti consente di adagiare due filetti di salmone e un contorno completo di verdure o patatine su un unico strato per una croccantezza uniforme.\n  * **Ingombro in cucina:** Le macchine a doppia zona (come Ninja o Russell Hobbs) occupano molto spazio sul bancone. Un singolo cestello da 6 L offre un volume ampio mantenendo un ingombro compatto adatto ai tipici piani di lavoro delle cucine tedesche.\n  * **Finestra trasparente:** Consente di controllare la doratura senza dover aprire il cassetto e disperdere calore.\n  * **Rapporto qualità-prezzo:** A 99,99 €, offre l'affidabilità della costanza di temperatura di [Philips](wiki:Philips) a un prezzo ragionevole.\n\n#### **Alternativa (se cucini spesso due piatti a temperature diverse): [Philips Dual Basket Serie 3000 (9,0L)](embed:philips-airfryer-dual-pjD)**\nSe tu e il tuo partner preferite preparare proteine e contorni di verdure contemporaneamente a temperature e tempi diversi (ad esempio, petti di pollo a 180 °C e patate croccanti a 200 °C), questo modello è attualmente scontato a 119,99 € e dispone di tempi di cottura sincronizzati.\n\n---\n\n### Fattori chiave da tenere a mente prima dell'acquisto\n1. **Forma del cassetto:** I cestelli quadrati (come Cosori e Philips) accolgono cibi piatti (bistecche, teglie, spiedini) molto meglio dei cestelli rotondi di identica capacità in litri.\n2. **Spazio in lavastoviglie:** Assicurati che la tua lavastoviglie abbia un'altezza del cestello sufficiente per un cassetto singolo da 6 L o considera il lavaggio a mano dei rivestimenti antiaderenti per prolungarne la durata."
-      },
-      "follow_up_1": {
-        "text": "Cerca ricette specifiche per friggitrici ad aria"
-      },
-      "follow_up_2": {
-        "text": "Spiega le differenze principali tra friggitrici ad aria a cestello singolo e doppio"
-      },
-      "follow_up_3": {
-        "text": "Trova accessori da forno compatibili per questa friggitrice ad aria"
-      },
-      "follow_up_4": {
-        "text": "Elenca ricette facili per principianti per cucinare la cena in una friggitrice ad aria"
-      },
-      "follow_up_5": {
-        "text": "Controlla le attuali classi di consumo energetico per questi modelli"
-      },
-      "follow_up_6": {
-        "text": "Confronta i requisiti di pulizia e manutenzione per i rivestimenti in ceramica rispetto al teflon"
       }
     }
   },

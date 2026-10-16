@@ -274,6 +274,25 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
     }
 }
 
+let anonymousUsageLimitRevision = 0;
+
+/** A terminal admission decision also disables the existing guest Send control. */
+export function markAnonymousFreeUsageExhausted(reason = 'anonymous_usage_limit'): void {
+    anonymousUsageLimitRevision += 1;
+    serverStatusStore.update(state => ({
+        ...state,
+        status: state.status ? {
+            ...state.status,
+            anonymous_free_usage: {
+                ...state.status.anonymous_free_usage,
+                active: false,
+                can_send_text: false,
+                reason,
+            },
+        } : null,
+    }));
+}
+
 export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['anonymous_free_usage'] | null> {
     try {
         if (!get(serverStatusStore).status) {
@@ -291,6 +310,7 @@ export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['a
         const anonymousId = anonymousChatStorage.getAnonymousId();
         const url = new URL(getApiEndpoint('/v1/anonymous/free-usage/status'));
         url.searchParams.set('anonymous_id', anonymousId);
+        const limitRevisionAtRequest = anonymousUsageLimitRevision;
         const response = await fetch(url.toString(), {
             cache: 'no-store'
         });
@@ -310,6 +330,10 @@ export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['a
         }
 
         const anonymousStatus = await response.json();
+        // A status request started before a stream rejection must not restore Send.
+        if (limitRevisionAtRequest !== anonymousUsageLimitRevision) {
+            return get(anonymousFreeUsageStatus);
+        }
         serverStatusStore.update(state => ({
             ...state,
             status: state.status

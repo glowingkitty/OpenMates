@@ -23,7 +23,7 @@ QUEUE_RETRY_POLICY = {
 }
 STAGES = frozenset({"dispatch", "preprocessing", "inference", "streaming", "finalization"})
 CATEGORIES = frozenset({"processing_error", "timeout", "unexpected_error", "delivery_error"})
-EXPECTED_REJECTIONS = frozenset({"insufficient_credits", "harmful_content", "policy_rejection", "user_cancelled", "insufficient_team_credits", "harmful_or_illegal_detected", "misuse_detected"})
+EXPECTED_REJECTIONS = frozenset({"insufficient_credits", "anonymous_usage_limit", "harmful_content", "policy_rejection", "user_cancelled", "insufficient_team_credits", "harmful_or_illegal_detected", "misuse_detected"})
 TYPED_FAILURE_REASONS = frozenset({"recovery_claim_failed"})
 RECOVERY_TECHNICAL_FAILURE_STAGES = {
     "dispatch_failed": "dispatch",

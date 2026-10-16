@@ -15,7 +15,7 @@ from celery import Celery # For sending tasks
 
 from backend.apps.base_skill import BaseSkill # Adjusted import path
 from backend.core.api.app.schemas.chat import AIHistoryMessage # Import the message model
-from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
+from backend.shared.python_utils.chat_failure_notifications import EXPECTED_REJECTIONS, notify_chat_failure
 
 logger = logging.getLogger(__name__)
 
@@ -834,7 +834,7 @@ class AskSkill(BaseSkill):
                         )
                         yield f"data: {embed_chunk.model_dump_json(exclude_none=True)}\n\n"
 
-                    if is_error:
+                    if is_error and chunk_info.get("failure_reason") not in EXPECTED_REJECTIONS:
                         await notify_chat_failure(
                             f"{internal_request.chat_id}:{internal_request.message_id}",
                             stage="inference",

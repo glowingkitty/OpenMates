@@ -26,7 +26,7 @@ import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
 import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
-import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
+import { markAnonymousFreeUsageExhausted, refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
 import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
@@ -1611,7 +1611,7 @@ export async function handleSend(
         vibrateMessageField();
         return;
       }
-      await anonymousChatStorage.sendTextMessage({
+      const anonymousResult = await anonymousChatStorage.sendTextMessage({
         markdown,
         currentChatId,
         sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
@@ -1624,13 +1624,19 @@ export async function handleSend(
         },
       });
       sendAccepted = true;
+      if (anonymousResult?.rejectionReason === "anonymous_usage_limit") {
+        markAnonymousFreeUsageExhausted();
+        showAnonymousDailyCreditsExhaustedNotification();
+      }
       if (!options.preserveDraft && clearedEditorDoc && editor.state.doc === clearedEditorDoc) {
         const anonymousDraftChatId = get(draftEditorUIState).currentChatId;
         await clearCurrentDraft(anonymousDraftChatId
           ? { editor, document: clearedEditorDoc, chatId: anonymousDraftChatId }
           : undefined);
       }
-      void refreshAnonymousFreeUsageStatus();
+      if (anonymousResult?.rejectionReason !== "anonymous_usage_limit") {
+        void refreshAnonymousFreeUsageStatus();
+      }
       return true;
     }
 
@@ -2493,6 +2499,7 @@ export async function handleSend(
       error: serializeSendDebugError(error),
     });
     if (error instanceof AnonymousFreeUsageExhaustedError) {
+      markAnonymousFreeUsageExhausted(error.reason);
       restoreRejectedDraft();
       showAnonymousDailyCreditsExhaustedNotification();
       if (editor && !editor.isDestroyed) setHasContent(true);

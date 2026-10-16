@@ -775,6 +775,14 @@
       "specs": [
         "teams-stripe-card-dev.spec.ts"
       ]
+    },
+    "anonymous_usage_limit_client": {
+      "execution": "e2e",
+      "enabling_work": "Guest eligibility and SSE responses are deterministic browser fixtures. Exercises local encrypted client results, the existing limit notification and signup controls without live cloud budgets or provider inference.",
+      "specs": [
+        "anonymous-usage-limit.spec.ts",
+        "components/anonymous-usage-limit.spec.ts"
+      ]
     }
   },
   "holds": {

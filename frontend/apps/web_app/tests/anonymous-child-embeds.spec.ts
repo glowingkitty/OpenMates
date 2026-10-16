@@ -344,7 +344,7 @@ test.describe('Anonymous child embeds', () => {
 		await expect(page.getByTestId('chat-settings-share-url')).toContainText('/#chat-id=example-gigantic-airplanes');
 	});
 
-	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.persistence.client-encrypted,billing.anonymous.local-only-content
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.persistence.client-encrypted,billing.anonymous.local-only-content,billing.anonymous.hard-capped-provider-metering,message-input.privacy-context
 	test('keeps completed search results when the final anonymous answer reaches its usage limit', async ({ page }: { page: any }) => {
 		test.setTimeout(90_000);
 		await mockAnonymousAccess(page);
@@ -358,7 +358,15 @@ test.describe('Anonymous child embeds', () => {
 
 		const answer = page.getByTestId('message-assistant').last();
 		await expect(answer).toContainText('Create an account to keep using OpenMates.', { timeout: 30_000 });
+		await expect(answer).toHaveAttribute('data-streaming', 'false');
 		await expect(answer).not.toContainText('The AI service encountered an error');
+		const limitNotice = page.getByTestId('notification').filter({ hasText: "You've reached the free usage limit." });
+		await expect(limitNotice).toBeVisible();
+		await expect(limitNotice.getByTestId('notification-action')).toHaveText('Sign up');
+		await editor.click();
+		await editor.pressSequentially('Continue researching');
+		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
+		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible();
 		await expect(answer.getByRole('link', { name: 'OpenMates source' })).toBeVisible();
 		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
 		await expect.poll(() => storedEmbedIds(page), { timeout: 15_000 }).toEqual([PARENT_ID, CHILD_ID]);

@@ -1,3 +1,4 @@
+vi.mock("../../../services/voiceCall", () => ({ voiceCallController: mocks.store({ status: "idle" }) }));
 vi.mock("../../../services/preparedPrivacyForSend", () => ({ registerPersonalPrivacyExclusions: vi.fn() }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Editor } from '@tiptap/core';
@@ -48,6 +49,8 @@ const mocks = vi.hoisted(() => {
     getTracer: vi.fn(() => ({ startSpan: vi.fn(() => span) })),
     hasActualContent: vi.fn(() => true),
     sendTextMessage: vi.fn(),
+    markAnonymousFreeUsageExhausted: vi.fn(),
+    notify: vi.fn(),
     clearCurrentDraft: vi.fn(async () => undefined),
     embedStorePut: vi.fn(async () => undefined),
     refreshAnonymousFreeUsageStatus: vi.fn(async () => ({ active: true, can_send_text: true })),
@@ -91,14 +94,14 @@ vi.mock('../../../services/anonymousChatStorage', () => ({
   AnonymousFreeUsageExhaustedError: class AnonymousFreeUsageExhaustedError extends Error {},
   anonymousChatStorage: { sendTextMessage: mocks.sendTextMessage },
 }));
-vi.mock('../../../stores/serverStatusStore', () => ({ refreshAnonymousFreeUsageStatus: mocks.refreshAnonymousFreeUsageStatus }));
+vi.mock('../../../stores/serverStatusStore', () => ({ refreshAnonymousFreeUsageStatus: mocks.refreshAnonymousFreeUsageStatus, markAnonymousFreeUsageExhausted: mocks.markAnonymousFreeUsageExhausted }));
 vi.mock('../../../stores/authStore', () => ({ authStore: { subscribe(run: (state: typeof mocks.authState) => void) { run(mocks.authState); return () => undefined; } } }));
 vi.mock('../../../stores/userProfile', () => ({ userProfile: mocks.store({ username: 'Alice', user_id: 'alice-id' }) }));
 vi.mock('../../../stores/signupState', () => ({ forcedLogoutInProgress: mocks.store(false) }));
 vi.mock('../../../stores/appSettingsMemoriesPermissionStore', () => ({ appSettingsMemoriesPermissionStore: { getCurrentRequestId: vi.fn(() => null), getCurrentChatId: vi.fn(() => null) } }));
 vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.store(null), cancelEdit: vi.fn() }));
 vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
-vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: vi.fn(), addNotificationWithOptions: vi.fn() } }));
+vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: vi.fn(), addNotificationWithOptions: mocks.notify } }));
 vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store({ masterEnabled: false, categories: {} }), enabledEntries: mocks.store([]) } }));
 vi.mock('../services/piiDetectionService', () => ({ detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []) }));
 vi.mock('../services/placeholderRewriteService', () => ({ rewriteKnownPIIPlaceholders: vi.fn() }));
@@ -229,6 +232,38 @@ describe('handleSend anonymous acceptance lifecycle', () => {
     expect(blur).not.toHaveBeenCalled();
     expect(setHasContent).not.toHaveBeenCalledWith(false);
     expect(mocks.clearCurrentDraft).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.hard-capped-provider-metering,message-input.privacy-context
+  it('shows signup and disables guest send after a limit while retaining the accepted turn', async () => {
+    mocks.sendTextMessage.mockResolvedValue({ rejectionReason: 'anonymous_usage_limit' });
+    const { editor } = makeEditor(false);
+
+    expect(await handleSend(editor, vi.fn(), vi.fn())).toBe(true);
+
+    expect(mocks.markAnonymousFreeUsageExhausted).toHaveBeenCalledOnce();
+    expect(mocks.notify).toHaveBeenCalledWith('warning', expect.objectContaining({
+      message: 'chat.anonymous_free_usage.daily_credits_exhausted',
+      actionLabel: 'signup.sign_up',
+    }));
+    expect(mocks.refreshAnonymousFreeUsageStatus).toHaveBeenCalledOnce();
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.hard-capped-provider-metering,message-input.send.ownership
+  it('applies a completed usage limit even if subsequent draft cleanup rejects', async () => {
+    mocks.sendTextMessage.mockImplementation(async ({ onPending }: { onPending: (pending: unknown) => Promise<void> }) => {
+      await onPending({ userMessage: { message_id: 'anonymous-1', chat_id: 'anonymous-chat' }, isNewChat: false });
+      return { rejectionReason: 'anonymous_usage_limit' };
+    });
+    mocks.clearCurrentDraft.mockRejectedValueOnce(new Error('draft cleanup unavailable'));
+    const { editor } = makeEditor(false);
+
+    expect(await handleSend(editor, vi.fn(), vi.fn())).toBe(true);
+    expect(mocks.clearCurrentDraft).toHaveBeenCalledOnce();
+    expect(mocks.markAnonymousFreeUsageExhausted).toHaveBeenCalledOnce();
+    expect(mocks.notify).toHaveBeenCalledOnce();
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=message-input.send.ownership

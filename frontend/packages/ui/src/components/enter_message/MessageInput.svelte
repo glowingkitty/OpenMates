@@ -617,6 +617,14 @@
     let hasEmbedContent = $state(false);
     let draftPreviewParts = $state<DraftPreviewParts>(EMPTY_DRAFT_PREVIEW_PARTS);
     let anonymousStatusChecked = $state(false);
+    let anonymousUsageExhausted = $derived(
+        !$authStore.isAuthenticated &&
+        $anonymousFreeUsageStatus?.can_send_text === false &&
+        ['anonymous_usage_limit', 'budget_exhausted', 'per_identity_exhausted',
+         'daily_exhausted', 'weekly_exhausted', 'monthly_exhausted'].includes(
+            $anonymousFreeUsageStatus?.reason ?? ''
+        )
+    );
     let anonymousTextSendEnabled = $derived(
         anonymousStatusChecked &&
         !$authStore.isAuthenticated &&
@@ -820,7 +828,7 @@
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousUsageExhausted);
     let isInlineCompact = $derived(inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI);
 
     // Computed state for showing action buttons
@@ -834,6 +842,7 @@
         !startNewChatOnClick && !isDraftPreview && (
             isFullscreen ||
             showActionButtons ||
+            anonymousUsageExhausted ||
             hasEmbedContent ||
             hasDraftPreviewEmbeds ||
             isMessageFieldFocused ||
@@ -2226,7 +2235,7 @@
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
     let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
     let unauthenticatedCtaLabel = $derived(
-        anonymousFileAttachmentPending ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+        (anonymousFileAttachmentPending || anonymousUsageExhausted) ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
     );
 
     $effect(() => {
@@ -5821,7 +5830,7 @@
     }
 
     async function handleSignUpClick() {
-        const authEvent = anonymousFileAttachmentPending ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
+        const authEvent = (anonymousFileAttachmentPending || anonymousUsageExhausted) ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
@@ -7201,7 +7210,7 @@
                     allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
-                    forceUnauthenticatedCta={anonymousFileAttachmentPending}
+                    forceUnauthenticatedCta={anonymousFileAttachmentPending || anonymousUsageExhausted}
                     reserveTrailingControlSpace={showStopProcessingButton && !hasSendableDraft}
                     disableRecording={callOwnsAudio}
                     disableSpeech={callOwnsAudio}

@@ -716,6 +716,8 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
         "status": "finished",
     }
     notifications: list[tuple[str, str, str]] = []
+    route_failures: list[str] = []
+    monkeypatch.setattr(anonymous_routes.logger, "exception", lambda message: route_failures.append(message))
 
     async def fake_notify(request_identity: str, *, stage: str, category: str) -> None:
         notifications.append((request_identity, stage, category))
@@ -817,7 +819,8 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)
     assert [event["payload"]["embed_id"] for event in events if event["type"] == "send_embed_data"] == ["result-1"]
-    assert notifications == [("anonymous-chat-1:message-1", "inference", "processing_error")]
+    assert notifications == ([] if failure_reason else [("anonymous-chat-1:message-1", "inference", "processing_error")])
+    assert route_failures == ([] if failure_reason else ["Anonymous streaming inference failed"])
 
     openai_payloads = [
         json.loads(frame.removeprefix("data: ").strip())

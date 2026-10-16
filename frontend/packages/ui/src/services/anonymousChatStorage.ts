@@ -44,6 +44,7 @@ interface AnonymousChatResponse {
   category?: string | null;
   modelName?: string | null;
   streamed?: boolean;
+  rejectionReason?: string | null;
   chat?: Chat;
   detail?: { code?: string; message?: string } | string;
 }
@@ -81,6 +82,7 @@ export interface AnonymousSendResult {
   userMessage: Message;
   assistantMessage: Message;
   isNewChat: boolean;
+  rejectionReason?: string | null;
 }
 
 export interface AnonymousPendingSendResult {
@@ -404,6 +406,7 @@ class AnonymousChatStorage {
       userMessage: syncedUserMessage,
       assistantMessage,
       isNewChat,
+      rejectionReason: response.rejectionReason,
     };
   }
 
@@ -732,6 +735,7 @@ class AnonymousChatStorage {
       category,
       modelName,
       streamed: true,
+      rejectionReason,
       chat: activeChat,
     };
   }

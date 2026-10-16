@@ -72,6 +72,8 @@ def fingerprint(value):
     ({"failure_category": "dispatch_failed", "_celery_task_state": "FAILURE"}, "dispatch"),
     ({"failure_category": "future_unknown", "_celery_task_state": "FAILURE"}, "inference"),
     ({"failure_category": "user_cancelled", "_celery_task_state": "FAILURE"}, None),
+    ({"failure_category": "anonymous_usage_limit", "_celery_task_state": "FAILURE"}, None),
+    ({"preprocessing_summary": {"can_proceed": False, "rejection_reason": "anonymous_usage_limit"}}, None),
     ({"interrupted_by_revocation": True, "_celery_task_state": "FAILURE"}, None),
     ({"preprocessing_summary": {"can_proceed": False, "rejection_reason": "insufficient_team_credits"}}, None),
     ({"preprocessing_summary": {"can_proceed": False, "rejection_reason": "harmful_or_illegal_detected"}}, None),

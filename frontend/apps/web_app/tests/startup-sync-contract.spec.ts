@@ -361,7 +361,36 @@ async function getContinueCarouselState(page: any): Promise<{ visible: boolean; 
 	});
 }
 
-async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: any): Promise<void> {
+type ReconnectSocketObservation = { closed: boolean; phase2Frames: number };
+
+async function observeReconnectSockets(page: any): Promise<ReconnectSocketObservation[]> {
+	const sockets: ReconnectSocketObservation[] = [];
+	page.on('websocket', (socket: any) => {
+		if (!socket.url().includes('/v1/ws')) return;
+		const observation = { closed: false, phase2Frames: 0 };
+		sockets.push(observation);
+		socket.on('close', () => { observation.closed = true; });
+		socket.on('framereceived', (frame: any) => {
+			try {
+				if (JSON.parse(String(frame.payload))?.type === 'phase_2_last_20_chats_ready') observation.phase2Frames++;
+			} catch { /* Only count real Phase 2 completion frames. */ }
+		});
+	});
+	await page.addInitScript(() => {
+		const NativeWebSocket = window.WebSocket;
+		const sockets: WebSocket[] = [];
+		(window as typeof window & { __reconnectSockets?: WebSocket[] }).__reconnectSockets = sockets;
+		window.WebSocket = class extends NativeWebSocket {
+			constructor(url: string | URL, protocols?: string | string[]) {
+				super(url, protocols);
+				if (String(url).includes('/v1/ws')) sockets.push(this);
+			}
+		};
+	});
+	return sockets;
+}
+
+async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: ReconnectSocketObservation[]): Promise<void> {
 	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
 		await newChatButton.click();
@@ -393,9 +422,22 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 	}
 	await page.setViewportSize({ width: 1366, height: 900 });
 
-	await context.setOffline(true);
-	await page.waitForTimeout(250);
-	await context.setOffline(false);
+	await expect.poll(() => sockets.some(socket => !socket.closed && socket.phase2Frames > 0), {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'Initial socket must complete Phase 2 before reconnect coverage'
+	}).toBe(true);
+	const previousSocketCount = sockets.length;
+	const initialSocket = sockets[previousSocketCount - 1];
+	await page.evaluate(() => {
+		const sockets = (window as typeof window & { __reconnectSockets?: WebSocket[] }).__reconnectSockets || [];
+		const active = sockets.filter(socket => socket.readyState === WebSocket.OPEN);
+		if (active.length !== 1) throw new Error(`Expected one authenticated open socket, received ${active.length}`);
+		active[0].close(1000, 'Synthetic carousel reconnect');
+	});
+	await expect.poll(() => initialSocket.closed, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'The original real WebSocket must close'
+	}).toBe(true);
 
 	const samples: Array<{ visible: boolean; count: number }> = [];
 	const deadline = Date.now() + 2000;
@@ -407,6 +449,10 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 
 	const blankSample = samples.find((sample) => !sample.visible || sample.count === 0);
 	expect(blankSample, `Continue carousel must not blank during reconnect churn; samples=${JSON.stringify(samples)}`).toBeUndefined();
+	await expect.poll(() => sockets.slice(previousSocketCount).some(socket => !socket.closed && socket.phase2Frames > 0), {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'A replacement real WebSocket must complete metadata delta sync with a nullable legacy version'
+	}).toBe(true);
 }
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,sync.phase2.metadata-only,chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -560,6 +606,9 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	}
 	// The isolated runner adds 22 encrypted startup chats after one shared owner chat.
 	expect(phase2Payloads.some((payload) => payload?.total_chat_count === 23), 'phase 2 should report all 23 fixture chats').toBe(true);
+	expect(phase2Payloads.some((payload) => payload?.chats?.some((chat: any) =>
+		chat?.chat_details?.messages_v === null
+	)), 'The real metadata fixture must include its nullable legacy message counter').toBe(true);
 
 	for (const payload of phase2Payloads) {
 		expect(payload?.chat_count).toBe((payload?.chats || []).length);
@@ -659,14 +708,15 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 });
 
 // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,workspace-shell.start.available-space-cards
-test('continue carousel remains visible during reconnect churn', async ({ page, context }: { page: any; context: any }) => {
+test('continue carousel remains visible during reconnect churn', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(120000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	const sockets = await observeReconnectSockets(page);
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
-	await verifyContinueCarouselSurvivesReconnectChurn(page, context);
+	await verifyContinueCarouselSurvivesReconnectChurn(page, sockets);
 });
 
 // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,sync.startup.bounded-phases

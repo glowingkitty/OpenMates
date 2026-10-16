@@ -847,7 +847,10 @@ async def anonymous_chat_stream(
             except Exception:
                 logger.exception("Anonymous metadata generation failed")
         except Exception:
-            logger.exception("Anonymous streaming inference failed")
+            if upstream_failure_reason == "anonymous_usage_limit":
+                logger.info("Anonymous streaming inference stopped at its usage limit")
+            else:
+                logger.exception("Anonymous streaming inference failed")
             if reservation is not None and reservation.accepted and not upstream_error_frame:
                 await notify_chat_failure(
                     f"{payload.client_chat_id}:{payload.client_message_id}",

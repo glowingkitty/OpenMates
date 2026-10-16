@@ -88,21 +88,26 @@ def _phase2_metadata_is_current(
     server_versions: Any,
     chat_details: Dict[str, Any],
 ) -> bool:
-    client_title_v = client_versions.get("title_v", 0)
-    server_messages_v = server_versions.messages_v
-    if server_messages_v is None:
-        server_messages_v = chat_details.get("messages_v", 0)
+    client_title_v = _version_int(client_versions.get("title_v"))
+    server_title_v = _version_int(server_versions.title_v)
+    # Nullable legacy counters remain possible in Directus even with warm Redis.
+    server_messages_v = max(
+        _version_int(server_versions.messages_v),
+        _version_int(chat_details.get("messages_v")),
+    )
     server_metadata_v = server_versions.metadata_v
     if server_metadata_v is None:
-        server_metadata_v = server_versions.title_v
+        server_metadata_v = server_title_v
+    client_metadata_v = client_versions.get("metadata_v", client_title_v)
+    if client_metadata_v is None:
+        client_metadata_v = client_title_v
 
     return (
-        client_versions.get("messages_v", 0)
-        >= max(server_messages_v, chat_details.get("messages_v", 0))
-        and client_title_v >= server_versions.title_v
-        and client_versions.get("metadata_v", client_title_v) >= server_metadata_v
-        and client_versions.get("draft_v", 0)
-        == chat_details.get("draft_v", 0)
+        _version_int(client_versions.get("messages_v")) >= server_messages_v
+        and client_title_v >= server_title_v
+        and _version_int(client_metadata_v) >= _version_int(server_metadata_v)
+        and _version_int(client_versions.get("draft_v"))
+        == _version_int(chat_details.get("draft_v"))
     )
 
 

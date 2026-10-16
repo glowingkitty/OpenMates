@@ -3729,7 +3729,7 @@
         "text": "um alle Funktionen freizuschalten, deine Chats zu behalten und auf allen deinen Geräten darauf zuzugreifen."
       },
       "daily_credits_exhausted": {
-        "text": "Du hast deine kostenlosen Tagescredits aufgebraucht. Registriere dich und kaufe Credits, um OpenMates vollständig zu nutzen."
+        "text": "Du hast das Limit für die kostenlose Nutzung erreicht. Registriere dich, um fortzufahren."
       }
     },
     "interactive_question_failed": {
@@ -9751,6 +9751,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Transkript wird verbessert…"
+      },
+      "removing_filler_words": {
+        "text": "Füllwörter werden entfernt…"
+      },
+      "making_more_concise": {
+        "text": "Text wird kürzer formuliert…"
+      },
       "recording": {
         "text": "Aufnahme laeuft..."
       },
@@ -9831,6 +9840,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin hat eine der aktivsten [KI](wiki:Artificial_intelligence)-Builder-Szenen Europas, die sich von allgemeiner Theorie hin zu praktischem „Hands-on“-Engineering entwickelt. Für jemanden, der lernt, mit KI-Tools zu bauen, liegt der Fokus im Juni 2026 stark auf [KI-Agenten](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation) und produktionsreifen Architekturen.\n\nHier sind die wichtigsten anstehenden Workshops und Meetups in Berlin, bei denen du bauen, Demos zeigen und von anderen Praktikern lernen kannst.\n\n### Ausgewählte Hands-on-Workshops\nDiese Sessions sind speziell für diejenigen gedacht, die Code schreiben und Prototypen bauen wollen.\n\n*   **BLISS x QuantCo: Baue deinen eigenen KI-Agenten**\n    *   **Datum:** 10. Juni 2026 | 17:30\n    *   **Ort:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Fokus:** Eine interaktive Session, die den Übergang von [LLM-APIs](wiki:Large_language_model) zum Bau eines eigenen Agenten zeigt, der komplexe Dokumenten-Workflows automatisiert. **Bring deinen Laptop mit.**\n    *   [Event-Details & Anmeldung](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: KI in der Praxis**\n    *   **Datum:** 8. Juni 2026 | 17:30\n    *   **Ort:** Netlight Consulting (Invalidenstraße 117)\n    *   **Fokus:** Ein „hype-freier“ Durchgang durch moderne KI, der Agentic AI, Fine-Tuning vs. RAG und die Anbindung von KI an Datenarchitekturen erklärt.\n    *   [Event-Details & Anmeldung](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Datum:** 11. Juni 2026 | 18:00\n    *   **Ort:** TBD (Berlin)\n    *   **Fokus:** Eine Session für Entwickler, um „sich die Hände schmutzig zu machen“, darüber zu diskutieren, was man gemeinsam bauen und veröffentlichen kann, inklusive Live-Demos aktueller Projekte.\n    *   [Event-Details & Anmeldung](embed:ai-future-club-XOk)\n\n### Community-Meetups für Builder\nDiese Events eignen sich hervorragend zum Networking und um zu sehen, was andere lokale Entwickler gerade bauen.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Datum:** 9. Juni 2026 | 19:00\n    *   **Ort:** w3.hub (Möckernstraße 120)\n    *   **Fokus:** Informelles „Laptop-raus“-Meetup, bei dem OpenClaw- und KI-Agenten-Setups vorgestellt werden. Perfekt, um zu teilen, was funktioniert und was nicht.\n    *   [Event-Details & Anmeldung](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Datum:** 17. Juni 2026\n    *   **Fokus:** Eine kuratierte, Demo-fokussierte „No-Pitch“-Community. Erwarte Live-Code, Architektur-Lektionen und technische Q&A von lokalen Gründern und Ingenieuren.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: KI für Full-Stack Java**\n    *   **Datum:** 9. Juni 2026 | 18:30\n    *   **Ort:** Capgemini (Potsdamer Platz 5)\n    *   **Fokus:** Lernen, wie KI Code, Diagramme und Tests aus strukturierten Spezifikationen generieren kann.\n    *   [Event-Details & Anmeldung](embed:spec-driven-development-rxI)\n\n### Wichtige Hubs, denen du folgen solltest\nWenn du auf dem Laufenden bleiben willst: Diese Organisationen veranstalten den Großteil der Builder-zentrierten KI-Events in Berlin:\n\n*   **Merantix AI Campus**: Dieser 6.000 m² große Campus in Nord-Mitte ist das Herz des Berliner KI-Ökosystems und veranstaltet wöchentliche Reading Groups und Tech Talks.\n    *   Campus-Veranstaltungskalender\n*   **BLISS (Berlin AI Community)**: Eine Community aus Studenten und Professionals, die hochwertige Workshops und Vortragsreihen organisiert.\n    *   Offizielle BLISS-Website\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Veranstaltet oft „Global AI Bootcamps“ und Hands-on-Sessions für Studenten und die Öffentlichkeit auf ihrem Delta-Campus in Neukölln.\n\n### Praktische Tipps für die Teilnahme\n1.  **Frühzeitig anmelden:** Viele dieser Events (besonders die BLISS- und Tinkerers-Sessions) haben begrenzte Plätze und erfordern eine Auswahl oder frühzeitige Registrierung.\n2.  **Laptop mitbringen:** Bei den meisten „Workshops“ wird erwartet, dass du den Code mitschreibst. Stelle sicher, dass du eine lokale Umgebung oder einen [GitHub](wiki:GitHub)-Account bereit hast.\n3.  **Tritt den Slack-Kanälen bei:** Gruppen wie AI Tinkerers und [Hackers/Founders](/#settings/apps/web) haben lokale Slack/Discord-Kanäle, in denen die meisten kurzfristigen Build-Sessions organisiert werden.\n\nSoll ich dir helfen, spezifischere Ressourcen für ein bestimmtes KI-Tool zu finden, das du gerade lernst, wie zum Beispiel [PyTorch](wiki:PyTorch) oder [LangChain](wiki:LangChain)?\n\n**Nächste Schritte:**\n- [Weitere KI-Events in Berlin durchsuchen](/#settings/apps/events)\n- [Nach KI-Tutorials auf YouTube suchen](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Heißluftfritteusen in Deutschland vergleichen"
+      },
+      "summary": {
+        "text": "Vergleich der Top-Heißluftfritteusen bei Amazon Deutschland nach Preis, Kapazität und Bewertungen; empfiehlt den Philips Airfryer der 2000er Serie für einen Zwei-Personen-Haushalt."
+      },
+      "message_1": {
+        "text": "Finde Heißluftfritteusen, die ich in Deutschland online kaufen kann, einschließlich Amazon-Angeboten. Vergleiche aktuelle Preise, Kapazitäten und Bewertungen und empfiehl dann eine für einen Zwei-Personen-Haushalt mit Quellenlinks."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier ist ein Vergleich der am besten bewerteten Heißluftfritteusen, die derzeit bei Amazon Deutschland erhältlich sind, basierend auf Preis, Kapazität und Kundenbewertungen.\n\n---\n\n### Vergleich beliebter Modelle in Deutschland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Top-Empfehlung für einen 2-Personen-Haushalt\n\n#### **Hauptempfehlung: [Philips Airfryer 2000 Serie 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Warum sie am besten für zwei Personen geeignet ist:**\n  * **Optimale Kapazität (6,2 l):** Körbe, die kleiner als 4,5–5 l sind, erfordern selbst für zwei Personen oft das Garen in mehreren Durchgängen. Ein 6,2-l-Korb ermöglicht es dir, zwei Lachsfilets und eine komplette Beilage aus Gemüse oder Pommes flach in einer Schicht auszulegen, um ein gleichmäßiges Knusperergebnis zu erzielen.\n  * **Platzbedarf in der Küche:** Zwei-Zonen-Geräte (wie von Ninja oder Russell Hobbs) nehmen viel Platz auf der Arbeitsplatte ein. Ein einzelner 6-l-Korb bietet reichlich Volumen bei gleichzeitig kompakter Stellfläche, die für typische deutsche Küchenarbeitsplatten geeignet ist.\n  * **Sichtfenster:** Ermöglicht es, den Bräunungsgrad zu prüfen, ohne die Schublade zu öffnen und Hitze zu verlieren.\n  * **Preis-Leistung:** Für 99,99 € bietet sie eine zuverlässige Temperaturkonstanz von [Philips](wiki:Philips) zu einem fairen Preis.\n\n#### **Alternative (wenn du häufig zwei Gerichte bei unterschiedlichen Temperaturen zubereitest): [Philips Dual Basket 3000 Serie (9,0 l)](embed:philips-airfryer-dual-pjD)**\nWenn du und dein Partner es vorzieht, Proteine und Gemüsebeilagen gleichzeitig bei unterschiedlichen Temperaturen und Zeiten zuzubereiten (z. B. Hähnchenbrust bei 180 °C und knusprige Kartoffeln bei 200 °C), ist dieses Modell derzeit auf 119,99 € reduziert und verfügt über synchronisierte Garzeiten.\n\n---\n\n### Wichtige Faktoren, die du vor dem Kauf beachten solltest\n1. **Form der Schublade:** Eckige Körbe (wie von Cosori und Philips) bieten viel mehr Platz für flache Lebensmittel (Steaks, Backformen, Spieße) als runde Körbe mit identischem Fassungsvermögen.\n2. **Platz in der Spülmaschine:** Stelle sicher, dass deine Spülmaschine genügend Höhe im Korb für eine einzelne 6-l-Schublade bietet, oder ziehe das Spülen von Hand in Betracht, um die Antihaftbeschichtung zu schonen."
+      },
+      "follow_up_1": {
+        "text": "Suche Rezepte speziell für Heißluftfritteusen"
+      },
+      "follow_up_2": {
+        "text": "Erkläre die Hauptunterschiede zwischen Heißluftfritteusen mit einem Korb und zwei Körben"
+      },
+      "follow_up_3": {
+        "text": "Finde passendes Backzubehör für diese Heißluftfritteuse"
+      },
+      "follow_up_4": {
+        "text": "Liste anfängerfreundliche Rezepte für das Abendessen in der Heißluftfritteuse auf"
+      },
+      "follow_up_5": {
+        "text": "Prüfe die aktuellen Energieverbrauchswerte für diese Modelle"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche Reinigungs- und Pflegeaufwand von Keramik- und Teflonbeschichtungen"
       }
     },
     "artemis_ii_mission": {
@@ -12317,6 +12358,38 @@
         "text": "Erkläre die Auswahl der Entkopplungskondensatoren"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetarische Rezeptideen mit Kühlschrank-Vorräten"
+      },
+      "summary": {
+        "text": "Der Nutzer fragte nach vegetarischen Rezeptideen mit Spinat, Karotten, Paprika und Kichererbsen; der Assistent schlug drei Optionen vor."
+      },
+      "message_1": {
+        "text": "Empfehlungen für vegetarische Rezepte? Ich habe noch Spinat, Karotten, Paprika und Kichererbsen im Kühlschrank."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMit **Spinat, Karotten, Paprika und Kichererbsen** hast du eine solide Basis für köstliche, ballaststoffreiche vegetarische Mahlzeiten. \n\nHier sind drei verschiedene kulinarische Richtungen, je nachdem, worauf du gerade Lust hast:\n\n---\n\n### 1. Frisch & knackig: Gehackter Salat nach thailändischer Art\nWenn du etwas Schnelles, Leichtes und Knackiges möchtest, kombiniere fein gehackte rohe Paprika, Karotten und Spinat mit Kichererbsen in einem würzigen [Erdnuss](wiki:Peanut)-Limetten-Dressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Herzhafte Bratlinge: Knusprige Kichererbsen-Gemüse-Puffer\nWenn du etwas Warmes und Häppchengroßes möchtest (toll in Wraps, Pitabrot oder mit einem Joghurt-Dip), zerdrücke die Kichererbsen und mische fein gewürfelte Karotten, Paprika und zusammengefallenen Spinat unter.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Schnelle Alternative für unter der Woche: Warmes Kichererbsen-Gemüse-Pfannencurry\nWenn du ein One-Pot-Gericht aus einfachen Vorratszutaten (wie Kokosmilch aus der Dose oder stückigen Tomaten) möchtest:\n1. **Aromen anbraten:** Erhitze Olivenöl in einer Pfanne und dünste gewürfelte Zwiebeln, gehackten Knoblauch und Ingwer an, bis sie duften.\n2. **Das feste Gemüse hinzufügen:** Schneide die Karotten und Paprika in mundgerechte Stücke. Gib sie zusammen mit gemahlenem Kreuzkümmel, [Kurkuma](wiki:Turmeric) und einer Prise Chilipulver oder Currypulver hinzu.\n3. **Köcheln lassen:** Gib die abgespülten Kichererbsen zusammen mit einer Tasse Gemüsebrühe oder Kokosmilch hinzu. Decke die Pfanne ab und lass alles 10–12 Minuten köcheln, bis die Karotten weich sind.\n4. **Spinat unterheben:** Hebe den frischen Spinat ganz am Ende für 1–2 Minuten unter, bis er leuchtend grün und zusammengefallen ist. Mit einem Spritzer Zitronensaft abschmecken.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Welche Zubereitungsart bevorzugst du heute?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Frischer & knackiger gehackter Salat\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Knusprige Puffer oder Bratlinge\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warmes Pfannencurry oder Eintopf\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Suche nach detaillierteren Anweisungen und vollständigen Mengenangaben für das Pfannencurry"
+      },
+      "follow_up_2": {
+        "text": "Erkläre, wie man übrig gebliebene Kichererbsen-Puffer für Meal Prep vorbereitet und lagert"
+      },
+      "follow_up_3": {
+        "text": "Suche nach Rezepten für vegane Joghurt-Dips, die gut zu Kichererbsen-Puffern passen"
+      },
+      "follow_up_4": {
+        "text": "Liste einfache Gewürzersatzmöglichkeiten auf, falls ich kein Currypulver für das Pfannengericht habe"
+      },
+      "follow_up_5": {
+        "text": "Suche nach alternativen Dressing-Rezepten mit Tahini für den Thai-Salat"
+      },
+      "follow_up_6": {
+        "text": "Vergleiche den Protein- und Ballaststoffgehalt dieser drei vegetarischen Rezeptoptionen"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC-Finanzdaten"
@@ -12379,70 +12452,6 @@
       },
       "follow_up_6": {
         "text": "Vergleiche verschiedene Methoden, um gesprochene Ideen in organisierte Aufgaben umzuwandeln"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Vegetarische Rezeptideen mit Kühlschrank-Vorräten"
-      },
-      "summary": {
-        "text": "Der Nutzer fragte nach vegetarischen Rezeptideen mit Spinat, Karotten, Paprika und Kichererbsen; der Assistent schlug drei Optionen vor."
-      },
-      "message_1": {
-        "text": "Empfehlungen für vegetarische Rezepte? Ich habe noch Spinat, Karotten, Paprika und Kichererbsen im Kühlschrank."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nMit **Spinat, Karotten, Paprika und Kichererbsen** hast du eine solide Basis für köstliche, ballaststoffreiche vegetarische Mahlzeiten. \n\nHier sind drei verschiedene kulinarische Richtungen, je nachdem, worauf du gerade Lust hast:\n\n---\n\n### 1. Frisch & knackig: Gehackter Salat nach thailändischer Art\nWenn du etwas Schnelles, Leichtes und Knackiges möchtest, kombiniere fein gehackte rohe Paprika, Karotten und Spinat mit Kichererbsen in einem würzigen [Erdnuss](wiki:Peanut)-Limetten-Dressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Herzhafte Bratlinge: Knusprige Kichererbsen-Gemüse-Puffer\nWenn du etwas Warmes und Häppchengroßes möchtest (toll in Wraps, Pitabrot oder mit einem Joghurt-Dip), zerdrücke die Kichererbsen und mische fein gewürfelte Karotten, Paprika und zusammengefallenen Spinat unter.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Schnelle Alternative für unter der Woche: Warmes Kichererbsen-Gemüse-Pfannencurry\nWenn du ein One-Pot-Gericht aus einfachen Vorratszutaten (wie Kokosmilch aus der Dose oder stückigen Tomaten) möchtest:\n1. **Aromen anbraten:** Erhitze Olivenöl in einer Pfanne und dünste gewürfelte Zwiebeln, gehackten Knoblauch und Ingwer an, bis sie duften.\n2. **Das feste Gemüse hinzufügen:** Schneide die Karotten und Paprika in mundgerechte Stücke. Gib sie zusammen mit gemahlenem Kreuzkümmel, [Kurkuma](wiki:Turmeric) und einer Prise Chilipulver oder Currypulver hinzu.\n3. **Köcheln lassen:** Gib die abgespülten Kichererbsen zusammen mit einer Tasse Gemüsebrühe oder Kokosmilch hinzu. Decke die Pfanne ab und lass alles 10–12 Minuten köcheln, bis die Karotten weich sind.\n4. **Spinat unterheben:** Hebe den frischen Spinat ganz am Ende für 1–2 Minuten unter, bis er leuchtend grün und zusammengefallen ist. Mit einem Spritzer Zitronensaft abschmecken.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Welche Zubereitungsart bevorzugst du heute?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Frischer & knackiger gehackter Salat\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Knusprige Puffer oder Bratlinge\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warmes Pfannencurry oder Eintopf\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Suche nach detaillierteren Anweisungen und vollständigen Mengenangaben für das Pfannencurry"
-      },
-      "follow_up_2": {
-        "text": "Erkläre, wie man übrig gebliebene Kichererbsen-Puffer für Meal Prep vorbereitet und lagert"
-      },
-      "follow_up_3": {
-        "text": "Suche nach Rezepten für vegane Joghurt-Dips, die gut zu Kichererbsen-Puffern passen"
-      },
-      "follow_up_4": {
-        "text": "Liste einfache Gewürzersatzmöglichkeiten auf, falls ich kein Currypulver für das Pfannengericht habe"
-      },
-      "follow_up_5": {
-        "text": "Suche nach alternativen Dressing-Rezepten mit Tahini für den Thai-Salat"
-      },
-      "follow_up_6": {
-        "text": "Vergleiche den Protein- und Ballaststoffgehalt dieser drei vegetarischen Rezeptoptionen"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Heißluftfritteusen in Deutschland vergleichen"
-      },
-      "summary": {
-        "text": "Vergleich der Top-Heißluftfritteusen bei Amazon Deutschland nach Preis, Kapazität und Bewertungen; empfiehlt den Philips Airfryer der 2000er Serie für einen Zwei-Personen-Haushalt."
-      },
-      "message_1": {
-        "text": "Finde Heißluftfritteusen, die ich in Deutschland online kaufen kann, einschließlich Amazon-Angeboten. Vergleiche aktuelle Preise, Kapazitäten und Bewertungen und empfiehl dann eine für einen Zwei-Personen-Haushalt mit Quellenlinks."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHier ist ein Vergleich der am besten bewerteten Heißluftfritteusen, die derzeit bei Amazon Deutschland erhältlich sind, basierend auf Preis, Kapazität und Kundenbewertungen.\n\n---\n\n### Vergleich beliebter Modelle in Deutschland\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Top-Empfehlung für einen 2-Personen-Haushalt\n\n#### **Hauptempfehlung: [Philips Airfryer 2000 Serie 6,2 l](embed:philips-airfryer-2000-fay)**\n\n* **Warum sie am besten für zwei Personen geeignet ist:**\n  * **Optimale Kapazität (6,2 l):** Körbe, die kleiner als 4,5–5 l sind, erfordern selbst für zwei Personen oft das Garen in mehreren Durchgängen. Ein 6,2-l-Korb ermöglicht es dir, zwei Lachsfilets und eine komplette Beilage aus Gemüse oder Pommes flach in einer Schicht auszulegen, um ein gleichmäßiges Knusperergebnis zu erzielen.\n  * **Platzbedarf in der Küche:** Zwei-Zonen-Geräte (wie von Ninja oder Russell Hobbs) nehmen viel Platz auf der Arbeitsplatte ein. Ein einzelner 6-l-Korb bietet reichlich Volumen bei gleichzeitig kompakter Stellfläche, die für typische deutsche Küchenarbeitsplatten geeignet ist.\n  * **Sichtfenster:** Ermöglicht es, den Bräunungsgrad zu prüfen, ohne die Schublade zu öffnen und Hitze zu verlieren.\n  * **Preis-Leistung:** Für 99,99 € bietet sie eine zuverlässige Temperaturkonstanz von [Philips](wiki:Philips) zu einem fairen Preis.\n\n#### **Alternative (wenn du häufig zwei Gerichte bei unterschiedlichen Temperaturen zubereitest): [Philips Dual Basket 3000 Serie (9,0 l)](embed:philips-airfryer-dual-pjD)**\nWenn du und dein Partner es vorzieht, Proteine und Gemüsebeilagen gleichzeitig bei unterschiedlichen Temperaturen und Zeiten zuzubereiten (z. B. Hähnchenbrust bei 180 °C und knusprige Kartoffeln bei 200 °C), ist dieses Modell derzeit auf 119,99 € reduziert und verfügt über synchronisierte Garzeiten.\n\n---\n\n### Wichtige Faktoren, die du vor dem Kauf beachten solltest\n1. **Form der Schublade:** Eckige Körbe (wie von Cosori und Philips) bieten viel mehr Platz für flache Lebensmittel (Steaks, Backformen, Spieße) als runde Körbe mit identischem Fassungsvermögen.\n2. **Platz in der Spülmaschine:** Stelle sicher, dass deine Spülmaschine genügend Höhe im Korb für eine einzelne 6-l-Schublade bietet, oder ziehe das Spülen von Hand in Betracht, um die Antihaftbeschichtung zu schonen."
-      },
-      "follow_up_1": {
-        "text": "Suche Rezepte speziell für Heißluftfritteusen"
-      },
-      "follow_up_2": {
-        "text": "Erkläre die Hauptunterschiede zwischen Heißluftfritteusen mit einem Korb und zwei Körben"
-      },
-      "follow_up_3": {
-        "text": "Finde passendes Backzubehör für diese Heißluftfritteuse"
-      },
-      "follow_up_4": {
-        "text": "Liste anfängerfreundliche Rezepte für das Abendessen in der Heißluftfritteuse auf"
-      },
-      "follow_up_5": {
-        "text": "Prüfe die aktuellen Energieverbrauchswerte für diese Modelle"
-      },
-      "follow_up_6": {
-        "text": "Vergleiche Reinigungs- und Pflegeaufwand von Keramik- und Teflonbeschichtungen"
       }
     }
   },

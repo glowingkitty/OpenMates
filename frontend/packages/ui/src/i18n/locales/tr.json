@@ -3233,7 +3233,7 @@
         "text": "tüm özelliklerin kilidini açmak, sohbetlerini saklamak ve onlara tüm cihazlarından erişmek için."
       },
       "daily_credits_exhausted": {
-        "text": "Ücretsiz günlük kredilerinizi kullandınız. OpenMates'ten tam olarak yararlanmak için kaydolun ve kredi satın alın."
+        "text": "Ücretsiz kullanım sınırına ulaştınız. Devam etmek için kaydolun."
       }
     },
     "interactive_question_failed": {
@@ -8408,6 +8408,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Transkript iyileştiriliyor…"
+      },
+      "removing_filler_words": {
+        "text": "Dolgu sözcükleri kaldırılıyor…"
+      },
+      "making_more_concise": {
+        "text": "Metin daha özlü hale getiriliyor…"
+      },
       "recording": {
         "text": "Kaydediliyor..."
       },
@@ -8488,6 +8497,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Almanya'daki Hava Fritözlerini Karşılaştırma"
+      },
+      "summary": {
+        "text": "Amazon Almanya'daki en iyi hava fritözlerini fiyat, kapasite ve puanlara göre karşılaştırarak iki kişilik bir hane için Philips Airfryer 2000 Serisi'ni önerdi."
+      },
+      "message_1": {
+        "text": "Almanya'da çevrim içi satın alabileceğim hava fritözlerini (Amazon listeleri dahil) bul. Güncel fiyatları, kapasiteleri ve inceleme puanlarını karşılaştır, ardından kaynak bağlantılarıyla birlikte iki kişilik bir hane için bir tane öner."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAmazon Almanya'da şu anda mevcut olan en yüksek puanlı hava fritözlerinin (air fryer) fiyat, kapasite ve müşteri değerlendirmelerini içeren bir karşılaştırmasını aşağıda bulabilirsin.\n\n---\n\n### Almanya'daki Popüler Modellerin Karşılaştırması\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2 Kişilik Haneler İçin En İyi Öneri\n\n#### **Birinci Tercih: [Philips Airfryer 2000 Serisi 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Neden iki kişi için en uygunu:**\n  * **Optimal Kapasite (6,2 L):** 4,5–5 L'den küçük sepetler, iki kişi için bile birden fazla seferde pişirme gerektirir. 6,2 L'lik bir sepet, iki somon filetoyu ve yanına tam bir porsiyon sebze veya patates kızartmasını, eşit çıtırlık için tek bir katmana yaymana olanak tanır.\n  * **Mutfakta Kapladığı Alan:** Çift bölgeli makineler (Ninja veya Russell Hobbs gibi) tezgahta önemli ölçüde yer kaplar. Tek bir 6 L'lik sepet, tipik Alman mutfak tezgahları için uygun, kompakt bir yapı sunarken geniş bir hacim sağlar.\n  * **Şeffaf Pencere:** Çekmeceyi açıp ısı kaybetmeden kızarma durumunu kontrol etmeni sağlar.\n  * **Değer:** 99,99 € fiyatıyla, [Philips](wiki:Philips) kalitesinde güvenilir sıcaklık tutarlılığını makul bir fiyata sunar.\n\n#### **Alternatif (Sık Sık Farklı Sıcaklıklarda İki Yemek Pişiriyorsan): [Philips Dual Basket 3000 Serisi (9.0L)](embed:philips-airfryer-dual-pjD)**\nSen ve partnerin proteinleri ve garnitür sebzeleri aynı anda farklı sıcaklık ve sürelerde (örneğin, 180 °C'de tavuk göğsü ve 200 °C'de çıtır patates) hazırlamayı tercih ediyorsanız, bu model şu anda 119,99 €'ya indirimli ve senkronize pişirme süreleri özelliğine sahip.\n\n---\n\n### Satın Almadan Önce Dikkat Edilmesi Gereken Temel Faktörler\n1. **Çekmece Şekli:** Kare sepetler (Cosori ve Philips gibi), aynı litre kapasitesindeki yuvarlak sepetlere göre düz ürünleri (biftekler, fırın kalıpları, şişler) çok daha iyi alır.\n2. **Bulaşık Makinesi Uygunluğu:** Bulaşık makinenin 6 L'lik tek bir çekmece için yeterli raf yüksekliğine sahip olduğundan emin ol veya yapışmaz kaplamaların ömrünü uzatmak için elde yıkamayı düşün."
+      },
+      "follow_up_1": {
+        "text": "Hava fritözleri için özel olarak tasarlanmış tarifleri ara"
+      },
+      "follow_up_2": {
+        "text": "Tek ve çift hazneli hava fritözleri arasındaki temel farkları açıkla"
+      },
+      "follow_up_3": {
+        "text": "Bu hava fritözü için uyumlu pişirme aksesuarlarını bul"
+      },
+      "follow_up_4": {
+        "text": "Hava fritözünde akşam yemeği pişirmek için başlangıç dostu tarifleri listele"
+      },
+      "follow_up_5": {
+        "text": "Bu modellerin güncel enerji tüketim değerlerini kontrol et"
+      },
+      "follow_up_6": {
+        "text": "Seramik ve teflon kaplamalar için temizlik ve bakım gereksinimlerini karşılaştır"
       }
     },
     "artemis_ii_mission": {
@@ -10974,6 +11015,38 @@
         "text": "Dekuplaj kondansatörü seçimlerini açıkla"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Buzdolabındaki Malzemelerle Vejetaryen Tarif Fikirleri"
+      },
+      "summary": {
+        "text": "Kullanıcı ıspanak, havuç, dolmalık biber ve nohut kullanarak vejetaryen tarif fikirleri istedi; asistan üç seçenek sundu."
+      },
+      "message_1": {
+        "text": "Vejetaryen yemek tarifleri için önerilerin var mı? Buzdolabında hala ıspanak, havuç, dolmalık biber ve nohut var."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**Ispanak, havuç, dolmalık biber ve nohut** ile lezzetli, lif açısından zengin vejetaryen öğünler için sağlam bir temeliniz var.\n\nCanınızın çektiği yemek tarzına göre üç farklı mutfak yönü aşağıdadır:\n\n---\n\n### 1. Taze ve Kıtır: Tay Usulü Doğranmış Salata\nHızlı, hafif ve gevrek bir şeyler istiyorsanız; ince doğranmış çiğ biber, havuç ve ıspanağı nohutla birleştirip üzerine ekşi bir [fıstık](wiki:Peanut) limon sosu ekleyin.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Tuzlu Köfteler: Çıtır Nohutlu ve Sebzeli Mücver\nSıcak ve lokmalık bir şeyler isterseniz (dürümlerde, pita ekmeğinde veya yoğurtlu sosla harikadır), nohutları ezin ve içine ince kıyılmış havuç, biber ve sotelenmiş ıspanağı ekleyin.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Hızlı Hafta İçi Alternatifi: Sıcak Nohutlu ve Sebzeli Tavada Köri\nTemel kiler malzemelerini (konserve hindistan cevizi sütü veya ezilmiş domates gibi) kullanarak tek tavada bir yemek istiyorsanız:\n1. **Aromatikleri soteleyin:** Bir tavada zeytinyağını ısıtın, ardından doğranmış soğan, kıyılmış sarımsak ve zencefili kokusu çıkana kadar pişirin.\n2. **Sert sebzeleri ekleyin:** Havuçları ve dolmalık biberleri lokma büyüklüğünde dilimleyin. Bunları kimyon, [zerdeçal](wiki:Turmeric) ve bir tutam pul biber veya köri tozuyla birlikte tavaya atın.\n3. **Kısık ateşte pişirin:** Yıkanmış nohutları bir bardak sebze suyu veya hindistan cevizi sütü ile birlikte ekleyin. Kapağını kapatın ve havuçlar yumuşayana kadar 10-12 dakika kısık ateşte pişirin.\n4. **Ispanakları söndürün:** Taze ıspanakları en sonunda ekleyip canlı yeşil bir renk alıp sönene kadar 1-2 dakika karıştırın. Bir miktar limon suyu sıkarak tamamlayın.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Bugün hangi pişirme tarzını tercih edersin?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Taze ve kıtır doğranmış salata\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Tavada kızarmış çıtır mücver veya köfte\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Sıcak, tek tavada köri veya yahni\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Tava körisi için daha ayrıntılı talimatları ve tam malzeme ölçülerini ara"
+      },
+      "follow_up_2": {
+        "text": "Artan pişmiş nohut köftelerinin öğün hazırlığı için nasıl hazırlanacağını ve saklanacağını açıkla"
+      },
+      "follow_up_3": {
+        "text": "Nohut köfteleriyle iyi giden vegan yoğurt sosu tariflerini ara"
+      },
+      "follow_up_4": {
+        "text": "Tava yemeği için köri tozum yoksa kullanabileceğim basit baharat alternatiflerini listele"
+      },
+      "follow_up_5": {
+        "text": "Tay usulü doğranmış salata için tahin kullanan alternatif sos tariflerini ara"
+      },
+      "follow_up_6": {
+        "text": "Bu üç vejetaryen tarif seçeneğinin protein ve lif içeriğini karşılaştır"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC Finansalları"
@@ -11036,70 +11109,6 @@
       },
       "follow_up_6": {
         "text": "Söylenen fikirleri düzenli görevlere dönüştürmek için farklı yöntemleri karşılaştır"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Buzdolabındaki Malzemelerle Vejetaryen Tarif Fikirleri"
-      },
-      "summary": {
-        "text": "Kullanıcı ıspanak, havuç, dolmalık biber ve nohut kullanarak vejetaryen tarif fikirleri istedi; asistan üç seçenek sundu."
-      },
-      "message_1": {
-        "text": "Vejetaryen yemek tarifleri için önerilerin var mı? Buzdolabında hala ıspanak, havuç, dolmalık biber ve nohut var."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\n**Ispanak, havuç, dolmalık biber ve nohut** ile lezzetli, lif açısından zengin vejetaryen öğünler için sağlam bir temeliniz var.\n\nCanınızın çektiği yemek tarzına göre üç farklı mutfak yönü aşağıdadır:\n\n---\n\n### 1. Taze ve Kıtır: Tay Usulü Doğranmış Salata\nHızlı, hafif ve gevrek bir şeyler istiyorsanız; ince doğranmış çiğ biber, havuç ve ıspanağı nohutla birleştirip üzerine ekşi bir [fıstık](wiki:Peanut) limon sosu ekleyin.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Tuzlu Köfteler: Çıtır Nohutlu ve Sebzeli Mücver\nSıcak ve lokmalık bir şeyler isterseniz (dürümlerde, pita ekmeğinde veya yoğurtlu sosla harikadır), nohutları ezin ve içine ince kıyılmış havuç, biber ve sotelenmiş ıspanağı ekleyin.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Hızlı Hafta İçi Alternatifi: Sıcak Nohutlu ve Sebzeli Tavada Köri\nTemel kiler malzemelerini (konserve hindistan cevizi sütü veya ezilmiş domates gibi) kullanarak tek tavada bir yemek istiyorsanız:\n1. **Aromatikleri soteleyin:** Bir tavada zeytinyağını ısıtın, ardından doğranmış soğan, kıyılmış sarımsak ve zencefili kokusu çıkana kadar pişirin.\n2. **Sert sebzeleri ekleyin:** Havuçları ve dolmalık biberleri lokma büyüklüğünde dilimleyin. Bunları kimyon, [zerdeçal](wiki:Turmeric) ve bir tutam pul biber veya köri tozuyla birlikte tavaya atın.\n3. **Kısık ateşte pişirin:** Yıkanmış nohutları bir bardak sebze suyu veya hindistan cevizi sütü ile birlikte ekleyin. Kapağını kapatın ve havuçlar yumuşayana kadar 10-12 dakika kısık ateşte pişirin.\n4. **Ispanakları söndürün:** Taze ıspanakları en sonunda ekleyip canlı yeşil bir renk alıp sönene kadar 1-2 dakika karıştırın. Bir miktar limon suyu sıkarak tamamlayın.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Bugün hangi pişirme tarzını tercih edersin?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Taze ve kıtır doğranmış salata\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Tavada kızarmış çıtır mücver veya köfte\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Sıcak, tek tavada köri veya yahni\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Tava körisi için daha ayrıntılı talimatları ve tam malzeme ölçülerini ara"
-      },
-      "follow_up_2": {
-        "text": "Artan pişmiş nohut köftelerinin öğün hazırlığı için nasıl hazırlanacağını ve saklanacağını açıkla"
-      },
-      "follow_up_3": {
-        "text": "Nohut köfteleriyle iyi giden vegan yoğurt sosu tariflerini ara"
-      },
-      "follow_up_4": {
-        "text": "Tava yemeği için köri tozum yoksa kullanabileceğim basit baharat alternatiflerini listele"
-      },
-      "follow_up_5": {
-        "text": "Tay usulü doğranmış salata için tahin kullanan alternatif sos tariflerini ara"
-      },
-      "follow_up_6": {
-        "text": "Bu üç vejetaryen tarif seçeneğinin protein ve lif içeriğini karşılaştır"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Almanya'daki Hava Fritözlerini Karşılaştırma"
-      },
-      "summary": {
-        "text": "Amazon Almanya'daki en iyi hava fritözlerini fiyat, kapasite ve puanlara göre karşılaştırarak iki kişilik bir hane için Philips Airfryer 2000 Serisi'ni önerdi."
-      },
-      "message_1": {
-        "text": "Almanya'da çevrim içi satın alabileceğim hava fritözlerini (Amazon listeleri dahil) bul. Güncel fiyatları, kapasiteleri ve inceleme puanlarını karşılaştır, ardından kaynak bağlantılarıyla birlikte iki kişilik bir hane için bir tane öner."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nAmazon Almanya'da şu anda mevcut olan en yüksek puanlı hava fritözlerinin (air fryer) fiyat, kapasite ve müşteri değerlendirmelerini içeren bir karşılaştırmasını aşağıda bulabilirsin.\n\n---\n\n### Almanya'daki Popüler Modellerin Karşılaştırması\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### 2 Kişilik Haneler İçin En İyi Öneri\n\n#### **Birinci Tercih: [Philips Airfryer 2000 Serisi 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Neden iki kişi için en uygunu:**\n  * **Optimal Kapasite (6,2 L):** 4,5–5 L'den küçük sepetler, iki kişi için bile birden fazla seferde pişirme gerektirir. 6,2 L'lik bir sepet, iki somon filetoyu ve yanına tam bir porsiyon sebze veya patates kızartmasını, eşit çıtırlık için tek bir katmana yaymana olanak tanır.\n  * **Mutfakta Kapladığı Alan:** Çift bölgeli makineler (Ninja veya Russell Hobbs gibi) tezgahta önemli ölçüde yer kaplar. Tek bir 6 L'lik sepet, tipik Alman mutfak tezgahları için uygun, kompakt bir yapı sunarken geniş bir hacim sağlar.\n  * **Şeffaf Pencere:** Çekmeceyi açıp ısı kaybetmeden kızarma durumunu kontrol etmeni sağlar.\n  * **Değer:** 99,99 € fiyatıyla, [Philips](wiki:Philips) kalitesinde güvenilir sıcaklık tutarlılığını makul bir fiyata sunar.\n\n#### **Alternatif (Sık Sık Farklı Sıcaklıklarda İki Yemek Pişiriyorsan): [Philips Dual Basket 3000 Serisi (9.0L)](embed:philips-airfryer-dual-pjD)**\nSen ve partnerin proteinleri ve garnitür sebzeleri aynı anda farklı sıcaklık ve sürelerde (örneğin, 180 °C'de tavuk göğsü ve 200 °C'de çıtır patates) hazırlamayı tercih ediyorsanız, bu model şu anda 119,99 €'ya indirimli ve senkronize pişirme süreleri özelliğine sahip.\n\n---\n\n### Satın Almadan Önce Dikkat Edilmesi Gereken Temel Faktörler\n1. **Çekmece Şekli:** Kare sepetler (Cosori ve Philips gibi), aynı litre kapasitesindeki yuvarlak sepetlere göre düz ürünleri (biftekler, fırın kalıpları, şişler) çok daha iyi alır.\n2. **Bulaşık Makinesi Uygunluğu:** Bulaşık makinenin 6 L'lik tek bir çekmece için yeterli raf yüksekliğine sahip olduğundan emin ol veya yapışmaz kaplamaların ömrünü uzatmak için elde yıkamayı düşün."
-      },
-      "follow_up_1": {
-        "text": "Hava fritözleri için özel olarak tasarlanmış tarifleri ara"
-      },
-      "follow_up_2": {
-        "text": "Tek ve çift hazneli hava fritözleri arasındaki temel farkları açıkla"
-      },
-      "follow_up_3": {
-        "text": "Bu hava fritözü için uyumlu pişirme aksesuarlarını bul"
-      },
-      "follow_up_4": {
-        "text": "Hava fritözünde akşam yemeği pişirmek için başlangıç dostu tarifleri listele"
-      },
-      "follow_up_5": {
-        "text": "Bu modellerin güncel enerji tüketim değerlerini kontrol et"
-      },
-      "follow_up_6": {
-        "text": "Seramik ve teflon kaplamalar için temizlik ve bakım gereksinimlerini karşılaştır"
       }
     }
   },

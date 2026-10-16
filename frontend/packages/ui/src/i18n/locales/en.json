@@ -3750,7 +3750,7 @@
         "text": "to unlock all features and to keep your chats and access them across your devices."
       },
       "daily_credits_exhausted": {
-        "text": "You used up your free daily credits. Sign up & buy credits to make full use of OpenMates."
+        "text": "You've reached the free usage limit. Sign up to continue."
       }
     },
     "interactive_question_failed": {
@@ -9796,6 +9796,15 @@
       }
     },
     "record_audio": {
+      "improving_transcript": {
+        "text": "Improving transcript…"
+      },
+      "removing_filler_words": {
+        "text": "Removing filler words…"
+      },
+      "making_more_concise": {
+        "text": "Making it more concise…"
+      },
       "recording": {
         "text": "Recording..."
       },
@@ -9876,6 +9885,38 @@
       },
       "message_2": {
         "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e7002718-62f4-43b0-9078-1ab77993edc0\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI workshop\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b110fb02-f635-45b1-8ba7-aaf75b3f7de7\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"AI meetup\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc\", \"app_id\": \"events\", \"skill_id\": \"search\", \"query\": \"build with AI\", \"provider\": \"meetup\", \"providers\": [\"meetup\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"0e453b88-1f20-43fc-9aa1-aad8aab6ae8a\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"top AI developer meetups Berlin 2026 for beginners\", \"provider\": \"Brave\"}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"c7b51044-a947-4471-a287-496459454ad6\", \"app_id\": \"web\", \"skill_id\": \"search\", \"query\": \"Berlin AI builder communities and recurring workshops\", \"provider\": \"Brave\"}\n```\n\nBerlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical \"hands-on\" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.\n\nHere are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.\n\n### Featured Hands-On Workshops\nThese sessions are specifically designed for those who want to write code and build prototypes.\n\n*   **BLISS x QuantCo: Build Your Own AI Agent**\n    *   **Date:** June 10, 2026 | 17:30\n    *   **Location:** Berlin-Mitte (Altonaer Str. 26)\n    *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**\n    *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)\n*   **Open Source Europe Tour: AI in Practice**\n    *   **Date:** June 8, 2026 | 17:30\n    *   **Location:** Netlight Consulting (Invalidenstraße 117)\n    *   **Focus:** A \"hype-free\" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.\n    *   [Event Details & RSVP](embed:open-source-europe-S4k)\n*   **AI Future-Club Kickoff (Hackers / Founders)**\n    *   **Date:** June 11, 2026 | 18:00\n    *   **Location:** TBD (Berlin)\n    *   **Focus:** A session for developers to \"get their hands dirty,\" discussing what to build and ship together, featuring live demos of recent projects.\n    *   [Event Details & RSVP](embed:ai-future-club-XOk)\n\n### Community Meetups for Builders\nThese events are excellent for networking and seeing what other local developers are currently building.\n\n*   **OpenClaw Anonymous Berlin #9**\n    *   **Date:** June 9, 2026 | 19:00\n    *   **Location:** w3.hub (Möckernstraße 120)\n    *   **Focus:** Informal \"laptop-out\" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.\n    *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)\n*   **AI Tinkerers Berlin**\n    *   **Date:** June 17, 2026\n    *   **Focus:** A screened, demo-first, \"no-pitch\" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.\n    *   Berlin AI Tinkerers Portal\n*   **Spec-Driven Development: AI for Full-Stack Java**\n    *   **Date:** June 9, 2026 | 18:30\n    *   **Location:** Capgemini (Potsdamer Platz 5)\n    *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.\n    *   [Event Details & RSVP](embed:spec-driven-development-rxI)\n\n### Key Hubs to Follow\nIf you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:\n\n*   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.\n    *   Campus Events Calendar\n*   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.\n    *   BLISS Official Site\n*   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts \"Global AI Bootcamps\" and hands-on sessions for students and the public at their Delta Campus in Neukölln.\n\n### Practical Tips for Joining\n1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.\n2.  **Bring a Laptop:** Most \"workshops\" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.\n3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most \"last-minute\" build sessions are organized.\n\nWould you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?\n\n**Next Steps:**\n- [Browse more AI events in Berlin](/#settings/apps/events)\n- [Search for AI tutorials on YouTube](/#settings/apps/videos)"
+      }
+    },
+    "air_fryers_amazon_germany": {
+      "title": {
+        "text": "Comparing Air Fryers in Germany"
+      },
+      "summary": {
+        "text": "Compared top Amazon Germany air fryers by price, capacity, and ratings, recommending the Philips Airfryer 2000 Series for a two-person household."
+      },
+      "message_1": {
+        "text": "Find air fryers I can buy online in Germany, including Amazon listings. Compare current prices, capacities, and review ratings, then recommend one for a two-person household with source links."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHere is a comparison of top-rated air fryers currently available on Amazon Germany, comparing price, capacity, and customer ratings.\n\n---\n\n### Comparison of Popular Models in Germany\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Top Recommendation for a 2-Person Household\n\n#### **Primary Pick: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Why it fits two people best:**\n  * **Optimal Capacity (6.2 L):** Baskets smaller than 4.5–5 L require cooking in multiple batches even for two people. A 6.2 L basket allows you to lay two salmon fillets and a full side of vegetables or fries flat on one layer for even crisping.\n  * **Kitchen Footprint:** Dual-zone machines (like Ninja or Russell Hobbs) take up significant counter space. A single 6 L basket provides ample volume while retaining a compact footprint suitable for typical German kitchen worktops.\n  * **Transparent Window:** Allows checking browning without sliding the drawer open and losing heat.\n  * **Value:** At €99.99, it offers reliable temperature consistency from [Philips](wiki:Philips) at a reasonable price point.\n\n#### **Alternative (If You Frequently Cook Two Dishes at Different Temps): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nIf you and your partner prefer preparing proteins and side vegetables simultaneously at different temperatures and timing (e.g., chicken breasts at 180 °C and crispy potatoes at 200 °C), this model is currently discounted to €119.99 and features synchronized cooking times.\n\n---\n\n### Key Factors to Keep in Mind Before Buying\n1. **Drawer Shape:** Square baskets (like Cosori and Philips) accommodate flat items (steaks, baking tins, skewers) much better than round baskets of identical liter capacity.\n2. **Dishwasher Clearance:** Ensure your dishwasher has enough rack height for a 6 L single drawer or consider hand-washing non-stick coatings to prolong their lifespan."
+      },
+      "follow_up_1": {
+        "text": "Search recipes specifically designed for air fryers"
+      },
+      "follow_up_2": {
+        "text": "Explain the main differences between single and dual basket air fryers"
+      },
+      "follow_up_3": {
+        "text": "Find compatible baking accessories for this air fryer"
+      },
+      "follow_up_4": {
+        "text": "List beginner friendly recipes for cooking dinner in an air fryer"
+      },
+      "follow_up_5": {
+        "text": "Check current energy consumption ratings for these models"
+      },
+      "follow_up_6": {
+        "text": "Compare cleaning and maintenance requirements for ceramic versus teflon coatings"
       }
     },
     "artemis_ii_mission": {
@@ -12362,6 +12403,38 @@
         "text": "Explain the decoupling capacitor choices"
       }
     },
+    "vegetarian_recipes_from_fridge_vegetables": {
+      "title": {
+        "text": "Vegetarian Recipe Ideas with Fridge Staples"
+      },
+      "summary": {
+        "text": "User asked for vegetarian recipe ideas using spinach, carrots, bell peppers, and chickpeas; assistant provided three options."
+      },
+      "message_1": {
+        "text": "Recommendations for vegetarian recipes? I still have spinach, carrots, bell peppers and chickpeas in the fridge."
+      },
+      "message_2": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nWith **spinach, carrots, bell peppers, and chickpeas**, you have a solid foundation for delicious, fiber-rich vegetarian meals. \n\nHere are three distinct culinary directions depending on what style of dish you are craving:\n\n---\n\n### 1. Fresh & Crunchy: Thai-Style Chopped Salad\nIf you want something quick, light, and crisp, combine finely chopped raw peppers, carrots, and spinach with chickpeas in a tangy [peanut](wiki:Peanut) lime dressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Savory Patties: Crispy Chickpea & Veggie Fritters\nIf you'd like something warm and bite-sized (great in wraps, pita pockets, or paired with a yogurt dip), mash the chickpeas and fold in minced carrots, peppers, and wilted spinach.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Quick Weeknight Alternative: Warm Chickpea & Vegetable Skillet Curry\nIf you want a one-pan meal using basic pantry staples (like canned coconut milk or crushed tomatoes):\n1. **Sauté the aromatics:** Heat olive oil in a skillet, then cook diced onion, minced garlic, and ginger until fragrant.\n2. **Add the firm veggies:** Slice the carrots and bell peppers into bite-sized pieces. Toss them in with ground cumin, [turmeric](wiki:Turmeric), and a pinch of chili powder or curry powder.\n3. **Simmer:** Add your rinsed chickpeas along with a cup of vegetable broth or coconut milk. Cover and simmer for 10–12 minutes until the carrots are tender.\n4. **Wilt the spinach:** Fold in the fresh spinach right at the end for 1–2 minutes until vibrant green and wilted. Finish with a squeeze of lemon juice.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Which cooking style would you prefer to make today?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Fresh & crunchy chopped salad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Crispy pan-fried fritters or patties\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warm one-pan skillet curry or stew\" }\n  ]\n}\n```"
+      },
+      "follow_up_1": {
+        "text": "Search for more detailed instructions and full ingredient measurements for the skillet curry"
+      },
+      "follow_up_2": {
+        "text": "Explain how to prep and store leftover cooked chickpea fritters for meal prep"
+      },
+      "follow_up_3": {
+        "text": "Search for vegan yogurt dip recipes that pair well with chickpea fritters"
+      },
+      "follow_up_4": {
+        "text": "List simple spice substitutions if I am missing curry powder for the skillet meal"
+      },
+      "follow_up_5": {
+        "text": "Search for alternative dressing recipes using tahini for the Thai-style chopped salad"
+      },
+      "follow_up_6": {
+        "text": "Compare the protein and fiber content of these three vegetarian recipe options"
+      }
+    },
     "vital_farms_sec_financials": {
       "title": {
         "text": "Vital Farms SEC Financials"
@@ -12424,70 +12497,6 @@
       },
       "follow_up_6": {
         "text": "Compare different methods for turning spoken ideas into organized tasks"
-      }
-    },
-    "vegetarian_recipes_from_fridge_vegetables": {
-      "title": {
-        "text": "Vegetarian Recipe Ideas with Fridge Staples"
-      },
-      "summary": {
-        "text": "User asked for vegetarian recipe ideas using spinach, carrots, bell peppers, and chickpeas; assistant provided three options."
-      },
-      "message_1": {
-        "text": "Recommendations for vegetarian recipes? I still have spinach, carrots, bell peppers and chickpeas in the fridge."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"fc9bde68-0bdb-4f14-bda2-2335c21e792b\",\"app_id\":\"nutrition\",\"skill_id\":\"search_recipes\"}\n```\n\nWith **spinach, carrots, bell peppers, and chickpeas**, you have a solid foundation for delicious, fiber-rich vegetarian meals. \n\nHere are three distinct culinary directions depending on what style of dish you are craving:\n\n---\n\n### 1. Fresh & Crunchy: Thai-Style Chopped Salad\nIf you want something quick, light, and crisp, combine finely chopped raw peppers, carrots, and spinach with chickpeas in a tangy [peanut](wiki:Peanut) lime dressing.\n\n[!](embed:thai-chopped-spinach-Gfw)\n\n---\n\n### 2. Savory Patties: Crispy Chickpea & Veggie Fritters\nIf you'd like something warm and bite-sized (great in wraps, pita pockets, or paired with a yogurt dip), mash the chickpeas and fold in minced carrots, peppers, and wilted spinach.\n\n[!](embed:chickpea-fritters-with-qY9)\n\n---\n\n### 3. Quick Weeknight Alternative: Warm Chickpea & Vegetable Skillet Curry\nIf you want a one-pan meal using basic pantry staples (like canned coconut milk or crushed tomatoes):\n1. **Sauté the aromatics:** Heat olive oil in a skillet, then cook diced onion, minced garlic, and ginger until fragrant.\n2. **Add the firm veggies:** Slice the carrots and bell peppers into bite-sized pieces. Toss them in with ground cumin, [turmeric](wiki:Turmeric), and a pinch of chili powder or curry powder.\n3. **Simmer:** Add your rinsed chickpeas along with a cup of vegetable broth or coconut milk. Cover and simmer for 10–12 minutes until the carrots are tender.\n4. **Wilt the spinach:** Fold in the fresh spinach right at the end for 1–2 minutes until vibrant green and wilted. Finish with a squeeze of lemon juice.\n\n---\n\n```interactive_question\n{\n  \"type\": \"choice\",\n  \"id\": \"recipe_preference\",\n  \"multiple\": false,\n  \"question\": \"Which cooking style would you prefer to make today?\",\n  \"options\": [\n    { \"id\": \"salad\", \"text\": \"Fresh & crunchy chopped salad\", \"embed_ids\": [\"thai-chopped-spinach-Gfw\"] },\n    { \"id\": \"fritters\", \"text\": \"Crispy pan-fried fritters or patties\", \"embed_ids\": [\"chickpea-fritters-with-qY9\"] },\n    { \"id\": \"curry\", \"text\": \"Warm one-pan skillet curry or stew\" }\n  ]\n}\n```"
-      },
-      "follow_up_1": {
-        "text": "Search for more detailed instructions and full ingredient measurements for the skillet curry"
-      },
-      "follow_up_2": {
-        "text": "Explain how to prep and store leftover cooked chickpea fritters for meal prep"
-      },
-      "follow_up_3": {
-        "text": "Search for vegan yogurt dip recipes that pair well with chickpea fritters"
-      },
-      "follow_up_4": {
-        "text": "List simple spice substitutions if I am missing curry powder for the skillet meal"
-      },
-      "follow_up_5": {
-        "text": "Search for alternative dressing recipes using tahini for the Thai-style chopped salad"
-      },
-      "follow_up_6": {
-        "text": "Compare the protein and fiber content of these three vegetarian recipe options"
-      }
-    },
-    "air_fryers_amazon_germany": {
-      "title": {
-        "text": "Comparing Air Fryers in Germany"
-      },
-      "summary": {
-        "text": "Compared top Amazon Germany air fryers by price, capacity, and ratings, recommending the Philips Airfryer 2000 Series for a two-person household."
-      },
-      "message_1": {
-        "text": "Find air fryers I can buy online in Germany, including Amazon listings. Compare current prices, capacities, and review ratings, then recommend one for a two-person household with source links."
-      },
-      "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"30e9e7de-c4d7-45c5-bb6a-1ef276886a9c\",\"app_id\":\"shopping\",\"skill_id\":\"search_products\"}\n```\n\nHere is a comparison of top-rated air fryers currently available on Amazon Germany, comparing price, capacity, and customer ratings.\n\n---\n\n### Comparison of Popular Models in Germany\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"06e63463-25c4-42f8-a1ed-6847c923c3ce\"}\n```\n\n[!](embed:philips-airfryer-2000-fay)\n[!](embed:cosori-airfryer-turboblaze-3zH)\n[!](embed:philips-airfryer-dual-pjD)\n\n---\n\n### Top Recommendation for a 2-Person Household\n\n#### **Primary Pick: [Philips Airfryer 2000 Series 6.2L](embed:philips-airfryer-2000-fay)**\n\n* **Why it fits two people best:**\n  * **Optimal Capacity (6.2 L):** Baskets smaller than 4.5–5 L require cooking in multiple batches even for two people. A 6.2 L basket allows you to lay two salmon fillets and a full side of vegetables or fries flat on one layer for even crisping.\n  * **Kitchen Footprint:** Dual-zone machines (like Ninja or Russell Hobbs) take up significant counter space. A single 6 L basket provides ample volume while retaining a compact footprint suitable for typical German kitchen worktops.\n  * **Transparent Window:** Allows checking browning without sliding the drawer open and losing heat.\n  * **Value:** At €99.99, it offers reliable temperature consistency from [Philips](wiki:Philips) at a reasonable price point.\n\n#### **Alternative (If You Frequently Cook Two Dishes at Different Temps): [Philips Dual Basket 3000 Series (9.0L)](embed:philips-airfryer-dual-pjD)**\nIf you and your partner prefer preparing proteins and side vegetables simultaneously at different temperatures and timing (e.g., chicken breasts at 180 °C and crispy potatoes at 200 °C), this model is currently discounted to €119.99 and features synchronized cooking times.\n\n---\n\n### Key Factors to Keep in Mind Before Buying\n1. **Drawer Shape:** Square baskets (like Cosori and Philips) accommodate flat items (steaks, baking tins, skewers) much better than round baskets of identical liter capacity.\n2. **Dishwasher Clearance:** Ensure your dishwasher has enough rack height for a 6 L single drawer or consider hand-washing non-stick coatings to prolong their lifespan."
-      },
-      "follow_up_1": {
-        "text": "Search recipes specifically designed for air fryers"
-      },
-      "follow_up_2": {
-        "text": "Explain the main differences between single and dual basket air fryers"
-      },
-      "follow_up_3": {
-        "text": "Find compatible baking accessories for this air fryer"
-      },
-      "follow_up_4": {
-        "text": "List beginner friendly recipes for cooking dinner in an air fryer"
-      },
-      "follow_up_5": {
-        "text": "Check current energy consumption ratings for these models"
-      },
-      "follow_up_6": {
-        "text": "Compare cleaning and maintenance requirements for ceramic versus teflon coatings"
       }
     }
   },
