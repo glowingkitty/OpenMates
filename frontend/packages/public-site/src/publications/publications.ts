@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import releaseRecords from '../generated/newsReleases.generated.json';
 import type {
 	NewsroomArticleContent,
@@ -250,7 +250,10 @@ function buildSurface(
 	const coverage = coverageRecords(locale);
 	const selectedPool = section === 'news' ? news : section === 'blog' ? blogs : socialRecords;
 	const selected = selectedSlug ? selectedPool.find((record) => record.slug === selectedSlug) ?? null : null;
-	if (selectedSlug && !selected) error(404, 'Publication not found');
+	if (selectedSlug && !selected) {
+		if (section === 'blog' || section === 'news') redirect(307, publicationPath(locale, section));
+		error(404, 'Publication not found');
+	}
 
 	const orderedSocial = selected?.kind === 'social'
 		? [selected, ...socialRecords.filter((record) => record.id !== selected.id)]

@@ -111874,7 +111874,7 @@ assertions:
       surface: gui.web
     - &id14253
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 195
+      line: 199
       name: redirects a legacy announcement URL to its stable news URL
       surface: gui.web
     supporting_tests: []
@@ -111904,7 +111904,7 @@ assertions:
       surface: gui.web
     - &id14256
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 175
+      line: 179
       name: shows exact platform permalinks and owned media for an archived social
         post
       surface: gui.web
@@ -111950,7 +111950,7 @@ assertions:
       surface: gui.web
     - &id14260
       path: frontend/apps/web_app/tests/public-publications.spec.ts
-      line: 175
+      line: 179
       name: shows exact platform permalinks and owned media for an archived social
         post
       surface: gui.web

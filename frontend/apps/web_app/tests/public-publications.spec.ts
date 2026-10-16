@@ -156,12 +156,16 @@ test.describe('public news, blog, and social publications', () => {
 		expect(releaseHtml).toContain('"@type":"NewsArticle"');
 		expect(releaseHtml).toContain('Code execution');
 
-		for (const blogPostPath of [
-			'/blog/privacy-as-a-product-feature',
-			'/de/blog/privacy-as-a-product-feature'
+		for (const [missingPath, indexPath] of [
+			['/blog/privacy-as-a-product-feature', '/blog'],
+			['/de/blog/privacy-as-a-product-feature', '/de/blog'],
+			['/blog/lernen-statt-copy-paste', '/blog'],
+			['/news/not-yet-published', '/news'],
+			['/de/news/not-yet-published', '/de/news']
 		]) {
-			const blogPost = await request.get(blogPostPath);
-			expect(blogPost.status()).toBe(404);
+			const response = await request.get(missingPath, { maxRedirects: 0 });
+			expect(response.status()).toBe(307);
+			expect(response.headers().location).toBe(indexPath);
 		}
 
 		const sitemap = await request.get('/sitemap.xml');
