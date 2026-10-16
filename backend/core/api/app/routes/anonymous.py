@@ -548,7 +548,8 @@ async def _iter_openai_sse_payloads(streaming_response: Any):
             buffer += str(chunk)
         while "\n\n" in buffer:
             frame, buffer = buffer.split("\n\n", 1)
-            data_lines = [line[5:].strip() for line in frame.splitlines() if line.strip().startswith("data:")]
+            # SSE lines use LF; Unicode separators inside JSON strings are content.
+            data_lines = [line[5:].strip() for line in frame.split("\n") if line.strip().startswith("data:")]
             if not data_lines:
                 continue
             payload_text = "\n".join(data_lines)
@@ -556,7 +557,7 @@ async def _iter_openai_sse_payloads(streaming_response: Any):
                 continue
             yield json.loads(payload_text)
     if buffer.strip():
-        data_lines = [line[5:].strip() for line in buffer.splitlines() if line.strip().startswith("data:")]
+        data_lines = [line[5:].strip() for line in buffer.split("\n") if line.strip().startswith("data:")]
         payload_text = "\n".join(data_lines)
         if payload_text and payload_text != "[DONE]":
             yield json.loads(payload_text)
