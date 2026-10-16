@@ -363,7 +363,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.audioGate?.setLive(true);
         // Model loading and warmup run in the background after a normal start.
         this.audioGate?.start();
-        if (this.state.status !== 'live') return;
+        if (get(this.store).status !== 'live') return;
         this.ticker = setInterval(() => this.refreshClock(), 250);
         return;
       }
@@ -428,6 +428,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
         const callId = this.state.callId;
         const chatId = this.state.chatId;
         const generation = this.generation;
+        const identity = { modelName: this.state.modelName, category: this.state.mateCategory,
+          senderName: this.state.mateName ?? 'OpenMates' };
         if (!callId || !chatId || this.state.status !== 'live') return;
         const payload = message.payload as Record<string, unknown> | undefined;
         if (message.type === 'voice_embed' && message.call_id === callId &&
@@ -449,8 +451,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
           const id = message.assistant_message_id;
           const previous = this.transcriptWrites.get(id) ?? Promise.resolve();
           const persisted = previous.catch(() => {}).then(() => upsertCallArtifact({
-            callId, chatId, messageId: id, modelName: this.state.modelName,
-            category: this.state.mateCategory, senderName: this.state.mateName ?? 'OpenMates', userMessageId: String(message.user_message_id), embedRefs: [embedId],
+            callId, chatId, messageId: id, ...identity, userMessageId: String(message.user_message_id), embedRefs: [embedId],
             embedReferences: [...(this.responseEmbeds.get(id)?.values() ?? [])],
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
           })).then(() => {});

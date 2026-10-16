@@ -56,7 +56,10 @@ const mocks = vi.hoisted(() => {
       delete (decrypted as Record<string, unknown>).encrypted_content;
       return decrypted;
     }),
-    getMessageWindowForChat: vi.fn(async () => ({ messages: [] })),
+    getMessageWindowForChat: vi.fn(async (_chatId: string, _options: unknown): Promise<{
+      messages: Array<Record<string, unknown>>; hasMoreBefore?: boolean;
+      startCursor?: number; startCursorMessageId?: string;
+    }> => ({ messages: [] })),
     getPendingMessageRetryPage: vi.fn(async () => ({ rows: [...rows.values()].filter((row) => row.status === "sending"), nextCursor: null })),
     getTransaction: vi.fn(async () => transaction()),
     getEncryptedFields: vi.fn(async (message: { content?: string; category?: string; model_name?: string; sender_name?: string }) => ({
@@ -102,7 +105,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("../authenticatedChatMessageWindow", () => ({
-  fetchAuthenticatedChatMessageWindow: vi.fn((chatId, options) => mocks.db.getMessageWindowForChat(chatId, options)),
+  fetchAuthenticatedChatMessageWindow: vi.fn((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options)),
   loadCanonicalCallCheckpoints: vi.fn(async () => []),
 }));
 vi.mock("../initialChatHistoryGate", () => ({ initialChatHistoryGate: { pending: () => false } }));
@@ -136,7 +139,7 @@ const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ emb
   type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
 
 beforeEach(() => {
-  vi.mocked(fetchAuthenticatedChatMessageWindow).mockReset().mockImplementation((chatId, options) => mocks.db.getMessageWindowForChat(chatId, options) as never);
+  vi.mocked(fetchAuthenticatedChatMessageWindow).mockReset().mockImplementation((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options) as never);
   mocks.rows.clear();
   mocks.sent.length = 0;
   mocks.dispatchEvent.mockClear();
@@ -229,7 +232,7 @@ describe("voice call transcript persistence", () => {
   it("emits the persisted call origin for spoken rows and typed input awaiting acceptance", async () => {
     const emitted = (messageId: string) => mocks.dispatchEvent.mock.calls
       .map(([event]) => (event as CustomEvent<{ newMessage?: Record<string, unknown> }>).detail.newMessage)
-      .findLast((message) => message?.message_id === messageId);
+      .reverse().find((message) => message?.message_id === messageId);
     await upsertCallTranscript({ ...base, messageId: "spoken-user", role: "user", text: "Spoken words", final: false });
     expect(emitted("spoken-user")).toMatchObject({ status: "streaming",
       call_persistence_v1: { call_id: base.callId, typed_pending: false } });

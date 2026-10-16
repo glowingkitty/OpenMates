@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ epoch: 1, fetch: vi.fn(), db: {
-  getRawChat: vi.fn(), batchSaveMessages: vi.fn(), getMessageWindowForChat: vi.fn(),
+  getRawChat: vi.fn(), getMessage: vi.fn(), batchSaveMessages: vi.fn(), getMessageWindowForChat: vi.fn(),
   recordMessageWindowPage: vi.fn(), evictStaleMessageWindowPages: vi.fn(), saveChatCompressionCheckpoint: vi.fn(),
 } }));
 vi.mock('../db', () => ({ chatDB: mocks.db }));
@@ -12,6 +12,7 @@ import { fetchAuthenticatedChatMessageWindow, loadCanonicalCallCheckpoints } fro
 beforeEach(() => {
   vi.clearAllMocks(); mocks.epoch = 1;
   mocks.db.getRawChat.mockResolvedValue({ chat_id: 'chat', team_id: null });
+  mocks.db.getMessage.mockImplementation(async id => ({ message_id: id, chat_id: 'chat', role: 'assistant', content: 'Decrypted' }));
   mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [], hasMoreBefore: false, startCursor: 1, startCursorMessageId: 'local' });
 });
 
@@ -25,6 +26,21 @@ describe('canonical call history hydration', () => {
     expect(page).toMatchObject({ hasMoreBefore: true, startCursor: 20, startCursorMessageId: 'server' });
     expect(mocks.db.batchSaveMessages).toHaveBeenCalledWith([expect.objectContaining({ message_id: 'server', encrypted_content: 'ciphertext' })]);
     expect(mocks.fetch).toHaveBeenCalledWith(expect.stringContaining('limit=24'), { credentials: 'include' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
+  it('retains every canonical page row even when newer local pending messages displace them', async () => {
+    const messages = Array.from({ length: 24 }, (_, index) => ({ id: `server-${index}`, chat_id: 'chat',
+      encrypted_content: 'ciphertext', role: 'assistant', created_at: 20 + index }));
+    mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ messages, has_more_before: true,
+      start_cursor: { created_at: 20, message_id: 'server-0' } }) });
+    mocks.db.getMessageWindowForChat.mockResolvedValue({ messages: [
+      { message_id: 'pending-a' }, { message_id: 'pending-b' }, ...messages.slice(2),
+    ], hasMoreBefore: false });
+    const page = await fetchAuthenticatedChatMessageWindow('chat', { direction: 'latest', limit: 24, includeCanonicalMessages: true });
+    expect(page.canonicalMessages!.map(message => message.message_id)).toEqual(messages.map(message => message.id));
+    expect(page.messages).toHaveLength(24);
+    expect(page.startCursorMessageId).toBe('server-0');
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy

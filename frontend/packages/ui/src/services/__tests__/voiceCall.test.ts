@@ -97,7 +97,7 @@ function liveController() {
   harness.update({ status: 'live', chatId: 'chat-1', callId: 'call-1' });
   harness.audioGate = new VoiceCallAudioGate({ onAudio: () => {}, onState: () => {}, onError: () => {},
     onAudioEnd: () => harness.send({ type: 'audio_stream_end' }) });
-  const gate = gates.instances.at(-1)!;
+  const gate = gates.instances[gates.instances.length - 1]!;
   gate.setMuted.mockImplementation((muted: boolean) => { if (muted) gate.callbacks.onAudioEnd(); });
   return { controller, harness, socket };
 }
@@ -215,8 +215,8 @@ describe('integrated voice call typed turns', () => {
     harness.handleMessage({type:'ready',call_id:'provider-rollover'});
     expect(cues.play.mock.calls).toEqual([['connected']]);
     // Automatic VAD idle/resume and provider activity must remain silent.
-    gates.instances.at(-1)!.callbacks.onState({inputIdle:true,userSpeaking:false});
-    gates.instances.at(-1)!.callbacks.onState({inputIdle:false,userSpeaking:true});
+    gates.instances[gates.instances.length - 1]!.callbacks.onState({inputIdle:true,userSpeaking:false});
+    gates.instances[gates.instances.length - 1]!.callbacks.onState({inputIdle:false,userSpeaking:true});
     harness.handleMessage({type:'billing_activity',call_id:'call-1',input_listening:false,processing:false});
     expect(cues.play.mock.calls).toEqual([['connected']]);
     const stopsBeforeEnd=cues.stop.mock.calls.length;
@@ -525,6 +525,28 @@ describe('integrated voice call typed turns', () => {
     expect(persistence.upsert).toHaveBeenLastCalledWith(expect.objectContaining({
       messageId: 'assistant-one', text: 'Found the corrected result', embedRefs: ['embed-one'],
       embedReferences: [{ embed_id: 'embed-one', type: 'app_skill_use', app_id: 'web', skill_id: 'search' }],
+    }));
+    controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.chat.transcripts
+  it('keeps the original call attribution while an artifact waits for an earlier transcript write', async () => {
+    const { controller, harness } = liveController();
+    harness.update({ modelName: 'original-model', mateCategory: 'medical_health', mateName: 'Melvin' });
+    let release!: () => void;
+    persistence.upsert.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+    tools.apply.mockResolvedValue('embed-one');
+    harness.handleMessage({ type: 'transcript', role: 'assistant', message_id: 'assistant-one',
+      user_message_id: 'user-one', text: 'Found it', final: true });
+    await vi.waitFor(() => expect(persistence.upsert).toHaveBeenCalled());
+    harness.handleMessage({ type: 'voice_embed', call_id: 'call-1', function_call_id: 'function-one',
+      assistant_message_id: 'assistant-one', user_message_id: 'user-one', payload: { embed_id: 'embed-one' } });
+    await vi.waitFor(() => expect(tools.apply).toHaveBeenCalled());
+    harness.update({ modelName: 'next-model', mateCategory: 'software_development', mateName: 'Sophia' });
+    release();
+    await vi.waitFor(() => expect(persistence.artifact).toHaveBeenCalledOnce());
+    expect(persistence.artifact).toHaveBeenCalledWith(expect.objectContaining({
+      modelName: 'original-model', category: 'medical_health', senderName: 'Melvin',
     }));
     controller.hangup();
   });

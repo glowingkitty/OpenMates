@@ -228,7 +228,12 @@ export async function loadCallContext(chatId: string, canonical = true): Promise
     const options = before
       ? { direction: "before" as const, limit: CONTEXT_WINDOW_SIZE, beforeTimestamp: before.timestamp, beforeMessageId: before.id }
       : { direction: "latest" as const, limit: CONTEXT_WINDOW_SIZE };
-    try { window = canonical ? await fetchAuthenticatedChatMessageWindow(chatId, options) : await chatDB.getMessageWindowForChat(chatId, options); }
+    try {
+      if (canonical) {
+        const remote = await fetchAuthenticatedChatMessageWindow(chatId, { ...options, includeCanonicalMessages: true });
+        window = { ...remote, messages: remote.canonicalMessages ?? remote.messages };
+      } else window = await chatDB.getMessageWindowForChat(chatId, options);
+    }
     catch { throw new VoiceCallContextError("context_unavailable"); }
     scanned += window.messages.length;
     for (const message of window.messages) {

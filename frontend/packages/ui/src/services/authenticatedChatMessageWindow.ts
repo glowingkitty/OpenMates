@@ -49,6 +49,7 @@ function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: s
 export async function fetchAuthenticatedChatMessageWindow(chatId: string, options: {
     direction: 'latest' | 'before' | 'after' | 'around';
     limit?: number;
+    includeCanonicalMessages?: boolean;
     beforeTimestamp?: number;
     beforeMessageId?: string;
     anchorMessageId?: string;
@@ -101,8 +102,19 @@ export async function fetchAuthenticatedChatMessageWindow(chatId: string, option
     if (parsedMessages.length === 0 && payload.has_more_before) {
         throw new Error('Message window continuation returned no selected ciphertext');
     }
+    if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope) {
+        throw new Error('Chat message window arrived after workspace switch');
+    }
     if (parsedMessages.length > 0) {
         await chatDB.batchSaveMessages(parsedMessages);
+    }
+    // A local limited window can include newer pending rows and displace rows
+    // selected by the server. Voice must use exactly the canonical page IDs
+    // before advancing its matching server cursor.
+    const canonicalMessages = options.includeCanonicalMessages
+        ? await Promise.all(parsedMessages.map(message => chatDB.getMessage(message.message_id))) : undefined;
+    if (canonicalMessages?.some(message => !message || message.chat_id !== chatId)) {
+        throw new Error('Canonical call history could not be loaded');
     }
     const localWindow = await chatDB.getMessageWindowForChat(chatId, {
         direction: options.direction,
@@ -124,6 +136,7 @@ export async function fetchAuthenticatedChatMessageWindow(chatId: string, option
     }
     return {
         ...localWindow,
+        canonicalMessages: canonicalMessages as ChatMessageModel[] | undefined,
         startCursor: payload.start_cursor?.created_at ?? localWindow.startCursor,
         startCursorMessageId: payload.start_cursor?.message_id ?? localWindow.startCursorMessageId,
         hasMoreBefore: payload.has_more_before ?? localWindow.hasMoreBefore,
