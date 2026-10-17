@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-16'
-generated_at: '2026-10-16T11:11:47+00:00'
+generated_at: '2026-10-17T00:20:30+00:00'
 range:
-  since: 24 hours ago
-  until: null
+  since: '2026-10-16T00:00:00+00:00'
+  until: '2026-10-17T00:00:00+00:00'
   from_ref: null
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 21
+  total_commits: 19
   section_counts:
-    features: 2
-    bug_fixes: 14
-    improvements: 4
-    docs: 1
+    features: 1
+    bug_fixes: 17
+    improvements: 0
+    docs: 0
     tests: 0
     infrastructure: 0
     internal: 0
-    other: 0
-  newsletter_ready_items: 0
-  user_facing_items: 17
-  dev_only_items: 21
+    other: 1
+  newsletter_ready_items: 4
+  user_facing_items: 16
+  dev_only_items: 13
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -165,7 +165,7 @@ sections:
   - title: 'feat: integrate voice calling controls, capabilities and privacy'
     section: features
     commits:
-    - c1199371a4
+    - c1199371a
     authored_at: '2026-10-16T10:55:32+00:00'
     changed_paths:
     - backend/apps/ai/processing/celery_helpers.py
@@ -333,9 +333,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -371,43 +371,18 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:videos, embed:videos:create, skill:videos:create'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'feat: refine landing section replays and device media'
-    section: features
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: redirect missing blog and news articles to their archives'
+    section: bug_fixes
     commits:
-    - e3b567b7c8
-    authored_at: '2026-10-15T12:17:06+00:00'
+    - 6ce7904af
+    authored_at: '2026-10-16T17:18:10+00:00'
     changed_paths:
-    - docs/design-guide/landing-native-captures.md
-    - docs/plans/public-site-section-followup-oct15/plan.yml
-    - frontend/apps/web_app/static/landing/screenshots/capture-manifest.json
-    - frontend/apps/web_app/static/landing/screenshots/devices-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/model-selector-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/privacy-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/workflows-desktop.webp
-    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
-    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
-    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-    - frontend/apps/web_app/tests/website-public-routes.spec.ts
-    - frontend/apps/website/static/landing/screenshots/capture-manifest.json
-    - frontend/apps/website/static/landing/screenshots/devices-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/events-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/model-selector-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/privacy-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/workflows-desktop.webp
-    - frontend/packages/public-site/src/components/DeviceFrame.svelte
-    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
-    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
-    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
-    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
-    - frontend/packages/public-site/src/generated/landingLocale.generated.json
-    - frontend/packages/public-site/src/i18n/landing.yml
-    - scripts/ci_coverage_manifest.json
-    - specifications/features/marketing-landing/examples.yml
-    - specifications/features/marketing-landing/specification.yml
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/apps/website/src/routes/[[locale=publicationLocale]]/[section=publicationSection]/[[slug]]/+page.server.ts
+    - frontend/packages/public-site/src/publications/publications.ts
     - specifications/generated/assertion-index.yml
-    - specifications/generated/registry.yml
     release_status: dev_only
     communication_status: dev_only
     newsletter_ready: false
@@ -415,14 +390,622 @@ sections:
     related_features: []
     feature_metadata_changed: false
     rationale:
-    - classified as new features from commit subject/path rules
+    - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
-  bug_fixes:
+  - title: 'fix: retain production app login and polished voice chat behavior'
+    section: bug_fixes
+    commits:
+    - 17ad6f601
+    authored_at: '2026-10-16T17:12:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/email.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/app/services/domain_security.py
+    - backend/core/api/app/services/email/variable_processor.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/tasks/email_tasks/newsletter_email_task.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/tasks/email_tasks/support_contribution_email_task.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/tests/test_passkey_production_domain.py
+    - backend/upload/main.py
+    - deployment/prod_server/Caddyfile
+    - deployment/upload_server/Caddyfile
+    - docs/plans/production-app-domain-cutover/plan.yml
+    - frontend/apps/web_app/tests/components/voice-call-header-actions.spec.ts
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/apps/website/src/routes/+page.svelte
+    - frontend/apps/website/vercel.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/shareEncryption.ts
+    - frontend/packages/openmates-cli/src/support.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-cli/tests/shareEncryption.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+    - frontend/packages/ui/src/utils/__tests__/voiceTranscriptDisplay.test.ts
+    - frontend/packages/ui/src/utils/modelDisplayName.ts
+    - frontend/packages/ui/src/utils/voiceTranscriptDisplay.ts
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/tests/test_verify_caddyfile.py
+    - shared/config/urls.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep complete canonical context and attribution during voice calls'
+    section: bug_fixes
+    commits:
+    - 1e8701814
+    authored_at: '2026-10-16T16:38:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/authenticatedChatMessageWindow.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finish chat continuation and encrypted output recovery'
+    section: bug_fixes
+    commits:
+    - 9f28425d5
+    authored_at: '2026-10-16T16:35:49+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - backend/shared/python_utils/recent_work_summary_client.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_personal_child_embed_recovery.py
+    - backend/tests/test_recent_work_summary_cache.py
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/persisted-draft-discovery.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFocusCountdown.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - frontend/packages/openmates-cli/tests/projectFocusCountdown.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryBatch.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/streamedCanonicalHead.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/services/__tests__/chatRecoveryVersionRefresh.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedSendersCanonicalReconcile.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
+    - frontend/packages/ui/src/services/__tests__/streamedEmbedRevisionHistory.test.ts
+    - frontend/packages/ui/src/services/chatRecoveryVersionRefresh.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    - frontend/packages/ui/src/services/streamedEmbedRevisionHistory.ts
+    - specifications/architecture/drafts/examples.yml
+    - specifications/architecture/storage-lifecycle/examples.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/projects/examples.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve voice calls through recoverable tool failures'
+    section: bug_fixes
+    commits:
+    - 8b650fb51
+    authored_at: '2026-10-16T16:29:24+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/voice_call_broker.py
+    - backend/apps/ai/processing/voice_call_broker_runtime.py
+    - backend/apps/ai/tasks/voice_call_task.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/shared/testing/voice_broker_fixture.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_voice_call_broker.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: continue voice chats with canonical history and mate identity'
+    section: bug_fixes
+    commits:
+    - 68d0d5d86
+    authored_at: '2026-10-16T16:20:05+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/voice_mate.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/call_message_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/services/system_message_versions.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/scripts/test_voice_call_continuity.py
+    - backend/shared/providers/gemini_live_voice.py
+    - backend/shared/providers/live_voice.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_call_message_completed_handler.py
+    - backend/tests/test_system_message_versions.py
+    - backend/tests/test_voice_call_protocol.py
+    - docs/plans/production-voice-context-recovery/plan.yml
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/authenticatedChatMessageWindow.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore application previews promptly after reload'
+    section: bug_fixes
+    commits:
+    - b02e5a57d
+    authored_at: '2026-10-16T16:10:15+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.live.test.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, embed:code:application'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve admission identity across generated media continuation'
+    section: bug_fixes
+    commits:
+    - '572917329'
+    authored_at: '2026-10-16T15:41:36+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/same_turn_skill_barrier.py
+    - backend/tests/test_async_skill_continuation.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resume generated-media chats and attribute voice usage'
+    section: bug_fixes
+    commits:
+    - ec6b92911
+    authored_at: '2026-10-16T15:32:38+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/voice_call_broker_runtime.py
+    - backend/apps/ai/tasks/same_turn_skill_barrier.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_same_turn_skill_barrier.py
+    - backend/tests/test_voice_call_broker.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Unicode in anonymous chat streams'
+    section: bug_fixes
+    commits:
+    - 58850e959
+    authored_at: '2026-10-16T14:50:23+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow personal chats when Projects is disabled'
+    section: bug_fixes
+    commits:
+    - 52ecee1c6
+    authored_at: '2026-10-16T14:48:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceCache.test.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align guest workspaces and clean public examples'
+    section: bug_fixes
+    commits:
+    - d35cef0f3
+    authored_at: '2026-10-16T11:53:38+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - frontend/apps/web_app/src/lib/server/publicWebsite.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/apps/AppsRoute.svelte
+    - frontend/apps/web_app/src/routes/privacy/+server.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/static/store-examples/audio-speak-openmates-welcome-message.mp3
+    - frontend/apps/web_app/tests/components/assistant-generated-media-activity.spec.ts
+    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
+    - frontend/apps/web_app/tests/components/workspace-pane-motion.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/example-chat-removals.spec.ts
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chat-speech.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/guest-workspace-navigation.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-mindmap-recreated-examples.spec.ts
+    - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-web-phone.spec.ts
+    - frontend/apps/web_app/tests/legal-website-navigation.spec.ts
+    - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-privacy-promises.js
+    - frontend/packages/ui/scripts/validate-locales.js
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/Footer.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/exampleChatRegistration.test.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/fixtures/curatedExampleExpectations.json
+    - frontend/packages/ui/src/demo_chats/__tests__/landingExampleCatalog.test.ts
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-openmates-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-transcribe-voice-note.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/cancel-test-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-task-planning-checklist.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/family-stays-kyoto.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/fediverse-activitypub-social-search.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-tracker-onboarding-draft.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/image-vectorize-openmates-header.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/lh400-flight-status-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/library-book-return-workflow.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/nonprofit-event-planning-use-case.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-view-page-layout.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/plumber-message-email-phone-privacy.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/product-teaser-remotion-video.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/python-squares-code-run.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/reference-image-3d-model.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rostock-heavy-rain-radar.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/sqlite-strict-tables-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/upcoming-reminders-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/demo_chats/interestTags.ts
+    - frontend/packages/ui/src/demo_chats/translateDemoChat.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_friendly_welcome_message.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_transcribe_voice_note.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/cancel_test_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_sunflower_illustration.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_volunteer_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_welcome_melody.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_task_planning_checklist.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/family_stays_kyoto.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/fediverse_activitypub_social_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_tracker_onboarding_draft.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/image_vectorize_openmates_header.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/lh400_flight_status_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/library_book_return_workflow.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/nonprofit_event_planning_use_case.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_view_page_layout.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/plumber_message_email_phone_privacy.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/python_squares_code_run.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/reference_image_3d_model.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rostock_heavy_rain_radar.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/sqlite_strict_tables_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/upcoming_reminders_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/imprint.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/documents/terms-of-use.ts
+    - frontend/packages/ui/src/legal/index.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantActivityRuns.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    - frontend/packages/ui/src/types/env.d.ts
+    - frontend/packages/ui/src/utils/__tests__/workspacePaneMotion.test.ts
+    - frontend/packages/ui/src/utils/workspacePaneMotion.ts
+    - scripts/audit_app_provider_contracts.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_architecture_behavioral_claims.py
+    - scripts/tests/test_example_chat_focus_mode_contract.py
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workspace-shell/examples.yml
+    - specifications/features/workspace-shell/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse shared voice notices and accept composer context IDs'
+    section: bug_fixes
+    commits:
+    - 83ecbca3e
+    authored_at: '2026-10-16T11:41:25+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/voice_call.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallPrivacyDialog.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallPrivacyPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallPrivacyPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/voiceCallPrivacy.test.ts
+    - frontend/packages/ui/src/services/voiceCallPrivacy.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix: avoid background recovery for inspiration video previews'
     section: bug_fixes
     commits:
-    - 38b24140eb
+    - 38b24140e
     authored_at: '2026-10-16T10:35:33+00:00'
     changed_paths:
     - docs/plans/chat-processing-next-stage/implemented-flow.md
@@ -432,9 +1015,9 @@ sections:
     - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
     - frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:videos:search
@@ -449,11 +1032,11 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: embed:videos:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: persist concise sub-chat metadata with edit guards'
     section: bug_fixes
     commits:
-    - 2314a23cf5
+    - 2314a23cf
     authored_at: '2026-10-16T10:30:36+00:00'
     changed_paths:
     - backend/apps/ai/tasks/ask_skill_task.py
@@ -475,9 +1058,9 @@ sections:
     - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
     - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -492,11 +1075,11 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: handle guest usage limits and nullable chat sync versions'
     section: bug_fixes
     commits:
-    - f14d10d6a5
+    - f14d10d6a
     authored_at: '2026-10-16T10:03:39+00:00'
     changed_paths:
     - backend/apps/ai/skills/ask_skill.py
@@ -544,9 +1127,9 @@ sections:
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -568,18 +1151,18 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: verify candidate sync fixtures and report SSH failures'
     section: bug_fixes
     commits:
-    - 302c5bbe75
+    - 302c5bbe7
     authored_at: '2026-10-16T08:59:16+00:00'
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/ci_startup_sync_fixture.mjs
     - scripts/prod-ssh.sh
     - scripts/tests/test_prod_ssh.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -587,229 +1170,934 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: answer selected Project catalog requests in CLI'
-    section: bug_fixes
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other:
+  - title: Merge main into dev preserving production recovery fixes
+    section: other
     commits:
-    - 6ee143c7f6
-    authored_at: '2026-10-15T20:38:38+00:00'
+    - ad50be914
+    authored_at: '2026-10-16T11:18:11+00:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only:
+  - title: 'fix: redirect missing blog and news articles to their archives'
+    commits:
+    - 6ce7904af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: retain production app login and polished voice chat behavior'
+    commits:
+    - 17ad6f601
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep complete canonical context and attribution during voice calls'
+    commits:
+    - 1e8701814
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: finish chat continuation and encrypted output recovery'
+    commits:
+    - 9f28425d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve voice calls through recoverable tool failures'
+    commits:
+    - 8b650fb51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: continue voice chats with canonical history and mate identity'
+    commits:
+    - 68d0d5d86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore application previews promptly after reload'
+    commits:
+    - b02e5a57d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: preserve admission identity across generated media continuation'
+    commits:
+    - '572917329'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: resume generated-media chats and attribute voice usage'
+    commits:
+    - ec6b92911
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve Unicode in anonymous chat streams'
+    commits:
+    - 58850e959
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: allow personal chats when Projects is disabled'
+    commits:
+    - 52ecee1c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: align guest workspaces and clean public examples'
+    commits:
+    - d35cef0f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: reuse shared voice notices and accept composer context IDs'
+    commits:
+    - 83ecbca3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: align guest workspaces and clean public examples'
+    commits:
+    - d35cef0f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: persist concise sub-chat metadata with edit guards'
+    commits:
+    - 2314a23cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter:
+  - title: 'feat: integrate voice calling controls, capabilities and privacy'
+    commits:
+    - c1199371a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: avoid background recovery for inspiration video previews'
+    commits:
+    - 38b24140e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: persist concise sub-chat metadata with edit guards'
+    commits:
+    - 2314a23cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: handle guest usage limits and nullable chat sync versions'
+    commits:
+    - f14d10d6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  social_or_video:
+  - title: 'fix: redirect missing blog and news articles to their archives'
+    commits:
+    - 6ce7904af
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: retain production app login and polished voice chat behavior'
+    commits:
+    - 17ad6f601
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: finish chat continuation and encrypted output recovery'
+    commits:
+    - 9f28425d5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve voice calls through recoverable tool failures'
+    commits:
+    - 8b650fb51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: continue voice chats with canonical history and mate identity'
+    commits:
+    - 68d0d5d86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore application previews promptly after reload'
+    commits:
+    - b02e5a57d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve admission identity across generated media continuation'
+    commits:
+    - '572917329'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: resume generated-media chats and attribute voice usage'
+    commits:
+    - ec6b92911
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve Unicode in anonymous chat streams'
+    commits:
+    - 58850e959
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: allow personal chats when Projects is disabled'
+    commits:
+    - 52ecee1c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align guest workspaces and clean public examples'
+    commits:
+    - d35cef0f3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reuse shared voice notices and accept composer context IDs'
+    commits:
+    - 83ecbca3e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: integrate voice calling controls, capabilities and privacy'
+    commits:
+    - c1199371a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:create
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    - id: skill:videos:create
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: true
+  - title: 'fix: avoid background recovery for inspiration video previews'
+    commits:
+    - 38b24140e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:videos:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: true
+  - title: 'fix: persist concise sub-chat metadata with edit guards'
+    commits:
+    - 2314a23cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: handle guest usage limits and nullable chat sync versions'
+    commits:
+    - f14d10d6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6ce7904afedf48a1785dac01090eddea5e0cca80
+    short_sha: 6ce7904af
+    authored_at: '2026-10-16T17:18:10+00:00'
+    subject: 'fix: redirect missing blog and news articles to their archives'
+    in_main: false
+    in_dev: true
     changed_paths:
-    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
-    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/apps/web_app/tests/public-publications.spec.ts
+    - frontend/apps/website/src/routes/[[locale=publicationLocale]]/[section=publicationSection]/[[slug]]/+page.server.ts
+    - frontend/packages/public-site/src/publications/publications.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 17ad6f6016ea21e19015e7acd04bce9e08c1e440
+    short_sha: 17ad6f601
+    authored_at: '2026-10-16T17:12:05+00:00'
+    subject: 'fix: retain production app login and polished voice chat behavior'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/email.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/app/services/domain_security.py
+    - backend/core/api/app/services/email/variable_processor.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/core/api/app/tasks/email_tasks/newsletter_email_task.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/tasks/email_tasks/support_contribution_email_task.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/tests/test_passkey_production_domain.py
+    - backend/upload/main.py
+    - deployment/prod_server/Caddyfile
+    - deployment/upload_server/Caddyfile
+    - docs/plans/production-app-domain-cutover/plan.yml
+    - frontend/apps/web_app/tests/components/voice-call-header-actions.spec.ts
+    - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/apps/website/src/routes/+page.svelte
+    - frontend/apps/website/vercel.json
+    - frontend/packages/openmates-cli/src/cli.ts
     - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/src/shareEncryption.ts
+    - frontend/packages/openmates-cli/src/support.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-cli/tests/shareEncryption.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - frontend/packages/ui/src/utils/__tests__/modelDisplayName.test.ts
+    - frontend/packages/ui/src/utils/__tests__/voiceTranscriptDisplay.test.ts
+    - frontend/packages/ui/src/utils/modelDisplayName.ts
+    - frontend/packages/ui/src/utils/voiceTranscriptDisplay.ts
+    - packages/openmates-python/openmates/sdk.py
+    - scripts/tests/test_verify_caddyfile.py
+    - shared/config/urls.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: preserve Project reads when edits are prohibited'
-    section: bug_fixes
-    commits:
-    - 6eec780251
-    authored_at: '2026-10-15T19:50:23+00:00'
+    related_feature_ids: []
+  - sha: 1e87018146efa109d09aa78c742a469437ea2186
+    short_sha: 1e8701814
+    authored_at: '2026-10-16T16:38:24+00:00'
+    subject: 'fix: keep complete canonical context and attribution during voice calls'
+    in_main: false
+    in_dev: true
     changed_paths:
-    - backend/apps/ai/processing/project_file_tools.py
-    - backend/tests/test_project_focus_early_routing.py
-    - backend/tests/test_project_focus_requests.py
-    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
+    - frontend/packages/ui/src/services/__tests__/authenticatedChatMessageWindow.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: decode cached Focus authority mappings correctly'
-    section: bug_fixes
-    commits:
-    - ab02b5e8d1
-    authored_at: '2026-10-15T19:22:49+00:00'
+    related_feature_ids: []
+  - sha: 9f28425d5726741099381bf351e2f1be73163544
+    short_sha: 9f28425d5
+    authored_at: '2026-10-16T16:35:49+00:00'
+    subject: 'fix: finish chat continuation and encrypted output recovery'
+    in_main: false
+    in_dev: true
     changed_paths:
-    - backend/shared/python_utils/focus_continuation_history.py
-    - backend/tests/test_focus_authority_lifecycle.py
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: retain canonical chat receipts for completed follow-ups'
-    section: bug_fixes
-    commits:
-    - 9eb007a219
-    authored_at: '2026-10-15T19:14:40+00:00'
-    changed_paths:
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    - frontend/apps/web_app/tests/chat-saved-followup-admission.spec.ts
-    - frontend/apps/web_app/tests/connection-resilience.spec.ts
-    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
-    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
-    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
-    - frontend/packages/ui/src/services/sendersChatMessages.ts
-    - scripts/ci_coverage_manifest.json
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: preserve chat authority throughout Focus continuation'
-    section: bug_fixes
-    commits:
-    - 94986e1590
-    authored_at: '2026-10-15T19:09:34+00:00'
-    changed_paths:
-    - backend/apps/ai/processing/main_processor.py
     - backend/apps/ai/tasks/ask_skill_task.py
-    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
     - backend/apps/ai/tasks/stream_consumer.py
-    - backend/apps/ai/tests/test_ask_skill_task.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
-    - backend/shared/python_utils/focus_continuation_history.py
-    - backend/shared/python_utils/recent_work_summary_client.py
-    - backend/tests/test_focus_authority_lifecycle.py
-    - backend/tests/test_focus_continuation_history.py
-    - backend/tests/test_main_processor_invalid_tool_calls.py
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: select recovery fixture for saved follow-up regression'
-    section: bug_fixes
-    commits:
-    - 9568a640dc
-    authored_at: '2026-10-15T18:49:10+00:00'
-    changed_paths:
-    - scripts/ci_run_tests.py
-    - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: preserve focus continuation authority and speech lifecycle'
-    section: bug_fixes
-    commits:
-    - 1f6d41eb93
-    authored_at: '2026-10-15T18:29:42+00:00'
-    changed_paths:
-    - backend/apps/ai/processing/related_work.py
-    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
     - backend/shared/python_utils/recent_work_summary_client.py
     - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_personal_child_embed_recovery.py
     - backend/tests/test_recent_work_summary_cache.py
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/persisted-draft-discovery.spec.ts
+    - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectFocusCountdown.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    - frontend/packages/openmates-cli/tests/projectFocusCountdown.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryBatch.test.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/streamedCanonicalHead.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/services/__tests__/chatRecoveryVersionRefresh.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedSendersCanonicalReconcile.test.ts
+    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
+    - frontend/packages/ui/src/services/__tests__/streamedEmbedRevisionHistory.test.ts
+    - frontend/packages/ui/src/services/chatRecoveryVersionRefresh.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    - frontend/packages/ui/src/services/streamedEmbedRevisionHistory.ts
+    - specifications/architecture/drafts/examples.yml
+    - specifications/architecture/storage-lifecycle/examples.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/projects/examples.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: keep landing animations above mobile controls'
-    section: bug_fixes
-    commits:
-    - 5eedd82ad4
-    authored_at: '2026-10-15T16:44:58+00:00'
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 8b650fb516af712ea08b132cc1dd721e07fb9528
+    short_sha: 8b650fb51
+    authored_at: '2026-10-16T16:29:24+00:00'
+    subject: 'fix: preserve voice calls through recoverable tool failures'
+    in_main: false
+    in_dev: true
     changed_paths:
-    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
-    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
-    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
-    - scripts/ci_coverage_manifest.json
+    - backend/apps/ai/processing/voice_call_broker.py
+    - backend/apps/ai/processing/voice_call_broker_runtime.py
+    - backend/apps/ai/tasks/voice_call_task.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/shared/testing/voice_broker_fixture.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_voice_call_broker.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/voice-call.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: publish real web research with saved thinking'
-    section: bug_fixes
-    commits:
-    - d186db0f6e
-    authored_at: '2026-10-15T12:09:25+00:00'
+    related_feature_ids:
+    - app:ai
+  - sha: 68d0d5d86c1b64338e33a571348f88f99ee567aa
+    short_sha: 68d0d5d86
+    authored_at: '2026-10-16T16:20:05+00:00'
+    subject: 'fix: continue voice chats with canonical history and mate identity'
+    in_main: false
+    in_dev: true
     changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/voice_mate.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/call_message_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/core/api/app/services/system_message_versions.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/scripts/test_voice_call_continuity.py
+    - backend/shared/providers/gemini_live_voice.py
+    - backend/shared/providers/live_voice.py
+    - backend/shared/testing/voice_call_fixture.py
+    - backend/tests/test_call_message_completed_handler.py
+    - backend/tests/test_system_message_versions.py
+    - backend/tests/test_voice_call_protocol.py
+    - docs/plans/production-voice-context-recovery/plan.yml
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/authenticatedChatMessageWindow.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
+    - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: b02e5a57df5523152da609c59dcafb4f62e8589a
+    short_sha: b02e5a57d
+    authored_at: '2026-10-16T16:10:15+00:00'
+    subject: 'fix: restore application previews promptly after reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.live.test.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:code
+    - embed:code:application
+  - sha: 5729173296f73301380ba025fdd0fa5ef586b5f1
+    short_sha: '572917329'
+    authored_at: '2026-10-16T15:41:36+00:00'
+    subject: 'fix: preserve admission identity across generated media continuation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/same_turn_skill_barrier.py
+    - backend/tests/test_async_skill_continuation.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ec6b929110e5abf98f5d4d4b5bda4fdbb09d645f
+    short_sha: ec6b92911
+    authored_at: '2026-10-16T15:32:38+00:00'
+    subject: 'fix: resume generated-media chats and attribute voice usage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/voice_call_broker_runtime.py
+    - backend/apps/ai/tasks/same_turn_skill_barrier.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/audio_realtime.py
+    - backend/core/api/app/routes/voice_call.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_same_turn_skill_barrier.py
+    - backend/tests/test_voice_call_broker.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 58850e9596f04ad67e34127ace628a05f3e77833
+    short_sha: 58850e959
+    authored_at: '2026-10-16T14:50:23+00:00'
+    subject: 'fix: preserve Unicode in anonymous chat streams'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/apps/web_app/tests/anonymous-usage-limit.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 52ecee1c63d6b20be5b689470f9fcb663838fff3
+    short_sha: 52ecee1c6
+    authored_at: '2026-10-16T14:48:03+00:00'
+    subject: 'fix: allow personal chats when Projects is disabled'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceCache.test.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: d35cef0f391a084e6870fdb2c026dadef0e67ad1
+    short_sha: d35cef0f3
+    authored_at: '2026-10-16T11:53:38+00:00'
+    subject: 'fix: align guest workspaces and clean public examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
     - backend/apps/web/app.yml
-    - backend/shared/python_utils/chat_completion_recovery_job.py
-    - backend/tests/test_stream_consumer_recovery.py
-    - docs/plans/landing-example-reliability/plan.yml
+    - frontend/apps/web_app/src/lib/server/publicWebsite.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/apps/AppsRoute.svelte
+    - frontend/apps/web_app/src/routes/privacy/+server.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/static/store-examples/audio-speak-openmates-welcome-message.mp3
+    - frontend/apps/web_app/tests/components/assistant-generated-media-activity.spec.ts
+    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
+    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
+    - frontend/apps/web_app/tests/components/workspace-pane-motion.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/example-chat-removals.spec.ts
+    - frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
+    - frontend/apps/web_app/tests/example-chat-speech.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/guest-workspace-navigation.spec.ts
     - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-mindmap-recreated-examples.spec.ts
     - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
     - frontend/apps/web_app/tests/landing-web-phone.spec.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/client.test.ts
-    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/apps/web_app/tests/legal-website-navigation.spec.ts
+    - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
+    - frontend/apps/web_app/tests/proof-audio-speech-example.spec.ts
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
     - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/scripts/generate-privacy-promises.js
+    - frontend/packages/ui/scripts/validate-locales.js
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/Footer.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPreviewHarness.preview.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
+    - frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowHomePreviewHarness.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/exampleChatRegistration.test.ts
+    - frontend/packages/ui/src/demo_chats/__tests__/fixtures/curatedExampleExpectations.json
+    - frontend/packages/ui/src/demo_chats/__tests__/landingExampleCatalog.test.ts
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-openmates-welcome-message.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-transcribe-voice-note.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/cancel-test-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/example-chat-task-planning-checklist.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/family-stays-kyoto.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/fediverse-activitypub-social-search.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/framework-store-reputation-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-tracker-onboarding-draft.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/image-vectorize-openmates-header.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/lh400-flight-status-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/library-book-return-workflow.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/nonprofit-event-planning-use-case.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-view-page-layout.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/plumber-message-email-phone-privacy.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/product-teaser-remotion-video.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/python-squares-code-run.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/reference-image-3d-model.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rostock-heavy-rain-radar.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/sqlite-strict-tables-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/upcoming-reminders-list.ts
     - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
     - frontend/packages/ui/src/demo_chats/exampleChatData.ts
-    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
     - frontend/packages/ui/src/demo_chats/interestTags.ts
-    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/demo_chats/translateDemoChat.ts
     - frontend/packages/ui/src/generated/landingExampleChats.generated.json
     - frontend/packages/ui/src/i18n/locales/ar.json
     - frontend/packages/ui/src/i18n/locales/cs.json
@@ -832,804 +2120,97 @@ sections:
     - frontend/packages/ui/src/i18n/locales/tr.json
     - frontend/packages/ui/src/i18n/locales/vi.json
     - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_friendly_welcome_message.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_transcribe_voice_note.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/cancel_test_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_sunflower_illustration.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_volunteer_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_welcome_melody.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/example_chat_task_planning_checklist.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/family_stays_kyoto.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/fediverse_activitypub_social_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/framework_store_reputation_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_tracker_onboarding_draft.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/image_vectorize_openmates_header.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/lh400_flight_status_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/library_book_return_workflow.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/nonprofit_event_planning_use_case.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_view_page_layout.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/plumber_message_email_phone_privacy.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/python_squares_code_run.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/reference_image_3d_model.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rostock_heavy_rain_radar.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/sqlite_strict_tables_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/upcoming_reminders_list.yml
     - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
-    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/imprint.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - frontend/packages/ui/src/legal/documents/terms-of-use.ts
+    - frontend/packages/ui/src/legal/index.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantActivityRuns.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    - frontend/packages/ui/src/types/env.d.ts
+    - frontend/packages/ui/src/utils/__tests__/workspacePaneMotion.test.ts
+    - frontend/packages/ui/src/utils/workspacePaneMotion.ts
+    - scripts/audit_app_provider_contracts.py
     - scripts/ci_coverage_manifest.json
-    - scripts/create-example-chat-from-share.mjs
-    - scripts/extract-shared-chat.mjs
-    - scripts/tests/create_example_chat_from_share.test.mjs
-    - scripts/tests/extract_shared_chat.test.mjs
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-    feature_metadata_changed: true
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai, app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: repair example composer focus and recipe options'
-    section: bug_fixes
-    commits:
-    - a5a2198968
-    authored_at: '2026-10-15T11:18:25+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
-    - frontend/apps/web_app/tests/components/questionnaire-recipe-options.spec.ts
-    - frontend/apps/web_app/tests/landing-app-example-admission.ts
-    - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
-    - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/ActiveChatFocusFixture.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
-    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
-    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
-    - frontend/packages/ui/src/components/interactive_questions/__tests__/QuestionSourceProbe.svelte
-    - frontend/packages/ui/src/components/interactive_questions/__tests__/questionnaireSourceContext.test.ts
-    - scripts/ci_coverage_manifest.json
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as bug fixes from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  improvements:
-  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
-    section: improvements
-    commits:
-    - ba4fb03d94
-    authored_at: '2026-10-15T17:40:16+00:00'
-    changed_paths:
-    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/suggested_followup_metadata_handler.py
-    - backend/tests/test_agent_context_history_transport.py
-    - backend/tests/test_chat_turn_preflight_handler.py
-    - backend/tests/test_suggested_followup_metadata_handler.py
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
-    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
-    - frontend/apps/web_app/tests/connection-resilience.spec.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/src/recoveryBatch.ts
-    - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
-    - frontend/packages/openmates-cli/tests/recoveryBatch.test.ts
-    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
-    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-    - frontend/packages/openmates-cli/tests/serverCaddyUpgrade.test.ts
-    - frontend/packages/openmates-cli/tests/warmSlotRearm.test.ts
-    - frontend/packages/ui/src/services/__tests__/composerGhostSuggestion.test.ts
-    - frontend/packages/ui/src/services/__tests__/savedPersonalAdmissionHistory.test.ts
-    - frontend/packages/ui/src/services/chatSyncService.ts
-    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
-    - frontend/packages/ui/src/services/savedPersonalAdmissionHistory.ts
-    - frontend/packages/ui/src/services/sendersChatMessages.ts
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: true
-    rationale:
-    - classified as improvements from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
-    section: improvements
-    commits:
-    - dd1544f5cb
-    authored_at: '2026-10-15T16:30:49+00:00'
-    changed_paths:
-    - frontend/apps/web_app/tests/cli-privacy.spec.ts
-    - frontend/apps/web_app/tests/connection-resilience.spec.ts
-    - frontend/packages/openmates-cli/src/cliJevContext.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
-    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
-    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
-    - frontend/packages/ui/src/services/__tests__/initialChatHistoryGate.test.ts
-    - frontend/packages/ui/src/services/initialChatHistoryGate.ts
-    - frontend/packages/ui/src/services/sendersChatMessages.ts
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as improvements from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
-    section: improvements
-    commits:
-    - ba8654432f
-    authored_at: '2026-10-15T13:55:30+00:00'
-    changed_paths:
-    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
-    - backend/tests/test_message_received_active_chat.py
-    - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
-    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/client.test.ts
-    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
-    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as improvements from commit subject/path rules
-    - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'perf: remove foreground chat discovery and recovery barriers'
-    section: improvements
-    commits:
-    - d5913cf468
-    authored_at: '2026-10-15T13:02:59+00:00'
-    changed_paths:
-    - backend/apps/ai/llm_providers/google_client.py
-    - backend/apps/ai/processing/main_processor.py
-    - backend/apps/ai/tasks/ask_skill_task.py
-    - backend/apps/ai/tasks/stage_one_task.py
-    - backend/apps/ai/testing/api_cache/storage_capacity_v1/pretalx/c08a07c19423a4c6.json
-    - backend/apps/ai/testing/capacity_fixtures.py
-    - backend/core/api/app/routes/websockets.py
-    - backend/core/api/app/services/chat_email_notification_service.py
-    - backend/core/api/app/services/chat_recovery_service.py
-    - backend/core/api/app/services/embed_service.py
-    - backend/core/api/app/services/notification_presence.py
-    - backend/core/api/app/tasks/push_notification_task.py
-    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
-    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-    - backend/scripts/probe_chat_response_email.py
-    - backend/tests/test_chat_recovery_large_output_intent.py
-    - backend/tests/test_chat_recovery_service.py
-    - backend/tests/test_completion_push_cache_fallback.py
-    - backend/tests/test_embed_service_versioned_updates.py
-    - backend/tests/test_foreground_chat_notification_suppression.py
-    - backend/tests/test_google_sdk_transport.py
-    - backend/tests/test_main_factual_prompt.py
-    - backend/tests/test_main_processor_invalid_tool_calls.py
-    - backend/tests/test_notification_presence.py
-    - backend/tests/test_push_notification_preview.py
-    - backend/tests/test_storage_recovery_fixture.py
-    - docs/architecture/messaging/embeds.md
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/plan.yml
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    - frontend/apps/web_app/tests/chat-response-email.spec.ts
-    - frontend/apps/web_app/tests/cli-privacy.spec.ts
-    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
-    - frontend/packages/openmates-cli/package.json
-    - frontend/packages/openmates-cli/src/cliJevContext.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
-    - frontend/packages/openmates-cli/tests/client.test.ts
-    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
-    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
-    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
-    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
-    - specifications/features/notifications/examples.yml
-    - specifications/features/notifications/specification.yml
+    - scripts/tests/test_architecture_behavioral_claims.py
+    - scripts/tests/test_example_chat_focus_mode_contract.py
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workspace-shell/examples.yml
+    - specifications/features/workspace-shell/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    feature_metadata_changed: false
-    rationale:
-    - classified as improvements from commit subject/path rules
-    - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
-  docs:
-  - title: 'docs: record measured chat architecture and remaining timing gaps'
-    section: docs
-    commits:
-    - 6b9fd8607d
-    authored_at: '2026-10-15T14:49:14+00:00'
+    related_feature_ids:
+    - app:web
+    - platform:workflows
+  - sha: 83ecbca3e628f425eace55ea0ed45be2dd01ec7d
+    short_sha: 83ecbca3e
+    authored_at: '2026-10-16T11:41:25+00:00'
+    subject: 'fix: reuse shared voice notices and accept composer context IDs'
+    in_main: false
+    in_dev: true
     changed_paths:
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
-  tests: []
-  infrastructure: []
-  internal: []
-  other: []
-unreleased_progress:
-  dev_only:
-  - title: 'feat: integrate voice calling controls, capabilities and privacy'
-    commits:
-    - c1199371a4
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:videos
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/videos/app.yml
-    - id: embed:videos:create
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    - id: skill:videos:create
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-  - title: 'fix: avoid background recovery for inspiration video previews'
-    commits:
-    - 38b24140eb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:videos:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-  - title: 'fix: persist concise sub-chat metadata with edit guards'
-    commits:
-    - 2314a23cf5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: handle guest usage limits and nullable chat sync versions'
-    commits:
-    - f14d10d6a5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'fix: verify candidate sync fixtures and report SSH failures'
-    commits:
-    - 302c5bbe75
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: answer selected Project catalog requests in CLI'
-    commits:
-    - 6ee143c7f6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve Project reads when edits are prohibited'
-    commits:
-    - 6eec780251
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: decode cached Focus authority mappings correctly'
-    commits:
-    - ab02b5e8d1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: retain canonical chat receipts for completed follow-ups'
-    commits:
-    - 9eb007a219
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve chat authority throughout Focus continuation'
-    commits:
-    - 94986e1590
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: select recovery fixture for saved follow-up regression'
-    commits:
-    - 9568a640dc
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve focus continuation authority and speech lifecycle'
-    commits:
-    - 1f6d41eb93
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
-    commits:
-    - ba4fb03d94
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep landing animations above mobile controls'
-    commits:
-    - 5eedd82ad4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
-    commits:
-    - dd1544f5cb
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs: record measured chat architecture and remaining timing gaps'
-    commits:
-    - 6b9fd8607d
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
-    commits:
-    - ba8654432f
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: remove foreground chat discovery and recovery barriers'
-    commits:
-    - d5913cf468
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'feat: refine landing section replays and device media'
-    commits:
-    - e3b567b7c8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: publish real web research with saved thinking'
-    commits:
-    - d186db0f6e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix: repair example composer focus and recipe options'
-    commits:
-    - a5a2198968
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  unknown_release_status: []
-  feature_metadata_changed:
-  - title: 'fix: persist concise sub-chat metadata with edit guards'
-    commits:
-    - 2314a23cf5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
-    commits:
-    - ba4fb03d94
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: publish real web research with saved thinking'
-    commits:
-    - d186db0f6e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-marketing_candidates:
-  newsletter: []
-  social_or_video:
-  - title: 'feat: integrate voice calling controls, capabilities and privacy'
-    commits:
-    - c1199371a4
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:videos
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/videos/app.yml
-    - id: embed:videos:create
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    - id: skill:videos:create
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    newsletter_ready: false
-  - title: 'fix: avoid background recovery for inspiration video previews'
-    commits:
-    - 38b24140eb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:videos:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:videos
-      source: backend/apps/videos/app.yml
-    newsletter_ready: false
-  - title: 'fix: persist concise sub-chat metadata with edit guards'
-    commits:
-    - 2314a23cf5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: handle guest usage limits and nullable chat sync versions'
-    commits:
-    - f14d10d6a5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: answer selected Project catalog requests in CLI'
-    commits:
-    - 6ee143c7f6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: preserve Project reads when edits are prohibited'
-    commits:
-    - 6eec780251
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: retain canonical chat receipts for completed follow-ups'
-    commits:
-    - 9eb007a219
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: preserve chat authority throughout Focus continuation'
-    commits:
-    - 94986e1590
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'fix: preserve focus continuation authority and speech lifecycle'
-    commits:
-    - 1f6d41eb93
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
-    commits:
-    - ba4fb03d94
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: keep landing animations above mobile controls'
-    commits:
-    - 5eedd82ad4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
-    commits:
-    - dd1544f5cb
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
-    commits:
-    - ba8654432f
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'perf: remove foreground chat discovery and recovery barriers'
-    commits:
-    - d5913cf468
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'feat: refine landing section replays and device media'
-    commits:
-    - e3b567b7c8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-  - title: 'fix: publish real web research with saved thinking'
-    commits:
-    - d186db0f6e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-    newsletter_ready: false
-  - title: 'fix: repair example composer focus and recipe options'
-    commits:
-    - a5a2198968
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-    newsletter_ready: false
-risks:
-  communication:
-  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
-  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
-  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
-sources:
-  commits:
+    - backend/core/api/app/routes/voice_call.py
+    - backend/tests/test_voice_call_protocol.py
+    - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallPrivacyDialog.svelte
+    - frontend/packages/ui/src/components/voicecall/VoiceCallPrivacyPreview.preview.ts
+    - frontend/packages/ui/src/components/voicecall/VoiceCallPrivacyPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/voiceCallPrivacy.test.ts
+    - frontend/packages/ui/src/services/voiceCallPrivacy.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: ad50be914332858067ea3aec305ee9f78b1152ae
+    short_sha: ad50be914
+    authored_at: '2026-10-16T11:18:11+00:00'
+    subject: Merge main into dev preserving production recovery fixes
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
   - sha: c1199371a4333696ef19617acb937dc37b9e493a
-    short_sha: c1199371a4
+    short_sha: c1199371a
     authored_at: '2026-10-16T10:55:32+00:00'
     subject: 'feat: integrate voice calling controls, capabilities and privacy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/celery_helpers.py
@@ -1803,10 +2384,10 @@ sources:
     - embed:videos:create
     - skill:videos:create
   - sha: 38b24140eb3e4c313a38afc9cdf9a5d6719e1c4e
-    short_sha: 38b24140eb
+    short_sha: 38b24140e
     authored_at: '2026-10-16T10:35:33+00:00'
     subject: 'fix: avoid background recovery for inspiration video previews'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/chat-processing-next-stage/implemented-flow.md
@@ -1819,10 +2400,10 @@ sources:
     related_feature_ids:
     - embed:videos:search
   - sha: 2314a23cf5b0866aed40163db7a35e9fcfcb52f3
-    short_sha: 2314a23cf5
+    short_sha: 2314a23cf
     authored_at: '2026-10-16T10:30:36+00:00'
     subject: 'fix: persist concise sub-chat metadata with edit guards'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/ask_skill_task.py
@@ -1847,10 +2428,10 @@ sources:
     related_feature_ids:
     - app:ai
   - sha: f14d10d6a5bd2001a594e3f75081926c39e5e81f
-    short_sha: f14d10d6a5
+    short_sha: f14d10d6a
     authored_at: '2026-10-16T10:03:39+00:00'
     subject: 'fix: handle guest usage limits and nullable chat sync versions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/skills/ask_skill.py
@@ -1902,10 +2483,10 @@ sources:
     - app:ai
     - skill:ai:ask
   - sha: 302c5bbe75df0cc1c3211ede3c64f3093ade18f2
-    short_sha: 302c5bbe75
+    short_sha: 302c5bbe7
     authored_at: '2026-10-16T08:59:16+00:00'
     subject: 'fix: verify candidate sync fixtures and report SSH failures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -1913,534 +2494,136 @@ sources:
     - scripts/prod-ssh.sh
     - scripts/tests/test_prod_ssh.py
     related_feature_ids: []
-  - sha: 6ee143c7f632b80e1bc29832993eb7f83e218d59
-    short_sha: 6ee143c7f6
-    authored_at: '2026-10-15T20:38:38+00:00'
-    subject: 'fix: answer selected Project catalog requests in CLI'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
-    - frontend/packages/openmates-cli/src/cliJevContext.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: 6eec780251eedda69eb335fb326e2a8283f274ca
-    short_sha: 6eec780251
-    authored_at: '2026-10-15T19:50:23+00:00'
-    subject: 'fix: preserve Project reads when edits are prohibited'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/processing/project_file_tools.py
-    - backend/tests/test_project_focus_early_routing.py
-    - backend/tests/test_project_focus_requests.py
-    - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids:
-    - app:ai
-  - sha: ab02b5e8d1db3472e17adf0a0bbd1bce463e9b63
-    short_sha: ab02b5e8d1
-    authored_at: '2026-10-15T19:22:49+00:00'
-    subject: 'fix: decode cached Focus authority mappings correctly'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/shared/python_utils/focus_continuation_history.py
-    - backend/tests/test_focus_authority_lifecycle.py
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: 9eb007a219b3c07fdc2a3ff42df47914a68e71b8
-    short_sha: 9eb007a219
-    authored_at: '2026-10-15T19:14:40+00:00'
-    subject: 'fix: retain canonical chat receipts for completed follow-ups'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    - frontend/apps/web_app/tests/chat-saved-followup-admission.spec.ts
-    - frontend/apps/web_app/tests/connection-resilience.spec.ts
-    - frontend/packages/ui/src/services/__tests__/personalChatTurnBarrier.test.ts
-    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
-    - frontend/packages/ui/src/services/personalChatTurnBarrier.ts
-    - frontend/packages/ui/src/services/sendersChatMessages.ts
-    - scripts/ci_coverage_manifest.json
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: 94986e1590907555021d31b04d21162f16f05d9b
-    short_sha: 94986e1590
-    authored_at: '2026-10-15T19:09:34+00:00'
-    subject: 'fix: preserve chat authority throughout Focus continuation'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/processing/main_processor.py
-    - backend/apps/ai/tasks/ask_skill_task.py
-    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/apps/ai/tests/test_ask_skill_task.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
-    - backend/shared/python_utils/focus_continuation_history.py
-    - backend/shared/python_utils/recent_work_summary_client.py
-    - backend/tests/test_focus_authority_lifecycle.py
-    - backend/tests/test_focus_continuation_history.py
-    - backend/tests/test_main_processor_invalid_tool_calls.py
-    - specifications/generated/assertion-index.yml
-    related_feature_ids:
-    - app:ai
-  - sha: 9568a640dc1ce6582dcaed06ec42859665f57f73
-    short_sha: 9568a640dc
-    authored_at: '2026-10-15T18:49:10+00:00'
-    subject: 'fix: select recovery fixture for saved follow-up regression'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - scripts/ci_run_tests.py
-    - scripts/tests/test_ci_maps_recovery_profile.py
-    related_feature_ids: []
-  - sha: 1f6d41eb931ae6ac8297188d7b3655eb5b4b72b4
-    short_sha: 1f6d41eb93
-    authored_at: '2026-10-15T18:29:42+00:00'
-    subject: 'fix: preserve focus continuation authority and speech lifecycle'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/processing/related_work.py
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/shared/python_utils/recent_work_summary_client.py
-    - backend/tests/test_assistant_speech_streaming.py
-    - backend/tests/test_recent_work_summary_cache.py
-    - specifications/generated/assertion-index.yml
-    related_feature_ids:
-    - app:ai
-  - sha: ba4fb03d946fd2d4b5f1296987906d047325cba5
-    short_sha: ba4fb03d94
-    authored_at: '2026-10-15T17:40:16+00:00'
-    subject: 'perf: accelerate saved admission and bounded encrypted recovery'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/suggested_followup_metadata_handler.py
-    - backend/tests/test_agent_context_history_transport.py
-    - backend/tests/test_chat_turn_preflight_handler.py
-    - backend/tests/test_suggested_followup_metadata_handler.py
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
-    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
-    - frontend/apps/web_app/tests/connection-resilience.spec.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/src/recoveryBatch.ts
-    - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
-    - frontend/packages/openmates-cli/tests/recoveryBatch.test.ts
-    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
-    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
-    - frontend/packages/openmates-cli/tests/serverCaddyUpgrade.test.ts
-    - frontend/packages/openmates-cli/tests/warmSlotRearm.test.ts
-    - frontend/packages/ui/src/services/__tests__/composerGhostSuggestion.test.ts
-    - frontend/packages/ui/src/services/__tests__/savedPersonalAdmissionHistory.test.ts
-    - frontend/packages/ui/src/services/chatSyncService.ts
-    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
-    - frontend/packages/ui/src/services/savedPersonalAdmissionHistory.ts
-    - frontend/packages/ui/src/services/sendersChatMessages.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: 5eedd82ad4d38158bd92b6f584950ae295483a57
-    short_sha: 5eedd82ad4
-    authored_at: '2026-10-15T16:44:58+00:00'
-    subject: 'fix: keep landing animations above mobile controls'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
-    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
-    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
-    - scripts/ci_coverage_manifest.json
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: dd1544f5cb99a5f54c0e68c5b7492065e3221904
-    short_sha: dd1544f5cb
-    authored_at: '2026-10-15T16:30:49+00:00'
-    subject: 'perf: overlap saved-chat discovery and fence optimistic history reads'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/cli-privacy.spec.ts
-    - frontend/apps/web_app/tests/connection-resilience.spec.ts
-    - frontend/packages/openmates-cli/src/cliJevContext.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
-    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
-    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
-    - frontend/packages/ui/src/services/__tests__/initialChatHistoryGate.test.ts
-    - frontend/packages/ui/src/services/initialChatHistoryGate.ts
-    - frontend/packages/ui/src/services/sendersChatMessages.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: 6b9fd8607ddd8c65f2d72077395d88e83fbca9c3
-    short_sha: 6b9fd8607d
-    authored_at: '2026-10-15T14:49:14+00:00'
-    subject: 'docs: record measured chat architecture and remaining timing gaps'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    related_feature_ids: []
-  - sha: ba8654432f0a4476e6c71b7c9b4bfd5b10ddbe8c
-    short_sha: ba8654432f
-    authored_at: '2026-10-15T13:55:30+00:00'
-    subject: 'perf: cancel stale chat viewers and overlap follow-up preparation'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
-    - backend/tests/test_message_received_active_chat.py
-    - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
-    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/client.test.ts
-    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
-    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
-  - sha: d5913cf468e1c2902dc377f756e3c2458af325a5
-    short_sha: d5913cf468
-    authored_at: '2026-10-15T13:02:59+00:00'
-    subject: 'perf: remove foreground chat discovery and recovery barriers'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/llm_providers/google_client.py
-    - backend/apps/ai/processing/main_processor.py
-    - backend/apps/ai/tasks/ask_skill_task.py
-    - backend/apps/ai/tasks/stage_one_task.py
-    - backend/apps/ai/testing/api_cache/storage_capacity_v1/pretalx/c08a07c19423a4c6.json
-    - backend/apps/ai/testing/capacity_fixtures.py
-    - backend/core/api/app/routes/websockets.py
-    - backend/core/api/app/services/chat_email_notification_service.py
-    - backend/core/api/app/services/chat_recovery_service.py
-    - backend/core/api/app/services/embed_service.py
-    - backend/core/api/app/services/notification_presence.py
-    - backend/core/api/app/tasks/push_notification_task.py
-    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
-    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-    - backend/scripts/probe_chat_response_email.py
-    - backend/tests/test_chat_recovery_large_output_intent.py
-    - backend/tests/test_chat_recovery_service.py
-    - backend/tests/test_completion_push_cache_fallback.py
-    - backend/tests/test_embed_service_versioned_updates.py
-    - backend/tests/test_foreground_chat_notification_suppression.py
-    - backend/tests/test_google_sdk_transport.py
-    - backend/tests/test_main_factual_prompt.py
-    - backend/tests/test_main_processor_invalid_tool_calls.py
-    - backend/tests/test_notification_presence.py
-    - backend/tests/test_push_notification_preview.py
-    - backend/tests/test_storage_recovery_fixture.py
-    - docs/architecture/messaging/embeds.md
-    - docs/plans/chat-processing-next-stage/implemented-flow.md
-    - docs/plans/chat-processing-next-stage/plan.yml
-    - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    - frontend/apps/web_app/tests/chat-response-email.spec.ts
-    - frontend/apps/web_app/tests/cli-privacy.spec.ts
-    - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
-    - frontend/packages/openmates-cli/package.json
-    - frontend/packages/openmates-cli/src/cliJevContext.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
-    - frontend/packages/openmates-cli/tests/client.test.ts
-    - frontend/packages/openmates-cli/tests/fixtures/prepared-privacy-proof.mjs
-    - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
-    - frontend/packages/openmates-cli/tests/taskContextDiscovery.test.ts
-    - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
-    - specifications/features/notifications/examples.yml
-    - specifications/features/notifications/specification.yml
-    - specifications/generated/assertion-index.yml
-    - specifications/generated/coverage.yml
-    - specifications/generated/registry.yml
-    related_feature_ids:
-    - app:ai
-  - sha: e3b567b7c8a003c910bb8f332f89486242b91ade
-    short_sha: e3b567b7c8
-    authored_at: '2026-10-15T12:17:06+00:00'
-    subject: 'feat: refine landing section replays and device media'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - docs/design-guide/landing-native-captures.md
-    - docs/plans/public-site-section-followup-oct15/plan.yml
-    - frontend/apps/web_app/static/landing/screenshots/capture-manifest.json
-    - frontend/apps/web_app/static/landing/screenshots/devices-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/events-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/model-selector-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/privacy-desktop.webp
-    - frontend/apps/web_app/static/landing/screenshots/workflows-desktop.webp
-    - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts
-    - frontend/apps/web_app/tests/components/landing-section-replay.spec.ts
-    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
-    - frontend/apps/web_app/tests/website-public-routes.spec.ts
-    - frontend/apps/website/static/landing/screenshots/capture-manifest.json
-    - frontend/apps/website/static/landing/screenshots/devices-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/events-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/model-selector-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/privacy-desktop.webp
-    - frontend/apps/website/static/landing/screenshots/workflows-desktop.webp
-    - frontend/packages/public-site/src/components/DeviceFrame.svelte
-    - frontend/packages/public-site/src/components/DeviceScreenshots.svelte
-    - frontend/packages/public-site/src/components/landing/LandingFeatureAnimation.svelte
-    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
-    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
-    - frontend/packages/public-site/src/generated/landingLocale.generated.json
-    - frontend/packages/public-site/src/i18n/landing.yml
-    - scripts/ci_coverage_manifest.json
-    - specifications/features/marketing-landing/examples.yml
-    - specifications/features/marketing-landing/specification.yml
-    - specifications/generated/assertion-index.yml
-    - specifications/generated/registry.yml
-    related_feature_ids: []
-  - sha: d186db0f6e0541819c68c8b4bd2cf56a68d64aad
-    short_sha: d186db0f6e
-    authored_at: '2026-10-15T12:09:25+00:00'
-    subject: 'fix: publish real web research with saved thinking'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - backend/apps/ai/tasks/stream_consumer.py
-    - backend/apps/web/app.yml
-    - backend/shared/python_utils/chat_completion_recovery_job.py
-    - backend/tests/test_stream_consumer_recovery.py
-    - docs/plans/landing-example-reliability/plan.yml
-    - frontend/apps/web_app/tests/landing-app-example-admission.ts
-    - frontend/apps/web_app/tests/landing-web-laptop.spec.ts
-    - frontend/apps/web_app/tests/landing-web-phone.spec.ts
-    - frontend/packages/openmates-cli/src/client.ts
-    - frontend/packages/openmates-cli/tests/client.test.ts
-    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
-    - frontend/packages/public-site/src/generated/publicApps.generated.json
-    - frontend/packages/ui/src/demo_chats/data/example_chats/us-egg-prices-deep-research.ts
-    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
-    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
-    - frontend/packages/ui/src/demo_chats/interestTags.ts
-    - frontend/packages/ui/src/demo_chats/types.ts
-    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
-    - frontend/packages/ui/src/i18n/locales/ar.json
-    - frontend/packages/ui/src/i18n/locales/cs.json
-    - frontend/packages/ui/src/i18n/locales/de.json
-    - frontend/packages/ui/src/i18n/locales/en.json
-    - frontend/packages/ui/src/i18n/locales/es.json
-    - frontend/packages/ui/src/i18n/locales/fr.json
-    - frontend/packages/ui/src/i18n/locales/he.json
-    - frontend/packages/ui/src/i18n/locales/hi.json
-    - frontend/packages/ui/src/i18n/locales/id.json
-    - frontend/packages/ui/src/i18n/locales/it.json
-    - frontend/packages/ui/src/i18n/locales/ja.json
-    - frontend/packages/ui/src/i18n/locales/ko.json
-    - frontend/packages/ui/src/i18n/locales/nl.json
-    - frontend/packages/ui/src/i18n/locales/pl.json
-    - frontend/packages/ui/src/i18n/locales/pt.json
-    - frontend/packages/ui/src/i18n/locales/ru.json
-    - frontend/packages/ui/src/i18n/locales/sv.json
-    - frontend/packages/ui/src/i18n/locales/th.json
-    - frontend/packages/ui/src/i18n/locales/tr.json
-    - frontend/packages/ui/src/i18n/locales/vi.json
-    - frontend/packages/ui/src/i18n/locales/zh.json
-    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
-    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
-    - scripts/ci_coverage_manifest.json
-    - scripts/create-example-chat-from-share.mjs
-    - scripts/extract-shared-chat.mjs
-    - scripts/tests/create_example_chat_from_share.test.mjs
-    - scripts/tests/extract_shared_chat.test.mjs
-    - specifications/generated/assertion-index.yml
-    related_feature_ids:
-    - app:ai
-    - app:web
-  - sha: a5a219896865cd51af0e4442b6164c0368f53d6b
-    short_sha: a5a2198968
-    authored_at: '2026-10-15T11:18:25+00:00'
-    subject: 'fix: repair example composer focus and recipe options'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
-    - frontend/apps/web_app/tests/components/questionnaire-recipe-options.spec.ts
-    - frontend/apps/web_app/tests/landing-app-example-admission.ts
-    - frontend/apps/web_app/tests/public-example-input-focus.spec.ts
-    - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
-    - frontend/packages/ui/src/components/ActiveChat.svelte
-    - frontend/packages/ui/src/components/ActiveChatFocusFixture.svelte
-    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
-    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
-    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
-    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
-    - frontend/packages/ui/src/components/interactive_questions/__tests__/QuestionSourceProbe.svelte
-    - frontend/packages/ui/src/components/interactive_questions/__tests__/questionnaireSourceContext.test.ts
-    - scripts/ci_coverage_manifest.json
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
 llm_summary:
-  status: deterministic
-  overview: Deterministic release summary generated from 21 structured change items.
-  released_changes: []
-  bug_fixes: []
+  overview: OpenMates has released integrated voice calling capabilities, featuring comprehensive privacy controls and capability
+    management. This update also includes several production fixes for video previews, sub-chat metadata persistence, and
+    guest usage limits. Significant progress was also made in development branches regarding voice call stability and chat
+    recovery logic.
+  released_changes:
+  - text: OpenMates integrated voice calling controls and capabilities, including dedicated privacy dialogs and waveform visualizations.
+    evidence:
+      commits:
+      - c1199371a
+    release_status: released_main
+  bug_fixes:
+  - text: Background recovery processes no longer interrupt the display of daily inspiration video previews.
+    evidence:
+      commits:
+      - 38b24140e
+    release_status: released_main
+  - text: Sub-chat metadata persistence now includes edit guards and more concise storage logic.
+    evidence:
+      commits:
+      - 2314a23cf
+    release_status: released_main
+  - text: Guest usage limits are now correctly enforced, and chat synchronization handles nullable version strings more robustly.
+    evidence:
+      commits:
+      - f14d10d6a
+    release_status: released_main
   unreleased_progress:
-  - text: 'feat: integrate voice calling controls, capabilities and privacy'
+  - text: Ongoing work to refine voice call behavior, including better identity persistence, tool failure recovery, and shared
+      notification logic.
     evidence:
       commits:
-      - c1199371a4
+      - 17ad6f601
+      - 1e8701814
+      - 8b650fb51
+      - 68d0d5d86
+      - 83ecbca3e
     release_status: dev_only
-  - text: 'feat: refine landing section replays and device media'
+  - text: Development of improved chat continuation logic for generated media and enhanced recovery for encrypted outputs.
     evidence:
       commits:
-      - e3b567b7c8
+      - 9f28425d5
+      - '572917329'
+      - ec6b92911
+      - 58850e959
     release_status: dev_only
-  - text: 'fix: avoid background recovery for inspiration video previews'
+  - text: Internal updates to application preview restoration and publication archive redirects.
     evidence:
       commits:
-      - 38b24140eb
+      - 6ce7904af
+      - b02e5a57d
     release_status: dev_only
-  - text: 'fix: persist concise sub-chat metadata with edit guards'
+  - text: Preliminary adjustments to guest workspaces and chat admission logic for currently disabled features like Projects
+      and Workflows.
     evidence:
       commits:
-      - 2314a23cf5
-    release_status: dev_only
-  - text: 'fix: handle guest usage limits and nullable chat sync versions'
-    evidence:
-      commits:
-      - f14d10d6a5
-    release_status: dev_only
-  - text: 'fix: answer selected Project catalog requests in CLI'
-    evidence:
-      commits:
-      - 6ee143c7f6
-    release_status: dev_only
-  - text: 'fix: preserve Project reads when edits are prohibited'
-    evidence:
-      commits:
-      - 6eec780251
-    release_status: dev_only
-  - text: 'fix: retain canonical chat receipts for completed follow-ups'
-    evidence:
-      commits:
-      - 9eb007a219
-    release_status: dev_only
-  - text: 'fix: preserve chat authority throughout Focus continuation'
-    evidence:
-      commits:
-      - 94986e1590
-    release_status: dev_only
-  - text: 'fix: preserve focus continuation authority and speech lifecycle'
-    evidence:
-      commits:
-      - 1f6d41eb93
-    release_status: dev_only
-  - text: 'fix: keep landing animations above mobile controls'
-    evidence:
-      commits:
-      - 5eedd82ad4
-    release_status: dev_only
-  - text: 'fix: publish real web research with saved thinking'
-    evidence:
-      commits:
-      - d186db0f6e
+      - 52ecee1c6
+      - d35cef0f3
     release_status: dev_only
   internal_progress:
-  - text: 'fix: verify candidate sync fixtures and report SSH failures'
+  - text: The CI pipeline now verifies candidate synchronization fixtures and provides better reporting for SSH failures.
     evidence:
       commits:
-      - 302c5bbe75
-    release_status: dev_only
-  - text: 'fix: decode cached Focus authority mappings correctly'
+      - 302c5bbe7
+    release_status: released_main
+  - text: Main branch changes were merged into the development branch to synchronize production recovery fixes.
     evidence:
       commits:
-      - ab02b5e8d1
-    release_status: dev_only
-  - text: 'fix: select recovery fixture for saved follow-up regression'
-    evidence:
-      commits:
-      - 9568a640dc
-    release_status: dev_only
-  - text: 'docs: record measured chat architecture and remaining timing gaps'
-    evidence:
-      commits:
-      - 6b9fd8607d
-    release_status: dev_only
+      - ad50be914
+    release_status: released_main
   newsletter_recommendation:
-    include: []
+    include:
+    - text: Integrated voice calling controls and privacy features
+      evidence:
+        commits:
+        - c1199371a
+      reason: This is a major feature release providing integrated voice calling with a focus on privacy and user control.
+    - text: Fix for inspiration video preview recovery
+      evidence:
+        commits:
+        - 38b24140e
+      reason: Improves the reliability of the daily inspiration video feature.
+    - text: Improved sub-chat metadata persistence
+      evidence:
+        commits:
+        - 2314a23cf
+      reason: Enhances the reliability of sub-chat metadata and editing.
+    - text: Guest usage limit enforcement and sync stability fixes
+      evidence:
+        commits:
+        - f14d10d6a
+      reason: Ensures fair usage for guest users and stabilizes chat synchronization.
     exclude:
-    - text: 'feat: integrate voice calling controls, capabilities and privacy'
+    - text: Voice call stability refinements
       evidence:
         commits:
-        - c1199371a4
-      reason: Not classified as ready for public communication.
-    - text: 'feat: refine landing section replays and device media'
+        - 17ad6f601
+        - 1e8701814
+        - 8b650fb51
+        - 68d0d5d86
+        - 83ecbca3e
+      reason: These refinements to voice call stability and identity persistence are currently in development and not yet
+        released to the main branch.
+    - text: Chat recovery and media continuation improvements
       evidence:
         commits:
-        - e3b567b7c8
-      reason: Not classified as ready for public communication.
-    - text: 'fix: avoid background recovery for inspiration video previews'
+        - 9f28425d5
+        - '572917329'
+        - ec6b92911
+        - 58850e959
+      reason: Improvements to chat recovery and generated media continuation are currently dev-only.
+    - text: Projects and Workflows adjustments
       evidence:
         commits:
-        - 38b24140eb
-      reason: Not classified as ready for public communication.
-    - text: 'fix: persist concise sub-chat metadata with edit guards'
-      evidence:
-        commits:
-        - 2314a23cf5
-      reason: Not classified as ready for public communication.
-    - text: 'fix: handle guest usage limits and nullable chat sync versions'
-      evidence:
-        commits:
-        - f14d10d6a5
-      reason: Not classified as ready for public communication.
-    - text: 'fix: answer selected Project catalog requests in CLI'
-      evidence:
-        commits:
-        - 6ee143c7f6
-      reason: Not classified as ready for public communication.
-    - text: 'fix: preserve Project reads when edits are prohibited'
-      evidence:
-        commits:
-        - 6eec780251
-      reason: Not classified as ready for public communication.
-    - text: 'fix: retain canonical chat receipts for completed follow-ups'
-      evidence:
-        commits:
-        - 9eb007a219
-      reason: Not classified as ready for public communication.
-    - text: 'fix: preserve chat authority throughout Focus continuation'
-      evidence:
-        commits:
-        - 94986e1590
-      reason: Not classified as ready for public communication.
-    - text: 'fix: preserve focus continuation authority and speech lifecycle'
-      evidence:
-        commits:
-        - 1f6d41eb93
-      reason: Not classified as ready for public communication.
-    - text: 'fix: keep landing animations above mobile controls'
-      evidence:
-        commits:
-        - 5eedd82ad4
-      reason: Not classified as ready for public communication.
-    - text: 'fix: publish real web research with saved thinking'
-      evidence:
-        commits:
-        - d186db0f6e
-      reason: Not classified as ready for public communication.
-    rationale: Only deterministically released and communication-ready items are included.
-  social_video_recommendations: []
+        - 52ecee1c6
+        - d35cef0f3
+      reason: These items relate to features (Projects and Workflows) that are currently disabled in the platform configuration.
+    rationale: The primary focus for public communication is the release of integrated voice calling, supported by several
+      stability fixes for video previews, sub-chats, and guest access.
+  social_video_recommendations:
+  - idea: A demonstration of the new voice calling interface, highlighting the privacy controls and the seamless transition
+      between text and voice.
+    priority: high
+    reason: Voice calling is a major new interaction modality for OpenMates with a clear visual and functional story.
+    evidence:
+      commits:
+      - c1199371a
   quality_notes:
-  - Generated without LLM interpretation; review grouped commit titles before publication.
+  - The update shows a strong focus on the 'voice' product area, with both a major feature release and numerous follow-up
+    refinements in development.
+  - Stability fixes for guest users and metadata persistence indicate a push toward production readiness for anonymous and
+    complex chat scenarios.
   validation_warnings: []
