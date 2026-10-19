@@ -101,9 +101,11 @@ async def test_multiple_references_score_photos_and_text_filter_conflicts_and_pr
     assert [row["product_id"] for row in result.candidates] == ["1", "missing", "broken"]
     assert result.candidates[0]["price_cents"] == 1299
     assert result.candidates[0]["image_urls"] == candidates[1]["image_urls"]
-    assert result.candidates[0]["visual_match"] == {"status": "evaluated", "score": 4, "product_image_count": 2}
+    assert result.candidates[0]["visual_match"] == {"status": "evaluated", "score": 4, "score_min": 0, "score_max": 4, "product_image_count": 2}
     assert result.candidates[1]["visual_match"] == {"status": "unavailable"}
     assert result.summary["status"] == "partial" and result.summary["filtered_count"] == 2
+    assert result.summary["evaluated_count"] == 3 and result.summary["unavailable_count"] == 2
+    assert (result.summary["score_min"], result.summary["score_max"]) == (0, 4)
     state_text = json.dumps(captured[0][0])
     assert all(secret not in state_text for secret in ["PRIVATE", "purchase_url", "image_url", "product_id", "https://"])
     assert "instructions" in state_text and "untrusted" in state_text
@@ -485,3 +487,39 @@ async def test_fresh_upload_recovery_rejects_foreign_expired_or_invalid_records_
         })
     decrypt.assert_not_awaited()
     cache.set.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.relevance.visual-and-text
+@pytest.mark.parametrize("composition", [None, "100% Baumwolle"])
+@pytest.mark.asyncio
+async def test_all_evaluated_fractional_match_has_explicit_scale_and_no_unavailable_filter_explanation(monkeypatch, composition):
+    prepared = visual.prepare_image(image_bytes())
+    captured = []
+    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=prepared))
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def evaluate_with_images(self, *, state, questions, images):
+            captured.extend(state["candidates"])
+            return DecisionResponse(model="jev-1.13.0", answers={
+                key: score(3.24 if key == "candidate_000" else 1) for key in questions
+            })
+
+    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
+    product = {"title": "Baumwoll-Popeline Kleine Blumen dunkelblau", "attributes": {"weight": 120, "width": 145},
+               "image_url": "https://cdn.example/fabric.jpg"}
+    if composition is not None:
+        product["attributes"]["composition"] = composition
+    candidates = [dict(product) for _ in range(20)]
+    result = await visual.rank_products_visually(candidates=candidates, reference_images=[prepared],
+                                                 relevance_criteria="blue floral fabric", query="fabric", secrets_manager=None)
+    assert len(result.candidates) == 1
+    assert result.candidates[0]["attributes"] == product["attributes"]
+    assert result.candidates[0]["visual_match"] == {"status": "evaluated", "score": 3.24,
+                                                    "score_min": 0, "score_max": 4, "product_image_count": 1}
+    assert result.summary["status"] == "evaluated"
+    assert (result.summary["evaluated_count"], result.summary["filtered_count"], result.summary["unavailable_count"]) == (20, 19, 0)
+    assert (result.summary["score_min"], result.summary["score_max"], result.summary["minimum_score"]) == (0, 4, 2)
+    assert all(row["data"]["attributes"] == product["attributes"] for row in captured)

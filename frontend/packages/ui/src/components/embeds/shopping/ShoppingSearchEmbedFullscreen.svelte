@@ -14,6 +14,7 @@
   import ShoppingResultEmbedFullscreen from './ShoppingResultEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { normalizeShoppingProductImages } from './shoppingProductImages';
   import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
@@ -54,6 +55,7 @@
     grammage?: string | null;
     purchase_url?: string;
     image_url?: string | null;
+    image_urls?: string[] | string | null;
     category_path?: string | null;
     total_result_count?: number;
     search_rank?: number;
@@ -190,7 +192,8 @@
       was_price_cents: asNumber(content.was_price_cents) ?? null,
       grammage: asString(content.grammage) || null,
       purchase_url: asString(content.purchase_url) || asString(content.url),
-      image_url: asString(content.image_url) || null,
+      image_url: asString(content.image_url) || normalizeShoppingProductImages(content.image_urls)[0] || null,
+      image_urls: normalizeShoppingProductImages(content.image_urls, content.image_url),
       category_path: asString(content.category_path) || null,
       total_result_count: asNumber(content.total_result_count),
       search_rank: asNumber(content.search_rank),

@@ -72,7 +72,12 @@ skills:
       compared together. Do not call images.search to supplement shopping results. Read
       visual_evaluation and each product's visual_match status: unavailable or partial
       comparison must never be presented as visually verified; similarity does not prove
-      exact product identity. No extra marketplace detail requests are made for images.
+      exact product identity or unseen quality. Report visual scores on their explicit 0–4 scale,
+      never /5. filtered_count counts completed comparisons below the threshold; unavailable
+      comparisons are retained, not filtered. Use only explicit returned product facts for material
+      composition and percentages: a cotton/poplin name alone does not prove 100% cotton.
+      If composition is absent, say it was not supplied. Preserve source quantities, units, and
+      attribute meanings; fabric weight is not width. No extra marketplace detail requests are made for images.
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
       per_unit:

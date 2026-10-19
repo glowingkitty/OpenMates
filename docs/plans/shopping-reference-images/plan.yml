@@ -13,6 +13,8 @@ scope:
   - Accept up to three authorized uploaded or generated reference images per request.
   - Compare references, stated requirements, product descriptions and bounded product photos with Jev.
   - Expose evaluated versus unavailable visual comparisons; do not claim exact identity from appearance alone.
+  - Make every supplied product photo accessible in the shopping product gallery.
+  - Keep assistant explanations grounded in stated product facts and the explicit zero-to-four score scale.
 decisions:
   - User chose no additional paid Amazon product-details requests for gallery enrichment.
   - Keep shopping results separate from images.search; no additional search provider integration.
@@ -24,7 +26,12 @@ checks:
   - Focused visual-ranking tests cover three references, multimodal evaluation, authorization and fallback.
   - Isolated GitHub E2E covers structured image results and reference validation through real skill dispatch.
   - Relevant local lint, TypeSafe provider tests and schema checks pass before scoped dev publication.
+  - Isolated component proof covers product-gallery selection, keyboard navigation and primary-image fallback.
+  - Grounding regressions preserve score scale and composition limits through assistant tool history.
+  - Real-inference validation explicitly selects and verifies Gemini 3.8 Flash.
 related_tasks:
   shopping: d7038041-a992-4b13-a66e-962836eeedf0
   privacy: 2aca2bef-0daf-41e0-9310-8bcdc9829fa7
   provider_assessment: 19f120e0-323d-49de-8660-40aa4da35a2e
+  gallery_ui: 166a3b11-e95e-4a41-a862-1b816b184f40
+  claim_grounding: a04c019c-2252-4699-9d4b-e2d0498175c6

@@ -19,8 +19,13 @@ REFERENCE_ERROR_PROMPT = "Find bio joghurt on REWE using my reference image. SHO
 REFERENCE_ERROR_ID = "reference-error"
 REFERENCE_ERROR_MESSAGE = "A reference image could not be accessed. Use its exact reference from this chat or upload it again."
 REFERENCE_ERROR_RESPONSE = "The reference image could not be accessed. Please upload it again or use its exact reference from this chat. The shopping search did not run."
+GALLERY_RESPONSE = "The REWE search result is available in the shopping card. Exact composition was not supplied."
+MISSING_GALLERY_GROUNDING_RESPONSE = "REGRESSION: the shopping tool lost its factual grounding notice."
+GROUNDING_PROMPT = "Compare cotton fabric to my reference image. SHOPPING_IMAGES_E2E:grounding"
+GROUNDING_RESPONSE = "The similarity score is 3.24 out of 4. All 2 candidate products were evaluated; none were unavailable. One evaluated product was filtered below the minimum score of 2. Exact composition was not supplied; a cotton title does not establish a fibre percentage."
+MISSING_GROUNDING_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its score scale, evaluation counts or factual grounding notice."
 MISSING_ERROR_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its reference failure metadata."
-_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT)
+_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT)
 
 
 def active() -> bool:
@@ -112,6 +117,69 @@ def _has_reference_failure_metadata(tail: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _has_gallery_grounding_metadata(tail: list[dict[str, Any]]) -> bool:
+    from backend.apps.ai.utils.app_skill_result_groups import SHOPPING_GROUNDING_NOTICE
+
+    for message in tail:
+        if not isinstance(message, dict) or message.get("role") != "tool":
+            continue
+        content = message.get("content")
+        try:
+            payload = json.loads(content)
+        except (ValueError, TypeError):
+            try:
+                payload = decode(content)
+            except (ValueError, TypeError):
+                continue
+        if not isinstance(payload, dict) or payload.get("grounding_notice") != SHOPPING_GROUNDING_NOTICE:
+            continue
+        products = payload.get("results")
+        if (isinstance(products, list) and len(products) == 1 and isinstance(products[0], dict)
+                and products[0].get("title") == "REWE Bio Joghurt mild 3,8% 500g"
+                and not any(key in products[0] for key in ("composition", "ingredients", "material_composition"))
+                and not payload.get("visual_evaluations")):
+            return True
+    return False
+
+
+def _has_grounded_comparison_metadata(tail: list[dict[str, Any]]) -> bool:
+    """Read real tool evidence before emitting the deterministic comparison answer."""
+    from backend.apps.ai.utils.app_skill_result_groups import SHOPPING_GROUNDING_NOTICE
+
+    for message in tail:
+        if not isinstance(message, dict) or message.get("role") != "tool":
+            continue
+        content = message.get("content")
+        try:
+            payload = json.loads(content)
+        except (ValueError, TypeError):
+            try:
+                payload = decode(content)
+            except (ValueError, TypeError):
+                continue
+        if not isinstance(payload, dict) or payload.get("grounding_notice") != SHOPPING_GROUNDING_NOTICE:
+            continue
+        results, evaluations = payload.get("results"), payload.get("visual_evaluations")
+        if not isinstance(results, list) or len(results) != 1 or not isinstance(evaluations, list) or len(evaluations) != 1:
+            continue
+        row = results[0]
+        summary = evaluations[0].get("visual_evaluation") if isinstance(evaluations[0], dict) else None
+        if not isinstance(row, dict) or not isinstance(summary, dict):
+            continue
+        match = row.get("visual_match")
+        expected_summary = {"status": "evaluated", "reference_count": 1, "evaluated_count": 2,
+                            "filtered_count": 1, "unavailable_count": 0, "minimum_score": 2,
+                            "score_min": 0, "score_max": 4}
+        if any(summary.get(key) != value or type(summary.get(key)) is not type(value)
+               for key, value in expected_summary.items()):
+            continue
+        if (isinstance(match, dict) and match.get("status") == "evaluated" and match.get("score") == 3.24
+                and match.get("score_min") == 0 and match.get("score_max") == 4
+                and row.get("title") == "Cotton floral fabric" and "composition" not in row):
+            return True
+    return False
+
+
 def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     if not active() or not _matches(kwargs.get("messages")):
         return None
@@ -138,6 +206,7 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     last_user = max(index for index, message in enumerate(messages) if isinstance(message, dict) and message.get("role") == "user")
     tail = messages[last_user + 1:]
     reference_error = REFERENCE_ERROR_PROMPT in str(messages[last_user].get("content") or "")
+    grounding = GROUNDING_PROMPT in str(messages[last_user].get("content") or "")
     if not tail and "shopping-search_products" in names:
         request = {"query": "bio joghurt", "provider": "REWE", "max_results": 1}
         if reference_error:
@@ -146,8 +215,10 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
         return {"response": {"type": "mixed_stream", "chunks": [
             _call("shopping-search_products", {"requests": [request]}, model)]}}
     if any(isinstance(message, dict) and message.get("role") == "tool" for message in tail):
-        answer = "The REWE search result is available in the shopping card."
-        if reference_error:
+        answer = GALLERY_RESPONSE if _has_gallery_grounding_metadata(tail) else MISSING_GALLERY_GROUNDING_RESPONSE
+        if grounding:
+            answer = GROUNDING_RESPONSE if _has_grounded_comparison_metadata(tail) else MISSING_GROUNDING_METADATA_RESPONSE
+        elif reference_error:
             answer = REFERENCE_ERROR_RESPONSE if _has_reference_failure_metadata(tail) else MISSING_ERROR_METADATA_RESPONSE
         return {"response": {"type": "mixed_stream", "chunks": [
             {"kind": "text", "value": answer}]}}

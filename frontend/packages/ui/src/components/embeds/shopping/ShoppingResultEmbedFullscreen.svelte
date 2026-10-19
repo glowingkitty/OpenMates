@@ -13,6 +13,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { normalizeShoppingProductImages } from './shoppingProductImages';
   import { proxyImage } from '../../../utils/imageProxy';
 
   const MAX_WIDTH_PRODUCT_IMAGE = 1200;
@@ -46,6 +47,7 @@
     grammage?: string | null;
     purchase_url?: string;
     image_url?: string | null;
+    image_urls?: string[] | string | null;
     category_path?: string | null;
     price?: string | null;
     price_amount?: number | null;
@@ -142,7 +144,8 @@
       was_price_cents: asNumber(content.was_price_cents) ?? null,
       grammage: asString(content.grammage) || null,
       purchase_url: asString(content.purchase_url) || asString(content.url),
-      image_url: asString(content.image_url) || null,
+      image_url: asString(content.image_url) || normalizeShoppingProductImages(content.image_urls)[0] || null,
+      image_urls: normalizeShoppingProductImages(content.image_urls, content.image_url),
       category_path: asString(content.category_path) || null,
       price: asString(content.price) || null,
       price_amount: asNumber(content.price_amount) ?? null,
@@ -242,7 +245,32 @@
   let displayOldPrice = $derived(getDisplayOldPrice());
   let onSale = $derived(hasSale());
   let tags = $derived(getTags());
-  let imageUrl = $derived(product.image_url ? proxyImage(product.image_url, MAX_WIDTH_PRODUCT_IMAGE) : '');
+  let imageUrls = $derived(normalizeShoppingProductImages(product.image_urls, product.image_url));
+  let selectedImage = $state(0);
+  let failedImages = $state<string[]>([]);
+  $effect(() => {
+    // Child-product navigation reuses this viewer: reset media with its identity/data.
+    void product.embed_id;
+    void imageUrls;
+    selectedImage = 0;
+    failedImages = [];
+  });
+  let activeImage = $derived(imageUrls[selectedImage]);
+  let imageUrl = $derived(activeImage ? proxyImage(activeImage, MAX_WIDTH_PRODUCT_IMAGE) : '');
+
+  function selectImage(event: KeyboardEvent, index: number) {
+    let next = index;
+    if (event.key === 'ArrowRight') next = (index + 1) % imageUrls.length;
+    else if (event.key === 'ArrowLeft') next = (index - 1 + imageUrls.length) % imageUrls.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = imageUrls.length - 1;
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectedImage = next;
+    const controls = (event.currentTarget as HTMLButtonElement).parentElement;
+    controls?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
+  }
   let ratingText = $derived(product.rating != null ? `★ ${product.rating.toFixed(1)}` : '');
   let stockText = $derived(formatStock(product.stock));
   let colorCount = $derived(product.color_child_item_ids?.length ?? 0);
@@ -272,10 +300,26 @@
   {#snippet content()}
     <div class="product-fullscreen">
       <div class="media-column">
-        {#if imageUrl}
-          <img class="product-image" src={imageUrl} alt={title} loading="lazy" />
-        {:else}
-          <div class="image-placeholder">🛒</div>
+        <div class="product-image-stage">
+          {#if imageUrl && !failedImages.includes(activeImage)}
+            <img class="product-image" data-testid="shopping-product-image" src={imageUrl} alt={title} loading="lazy"
+              onerror={() => { failedImages = [...failedImages, activeImage]; }} />
+          {:else}
+            <div class="image-placeholder" data-testid="shopping-product-placeholder">🛒</div>
+          {/if}
+        </div>
+        {#if imageUrls.length > 1}
+          <div class="gallery-thumbnails" role="group" aria-label={$text('common.images')} data-testid="shopping-product-gallery">
+            {#each imageUrls as image, index (image)}
+              <button type="button" class="gallery-thumbnail" class:selected={selectedImage === index}
+                aria-label={`${title} — ${$text('common.images')} ${index + 1} / ${imageUrls.length}`}
+                aria-pressed={selectedImage === index}
+                onclick={() => { selectedImage = index; }} onkeydown={(event) => selectImage(event, index)}>
+                <img src={proxyImage(image, 120)} alt="" loading="lazy" />
+              </button>
+            {/each}
+          </div>
+          <div class="gallery-counter" aria-live="polite" aria-atomic="true">{selectedImage + 1} / {imageUrls.length}</div>
         {/if}
       </div>
 
@@ -431,9 +475,51 @@
     border-radius: var(--radius-7);
     min-height: 320px;
     display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .product-image-stage {
+    width: 100%;
+    min-height: 220px;
+    display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+  }
+
+  .gallery-thumbnails {
+    display: flex;
+    gap: var(--spacing-4);
+    width: 100%;
+    overflow-x: auto;
+    padding: var(--spacing-4);
+    box-sizing: border-box;
+  }
+
+  .gallery-thumbnail {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    padding: var(--spacing-2);
+    border: 2px solid transparent;
+    border-radius: var(--radius-3);
+    background: var(--color-grey-0);
+    cursor: pointer;
+  }
+
+  .gallery-thumbnail:hover { background: var(--color-grey-20); }
+  .gallery-thumbnail.selected { border-color: var(--color-button-primary); }
+  .gallery-thumbnail:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+  }
+  .gallery-thumbnail img { width: 100%; height: 100%; object-fit: contain; }
+  .gallery-counter {
+    font-size: var(--font-size-xs);
+    color: var(--color-font-secondary);
+    padding: var(--spacing-2) var(--spacing-4) var(--spacing-4);
   }
 
   .product-image {

@@ -38,6 +38,9 @@ MAX_SOURCE_BYTES = 4 * 1024 * 1024
 MAX_SOURCE_PIXELS = 16_000_000
 IMAGE_PREPARATION_SECONDS = 6.0
 VISUAL_EVALUATION_SECONDS = 8.0
+VISUAL_SCORE_MIN = 0
+VISUAL_SCORE_MAX = 4
+VISUAL_MINIMUM_SCORE = 2
 
 
 def validate_reference_images(value: Any) -> list[str]:
@@ -241,7 +244,8 @@ def unavailable_visual_results(candidates: Sequence[dict[str, Any]], reference_c
     return VisualRankingResult(
         candidates=[{**item, "visual_match": {"status": "unavailable"}} for item in candidates],
         summary={"status": "unavailable", "reference_count": reference_count,
-                 "evaluated_count": 0, "filtered_count": 0,
+                 "evaluated_count": 0, "filtered_count": 0, "unavailable_count": len(candidates),
+                 "score_min": VISUAL_SCORE_MIN, "score_max": VISUAL_SCORE_MAX,
                  "notice": "Visual comparison was unavailable; products are not visually verified."},
     )
 
@@ -331,7 +335,7 @@ async def rank_products_visually(
             scores = {}
             for index, _item, _images in batch:
                 answer = response.answers[f"candidate_{index:03d}"]
-                if not isinstance(answer, ScoreAnswer) or not math.isfinite(answer.score) or not 0 <= answer.score <= 4:
+                if not isinstance(answer, ScoreAnswer) or not math.isfinite(answer.score) or not VISUAL_SCORE_MIN <= answer.score <= VISUAL_SCORE_MAX:
                     return {}
                 scores[index] = answer.score
             return scores
@@ -358,9 +362,10 @@ async def rank_products_visually(
     selected = []
     for index, item in enumerate(original):
         score = scores.get(index)
-        if score is not None and score < 2:
+        if score is not None and score < VISUAL_MINIMUM_SCORE:
             continue
         status = {"status": "evaluated", "score": score,
+                  "score_min": VISUAL_SCORE_MIN, "score_max": VISUAL_SCORE_MAX,
                   "product_image_count": len(product_images[index])} if score is not None else {"status": "unavailable"}
         selected.append((index, {**item, "visual_match": status}))
     selected.sort(key=lambda row: (-scores.get(row[0], -1), row[0]))
@@ -368,6 +373,8 @@ async def rank_products_visually(
         candidates=[item for _index, item in selected], applied=True,
         summary={"status": "evaluated" if len(scores) == len(original) else "partial",
                  "reference_count": len(reference_images), "evaluated_count": len(scores),
-                 "filtered_count": len(original) - len(selected), "minimum_score": 2,
-                 "notice": "Similarity is an estimate, not proof of exact product identity. Products marked unavailable were not visually verified."},
+                 "filtered_count": len(original) - len(selected), "unavailable_count": len(original) - len(scores),
+                 "minimum_score": VISUAL_MINIMUM_SCORE, "score_min": VISUAL_SCORE_MIN, "score_max": VISUAL_SCORE_MAX,
+                 "notice": "Similarity scores range from 0 to 4 and estimate visual/text fit, not exact product identity or unseen quality. "
+                           "Only evaluated scores below minimum_score are filtered; unavailable products are retained, not visually verified."},
     )

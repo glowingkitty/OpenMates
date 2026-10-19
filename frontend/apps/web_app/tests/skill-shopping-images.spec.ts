@@ -11,8 +11,8 @@ const { getTestAccount, installE2EServerContentOverrideGate } = require('./signu
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 const fs = require('node:fs');
 
-const PROMPT = 'Find bio joghurt on REWE. SHOPPING_IMAGES_E2E:gallery <<<TEST_LIVE_MOCK:shopping_images_web>>>';
-const REFERENCE_ERROR_PROMPT = 'Find bio joghurt on REWE using my reference image. SHOPPING_IMAGES_E2E:reference-error <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const PROMPT = '@ai-model:gemini-3.8-flash:google Find bio joghurt on REWE. SHOPPING_IMAGES_E2E:gallery <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const REFERENCE_ERROR_PROMPT = '@ai-model:gemini-3.8-flash:google Find bio joghurt on REWE using my reference image. SHOPPING_IMAGES_E2E:reference-error <<<TEST_LIVE_MOCK:shopping_images_web>>>';
 const REFERENCE_ERROR_MESSAGE = 'A reference image could not be accessed. Use its exact reference from this chat or upload it again.';
 const REFERENCE_ERROR_RESPONSE = 'The reference image could not be accessed. Please upload it again or use its exact reference from this chat. The shopping search did not run.';
 const GALLERY = [
@@ -85,8 +85,9 @@ test.describe('Shopping product galleries and reference images', () => {
 			// This fixture's answer has no inline embed reference. Verify the saved
 			// parent/child graph through the owner's CLI independently of rendering.
 			await expect(page.getByTestId('message-assistant').last()).toContainText(
-				'The REWE search result is available in the shopping card.', { timeout: 60_000 }
+				'The REWE search result is available in the shopping card. Exact composition was not supplied.', { timeout: 60_000 }
 			);
+			await expect(page.getByTestId('message-assistant').last()).not.toContainText(/REGRESSION:|100%|missing (?:product )?images|could not (?:access|load) (?:the )?product images/i);
 			chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1]
 				|| await page.locator('[data-action="message-input"]').last().getAttribute('data-current-chat-id');
 			expect(chatId, 'Signed shopping web chat has a persisted identity').toBeTruthy();
@@ -95,7 +96,9 @@ test.describe('Shopping product galleries and reference images', () => {
 			const shown = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 45_000, options);
 			expectCliSuccess(shown, 'Read persisted shopping chat');
 			const messages = parseCliJson(shown).messages;
-			expect(messages.some((message: any) => message.role === 'assistant')).toBe(true);
+			const assistants = messages.filter((message: any) => message.role === 'assistant');
+			expect(assistants.length).toBeGreaterThan(0);
+			for (const assistant of assistants) expect(assistant.modelName).toBe('Gemini 3.8 Flash');
 			const pending: string[] = [...new Set<string>(messages.flatMap((message: any) => message.embedIds || message.embed_ids || []))];
 			expect(pending.length, 'Saved assistant message references its skill embed').toBeGreaterThan(0);
 			const visited = new Set<string>();
@@ -113,7 +116,11 @@ test.describe('Shopping product galleries and reference images', () => {
 				expect(content).toBeTruthy();
 				const childIds = content.embed_ids || [];
 				pending.push(...(Array.isArray(childIds) ? childIds : String(childIds).split('|')).filter(Boolean));
-				if (childIds.length) parentSeen = true;
+				if (childIds.length) {
+					parentSeen = true;
+					expect(content.grounding_notice).toContain('only when explicitly supplied');
+					expect(content.grounding_notice).toContain('0–4');
+				}
 				if (content.product_id === '8304439') productId = id;
 			}
 			expect(parentSeen, 'The persisted search parent references its product child').toBe(true);
@@ -230,7 +237,10 @@ test.describe('Shopping product galleries and reference images', () => {
 			expectCliSuccess(saved, 'Read the persisted truthful reference failure');
 			expect(saved.recording && fs.existsSync(saved.recording.videoPath)).toBe(true);
 			const messages = parseCliJson(saved).messages;
-			const answers = messages.filter((message: any) => message.role === 'assistant').map((message: any) => message.content).join('\n');
+			const assistants = messages.filter((message: any) => message.role === 'assistant');
+			expect(assistants.length).toBeGreaterThan(0);
+			for (const assistant of assistants) expect(assistant.modelName).toBe('Gemini 3.8 Flash');
+			const answers = assistants.map((message: any) => message.content).join('\n');
 			expect(answers).toContain(REFERENCE_ERROR_RESPONSE);
 			expect(answers).not.toMatch(/no matching products|no products found|REGRESSION:/i);
 			// Error embeds are intentionally transient; the assistant explanation persists.

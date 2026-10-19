@@ -20,6 +20,7 @@ try:
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
         _request_has_image_upload_embed,
+        _select_main_model,
         _resolve_override_model_provider,
         _resolve_explicit_mate,
         _usable_chat_model_reference,
@@ -178,6 +179,82 @@ def test_chat_model_requires_usable_declared_default_server():
     config = FakeConfigManager()
     config.provider_configs["openai"]["models"][0]["servers"] = []
     assert _usable_chat_model_reference("openai/gpt-6.1-sol", config) is None
+
+
+@pytest.fixture
+def image_routing_config(monkeypatch):
+    from backend.apps.ai.processing import preprocessor
+
+    config = FakeConfigManager()
+    for provider, model_ids in {
+        "google": ["gemini-3.8-flash", "gemini-3.7-flash"],
+        "anthropic": ["claude-haiku-5-5"],
+    }.items():
+        config.provider_configs.setdefault(provider, {"models": []})["models"].extend({
+            "id": model_id, "name": model_id, "for_app_skill": "ai.ask",
+            "default_server": provider, "servers": [{"id": provider, "model_id": model_id}],
+        } for model_id in model_ids)
+    config.get_model_display_name = lambda model_id, provider: model_id
+    monkeypatch.setattr(preprocessor, "config_manager", config)
+    return config
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("override_form", ["full", "provider", "bare"])
+@pytest.mark.parametrize("model_id", ["gemini-3.8-flash", "gemini-3.7-flash"])
+async def test_uploaded_image_respects_only_explicit_gemini_38_override(
+    image_routing_config, override_form, model_id,
+):
+    from backend.core.api.app.utils.override_parser import UserOverrides
+
+    overrides = UserOverrides(
+        model_id=f"google/{model_id}" if override_form == "full" else model_id,
+        model_provider="google" if override_form == "provider" else None,
+    )
+    result = await _select_main_model(
+        {"complexity": "low", "china_model_sensitive": False},
+        SimpleNamespace(has_image_upload_embed=True, user_preferences={}),
+        SimpleNamespace(enable_auto_model_selection=False), overrides, "test",
+    )
+    expected = "google/gemini-3.8-flash" if model_id == "gemini-3.8-flash" else IMAGE_CHAT_SAFE_MODEL_ID
+    assert result["selected_llm_for_main_id"] == expected
+    assert result["model_override_applied"] is True
+    assert result["selected_llm_thinking_level"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
+async def test_uploaded_image_keeps_google_saved_default_guard(image_routing_config):
+    result = await _select_main_model(
+        {"complexity": "low", "china_model_sensitive": False},
+        SimpleNamespace(has_image_upload_embed=True, user_preferences={
+            "default_ai_model_simple": "google/gemini-3.8-flash",
+        }),
+        SimpleNamespace(enable_auto_model_selection=False), None, "test",
+    )
+    assert result["selected_llm_for_main_id"] == IMAGE_CHAT_SAFE_MODEL_ID
+    assert result["selected_llm_thinking_level"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
+async def test_uploaded_image_keeps_google_automatic_selection_exclusion(image_routing_config, monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+    from backend.apps.ai.processing import preprocessor
+    from backend.core.api.app.tasks import leaderboard_tasks
+
+    monkeypatch.setattr(leaderboard_tasks, "get_leaderboard_data", AsyncMock(return_value={}))
+    selector = Mock()
+    selector.select_models.return_value = SimpleNamespace(
+        primary_model_id=IMAGE_CHAT_SAFE_MODEL_ID, secondary_model_id=None,
+        fallback_model_id=None, selection_reason="image-safe", filtered_cn_models=False,
+    )
+    monkeypatch.setattr(preprocessor, "ModelSelector", Mock(return_value=selector))
+    result = await _select_main_model(
+        {"complexity": "low", "china_model_sensitive": False},
+        SimpleNamespace(has_image_upload_embed=True, user_preferences={}),
+        SimpleNamespace(enable_auto_model_selection=True), None, "test",
+    )
+    assert selector.select_models.call_args.kwargs["excluded_provider_ids"] == {"google"}
+    assert result["selected_llm_for_main_id"] == IMAGE_CHAT_SAFE_MODEL_ID
 
 
 # ===========================================================================

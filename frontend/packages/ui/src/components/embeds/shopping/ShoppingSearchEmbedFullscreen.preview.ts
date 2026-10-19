@@ -14,7 +14,8 @@ const sampleResults = [
     price_eur: "1,39 €",
     grammage: "500g (0,28 €/100g)",
     purchase_url: "https://shop.rewe.de/p/weihenstephan-bio-joghurt/12345",
-    image_url: null,
+    image_url: 'https://shopping.example/product-front.jpg',
+    image_urls: 'https://shopping.example/product-front.jpg|https://shopping.example/product-back.jpg|https://shopping.example/product-detail.jpg',
     attributes: { is_organic: true },
   },
   {
@@ -54,10 +55,7 @@ const sampleResults = [
 
 /** Default props — shows a finished shopping search fullscreen with results */
 const defaultProps = {
-  query: "bio joghurt",
-  provider: "REWE",
-  status: "finished" as const,
-  results: sampleResults,
+  data: { decodedContent: { query: "bio joghurt", provider: "REWE", status: "finished", results: sampleResults } },
   onClose: () => {},
 };
 
@@ -67,23 +65,17 @@ export default defaultProps;
 export const variants = {
   /** Processing state — searching */
   processing: {
-    query: "wireless headphones",
-    provider: "Amazon",
-    status: "processing" as const,
-    results: [],
+    data: { decodedContent: { query: "wireless headphones", provider: "Amazon", status: "processing", results: [] } },
   },
 
   /** Error state */
   error: {
-    query: "bio joghurt",
-    provider: "REWE",
-    status: "error" as const,
-    results: [],
+    data: { decodedContent: { query: "bio joghurt", provider: "REWE", status: "error", results: [] } },
   },
 
   /** Amazon results */
   amazon: {
-    query: "noise cancelling headphones",
+    data: { decodedContent: { query: "noise cancelling headphones",
     provider: "Amazon",
     status: "finished" as const,
     results: [
@@ -126,7 +118,7 @@ export const variants = {
         image_url: null,
         purchase_url: "https://www.amazon.de/dp/B09JQS53RX",
       },
-    ],
+    ] } },
   },
 
   /** Mobile view */

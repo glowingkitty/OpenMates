@@ -186,3 +186,110 @@ def test_reference_failure_survives_real_server_projection_and_provider_history_
         "model": "gemini-3.5-flash-lite", "stream": True, "messages": transformed,
     })
     assert response["response"]["chunks"][0]["value"] == REFERENCE_ERROR_RESPONSE
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.visual-and-text,shopping-search.relevance.truthful-fallback
+@pytest.mark.asyncio
+@pytest.mark.parametrize("encoding", [json.dumps, encode], ids=["json", "toon"])
+async def test_grounded_answer_reads_actual_visual_helper_parent_and_provider_history(shopping_replay, monkeypatch, encoding):
+    from backend.apps.shopping import visual_ranking as visual
+    from backend.apps.shopping.skills.search_products import SearchProductsResponse
+    from backend.apps.ai.processing.main_processor import _filter_skill_results_for_llm
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+    from backend.apps.ai.testing.shopping_images_fixture import GROUNDING_PROMPT, GROUNDING_RESPONSE
+    from backend.core.api.app.services.embed_service import _flatten_for_toon_tabular
+    from backend.shared.providers.typesafe.models import DecisionResponse
+
+    async def download(_url):
+        return b"provider-free prepared image bytes"
+
+    class FakeClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def evaluate_with_images(self, *, state, questions, images):
+            assert len(state["reference_photos"]) == 1 and len(images) == 3
+            assert all("composition" not in row["data"] for row in state["candidates"])
+            return DecisionResponse(model="jev-1.13.0", answers={
+                key: {"type": "score", "score": score,
+                      "legend": {"0": "conflict", "4": "exceptional"},
+                      "probabilities": {"0": .1, "4": .9}, "confidence": .8}
+                for key, score in zip(questions, [3.24, 1.0])
+            })
+
+    monkeypatch.setattr(visual, "download_public_product_image", download)
+    monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
+    ranked = await visual.rank_products_visually(
+        candidates=[{"title": "Cotton floral fabric", "image_url": "https://example.org/floral.png"},
+                    {"title": "Striped fabric", "image_url": "https://example.org/stripes.png"}],
+        reference_images=[b"provider-free prepared reference"], relevance_criteria="flowers",
+        query="cotton fabric", secrets_manager=None,
+    )
+    assert callable(_filter_skill_results_for_llm)
+    metadata = shopping_result_parent_metadata([{"id": 1, "results": ranked.candidates, "visual_evaluation": ranked.summary}])
+    payload = shopping_result_payload(ranked.candidates, _flatten_for_toon_tabular(metadata))
+    history = _transform_message_history_for_llm([
+        {"role": "user", "content": GROUNDING_PROMPT},
+        {"role": "tool", "name": "shopping-search_products", "tool_call_id": "shopping-gallery-fixture",
+         "content": encoding(payload), "ignore_fields_for_inference": SearchProductsResponse().ignore_fields_for_inference},
+    ])
+    wire = decode(history[-1]["content"])
+    summary = wire["visual_evaluations"][0]["visual_evaluation"]
+    assert summary["evaluated_count"] == 2 and summary["unavailable_count"] == 0
+    assert summary["filtered_count"] == 1 and summary["score_max"] == 4
+    assert wire["results"][0]["visual_match"]["score"] == 3.24
+    assert "image_url" not in wire["results"][0]
+    assert "composition" not in wire["results"][0]
+    response = llm_fixture("llm/gemini-3.8-flash", {
+        "model": "gemini-3.8-flash", "stream": True, "messages": history,
+    })
+    assert response["response"]["chunks"][0]["value"] == GROUNDING_RESPONSE
+    assert "missing images" not in GROUNDING_RESPONSE.lower()
+
+    # Deleting any authoritative field must invalidate the answer instead of
+    # inventing a denominator, percentages or an image-availability explanation.
+    from copy import deepcopy
+    from backend.apps.ai.testing.shopping_images_fixture import MISSING_GROUNDING_METADATA_RESPONSE
+    for field in ["grounding_notice", "score_max", "evaluated_count", "unavailable_count"]:
+        damaged = deepcopy(wire)
+        if field == "grounding_notice":
+            damaged.pop(field)
+        else:
+            damaged["visual_evaluations"][0]["visual_evaluation"].pop(field)
+        damaged_history = [history[0], {**history[-1], "content": encoding(damaged)}]
+        response = llm_fixture("llm/gemini-3.8-flash", {
+            "model": "gemini-3.8-flash", "stream": True, "messages": damaged_history,
+        })
+        assert response["response"]["chunks"][0]["value"] == MISSING_GROUNDING_METADATA_RESPONSE
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.products.supplied-gallery,shopping-search.relevance.truthful-fallback
+@pytest.mark.parametrize("encoding", [json.dumps, encode], ids=["json", "toon"])
+def test_gallery_answer_requires_real_parser_facts_and_server_grounding_notice(shopping_replay, encoding):
+    from backend.apps.shopping.providers.rewe_provider import _parse_product
+    from backend.apps.shopping.skills.search_products import SearchProductsResponse
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+    from backend.apps.ai.testing.shopping_images_fixture import GALLERY_RESPONSE, MISSING_GALLERY_GROUNDING_RESPONSE
+    from backend.core.api.app.services.embed_service import _flatten_for_toon_tabular
+
+    fixture_root = Path(__file__).parents[1] / "apps/ai/testing/api_cache" / GROUP / "rewe"
+    [fixture_path] = fixture_root.glob("*.json")
+    raw = json.loads(fixture_path.read_text())["response"]["body"]["_embedded"]["products"][0]
+    product = _parse_product(raw, 1).to_result_dict()
+    metadata = shopping_result_parent_metadata([{"id": 1, "results": [product]}])
+    payload = shopping_result_payload([product], _flatten_for_toon_tabular(metadata))
+    history = _transform_message_history_for_llm([
+        {"role": "user", "content": PROMPT},
+        {"role": "tool", "name": "shopping-search_products", "tool_call_id": "shopping-gallery-fixture",
+         "content": encoding(payload), "ignore_fields_for_inference": SearchProductsResponse().ignore_fields_for_inference},
+    ])
+    arguments = {"model": "gemini-3.8-flash", "stream": True, "messages": history}
+    result = llm_fixture("llm/gemini-3.8-flash", arguments)
+    assert result["response"]["chunks"][0]["value"] == GALLERY_RESPONSE
+    decoded = decode(history[-1]["content"])
+    decoded.pop("grounding_notice")
+    arguments["messages"] = [history[0], {**history[-1], "content": encoding(decoded)}]
+    result = llm_fixture("llm/gemini-3.8-flash", arguments)
+    assert result["response"]["chunks"][0]["value"] == MISSING_GALLERY_GROUNDING_RESPONSE

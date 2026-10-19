@@ -7199,8 +7199,10 @@ class EmbedService:
                             parent_content["provider"] = safe_request_metadata["provider"]
                         if "providers" in safe_request_metadata:
                             parent_content["providers"] = safe_request_metadata["providers"]
-                        if app_id == "shopping" and skill_id == "search_products" and "visual_evaluations" in safe_request_metadata:
-                            parent_content["visual_evaluations"] = safe_request_metadata["visual_evaluations"]
+                        if app_id == "shopping" and skill_id == "search_products":
+                            for key in ("visual_evaluations", "grounding_notice"):
+                                if key in safe_request_metadata:
+                                    parent_content[key] = safe_request_metadata[key]
                         # Add other user-visible request metadata needed to distinguish searches.
                         for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                             if key in safe_request_metadata:

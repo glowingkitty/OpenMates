@@ -997,6 +997,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                     ignore_fields_for_inference
                                 )
                                 filtered_content = filtered_results[0] if filtered_results else decoded_content
+                                if shopping_tool:
+                                    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                    filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                        **shopping_inference_metadata(decoded_content)}
                                 logger.debug(
                                     f"Filtered single tool result from history. "
                                     f"Removed fields: {ignore_fields_for_inference}"
@@ -1008,6 +1012,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                 ignore_fields_for_inference
                             )
                             filtered_content = filtered_results
+                            if shopping_tool:
+                                from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                    **shopping_inference_metadata({})}
                             logger.debug(
                                 f"Filtered {len(filtered_results)} tool result(s) from history (list format). "
                                 f"Removed fields: {ignore_fields_for_inference}"
@@ -1057,6 +1065,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                         ignore_fields_for_inference
                                     )
                                     filtered_content = filtered_results[0] if filtered_results else decoded_content
+                                    if shopping_tool:
+                                        from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                        filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                            **shopping_inference_metadata(decoded_content)}
                                     logger.debug(
                                         f"Filtered single tool result from history (JSON format). "
                                         f"Removed fields: {ignore_fields_for_inference}"
@@ -1068,6 +1080,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                     ignore_fields_for_inference
                                 )
                                 filtered_content = filtered_results
+                                if shopping_tool:
+                                    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                    filtered_content = {"results": filtered_results, "count": len(filtered_results),
+                                                        **shopping_inference_metadata({})}
                                 logger.debug(
                                     f"Filtered {len(filtered_results)} tool result(s) from history (JSON format, list). "
                                     f"Removed fields: {ignore_fields_for_inference}"

@@ -11,6 +11,16 @@ from typing import Any
 MAPS_QUOTA_STATUSES = {"quota_exhausted", "quota_unavailable", "rate_limited"}
 SHOPPING_REFERENCE_FAILURE = "A reference image could not be accessed. Use its exact reference from this chat or upload it again."
 SHOPPING_REQUEST_FAILURE = "The shopping request could not be completed."
+SHOPPING_GROUNDING_NOTICE = (
+    "Use only returned product facts for factual claims. A material name alone does not establish fibre percentages; "
+    "report exact composition or percentages only when explicitly supplied, otherwise say composition was not supplied. "
+    "Visual appearance cannot establish composition. Preserve source quantities, units and attribute meanings; "
+    "never reinterpret a fabric weight as a width. "
+    "Visual similarity does not establish exact identity, unseen quality, compatibility or safety. "
+    "Visual scores use the supplied score_min/score_max (0–4), never a five-point scale or a percentage. "
+    "filtered_count counts evaluated scores below minimum_score; unavailable comparisons are retained, not filtered. "
+    "Do not claim missing images or failed comparisons caused filtering without explicit evidence."
+)
 SHOPPING_FAILURE_NOTICE = "Failed requests are not evidence of no matching products. Do not invent a catalogue or visual-matching explanation."
 
 
@@ -69,14 +79,16 @@ def shopping_result_parent_metadata(groups: list[dict[str, Any]] | None) -> dict
         if not isinstance(summary, dict) or summary.get("status") not in {"evaluated", "partial", "unavailable"}:
             continue
         safe_summary = {"status": summary["status"]}
-        for key in ("reference_count", "evaluated_count", "filtered_count", "minimum_score"):
+        for key in ("reference_count", "evaluated_count", "filtered_count", "unavailable_count", "minimum_score", "score_min", "score_max"):
             value = summary.get(key)
             if type(value) is int and 0 <= value <= 20:
                 safe_summary[key] = value
         if isinstance(summary.get("notice"), str):
             safe_summary["notice"] = summary["notice"][:500]
         evaluations.append({"request_id": request_id, "visual_evaluation": safe_summary})
-    metadata = {"visual_evaluations": evaluations} if evaluations else {}
+    metadata = {"grounding_notice": SHOPPING_GROUNDING_NOTICE}
+    if evaluations:
+        metadata["visual_evaluations"] = evaluations
     if request_errors:
         metadata["request_errors"] = request_errors
         metadata["failure_notice"] = SHOPPING_FAILURE_NOTICE
@@ -90,7 +102,8 @@ def sanitize_shopping_visual_evaluations(value: Any) -> list[dict[str, Any]]:
     return shopping_result_parent_metadata([
         {"id": row.get("request_id"), "visual_evaluation": row.get("visual_evaluation") or {
             key: row.get(f"visual_evaluation_{key}") for key in (
-                "status", "reference_count", "evaluated_count", "filtered_count", "minimum_score", "notice",
+                "status", "reference_count", "evaluated_count", "filtered_count", "unavailable_count",
+                "minimum_score", "score_min", "score_max", "notice",
             )
         }}
         for row in value if isinstance(row, dict)
@@ -104,7 +117,7 @@ def shopping_inference_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     its server-authored evidence to distinguish filtered, unverified and failed
     requests, including an empty result list. Never copy arbitrary wrapper fields.
     """
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = {"grounding_notice": SHOPPING_GROUNDING_NOTICE}
     raw_evaluations = payload.get("visual_evaluations")
     evaluations = sanitize_shopping_visual_evaluations(raw_evaluations[:20] if isinstance(raw_evaluations, list) else [])
     if evaluations:
@@ -124,7 +137,7 @@ def shopping_inference_metadata(payload: dict[str, Any]) -> dict[str, Any]:
 def shopping_result_payload(results: list[dict[str, Any]], visual_metadata: dict[str, Any]) -> dict[str, Any]:
     """Use an explicit wrapper for comparison evidence, including zero matches.
 
-    Ordinary calls retain their existing single-product or results/count shape.
+    Product rows retain their facts; the wrapper carries assistant grounding.
     This helper is shared by TOON, JSON fallback and stored preview payloads.
     """
     if visual_metadata:

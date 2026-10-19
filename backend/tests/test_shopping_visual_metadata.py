@@ -4,21 +4,25 @@ from types import SimpleNamespace
 import pytest
 from toon_format import decode, encode
 
-from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+from backend.apps.ai.utils.app_skill_result_groups import (
+    SHOPPING_GROUNDING_NOTICE, shopping_result_parent_metadata, shopping_result_payload,
+)
 from backend.core.api.app.services.embed_service import EmbedService, _flatten_for_toon_tabular
 
 
 def summary(status="evaluated", count=1):
     return {"status": status, "reference_count": 3, "evaluated_count": count,
-            "filtered_count": count, "notice": "Similarity is an estimate."}
+            "filtered_count": count, "unavailable_count": 0, "score_min": 0, "score_max": 4, "notice": "Similarity is an estimate."}
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("results", [[], [{"title": "Fabric"}], [{"title": "A"}, {"title": "B"}]])
-def test_no_reference_calls_keep_legacy_tool_payload_shape(results):
-    assert shopping_result_parent_metadata([{"id": 1, "results": results}]) == {}
-    payload = shopping_result_payload(results, {})
-    assert payload == (results[0] if len(results) == 1 else {"results": results, "count": len(results)})
+def test_no_reference_calls_keep_product_facts_with_grounding_and_no_visual_claims(results):
+    metadata = shopping_result_parent_metadata([{"id": 1, "results": results}])
+    assert metadata == {"grounding_notice": SHOPPING_GROUNDING_NOTICE}
+    payload = shopping_result_payload(results, metadata)
+    assert payload == {"results": results, "count": len(results), **metadata}
+    assert "visual_evaluations" not in payload
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.privacy.minimized
@@ -72,7 +76,9 @@ def test_partial_request_failure_keeps_successful_products_and_its_own_request_i
     assert payload["results"] == [{"title": "Fabric"}] and payload["count"] == 1
     assert payload["request_errors"][0]["request_id"] == "failed"
     assert payload["visual_evaluations"][0]["request_id"] == "matched"
-    assert shopping_result_parent_metadata([{"id": "empty-success", "results": []}]) == {}
+    assert shopping_result_parent_metadata([{"id": "empty-success", "results": []}]) == {
+        "grounding_notice": SHOPPING_GROUNDING_NOTICE,
+    }
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.privacy.minimized
@@ -97,6 +103,9 @@ def test_real_history_conversion_retains_comparison_evidence_and_still_excludes_
     assert decoded["visual_evaluations"][0]["request_id"] == "compared"
     assert decoded["visual_evaluations"][0]["visual_evaluation"]["status"] == "partial"
     assert decoded["count"] == product_count
+    assert decoded["grounding_notice"] == SHOPPING_GROUNDING_NOTICE
+    evaluation = decoded["visual_evaluations"][0]["visual_evaluation"]
+    assert (evaluation["score_min"], evaluation["score_max"], evaluation["unavailable_count"]) == (0, 4, 0)
     assert "PRIVATE" not in str(decoded)
     if product_count:
         assert decoded["results"][0]["price_cents"] == 1299
@@ -147,7 +156,7 @@ async def test_actual_parent_and_child_construction_preserves_visual_evidence(op
     service._cache_embed = cache
     service._schedule_embed_persistence_fallback = lambda embed_id: None
     product = {"title": "Blue fabric", "price_cents": 1299,
-               "visual_match": {"status": "evaluated", "score": 4, "product_image_count": 2}}
+               "visual_match": {"status": "evaluated", "score": 3.24, "score_min": 0, "score_max": 4, "product_image_count": 2}}
     results = [product] if product_count else []
     metadata = shopping_result_parent_metadata([{"id": "request-A", "results": results,
                                                  "visual_evaluation": summary()}])
@@ -163,9 +172,63 @@ async def test_actual_parent_and_child_construction_preserves_visual_evidence(op
     assert parent["result_count"] == product_count and parent["status"] == "finished"
     assert parent["visual_evaluations"][0]["request_id"] == "request-A"
     assert parent["visual_evaluations"][0]["visual_evaluation_status"] == "evaluated"
+    assert parent["grounding_notice"] == SHOPPING_GROUNDING_NOTICE
+    assert parent["visual_evaluations"][0]["visual_evaluation_score_min"] == 0
+    assert parent["visual_evaluations"][0]["visual_evaluation_score_max"] == 4
     if product_count:
         child = decode(sent[0]["content_toon"])
-        assert child["visual_match_status"] == "evaluated" and child["visual_match_score"] == 4
+        assert child["visual_match_status"] == "evaluated" and child["visual_match_score"] == 3.24
+        assert (child["visual_match_score_min"], child["visual_match_score_max"]) == (0, 4)
         assert child["price_cents"] == 1299
     else:
         assert len(sent) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.relevance.visual-and-text
+@pytest.mark.parametrize("composition", [None, "100% Baumwolle", "80% cotton, 20% polyester"])
+@pytest.mark.parametrize("wire_format", ["toon", "json"])
+@pytest.mark.parametrize("legacy_single", [False, True])
+def test_history_preserves_only_explicit_material_evidence_and_canonical_grounding(composition, wire_format, legacy_single):
+    import json
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+
+    product = {"title": "Baumwoll-Popeline Kleine Blumen dunkelblau", "attributes": {"weight": "120 g/m²", "width": "145 cm"},
+               "image_urls": ["PRIVATE PHOTO"], "visual_match": {"status": "evaluated", "score": 3.24,
+                                                                    "score_min": 0, "score_max": 4}}
+    if composition is not None:
+        product["attributes"]["composition"] = composition
+    payload = product if legacy_single else {"results": [product], "count": 1, "grounding_notice": "UNTRUSTED notice"}
+    content = encode(payload) if wire_format == "toon" else json.dumps(payload)
+    transformed = _transform_message_history_for_llm([{
+        "role": "tool", "name": "shopping-search_products", "tool_call_id": "grounding",
+        "content": content, "ignore_fields_for_inference": ["image_urls"],
+    }])
+    decoded = decode(transformed[0]["content"])
+    retained = decoded["results"][0]
+    assert retained["attributes"] == product["attributes"]
+    assert retained["attributes"]["weight"] == "120 g/m²"
+    assert retained["attributes"]["width"] == "145 cm"
+    assert retained["visual_match"] == product["visual_match"]
+    assert decoded["grounding_notice"] == SHOPPING_GROUNDING_NOTICE
+    assert "UNTRUSTED" not in str(decoded) and "PRIVATE" not in str(decoded)
+    if composition is None:
+        assert "100%" not in str(retained) and "composition" not in retained["attributes"]
+    assert "Visual appearance cannot establish composition" in decoded["grounding_notice"]
+    assert "only when explicitly supplied" in decoded["grounding_notice"]
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
+@pytest.mark.parametrize("wire_format", ["toon", "json"])
+def test_legacy_product_list_history_receives_grounding_without_visual_status(wire_format):
+    import json
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+
+    products = [{"title": "Cotton poplin", "price_cents": 1200, "image_url": "PRIVATE PHOTO"}]
+    content = encode(products) if wire_format == "toon" else json.dumps(products)
+    transformed = _transform_message_history_for_llm([{
+        "role": "tool", "name": "shopping-search_products", "tool_call_id": "legacy-list",
+        "content": content, "ignore_fields_for_inference": ["image_url"],
+    }])
+    payload = decode(transformed[0]["content"])
+    assert payload == {"results": [{"title": "Cotton poplin", "price_cents": 1200}], "count": 1,
+                       "grounding_notice": SHOPPING_GROUNDING_NOTICE}

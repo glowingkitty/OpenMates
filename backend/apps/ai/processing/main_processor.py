@@ -31,6 +31,7 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import (
     IMAGE_CHAT_SAFE_MODEL_ID,
     IMAGE_CHAT_SAFE_MODEL_NAME,
+    _is_explicit_image_model_override,
     PreprocessingResult,
 )
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
@@ -4152,6 +4153,9 @@ async def handle_main_processing(
         preprocessing_results.relevant_app_skills
         and "images-view" in preprocessing_results.relevant_app_skills
         and preprocessing_results.selected_main_llm_model_id.startswith("google/")
+        and not _is_explicit_image_model_override(
+            preprocessing_results.selected_main_llm_model_id, user_overrides,
+        )
     ):
         logger.warning(
             f"{log_prefix} IMAGE_MODEL_GUARD: Final safety reroute from "

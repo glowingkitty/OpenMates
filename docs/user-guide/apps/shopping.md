@@ -53,7 +53,8 @@ Shopping marks those products as unavailable for visual comparison. Your mate sh
 explain that they have not been visually verified.
 
 Shopping keeps all gallery URLs supplied by the store in `image_urls`, with
-`image_url` as the primary photo. To bound comparison time and cost, it evaluates
+`image_url` as the primary photo. Open a product to browse its supplied photos
+using the thumbnails or keyboard arrow keys. To bound comparison time and cost, it evaluates
 up to twenty products and the first three supplied photos per product. It does not
 fetch extra paid Amazon product details for more photos; Amazon search often
 supplies only one thumbnail. It does not use a separate image search to create
@@ -81,6 +82,7 @@ the field or passing `[]` keeps ordinary search behavior.
 Each result group exposes `visual_evaluation.status` (`evaluated`, `partial` or
 `unavailable`) and each product exposes `visual_match.status`. An evaluated product
 also includes its similarity `score` from zero to four and `product_image_count`.
+The score is always out of four; it is not a star rating or a probability.
 Products scoring below two are removed. A product marked `unavailable` may still be
 returned, but its appearance was not verified. These statuses remain meaningful even
 when no products pass the comparison.

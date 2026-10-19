@@ -18,7 +18,13 @@ const defaultProps = {
     was_price_cents: 179,
     grammage: "500g (0,28 €/100g)",
     purchase_url: "https://shop.rewe.de/p/weihenstephan-bio-joghurt/12345",
-    image_url: null,
+    image_url: 'https://shopping.example/product-front.jpg',
+    image_urls: [
+      'https://shopping.example/product-front.jpg',
+      'https://shopping.example/product-back.jpg',
+      'https://shopping.example/product-detail.jpg',
+      'https://shopping.example/product-back.jpg',
+    ],
     category_path: "Molkereiprodukte > Joghurt",
     rating: 4.6,
     reviews: 832,
@@ -38,6 +44,15 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  primaryOnly: { product: { ...defaultProps.product, image_urls: undefined } },
+  missingImages: { product: { ...defaultProps.product, image_url: null, image_urls: [] } },
+  toonGallery: {
+    product: undefined,
+    data: { decodedContent: {
+      ...defaultProps.product,
+      image_urls: 'https://shopping.example/product-front.jpg | https://shopping.example/product-back.jpg|https://shopping.example/product-detail.jpg|https://shopping.example/product-back.jpg||',
+    } },
+  },
   amazon: {
     product: {
       embed_id: "preview-shopping-result-fs-amazon",

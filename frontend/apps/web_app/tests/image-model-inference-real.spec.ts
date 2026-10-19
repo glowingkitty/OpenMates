@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// contract-test-file: infrastructure
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection
 export {};
 
 /**
@@ -38,7 +38,7 @@ const IMAGE_FIXTURE = path.resolve(
 const PROMPT = 'Evaluate the design and give recommendations for improvements.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
-const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-36-flash'];
+const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-38-flash'];
 const IMAGE_VIEW_TIMEOUT_MS = 180000;
 const ASSISTANT_MESSAGE_START_TIMEOUT_MS = 180000;
 const ASSISTANT_COMPLETION_TIMEOUT_MS = 240000;
@@ -52,6 +52,12 @@ type ModelCase = {
 };
 
 const MODELS: ModelCase[] = [
+	{
+		provider: 'google',
+		model: 'gemini-3.8-flash',
+		label: 'gemini-38-flash',
+		expectedGeneratedBy: /Gemini 3\.8 Flash|gemini-3\.8-flash/i
+	},
 	{
 		provider: 'anthropic',
 		model: 'claude-haiku-5-5',
@@ -268,6 +274,7 @@ test.describe.configure({ mode: 'serial' });
 
 for (const model of activeModels) {
 	for (const trial of activeTrials) {
+		// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection
 		test(`real image inference ${model.label} trial ${trial}`, async ({ page }: { page: any }, testInfo: any) => {
 			test.slow();
 			test.setTimeout(420000);

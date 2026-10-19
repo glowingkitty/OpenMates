@@ -58,6 +58,7 @@ _install_stub("backend.apps.ai.skills.ask_skill", ask_skill_stub)
 preprocessor_stub = types.ModuleType("backend.apps.ai.processing.preprocessor")
 preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_ID = "test-model"
 preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_NAME = "Test Model"
+preprocessor_stub._is_explicit_image_model_override = _context_main_processor._is_explicit_image_model_override
 preprocessor_stub.PreprocessingResult = object
 _install_stub("backend.apps.ai.processing.preprocessor", preprocessor_stub)
 
@@ -2100,6 +2101,53 @@ async def test_image_reroute_clears_automatic_profile_level(monkeypatch) -> None
         },
     )
     assert len(calls) == 1
+    assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
+    assert calls[0]["thinking_level"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("override_form", ["full", "provider", "bare"])
+@pytest.mark.parametrize("thinking_level", [None, "LOW"])
+async def test_explicit_gemini_image_selection_preserves_model_and_thinking(
+    monkeypatch, override_form, thinking_level,
+) -> None:
+    model_id = "gemini-3.8-flash"
+    overrides = SimpleNamespace(
+        model_id=f"google/{model_id}" if override_form == "full" else model_id,
+        model_provider="google" if override_form == "provider" else None,
+        skills=None, wikipedia_references=[],
+    )
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_thinking_level": thinking_level,
+            "relevant_app_skills": ["images-view"],
+        }, user_overrides_for_main=overrides,
+    )
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == "google/gemini-3.8-flash"
+    assert calls[0]["thinking_level"] == thinking_level
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("selected_model,override_model,override_provider", [
+    ("google/gemini-3.7-flash", "gemini-3.7-flash", "google"),
+    ("google/gemini-3.8-flash", "gemini-3.7-flash", "google"),
+    ("google/gemini-3.8-flash", "gemini-3.8-flash", "anthropic"),
+])
+async def test_image_guard_rejects_other_or_mismatched_explicit_models(
+    monkeypatch, selected_model, override_model, override_provider,
+) -> None:
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": selected_model,
+            "selected_main_llm_thinking_level": "LOW",
+            "relevant_app_skills": ["images-view"],
+        }, user_overrides_for_main=SimpleNamespace(
+            model_id=override_model, model_provider=override_provider,
+            skills=None, wikipedia_references=[],
+        ),
+    )
     assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
     assert calls[0]["thinking_level"] is None
 
