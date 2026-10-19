@@ -355,6 +355,7 @@
         "components/settings-usage-cache-receipt.spec.ts",
         "components/chat-message-team-attribution.spec.ts",
         "website-public-routes.spec.ts",
+        "website-redirects.spec.ts",
         "components/team-openmates-mention-dropdown.spec.ts",
         "components/team-chat-reminder.spec.ts",
         "components/team-settings-header-member.spec.ts",
