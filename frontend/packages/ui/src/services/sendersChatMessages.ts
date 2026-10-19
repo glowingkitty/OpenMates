@@ -132,7 +132,10 @@ const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
 const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
 const embedBundleConfirmListeners = new Map<string, (payload: unknown) => void>();
 const turnPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
-const fastAdmissionListeners = new Map<string, { gate: FastAdmissionJournalGate; confirmed: (payload: unknown) => void; context: (payload: unknown) => void }>();
+const fastAdmissionListeners = new Map<string, {
+	gate: FastAdmissionJournalGate; confirmed: (payload: unknown) => void; context: (payload: unknown) => void;
+	settled: Promise<void>; settle: () => void;
+}>();
 
 interface EncryptedEmbedForDirectus {
 	embed_id: string;
@@ -637,30 +640,61 @@ export function watchDurableTurnPreflightConfirmation(
 	webSocketService.on("chat_message_confirmed", confirmed);
 }
 
-function watchFastAdmissionCompletion(input: {
+export function watchFastAdmissionCompletion(input: {
 	chatId: string; messageId: string; turnId: string; requestId: string;
 	committedMessagesVersion: number;
 	onContextRejected?: () => void;
-}): () => boolean {
+	onJournalFailure?: () => void;
+	clearJournals?: () => Promise<void>;
+}): { isCurrentAttempt: () => boolean; settled: Promise<void>; cancel: () => void } {
 	const key = `${input.chatId}:${input.messageId}`;
+	// A replacement connection may replay the retained journal. Settle the old
+	// local reservation, while preserving its accepted protocol phases.
 	const existing = fastAdmissionListeners.get(key);
-	if (existing) return existing.gate.beginAttempt(input.onContextRejected);
-	const gate = new FastAdmissionJournalGate(input);
+	existing?.settle();
+	const gate = existing?.gate ?? new FastAdmissionJournalGate(input);
 	const isCurrentAttempt = gate.beginAttempt(input.onContextRejected);
+	let settle!: () => void;
+	const settled = new Promise<void>((resolve) => { settle = resolve; });
+	const cancel = () => {
+		const listeners = fastAdmissionListeners.get(key);
+		if (listeners?.settled !== settled) return;
+		webSocketService.off("chat_message_confirmed", listeners.confirmed);
+		webSocketService.off("chat_turn_context_ack", listeners.context);
+		fastAdmissionListeners.delete(key);
+		settle();
+	};
+	if (existing) {
+		webSocketService.off("chat_message_confirmed", existing.confirmed);
+		webSocketService.off("chat_turn_context_ack", existing.context);
+	}
+	let finalizing = false;
 	const complete = () => {
-		if (!gate.complete) return;
+		if (!gate.complete || finalizing) return;
+		finalizing = true;
 		const listeners = fastAdmissionListeners.get(key);
 		if (!listeners) return;
 		webSocketService.off("chat_message_confirmed", listeners.confirmed);
 		webSocketService.off("chat_turn_context_ack", listeners.context);
-		fastAdmissionListeners.delete(key);
-		void Promise.all([
-			clearPendingMessageJournal(input.chatId, input.messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
-			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("routing")),
-			clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("details")),
-		]).then(() => import("./sendersSync").then(({ sendOfflineChangesImpl }) =>
-			sendOfflineChangesImpl())).catch((error) =>
-			console.warn("[ChatSyncService:Senders] Could not finalize completed admission replay", error));
+		const clearJournals = input.clearJournals ?? (async () => {
+			await Promise.all([
+				clearPendingMessageJournal(input.chatId, input.messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
+				clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("routing")),
+				clearPendingMessageJournal(input.chatId, input.messageId, contextPhaseJournalField("details")),
+			]);
+		});
+		void clearJournals().then(() => {
+			// The indexed recovery scan must no longer see a journal before a
+			// same-connection reservation can be released.
+			if (fastAdmissionListeners.get(key) === listeners) fastAdmissionListeners.delete(key);
+			listeners.settle();
+			return import("./sendersSync").then(({ sendOfflineChangesImpl }) => sendOfflineChangesImpl());
+		}).catch((error) => {
+			console.warn("[ChatSyncService:Senders] Could not finalize completed admission replay", error);
+			if (fastAdmissionListeners.get(key) !== listeners) return;
+			cancel();
+			input.onJournalFailure?.();
+		});
 	};
 	const confirmed = (payload: unknown) => { gate.acceptConfirmation(payload); complete(); };
 	const context = (payload: unknown) => {
@@ -670,16 +704,17 @@ function watchFastAdmissionCompletion(input: {
 				webSocketService.off("chat_message_confirmed", listeners.confirmed);
 				webSocketService.off("chat_turn_context_ack", listeners.context);
 				fastAdmissionListeners.delete(key);
+				listeners.settle();
 			}
 			return;
 		}
 		gate.acceptContextAck(payload);
 		complete();
 	};
-	fastAdmissionListeners.set(key, { gate, confirmed, context });
+	fastAdmissionListeners.set(key, { gate, confirmed, context, settled, settle });
 	webSocketService.on("chat_message_confirmed", confirmed);
 	webSocketService.on("chat_turn_context_ack", context);
-	return isCurrentAttempt;
+	return { isCurrentAttempt, settled, cancel };
 }
 
 if (typeof window !== "undefined") {
@@ -697,6 +732,7 @@ if (typeof window !== "undefined") {
 			webSocketService.off("chat_message_confirmed", listeners.confirmed);
 			webSocketService.off("chat_turn_context_ack", listeners.context);
 			fastAdmissionListeners.delete(key);
+			listeners.settle();
 		}
 	});
 }
@@ -1231,6 +1267,7 @@ async function dispatchFastPersonalTurn(input: {
 	onUserFrameDispatched?: () => void;
 	postAdmissionConnectedAccounts?: Promise<PreparedConnectedAccountSendContext | undefined>;
 	retainedFastAdmission?: boolean;
+	holdAdmissionUntil?: (completion: Promise<void>) => void;
 	supportsAdmissionNow: () => boolean;
 	supportsSelectionDetailsV2Now: () => boolean;
 	supportsContextFailureNow: () => boolean;
@@ -1238,7 +1275,7 @@ async function dispatchFastPersonalTurn(input: {
 	const { serviceInstance, message, chat, personalTurn, predecessorVersion,
 		includePreflightChatMetadata, workspaceIdentity, privacyReceipt, privacyContentChanged, onUserFrameDispatched,
 		postAdmissionConnectedAccounts, retainedFastAdmission, supportsAdmissionNow,
-		supportsSelectionDetailsV2Now, supportsContextFailureNow } = input;
+		supportsSelectionDetailsV2Now, supportsContextFailureNow, holdAdmissionUntil } = input;
 	const assertCurrentAdmissionScope = () => {
 		if (!workspaceIdentity || workspaceIdentity !== getWorkspaceCacheIdentity()
 			|| !get(authStore).isAuthenticated || getActiveTeamContextSnapshot().teamId || chat.team_id) {
@@ -1396,6 +1433,7 @@ async function dispatchFastPersonalTurn(input: {
 	const retainedRequest = admission.inference_request as Record<string, unknown>;
 	const contextWorkspace = getWorkspaceCacheIdentity();
 	const contextTeam = getActiveTeamContextSnapshot();
+	const contextConnection = webSocketService.getConnectionForSend();
 	let contextRejected = false;
 	let contextFailureReported = false;
 	const reportContextFailure = async () => {
@@ -1421,14 +1459,23 @@ async function dispatchFastPersonalTurn(input: {
 			console.warn("[ChatSyncService:Senders] Context failure notification unavailable");
 		}
 	};
-	const isContextAttemptCurrent = watchFastAdmissionCompletion({
+	const { isCurrentAttempt: isContextAttemptCurrent, settled, cancel } = watchFastAdmissionCompletion({
 		chatId: message.chat_id, messageId: message.message_id,
 		turnId: admission.turn_id as string,
 		requestId: retainedRequest.client_context_request_id as string,
 		committedMessagesVersion: Number(admission.expected_messages_v) + 1,
 		onContextRejected: () => { contextRejected = true; void reportContextFailure(); },
+		onJournalFailure: () => {
+			if (contextWorkspace === getWorkspaceCacheIdentity() && get(authStore).isAuthenticated
+				&& getActiveTeamContextSnapshot().epoch === contextTeam.epoch
+				&& contextConnection !== null && webSocketService.getConnectionForSend() === contextConnection) {
+				webSocketService.forceReconnect("chat admission journal finalization failed");
+			}
+		},
 	});
+	holdAdmissionUntil?.(settled);
 	if (!supportsAdmissionNow()) {
+		cancel();
 		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 		throw new PendingAdmissionCompatibilityError();
 	}
@@ -1466,6 +1513,7 @@ async function dispatchFastPersonalTurn(input: {
 					|| !isDraftContextDispatchActive(message.chat_id, admission.turn_id as string),
 			});
 		}, async (error) => {
+			cancel();
 			if (isPreflightAcknowledgementTimeout(error)) {
 				const stillOwned = () => contextWorkspace !== null
 					&& getWorkspaceCacheIdentity() === contextWorkspace
@@ -1480,6 +1528,7 @@ async function dispatchFastPersonalTurn(input: {
 			}
 			console.warn("[ChatSyncService:Senders] Admission acknowledgement unavailable", error);
 		}).catch(async (error) => {
+			cancel();
 			await reportContextFailure();
 			console.warn("[ChatSyncService:Senders] Post-admission context unavailable", error);
 		}).finally(async () => {
@@ -1487,6 +1536,7 @@ async function dispatchFastPersonalTurn(input: {
 			releaseDraftCleanup();
 		});
 	} catch (error) {
+		cancel();
 		releaseDraftCleanup();
 		ackAbort.abort();
 		if (isReceiptConnectionMismatch(error) && contextWorkspace === getWorkspaceCacheIdentity()) {
@@ -1513,6 +1563,7 @@ export async function sendNewMessageImpl(
 	supportsAdmissionNow: () => boolean = () => false,
 	supportsSelectionDetailsV2Now: () => boolean = () => false,
 	supportsContextFailureNow: () => boolean = () => false,
+	holdAdmissionUntil?: (completion: Promise<void>) => void,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
@@ -1708,6 +1759,7 @@ export async function sendNewMessageImpl(
 			includePreflightChatMetadata, workspaceIdentity: sendWorkspaceIdentity,
 			privacyReceipt: privacyReceipt!, privacyContentChanged, onUserFrameDispatched,
 			retainedFastAdmission, supportsAdmissionNow, supportsSelectionDetailsV2Now, supportsContextFailureNow,
+			holdAdmissionUntil,
 			postAdmissionConnectedAccounts: postAdmissionConnectedAccounts
 				?? (connectedAccountContext ? Promise.resolve(connectedAccountContext)
 					: loadPostAdmissionConnectedAccounts(message)),

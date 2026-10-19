@@ -97,6 +97,23 @@ def test_protocol_fixture_requires_clean_answer_only_recovery() -> None:
     assert clean is not None
     assert clean["response"]["chunks"][0]["value"] == "The safe continuation is complete."
 
+    for dispatch in ("MUST make a SINGLE skill call", "**Web Skills**",
+                     "For API/library documentation, prefer `code-get_docs`"):
+        contradictory = generate_fixture("llm/gemini", {
+            "model": "gemini-test", "messages": [request, {
+                "role": "system", "content": ANSWER_RECOVERY_INSTRUCTION + "\n" + dispatch,
+            }], "tools": None,
+        })
+        assert contradictory is not None
+        assert "```toon" in contradictory["response"]["chunks"][1]["value"]
+
+    quoted = generate_fixture("llm/gemini", {
+        "model": "gemini-test", "messages": [request, {
+            "role": "user", "content": "Quote: MUST make a SINGLE skill call; **Web Skills**",
+        }, {"role": "system", "content": ANSWER_RECOVERY_INSTRUCTION}], "tools": None,
+    })
+    assert quoted["response"]["chunks"][0]["value"] == "The safe continuation is complete."
+
 
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 def test_detached_docs_fixture_generates_a_local_document_without_provider_tools() -> None:

@@ -4,7 +4,7 @@ export {};
 
 const { test, expect } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, waitForChatReady, deleteActiveChat } = require('./helpers/chat-test-helpers');
 
 const PROTOCOL_PREFIX = 'Verified prefix: The available conversation is enough.';
 const PROTOCOL_CONTINUATION = 'The safe continuation is complete.';
@@ -58,7 +58,7 @@ test('signed capacity replay completes a real encrypted chat turn', async ({ pag
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
-test('fabricated tool protocol recovers from clean answer context as one persisted turn', async ({ page }: { page: any }) => {
+test('fabricated tool protocol recovers without skill-dispatch instructions as one persisted turn', async ({ page }: { page: any }) => {
 	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
 	if (!getTestAccount().email) throw new Error('Disposable isolated test account is required.');
 	test.setTimeout(180_000);
@@ -69,6 +69,8 @@ test('fabricated tool protocol recovers from clean answer context as one persist
 	await loginToTestAccount(page, log, screenshot);
 	await startNewChat(page, log);
 	const previousCount = await page.getByTestId('message-assistant').count();
+	// The signed provider fixture keeps rejecting recovery while skill-dispatch
+	// guidance remains in the real answer-only system prompt.
 	await sendMessage(page,
 		'Summarize only the available conversation. STORAGE_CAPACITY_SCENARIO:recovery_protocol <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
 		log, screenshot, 'storage-protocol-recovery');
@@ -89,7 +91,8 @@ test('fabricated tool protocol recovers from clean answer context as one persist
 		await expect(message.locator('[data-testid="embed-preview"][data-skill-id]')).toHaveCount(0);
 	};
 	await assertSafeAnswer(answer);
-	await page.reload({ waitUntil: 'networkidle' });
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
 	await expect(messages).toHaveCount(previousCount + 1, { timeout: 90_000 });
 	await expect(messages.nth(previousCount)).toContainText(PROTOCOL_CONTINUATION, { timeout: 90_000 });
 	await assertSafeAnswer(messages.nth(previousCount));

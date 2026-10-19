@@ -4,7 +4,7 @@
 // run phased rediscovery, because the browser may have missed draft-only chats
 // that were created while the socket was disconnected.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 type WebSocketStatusValue = {
   status: "connecting" | "connected" | "disconnected" | "error" | "reconnecting";
@@ -37,8 +37,14 @@ const mocks = vi.hoisted(() => {
     error: null,
   };
   const websocketSubscribers = new Set<Subscriber<WebSocketStatusValue>>();
+  let baselineSubscribers: Subscriber<WebSocketStatusValue>[] = [];
 
   return {
+    saveBaselineWebSocketSubscribers() { baselineSubscribers = [...websocketSubscribers]; },
+    resetWebSocketSubscribers() {
+      websocketSubscribers.clear();
+      for (const subscriber of baselineSubscribers) websocketSubscribers.add(subscriber);
+    },
     websocketStatus: {
       subscribe: vi.fn((run: Subscriber<WebSocketStatusValue>) => {
         websocketSubscribers.add(run);
@@ -202,6 +208,27 @@ import { getTeam, TeamRequestCancelledError } from "../teamService";
 import { incognitoChatService } from "../incognitoChatService";
 import type { Chat, Message } from "../../types/chat";
 
+// Service constructors warm activity asynchronously. Keep those unrelated HTTP
+// reads deterministic and retire each test's subscriber before restoring globals.
+beforeAll(async () => {
+  await vi.dynamicImportSettled();
+  mocks.saveBaselineWebSocketSubscribers();
+});
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'object' && 'url' in input ? input.url : String(input);
+    if (!url.includes('/v1/chats/activity')) throw new Error(`Unmocked unit HTTP request: ${url}`);
+    return { ok: true, status: 200, json: async () => ({ chats: [] }) };
+  }));
+});
+afterEach(async () => {
+  mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: false }); return () => undefined; });
+  mocks.emitWebSocketStatus('disconnected');
+  mocks.resetWebSocketSubscribers();
+  await vi.dynamicImportSettled();
+  vi.unstubAllGlobals();
+});
+
 describe('uncertain queued snapshot during an outbound user send', () => {
   const message = { chat_id: 'chat-send', message_id: 'message-send', role: 'user',
     content: 'hello', status: 'sending', created_at: 1 } as Message;
@@ -241,6 +268,25 @@ describe('uncertain queued snapshot during an outbound user send', () => {
     await vi.waitFor(() => expect(sender).toHaveBeenCalled());
     return { sending, finish: () => finish(), signal: () => signal() };
   }
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('coalesces ordinary and recovery calls through context ACK and permits same-ID replay on reconnect', async () => {
+    const service = await readyService();
+    let settle!: () => void;
+    const completion = new Promise<void>(resolve => { settle = resolve; });
+    const sender = vi.mocked(sendNewMessageImpl).mockImplementationOnce(async (...args) => {
+      (args[13] as (completion: Promise<void>) => void)(completion);
+    });
+    await service.sendNewMessage(message, undefined, {}, undefined, false);
+    await service.sendNewMessage({ ...message, status: 'synced' });
+    expect(sender).toHaveBeenCalledOnce();
+    await expect(service.sendNewMessage({ ...message, content: 'changed' })).rejects.toThrow('immutable content');
+    mocks.emitWebSocketStatus('disconnected');
+    mocks.emitWebSocketStatus('connected');
+    await service.sendNewMessage({ ...message, status: 'sending' });
+    expect(sender).toHaveBeenCalledTimes(2);
+    settle();
+  });
 
   // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
   it('refreshes uncertain queue state only after the same-chat user frame was queued', async () => {
@@ -334,7 +380,8 @@ describe('uncertain queued snapshot during an outbound user send', () => {
 describe('per-send connected-account empty lookup', () => {
   beforeEach(() => {
     mocks.workspaceIdentity = 'account-a';
-    mocks.connectedAccountMutationEpoch = 0;
+    // A cache result from another test is not part of this Send fixture.
+    mocks.connectedAccountMutationEpoch += 1;
     mocks.activeTeamId.set(null);
     mocks.authStore.subscribe.mockImplementation(run => { run({ isAuthenticated: true }); return () => undefined; });
     mocks.listConnectedAccounts.mockReset().mockResolvedValue([]);
@@ -348,10 +395,10 @@ describe('per-send connected-account empty lookup', () => {
     const service = new ChatSynchronizationService();
     const early = await service.beginEmptyConnectedAccountLookup();
     expect(mocks.listConnectedAccounts).toHaveBeenCalledOnce();
-    const current = { scope: 'account-a', mutationEpoch: 0, authenticated: true, teamId: null };
+    const current = { scope: 'account-a', mutationEpoch: mocks.connectedAccountMutationEpoch, authenticated: true, teamId: null };
     expect(canReuseEarlyEmptyConnectedAccounts(early, current)).toBe(true);
     expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, scope: 'account-b' })).toBe(false);
-    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, mutationEpoch: 1 })).toBe(false);
+    expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, mutationEpoch: current.mutationEpoch + 1 })).toBe(false);
     expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, authenticated: false })).toBe(false);
     expect(canReuseEarlyEmptyConnectedAccounts(early, { ...current, teamId: 'team-a' })).toBe(false);
   });
@@ -359,7 +406,7 @@ describe('per-send connected-account empty lookup', () => {
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it('keeps nonempty and failed early reads on the fresh Send lookup path', async () => {
     const service = new ChatSynchronizationService();
-    const current = { scope: 'account-a', mutationEpoch: 0, authenticated: true, teamId: null };
+    const current = { scope: 'account-a', mutationEpoch: mocks.connectedAccountMutationEpoch, authenticated: true, teamId: null };
     mocks.listConnectedAccounts.mockResolvedValueOnce([{ id: 'connected-a' }]);
     expect(canReuseEarlyEmptyConnectedAccounts(await service.beginEmptyConnectedAccountLookup(), current)).toBe(false);
     mocks.listConnectedAccounts.mockRejectedValueOnce(new Error('offline'));

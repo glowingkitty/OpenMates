@@ -1571,105 +1571,137 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
-  it("waits for the continuation recovery job while sub-chats are running", async () => {
-    const chatId = "chat-sub-chat-recovery";
-    const userMessageId = "user-message-sub-chat-recovery";
-    const turnId = "turn-sub-chat-recovery";
+  for (const jobOrder of ["before", "after", "metadata-late", "missing", "closed"]) {
+    it(`binds child continuation recovery with final job ${jobOrder}`, { timeout: 1_000 }, async () => {
+      const chatId = "chat-sub-chat-recovery";
+      const userMessageId = "user-message-sub-chat-recovery";
+      const turnId = "turn-sub-chat-recovery";
 
-    server.once("connection", (socket) => {
-      setTimeout(() => {
-        socket.send(JSON.stringify({
-          type: "awaiting_sub_chats_completion",
-          payload: { chat_id: chatId, task_id: "task-interim" },
-        }));
-        socket.send(JSON.stringify({
-          type: "ai_message_update",
-          payload: {
-            user_message_id: userMessageId,
-            message_id: "assistant-interim",
-            task_id: "task-interim",
-            chat_id: chatId,
-            is_final_chunk: true,
-            full_content_so_far: "```json\n{\"type\":\"sub_chat_batch\"}\n```",
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "recovery_jobs_available",
-          payload: {
-            jobs: [{
-              job_id: "recovery-job-interim",
+      server.once("connection", (socket) => {
+        setTimeout(() => {
+          socket.send(JSON.stringify({
+            type: "awaiting_sub_chats_completion",
+            payload: { chat_id: chatId, task_id: "task-interim" },
+          }));
+          socket.send(JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-interim",
+              task_id: "task-interim",
               chat_id: chatId,
-              turn_id: turnId,
-              assistant_message_id: "assistant-interim",
-              chat_key_version: 1,
-            }],
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "post_processing_metadata",
-          payload: { chat_id: chatId },
-        }));
-      }, 5);
+              is_final_chunk: true,
+              full_content_so_far: "```json\n{\"type\":\"sub_chat_batch\"}\n```",
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [{
+                job_id: "recovery-job-interim",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-interim",
+                chat_key_version: 1,
+              }],
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }));
+        }, 5);
 
-      setTimeout(() => {
-        socket.send(JSON.stringify({
-          type: "sub_chat_completed",
-          payload: { chat_id: "child-recovery", parent_id: chatId, task_id: "task-child" },
-        }));
-        socket.send(JSON.stringify({
-          type: "recovery_jobs_available",
-          payload: {
-            jobs: [{
-              job_id: "recovery-job-final",
+        setTimeout(() => {
+          socket.send(JSON.stringify({
+            type: "sub_chat_completed",
+            payload: { chat_id: "child-recovery", parent_id: chatId, task_id: "task-child" },
+          }));
+          const announceFinalJob = () => socket.send(JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [{
+                job_id: "recovery-job-interim",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-interim",
+                chat_key_version: 1,
+              }, {
+                job_id: "recovery-job-final",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-final",
+                chat_key_version: 1,
+              }],
+            },
+          }));
+          if (jobOrder === "before") announceFinalJob();
+          socket.send(JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: "server-continuation-message",
+              message_id: "assistant-final",
+              task_id: "task-interim",
               chat_id: chatId,
-              turn_id: turnId,
-              assistant_message_id: "assistant-final",
-              chat_key_version: 1,
-            }],
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "ai_message_update",
-          payload: {
-            user_message_id: "server-continuation-message",
-            message_id: "assistant-final",
-            task_id: "task-interim",
-            chat_id: chatId,
-            is_sub_chat_continuation: true,
-            is_final_chunk: true,
-            full_content_so_far: "## Short Answer\n\nFinal sourced synthesis.",
-          },
-        }));
-        socket.send(JSON.stringify({
-          type: "post_processing_metadata",
-          payload: { chat_id: chatId },
-        }));
-      }, 80);
-    });
-
-    const client = new OpenMatesWsClient({
-      apiUrl,
-      sessionId: "session-sub-chat-recovery",
-      wsToken: "token",
-      refreshToken: null,
-    });
-    await client.open();
-
-    try {
-      const response = await client.collectAiResponse(userMessageId, chatId, {
-        timeoutMs: 1_000,
-        recoveryTurnId: turnId,
+              is_sub_chat_continuation: true,
+              is_final_chunk: true,
+              full_content_so_far: "## Short Answer\n\nFinal sourced synthesis.",
+            },
+          }));
+          // A replayed interim announcement must not replace the continuation job.
+          socket.send(JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [{
+                job_id: "recovery-job-interim",
+                chat_id: chatId,
+                turn_id: turnId,
+                assistant_message_id: "assistant-interim",
+                chat_key_version: 1,
+              }],
+            },
+          }));
+          const sendFinalMetadata = () => socket.send(JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }));
+          if (jobOrder === "metadata-late") setTimeout(sendFinalMetadata, 400);
+          else sendFinalMetadata();
+          if (jobOrder === "after" || jobOrder === "metadata-late") setTimeout(announceFinalJob, 10);
+          if (jobOrder === "closed") setTimeout(() => socket.close(), 10);
+        }, 80);
       });
 
-      assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
-      assert.equal(response.messageId, "assistant-final");
-      assert.equal(response.recoveryJobId, "recovery-job-final");
-      assert.equal(response.recoveryCreatedAt, null);
-      assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
-    } finally {
-      client.close();
-    }
-  });
+      const client = new OpenMatesWsClient({
+        apiUrl,
+        sessionId: "session-sub-chat-recovery",
+        wsToken: "token",
+        refreshToken: null,
+      });
+      await client.open();
+
+      try {
+        const pendingResponse = client.collectAiResponse(userMessageId, chatId, {
+          timeoutMs: 250,
+          recoveryTurnId: turnId,
+        });
+        if (jobOrder === "missing" || jobOrder === "closed") {
+          await assert.rejects(pendingResponse, jobOrder === "missing"
+            ? /Timed out waiting for AI response/ : /WebSocket closed while waiting for AI response/);
+          return;
+        }
+        const response = await pendingResponse;
+
+        assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
+        assert.equal(response.messageId, "assistant-final");
+        assert.equal(response.recoveryJobId, "recovery-job-final");
+        assert.equal(response.recoveryCreatedAt, null);
+        assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
+      } finally {
+        client.close();
+      }
+    });
+  }
 
   it("waits across focus activation for delegated research synthesis", async () => {
     const chatId = "chat-focus-sub-chat";

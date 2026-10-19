@@ -12,7 +12,7 @@ vi.mock('../preparedPrivacyForSend', () => ({
  */
 
 import { webcrypto } from "node:crypto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const canonicalWireListener = vi.hoisted(() => ({ current: null as EventListener | null }));
 vi.mock("../websocketService", () => ({
@@ -30,8 +30,11 @@ vi.mock("../websocketService", () => ({
 // Imported preview/speech services register listeners on this singleton at
 // module load. The protocol helper tests do not start the sync service.
 vi.mock("../chatSyncService", () => ({ chatSyncService: new EventTarget() }));
+// Consent UI imports the application barrel and its SvelteKit environment.
+// These sender protocol cases exercise no consent dialog or app bootstrap.
+vi.mock("../chatErrorReportConsent", () => ({ promptChatErrorReportConsent: vi.fn() }));
 import { webSocketService } from "../websocketService";
-import { chatDB } from "../db";
+import { chatDB, cryptoReady } from "../db";
 import { EmbedStore } from "../embedStore";
 import * as cryptoService from "../cryptoService";
 import { computeSHA256 } from "../../message_parsing/utils";
@@ -49,6 +52,7 @@ import {
 	verifyRetainedMessageEmbedHeads,
 	retainOrReuseDurableTurnPreflight,
 	watchDurableTurnPreflightConfirmation,
+	watchFastAdmissionCompletion,
 	watchMessageEmbedBundleConfirmation,
 	selectRequiredMessageEmbedEntries,
 	isPreflightAcknowledgementTimeout,
@@ -59,6 +63,13 @@ import {
 	isSendContextCurrent,
 } from "../sendersChatMessages";
 import { shouldUpdateMessage } from "../db/messageOperations";
+
+beforeAll(async () => {
+  // Complete the eager real database/key bootstrap while the test environment
+  // still owns its async imports. Assertions keep the real encryption helpers.
+  await cryptoReady;
+  await vi.dynamicImportSettled();
+});
 
 const TEAM_MESSAGE = {
 	message_id: "message-2",
@@ -637,4 +648,50 @@ it('advances ordinary admission from server-issued call versions, never per-mess
   expect(shouldIncludePreflightChatMetadata(1, undefined, predecessor)).toBe(false);
   expect(predecessor ?? preflightExpectedMessagesVersion(1)).toBe(8);
   barrier.clearPersonalChatTurnBarriers();
+});
+
+
+describe('admission completion reservation', () => {
+  const identity = { chatId: 'held-admission-chat', messageId: 'held-message',
+    turnId: 'held-turn', requestId: 'held-context', committedMessagesVersion: 1 };
+  function acceptAll() {
+    const on = vi.mocked(webSocketService.on);
+    const confirmed = on.mock.calls.filter(([type]) => type === 'chat_message_confirmed').at(-1)![1];
+    const context = on.mock.calls.filter(([type]) => type === 'chat_turn_context_ack').at(-1)![1];
+    confirmed({ chat_id: identity.chatId, message_id: identity.messageId, new_messages_v: 1 });
+    for (const phase of ['routing', 'details']) context({ chat_id: identity.chatId,
+      message_id: identity.messageId, turn_id: identity.turnId, request_id: identity.requestId,
+      phase, status: 'accepted' });
+  }
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('holds through actual matching ACKs until the durable journals have cleared', async () => {
+    let finish!: () => void;
+    const clearing = new Promise<void>(resolve => { finish = resolve; });
+    const clearJournals = vi.fn(() => clearing);
+    const attempt = watchFastAdmissionCompletion({ ...identity, clearJournals });
+    const settled = vi.fn();
+    void attempt.settled.then(settled);
+    acceptAll();
+    await Promise.resolve();
+    expect(clearJournals).toHaveBeenCalledOnce();
+    expect(settled).not.toHaveBeenCalled();
+    finish();
+    await attempt.settled;
+    expect(settled).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
+  it('releases a failed journal-clear attempt and invokes scoped recovery instead of suppressing retries forever', async () => {
+    const onJournalFailure = vi.fn();
+    const attempt = watchFastAdmissionCompletion({ ...identity, onJournalFailure,
+      clearJournals: vi.fn(async () => { throw new Error('IndexedDB unavailable'); }) });
+    acceptAll();
+    await attempt.settled;
+    expect(onJournalFailure).toHaveBeenCalledOnce();
+    const replay = watchFastAdmissionCompletion({ ...identity, clearJournals: vi.fn(async () => undefined) });
+    expect(replay.isCurrentAttempt()).toBe(true);
+    replay.cancel();
+    await replay.settled;
+  });
 });

@@ -2433,3 +2433,48 @@ def test_diff_prompt_shared_config_reports_container_read_failure(monkeypatch, t
         assert "Could not read shared embed type metadata" in caplog.text
     finally:
         main_processor._diffable_embed_types_from_shared_config.cache_clear()
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("category", ["general", "software_development"])
+async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_safety_rules(
+    monkeypatch, category,
+) -> None:
+    import yaml
+    from backend.shared.python_schemas.app_metadata_schemas import AppInstructionDefinition
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    definitions = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/web/app.yml").read_text())
+    instructions = [AppInstructionDefinition.model_validate(value) for value in definitions["instructions"]]
+    presentation = "PRESENTATION_RULE: Quote only actual returned evidence and retain exact citations."
+    # Untagged instructions can govern answer accuracy and must survive, even
+    # without for_embed_types. Never infer dispatch-only from missing embed IDs.
+    instructions.append(AppInstructionDefinition(instruction=presentation))
+    guarded = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
+    answer = "A safe answer using the available evidence."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[guarded], [answer]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search."}}],
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[SimpleNamespace(id="search")], instructions=instructions, focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"],
+                                 "category": category},
+    )
+    assert len(calls) == 2
+    primary, recovery = calls
+    assert recovery["tools"] is None and recovery["tool_choice"] == "none"
+    assert "MUST make a SINGLE skill call" in primary["system_prompt"]
+    assert "MUST make a SINGLE skill call" not in recovery["system_prompt"]
+    for instruction in instructions:
+        included = not instruction.categories or category in instruction.categories
+        assert (instruction.instruction in primary["system_prompt"]) is included
+        assert (instruction.instruction in recovery["system_prompt"]) is (included and not instruction.tool_phase_only)
+    actual = load_base_instructions()
+    assert actual["base_ethics_instruction"] in recovery["system_prompt"]
+    assert actual["base_privacy_instruction"] in recovery["system_prompt"]
+    assert actual["base_capabilities_instruction"] in recovery["system_prompt"]
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in recovery["system_prompt"]
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)

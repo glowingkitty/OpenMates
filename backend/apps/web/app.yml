@@ -171,7 +171,8 @@ embed_types:
 instructions:
   # This instruction is ALWAYS loaded when web app is available (no category filter)
   # It provides guidance on using web-search and web-read skills
-  - instruction: |
+  - tool_phase_only: true
+    instruction: |
       **Web Skills**
 
       - **web-search**: Search for current info. For a simple lookup, start with one focused query. For complex comparative research with competing explanations, activate the Deep research focus when it is offered, then investigate multiple independent angles through research subchats and read important sources.
@@ -180,7 +181,8 @@ instructions:
       **Important:** Prefer specialized tools (`code-get_docs`, `news-search`, `videos-search`, `maps-search`) over web-search when they match the query type.
 
   # This instruction is only loaded when the conversation category is software_development
-  - instruction: |
+  - tool_phase_only: true
+    instruction: |
       For API/library documentation, prefer `code-get_docs` over web search.
     categories:
       - software_development

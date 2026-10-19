@@ -379,6 +379,10 @@ class AppInstructionDefinition(BaseModel):
     (e.g., instructing about web search when the web app is unavailable).
     """
     instruction: str  # The actual instruction text to inject into the system prompt
+    tool_phase_only: bool = Field(
+        default=False,
+        description="Dispatch guidance omitted from answer-only recovery; result, safety and presentation rules remain.",
+    )
     categories: Optional[List[str]] = Field(
         default=None,
         description="Optional list of categories where this instruction is most relevant. If provided, the instruction is only injected when the conversation category matches."

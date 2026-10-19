@@ -188,7 +188,8 @@ def _preprocessing_arguments(scenario: str) -> dict[str, Any]:
         "enable_subchats": scenario in {"child", "recovery_save_failure"},
         "load_app_settings_and_memories": [],
         "relevant_app_skills": (["math-calculate"] if scenario == "tool"
-                                else ["events-search"] if scenario == "recovery_composite" else []),
+                                else ["events-search"] if scenario == "recovery_composite"
+                                else ["web-search"] if scenario == "recovery_protocol" else []),
         "relevant_focus_modes": [],
         "relevant_embedded_previews": [],
         "topic_area": "general_misc",
@@ -387,7 +388,15 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
     if scenario == "recovery_protocol":
         from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION
 
-        if ANSWER_RECOVERY_INSTRUCTION in all_text:
+        # This synthetic provider refuses contradictory answer-only prompts.
+        # It exercises actual prompt assembly, not just the recovery sentinel.
+        system_text = _text([message for message in messages or []
+                             if isinstance(message, dict) and message.get("role") == "system"])
+        dispatch_guidance = ("MUST make a SINGLE skill call", "**Web Skills**",
+                             "For API/library documentation, prefer `code-get_docs`")
+        if ANSWER_RECOVERY_INSTRUCTION in system_text and not any(
+            instruction in system_text for instruction in dispatch_guidance
+        ):
             return _main_stream(model, "The safe continuation is complete.")
         fabricated = (
             "```toon\n"

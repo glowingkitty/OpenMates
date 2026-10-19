@@ -4323,6 +4323,18 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} base_capabilities_instruction not found in base_instructions.yml")
     
+    # Tools are disabled during answer recovery. Keep conversational capability
+    # guidance, but exclude instructions that require dispatching a skill.
+    dispatch_template = base_instructions.get("base_tool_dispatch_instruction", "")
+    if dispatch_template:
+        dispatch_instruction = dispatch_template.replace(
+            "{AVAILABLE_APPS}",
+            ", ".join(sorted(discovered_apps_metadata)) if discovered_apps_metadata else "none (no apps available)",
+        )
+        prompt_parts.append(dispatch_instruction)
+        optional_fact_app_guidance_parts.append(dispatch_instruction)
+        research_only_prompt_parts.add(dispatch_instruction)
+
     wikipedia_language = normalize_wikipedia_language((request_data.user_preferences or {}).get("language"))
     prompt_parts.append(
         f"For all `wiki:` inline links, use article titles from {wikipedia_language}.wikipedia.org "
@@ -4749,10 +4761,14 @@ async def handle_main_processing(
                     # Only include if conversation category matches
                     if conversation_category and conversation_category in instruction_def.categories:
                         prompt_parts.append(instruction_def.instruction)
+                        if getattr(instruction_def, "tool_phase_only", False):
+                            research_only_prompt_parts.add(instruction_def.instruction)
                         app_instructions_added.append(f"{app_id} (category: {conversation_category})")
                     # Skip if categories specified but don't match
                 else:
                     prompt_parts.append(instruction_def.instruction)
+                    if getattr(instruction_def, "tool_phase_only", False):
+                        research_only_prompt_parts.add(instruction_def.instruction)
                     app_instructions_added.append(app_id)
 
             # Track skipped apps (only if ALL instructions were gated out)

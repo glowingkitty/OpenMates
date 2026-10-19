@@ -16,6 +16,48 @@ skipWithoutCredentials(test, email, password, otpKey);
 test('epoch-zero first chat survives reload and a follow-up with Projects disabled', async ({ page }: { page: any }, testInfo: any) => {
 	test.setTimeout(180_000);
 	const projectRequests: string[] = [];
+	const admissionFrames: Array<Record<string, any>> = [];
+	const acknowledgements: Array<Record<string, any>> = [];
+	const errors: Array<Record<string, any>> = [];
+	const viewed: Array<Record<string, any>> = [];
+	// Force a real recovery scan while the first ordinary send has returned
+	// from frame dispatch but is still awaiting its exact admission/context ACKs.
+	let releaseAdmission: (() => void) | undefined;
+	let overlapRecoveryCompleted = false;
+	page.on('console', (message: any) => {
+		if (releaseAdmission && /Completed indexed pending retry for 1 message/.test(message.text())) {
+			overlapRecoveryCompleted = true;
+		}
+	});
+	let injectedOverlap = false;
+	await page.routeWebSocket('**/v1/ws**', (socket: any) => {
+		const server = socket.connectToServer();
+		server.onMessage((message: string | Buffer) => {
+			try {
+				const frame = JSON.parse(String(message));
+				if (frame.type === 'chat_turn_preflight_ack') acknowledgements.push(frame.payload ?? {});
+				if (frame.type === 'error') errors.push(frame.payload ?? {});
+			} catch { /* Control frame. */ }
+			socket.send(message);
+		});
+		socket.onMessage((message: string | Buffer) => {
+			let frame: any;
+			try { frame = JSON.parse(String(message)); } catch { /* Control frame. */ }
+			// Playwright's routed sockets bypass page WebSocket frame events.
+			// Observe the real client frame here, including the held admission.
+			if (frame?.type === 'chat_turn_admit') admissionFrames.push(frame.payload ?? {});
+			if (frame?.type === 'chat_message_viewed') viewed.push(frame.payload ?? {});
+			if (!injectedOverlap && frame?.type === 'chat_turn_admit') {
+				injectedOverlap = true;
+				releaseAdmission = () => server.send(message);
+				socket.send(JSON.stringify({ type: 'phased_sync_complete', payload: {
+					phase: 'complete', timestamp: Date.now() / 1000,
+				} }));
+				return;
+			}
+			server.send(message);
+		});
+	});
 	await page.route('**/v1/features/availability', async (route: any) => {
 		const response = await route.fetch();
 		if (!response.ok()) throw new Error(`Feature availability failed (${response.status()}).`);
@@ -26,26 +68,6 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 	await page.route('**/v1/projects**', (route: any) => {
 		projectRequests.push(route.request().url());
 		return route.fulfill({ status: 404, json: { detail: 'FEATURE_DISABLED' } });
-	});
-	const admissionFrames: Array<Record<string, any>> = [];
-	const acknowledgements: Array<Record<string, any>> = [];
-	const errors: Array<Record<string, any>> = [];
-	const viewed: Array<Record<string, any>> = [];
-	page.on('websocket', (socket: any) => {
-		if (!new URL(socket.url()).pathname.endsWith('/v1/ws')) return;
-		for (const [event, target, type] of [
-			['framesent', admissionFrames, 'chat_turn_admit'],
-			['framesent', viewed, 'chat_message_viewed'],
-			['framereceived', acknowledgements, 'chat_turn_preflight_ack'],
-			['framereceived', errors, 'error'],
-		] as const) {
-			socket.on(event, (frame: { payload?: string }) => {
-				try {
-					const envelope = JSON.parse(String(frame.payload || ''));
-					if (envelope.type === type) target.push(envelope.payload ?? {});
-				} catch { /* WebSocket control frame. */ }
-			});
-		}
 	});
 	// The isolated CI stack has no provider key; this only opens the UI send gate.
 	await page.route('**/v1/settings/server-status', async (route: any) => {
@@ -59,7 +81,17 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 	await waitForChatReady(page);
 	await expect(page.getByTestId('message-user')).toHaveCount(0);
 
-	await sendMessage(page, withMockMarker('Capital of Germany?', 'chat_flow_capital', 'instant'));
+	const sending = sendMessage(page, withMockMarker('Capital of Germany?', 'chat_flow_capital', 'instant'));
+	void sending.catch(() => undefined); // The helper waits for the ACK held below.
+	try {
+		await expect.poll(() => overlapRecoveryCompleted, {
+			timeout: 8_000, message: 'Recovery must inspect the pending journal before admission ACK',
+		}).toBe(true);
+		expect(admissionFrames, 'Recovery must share the ordinary in-flight admission').toHaveLength(1);
+	} finally {
+		releaseAdmission?.();
+	}
+	await sending;
 	await waitForAssistantMessage(page, { contains: 'Berlin', timeout: 60_000 });
 	const first = admissionFrames[0];
 	expect(first?.expected_messages_v).toBe(0);
@@ -120,6 +152,7 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 	}) });
 	expect(errors.filter((error) => error.code === 'inference_temporarily_paused'
 		|| error.code === 'chat_not_found')).toHaveLength(0);
+	expect(admissionFrames, 'One admission per user turn across recovery and reload').toHaveLength(2);
 	expect(projectRequests).toEqual([]);
 	await deleteActiveChat(page);
 });

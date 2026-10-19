@@ -676,6 +676,107 @@ describe("CLI typed recovery replay", () => {
   }
   }
 
+  for (const bootstrap of ["none", "same-key", "different-key"] as const) {
+  // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chats.message.identity-idempotent
+  it(`recovers both child message roles with immutable envelopes (${bootstrap})`, async () => {
+    const identity = outputVector.identity;
+    const rawKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
+    const wrappingKey = new Uint8Array(32);
+    const outputs: AvailableRecoveryOutputFrame[] = ["user", "assistant"].map((role, index) => ({
+      record_id: index ? "77777777-7777-4777-8777-777777777777" : identity.record_id,
+      root_chat_id: identity.root_chat_id, target_chat_id: identity.target_chat_id,
+      turn_id: identity.turn_id,
+      subject_id: index ? "88888888-8888-4888-8888-888888888888" : identity.subject_id,
+      output_kind: "message", output_version: 1, chat_key_version: identity.key_version,
+      root_hashed_team_id: null, message_role: role as "user" | "assistant",
+    }));
+    const sealed = new Map<string, string>();
+    for (const [index, output] of outputs.entries()) {
+      const nonce = Buffer.from(keyVector.nonce, "base64url");
+      nonce[0] ^= index;
+      sealed.set(output.record_id, JSON.stringify(await sealRecoveryOutputEnvelopeForTest(
+        new TextEncoder().encode(JSON.stringify({
+          record_id: output.record_id, target_chat_id: output.target_chat_id,
+          subject_id: output.subject_id, output_kind: output.output_kind, output_version: 1,
+          content: { role: output.message_role, content: `sealed ${output.message_role}`, created_at: 1_700_000_000 },
+        })), {
+          ownerId: identity.owner_id, rootChatId: output.root_chat_id,
+          targetChatId: output.target_chat_id, turnId: output.turn_id,
+          recordId: output.record_id, subjectId: output.subject_id,
+          outputKind: "message", outputVersion: 1, keyVersion: output.chat_key_version,
+          recoveryPublicKey: keyVector.recovery_public_key,
+          ephemeralPrivateKey: keyVector.ephemeral_private_key, nonce: nonce.toString("base64url"),
+        },
+      )));
+    }
+    const client = Object.create(OpenMatesClient.prototype) as Record<string, any>;
+    client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: null,
+      apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
+    client.getMasterKeyBytes = () => wrappingKey;
+    client.getChatWrappingKey = async () => wrappingKey;
+    client.resolveChatKey = async () => rawKey;
+    const waiters: Array<{ type: string; predicate: (value: any) => boolean;
+      resolve: (value: any) => void; reject: (error: Error) => void }> = [];
+    let canonicalKey: string | null = null, messagesVersion = 0;
+    let bootstrapPending = bootstrap !== "none";
+    const attempts: Array<Record<string, any>> = [], accepted: Array<Record<string, any>> = [];
+    const failures: string[] = [];
+    const ws = {
+      waitForMessage: (type: string, predicate: (value: any) => boolean) =>
+        new Promise((resolve, reject) => waiters.push({ type, predicate, resolve, reject })),
+      sendAsync: async (type: string, payload: Record<string, any>) => {
+        const output = outputs.find(item => item.record_id === payload.record_id)!;
+        const responseType = type === "recovery_output_get" ? "recovery_output_ready" : "recovery_output_persisted";
+        const response: Record<string, any> = { record_id: output.record_id, request_id: payload.request_id };
+        const waiterIndex = waiters.findIndex(item => item.type === responseType && item.predicate(response));
+        assert.ok(waiterIndex >= 0);
+        const waiter = waiters.splice(waiterIndex, 1)[0];
+        if (type === "recovery_output_get") {
+          waiter.resolve({ payload: { ...response, ...output, sealed_payload: sealed.get(output.record_id),
+            messages_v: messagesVersion, encrypted_chat_key: canonicalKey, encrypted_title: null } });
+          return;
+        }
+        assert.equal(type, "recovery_output_persist_message");
+        attempts.push(payload);
+        if (bootstrapPending) {
+          bootstrapPending = false;
+          canonicalKey = await encryptBytesWithAesGcm(bootstrap === "same-key" ? rawKey : new Uint8Array(32).fill(9), wrappingKey);
+        }
+        const code = canonicalKey && payload.encrypted_chat_key && payload.encrypted_chat_key !== canonicalKey
+          ? "immutable_chat_key_mismatch" : payload.expected_messages_v !== messagesVersion ? "version_conflict" : null;
+        if (code) {
+          failures.push(code);
+          waiter.reject(new WebSocketProtocolError(code, "Fixture recovery rejected"));
+          return;
+        }
+        canonicalKey ??= payload.encrypted_chat_key;
+        assert.equal(typeof canonicalKey, "string");
+        const message = payload.encrypted_user_message ?? payload.encrypted_assistant_message;
+        assert.equal(await decryptWithAesGcmCombined(message.encrypted_content, rawKey), `sealed ${message.role}`);
+        accepted.push(message);
+        waiter.resolve({ payload: { ...response, state: "ACKNOWLEDGED", committed_messages_v: ++messagesVersion } });
+      },
+    };
+    const cache = { chats: [{ details: { id: identity.root_chat_id }, messages: [] }], embeds: [], embedKeys: [] };
+    const pending = (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, outputs, null);
+    if (bootstrap === "different-key") {
+      await assert.rejects(pending, /child chat key differs/);
+      assert.equal(accepted.length, 0);
+      assert.equal(attempts.length, 1, "A different canonical raw key must never be overwritten or retried");
+    } else {
+      assert.equal(await pending, 2);
+      assert.deepEqual(accepted.map(message => message.role), ["user", "assistant"]);
+      if (bootstrap === "none") {
+        assert.equal(attempts[0].encrypted_chat_key, attempts[1].encrypted_chat_key,
+          "Prepared outputs reuse the exact acknowledged envelope, including its nonce");
+      }
+      assert.equal(attempts.at(-1)!.encrypted_chat_key, undefined, "Refreshed canonical metadata omits bootstrap fields");
+      assert.ok(failures.includes("version_conflict"));
+    }
+    if (bootstrap !== "none") assert.equal(failures[0], "immutable_chat_key_mismatch");
+  });
+  }
+
   // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   for (const child of [false, true]) {
   it(`ACKs a ${child ? "child" : "root"} embed with wrapper-gated reads and an unchanged historical version`, async () => {

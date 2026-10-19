@@ -8600,6 +8600,7 @@ export class OpenMatesClient {
     };
     const prepared: Array<Awaited<ReturnType<typeof prepareOne>>> = [];
     for (const output of ordered) prepared.push(await prepareOne(output));
+    const committedChildMetadata = new Map<string, { encryptedKey: string; encryptedTitle: string }>();
     const persistOne = async ({ output, ready, content, rootKey, identity }: NonNullable<typeof prepared[number]>) => {
       assertOwner();
       const committed = dependencies.acknowledged.get(output.record_id);
@@ -8610,16 +8611,30 @@ export class OpenMatesClient {
       const messageRole = output.message_role ?? "assistant";
       const childKey = rootKey;
       const now = Math.floor(Date.now() / 1000);
-      const encryptedChatKey = typeof ready.encrypted_chat_key === "string" && ready.encrypted_chat_key
-        ? ready.encrypted_chat_key : await encryptBytesWithAesGcm(childKey, wrappingKey);
-      const encryptedTitle = typeof ready.encrypted_title === "string" && ready.encrypted_title
-        ? ready.encrypted_title : await encryptWithAesGcmCombined("Sub-chat", childKey);
       if (output.output_kind === "message") {
         if (typeof content.content !== "string" || (content.category != null && typeof content.category !== "string")
           || (content.model_name != null && typeof content.model_name !== "string")
           || (content.role !== undefined && content.role !== messageRole)) {
           throw new Error("Recovery message content was invalid.");
         }
+        const isChild = output.target_chat_id !== output.root_chat_id;
+        const metadataScope = JSON.stringify([output.root_chat_id, output.target_chat_id,
+          output.chat_key_version, teamId]);
+        const committedMetadata = isChild ? committedChildMetadata.get(metadataScope) : undefined;
+        const encryptedChatKey = typeof ready.encrypted_chat_key === "string" && ready.encrypted_chat_key
+          ? ready.encrypted_chat_key : committedMetadata?.encryptedKey ?? await encryptBytesWithAesGcm(childKey, wrappingKey);
+        const encryptedTitle = typeof ready.encrypted_title === "string" && ready.encrypted_title
+          ? ready.encrypted_title : committedMetadata?.encryptedTitle ?? await encryptWithAesGcmCombined("Sub-chat", childKey);
+        const verifyChildKey = async (metadata: Record<string, unknown>) => {
+          if (!isChild || !metadata.encrypted_chat_key) return;
+          if (typeof metadata.encrypted_chat_key !== "string") throw new Error("Recovery child key envelope was invalid.");
+          const canonicalKey = await decryptBytesWithAesGcm(metadata.encrypted_chat_key, wrappingKey);
+          if (!canonicalKey || !Buffer.from(canonicalKey).equals(Buffer.from(childKey))) {
+            throw new Error("Recovery child chat key differs from its recovered root key; output remains pending.");
+          }
+        };
+        await verifyChildKey(ready);
+        let messageReady = ready;
         const createdAt = normalizeUnixSeconds(content.created_at, now);
         const encryptedMessage = {
           client_message_id: output.subject_id, chat_id: output.target_chat_id,
@@ -8634,20 +8649,33 @@ export class OpenMatesClient {
           } : {}),
           created_at: createdAt, updated_at: createdAt,
         };
-        const persist = (version: number) => request("recovery_output_persist_message", "recovery_output_persisted", output.record_id, {
-          expected_messages_v: version,
+        const persist = () => request("recovery_output_persist_message", "recovery_output_persisted", output.record_id, {
+          expected_messages_v: messageReady.messages_v,
           [messageRole === "user" ? "encrypted_user_message" : "encrypted_assistant_message"]: encryptedMessage,
-          ...(ready.encrypted_chat_key ? {} : { encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle }),
+          ...(messageReady.encrypted_chat_key ? {} : { encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle }),
         });
         let result: Record<string, unknown>;
-        try { result = await persist(ready.messages_v as number); }
+        try { result = await persist(); }
         catch (error) {
-          if (!(error instanceof WebSocketProtocolError) || error.code !== "version_conflict") throw error;
+          if (!(error instanceof WebSocketProtocolError) || (error.code !== "version_conflict"
+            && !(isChild && error.code === "immutable_chat_key_mismatch"))) throw error;
           const refreshed = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
           if (!Number.isSafeInteger(refreshed.messages_v)) throw error;
-          result = await persist(refreshed.messages_v as number);
+          for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id",
+            "output_kind", "output_version", "chat_key_version", "root_hashed_team_id", "message_role", "sealed_payload"]) {
+            if (refreshed[field] !== ready[field]) throw new Error("Recovery message identity changed while refreshing persistence.");
+          }
+          await verifyChildKey(refreshed);
+          messageReady = refreshed;
+          result = await persist();
         }
         if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery message persistence was not acknowledged.");
+        if (isChild) committedChildMetadata.set(metadataScope, {
+          encryptedKey: typeof messageReady.encrypted_chat_key === "string" && messageReady.encrypted_chat_key
+            ? messageReady.encrypted_chat_key : encryptedChatKey,
+          encryptedTitle: typeof messageReady.encrypted_title === "string" && messageReady.encrypted_title
+            ? messageReady.encrypted_title : encryptedTitle,
+        });
       } else if (output.output_kind === "summary") {
         if (typeof content.summary !== "string" || !Number.isSafeInteger(ready.metadata_v)) throw new Error("Recovery summary was invalid.");
         const generatedMetadata: Record<string, unknown> = {};

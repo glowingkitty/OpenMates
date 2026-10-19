@@ -75,6 +75,8 @@ let active = 0;
 let maxActive = 0;
 let failed = false;
 let workerPhase = 'client_init';
+let workerRound;
+let workerScenario;
 const start = performance.now();
 function failureRow(error, fallbackPhase) {
   const phases = new Set(['client_init', 'project_create', 'round_send', 'embed_readback',
@@ -87,11 +89,18 @@ function failureRow(error, fallbackPhase) {
   const frame = /(storage_capacity_(?:client|version_adapter|page_adapter)\.mjs):(\d+):\d+/.exec(stack);
   const sourceLocation = error?.capacitySourceLocation || (frame
     ? `${frame[1]}:${frame[2]}` : 'storage_capacity_client.mjs:unavailable');
+  const protocolCode = typeof error?.code === 'string' && /^[a-z][a-z0-9_]{0,79}$/.test(error.code)
+    ? error.code : undefined;
+  const context = [
+    Number.isSafeInteger(workerRound) ? `round=${workerRound}` : '',
+    workerScenario ? `scenario=${workerScenario}` : '',
+    protocolCode ? `code=${protocolCode}` : '',
+  ].filter(Boolean).join(' ');
   return { kind: 'failure', phase, error_class: errorClass, source_location: sourceLocation,
     ...sanitizeVersionDiagnostics(error?.capacityDiagnostics),
     // This field is restricted to the mode-0600 runner-private result and
     // bounded diagnostic artifact; verification never copies it to public JSON.
-    reason: String(error?.message || error).slice(0, 200) };
+    reason: `${context ? `${context}: ` : ''}${String(error?.message || error)}`.slice(0, 200) };
 }
 async function withSlot(action) {
   parentPort.postMessage({ type: 'inflight', delta: 1 });
@@ -129,6 +138,8 @@ async function oneUser(user) {
     }
     const dispatchedAt = performance.now();
     const scenario = round % 50 === 10 ? 'child' : round % 20 === 0 ? 'tool' : 'round';
+    workerRound = round;
+    workerScenario = scenario;
     workerPhase = 'round_send';
     const response = await withSlot(() => client.sendMessage({
         message: `${text}\nSTORAGE_CAPACITY_SCENARIO:${scenario}`,
@@ -144,6 +155,14 @@ async function oneUser(user) {
       if (scenario === 'child' && (!response.subChatEvents?.some(event => event.type === 'spawn_sub_chats') ||
           !response.subChatEvents?.some(event => event.type === 'sub_chat_completed'))) {
         throw new Error('Synthetic child was not dispatched and completed through the full path');
+      }
+      if (scenario === 'child') {
+        const saved = await client.getChatMessages(chatId, { preferCache: false, freshChatOnly: true });
+        const final = saved.messages.find(message => message.role === 'assistant' &&
+          (message.id === response.messageId || message.clientMessageId === response.messageId));
+        if (!response.assistant?.startsWith('Synthetic child result ') || final?.content !== response.assistant) {
+          throw new Error('Child synthesis did not recover as its own persisted assistant message');
+        }
       }
       await emit({ kind: 'round', user, number: round, status: 'persisted', client_crypto: true,
         content_sha256: digest(text), duration_ms: performance.now() - dispatchedAt,

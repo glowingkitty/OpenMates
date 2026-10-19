@@ -1,3 +1,4 @@
+import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
@@ -186,6 +187,7 @@ export class ChatSynchronizationService extends EventTarget {
   private lastQueuedSnapshotChat: string | null = null;
   private queuedSnapshotSocketEpoch = 0;
   private pendingQueuedSnapshotSends = new Map<string, PendingQueuedSnapshotSend>();
+  private readonly outboundMessageSends = new OutboundMessageSends();
   private isSyncing = false;
   private serverChatOrder: string[] = [];
   private webSocketConnected = false;
@@ -729,6 +731,7 @@ export class ChatSynchronizationService extends EventTarget {
       if (wasWebSocketConnected !== this.webSocketConnected) {
         this.queuedSnapshotSocketEpoch++;
         this.pendingQueuedSnapshotSends.clear();
+        this.outboundMessageSends.clear();
       }
       if (this.webSocketConnected) {
         // A default zero or a prior socket's status cannot authorize a local
@@ -2985,6 +2988,31 @@ export class ChatSynchronizationService extends EventTarget {
     newLocalChat?: boolean,
     earlyEmptyConnectedAccounts?: Promise<EarlyEmptyConnectedAccounts>,
   ): Promise<void> {
+    const current = this.queuedSnapshotScope(message.chat_id);
+    const contentIdentity = () => JSON.stringify([message.role, message.content, message.created_at,
+      message.sender_name, message.category, message.preserve_draft]);
+    const send = (holdUntil: (completion: Promise<void>, canonicalContent?: string) => void) => this.sendNewMessageCore(
+      message, encryptedSuggestionToDelete, connectedAccountContext, projectFocusIntent,
+      newLocalChat, earlyEmptyConnectedAccounts, (completion) => holdUntil(completion, contentIdentity()),
+    );
+    if (!current) return send(() => undefined);
+    return this.outboundMessageSends.run(
+      JSON.stringify([current.workspace, current.teamId, current.teamEpoch, current.socketEpoch]),
+      JSON.stringify([message.chat_id, message.message_id]),
+      contentIdentity(),
+      send,
+    );
+  }
+
+  private async sendNewMessageCore(
+    message: Message,
+    encryptedSuggestionToDelete?: string | null,
+    connectedAccountContext?: ConnectedAccountSendContext,
+    projectFocusIntent?: ProjectFocusSendIntent,
+    newLocalChat?: boolean,
+    earlyEmptyConnectedAccounts?: Promise<EarlyEmptyConnectedAccounts>,
+    holdAdmissionUntil?: (completion: Promise<void>) => void,
+  ): Promise<void> {
     // Reserve synchronously: connected-account preparation may await before the
     // sender starts, while another local send can already be in progress.
     const turn = reservePersonalChatTurn(message.chat_id, message.message_id);
@@ -3072,6 +3100,7 @@ export class ChatSynchronizationService extends EventTarget {
       supportsAdmissionNow,
       () => supportsAdmissionNow() && this.serverCapabilityGate.supportsSelectionDetailsV2(),
       () => supportsAdmissionNow() && this.serverCapabilityGate.supportsContextFailure(),
+      holdAdmissionUntil,
     );
     recordSendPreparationPhase('sender_complete');
     if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
