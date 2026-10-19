@@ -29,6 +29,18 @@ function makeTransactions() {
       onerror: null as (() => void) | null,
       onabort: null as (() => void) | null,
       objectStore: () => ({
+        index: () => ({
+          getAll: (range: { lower: [string, number] }) => {
+            const request = { result: [] as Record<string, unknown>[], error: null,
+              onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
+            enqueue(() => {
+              request.result = [...rows.values()].filter(row => row.chat_id === range.lower[0])
+                .sort((a, b) => Number(a.created_at) - Number(b.created_at)).map(row => ({ ...row }));
+              request.onsuccess?.();
+            });
+            return request;
+          },
+        }),
         get: (id: string) => {
           const request = { result: undefined as Record<string, unknown> | undefined,
             error: null, onsuccess: null as (() => void) | null,
@@ -72,6 +84,35 @@ function message(id: string, status: Message["status"]): Message {
 }
 
 describe("pending encrypted message retry journals", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,chats.persistence.client-encrypted
+  it("persists repeated user text under distinct IDs while keeping same-ID retries idempotent", async () => {
+    const { db, rows } = makeTransactions();
+    const originalRange = globalThis.IDBKeyRange;
+    vi.stubGlobal("IDBKeyRange", { bound: (lower: unknown[]) => ({ lower }) });
+    db.encryptMessageFields = async row => ({ ...row, content: undefined,
+      encrypted_content: `sealed:${row.content}` });
+    db.decryptMessageFields = async row => ({ ...row, encrypted_content: undefined,
+      content: row.encrypted_content?.slice("sealed:".length) });
+    try {
+      await saveMessage(db, message("original", "synced"));
+      const repeated = { ...message("repeated", "sending"), created_at: 2 };
+      await saveMessage(db, repeated);
+      expect([...rows.keys()]).toEqual(["original", "repeated"]);
+      expect(rows.get("original")?.status).toBe("synced");
+      expect(rows.get("repeated")?.status).toBe("sending");
+      await saveMessage(db, repeated);
+      await saveMessage(db, { ...repeated, status: "delivered" });
+      expect(rows.size).toBe(2);
+      expect(rows.get("repeated")?.status).toBe("delivered");
+      for (const row of rows.values()) {
+        expect(row.encrypted_content).toBe("sealed:attached code");
+        expect(row.content).toBeUndefined();
+      }
+    } finally {
+      vi.stubGlobal("IDBKeyRange", originalRange);
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
   it("preserves an unsynced call correction and ciphertext outbox through single and batch sync saves", async () => {
     const { db, rows } = makeTransactions();

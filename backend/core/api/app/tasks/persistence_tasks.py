@@ -311,6 +311,7 @@ async def _async_persist_chat_title_task(
     incoming_metadata_v = metadata_v if metadata_v is not None else title_v
     fields_to_update = {
         "encrypted_title": encrypted_title,
+        "title_is_manual": True,  # This task handles explicit online/offline title edits.
         "title_v": max(title_v, current_title_v),
         "metadata_v": max(_version_int(incoming_metadata_v), current_metadata_v),
         "updated_at": int(datetime.now(timezone.utc).timestamp())

@@ -16,6 +16,7 @@ import { CallAudio, type CallAudioPlaybackSchedule } from '../components/videoca
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
 import { recordCallLifecycle } from './voiceCallLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
+import { VoiceCallMetadataScheduler } from './voiceCallMetadata';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
 
 export type VoiceCallStatus = 'idle' | 'connecting' | 'live' | 'ended' | 'error';
@@ -138,6 +139,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private waveAnimation: number | null = null;
   private micLevels = { at: 0, levels: zeroLevels() };
   private playbackLevels: Array<{ at: number; until: number; levels: number[] }> = [];
+  private metadata: VoiceCallMetadataScheduler | null = null;
   private transcriptWrites = new Map<string, Promise<void>>();
   private responseEmbeds = new Map<string, Map<string, VoiceArtifactReference>>();
   private contextPause: string | null = null;
@@ -357,6 +359,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
           mateCategory: typeof message.mate_category === 'string' ? message.mate_category : this.state.mateCategory,
           mateName: typeof message.mate_name === 'string' ? message.mate_name : undefined,
           usage: NUMBER_FIELDS.reduce((usage, field) => ({ ...usage, [field]: Number(message[field]) || 0 }), {} as VoiceCallUsage) });
+        if (this.state.chatId) this.metadata = new VoiceCallMetadataScheduler(this.state.chatId, message.call_id);
         this.lifecycleStarted = true;
         this.recordLifecycle('started');
         this.cues.play('connected');
@@ -486,7 +489,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
     const embedReferences = [...(this.responseEmbeds.get(event.messageId)?.values() ?? [])];
     const embedRefs = embedReferences.map((reference) => reference.embed_id);
     const previous = this.transcriptWrites.get(event.messageId) ?? Promise.resolve();
-    const next = previous.catch(() => {}).then(() => upsertCallTranscript({ ...event, embedRefs, embedReferences }));
+    const metadata = this.metadata;
+    const next = previous.catch(() => {}).then(() => upsertCallTranscript({ ...event, embedRefs, embedReferences }))
+      .then(() => metadata?.observe(event).catch(() => {}));
     this.transcriptWrites.set(event.messageId, next);
     void next.catch(() => { if (generation === this.generation) this.fail('transcript_save_failed'); }).finally(() => {
       if (this.transcriptWrites.get(event.messageId) === next) this.transcriptWrites.delete(event.messageId);
@@ -538,6 +543,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private fail(key: string): void { this.finish('error', key); }
 
   private finish(status: 'ended' | 'error', error: string | null): void {
+    const metadata = this.metadata;
+    this.metadata = null;
+    void Promise.allSettled([...this.transcriptWrites.values()]).then(() => metadata?.finish());
     this.refreshClock();
     if (this.lifecycleStarted) {
       this.lifecycleStarted = false;

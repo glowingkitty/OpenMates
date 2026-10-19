@@ -1,0 +1,25 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: voice-call-chat-metadata
+title: Generate and refresh voice-call chat titles and summaries
+goal: "Implement as suggested, to ensure voice calls also update or create chat title and summary as discussed."
+authorization: The user approved the proposed shared metadata generation, first substantive exchange, bounded periodic refresh, final flush, encrypted recovery and manual-title protection on 2026-10-19. This records that approval without requesting it again.
+specification_refs:
+  - id: feature.video-call
+    version: 8
+    role: primary
+scope:
+  - Shared text/voice title instructions and configured postprocessing utility model; metadata-only voice generation.
+  - New and existing chat updates after finalized persisted turns, bounded periodic refresh and dirty final flush.
+  - Encrypted accepted work and reconnect recovery independent of the live call; version/key guards and manual-title protection.
+  - Focused backend/client unit coverage and isolated browser coverage of metadata persistence and recovery.
+  - Preserve repeated user submissions with distinct message IDs; retain same-ID retry idempotency.
+required_checks:
+  - Focused Python and TypeScript unit tests and relevant lint checks.
+  - Isolated GitHub CI voice-call browser E2E with recordings.
+decisions:
+  - Reuse existing postprocessing model selection; never override OpenMates conversation routing.
+  - Keep compression checkpoints separate from the short chat overview.
+  - First-party authenticated personal-chat scope only; no public/developer API or production changes.
+  - The user approved the related repeated-message persistence fix, voice-suite rerun and dev deployment after a pass on 2026-10-19.

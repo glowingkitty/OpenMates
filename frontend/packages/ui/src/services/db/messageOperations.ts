@@ -429,6 +429,12 @@ export function isContentDuplicate(
     return false;
   }
 
+  // Repeating text is a new user submission when its stable message ID differs.
+  // Retries and sync copies retain that ID and use the primary-key save path.
+  if (existing.role === "user" && existing.message_id !== incoming.message_id) {
+    return false;
+  }
+
   // For assistant messages, if message_ids are different but both look like task IDs (UUIDs),
   // and content matches, they might be the same message from different sync sources.
   // However, we should be more careful - only treat as duplicate if encrypted_content matches

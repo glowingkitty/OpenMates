@@ -176,14 +176,15 @@ describe("webSocketService message dispatch", () => {
     service.ws = null;
   });
 
-  // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.message.identity-idempotent
-  it.each(["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready", "chat_turn_context_failed"])(
+  // contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.message.identity-idempotent,video-call.chat.metadata-generation,video-call.chat.metadata-lifecycle,video-call.privacy
+  it.each(["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready", "chat_turn_context_failed", "voice_metadata_request", "voice_metadata_commit"])(
     "keeps the sealed %s payload unchanged while tracing its send", async (type) => {
       const service = webSocketService as unknown as {
         ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
       };
       const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
       service.ws = socket;
+      const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
       const span = vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
       const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => {
         payload._traceparent = "unbound-test-trace";
@@ -195,6 +196,7 @@ describe("webSocketService message dispatch", () => {
       expect(inject).not.toHaveBeenCalled();
       expect(payload).toEqual(original);
       expect(JSON.parse(socket.send.mock.calls[0][0])).toEqual({ type, payload: original });
+      if (type.startsWith("voice_metadata_")) expect(debug).toHaveBeenCalledWith("[WebSocketService] Sending message:", { type });
       service.ws = null;
     },
   );

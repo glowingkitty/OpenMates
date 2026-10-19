@@ -20,6 +20,10 @@ export async function persistGeneratedChatMetadata(
       const latest = request.result as Chat | undefined;
       if (!latest || !isCurrent() || latest.encrypted_chat_key !== baseline.encrypted_chat_key) return;
       const accepted = { ...filterPatch(patch) };
+      if (accepted.metadata_v !== undefined && (latest.metadata_v ?? 0) > accepted.metadata_v) {
+        updated = latest;
+        return;
+      }
       if (latest.title_v !== baseline.title_v) {
         delete accepted.encrypted_title; delete accepted.title_v;
       }

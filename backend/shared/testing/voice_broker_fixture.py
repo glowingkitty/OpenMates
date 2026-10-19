@@ -9,6 +9,19 @@ REQUEST = "Voice stage two fixture: apply memory and search the web"
 FAILED_REQUEST = "Voice stage two fixture: fail one tool operation"
 
 
+def chat_metadata_fixture(data: dict) -> dict | None:
+    """External metadata model substitute, retaining real admission and storage."""
+    if not isolated_voice_fixture_enabled():
+        return None
+    title = data.get("current_title", "")
+    users = " ".join(row["content"] for row in data["context"]["messages"] if row["role"] == "user")
+    if "ramen" in users.lower():
+        return {"updated_chat_title": None if "ramen" in title.lower() else "Making vegetarian ramen",
+                "chat_summary": "Discussed ramen. Latest request: " + next(row["content"] for row in reversed(data["context"]["messages"]) if row["role"] == "user")[:120]}
+    return {"updated_chat_title": title or "Voice conversation planning",
+            "chat_summary": "Continued the conversation with the latest finalized voice requests and replies."}
+
+
 def selection(data: dict, apps: dict) -> dict | None:
     """Only the exact admitted scenario bypasses paid external routing models."""
     if not isolated_voice_fixture_enabled():

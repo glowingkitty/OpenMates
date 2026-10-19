@@ -1,3 +1,4 @@
+import { initializeVoiceCallMetadata } from "./voiceCallMetadata";
 import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
@@ -2289,6 +2290,8 @@ export class ChatSynchronizationService extends EventTarget {
         );
       }
     });
+
+    initializeVoiceCallMetadata(this);
 
     webSocketService.on("voice_action_completed", (payload) => {
       void import("./voiceCallActions").then(({ handleVoiceActionCompleted }) =>

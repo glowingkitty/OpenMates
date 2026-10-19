@@ -69,3 +69,55 @@ async def run_voice_request(operation_id: str, user_id: str, ciphertext: str) ->
 def voice_call_request(operation_id: str, user_id: str, ciphertext: str) -> None:
     """Execute private voice work; Celery's result backend never sees plaintext."""
     asyncio.run(run_voice_request(operation_id, user_id, ciphertext))
+
+
+async def run_voice_metadata(request_id: str, user_id: str, ciphertext: str) -> None:
+    from backend.shared.python_utils import voice_chat_metadata as metadata
+    from backend.core.api.app.utils.encryption import EncryptionService
+    from backend.core.api.app.services.directus import DirectusService
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+    from backend.shared.python_utils.private_inference_logging import private_inference_logging
+    cache = await celery_config.get_worker_cache_service()
+    encryption = EncryptionService(cache_service=cache)
+    directus = DirectusService(cache_service=cache, encryption_service=encryption)
+    secrets_manager = SecretsManager()
+    try:
+        vault = await metadata._vault(cache, directus, user_id)
+        data = json.loads(await encryption.decrypt_with_user_key(ciphertext, vault))
+        if data.get("request_id") != request_id or data.get("user_id") != user_id or data.get("expires_at", 0) < time.time():
+            raise PermissionError("Metadata envelope binding invalid")
+        await metadata._owned_chat(directus, data["chat_id"], data["user_hash"])
+        client = await cache.client
+        # A redelivery must never pay for the same accepted snapshot twice.
+        if not await client.set(metadata.key("execution", user_id, request_id), "started", ex=metadata.TTL, nx=True):
+            return
+        try:
+            from backend.shared.testing.voice_broker_fixture import chat_metadata_fixture
+            result = chat_metadata_fixture(data)
+            if result is None:
+                from backend.shared.python_utils.billing_utils import ensure_credit_headroom
+                from backend.apps.ai.processing.postprocessor import generate_chat_metadata
+                await ensure_credit_headroom(user_id=user_id, estimated_credits=1,
+                    log_prefix="[VoiceMetadata]", operation_name="chat metadata")
+                await secrets_manager.initialize()
+                profile = await directus.get_user_profile(user_id)
+                language = profile[1].get("language", "en") if profile and profile[0] else "en"
+                with private_inference_logging():
+                    result = await generate_chat_metadata(task_id=request_id,
+                        message_history=data["context"]["messages"],
+                        current_chat_title=data["current_title"] or None,
+                        prior_summary=data["current_summary"] or None,
+                        conversation_checkpoint=data["context"]["summary"] or None,
+                        user_system_language=language, secrets_manager=secrets_manager)
+        except Exception as exc:
+            logger.warning("Voice metadata failed request=%s category=%s", request_id, type(exc).__name__)
+            result = {"error": "metadata_unavailable"}
+        await metadata.publish_result(cache=cache, directus=directus, encryption=encryption, data=data, result=result)
+    finally:
+        await asyncio.gather(directus.close(), secrets_manager.aclose(), return_exceptions=True)
+
+
+@celery_config.app.task(name="apps.ai.tasks.voice_chat_metadata", ignore_result=True)
+def voice_chat_metadata(request_id: str, user_id: str, ciphertext: str) -> None:
+    """Accepted metadata survives call closure; queue/result backend see no plaintext."""
+    asyncio.run(run_voice_metadata(request_id, user_id, ciphertext))

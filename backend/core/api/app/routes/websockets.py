@@ -86,6 +86,8 @@ from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_su
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.call_message_completed_handler import handle_call_message_completed
+from .handlers.websocket_handlers.voice_metadata_handler import handle_voice_metadata
+from backend.shared.python_utils.voice_chat_metadata import send_pending as send_pending_voice_metadata
 from .handlers.websocket_handlers.voice_action_completed_handler import (
     handle_voice_action_completed, send_pending_voice_actions,
 )
@@ -1006,6 +1008,12 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
+                    elif event_type == "voice_metadata_available":
+                        for device_id, connection in manager.get_connections_for_user(user_id).items():
+                            await send_pending_voice_metadata(manager=manager, cache_service=cache_service,
+                                directus_service=app.state.directus_service, encryption_service=app.state.encryption_service,
+                                user_id=user_id, user_id_hash=connection.scope["voice_action_user_hash"],
+                                device_fingerprint_hash=device_id)
                     elif event_type == "voice_action_completed":
                         if not isinstance(payload, dict):
                             continue
@@ -3146,6 +3154,10 @@ async def websocket_endpoint(
             )
         )
 
+    asyncio.create_task(send_pending_voice_metadata(manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=encryption_service,
+        user_id=user_id, user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash))
+
     reconnect_chat_id = manager.get_active_chat(user_id, device_fingerprint_hash)
     if supports_project_file_jobs and reconnect_chat_id:
         asyncio.create_task(
@@ -4332,6 +4344,12 @@ async def websocket_endpoint(
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
+
+            elif message_type in {"voice_metadata_request", "voice_metadata_commit", "voice_metadata_pending"}:
+                await handle_voice_metadata(manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, message_type=message_type, payload=payload)
 
             elif message_type == "call_message_completed":
                 await handle_call_message_completed(

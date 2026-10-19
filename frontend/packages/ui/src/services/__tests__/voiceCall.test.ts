@@ -6,6 +6,9 @@ const persistence = vi.hoisted(() => ({
   lifecycle: vi.fn(async (_event:unknown) => {}), upsert: vi.fn(async () => {}), artifact: vi.fn(async () => {}), prepare: vi.fn(async () => ({ chatId: 'chat-1', history: [] })),
 }));
 const privacy = vi.hoisted(() => ({ ensure: vi.fn(async (_signal:AbortSignal, _gesture:()=>void) => true) }));
+vi.mock('../voiceCallMetadata', () => ({ VoiceCallMetadataScheduler: class {
+  observe = vi.fn(async () => {}); finish = vi.fn();
+} }));
 vi.mock('../voiceCallPrivacy', () => ({ ensureVoiceCallPrivacyAcknowledgement: privacy.ensure }));
 const cues = vi.hoisted(() => ({ prepare: vi.fn(), play: vi.fn(), stop: vi.fn() }));
 vi.mock('../voiceCallCues', () => ({ VoiceCallCuePlayer: class {

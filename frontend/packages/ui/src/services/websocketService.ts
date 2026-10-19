@@ -98,6 +98,8 @@ function summarizeIncomingMessageForLogging(rawMessage: unknown): WebSocketLogSu
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
   // === Client to Server ===
+  | "voice_metadata_request" | "voice_metadata_pending" | "voice_metadata_commit"
+  | "voice_metadata_completed" | "voice_metadata_accepted" | "voice_metadata_stored" | "voice_metadata_error"
   | "update_title" // Section 6.2: Client sends new title
   | "update_draft" // Section 7.2: Client sends new draft (Tiptap JSON or null)
   | "delete_chat" // Client requests to delete a chat
@@ -1506,6 +1508,10 @@ class WebSocketService extends EventTarget {
     // Receipt-bound frames never follow auto-connect onto a replacement socket.
     assertExpectedConnection();
     const message: WebSocketMessage = { type, payload };
+    // Optional metadata contains the call transcript before client encryption.
+    // Admin/debug console forwarding must never retain that payload.
+    const logMessage = type.startsWith("voice_metadata_")
+      ? summarizeIncomingMessageForLogging(message) : message;
     if (!this.isConnected()) {
       if (type !== "ping") {
         console.warn(
@@ -1526,7 +1532,7 @@ class WebSocketService extends EventTarget {
           const logFn = isAuthExpected ? console.warn : console.error;
           logFn(
             "[WebSocketService] Connection failed, cannot send message:",
-            message,
+            logMessage,
           );
         }
         throw new Error("WebSocket not connected");
@@ -1537,7 +1543,7 @@ class WebSocketService extends EventTarget {
     if (this.isConnected()) {
       try {
         if (type !== "ping") {
-          console.debug("[WebSocketService] Sending message:", message);
+          console.debug("[WebSocketService] Sending message:", logMessage);
         }
         // Inject W3C traceparent into the message payload for distributed tracing.
         // The backend's ws_trace_context.py extracts it to create correlated spans.
@@ -1545,11 +1551,12 @@ class WebSocketService extends EventTarget {
           const tracing = await import("./tracing/wsSpans").catch(() => null);
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
-              // These sealed turn frames and personal snapshot requests have a
+              // These sealed turn, voice metadata and personal snapshot requests have a
               // strict payload schema. Keep the local span without decorating
               // their data with an unbound _traceparent field.
               if (!["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
-                "chat_turn_context_failed", "personal_send_context_snapshot"].includes(type)) {
+                "chat_turn_context_failed", "personal_send_context_snapshot",
+                "voice_metadata_request", "voice_metadata_commit"].includes(type)) {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);
               }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -1577,7 +1584,7 @@ class WebSocketService extends EventTarget {
       if (type !== "ping") {
         console.error(
           "[WebSocketService] Still not connected after attempt, cannot send message:",
-          message,
+          logMessage,
         );
       }
       throw new Error("WebSocket not connected after reconnect attempt");

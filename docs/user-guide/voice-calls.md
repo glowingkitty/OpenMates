@@ -18,7 +18,7 @@ the connection is prepared. Your speech and the
 assistant's replies appear as ordinary chat messages. Submitted text, including
 pasted text, reaches the same voice conversation. Both sides of the transcript
 are encrypted in your browser before synchronization and remain available when
-you return to the chat. Call transcripts do not start a separate text response. Spoken transcripts show no
+you return to the chat. Call transcripts do not start a separate text response. After the first substantive exchange, calls create or refresh the chat title and short summary in your interface language. Longer calls refresh them in the background, and ending a call includes any remaining finalized speech. Existing conversation context is retained, fitting titles stay stable, and explicitly edited titles are preserved. Accepted updates can finish after hang-up and recover when you reconnect. Spoken transcripts show no
 generic sending or processing footer. Text you submit shows Sending until accepted.
 
 Calls follow the same OpenMates ethics as text conversations. When you continue

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@7
+specification: feature.video-call@8
 launch:
 - id: start-in-existing-chat
   given: Maya has an existing ramen chat open and is signed in with enough credits.
@@ -263,3 +263,26 @@ providers:
   when: Maya starts a call.
   then: The UI identifies Gemini, unsupported capabilities stay unavailable, and all messages use the same
     chat encryption and identities as future adapters.
+chat_metadata:
+- id: new-call-topic
+  given: Maya starts a new voice chat and asks how to make vegetarian ramen.
+  when: Her first substantive exchange is finalized and saved.
+  then: The chat receives a ramen title and a short summary in her UI language while the call stays connected.
+- id: continue-existing-chat
+  given: Maya continues her trip-planning chat by voice; earlier turns established her budget and dates.
+  when: She discusses another itinerary.
+  then: The summary includes the call in the existing trip context, a fitting trip title stays stable,
+    and a greeting-only call invents no new topic.
+metadata_lifecycle:
+- id: periodic-and-final
+  given: Maya continues a long call after its first metadata update.
+  when: New turns complete during the next minute and she then hangs up after one more finalized user
+    utterance.
+  then: Background refreshes combine new content and the dirty final utterance is included even without
+    a completed assistant reply; audio never waits for metadata.
+- id: recover-with-manual-title
+  given: A metadata update was accepted before Maya disconnects, and she explicitly renames the chat before
+    its result is applied.
+  when: She reconnects after the call has ended.
+  then: The accepted encrypted result is recovered without repeating inference; her manual title and any
+    newer summary or transcript revision win, and normal history remains usable.

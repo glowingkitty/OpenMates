@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 7
+version: 8
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: 'Implement native AI calling in three phases: encrypted ordinary-chat voice and text foundation; app
@@ -371,6 +371,26 @@ assertions:
     identities, encryption, skill authority or persistence semantics.
   depends_on:
   - examples.providers
+- id: video-call.chat.metadata-generation
+  type: behavior
+  must: Voice calls create a concise title and short chat summary after their first substantive finalized
+    exchange, including in previously untitled chats. Existing chats retain relevant earlier context and
+    keep a fitting title; meaningful topic changes may revise automatically generated titles. Titles and
+    short summaries use the user's UI language and the shared text-chat metadata policy. Greetings and
+    empty calls do not invent a topic. Compression checkpoints remain separate from the short overview.
+  depends_on:
+  - examples.chat_metadata
+- id: video-call.chat.metadata-lifecycle
+  type: invariant
+  must: New finalized call content refreshes metadata in the background at most once per minute after
+    the initial update, with a final dirty update on hang-up or disconnect. Finalized user speech can
+    supply a final update when no assistant reply completed. Accepted work and encrypted results survive
+    the live call and can recover on reconnect without another paid generation. Newer transcript revisions,
+    newer chat metadata, key changes and explicit manual title edits take precedence over stale generated
+    results. Failures leave call audio and saved transcripts usable and never launch a second ordinary
+    answer.
+  depends_on:
+  - examples.metadata_lifecycle
 applies_to:
   rest_api:
     required: false
