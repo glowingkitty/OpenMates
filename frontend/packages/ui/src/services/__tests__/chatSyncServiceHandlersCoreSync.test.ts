@@ -16,6 +16,8 @@ import {
 } from "../chatSyncServiceHandlersCoreSync";
 import { activeTeamContext } from "../../stores/teamStore";
 import { userProfile } from "../../stores/userProfile";
+import { websocketStatus } from "../../stores/websocketStatusStore";
+import { invalidateWorkspaceCaches } from "../workspaceCacheLifecycle";
 import { makeDeferredDraftDeleteId } from "../deferredDraftDeleteIntent";
 import type { Chat } from "../../types/chat";
 
@@ -123,6 +125,46 @@ describe("handleOfflineSyncCompleteImpl", () => {
     activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.chatDB.getOfflineChanges.mockResolvedValue([]);
     mocks.chatDB.deleteOfflineChange.mockResolvedValue(undefined);
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it.each(["commit", "abort"])("drains newer edits only after cleanup %s", async (outcome) => {
+    const tx = { oncomplete: null as (() => void) | null, onabort: null as (() => void) | null,
+      onerror: null as (() => void) | null };
+    mocks.chatDB.getTransaction.mockResolvedValue(tx);
+    const sendOfflineChanges = vi.fn().mockResolvedValue(undefined);
+    const service = { dispatchEvent: vi.fn(), sendOfflineChanges } as unknown as ChatSynchronizationService;
+    const batchId = beginOfflineSyncBatch(["accepted"]);
+    await handleOfflineSyncCompleteImpl(service, { batch_id: batchId!, successful_change_ids: ["accepted"],
+      processed: 1, errors: 0, conflicts: 0 });
+    expect(beginOfflineSyncBatch(["accepted", "newer"])).toBeNull();
+    expect(sendOfflineChanges).not.toHaveBeenCalled();
+    if (outcome === "commit") tx.oncomplete?.();
+    else tx.onabort?.();
+    expect(sendOfflineChanges).toHaveBeenCalledTimes(outcome === "commit" ? 1 : 0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,drafts.sync.version-authoritative
+  it.each(["account", "Team epoch", "cache", "socket"])("does not delete queued rows when %s changes while opening its transaction", async (kind) => {
+    let finish!: (value: unknown) => void;
+    mocks.chatDB.getTransaction.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const batchId = beginOfflineSyncBatch(["old-change"]);
+    const receipt = handleOfflineSyncCompleteImpl(service, { batch_id: batchId!,
+      successful_change_ids: ["old-change"], processed: 1, errors: 1, conflicts: 1 });
+    await vi.waitFor(() => expect(mocks.chatDB.getTransaction).toHaveBeenCalledOnce());
+    if (kind === "account") userProfile.update((profile) => ({ ...profile, user_id: "member-2" }));
+    if (kind === "Team epoch") activeTeamContext.set({ team: null, teamId: null, epoch: 1 });
+    if (kind === "cache") invalidateWorkspaceCaches();
+    if (kind === "socket") { websocketStatus.setStatus("disconnected"); websocketStatus.setStatus("connected"); }
+    const tx = { abort: vi.fn() };
+    finish(tx);
+    await receipt;
+    expect(tx.abort).toHaveBeenCalledOnce();
+    expect(mocks.chatDB.deleteOfflineChange).not.toHaveBeenCalled();
+    expect(mocks.notificationStore.warning).not.toHaveBeenCalled();
+    expect(mocks.notificationStore.error).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases

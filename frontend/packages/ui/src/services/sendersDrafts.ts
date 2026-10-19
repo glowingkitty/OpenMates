@@ -126,6 +126,7 @@ async function queueInterruptedDraftUpdate(
 	serviceInstance: ChatSynchronizationService,
 	chat_id: string,
 	draft_content: string | null,
+	draft_preview: string | null | undefined,
 	expectedDraftVersion: number,
 	teamId: string | null,
 	error: unknown
@@ -139,6 +140,7 @@ async function queueInterruptedDraftUpdate(
 		...(teamId ? { team_id: teamId } : {}),
 		type: "draft",
 		value: draft_content,
+		encrypted_draft_preview: draft_preview,
 		version_before_edit: Math.max(0, expectedDraftVersion - 1)
 	};
 	const queueService = serviceInstance as DraftOfflineQueueService;
@@ -237,6 +239,7 @@ export async function sendUpdateDraftImpl(
 				serviceInstance,
 				chat_id,
 				draft_content,
+				draft_preview,
 				expectedDraftVersion,
 				context.teamId,
 				error

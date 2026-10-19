@@ -423,7 +423,7 @@ async def handle_sync_offline_changes(
                     broadcast_payload["last_edited_overall_timestamp"] = now_ts
 
                 await manager.broadcast_to_user(
-                    message_content=broadcast_payload,
+                    message=broadcast_payload,
                     user_id=user_id,
                     exclude_device_hash=None # Notify all devices, including the one that sent the offline changes
                 )

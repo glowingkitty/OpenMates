@@ -8,6 +8,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { activeTeamContext } from "../../stores/teamStore";
 import { userProfile } from "../../stores/userProfile";
 import { consumeOfflineSyncBatch } from "../offlineSyncBatch";
+import { websocketStatus } from "../../stores/websocketStatusStore";
+import { invalidateWorkspaceCaches } from "../workspaceCacheLifecycle";
 
 const { sendMessage, getOfflineChanges, getRawChat, addOfflineChange, info } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
@@ -21,14 +23,6 @@ vi.mock("../websocketService", () => ({
   webSocketService: { sendMessage },
 }));
 vi.mock("../db", () => ({ chatDB: { getOfflineChanges, getRawChat, addOfflineChange } }));
-vi.mock("../../stores/websocketStatusStore", () => ({
-  websocketStatus: {
-    subscribe: (run: (value: { status: string }) => void) => {
-      run({ status: "connected" });
-      return () => undefined;
-    },
-  },
-}));
 vi.mock("../../stores/notificationStore", () => ({
   notificationStore: { info },
 }));
@@ -43,6 +37,7 @@ import {
 describe("sendersSync Team context", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    websocketStatus.setStatus("connected");
     userProfile.update((profile) => ({ ...profile, user_id: "user-1" }));
     activeTeamContext.set({ team: null, teamId: "team-1", epoch: 8 });
     getRawChat.mockImplementation(async (chatId: string) => ({
@@ -128,5 +123,53 @@ describe("sendersSync Team context", () => {
     finishLookup({ chat_id: "chat-1", team_id: "team-1", messages_v: 1 });
     await expect(pending).rejects.toThrow("Draft workspace changed");
     expect(addOfflineChange).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,drafts.sync.version-authoritative
+  it.each(["account", "Team epoch", "cache", "socket"])("retains the whole batch when %s changes after an earlier row lookup", async (kind) => {
+    getOfflineChanges.mockResolvedValue([1, 2].map((order) => ({ change_id: `change-${order}`,
+      chat_id: "chat-1", team_id: "team-1", type: "draft", value: `cipher-${order}`,
+      version_before_edit: order, queue_order: order })));
+    let finish!: (value: unknown) => void;
+    getRawChat.mockResolvedValueOnce({ chat_id: "chat-1", team_id: "team-1", messages_v: 1 });
+    getRawChat.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const sending = sendOfflineChangesImpl();
+    await vi.waitFor(() => expect(getRawChat).toHaveBeenCalledTimes(2));
+    if (kind === "account") userProfile.update((profile) => ({ ...profile, user_id: "user-2" }));
+    if (kind === "Team epoch") activeTeamContext.set({ team: null, teamId: "team-1", epoch: 9 });
+    if (kind === "cache") invalidateWorkspaceCaches();
+    if (kind === "socket") { websocketStatus.setStatus("disconnected"); websocketStatus.setStatus("connected"); }
+    finish({ chat_id: "chat-1", team_id: "team-1", messages_v: 1 });
+    await sending;
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it("sends durable edit order rather than UUID key order and keeps encrypted previews", async () => {
+    const changes = [3, 2, 1].map((order) => ({ change_id: `change-${4 - order}`,
+      chat_id: "chat-1", team_id: "team-1", type: "draft", value: `cipher-${order}`,
+      encrypted_draft_preview: `preview-${order}`, version_before_edit: order, queue_order: order }));
+    getOfflineChanges.mockResolvedValue(changes);
+    sendMessage.mockResolvedValue(undefined);
+    await sendOfflineChangesImpl();
+    const payload = sendMessage.mock.calls[0][1];
+    expect(payload.changes.map((change: { queue_order: number }) => change.queue_order)).toEqual([1, 2, 3]);
+    expect(payload.changes[2].encrypted_draft_preview).toBe("preview-3");
+    consumeOfflineSyncBatch(payload.batch_id, changes.map((change) => change.change_id));
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,drafts.persistence.local-first-encrypted
+  it.each(["account", "cache"])("does not enqueue an old draft after %s changes during lookup", async (kind) => {
+    let finish!: (value: unknown) => void;
+    getRawChat.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const queuing = queueOfflineChangeImpl({} as never, { chat_id: "chat-1", team_id: "team-1",
+      type: "draft", value: "old-account-cipher", version_before_edit: 2 });
+    if (kind === "account") userProfile.update((profile) => ({ ...profile, user_id: "user-2" }));
+    else invalidateWorkspaceCaches();
+    finish({ chat_id: "chat-1", team_id: "team-1", messages_v: 1 });
+    if (kind === "account") await expect(queuing).rejects.toThrow("Draft workspace changed");
+    else await queuing;
+    expect(addOfflineChange).not.toHaveBeenCalled();
+    expect(info).not.toHaveBeenCalled();
   });
 });

@@ -1538,6 +1538,7 @@ export const saveDraftDebounced = debounce(
           ...(draftTeamContext.teamId ? { team_id: draftTeamContext.teamId } : {}),
           type: "draft",
           value: encryptedMarkdown,
+          encrypted_draft_preview: encryptedPreview,
           version_before_edit: versionBeforeSave,
         };
         await chatSyncService.queueOfflineChange(offlineChange);

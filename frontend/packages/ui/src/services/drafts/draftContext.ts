@@ -107,6 +107,7 @@ export async function promoteDeferredTeamDraft(
     await service.queueOfflineChange({
       chat_id: chatId, team_id: active.teamId, type: "draft",
       value: draft.cipher,
+      encrypted_draft_preview: latest.encrypted_draft_preview,
       version_before_edit: Math.max(0, draft.version - 1),
     });
     await clearTeamDraftIntent(chatId, context, "update", draft);

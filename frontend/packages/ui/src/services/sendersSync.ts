@@ -17,7 +17,9 @@ import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { activeTeamContext } from "../stores/teamStore";
 import { resolveDraftChatContext, isDraftChatContextCurrent } from "./drafts/draftContext";
-import { beginOfflineSyncBatch, cancelOfflineSyncBatch } from "./offlineSyncBatch";
+import { beginOfflineSyncBatch, cancelOfflineSyncBatch, captureOfflineSyncContext,
+	isOfflineSyncContextCurrent, isOfflineSyncWorkspaceCurrent } from "./offlineSyncBatch";
+import { orderOfflineChanges } from "./offlineChangeOrder";
 import { isDeferredDraftDeleteFencedNow, mayReplayDeferredDraftDelete,
 	parseDeferredDraftDeleteId } from "./deferredDraftDeleteIntent";
 import { draftEditorUIState } from "./drafts/draftState";
@@ -343,16 +345,19 @@ export async function queueOfflineChangeImpl(
 	serviceInstance: ChatSynchronizationService,
 	change: Omit<OfflineChange, "change_id">
 ): Promise<void> {
+	const queueContext = captureOfflineSyncContext();
 	if (change.type === "draft" || change.type === "delete_draft") {
 		const context = await resolveDraftChatContext(change.chat_id);
 		if ((change.team_id ?? null) !== context.teamId || !isDraftChatContextCurrent(context)) return;
 		if (context.teamId && !context.committed) return;
 	}
+	if (!isOfflineSyncWorkspaceCurrent(queueContext)) return;
 	const fullChange: OfflineChange = {
 		...change,
 		change_id: crypto.randomUUID()
 	};
 	await chatDB.addOfflineChange(fullChange);
+	if (!isOfflineSyncWorkspaceCurrent(queueContext)) return;
 	notificationStore.info(`Change saved offline. Will sync when reconnected.`, 3000);
 }
 
@@ -363,12 +368,15 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 		);
 		return;
 	}
+	const sendContext = captureOfflineSyncContext();
 	const changes = await chatDB.getOfflineChanges();
+	if (!isOfflineSyncContextCurrent(sendContext)) return;
 	if (changes.length === 0) return;
 	const eligible: OfflineChange[] = [];
 	for (const change of changes) {
 		try {
 			const context = await resolveDraftChatContext(change.chat_id);
+			if (!isOfflineSyncContextCurrent(sendContext)) return;
 			if (!isDraftChatContextCurrent(context)) continue;
 			if ((change.team_id ?? null) !== context.teamId) continue;
 			if (context.teamId && !context.committed) continue;
@@ -396,19 +404,27 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 				(local.draft_v ?? 0) === 0;
 		} catch { return false; }
 	}));
-	const ready = eligible.filter((change, index) => {
+	if (!isOfflineSyncContextCurrent(sendContext)) return;
+	const current = eligible.filter((change, index) => {
 		if (!refreshed[index]) return false;
 		if (!parseDeferredDraftDeleteId(change.change_id)) return true;
 		const editor = get(draftEditorUIState);
 		return !isDeferredDraftDeleteFencedNow(change.change_id, change.chat_id) &&
 			!(editor.currentChatId === change.chat_id && editor.hasUnsavedChanges);
 	});
+	const { ready, retainedCount } = orderOfflineChanges(current);
+	if (retainedCount > 0) console.warn(
+		`[ChatSyncService:Senders] Retaining ${retainedCount} offline changes with ambiguous edit order.`
+	);
 	if (ready.length === 0) return;
+	if (!isOfflineSyncContextCurrent(sendContext) || get(websocketStatus).status !== "connected") return;
 	const batchId = beginOfflineSyncBatch(
 		ready.map((change) => change.change_id),
 		ready.filter((change) => change.type === "delete_draft" &&
 			!!parseDeferredDraftDeleteId(change.change_id))
 			.map((change) => change.change_id),
+		new Map(ready.map((change) => [change.change_id,
+			{ queueOrder: change.queue_order, queueToken: change.queue_token }])),
 	);
 	if (!batchId) return;
 	notificationStore.info(

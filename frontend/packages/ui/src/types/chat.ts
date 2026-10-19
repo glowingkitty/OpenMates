@@ -639,10 +639,15 @@ export interface ChatListItem {
 
 export interface OfflineChange {
   change_id: string;
+  // Positive safe integer assigned atomically when this row enters the queue.
+  // Older queued rows may not have an insertion order.
+  queue_order?: number;
+  queue_token?: string;
   chat_id: string;
   team_id?: string | null;
   type: "title" | "draft" | "delete_draft";
   value: string | TiptapJSON | null;
+  encrypted_draft_preview?: string | null;
   version_before_edit: number;
 }
 

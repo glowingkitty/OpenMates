@@ -197,7 +197,7 @@ describe("sendUpdateDraftImpl", () => {
       queueOfflineChange: vi.fn().mockResolvedValue(undefined),
       sendOfflineChanges: vi.fn().mockResolvedValue(undefined),
     };
-    const receipt = sendUpdateDraftImpl(service as never, "chat-1", "cipher-md", null, 1);
+    const receipt = sendUpdateDraftImpl(service as never, "chat-1", "cipher-md", "cipher-preview", 1);
 
     await vi.waitFor(() => expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("update_draft", expect.any(Object)));
     mocks.emitStatus("reconnecting");
@@ -209,6 +209,7 @@ describe("sendUpdateDraftImpl", () => {
       chat_id: "chat-1",
       type: "draft",
       value: "cipher-md",
+      encrypted_draft_preview: "cipher-preview",
       version_before_edit: 0,
     });
     expect(service.sendOfflineChanges).not.toHaveBeenCalled();

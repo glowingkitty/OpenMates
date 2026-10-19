@@ -28,7 +28,7 @@ async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encrypt
   return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
 }
 import { isActiveTeamContext } from "../stores/teamStore";
-import { consumeOfflineSyncBatch } from "./offlineSyncBatch";
+import { captureOfflineSyncContext, consumeOfflineSyncBatch, finishOfflineSyncBatch, isOfflineSyncContextCurrent } from "./offlineSyncBatch";
 import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type {
@@ -1348,20 +1348,30 @@ export async function handleOfflineSyncCompleteImpl(
   serviceInstance: ChatSynchronizationService,
   payload: OfflineSyncCompletePayload,
 ): Promise<void> {
-  chatSyncActivity.completeOffline();
+  const receiptContext = captureOfflineSyncContext();
   console.info(
     "[ChatSyncService:CoreSync] Received offline_sync_complete",
   );
   const result = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], {
     processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts,
-  });
+  }, true);
   if (!result) return;
+  chatSyncActivity.completeOffline();
+  const finish = (allowReplay: boolean) => {
+    const retry = finishOfflineSyncBatch(payload.batch_id);
+    if (retry && allowReplay && isOfflineSyncContextCurrent(receiptContext)) {
+      void serviceInstance.sendOfflineChanges().catch((error) => {
+        console.error("[ChatSyncService:CoreSync] Deferred offline replay failed:", error);
+      });
+    }
+  };
   const idsToDelete = [...result.successfulIds, ...result.retiredConflictIds];
   const visibleConflicts = Math.max(0, payload.conflicts - result.retiredConflictIds.length);
   if (idsToDelete.length === 0) {
     if (payload.errors > 0) notificationStore.error(`Offline sync: ${payload.errors} changes could not be applied.`);
     if (visibleConflicts > 0) notificationStore.warning(`Offline sync: ${visibleConflicts} changes had conflicts.`);
     serviceInstance.dispatchEvent(new CustomEvent("offlineSyncProcessed", { detail: payload }));
+    finish(true);
     return;
   }
   let tx: IDBTransaction | null = null;
@@ -1370,10 +1380,26 @@ export async function handleOfflineSyncCompleteImpl(
       chatDB["OFFLINE_CHANGES_STORE_NAME"],
       "readwrite",
     );
+    if (!isOfflineSyncContextCurrent(receiptContext)) {
+      tx.abort();
+      finish(false);
+      return;
+    }
     for (const changeId of idsToDelete) {
-      await chatDB.deleteOfflineChange(changeId, tx);
+      if (result.submittedOrders?.has(changeId)) {
+        await chatDB.deleteOfflineChange(changeId, tx, result.submittedOrders.get(changeId));
+      } else {
+        await chatDB.deleteOfflineChange(changeId, tx);
+      }
+      if (!isOfflineSyncContextCurrent(receiptContext)) {
+        tx.abort();
+        finish(false);
+        return;
+      }
     }
     tx.oncomplete = () => {
+      finish(true);
+      if (!isOfflineSyncContextCurrent(receiptContext)) return;
       if (payload.errors > 0)
         notificationStore.error(
           `Offline sync: ${payload.errors} changes could not be applied.`,
@@ -1386,7 +1412,10 @@ export async function handleOfflineSyncCompleteImpl(
         new CustomEvent("offlineSyncProcessed", { detail: payload }),
       );
     };
+    tx.onabort = () => finish(false);
+    tx.onerror = () => finish(false);
   } catch (error) {
+    finish(false);
     console.error(
       "[ChatSyncService:CoreSync] Error in handleOfflineSyncCompleteImpl:",
       error,

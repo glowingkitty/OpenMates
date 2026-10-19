@@ -1,13 +1,40 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import { activeTeamContext } from "../../stores/teamStore";
 import { userProfile } from "../../stores/userProfile";
-import { beginOfflineSyncBatch, consumeOfflineSyncBatch } from "../offlineSyncBatch";
+import { beginOfflineSyncBatch, consumeOfflineSyncBatch, finishOfflineSyncBatch } from "../offlineSyncBatch";
 
 describe("offline draft sync batch acknowledgements", () => {
   beforeEach(() => {
     userProfile.update((profile) => ({ ...profile, user_id: "member-1" }));
     activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it("reserves acknowledged rows through cleanup and schedules newer edits afterwards", () => {
+    const original = beginOfflineSyncBatch(["original"]);
+    expect(consumeOfflineSyncBatch(original!, ["original"], { processed: 1, errors: 0, conflicts: 0 }, true))
+      .toEqual({ successfulIds: ["original"], retiredConflictIds: [] });
+    expect(consumeOfflineSyncBatch(original!, ["original"])).toBeNull();
+    expect(beginOfflineSyncBatch(["original", "newer"])).toBeNull();
+    expect(finishOfflineSyncBatch(original!)).toBe(true);
+    const next = beginOfflineSyncBatch(["newer"]);
+    expect(next).not.toBeNull();
+    expect(consumeOfflineSyncBatch(next!, ["newer"])).toEqual(["newer"]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it("keeps a slow receipt bound instead of resubmitting accepted rows after ten seconds", () => {
+    const time = vi.spyOn(Date, "now").mockReturnValue(1000);
+    try {
+      const original = beginOfflineSyncBatch(["accepted-but-slow"]);
+      time.mockReturnValue(12000);
+      expect(beginOfflineSyncBatch(["accepted-but-slow", "newer-local-edit"])).toBeNull();
+      expect(consumeOfflineSyncBatch(original!, ["accepted-but-slow"])).toEqual(["accepted-but-slow"]);
+      const next = beginOfflineSyncBatch(["newer-local-edit"]);
+      expect(next).not.toBeNull();
+      expect(consumeOfflineSyncBatch(next!, ["newer-local-edit"])).toEqual(["newer-local-edit"]);
+    } finally { time.mockRestore(); }
   });
 
   // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,drafts.sync.version-authoritative

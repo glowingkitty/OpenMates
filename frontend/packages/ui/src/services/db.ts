@@ -2494,8 +2494,9 @@ class ChatDatabase {
   async deleteOfflineChange(
     change_id: string,
     transaction?: IDBTransaction,
+    expected?: { queueOrder: number | undefined; queueToken?: string },
   ): Promise<void> {
-    return offlineOps.deleteOfflineChange(this, change_id, transaction);
+    return offlineOps.deleteOfflineChange(this, change_id, transaction, expected);
   }
 
   // ============================================================================

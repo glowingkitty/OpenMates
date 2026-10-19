@@ -34,31 +34,81 @@ interface ChatDatabaseInstance {
 // Store name constants (must match db.ts)
 const OFFLINE_CHANGES_STORE_NAME = "pending_sync_changes";
 
+// Multiple calls sharing one caller-owned transaction can queue their reads
+// before either put. Reserve their orders until that transaction is collected.
+const offlineOrdersByTransaction = new WeakMap<IDBTransaction, number>();
+
 // ============================================================================
 // OFFLINE CHANGES OPERATIONS
 // ============================================================================
 
 /**
- * Add an offline change to the sync queue
+ * Add an offline change to the sync queue with durable insertion order.
+ * IndexedDB serializes readwrite transactions on this store across tabs, so the
+ * maximum read and the write must stay in the same transaction.
  */
 export async function addOfflineChange(
   dbInstance: ChatDatabaseInstance,
   change: OfflineChange,
   transaction?: IDBTransaction,
 ): Promise<void> {
+  const epoch = getWorkspaceCacheEpoch();
+  const contextChanged = () => epoch !== getWorkspaceCacheEpoch()
+    || get(forcedLogoutInProgress) || get(isLoggingOut);
+  if (contextChanged()) throw new Error("Offline change workspace changed");
   await dbInstance.init();
+  if (contextChanged()) throw new Error("Offline change workspace changed");
   const currentTransaction =
     transaction ||
     (await dbInstance.getTransaction(OFFLINE_CHANGES_STORE_NAME, "readwrite"));
+  if (contextChanged()) {
+    currentTransaction.abort();
+    throw new Error("Offline change workspace changed");
+  }
   return new Promise((resolve, reject) => {
     const store = currentTransaction.objectStore(OFFLINE_CHANGES_STORE_NAME);
-    const request = store.put(change);
-    request.onsuccess = () => { if (transaction) resolve(); };
+    const request = store.getAll();
     request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      if (contextChanged()) {
+        reject(new Error("Offline change workspace changed"));
+        currentTransaction.abort();
+        return;
+      }
+      let maximumOrder = offlineOrdersByTransaction.get(currentTransaction) ?? 0;
+      for (const queued of request.result as OfflineChange[]) {
+        const order = queued.queue_order;
+        if (typeof order === "number" && Number.isSafeInteger(order) && order > 0) {
+          maximumOrder = Math.max(maximumOrder, order);
+        }
+      }
+      if (maximumOrder === Number.MAX_SAFE_INTEGER) {
+        reject(new Error("Offline change queue insertion order exhausted"));
+        currentTransaction.abort();
+        return;
+      }
+      try {
+        // Queue synchronously in the read callback to keep the transaction
+        // active. Replacing a change_id is a new insertion: its content may have
+        // changed, so retaining its older order could replay it too early.
+        const write = store.put({ ...change, queue_order: maximumOrder + 1, queue_token: crypto.randomUUID() });
+        offlineOrdersByTransaction.set(currentTransaction, maximumOrder + 1);
+        write.onsuccess = () => { if (transaction) resolve(); };
+        write.onerror = () => reject(write.error);
+      } catch (error) {
+        reject(error);
+        currentTransaction.abort();
+      }
+    };
     if (!transaction) {
       currentTransaction.oncomplete = () => resolve();
       currentTransaction.onerror = () => reject(currentTransaction.error);
       currentTransaction.onabort = () => reject(currentTransaction.error ?? new Error("Offline change save aborted"));
+    } else {
+      // The caller owns commit acknowledgement and its event properties.
+      currentTransaction.addEventListener("abort", () => reject(
+        currentTransaction.error ?? new Error("Offline change save aborted"),
+      ), { once: true });
     }
   });
 }
@@ -89,6 +139,7 @@ export async function deleteOfflineChange(
   dbInstance: ChatDatabaseInstance,
   change_id: string,
   transaction?: IDBTransaction,
+  expected?: { queueOrder: number | undefined; queueToken?: string },
 ): Promise<void> {
   await dbInstance.init();
   const currentTransaction =
@@ -96,12 +147,25 @@ export async function deleteOfflineChange(
     (await dbInstance.getTransaction(OFFLINE_CHANGES_STORE_NAME, "readwrite"));
   return new Promise((resolve, reject) => {
     const store = currentTransaction.objectStore(OFFLINE_CHANGES_STORE_NAME);
-    const request = store.delete(change_id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    const remove = () => {
+      const request = store.delete(change_id);
+      request.onsuccess = () => { if (transaction) resolve(); };
+      request.onerror = () => reject(request.error);
+    };
+    if (expected) {
+      const read = store.get(change_id);
+      read.onerror = () => reject(read.error);
+      read.onsuccess = () => {
+        // A late ACK must not delete a replacement saved under the same ID.
+        if (read.result && read.result.queue_order === expected.queueOrder &&
+          read.result.queue_token === expected.queueToken) remove();
+        else if (transaction) resolve();
+      };
+    } else remove();
     if (!transaction) {
       currentTransaction.oncomplete = () => resolve();
       currentTransaction.onerror = () => reject(currentTransaction.error);
+      currentTransaction.onabort = () => reject(currentTransaction.error ?? new Error("Offline change removal aborted"));
     }
   });
 }

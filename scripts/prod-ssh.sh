@@ -92,6 +92,21 @@ cmd_open() {
     command -v expect >/dev/null 2>&1 || \
         die "expect is not installed. Run: sudo apt install -y expect"
 
+    # An expired/crashed master can leave its socket pathname behind. OpenSSH
+    # otherwise authenticates successfully but disables multiplexing, leaving
+    # an unusable background connection instead of replacing the dead socket.
+    if [[ -e "$SOCK" || -L "$SOCK" ]]; then
+        [[ -S "$SOCK" && -O "$SOCK" && ! -L "$SOCK" ]] || \
+            die "Control path is not an owned Unix socket; leaving it unchanged."
+        if ! master_active; then
+            log "Removing stale control socket before authentication."
+            rm -- "$SOCK"
+        else
+            log "Master connection already active — nothing to do."
+            return 0
+        fi
+    fi
+
     log "Opening master connection to ${PROD_SSH_USER}@${PROD_SSH_HOST}"
     log "Prod-side temp-ssh-access window must be open (see scripts/temp-ssh-access.sh)."
 

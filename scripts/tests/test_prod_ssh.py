@@ -4,6 +4,7 @@
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import tempfile
 import unittest
@@ -57,6 +58,9 @@ class ProdSshTests(unittest.TestCase):
             "        print('private failure dummy-password-$literal 123456', flush=True)\n"
             "        sys.exit(255)\n"
             "    if scenario == 'success':\n"
+            "        control = next(arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('ControlPath='))\n"
+            "        if pathlib.Path(control).exists():\n"
+            "            sys.exit(0)  # OpenSSH disables multiplexing when the socket path already exists.\n"
             "        (root / 'active').touch()\n"
             "    sys.exit(0)\n"
             "print(scenario, flush=True)\n"
@@ -84,6 +88,39 @@ class ProdSshTests(unittest.TestCase):
         result, output = self.run_open("success")
         self.assertEqual(result.returncode, 0, output)
         self.assertIn("Master connection established", output)
+
+    def stale_socket(self):
+        path = self.root / ".ssh/prod-ssh-sockets/test@test.invalid.sock"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+            listener.bind(str(path))
+        return path
+
+    def test_stale_control_socket_allows_reconnection(self):
+        path = self.stale_socket()
+        result, output = self.run_open("success")
+        self.assertEqual(result.returncode, 0, output)
+        self.assertFalse(path.exists())
+        self.assertIn("Removing stale control socket", output)
+
+    def test_active_master_socket_is_preserved(self):
+        path = self.stale_socket()
+        (self.root / "active").touch()
+        result, output = self.run_open("success")
+        self.assertEqual(result.returncode, 0, output)
+        self.assertTrue(path.exists())
+        self.assertIn("already active", output)
+        self.assertFalse((self.root / "submissions").exists())
+
+    def test_non_socket_control_path_is_preserved_without_authentication(self):
+        path = self.root / ".ssh/prod-ssh-sockets/test@test.invalid.sock"
+        path.parent.mkdir(parents=True)
+        path.write_text("keep")
+        result, output = self.run_open("success")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not an owned Unix socket", output)
+        self.assertEqual(path.read_text(), "keep")
+        self.assertFalse((self.root / "submissions").exists())
 
     def test_unclassified_eof_reports_exit_and_prompt_count(self):
         result, output = self.run_open("eof")
