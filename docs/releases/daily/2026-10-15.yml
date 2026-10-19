@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-15'
-generated_at: '2026-10-16T00:20:30+00:00'
+generated_at: '2026-10-19T00:47:19+00:00'
 range:
   since: '2026-10-15T00:00:00+00:00'
   until: '2026-10-16T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 0
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 25
   user_facing_items: 26
-  dev_only_items: 32
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -198,16 +198,16 @@ sections:
     - specifications/features/marketing-landing/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix: answer selected Project catalog requests in CLI'
     section: bug_fixes
@@ -220,16 +220,16 @@ sections:
     - frontend/packages/openmates-cli/src/client.ts
     - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve Project reads when edits are prohibited'
     section: bug_fixes
     commits:
@@ -241,9 +241,9 @@ sections:
     - backend/tests/test_project_focus_requests.py
     - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -258,7 +258,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: decode cached Focus authority mappings correctly'
     section: bug_fixes
     commits:
@@ -268,7 +268,7 @@ sections:
     - backend/shared/python_utils/focus_continuation_history.py
     - backend/tests/test_focus_authority_lifecycle.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -276,7 +276,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: retain canonical chat receipts for completed follow-ups'
     section: bug_fixes
     commits:
@@ -293,16 +293,16 @@ sections:
     - frontend/packages/ui/src/services/sendersChatMessages.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve chat authority throughout Focus continuation'
     section: bug_fixes
     commits:
@@ -322,9 +322,9 @@ sections:
     - backend/tests/test_focus_continuation_history.py
     - backend/tests/test_main_processor_invalid_tool_calls.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -339,7 +339,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: select recovery fixture for saved follow-up regression'
     section: bug_fixes
     commits:
@@ -348,7 +348,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -356,7 +356,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve focus continuation authority and speech lifecycle'
     section: bug_fixes
     commits:
@@ -369,9 +369,9 @@ sections:
     - backend/tests/test_assistant_speech_streaming.py
     - backend/tests/test_recent_work_summary_cache.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -386,7 +386,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep landing animations above mobile controls'
     section: bug_fixes
     commits:
@@ -398,16 +398,16 @@ sections:
     - frontend/packages/public-site/src/components/landing/LandingPage.svelte
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: publish real web research with saved thinking'
     section: bug_fixes
     commits:
@@ -462,9 +462,9 @@ sections:
     - scripts/tests/create_example_chat_from_share.test.mjs
     - scripts/tests/extract_shared_chat.test.mjs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -486,7 +486,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: repair example composer focus and recipe options'
     section: bug_fixes
     commits:
@@ -509,16 +509,16 @@ sections:
     - frontend/packages/ui/src/components/interactive_questions/__tests__/questionnaireSourceContext.test.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: polish public sections and restore guest workspace parity'
     section: bug_fixes
     commits:
@@ -571,8 +571,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -588,7 +588,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
   - title: 'fix: activate verified newsletter S3 images'
     section: bug_fixes
     commits:
@@ -604,16 +605,16 @@ sections:
     - docs/architecture/newsletter-delivery.md
     - frontend/apps/web_app/tests/newsletter-flow.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: seed replay fixtures from verified candidate'
     section: bug_fixes
     commits:
@@ -622,7 +623,7 @@ sections:
     changed_paths:
     - scripts/ci_environment.py
     - scripts/tests/test_ci_environment.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -630,7 +631,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: handle absent preprocessing debug metadata'
     section: bug_fixes
     commits:
@@ -641,9 +642,9 @@ sections:
     - backend/tests/test_orchestrated_terminal_failure.py
     - docs/plans/landing-example-reliability/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -658,7 +659,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: admit authorized primary read into synthesis catalog'
     section: bug_fixes
     commits:
@@ -669,9 +670,9 @@ sections:
     - backend/tests/test_delegated_primary_read.py
     - docs/plans/landing-example-reliability/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -686,7 +687,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: read bound primary sources during root synthesis'
     section: bug_fixes
     commits:
@@ -699,9 +700,9 @@ sections:
     - backend/tests/test_stream_consumer_recovery.py
     - docs/plans/landing-example-reliability/plan.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -716,7 +717,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: require exact primary evidence in research'
     section: bug_fixes
     commits:
@@ -769,9 +770,9 @@ sections:
     - frontend/packages/ui/src/i18n/locales/zh.json
     - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:web
@@ -786,7 +787,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: synthesize research in parent with an evidence ledger'
     section: bug_fixes
     commits:
@@ -845,9 +846,9 @@ sections:
     - frontend/packages/ui/src/i18n/locales/zh.json
     - frontend/packages/ui/src/i18n/sources/focus_modes/web_research.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -869,7 +870,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reserve a bounded primary read request'
     section: bug_fixes
     commits:
@@ -880,9 +881,9 @@ sections:
     - backend/apps/ai/processing/main_processor.py
     - backend/tests/test_delegated_primary_read.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -897,7 +898,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: fit research reasoning and require a source read'
     section: bug_fixes
     commits:
@@ -910,9 +911,9 @@ sections:
     - backend/tests/test_main_processor_invalid_tool_calls.py
     - backend/tests/test_orchestrated_ai_output_fit.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -927,7 +928,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: enforce research evidence and honest output-limit failures'
     section: bug_fixes
     commits:
@@ -998,9 +999,9 @@ sections:
     - specifications/architecture/app-skill-execution/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1022,7 +1023,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: fit orchestrated output to affordable budget'
     section: bug_fixes
     commits:
@@ -1033,9 +1034,9 @@ sections:
     - backend/tests/test_orchestrated_ai_checkpoint.py
     - backend/tests/test_orchestrated_ai_output_fit.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1050,7 +1051,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: cache public SVG icons and publish reviewed Design example'
     section: bug_fixes
     commits:
@@ -1087,16 +1088,16 @@ sections:
     - frontend/packages/ui/src/i18n/sources/example_chats/dashboard_sidebar_svg_icons.yml
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reserve research AI usage and fail budget-denied children'
     section: bug_fixes
     commits:
@@ -1113,9 +1114,9 @@ sections:
     - backend/tests/test_orchestrated_ai_checkpoint.py
     - backend/tests/test_orchestrated_terminal_failure.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1130,7 +1131,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf: accelerate saved admission and bounded encrypted recovery'
     section: improvements
@@ -1164,16 +1165,16 @@ sections:
     - frontend/packages/ui/src/services/savedPersonalAdmissionHistory.ts
     - frontend/packages/ui/src/services/sendersChatMessages.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
     section: improvements
     commits:
@@ -1193,16 +1194,16 @@ sections:
     - frontend/packages/ui/src/services/initialChatHistoryGate.ts
     - frontend/packages/ui/src/services/sendersChatMessages.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
     section: improvements
     commits:
@@ -1219,16 +1220,16 @@ sections:
     - frontend/packages/openmates-cli/tests/foregroundChatRecovery.test.ts
     - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: remove foreground chat discovery and recovery barriers'
     section: improvements
     commits:
@@ -1283,9 +1284,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1300,7 +1301,7 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: record measured chat architecture and remaining timing gaps'
     section: docs
@@ -1310,7 +1311,7 @@ sections:
     changed_paths:
     - docs/plans/chat-processing-next-stage/implemented-flow.md
     - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1318,7 +1319,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: preserve default routing for example sources'
     section: docs
     commits:
@@ -1326,7 +1327,7 @@ sections:
     authored_at: '2026-10-15T08:53:15+00:00'
     changed_paths:
     - docs/plans/landing-example-reliability/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1334,7 +1335,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: isolate composite recovery verification'
     section: tests
@@ -1345,7 +1346,7 @@ sections:
     - scripts/ci_coordinator.py
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_case_filter.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1353,384 +1354,27 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure: []
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: answer selected Project catalog requests in CLI'
-    commits:
-    - 6ee143c7f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve Project reads when edits are prohibited'
-    commits:
-    - 6eec78025
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: decode cached Focus authority mappings correctly'
-    commits:
-    - ab02b5e8d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: retain canonical chat receipts for completed follow-ups'
-    commits:
-    - 9eb007a21
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: preserve chat authority throughout Focus continuation'
-    commits:
-    - 94986e159
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: select recovery fixture for saved follow-up regression'
-    commits:
-    - 9568a640d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve focus continuation authority and speech lifecycle'
-    commits:
-    - 1f6d41eb9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
-    commits:
-    - ba4fb03d9
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep landing animations above mobile controls'
-    commits:
-    - 5eedd82ad
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
-    commits:
-    - dd1544f5c
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs: record measured chat architecture and remaining timing gaps'
-    commits:
-    - 6b9fd8607
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
-    commits:
-    - ba8654432
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: remove foreground chat discovery and recovery barriers'
-    commits:
-    - d5913cf46
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'feat: refine landing section replays and device media'
-    commits:
-    - e3b567b7c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: publish real web research with saved thinking'
-    commits:
-    - d186db0f6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix: repair example composer focus and recipe options'
-    commits:
-    - a5a219896
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: isolate composite recovery verification'
-    commits:
-    - 50cb7bd53
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: polish public sections and restore guest workspace parity'
-    commits:
-    - 5e92c48b1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: activate verified newsletter S3 images'
-    commits:
-    - 143abde73
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: seed replay fixtures from verified candidate'
-    commits:
-    - 5bdff6636
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: preserve default routing for example sources'
-    commits:
-    - 0bb14fbbf
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: handle absent preprocessing debug metadata'
-    commits:
-    - 14461e57a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: admit authorized primary read into synthesis catalog'
-    commits:
-    - e5cef4999
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: read bound primary sources during root synthesis'
-    commits:
-    - 51f7638f9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: require exact primary evidence in research'
-    commits:
-    - 2ced3b80a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix: synthesize research in parent with an evidence ledger'
-    commits:
-    - aad3ef8b9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix: reserve a bounded primary read request'
-    commits:
-    - 2e1f371d2
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: fit research reasoning and require a source read'
-    commits:
-    - 45cd14cd0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: enforce research evidence and honest output-limit failures'
-    commits:
-    - ed3f57adc
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'fix: fit orchestrated output to affordable budget'
-    commits:
-    - 1b2c4bdc7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: cache public SVG icons and publish reviewed Design example'
-    commits:
-    - 1bfcad817
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: reserve research AI usage and fail budget-denied children'
-    commits:
-    - 3f2013087
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'perf: accelerate saved admission and bounded encrypted recovery'
     commits:
     - ba4fb03d9
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix: publish real web research with saved thinking'
     commits:
     - d186db0f6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1750,8 +1394,8 @@ unreleased_progress:
     commits:
     - ed3f57adc
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1768,22 +1412,20 @@ unreleased_progress:
       parent_id: null
       source: backend/apps/web/app.yml
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix: answer selected Project catalog requests in CLI'
     commits:
     - 6ee143c7f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve Project reads when edits are prohibited'
     commits:
     - 6eec78025
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1792,21 +1434,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: retain canonical chat receipts for completed follow-ups'
     commits:
     - 9eb007a21
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: preserve chat authority throughout Focus continuation'
     commits:
     - 94986e159
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1815,13 +1455,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix: preserve focus continuation authority and speech lifecycle'
     commits:
     - 1f6d41eb9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1830,45 +1469,40 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'perf: accelerate saved admission and bounded encrypted recovery'
     commits:
     - ba4fb03d9
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: keep landing animations above mobile controls'
     commits:
     - 5eedd82ad
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
     commits:
     - dd1544f5c
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
     commits:
     - ba8654432
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'perf: remove foreground chat discovery and recovery barriers'
     commits:
     - d5913cf46
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1877,21 +1511,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'feat: refine landing section replays and device media'
     commits:
     - e3b567b7c
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: publish real web research with saved thinking'
     commits:
     - d186db0f6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1907,21 +1539,334 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
   - title: 'fix: repair example composer focus and recipe options'
     commits:
     - a5a219896
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+  - title: 'fix: activate verified newsletter S3 images'
+    commits:
+    - 143abde73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: handle absent preprocessing debug metadata'
+    commits:
+    - 14461e57a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: admit authorized primary read into synthesis catalog'
+    commits:
+    - e5cef4999
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: read bound primary sources during root synthesis'
+    commits:
+    - 51f7638f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: require exact primary evidence in research'
+    commits:
+    - 2ced3b80a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: synthesize research in parent with an evidence ledger'
+    commits:
+    - aad3ef8b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: reserve a bounded primary read request'
+    commits:
+    - 2e1f371d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: fit research reasoning and require a source read'
+    commits:
+    - 45cd14cd0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: enforce research evidence and honest output-limit failures'
+    commits:
+    - ed3f57adc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: fit orchestrated output to affordable budget'
+    commits:
+    - 1b2c4bdc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: cache public SVG icons and publish reviewed Design example'
+    commits:
+    - 1bfcad817
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reserve research AI usage and fail budget-denied children'
+    commits:
+    - 3f2013087
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  social_or_video:
+  - title: 'fix: answer selected Project catalog requests in CLI'
+    commits:
+    - 6ee143c7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve Project reads when edits are prohibited'
+    commits:
+    - 6eec78025
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: retain canonical chat receipts for completed follow-ups'
+    commits:
+    - 9eb007a21
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve chat authority throughout Focus continuation'
+    commits:
+    - 94986e159
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: preserve focus continuation authority and speech lifecycle'
+    commits:
+    - 1f6d41eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'perf: accelerate saved admission and bounded encrypted recovery'
+    commits:
+    - ba4fb03d9
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep landing animations above mobile controls'
+    commits:
+    - 5eedd82ad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: overlap saved-chat discovery and fence optimistic history reads'
+    commits:
+    - dd1544f5c
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: cancel stale chat viewers and overlap follow-up preparation'
+    commits:
+    - ba8654432
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: remove foreground chat discovery and recovery barriers'
+    commits:
+    - d5913cf46
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat: refine landing section replays and device media'
+    commits:
+    - e3b567b7c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: publish real web research with saved thinking'
+    commits:
+    - d186db0f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: true
+  - title: 'fix: repair example composer focus and recipe options'
+    commits:
+    - a5a219896
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
   - title: 'fix: polish public sections and restore guest workspace parity'
     commits:
     - 5e92c48b1
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:workflows
       kind: platform
@@ -1935,16 +1880,16 @@ marketing_candidates:
     commits:
     - 143abde73
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: handle absent preprocessing debug metadata'
     commits:
     - 14461e57a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1953,13 +1898,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: admit authorized primary read into synthesis catalog'
     commits:
     - e5cef4999
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1968,13 +1913,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: read bound primary sources during root synthesis'
     commits:
     - 51f7638f9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1983,13 +1928,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: require exact primary evidence in research'
     commits:
     - 2ced3b80a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:web
       kind: app
@@ -1998,13 +1943,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: synthesize research in parent with an evidence ledger'
     commits:
     - aad3ef8b9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2020,13 +1965,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: reserve a bounded primary read request'
     commits:
     - 2e1f371d2
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2035,13 +1980,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: fit research reasoning and require a source read'
     commits:
     - 45cd14cd0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2050,13 +1995,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: enforce research evidence and honest output-limit failures'
     commits:
     - ed3f57adc
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2072,13 +2017,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/web/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: fit orchestrated output to affordable budget'
     commits:
     - 1b2c4bdc7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2087,21 +2032,21 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: cache public SVG icons and publish reviewed Design example'
     commits:
     - 1bfcad817
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: reserve research AI usage and fail budget-denied children'
     commits:
     - 3f2013087
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2110,7 +2055,7 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -2122,7 +2067,7 @@ sources:
     short_sha: 6ee143c7f
     authored_at: '2026-10-15T20:38:38+00:00'
     subject: 'fix: answer selected Project catalog requests in CLI'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
@@ -2135,7 +2080,7 @@ sources:
     short_sha: 6eec78025
     authored_at: '2026-10-15T19:50:23+00:00'
     subject: 'fix: preserve Project reads when edits are prohibited'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/project_file_tools.py
@@ -2149,7 +2094,7 @@ sources:
     short_sha: ab02b5e8d
     authored_at: '2026-10-15T19:22:49+00:00'
     subject: 'fix: decode cached Focus authority mappings correctly'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/python_utils/focus_continuation_history.py
@@ -2160,7 +2105,7 @@ sources:
     short_sha: 9eb007a21
     authored_at: '2026-10-15T19:14:40+00:00'
     subject: 'fix: retain canonical chat receipts for completed follow-ups'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/chat-processing-next-stage/implemented-flow.md
@@ -2178,7 +2123,7 @@ sources:
     short_sha: 94986e159
     authored_at: '2026-10-15T19:09:34+00:00'
     subject: 'fix: preserve chat authority throughout Focus continuation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -2200,7 +2145,7 @@ sources:
     short_sha: 9568a640d
     authored_at: '2026-10-15T18:49:10+00:00'
     subject: 'fix: select recovery fixture for saved follow-up regression'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -2210,7 +2155,7 @@ sources:
     short_sha: 1f6d41eb9
     authored_at: '2026-10-15T18:29:42+00:00'
     subject: 'fix: preserve focus continuation authority and speech lifecycle'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/related_work.py
@@ -2225,7 +2170,7 @@ sources:
     short_sha: ba4fb03d9
     authored_at: '2026-10-15T17:40:16+00:00'
     subject: 'perf: accelerate saved admission and bounded encrypted recovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
@@ -2259,7 +2204,7 @@ sources:
     short_sha: 5eedd82ad
     authored_at: '2026-10-15T16:44:58+00:00'
     subject: 'fix: keep landing animations above mobile controls'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts
@@ -2272,7 +2217,7 @@ sources:
     short_sha: dd1544f5c
     authored_at: '2026-10-15T16:30:49+00:00'
     subject: 'perf: overlap saved-chat discovery and fence optimistic history reads'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/cli-privacy.spec.ts
@@ -2293,7 +2238,7 @@ sources:
     short_sha: 6b9fd8607
     authored_at: '2026-10-15T14:49:14+00:00'
     subject: 'docs: record measured chat architecture and remaining timing gaps'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/chat-processing-next-stage/implemented-flow.md
@@ -2303,7 +2248,7 @@ sources:
     short_sha: ba8654432
     authored_at: '2026-10-15T13:55:30+00:00'
     subject: 'perf: cancel stale chat viewers and overlap follow-up preparation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
@@ -2321,7 +2266,7 @@ sources:
     short_sha: d5913cf46
     authored_at: '2026-10-15T13:02:59+00:00'
     subject: 'perf: remove foreground chat discovery and recovery barriers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -2378,7 +2323,7 @@ sources:
     short_sha: e3b567b7c
     authored_at: '2026-10-15T12:17:06+00:00'
     subject: 'feat: refine landing section replays and device media'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/design-guide/landing-native-captures.md
@@ -2416,7 +2361,7 @@ sources:
     short_sha: d186db0f6
     authored_at: '2026-10-15T12:09:25+00:00'
     subject: 'fix: publish real web research with saved thinking'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/stream_consumer.py
@@ -2474,7 +2419,7 @@ sources:
     short_sha: a5a219896
     authored_at: '2026-10-15T11:18:25+00:00'
     subject: 'fix: repair example composer focus and recipe options'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/chat-open-focus.spec.ts
@@ -2498,7 +2443,7 @@ sources:
     short_sha: 50cb7bd53
     authored_at: '2026-10-15T10:31:38+00:00'
     subject: 'test: isolate composite recovery verification'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_coordinator.py
@@ -2509,7 +2454,7 @@ sources:
     short_sha: 5e92c48b1
     authored_at: '2026-10-15T10:30:36+00:00'
     subject: 'fix: polish public sections and restore guest workspace parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/public-site-section-followup-oct15/plan.yml
@@ -2564,7 +2509,7 @@ sources:
     short_sha: 143abde73
     authored_at: '2026-10-15T10:06:18+00:00'
     subject: 'fix: activate verified newsletter S3 images'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/newsletters/asset-map.json
@@ -2581,7 +2526,7 @@ sources:
     short_sha: 5bdff6636
     authored_at: '2026-10-15T09:35:23+00:00'
     subject: 'fix: seed replay fixtures from verified candidate'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_environment.py
@@ -2591,7 +2536,7 @@ sources:
     short_sha: 0bb14fbbf
     authored_at: '2026-10-15T08:53:15+00:00'
     subject: 'docs: preserve default routing for example sources'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/landing-example-reliability/plan.yml
@@ -2600,7 +2545,7 @@ sources:
     short_sha: 14461e57a
     authored_at: '2026-10-15T06:28:16+00:00'
     subject: 'fix: handle absent preprocessing debug metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/ask_skill_task.py
@@ -2613,7 +2558,7 @@ sources:
     short_sha: e5cef4999
     authored_at: '2026-10-15T05:54:42+00:00'
     subject: 'fix: admit authorized primary read into synthesis catalog'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -2626,7 +2571,7 @@ sources:
     short_sha: 51f7638f9
     authored_at: '2026-10-15T05:25:51+00:00'
     subject: 'fix: read bound primary sources during root synthesis'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -2641,7 +2586,7 @@ sources:
     short_sha: 2ced3b80a
     authored_at: '2026-10-15T05:00:59+00:00'
     subject: 'fix: require exact primary evidence in research'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/web/focus_modes/research/SKILL.ar.md
@@ -2696,7 +2641,7 @@ sources:
     short_sha: aad3ef8b9
     authored_at: '2026-10-15T04:25:43+00:00'
     subject: 'fix: synthesize research in parent with an evidence ledger'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -2758,7 +2703,7 @@ sources:
     short_sha: 2e1f371d2
     authored_at: '2026-10-15T03:46:54+00:00'
     subject: 'fix: reserve a bounded primary read request'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_mode_routing.py
@@ -2771,7 +2716,7 @@ sources:
     short_sha: 45cd14cd0
     authored_at: '2026-10-15T03:09:37+00:00'
     subject: 'fix: fit research reasoning and require a source read'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_mode_routing.py
@@ -2786,7 +2731,7 @@ sources:
     short_sha: ed3f57adc
     authored_at: '2026-10-15T02:32:31+00:00'
     subject: 'fix: enforce research evidence and honest output-limit failures'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -2860,7 +2805,7 @@ sources:
     short_sha: 1b2c4bdc7
     authored_at: '2026-10-15T01:24:08+00:00'
     subject: 'fix: fit orchestrated output to affordable budget'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -2873,7 +2818,7 @@ sources:
     short_sha: 1bfcad817
     authored_at: '2026-10-15T01:14:53+00:00'
     subject: 'fix: cache public SVG icons and publish reviewed Design example'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/design_icons.py
@@ -2911,7 +2856,7 @@ sources:
     short_sha: 3f2013087
     authored_at: '2026-10-15T00:35:35+00:00'
     subject: 'fix: reserve research AI usage and fail budget-denied children'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -2927,112 +2872,153 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates focused on hardening AI orchestration and research synthesis reliability, alongside significant performance
-    optimizations for chat history admission and background recovery. The update also refined landing page media and addressed
-    CLI project handling.
-  released_changes: []
-  bug_fixes:
-  - text: OpenMates corrected AI research synthesis to require exact primary evidence and maintain a consistent evidence ledger
-      during complex tasks.
+  overview: OpenMates focused on refining the landing page experience, enhancing the reliability of AI research synthesis,
+    and significantly optimizing chat performance and recovery. Key updates include new device media for the public site,
+    enforced evidence ledgers in research tasks, and the removal of several barriers in the chat discovery and admission process.
+  released_changes:
+  - text: The landing page now features refined section replays and updated device media for desktop and mobile views.
     evidence:
       commits:
-      - aad3ef8b9
-      - ed3f57adc
+      - e3b567b7c
+    release_status: released_main
+  - text: AI research capabilities were strengthened by requiring exact primary evidence, implementing evidence ledgers, and
+      enforcing honest failures when output limits or budgets are exceeded.
+    evidence:
+      commits:
+      - d186db0f6
       - 2ced3b80a
-      - 45cd14cd0
-    release_status: dev_only
-  - text: The project fixed landing page animation layering for mobile devices and restored focus behavior in the example
-      composer.
-    evidence:
-      commits:
-      - 5eedd82ad
-      - a5a219896
-    release_status: dev_only
-  - text: The CLI now correctly handles project catalog requests and preserves read access when edits are restricted.
-    evidence:
-      commits:
-      - 6ee143c7f
-      - 6eec78025
-    release_status: dev_only
-  - text: Newsletter delivery was improved by activating verified S3 image assets.
-    evidence:
-      commits:
-      - 143abde73
-    release_status: dev_only
-  unreleased_progress:
-  - text: Development continues on AI budget management, including reserving usage for research tasks and failing budget-denied
-      child processes gracefully.
-    evidence:
-      commits:
-      - 3f2013087
-      - 1b2c4bdc7
+      - aad3ef8b9
       - 2e1f371d2
-      - 14461e57a
-    release_status: dev_only
-  - text: Performance optimizations are underway to accelerate saved chat admission and remove barriers in foreground recovery.
+      - 45cd14cd0
+      - ed3f57adc
+      - 1b2c4bdc7
+      - 3f2013087
+    release_status: released_main
+  - text: Chat performance was improved by accelerating saved admission, removing foreground discovery barriers, and overlapping
+      follow-up preparation.
     evidence:
       commits:
       - ba4fb03d9
+      - d5913cf46
       - dd1544f5c
       - ba8654432
-      - d5913cf46
-    release_status: dev_only
-  - text: Work is progressing on workflow guest workspace parity and newsroom header polishing.
+    release_status: released_main
+  - text: The OpenMates CLI can now answer selected Project catalog requests.
+    evidence:
+      commits:
+      - 6ee143c7f
+    release_status: released_main
+  - text: Newsletter delivery now utilizes verified S3 images for improved asset reliability.
+    evidence:
+      commits:
+      - 143abde73
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now preserves Project read access in scenarios where edits are prohibited.
+    evidence:
+      commits:
+      - 6eec78025
+    release_status: released_main
+  - text: Chat authority and speech lifecycles are now correctly maintained throughout Focus mode continuations.
+    evidence:
+      commits:
+      - 94986e159
+      - 1f6d41eb9
+    release_status: released_main
+  - text: Landing page animations were adjusted to remain layered above mobile interface controls.
+    evidence:
+      commits:
+      - 5eedd82ad
+    release_status: released_main
+  - text: The example composer focus and recipe options were repaired to ensure consistent interaction.
+    evidence:
+      commits:
+      - a5a219896
+    release_status: released_main
+  - text: Public SVG icons are now cached, and a reviewed Design example has been published.
+    evidence:
+      commits:
+      - 1bfcad817
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continued on polishing public sections and guest workspace parity for the workflows platform.
     evidence:
       commits:
       - 5e92c48b1
-    release_status: dev_only
+    release_status: released_main
   internal_progress:
+  - text: CI environment stability was improved by isolating composite recovery verification and seeding replay fixtures from
+      verified candidates.
+    evidence:
+      commits:
+      - 9568a640d
+      - 5bdff6636
+      - 50cb7bd53
+    release_status: released_main
   - text: Documentation was updated to record measured chat architecture timings and preserve default routing for example
       sources.
     evidence:
       commits:
       - 6b9fd8607
       - 0bb14fbbf
-    release_status: dev_only
-  - text: CI infrastructure now supports isolated composite recovery verification and verified replay fixtures.
-    evidence:
-      commits:
-      - 50cb7bd53
-      - 9568a640d
-      - 5bdff6636
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: AI Orchestration and Research Synthesis Hardening
-      evidence:
-        commits:
-        - aad3ef8b9
-        - 3f2013087
-        - 1b2c4bdc7
-        - ed3f57adc
-      reason: AI orchestration and research synthesis hardening is currently in development.
-    - text: Chat Performance and Recovery Optimizations
-      evidence:
-        commits:
-        - ba4fb03d9
-        - dd1544f5c
-        - ba8654432
-        - d5913cf46
-      reason: Chat performance optimizations are currently dev-only.
-    - text: Landing Page and Workflow Guest Parity Updates
+    include:
+    - text: Refined landing page section replays and device media.
       evidence:
         commits:
         - e3b567b7c
+      reason: Provides a visual update to the public-facing landing page.
+    - text: Enhanced AI research reliability with enforced evidence ledgers and improved synthesis.
+      evidence:
+        commits:
+        - d186db0f6
+        - ed3f57adc
+        - aad3ef8b9
+      reason: Significant functional improvements to the AI research and synthesis capabilities.
+    - text: Major performance optimizations for chat admission, discovery, and recovery.
+      evidence:
+        commits:
+        - ba4fb03d9
+        - d5913cf46
+        - dd1544f5c
+        - ba8654432
+      reason: Directly impacts user experience by reducing latency and improving chat reliability.
+    - text: CLI support for answering selected Project catalog requests.
+      evidence:
+        commits:
+        - 6ee143c7f
+      reason: Expands the utility of the CLI for project management.
+    - text: Activation of verified S3 images for newsletter delivery.
+      evidence:
+        commits:
+        - 143abde73
+      reason: Fixes a visible issue with newsletter communication.
+    exclude:
+    - text: Public section polish and guest workspace parity for workflows.
+      evidence:
+        commits:
         - 5e92c48b1
-      reason: Landing page and workflow guest parity updates are unreleased.
-    rationale: All changes from this period are classified as dev_only and have not yet reached the main release branch for
-      public communication.
+      reason: This update involves the workflows platform, which is currently a disabled feature.
+    rationale: The day's work focused heavily on the public-facing landing page and the core AI research experience. These
+      updates, combined with significant performance gains in chat handling, provide a strong narrative for user-facing improvements.
   social_video_recommendations:
-  - idea: A technical deep-dive into how OpenMates builds an 'evidence ledger' during AI research to ensure factual accuracy.
-    priority: low
-    reason: This provides a concrete product story about AI reliability, though it is currently unreleased.
+  - idea: A visual walkthrough of the new landing page animations and device frames.
+    priority: High
+    reason: The updates to the landing page are highly visual and demonstrate product polish.
     evidence:
       commits:
+      - e3b567b7c
+  - idea: A 'behind-the-scenes' look at how OpenMates AI now uses evidence ledgers to ensure research accuracy.
+    priority: Medium
+    reason: Demonstrates technical depth and a commitment to AI reliability.
+    evidence:
+      commits:
+      - d186db0f6
       - aad3ef8b9
-      - ed3f57adc
   quality_notes:
-  - Extensive focus on AI budget management and output-limit failure handling to ensure honest system responses.
-  - Performance work targeted reducing barriers in foreground chat discovery and overlapping follow-up preparation.
+  - A large volume of work (8+ commits) was dedicated specifically to the reliability of AI research, focusing on evidence
+    enforcement and budget management.
+  - Performance optimizations targeted the 'next stage' of chat processing, aiming to reduce latency in history reads and
+    admission.
   validation_warnings: []

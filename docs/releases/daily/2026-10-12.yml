@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-12'
-generated_at: '2026-10-13T00:20:42+00:00'
+generated_at: '2026-10-19T00:45:31+00:00'
 range:
   since: '2026-10-12T00:00:00+00:00'
   until: '2026-10-13T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 0
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 18
   user_facing_items: 23
-  dev_only_items: 30
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -179,9 +179,9 @@ sections:
     - scripts/create-example-chat-from-share.mjs
     - scripts/tests/create_example_chat_from_share.test.mjs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:business
@@ -196,7 +196,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: admit chat turns immediately and isolate early Mate routing'
     section: features
     commits:
@@ -370,8 +370,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -423,7 +423,9 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:projects, platform:tasks, platform:teams, platform:workflows,
       skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects, platform:tasks, platform:teams,
+      platform:workflows'
   - title: 'feat: refine landing hero and publish Diagrams example'
     section: features
     commits:
@@ -488,8 +490,8 @@ sections:
     - specifications/features/marketing-landing/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -555,7 +557,8 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:calendar, app:diagrams, app:finance, app:fitness, app:life_coaching,
       app:maps, app:study'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   - title: 'feat: add keyless trademark search and concise brand naming'
     section: features
     commits:
@@ -613,9 +616,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:business
@@ -644,7 +647,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:business, embed:business:search_trademarks, skill:business:search_trademarks'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: show active Project peers in Codex context'
     section: features
     commits:
@@ -661,7 +664,7 @@ sections:
     - scripts/tests/test_codex_hook_context.py
     - scripts/tests/test_codex_rpc.py
     - scripts/tests/test_codex_task_adapter.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -669,7 +672,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add editable Diagram Design HTML embeds'
     section: features
     commits:
@@ -697,9 +700,9 @@ sections:
     - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasure.ts
     - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasureRuntime.js
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:diagrams:html
@@ -714,7 +717,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: embed:diagrams:html'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix: focus the chat composer before immediate typing'
     section: bug_fixes
@@ -746,16 +749,16 @@ sections:
     - frontend/packages/ui/src/services/serverCapabilityGate.ts
     - frontend/packages/ui/src/stores/pendingUploadStore.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep naming comparisons concise through final link cleanup'
     section: bug_fixes
     commits:
@@ -767,9 +770,9 @@ sections:
     - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
     - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:business
@@ -784,7 +787,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: retain trademark tools during brand naming research'
     section: bug_fixes
     commits:
@@ -796,9 +799,9 @@ sections:
     - backend/tests/test_brand_naming_tool_admission.py
     - backend/tests/test_focus_mode_routing.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -813,7 +816,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: initialize request options for traced Gemini streams'
     section: bug_fixes
     commits:
@@ -822,9 +825,9 @@ sections:
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
     - backend/tests/test_google_sdk_transport.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -839,7 +842,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: mount translations for the AI routing worker'
     section: bug_fixes
     commits:
@@ -848,7 +851,7 @@ sections:
     changed_paths:
     - scripts/product_runtime_translations.py
     - scripts/tests/test_product_runtime_translations.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -856,7 +859,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep naming price advice grounded in checked registrars'
     section: bug_fixes
     commits:
@@ -865,9 +868,9 @@ sections:
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
     - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:business
@@ -882,7 +885,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve delayed Project focus activation in activity summaries'
     section: bug_fixes
     commits:
@@ -893,16 +896,16 @@ sections:
     - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
     - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: respect naming renewal budgets and search limits'
     section: bug_fixes
     commits:
@@ -911,9 +914,9 @@ sections:
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
     - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:business
@@ -928,7 +931,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reconcile visible CLI text across response phases'
     section: bug_fixes
     commits:
@@ -939,16 +942,16 @@ sections:
     - frontend/packages/openmates-cli/src/messageSegments.ts
     - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
     - scripts/tests/verify_brand_naming_real_dev.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: display CLI replies after focus activation'
     section: bug_fixes
     commits:
@@ -960,16 +963,16 @@ sections:
     - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
     - scripts/tests/verify_brand_naming_real_dev.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep brand comparisons concise in chat'
     section: bug_fixes
     commits:
@@ -978,9 +981,9 @@ sections:
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
     - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:business
@@ -995,7 +998,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve trademark arrays and tighten naming flow'
     section: bug_fixes
     commits:
@@ -1011,9 +1014,9 @@ sections:
     - scripts/tests/verify_brand_naming_real_dev.py
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1035,7 +1038,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:business'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: settle confirmed focus activity summaries'
     section: bug_fixes
     commits:
@@ -1049,16 +1052,16 @@ sections:
     - frontend/packages/ui/src/stores/__tests__/pendingFocusActivationStore.test.ts
     - frontend/packages/ui/src/stores/pendingFocusActivationStore.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: complete minimized assistant activity summaries'
     section: bug_fixes
     commits:
@@ -1093,8 +1096,8 @@ sections:
     - frontend/packages/ui/src/services/workflowRunPreviewMetadata.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1110,7 +1113,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
   - title: 'fix: gate unpublished landing examples (Vercel build)'
     section: bug_fixes
     commits:
@@ -1122,9 +1126,9 @@ sections:
     - frontend/packages/public-site/scripts/compile-public-apps.mjs
     - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:diagrams
@@ -1139,7 +1143,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:diagrams'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: correct landing app wheel defaults and interaction'
     section: bug_fixes
     commits:
@@ -1234,8 +1238,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1492,7 +1496,8 @@ sections:
       app:docs, app:electronics, app:events, app:finance, app:fitness, app:health, app:home, app:hosting, app:images, app:jobs,
       app:life_coaching, app:mail, app:maps, app:math, app:mindmaps, app:models3d, app:music, app:news, app:nutrition, app:pdf,
       app:politics, app:shopping, app:social_media, app:study, app:travel, app:videos, app:weather, app:web'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:life_coaching'
   improvements:
   - title: 'perf: warm TUI send connections and remove redundant Project reads'
     section: improvements
@@ -1515,8 +1520,8 @@ sections:
     - frontend/packages/openmates-cli/tests/client.test.ts
     - frontend/packages/openmates-cli/tests/ws.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1532,7 +1537,8 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'perf: remove repeated chat initialization'
     section: improvements
     commits:
@@ -1554,9 +1560,9 @@ sections:
     - scripts/benchmark_chat_latency_tui.py
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1571,7 +1577,7 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'perf: shorten CLI chat admission and early routing'
     section: improvements
     commits:
@@ -1605,9 +1611,9 @@ sections:
     - frontend/packages/openmates-cli/tests/ws.test.ts
     - scripts/benchmark_chat_latency_tui.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1622,7 +1628,7 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: complete keyless trademark and brand naming verification'
     section: docs
@@ -1632,7 +1638,7 @@ sections:
     changed_paths:
     - docs/plans/trademark-search-brand-naming/plan.yml
     - docs/plans/trademark-search-brand-naming/verification.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1640,7 +1646,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: explain ordinary chat latency and proposed fast routing'
     section: docs
     commits:
@@ -1649,7 +1655,7 @@ sections:
     changed_paths:
     - docs/plans/chat-latency-improvements/critical-path-2026-10-12.md
     - docs/plans/chat-latency-improvements/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1657,7 +1663,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: sync Codex skills with selective recording delivery'
     section: docs
     commits:
@@ -1671,7 +1677,7 @@ sections:
     - .agents/skills/verify-component-preview/SKILL.md
     - .agents/skills/verify-plan/SKILL.md
     - .agents/skills/verify-ui-change/SKILL.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1679,7 +1685,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: limit Codex recording links to latest successful evidence'
     section: docs
     commits:
@@ -1697,7 +1703,7 @@ sections:
     - AGENTS.md
     - docs/architecture/test-orchestration.md
     - docs/contributing/guides/agent-workflow-quickstart.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1705,7 +1711,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: verify Diagram Design zoom pan and enabled catalogs'
     section: tests
@@ -1720,7 +1726,7 @@ sections:
     - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
     - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1728,699 +1734,20 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure: []
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'perf: warm TUI send connections and remove redundant Project reads'
-    commits:
-    - ab78d61bb
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix: focus the chat composer before immediate typing'
-    commits:
-    - df30b9160
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'perf: remove repeated chat initialization'
-    commits:
-    - 7a250696a
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'perf: shorten CLI chat admission and early routing'
-    commits:
-    - 2453d85d3
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'docs: complete keyless trademark and brand naming verification'
-    commits:
-    - 64cffacc2
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: keep naming comparisons concise through final link cleanup'
-    commits:
-    - 7f66a8a38
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'fix: retain trademark tools during brand naming research'
-    commits:
-    - e908406f9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'feat: publish verified brand naming example and evidence policy'
-    commits:
-    - 955bf1e0e
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'fix: initialize request options for traced Gemini streams'
-    commits:
-    - e71c72b8b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: mount translations for the AI routing worker'
-    commits:
-    - 59a0897a5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: keep naming price advice grounded in checked registrars'
-    commits:
-    - 43cba9a98
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'feat: admit chat turns immediately and isolate early Mate routing'
-    commits:
-    - fa6b90c54
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    - id: platform:tasks
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    - id: platform:teams
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'fix: preserve delayed Project focus activation in activity summaries'
-    commits:
-    - 0cd9a6e75
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: respect naming renewal budgets and search limits'
-    commits:
-    - a827213fe
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'fix: reconcile visible CLI text across response phases'
-    commits:
-    - c5e87c228
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: display CLI replies after focus activation'
-    commits:
-    - 34e62e1a8
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: refine landing hero and publish Diagrams example'
-    commits:
-    - 486e46d00
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:calendar
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/calendar/app.yml
-    - id: app:diagrams
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/diagrams/app.yml
-    - id: app:finance
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/finance/app.yml
-    - id: app:fitness
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/fitness/app.yml
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-    - id: app:maps
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/maps/app.yml
-    - id: app:study
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/study/app.yml
-  - title: 'fix: keep brand comparisons concise in chat'
-    commits:
-    - 09435ac22
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'fix: preserve trademark arrays and tighten naming flow'
-    commits:
-    - 08ef6b84a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-  - title: 'fix: settle confirmed focus activity summaries'
-    commits:
-    - c8bc59074
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: complete minimized assistant activity summaries'
-    commits:
-    - 5dcbf095f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'feat: add keyless trademark search and concise brand naming'
-    commits:
-    - 5df803768
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-    - id: embed:business:search_trademarks
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:business
-      source: backend/apps/business/app.yml
-    - id: skill:business:search_trademarks
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:business
-      source: backend/apps/business/app.yml
-  - title: 'fix: gate unpublished landing examples (Vercel build)'
-    commits:
-    - 61c3139bc
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:diagrams
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/diagrams/app.yml
-  - title: 'fix: correct landing app wheel defaults and interaction'
-    commits:
-    - 310a9071a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:audio
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/audio/app.yml
-    - id: app:books
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/books/app.yml
-    - id: app:business
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/business/app.yml
-    - id: app:calendar
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/calendar/app.yml
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: app:docs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/docs/app.yml
-    - id: app:electronics
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/electronics/app.yml
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: app:finance
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/finance/app.yml
-    - id: app:fitness
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/fitness/app.yml
-    - id: app:health
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/health/app.yml
-    - id: app:home
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/home/app.yml
-    - id: app:hosting
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/hosting/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    - id: app:life_coaching
-      kind: app
-      default_enabled: true
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: backend/apps/life_coaching/app.yml
-    - id: app:mail
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/mail/app.yml
-    - id: app:maps
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/maps/app.yml
-    - id: app:math
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/math/app.yml
-    - id: app:mindmaps
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/mindmaps/app.yml
-    - id: app:models3d
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/models3d/app.yml
-    - id: app:music
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/music/app.yml
-    - id: app:news
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/news/app.yml
-    - id: app:nutrition
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/nutrition/app.yml
-    - id: app:pdf
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/pdf/app.yml
-    - id: app:politics
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/politics/app.yml
-    - id: app:shopping
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/shopping/app.yml
-    - id: app:social_media
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/social_media/app.yml
-    - id: app:study
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/study/app.yml
-    - id: app:travel
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/travel/app.yml
-    - id: app:videos
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/videos/app.yml
-    - id: app:weather
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/weather/app.yml
-    - id: app:web
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/web/app.yml
-  - title: 'docs: explain ordinary chat latency and proposed fast routing'
-    commits:
-    - d83b83b88
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: show active Project peers in Codex context'
-    commits:
-    - 3fe73c214
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: sync Codex skills with selective recording delivery'
-    commits:
-    - d4b1488b0
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: verify Diagram Design zoom pan and enabled catalogs'
-    commits:
-    - 207c20e09
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: limit Codex recording links to latest successful evidence'
-    commits:
-    - 04e3c3f3c
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: add editable Diagram Design HTML embeds'
-    commits:
-    - b5d620756
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:diagrams:html
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:diagrams
-      source: backend/apps/diagrams/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'perf: shorten CLI chat admission and early routing'
     commits:
     - 2453d85d3
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2433,8 +1760,8 @@ unreleased_progress:
     commits:
     - fa6b90c54
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2482,8 +1809,8 @@ unreleased_progress:
     commits:
     - 486e46d00
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2545,8 +1872,8 @@ unreleased_progress:
     commits:
     - 5dcbf095f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:workflows
       kind: platform
@@ -2559,8 +1886,8 @@ unreleased_progress:
     commits:
     - 5df803768
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -2587,8 +1914,8 @@ unreleased_progress:
     commits:
     - 61c3139bc
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:diagrams
       kind: app
@@ -2601,8 +1928,8 @@ unreleased_progress:
     commits:
     - 310a9071a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2853,18 +2180,256 @@ unreleased_progress:
     commits:
     - 207c20e09
     section: tests
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
 marketing_candidates:
-  newsletter: []
+  newsletter:
+  - title: 'fix: focus the chat composer before immediate typing'
+    commits:
+    - df30b9160
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: remove repeated chat initialization'
+    commits:
+    - 7a250696a
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'perf: shorten CLI chat admission and early routing'
+    commits:
+    - 2453d85d3
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep naming comparisons concise through final link cleanup'
+    commits:
+    - 7f66a8a38
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: retain trademark tools during brand naming research'
+    commits:
+    - e908406f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: publish verified brand naming example and evidence policy'
+    commits:
+    - 955bf1e0e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: initialize request options for traced Gemini streams'
+    commits:
+    - e71c72b8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep naming price advice grounded in checked registrars'
+    commits:
+    - 43cba9a98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: preserve delayed Project focus activation in activity summaries'
+    commits:
+    - 0cd9a6e75
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: respect naming renewal budgets and search limits'
+    commits:
+    - a827213fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: reconcile visible CLI text across response phases'
+    commits:
+    - c5e87c228
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: display CLI replies after focus activation'
+    commits:
+    - 34e62e1a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep brand comparisons concise in chat'
+    commits:
+    - 09435ac22
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: preserve trademark arrays and tighten naming flow'
+    commits:
+    - 08ef6b84a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: settle confirmed focus activity summaries'
+    commits:
+    - c8bc59074
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add keyless trademark search and concise brand naming'
+    commits:
+    - 5df803768
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: skill:business:search_trademarks
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+  - title: 'fix: gate unpublished landing examples (Vercel build)'
+    commits:
+    - 61c3139bc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+  - title: 'feat: add editable Diagram Design HTML embeds'
+    commits:
+    - b5d620756
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
   social_or_video:
   - title: 'perf: warm TUI send connections and remove redundant Project reads'
     commits:
     - ab78d61bb
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:projects
       kind: platform
@@ -2878,16 +2443,16 @@ marketing_candidates:
     commits:
     - df30b9160
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: remove repeated chat initialization'
     commits:
     - 7a250696a
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2896,13 +2461,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'perf: shorten CLI chat admission and early routing'
     commits:
     - 2453d85d3
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2911,13 +2476,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep naming comparisons concise through final link cleanup'
     commits:
     - 7f66a8a38
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -2926,13 +2491,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: retain trademark tools during brand naming research'
     commits:
     - e908406f9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2941,13 +2506,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: publish verified brand naming example and evidence policy'
     commits:
     - 955bf1e0e
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -2956,13 +2521,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: initialize request options for traced Gemini streams'
     commits:
     - e71c72b8b
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2971,13 +2536,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep naming price advice grounded in checked registrars'
     commits:
     - 43cba9a98
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -2986,13 +2551,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: admit chat turns immediately and isolate early Mate routing'
     commits:
     - fa6b90c54
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3041,16 +2606,16 @@ marketing_candidates:
     commits:
     - 0cd9a6e75
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: respect naming renewal budgets and search limits'
     commits:
     - a827213fe
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -3059,29 +2624,29 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: reconcile visible CLI text across response phases'
     commits:
     - c5e87c228
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: display CLI replies after focus activation'
     commits:
     - 34e62e1a8
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: refine landing hero and publish Diagrams example'
     commits:
     - 486e46d00
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3144,8 +2709,8 @@ marketing_candidates:
     commits:
     - 09435ac22
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -3154,13 +2719,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: preserve trademark arrays and tighten naming flow'
     commits:
     - 08ef6b84a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3176,21 +2741,21 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: settle confirmed focus activity summaries'
     commits:
     - c8bc59074
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: complete minimized assistant activity summaries'
     commits:
     - 5dcbf095f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:workflows
       kind: platform
@@ -3204,8 +2769,8 @@ marketing_candidates:
     commits:
     - 5df803768
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:business
       kind: app
@@ -3228,13 +2793,13 @@ marketing_candidates:
       override: null
       parent_id: app:business
       source: backend/apps/business/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: gate unpublished landing examples (Vercel build)'
     commits:
     - 61c3139bc
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:diagrams
       kind: app
@@ -3243,13 +2808,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/diagrams/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: correct landing app wheel defaults and interaction'
     commits:
     - 310a9071a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3501,8 +3066,8 @@ marketing_candidates:
     commits:
     - b5d620756
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: embed:diagrams:html
       kind: embed
@@ -3511,7 +3076,7 @@ marketing_candidates:
       override: null
       parent_id: app:diagrams
       source: backend/apps/diagrams/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3523,7 +3088,7 @@ sources:
     short_sha: ab78d61bb
     authored_at: '2026-10-12T22:55:52+00:00'
     subject: 'perf: warm TUI send connections and remove redundant Project reads'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
@@ -3547,7 +3112,7 @@ sources:
     short_sha: df30b9160
     authored_at: '2026-10-12T22:33:42+00:00'
     subject: 'fix: focus the chat composer before immediate typing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
@@ -3579,7 +3144,7 @@ sources:
     short_sha: 7a250696a
     authored_at: '2026-10-12T21:52:16+00:00'
     subject: 'perf: remove repeated chat initialization'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3603,7 +3168,7 @@ sources:
     short_sha: 2453d85d3
     authored_at: '2026-10-12T20:43:18+00:00'
     subject: 'perf: shorten CLI chat admission and early routing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/tasks/stream_consumer.py
@@ -3639,7 +3204,7 @@ sources:
     short_sha: 64cffacc2
     authored_at: '2026-10-12T19:21:43+00:00'
     subject: 'docs: complete keyless trademark and brand naming verification'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/trademark-search-brand-naming/plan.yml
@@ -3649,7 +3214,7 @@ sources:
     short_sha: 7f66a8a38
     authored_at: '2026-10-12T19:10:41+00:00'
     subject: 'fix: keep naming comparisons concise through final link cleanup'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
@@ -3663,7 +3228,7 @@ sources:
     short_sha: e908406f9
     authored_at: '2026-10-12T18:53:18+00:00'
     subject: 'fix: retain trademark tools during brand naming research'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/focus_mode_routing.py
@@ -3677,7 +3242,7 @@ sources:
     short_sha: 955bf1e0e
     authored_at: '2026-10-12T18:05:58+00:00'
     subject: 'feat: publish verified brand naming example and evidence policy'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
@@ -3697,7 +3262,7 @@ sources:
     short_sha: e71c72b8b
     authored_at: '2026-10-12T17:38:03+00:00'
     subject: 'fix: initialize request options for traced Gemini streams'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -3708,7 +3273,7 @@ sources:
     short_sha: 59a0897a5
     authored_at: '2026-10-12T16:54:53+00:00'
     subject: 'fix: mount translations for the AI routing worker'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/product_runtime_translations.py
@@ -3718,7 +3283,7 @@ sources:
     short_sha: 43cba9a98
     authored_at: '2026-10-12T16:44:23+00:00'
     subject: 'fix: keep naming price advice grounded in checked registrars'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
@@ -3729,7 +3294,7 @@ sources:
     short_sha: fa6b90c54
     authored_at: '2026-10-12T16:43:41+00:00'
     subject: 'feat: admit chat turns immediately and isolate early Mate routing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/instructions/follow_up_instruction.md
@@ -3910,7 +3475,7 @@ sources:
     short_sha: 0cd9a6e75
     authored_at: '2026-10-12T15:18:42+00:00'
     subject: 'fix: preserve delayed Project focus activation in activity summaries'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
@@ -3922,7 +3487,7 @@ sources:
     short_sha: a827213fe
     authored_at: '2026-10-12T15:15:16+00:00'
     subject: 'fix: respect naming renewal budgets and search limits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
@@ -3933,7 +3498,7 @@ sources:
     short_sha: c5e87c228
     authored_at: '2026-10-12T15:10:26+00:00'
     subject: 'fix: reconcile visible CLI text across response phases'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/cli.ts
@@ -3945,7 +3510,7 @@ sources:
     short_sha: 34e62e1a8
     authored_at: '2026-10-12T15:02:47+00:00'
     subject: 'fix: display CLI replies after focus activation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/openmates-cli/src/cli.ts
@@ -3958,7 +3523,7 @@ sources:
     short_sha: 486e46d00
     authored_at: '2026-10-12T14:55:09+00:00'
     subject: 'feat: refine landing hero and publish Diagrams example'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -4032,7 +3597,7 @@ sources:
     short_sha: 09435ac22
     authored_at: '2026-10-12T14:50:02+00:00'
     subject: 'fix: keep brand comparisons concise in chat'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/business/focus_modes/find-brand-name/SKILL.md
@@ -4043,7 +3608,7 @@ sources:
     short_sha: 08ef6b84a
     authored_at: '2026-10-12T14:45:56+00:00'
     subject: 'fix: preserve trademark arrays and tighten naming flow'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/skill_executor.py
@@ -4062,7 +3627,7 @@ sources:
     short_sha: c8bc59074
     authored_at: '2026-10-12T13:55:07+00:00'
     subject: 'fix: settle confirmed focus activity summaries'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
@@ -4077,7 +3642,7 @@ sources:
     short_sha: 5dcbf095f
     authored_at: '2026-10-12T13:26:38+00:00'
     subject: 'fix: complete minimized assistant activity summaries'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/workflow_action_adapter.py
@@ -4114,7 +3679,7 @@ sources:
     short_sha: 5df803768
     authored_at: '2026-10-12T12:50:33+00:00'
     subject: 'feat: add keyless trademark search and concise brand naming'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/business/app.yml
@@ -4176,7 +3741,7 @@ sources:
     short_sha: 61c3139bc
     authored_at: '2026-10-12T10:54:53+00:00'
     subject: 'fix: gate unpublished landing examples (Vercel build)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/diagrams/app.yml
@@ -4190,7 +3755,7 @@ sources:
     short_sha: 310a9071a
     authored_at: '2026-10-12T10:41:57+00:00'
     subject: 'fix: correct landing app wheel defaults and interaction'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -4321,7 +3886,7 @@ sources:
     short_sha: d83b83b88
     authored_at: '2026-10-12T10:15:23+00:00'
     subject: 'docs: explain ordinary chat latency and proposed fast routing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/chat-latency-improvements/critical-path-2026-10-12.md
@@ -4331,7 +3896,7 @@ sources:
     short_sha: 3fe73c214
     authored_at: '2026-10-12T10:11:03+00:00'
     subject: 'feat: show active Project peers in Codex context'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/codex-task-cache.md
@@ -4349,7 +3914,7 @@ sources:
     short_sha: d4b1488b0
     authored_at: '2026-10-12T09:36:52+00:00'
     subject: 'docs: sync Codex skills with selective recording delivery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/create-demo-video/SKILL.md
@@ -4364,7 +3929,7 @@ sources:
     short_sha: 207c20e09
     authored_at: '2026-10-12T09:36:32+00:00'
     subject: 'test: verify Diagram Design zoom pan and enabled catalogs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apps/diagrams.md
@@ -4379,7 +3944,7 @@ sources:
     short_sha: 04e3c3f3c
     authored_at: '2026-10-12T09:34:55+00:00'
     subject: 'docs: limit Codex recording links to latest successful evidence'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/testing.md
@@ -4398,7 +3963,7 @@ sources:
     short_sha: b5d620756
     authored_at: '2026-10-12T09:16:56+00:00'
     subject: 'feat: add editable Diagram Design HTML embeds'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/apps/diagrams.md
@@ -4425,114 +3990,171 @@ sources:
     related_feature_ids:
     - embed:diagrams:html
 llm_summary:
-  overview: OpenMates focused on expanding business tools with trademark search and brand naming features, while significantly
-    optimizing chat latency through immediate turn admission and early routing. The update also refined Diagram Design embeds
-    and landing page examples.
-  released_changes: []
+  overview: OpenMates introduced a suite of business-focused tools for trademark searching and brand naming, alongside new
+    interactive diagram embeds. Significant performance work was also completed to reduce chat latency across the web and
+    CLI interfaces.
+  released_changes:
+  - text: OpenMates added a keyless trademark search skill and concise brand naming focus mode.
+    evidence:
+      commits:
+      - 5df803768
+    release_status: released_main
+  - text: Diagram Design now supports interactive HTML embeds that allow for direct editing.
+    evidence:
+      commits:
+      - b5d620756
+    release_status: released_main
+  - text: A verified brand naming example and evidence policy were published to guide business users.
+    evidence:
+      commits:
+      - 955bf1e0e
+    release_status: released_main
+  - text: Chat performance was improved by removing redundant initializations and shortening the admission path for CLI users.
+    evidence:
+      commits:
+      - 7a250696a
+      - 2453d85d3
+    release_status: released_main
   bug_fixes:
-  - text: Refined the brand naming focus mode to ensure concise comparisons, grounded pricing advice, and proper handling
-      of trademark data arrays.
+  - text: The chat composer now automatically receives focus before immediate typing to prevent lost keystrokes.
+    evidence:
+      commits:
+      - df30b9160
+    release_status: released_main
+  - text: Brand naming comparisons were refined to be more concise, ensuring trademark arrays are preserved and final links
+      are cleaned up.
     evidence:
       commits:
       - 7f66a8a38
-      - 43cba9a98
       - 09435ac22
       - 08ef6b84a
-    release_status: dev_only
-  - text: Corrected assistant activity summaries to properly display delayed focus activation and minimized workflow run details.
+    release_status: released_main
+  - text: Trademark tools are now correctly retained during active brand naming research sessions.
+    evidence:
+      commits:
+      - e908406f9
+    release_status: released_main
+  - text: Domain price advice is now grounded in verified registrar data while respecting renewal budgets and search limits.
+    evidence:
+      commits:
+      - 43cba9a98
+      - a827213fe
+    release_status: released_main
+  - text: Assistant activity summaries now correctly preserve and settle focus activation states.
     evidence:
       commits:
       - 0cd9a6e75
       - c8bc59074
-      - 5dcbf095f
-    release_status: dev_only
-  - text: Resolved issues in the CLI where replies were not displaying correctly after focus activation or across different
-      response phases.
+    release_status: released_main
+  - text: The CLI now reconciles visible text across response phases and displays replies immediately after focus activation.
     evidence:
       commits:
-      - 34e62e1a8
       - c5e87c228
-    release_status: dev_only
-  - text: The chat composer now correctly receives focus before immediate typing is initiated.
+      - 34e62e1a8
+    release_status: released_main
+  - text: Request options were initialized for traced Gemini streams to improve stability.
     evidence:
       commits:
-      - df30b9160
-    release_status: dev_only
+      - e71c72b8b
+    release_status: released_main
+  - text: Unpublished landing page examples are now gated during the build process.
+    evidence:
+      commits:
+      - 61c3139bc
+    release_status: released_main
   unreleased_progress:
-  - text: OpenMates added a keyless trademark search skill and a brand naming focus mode to the Business app.
-    evidence:
-      commits:
-      - 5df803768
-      - 955bf1e0e
-    release_status: dev_only
-  - text: The project implemented immediate chat turn admission and early Mate routing to reduce perceived latency across
-      all platforms.
+  - text: Work continues on immediate chat turn admission and early routing for Projects and Workflows.
     evidence:
       commits:
       - fa6b90c54
       - ab78d61bb
-      - 7a250696a
-      - 2453d85d3
-    release_status: dev_only
-  - text: Diagram Design now supports editable HTML embeds and updated examples on the landing page.
+    release_status: released_main
+  - text: Landing page refinements and app wheel interactions involving Life Coaching remain in development.
     evidence:
       commits:
-      - b5d620756
       - 486e46d00
-    release_status: dev_only
+      - 310a9071a
+    release_status: released_main
+  - text: Activity summaries for Workflow runs are being finalized.
+    evidence:
+      commits:
+      - 5dcbf095f
+    release_status: released_main
   internal_progress:
-  - text: Codex context now includes active Project peers and improved recording delivery for agent workflows.
+  - text: Codex context now includes active Project peers for improved development awareness.
     evidence:
       commits:
       - 3fe73c214
-      - d4b1488b0
-      - 04e3c3f3c
-    release_status: dev_only
-  - text: The AI routing worker now correctly mounts translations for runtime use.
+    release_status: released_main
+  - text: Product runtime translations were mounted for the AI routing worker.
     evidence:
       commits:
       - 59a0897a5
-    release_status: dev_only
-  - text: Initialized request options for traced Gemini streams to improve provider reliability.
+    release_status: released_main
+  - text: Codex skill documentation was updated to limit recording links to the latest successful evidence.
     evidence:
       commits:
-      - e71c72b8b
-    release_status: dev_only
+      - d4b1488b0
+      - 04e3c3f3c
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Business Brand Naming and Trademark Search
+    include:
+    - text: OpenMates added keyless trademark search and concise brand naming tools.
       evidence:
         commits:
         - 5df803768
-        - 955bf1e0e
-      reason: The Business app brand naming and trademark search features are currently in development and not yet released
-        to the main branch.
-    - text: Chat Latency Optimizations
-      evidence:
-        commits:
-        - fa6b90c54
-        - ab78d61bb
-        - 7a250696a
-        - 2453d85d3
-      reason: Chat latency optimizations and early routing logic are currently in testing.
-    - text: Diagram Design Enhancements
+      reason: Introduces a significant new utility for business users.
+    - text: The project now supports editable Diagram Design HTML embeds.
       evidence:
         commits:
         - b5d620756
+      reason: Provides a new interactive way to view and edit diagrams.
+    - text: Chat latency was reduced by removing repeated initializations and shortening CLI admission paths.
+      evidence:
+        commits:
+        - 7a250696a
+        - 2453d85d3
+      reason: Directly improves the user experience through faster response times.
+    - text: A verified brand naming example and evidence policy are now available.
+      evidence:
+        commits:
+        - 955bf1e0e
+      reason: Provides educational value for the new business features.
+    exclude:
+    - text: Immediate chat turn admission and early Mate routing.
+      evidence:
+        commits:
+        - fa6b90c54
+      reason: Relates to disabled platform features including Projects, Tasks, and Workflows.
+    - text: Landing page hero refinements and app wheel interactions.
+      evidence:
+        commits:
         - 486e46d00
-      reason: Editable Diagram Design HTML embeds and updated landing page examples are unreleased.
-    rationale: No changes from this period have been released to the main branch or marked as ready for public communication.
+        - 310a9071a
+      reason: Relates to the disabled Life Coaching application.
+    - text: Minimized assistant activity summaries for workflow runs.
+      evidence:
+        commits:
+        - 5dcbf095f
+      reason: Relates to the disabled Workflows platform.
+    rationale: The update focuses on empowering business users with trademark and branding tools while significantly improving
+      the core chat performance. Features related to disabled modules like Workflows and Life Coaching are excluded from public
+      communication.
   social_video_recommendations:
-  - idea: Demonstrate the new trademark search and brand naming flow in the Business app.
-    priority: medium
-    reason: This provides a concrete business use case showing how OpenMates integrates external data into a creative workflow.
+  - idea: A walkthrough of finding a brand name and checking trademarks in one flow.
+    priority: high
+    reason: This is a clear, high-value product story for entrepreneurs and business users.
     evidence:
       commits:
       - 5df803768
       - 955bf1e0e
+  - idea: Demonstrating the editing of a diagram directly within an HTML embed.
+    priority: medium
+    reason: Shows off the interactive capabilities of the new diagram artifacts.
+    evidence:
+      commits:
+      - b5d620756
   quality_notes:
-  - Heavy emphasis on reducing chat latency across web and CLI platforms.
-  - Expansion of the Business app with specialized focus modes and external provider integrations (USPTO).
-  - Significant work on UI polish for assistant activity summaries and focus activation states.
+  - Extensive test coverage was added for the new trademark search and diagram HTML editing features.
+  - Latency benchmarks were updated to reflect the new fast-admission routing logic.
   validation_warnings: []

@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-10-16'
-generated_at: '2026-10-17T00:20:30+00:00'
+generated_at: '2026-10-19T00:47:37+00:00'
 range:
   since: '2026-10-16T00:00:00+00:00'
   until: '2026-10-17T00:00:00+00:00'
@@ -2495,35 +2495,35 @@ sources:
     - scripts/tests/test_prod_ssh.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates has released integrated voice calling capabilities, featuring comprehensive privacy controls and capability
-    management. This update also includes several production fixes for video previews, sub-chat metadata persistence, and
-    guest usage limits. Significant progress was also made in development branches regarding voice call stability and chat
-    recovery logic.
+  overview: OpenMates introduced integrated voice calling with comprehensive privacy controls and waveform visualization.
+    This release also includes critical stability fixes for chat metadata persistence, guest usage limits, and video preview
+    recovery.
   released_changes:
-  - text: OpenMates integrated voice calling controls and capabilities, including dedicated privacy dialogs and waveform visualizations.
+  - text: OpenMates added integrated voice calling capabilities, featuring real-time waveform visualization, privacy dialogs,
+      and dedicated audio gate controls.
     evidence:
       commits:
       - c1199371a
     release_status: released_main
   bug_fixes:
-  - text: Background recovery processes no longer interrupt the display of daily inspiration video previews.
-    evidence:
-      commits:
-      - 38b24140e
-    release_status: released_main
-  - text: Sub-chat metadata persistence now includes edit guards and more concise storage logic.
+  - text: OpenMates improved sub-chat metadata persistence by implementing edit guards and concise recovery tasks.
     evidence:
       commits:
       - 2314a23cf
     release_status: released_main
-  - text: Guest usage limits are now correctly enforced, and chat synchronization handles nullable version strings more robustly.
+  - text: The project updated guest usage limit handling and resolved issues with nullable chat sync versions.
     evidence:
       commits:
       - f14d10d6a
     release_status: released_main
+  - text: This update prevents background recovery for inspiration video previews to ensure smoother UI interactions.
+    evidence:
+      commits:
+      - 38b24140e
+    release_status: released_main
   unreleased_progress:
-  - text: Ongoing work to refine voice call behavior, including better identity persistence, tool failure recovery, and shared
-      notification logic.
+  - text: Ongoing refinements to voice chat include polished behavior for production logins, canonical history preservation,
+      and shared notice reuse.
     evidence:
       commits:
       - 17ad6f601
@@ -2532,7 +2532,8 @@ llm_summary:
       - 68d0d5d86
       - 83ecbca3e
     release_status: dev_only
-  - text: Development of improved chat continuation logic for generated media and enhanced recovery for encrypted outputs.
+  - text: Development continues on chat recovery, focusing on encrypted output recovery, Unicode preservation in anonymous
+      streams, and identity preservation across generated media.
     evidence:
       commits:
       - 9f28425d5
@@ -2540,90 +2541,79 @@ llm_summary:
       - ec6b92911
       - 58850e959
     release_status: dev_only
-  - text: Internal updates to application preview restoration and publication archive redirects.
+  - text: Workspace and UI work includes aligning guest workspaces, restoring application previews after reloads, and ensuring
+      personal chat availability when specific platform features are disabled.
     evidence:
       commits:
       - 6ce7904af
       - b02e5a57d
-    release_status: dev_only
-  - text: Preliminary adjustments to guest workspaces and chat admission logic for currently disabled features like Projects
-      and Workflows.
-    evidence:
-      commits:
       - 52ecee1c6
       - d35cef0f3
     release_status: dev_only
   internal_progress:
-  - text: The CI pipeline now verifies candidate synchronization fixtures and provides better reporting for SSH failures.
+  - text: CI improvements now include reporting for SSH failures and verification of candidate sync fixtures.
     evidence:
       commits:
       - 302c5bbe7
     release_status: released_main
-  - text: Main branch changes were merged into the development branch to synchronize production recovery fixes.
+  - text: The main branch was synchronized into the development branch to preserve production recovery fixes.
     evidence:
       commits:
       - ad50be914
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: Integrated voice calling controls and privacy features
+    - text: Integrated voice calling with privacy controls and waveform visualization.
       evidence:
         commits:
         - c1199371a
-      reason: This is a major feature release providing integrated voice calling with a focus on privacy and user control.
-    - text: Fix for inspiration video preview recovery
-      evidence:
-        commits:
-        - 38b24140e
-      reason: Improves the reliability of the daily inspiration video feature.
-    - text: Improved sub-chat metadata persistence
+      reason: Major new feature release with full public communication readiness.
+    - text: Enhanced chat metadata persistence and guest usage limit handling.
       evidence:
         commits:
         - 2314a23cf
-      reason: Enhances the reliability of sub-chat metadata and editing.
-    - text: Guest usage limit enforcement and sync stability fixes
-      evidence:
-        commits:
         - f14d10d6a
-      reason: Ensures fair usage for guest users and stabilizes chat synchronization.
+        - 38b24140e
+      reason: Released stability improvements for the core chat and video experience.
     exclude:
-    - text: Voice call stability refinements
+    - text: Pending stability and UI refinements for voice calling and workspace management.
       evidence:
         commits:
+        - 6ce7904af
         - 17ad6f601
         - 1e8701814
+        - 9f28425d5
         - 8b650fb51
         - 68d0d5d86
-        - 83ecbca3e
-      reason: These refinements to voice call stability and identity persistence are currently in development and not yet
-        released to the main branch.
-    - text: Chat recovery and media continuation improvements
-      evidence:
-        commits:
-        - 9f28425d5
+        - b02e5a57d
         - '572917329'
         - ec6b92911
         - 58850e959
-      reason: Improvements to chat recovery and generated media continuation are currently dev-only.
-    - text: Projects and Workflows adjustments
+        - 52ecee1c6
+        - d35cef0f3
+        - 83ecbca3e
+      reason: These items are currently in development and have not been promoted to the main release branch.
+    - text: Updates to the workflows interface.
+      evidence:
+        commits:
+        - d35cef0f3
+      reason: Workflows is a disabled feature.
+    - text: Adjustments to chat behavior when Projects is disabled.
       evidence:
         commits:
         - 52ecee1c6
-        - d35cef0f3
-      reason: These items relate to features (Projects and Workflows) that are currently disabled in the platform configuration.
-    rationale: The primary focus for public communication is the release of integrated voice calling, supported by several
-      stability fixes for video previews, sub-chats, and guest access.
+      reason: Projects is a disabled feature.
+    rationale: The primary focus of this update is the launch of integrated voice calling, supported by critical stability
+      fixes for chat metadata and guest session management.
   social_video_recommendations:
-  - idea: A demonstration of the new voice calling interface, highlighting the privacy controls and the seamless transition
-      between text and voice.
-    priority: high
-    reason: Voice calling is a major new interaction modality for OpenMates with a clear visual and functional story.
+  - idea: A demonstration of the new voice calling interface, highlighting the privacy controls and the real-time waveform
+      visualization.
+    priority: High
+    reason: Voice calling is a major new capability with a strong visual and interactive component suitable for social media.
     evidence:
       commits:
       - c1199371a
   quality_notes:
-  - The update shows a strong focus on the 'voice' product area, with both a major feature release and numerous follow-up
-    refinements in development.
-  - Stability fixes for guest users and metadata persistence indicate a push toward production readiness for anonymous and
-    complex chat scenarios.
+  - Significant focus on finalizing the voice calling feature set and ensuring chat continuity across different session types.
+  - Extensive testing coverage is evident in the updates to voice protocol and chat recovery services.
   validation_warnings: []
