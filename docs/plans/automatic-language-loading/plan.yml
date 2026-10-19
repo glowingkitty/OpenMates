@@ -1,0 +1,28 @@
+schema_version: 2
+profile: concise
+id: automatic-language-loading
+title: Consistent automatic language loading
+status: implementing
+goal: "Implement the approved language changes, deploy, and show video proof of the new implementation."
+approved_scope:
+  - Automatic browser-language selection with explicit preferences preserved across website and app.
+  - German first paint on the server-rendered landing page and dictionary-ready app startup.
+  - One reliable language selector reachable from Account and Interface, including Automatic mode.
+  - German legal content, locale-preserving links, and German inspiration builders, fallbacks and caches.
+verification:
+  - Focused locale resolution and affected backend/unit checks locally.
+  - Bare component preview before route flows in isolated GitHub CI.
+  - Isolated website/app language, legal navigation and inspiration regression checks with recordings.
+  - Scoped dev deployment, readiness and reviewed visual smoke.
+  - Deliver latest successful video proof for the requested flows.
+approval_source: "User approved the concrete six-point recommendation in this chat and explicitly requested implementation, deployment and video proof. No new fingerprint approval is claimed."
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-19'
+    source: The user approved the six-point language recommendation and explicitly requested implementation, deployment and video proof in this chat.
+  plan:
+    status: approved
+    approved_at: '2026-10-19'
+    source: 'User: "ok, lets implement, deploy and show me the video proof of the new implementation"'

@@ -7,6 +7,8 @@
     websiteBaseUrl,
     apiBaseUrl,
     serverStatusUrl,
+    initialLanguage,
+    initialLanguageMode,
     events = [],
     news = [],
     posts = []
@@ -15,6 +17,8 @@
     websiteBaseUrl: string;
     apiBaseUrl?: string;
     serverStatusUrl?: string;
+    initialLanguage?: 'en' | 'de';
+    initialLanguageMode?: 'manual' | 'account' | 'auto';
     events?: LandingPublication[];
     news?: LandingPublication[];
     posts?: LandingPublication[];
@@ -27,4 +31,4 @@
   ));
 </script>
 
-<PublicLandingPage {appBaseUrl} {websiteBaseUrl} apiBaseUrl={fallbackApiUrl} {serverStatusUrl} {events} {news} {posts} />
+<PublicLandingPage {appBaseUrl} {websiteBaseUrl} apiBaseUrl={fallbackApiUrl} {serverStatusUrl} {initialLanguage} {initialLanguageMode} {events} {news} {posts} />

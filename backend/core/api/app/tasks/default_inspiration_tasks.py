@@ -12,7 +12,7 @@
 # This favors entries that are both popular (high interaction) and recent.
 # New entries with zero interactions still get a score > 0 via the "+1" term.
 #
-# If a language has too few entries, remaining slots are filled from English.
+# German shortages use localized endpoint fallbacks; other locales retain English fallback.
 #
 # After writing, old defaults (date < today) are cleaned up, and the
 # public Redis cache for /v1/default-inspirations is invalidated.
@@ -35,7 +35,7 @@ from backend.apps.ai.daily_inspiration.media_coherence import (
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v11:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v12:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
@@ -283,7 +283,7 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
                 DEFAULT_TOTAL_COUNT,
             )
 
-            if len(selected) < DEFAULT_TOTAL_COUNT and lang != "en":
+            if len(selected) < DEFAULT_TOTAL_COUNT and lang not in {"en", "de"}:
                 # Fill remaining slots from English, avoiding duplicate youtube_ids
                 selected_yt_ids = {e.get("youtube_id") for e in selected}
                 selected_ids = {str(e.get("id", "") or "") for e in selected}

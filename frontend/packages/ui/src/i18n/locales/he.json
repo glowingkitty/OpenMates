@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "אוטומטי (שפת הדפדפן)"
+      },
+      "account_save_error": {
+        "text": "לא ניתן לשמור את שפת החשבון. יש לנסות שוב."
+      },
+      "text": "שפה"
+    },
     "open_settings_menu": {
       "text": "פתיחת תפריט ההגדרות"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "מכשירים"
-    },
-    "language": {
-      "text": "שפה"
     },
     "passkeys": {
       "text": "מפתחות גישה"

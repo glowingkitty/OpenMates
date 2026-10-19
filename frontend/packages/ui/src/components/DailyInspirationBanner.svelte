@@ -33,6 +33,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { fade } from 'svelte/transition';
   import { get } from 'svelte/store';
+  import { locale } from 'svelte-i18n';
   import { text } from '@repo/ui';
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSource, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
@@ -325,11 +326,8 @@
   });
 
   // ─── Reload inspirations on language change ─────────────────────────────────
-  // Default (non-personalized) inspirations are fetched from the server with a
-  // lang parameter. When the user switches language, we clear the store and
-  // re-fetch so the inspiration phrases match the new locale.
-  // Personalized inspirations (from WS/IndexedDB) are AI-generated content in the
-  // user's language at creation time — they cannot be retranslated, so we skip.
+  // Refresh display content on both explicit language changes and restored locale.
+  // Persisted account data and chats remain intact for recovery in their language.
   onMount(() => {
     const pointerQuery = window.matchMedia('(pointer: coarse)');
     const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -344,24 +342,21 @@
     pointerQuery.addEventListener('change', updatePointerCta);
     reducedMotionQuery.addEventListener('change', updateReducedMotion);
 
-    const handleLanguageChange = () => {
-      const state = get(dailyInspirationStore);
-      if (!state.isPersonalized) {
-        dailyInspirationStore.reset();
-        loadDefaultInspirations({ allowIndexedDB: false, surface }).catch((err) => {
-          console.error('[DailyInspirationBanner] Failed to reload inspirations after language change:', err);
-        });
-      }
-    };
-    // Use 'language-changed-complete' (fires 50ms after locale.set + waitLocale)
-    // to ensure the svelte-i18n locale store is fully settled before re-fetching.
-    window.addEventListener('language-changed-complete', handleLanguageChange);
+    let previousLanguage = get(locale);
+    const unsubscribeLanguage = locale.subscribe((language) => {
+      if (!language || language === previousLanguage) return;
+      previousLanguage = language;
+      if (surface !== 'chats') dailyInspirationStore.reset();
+      void loadDefaultInspirations({ allowIndexedDB: true, surface }).catch((err) => {
+        console.error('[DailyInspirationBanner] Failed to reload inspirations after language change:', err);
+      });
+    });
     window.addEventListener('resize', scheduleLandingIntroRailSync);
 
     return () => {
       pointerQuery.removeEventListener('change', updatePointerCta);
       reducedMotionQuery.removeEventListener('change', updateReducedMotion);
-      window.removeEventListener('language-changed-complete', handleLanguageChange);
+      unsubscribeLanguage();
       window.removeEventListener('resize', scheduleLandingIntroRailSync);
     };
   });
@@ -1581,7 +1576,14 @@
       ontouchmove={handleTouchMove}
       ontouchend={handleTouchEnd}
       ontouchcancel={handleTouchEnd}
-      onkeydown={surface === 'workflows' ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStartChat(e as unknown as MouseEvent); } }}
+      onkeydown={surface === 'workflows' ? undefined : (e) => {
+        // Descendant buttons keep their native Enter/Space activation.
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleStartChat(e as unknown as MouseEvent);
+        }
+      }}
       role={isGuestSignupCtaSlide || surface === 'workflows' ? undefined : 'button'}
       tabindex={isGuestSignupCtaSlide || surface === 'workflows' ? undefined : 0}
       aria-label={isGuestSignupCtaSlide || surface === 'workflows' ? undefined : current.phrase}

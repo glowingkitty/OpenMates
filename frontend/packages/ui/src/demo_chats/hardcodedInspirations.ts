@@ -457,6 +457,7 @@ export function getHardcodedInspirations(locale: string): DailyInspiration[] {
   const copy = HARDCODED_INSPIRATION_FALLBACK_TEXT[lang] ?? HARDCODED_INSPIRATION_FALLBACK_TEXT.en;
   return authenticated.map((inspiration) => inspiration.inspiration_id === "authenticated-fallback-export"
     ? {
+      language: lang,
       inspiration_id: "guest-fallback-events",
       phrase: copy.events.phrase,
       title: copy.events.title,
@@ -624,7 +625,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
     },
   ];
 
-  return [...videos, ...wiki, ...features];
+  return [...videos, ...wiki, ...features].map((inspiration) => ({ ...inspiration, language: lang }));
 }
 
 

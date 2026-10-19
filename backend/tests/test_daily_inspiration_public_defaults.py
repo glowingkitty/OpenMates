@@ -19,6 +19,7 @@ from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspir
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.guest-isolated
 def test_guest_onboarding_features_are_not_daily_inspiration_tips() -> None:
     route_source = (
         REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py"
@@ -41,6 +42,7 @@ def test_guest_onboarding_features_are_not_daily_inspiration_tips() -> None:
     assert "feature.get(\"feature_id\") in GUEST_ONBOARDING_FEATURE_IDS" in route_source
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.encrypted-persistence
 def test_authenticated_persistence_rejects_legacy_quota_sets() -> None:
     complete = [
         *({"content_type": "video"} for _ in range(3)),
@@ -57,6 +59,7 @@ def test_authenticated_persistence_rejects_legacy_quota_sets() -> None:
 
 
 # Keep backend generation, public selection, and endpoint top-up on one quota contract.
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_public_feature_inspirations_exclude_authenticated_only_tips() -> None:
     inspirations = build_feature_inspirations(
         count=10,
@@ -75,6 +78,7 @@ def test_public_feature_inspirations_exclude_authenticated_only_tips() -> None:
     )
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_public_feature_inspirations_prioritize_product_video_tips() -> None:
     inspirations = build_feature_inspirations(
         count=4,
@@ -91,6 +95,7 @@ def test_public_feature_inspirations_prioritize_product_video_tips() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.authenticated-fallback-content
 def test_authenticated_feature_inspirations_are_actionable() -> None:
     inspirations = build_feature_inspirations(count=10)
 
@@ -105,6 +110,7 @@ def test_authenticated_feature_inspirations_are_actionable() -> None:
     assert all(feature.settings_path for feature in features)
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,daily-inspiration.authenticated-fallback-content
 def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
     personalized_source = (
         REPO_ROOT / "backend/core/api/app/tasks/daily_inspiration_tasks.py"
@@ -122,12 +128,13 @@ def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
     assert "DAILY_FEATURE_COUNT = 4" in personalized_source
     assert "DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT" in personalized_source
     assert "_DEFAULT_FEATURE_COUNT = 4" in route_source
-    assert 'build_feature_inspirations(\n                _DEFAULT_FEATURE_COUNT,' in route_source
-    assert 'public:default_inspirations:v11:' in route_source
-    assert 'public:default_inspirations:v11:' in selector_source
+    assert 'build_feature_inspirations(\n            _DEFAULT_FEATURE_COUNT,' in route_source
+    assert 'public:default_inspirations:v12:' in route_source
+    assert 'public:default_inspirations:v12:' in selector_source
     assert "_limit_default_type(" in route_source
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_feature_product_video_metadata_uses_default_base_url(monkeypatch) -> None:
     monkeypatch.delenv("OPENMATES_PRODUCT_VIDEOS_BASE_URL", raising=False)
     inspirations = build_feature_inspirations(
@@ -146,6 +153,7 @@ def test_feature_product_video_metadata_uses_default_base_url(monkeypatch) -> No
     assert direct_video.teaser_webp_url == "/daily-inspiration-videos/custom-pii-detection-teaser.webp"
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_feature_product_video_metadata_allows_env_override(monkeypatch) -> None:
     monkeypatch.setenv("OPENMATES_PRODUCT_VIDEOS_BASE_URL", "https://media.example.test/product-videos/")
     inspirations = build_feature_inspirations(
@@ -157,10 +165,12 @@ def test_feature_product_video_metadata_allows_env_override(monkeypatch) -> None
     assert direct_video is not None
     assert direct_video.mp4_url == "https://media.example.test/product-videos/custom-pii-detection.mp4"
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_unknown_legacy_feature_ids_default_to_authenticated_only() -> None:
     assert feature_requires_authentication("unknown-legacy-feature") is True
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_static_wiki_fallbacks_do_not_include_redirect_only_murmuration() -> None:
     inspirations = build_wiki_inspirations(count=10)
     wiki_titles = [inspiration.wiki.wiki_title for inspiration in inspirations if inspiration.wiki]
@@ -169,6 +179,7 @@ def test_static_wiki_fallbacks_do_not_include_redirect_only_murmuration() -> Non
     assert "Collective_animal_behavior" in wiki_titles
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_default_selection_and_endpoint_filter_video_text_media_mismatches() -> None:
     selector_source = (
         REPO_ROOT / "backend/core/api/app/tasks/default_inspiration_tasks.py"

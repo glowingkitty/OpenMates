@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Otomatis (bahasa browser)"
+      },
+      "account_save_error": {
+        "text": "Bahasa akun tidak dapat disimpan. Silakan coba lagi."
+      },
+      "text": "Bahasa"
+    },
     "open_settings_menu": {
       "text": "Buka menu pengaturan"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Perangkat"
-    },
-    "language": {
-      "text": "Bahasa"
     },
     "passkeys": {
       "text": "Kunci akses"

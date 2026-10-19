@@ -22,11 +22,14 @@
 //   synced to the API. Opened inspirations still appear in the carousel but are not
 //   shown as the default card (next unopened is preferred).
 
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
+import { locale } from "svelte-i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface DailyInspirationVideo {
+  /** Language of the inspiration text; persisted inside encrypted media metadata. */
+  language?: string;
   youtube_id: string;
   title: string;
   thumbnail_url: string;
@@ -37,6 +40,8 @@ export interface DailyInspirationVideo {
 }
 
 export interface DailyInspirationWiki {
+  /** Language of the inspiration text; persisted inside encrypted media metadata. */
+  language?: string;
   title: string;
   wiki_title: string;
   description: string | null;
@@ -46,6 +51,8 @@ export interface DailyInspirationWiki {
 }
 
 export interface DailyInspirationFeature {
+  /** Language of the inspiration text; persisted inside encrypted media metadata. */
+  language?: string;
   feature_id: string;
   icon: string;
   title: string;
@@ -64,6 +71,8 @@ export interface DailyInspirationDirectVideo {
 }
 
 export interface DailyInspiration {
+  /** Language of the inspiration text; persisted inside encrypted media metadata. */
+  language?: string;
   inspiration_id: string;
   phrase: string;
   /** Concise chat title (3-7 words) for the sidebar. Falls back to phrase if not set. */
@@ -146,6 +155,11 @@ export function hasCompleteAuthenticatedDailySet(
   return Object.entries(AUTHENTICATED_DAILY_QUOTAS).every(
     ([contentType, count]) => counts[contentType] === count,
   );
+}
+
+export function inspirationsMatchLanguage(inspirations: DailyInspiration[], language: string): boolean {
+  const normalized = language.toLowerCase().split("-")[0];
+  return inspirations.every((item) => (item.language ?? "en").toLowerCase().split("-")[0] === normalized);
 }
 
 interface DailyInspirationWriteOptions {
@@ -279,6 +293,8 @@ export const dailyInspirationStore = {
     inspirations: DailyInspiration[],
     options: DailyInspirationWriteOptions = {},
   ): void => {
+    // Reject stale sync/cache content without deleting its persisted history.
+    if (!inspirationsMatchLanguage(inspirations, get(locale) || "en")) return;
     const { personalized = false } = options;
     store.update((state) => {
       const source = resolveSource(options, state.source);
@@ -321,6 +337,8 @@ export const dailyInspirationStore = {
     inspirations: DailyInspiration[],
     options: DailyInspirationWriteOptions = {},
   ): void => {
+    // Reject stale sync/cache content without deleting its persisted history.
+    if (surface === "chats" && !inspirationsMatchLanguage(inspirations, get(locale) || "en")) return;
     const { personalized = false } = options;
     const tagged = inspirations
       .slice(0, MAX_DAILY_INSPIRATIONS)
@@ -334,7 +352,8 @@ export const dailyInspirationStore = {
         );
         const canReplaceIncompletePersonalizedSet =
           source === "authenticated-fallback"
-          && !hasCompleteAuthenticatedDailySet(chatInspirations);
+          && (!hasCompleteAuthenticatedDailySet(chatInspirations)
+            || !inspirationsMatchLanguage(chatInspirations, get(locale) || "en"));
         if (!canReplaceIncompletePersonalizedSet) {
           return state;
         }

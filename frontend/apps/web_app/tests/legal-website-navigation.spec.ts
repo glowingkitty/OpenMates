@@ -1,9 +1,10 @@
 import { expect, test } from './helpers/cookie-audit';
+import { closeSettingsPanel } from './helpers/settings-readiness';
 
 // playwright-account: not_required reason=guest_legal_website_navigation
 // Regression: legal documents must never be registered or opened as chat content.
 // contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.public-content
-test('settings legal links open the standalone website and the sidebar has no legal section', async ({ page, baseURL }) => {
+test('settings legal links open the standalone website and the sidebar has no legal section', async ({ page, baseURL }, testInfo) => {
   // The isolated backend is self-hosted. Exercise the cloud settings edition explicitly,
   // preserving the real status response and changing only edition metadata.
   await page.route('**/v1/settings/server-status', async route => {
@@ -22,24 +23,25 @@ test('settings legal links open the standalone website and the sidebar has no le
   const website = configured ? new URL(configured).origin : development ? 'https://landing.dev.openmates.org' : 'https://openmates.org';
   for (const slug of ['privacy', 'terms', 'imprint']) {
     const link = footer.getByTestId(`settings-legal-${slug}`);
-    await expect(link).toHaveAttribute('href', `${website}/legal/${slug}`);
+    await expect(link).toHaveAttribute('href', `${website}/legal/${slug}?lang=en`);
     await expect(link).toHaveAttribute('target', '_blank');
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   }
   // Intercept the destination so clicking exercises the actual anchor without external network dependencies.
-  await page.context().route(`${website}/legal/privacy`, route => route.fulfill({ contentType: 'text/html', body: '<main>Public privacy document</main>' }));
+  await page.context().route(`${website}/legal/privacy?lang=en`, route => route.fulfill({ contentType: 'text/html', body: '<main>Public privacy document</main>' }));
   const popup = page.waitForEvent('popup');
   await footer.getByTestId('settings-legal-privacy').click();
   const document = await popup;
-  await expect(document).toHaveURL(`${website}/legal/privacy`);
+  await expect(document).toHaveURL(`${website}/legal/privacy?lang=en`);
   await expect(document.getByText('Public privacy document')).toBeVisible();
   await document.close();
   await expect(page).not.toHaveURL(/chat-id=legal-/);
-  await page.getByTestId('profile-container').click();
-  if (!await page.getByTestId('activity-history-wrapper').isVisible()) await page.getByTestId('sidebar-toggle').click();
-  await expect(page.getByTestId('activity-history-wrapper')).toBeVisible();
+  await closeSettingsPanel(page, testInfo);
+  await expect(footer).not.toBeInViewport();
   const sidebar = page.getByTestId('sidebar-toggle');
-  if (await sidebar.isVisible() && await sidebar.getAttribute('aria-expanded') !== 'true') await sidebar.click();
+  await expect(sidebar).toBeVisible();
+  if (await sidebar.getAttribute('aria-expanded') !== 'true') await sidebar.click();
+  await expect(page.getByTestId('activity-history-wrapper')).toBeVisible();
   await expect(page.getByTestId('activity-history-wrapper')).toBeInViewport();
   await expect(page.locator('[data-group-key="legal"]')).toHaveCount(0);
   await expect(page.locator('[data-chat-id^="legal-"]')).toHaveCount(0);

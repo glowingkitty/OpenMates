@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automaticky (jazyk prohlížeče)"
+      },
+      "account_save_error": {
+        "text": "Jazyk účtu se nepodařilo uložit. Zkus to znovu."
+      },
+      "text": "Jazyk"
+    },
     "open_settings_menu": {
       "text": "Otevřít menu nastavení"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Zařízení"
-    },
-    "language": {
-      "text": "Jazyk"
     },
     "passkeys": {
       "text": "Přístupové klíče"

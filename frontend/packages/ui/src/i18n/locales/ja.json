@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "自動（ブラウザーの言語）"
+      },
+      "account_save_error": {
+        "text": "アカウントの言語を保存できませんでした。もう一度お試しください。"
+      },
+      "text": "言語"
+    },
     "open_settings_menu": {
       "text": "設定メニューを開く"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "デバイス"
-    },
-    "language": {
-      "text": "言語"
     },
     "passkeys": {
       "text": "パスキー"

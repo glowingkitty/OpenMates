@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automatycznie (język przeglądarki)"
+      },
+      "account_save_error": {
+        "text": "Nie udało się zapisać języka konta. Spróbuj ponownie."
+      },
+      "text": "Język"
+    },
     "open_settings_menu": {
       "text": "Otwórz menu ustawień"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Urządzenia"
-    },
-    "language": {
-      "text": "Język"
     },
     "passkeys": {
       "text": "Klucze dostępu"

@@ -13333,6 +13333,14 @@
             "description": {
               "text": "Wir verwenden api.video (EU-Unternehmen, Frankreich) zum Hosten und Streamen von Produkt-Demo- und Feature-Walkthrough-Videos auf unserer Website und Web-App. Wenn du ein Video anschaust, werden deine IP-Adresse und grundlegende Ansichtsdaten von api.video verarbeitet. Es werden keine Benutzerkonto-Kennungen weitergegeben."
             }
+          },
+          "hetzner_v2": {
+            "heading": {
+              "text": "Hetzner"
+            },
+            "description": {
+              "text": "Wir hosten Backend-Dienste, Datenbanken, Caches, S3-kompatiblen Objektspeicher, Sicherungskopien und unsere selbst gehostete OpenObserve-Plattform auf der Infrastruktur von Hetzner in der EU. Hetzner verarbeitet TLS-verschlüsselten Dienstverkehr und speichert verschlüsselte Daten. Uploads und Aufnahmen durchlaufen ebenfalls die Infrastruktur von Hetzner, bevor unser Upload-Dienst sie für die dauerhafte Speicherung verschlüsselt. Die Verschlüsselung verringert, was Hetzner bei gespeicherten Daten lesen kann, hebt aber die Rolle von Hetzner als Auftragsverarbeiter für die Infrastruktur nicht auf."
+            }
           }
         },
         "ai_models": {
@@ -13387,7 +13395,10 @@
               "text": "TypeSafe Jev (USA)"
             },
             "description": {
-              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
+              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Für den optionalen visuellen Produktvergleich erhält TypeSafe nur dann Bilder, wenn Referenzbilder angegeben werden: bis zu drei autorisierte, von Nutzern hochgeladene oder vom Assistenten erzeugte Referenzbilder sowie eine begrenzte Auswahl öffentlicher Produktfotos. Die Bilder werden auf höchstens 336 Pixel in der längsten Abmessung verkleinert und ohne Metadaten in JPEG umgewandelt; sichtbare Bildinhalte können weiterhin personenbezogene Daten enthalten. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
+            },
+            "data_handling": {
+              "text": "TypeSafe erklärt, eingereichte Inhalte nicht zum Training oder zur Feinabstimmung von Modellen zu verwenden. Die [Verarbeitungsbedingungen]({data_processing_url}) richten die Aufbewahrung nach dem Verarbeitungszweck und geltendem Recht aus, ohne eine feste maximale Aufbewahrungsfrist zu nennen. [Zero Data Retention]({legal_url}) wird Unternehmenskunden gesondert angeboten; OpenMates garantiert auf dem regulären TypeSafe-Weg keine Verarbeitung ohne anschließende Aufbewahrung. Ein Ausschluss des Modelltrainings bedeutet nicht, dass die Daten sofort gelöscht werden."
             }
           },
           "cerebras": {
@@ -13461,6 +13472,33 @@
             "description": {
               "text": "Z.ai bietet Modelle der GLM-Familie an. Z.ai erhält deine Chat-Nachrichten mit bereits clientseitig ersetzten PII-Platzhaltern nur dann, wenn du ein Z.ai-Modell auswählst."
             }
+          },
+          "description_v2": {
+            "text": "OpenMates leitet Anfragen entsprechend dem Modell oder der anbietergestützten Funktion, die du nutzt, an diese Anbieter weiter. Bei geeigneten eingetippten Chatnachrichten erfolgt eine clientseitige Platzhalterersetzung. Aufnahmen, Rohtranskripte, hochgeladene Dateien, Referenzbilder, Inhalte verbundener Konten und strukturierte Skill-Eingaben sind nicht abgedeckt, sofern eine Funktion nicht ausdrücklich etwas anderes angibt. Bei auswählbaren Modellen wird der Anbieter in den KI-Einstellungen angezeigt."
+          },
+          "mistral_v2": {
+            "heading": {
+              "text": "Mistral AI"
+            },
+            "description": {
+              "text": "Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung."
+            }
+          },
+          "openai_v2": {
+            "heading": {
+              "text": "OpenAI"
+            },
+            "description": {
+              "text": "OpenAI verarbeitet geeignete Chatnachrichten, wenn du ein Modell der GPT-Familie auswählst. OpenAI erhält außerdem Bild-Prompts, Erzeugungseinstellungen und etwaige Referenzbilder, wenn du GPT Image zur Erzeugung oder Bearbeitung auswählst. Referenzbilder sind nicht durch die Platzhalterersetzung für eingetippte Nachrichten abgedeckt."
+            }
+          },
+          "google_gemini_v2": {
+            "heading": {
+              "text": "Google Gemini"
+            },
+            "description": {
+              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn du ein Gemini-Modell auswählst. Gemini Live erhält während Sprachanrufen unverarbeitetes Mikrofonaudio, übermittelten Text und zulässigen Chatkontext. Gemini wird außerdem verwendet, um Mistral-Rohtranskripte von Sprachaufnahmen zu korrigieren und Titel zu erstellen, und kann Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Anrufaudio und Rohtranskripte erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
+            }
           }
         },
         "image_generation": {
@@ -13497,17 +13535,17 @@
         },
         "audio_generation": {
           "heading": {
-            "text": "Audio generation and speech (only when you use an audio generation skill)"
+            "text": "Audioerzeugung und Sprachausgabe (nur wenn du einen Skill zur Audioerzeugung verwendest)"
           },
           "description": {
-            "text": "These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them."
+            "text": "Diese Anbieter werden nur verwendet, wenn du einen Skill zur Audioerzeugung oder Text-zu-Sprache aufrufst. Wenn du die Skills zur Audioerzeugung nie verwendest, werden keine deiner Daten mit diesen Anbietern geteilt."
           },
           "elevenlabs": {
             "heading": {
-              "text": "ElevenLabs (sound effects and text-to-speech)"
+              "text": "ElevenLabs (Soundeffekte und Text-zu-Sprache)"
             },
             "description": {
-              "text": "ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits."
+              "text": "ElevenLabs ermöglicht Soundeffekte mit audio.generate und Text-zu-Sprache mit audio.speak. ElevenLabs erhält deine Soundeffekt-Prompts oder den gewünschten Sprachtext, die gewählte OpenMates-Stimmvoreinstellung, Akzent, Stil, Geschwindigkeit, Ausgabeformat, Dauer und Erzeugungseinstellungen nur, wenn du diese Skills aufrufst. Der Text für audio.speak wird zunächst von der Groq-Sicherheitsprüfung geprüft; abgelehnte Anfragen werden nicht an ElevenLabs gesendet und es werden keine Credits für die Erzeugung berechnet."
             }
           }
         },
@@ -13603,7 +13641,7 @@
           },
           "gandi": {
             "heading": {
-              "text": "Gandi (domain search)"
+              "text": "Gandi (Domainsuche)"
             },
             "description": {
               "text": "Gandi erhält Domainnamen oder Suchbegriffe, Land und Währung, wenn du die Domain-Suche von Hosting nutzt. OpenMates sendet Anfragen vom Server über HTTPS ohne deine OpenMates-Benutzerkennung oder Gandi-Zugangsdaten. Preise sind Richtwerte; es wird keine Registrierung durchgeführt."
@@ -13639,6 +13677,14 @@
             },
             "description": {
               "text": "YouTube wird abgefragt, wenn du OpenMates bittest, ein Transkript für ein YouTube-Video abzurufen. YouTube erhält Video-URLs und gewünschte Spracheinstellungen für das Transkript ohne eine OpenMates-Benutzerkennung."
+            }
+          },
+          "google_lens": {
+            "heading": {
+              "text": "Google Lens"
+            },
+            "description": {
+              "text": "Wenn du eine umgekehrte Bildersuche anforderst, vermittelt SerpAPI die Anfrage an Google Lens. SerpAPI und Google erhalten eine kurzzeitig öffentliche URL zu einer entschlüsselten Kopie des ausgewählten Bildes und eine etwaige optionale Texteingabe zur Verfeinerung. Die URL läuft ab, und es wird keine OpenMates-Nutzerkennung übermittelt."
             }
           }
         },
@@ -13680,6 +13726,22 @@
             "description": {
               "text": "Flix liefert Ergebnisse für Fernbus- und Bahnverbindungen, wenn du nach Strecken von FlixBus oder FlixTrain suchst. Flix erhält Details zur Suche nach Startort, Zielort und Datum ohne eine OpenMates-Benutzerkennung."
             }
+          },
+          "serpapi_v2": {
+            "heading": {
+              "text": "SerpAPI"
+            },
+            "description": {
+              "text": "SerpAPI ermöglicht die Suche nach Flügen, Hotels und Amazon-Produkten sowie die umgekehrte Bildersuche mit Google Lens. SerpAPI erhält die jeweilige Suchanfrage und Lokalisierungsfilter ohne eine OpenMates-Nutzerkennung. Bei der umgekehrten Bildersuche werden außerdem eine kurzzeitig gültige URL zu einer entschlüsselten Kopie des ausgewählten Bildes und eine etwaige optionale Suchanfrage zur Verfeinerung gesendet."
+            }
+          },
+          "transitous": {
+            "heading": {
+              "text": "Transitous"
+            },
+            "description": {
+              "text": "Transitous erhält Start- und Zielhaltestellen oder -orte, Reisedatum und -zeit, Verkehrsmittel und Routenoptionen für die unterstützte Routenplanung im europäischen öffentlichen Verkehr. Anfragen erfolgen serverseitig ohne eine OpenMates-Nutzerkennung. Laut Transitous werden Anfrage-URLs und Metadaten von Serveranfragen bis zu zwei Tage aufbewahrt."
+            }
           }
         },
         "events": {
@@ -13711,6 +13773,30 @@
             },
             "description": {
               "text": "Resident Advisor ermöglicht die Eventsuche für Events im Bereich elektronische Musik. RA erhält deine Suchanfragen ohne eine Benutzerkennung."
+            }
+          },
+          "eventbrite": {
+            "heading": {
+              "text": "Eventbrite"
+            },
+            "description": {
+              "text": "Eventbrite erhält die Veranstaltungssuchanfrage, Stadt, Kategorie, Datumsangaben und gewünschte Ergebnisanzahl für die öffentliche Veranstaltungssuche und den Abruf von Seiten. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
+            }
+          },
+          "siegessaeule": {
+            "heading": {
+              "text": "Siegessäule"
+            },
+            "description": {
+              "text": "Siegessäule erhält den Datumsbereich und gegebenenfalls einen passenden Veranstaltungsbereich oder eine passende Kategorie für Berliner LGBTQ+-Veranstaltungen. Anfragen werden ohne eine OpenMates-Nutzerkennung über Webshare geleitet; die Filterung anhand von Freitext ohne passende Zuordnung erfolgt lokal."
+            }
+          },
+          "berlin_philharmonic": {
+            "heading": {
+              "text": "Berliner Philharmoniker"
+            },
+            "description": {
+              "text": "Berliner Philharmoniker erhält die Konzertsuchanfrage, Datumsfilter, Schlagwörter und gewünschte Ergebnisanzahl, wenn du den öffentlichen Kalender durchsuchst. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
             }
           }
         },
@@ -13759,6 +13845,14 @@
             },
             "description": {
               "text": "Der Produktkatalog von Amazon wird nach Live-Produkt- und Preisdaten abgefragt. Amazon erhält deine Suchanfragen ohne eine Benutzerkennung."
+            }
+          },
+          "stoffe": {
+            "heading": {
+              "text": "Stoffe.de"
+            },
+            "description": {
+              "text": "Stoffe.de erhält die Produktsuchanfrage, Kategorie, Sortierung, Seitenauswahl und unterstützte Filter für das Lieferland bei der Suche nach Stoffen, Nähzubehör und Schnittmustern. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
             }
           }
         },
@@ -13893,10 +13987,83 @@
             }
           }
         },
+        "model_generation_v2": {
+          "heading": {
+            "text": "Suche und Erzeugung von 3D-Modellen"
+          },
+          "description": {
+            "text": "Diese Anbieter werden nur verwendet, wenn du den öffentlichen 3D-Modellkatalog durchsuchst oder einen Skill zur Erzeugung von 3D-Modellen aufrufst."
+          },
+          "printables": {
+            "heading": {
+              "text": "Printables von Prusa Research"
+            },
+            "description": {
+              "text": "Printables erhält die Suchanfrage für 3D-Modelle und die gewünschte Ergebnisbegrenzung, wenn du den öffentlichen Katalog durchsuchst. Die Anfrage wird serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
+            }
+          }
+        },
+        "connected_services": {
+          "heading": {
+            "text": "Verbundene Dienste"
+          },
+          "description": {
+            "text": "Diese Anbieter werden erst verwendet, nachdem du ein externes Konto verbunden und den Zugriff autorisiert hast. OpenMates fordert die für die Aktion benötigten Berechtigungen an und speichert dauerhaft benötigte Zugangsdaten verschlüsselt."
+          },
+          "google_calendar": {
+            "heading": {
+              "text": "Google Calendar"
+            },
+            "description": {
+              "text": "Nachdem du Google Calendar verbunden hast, tauscht OpenMates den OAuth-Autorisierungscode ein und speichert Refresh- oder Zugriffstoken verschlüsselt. Autorisierte Aktionen können auf Kalender-IDs, Namen, Zeitzonen, Termin-IDs, Titel, Beschreibungen, Orte, Datumsangaben und E-Mail-Adressen von Teilnehmenden zugreifen. OpenMates liest, erstellt, aktualisiert oder löscht nur im Rahmen der Berechtigungen und der Aktion, die du autorisierst."
+            }
+          }
+        },
         "business_data": {
+          "heading": {
+            "text": "Öffentliche Unternehmensdaten"
+          },
+          "description": {
+            "text": "Diese Anbieter werden verwendet, wenn du Finanzinformationen zu Unternehmen oder Markenrecherchen anforderst."
+          },
+          "sec_edgar": {
+            "heading": {
+              "text": "SEC EDGAR"
+            },
+            "description": {
+              "text": "Die SEC erhält den ausdrücklich angegebenen Unternehmensnamen, das Börsenkürzel oder die CIK sowie die für die Recherche zu einem börsennotierten Unternehmen benötigten Angaben zu Einreichungen oder Zeiträumen. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
+            }
+          },
           "uspto": {
+            "heading": {
+              "text": "USPTO"
+            },
             "description": {
               "text": "Das USPTO erhält Kandidatennamen sowie Status-, Schreibweisen- und Nizza-Klassenfilter für US-Markensuchen. Anfragen kommen von unseren Servern ohne OpenMates-Nutzerkennungen oder Chatverlauf."
+            }
+          }
+        },
+        "weather": {
+          "heading": {
+            "text": "Wetterdienste"
+          },
+          "description": {
+            "text": "Ein benannter Ort wird zunächst von Open-Meteo geokodiert. Vorhersagen für Deutschland verwenden anschließend die auf DWD-Daten basierenden Daten von Bright Sky; Vorhersagen für andere Länder verwenden Open-Meteo. Diese Dienste erhalten Standort- und Vorhersageparameter ohne eine OpenMates-Nutzerkennung."
+          },
+          "open_meteo": {
+            "heading": {
+              "text": "Open-Meteo"
+            },
+            "description": {
+              "text": "Open-Meteo erhält einen Ortsnamen und eine Sprache für die Geokodierung sowie Koordinaten, Datumsbereich, Zeitzone und angeforderte Wetterfelder für weltweite Vorhersagen außerhalb des gesonderten Verarbeitungspfads für Deutschland. Anfragen enthalten keine OpenMates-Nutzerkennungen. Laut Open-Meteo können API-Protokolle Koordinaten enthalten und werden nach 90 Tagen gelöscht."
+            }
+          },
+          "bright_sky": {
+            "heading": {
+              "text": "Bright Sky"
+            },
+            "description": {
+              "text": "Bright Sky erhält Koordinaten, Datumsbereich, Zeitzone, Radarradius und angeforderte Wetterfelder für Vorhersagen und Regenradar in Deutschland auf Grundlage öffentlicher DWD-Daten. Anfragen enthalten keine OpenMates-Nutzerkennungen. Bright Sky veröffentlicht keine eigenständige Datenschutzerklärung, daher verweist der Link auf die offizielle Dienstdokumentation."
             }
           }
         },
@@ -13909,7 +14076,7 @@
           },
           "arbeitsagentur": {
             "heading": {
-              "text": "German Federal Employment Agency"
+              "text": "Bundesagentur für Arbeit"
             },
             "description": {
               "text": "Die Bundesagentur für Arbeit erhält ausgewählte Job-Suchbegriffe, Standort, Suchradius und passende Filter für die öffentliche Stellensuche."
@@ -14180,6 +14347,12 @@
         },
         "stability_logs": {
           "text": "Stabilitätsprotokolle: Zur Diagnose technischer Fehler werden anonymisierte Browser-Konsolenprotokolle (Fehlermeldungen, Komponentenstatus, Verbindungsereignisse) von authentifizierten Benutzern erfasst und bis zu 48 Stunden gespeichert. Bei einem Fehler wird der umgebende Kontext bis zu 14 Tage aufbewahrt. Es werden keine Nachrichteninhalte, Chat-Titel, Namen, E-Mail-Adressen oder andere personenbezogene Daten erfasst. Ein zufälliger Sitzungsbezeichner (pro Browser-Tab generiert, nicht mit Ihrem Konto verknüpft) wird zur Protokollkorrelation verwendet. Sie können dies jederzeit unter Einstellungen > Datenschutz > Stabilitätsprotokolle deaktivieren."
+        },
+        "content_v2": {
+          "text": "Inhalte: Chatnachrichten, Prompts, Anhänge, Erinnerungen, Sprachaufnahmen und Transkripte, Kalenderinhalte sowie hochgeladene Bilder oder Videos, die zur Bereitstellung des Dienstes benötigt werden. Strukturierte Chatfelder werden im Allgemeinen vor der Synchronisierung im Browser verschlüsselt. Uploads und Aufnahmen werden über TLS an unser Backend übertragen und vor der dauerhaften Objektspeicherung verschlüsselt; sie sind nicht unbedingt bereits vor der Übertragung clientseitig verschlüsselt. Chats im Rahmen der anonymen kostenlosen Nutzung bleiben bis zur Registrierung auf dem Gerät des Nutzers und werden nur hochgeladen, wenn sie in die Kontosynchronisierung übernommen werden."
+        },
+        "connected_accounts": {
+          "text": "Verbundene Konten: Wenn du ein externes Konto verbindest, verarbeiten wir den Anbieter, die erteilten Berechtigungen, verschlüsselte Zugangsdaten und die für jede autorisierte Aktion benötigten Daten. Bei Google Calendar kann dies Kalendernamen, Zeitzonen, Termintitel, Beschreibungen, Orte, Datumsangaben, E-Mail-Adressen von Teilnehmenden und Termin-IDs des Anbieters umfassen."
         }
       },
       "data_retention": {
@@ -14223,7 +14396,7 @@
           "text": "Compliance-Protokolle: Sicherheits- und Rechenschaftsprotokolle sind für bis zu zwei Jahre konfiguriert, Finanztransaktionsprotokolle für bis zu zehn Jahre. Diese konfigurierten Fristen sind von den gesetzlichen Pflichten zu unterscheiden, die von der Art der Unterlage abhängen."
         },
         "content_v3": {
-          "text": "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+          "text": "Aktuelle persönliche Chat- und Artefaktdatensätze bleiben erhalten, bis du sie löschst oder dein Konto schließt; geeignete persönliche Dateien können jedoch nach den unten beschriebenen Warn- und Ablaufschutzmaßnahmen für unbezahlten Speicher entfernt werden, wenn diese Funktion aktiviert ist. Eine ausstehende Assistentenantwort, die mit einem öffentlichen Client-Schlüssel verschlüsselt ist, bleibt verfügbar, bis ein autorisierter Client ihre reguläre clientseitig verschlüsselte Speicherung überprüft und bestätigt oder der zugehörige Chat oder das Konto gelöscht wird. Der Ablauf einer Wiederholungs-Lease oder des KI-Arbeitscaches allein entfernt diese ausstehende Kopie nicht, und beim Ablauf unbezahlten Speichers ist die einzige verbleibende Offline-Wiederherstellungskopie geschützt. Ein anderer autorisierter Eigentümer oder ein Team kann geteilte Inhalte aufbewahren. Frühere Datenbankrevisionen und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze erhalten bleiben, wie unten gesondert beschrieben."
         },
         "historical_snapshots_v1": {
           "text": "Historische Datenbank-Änderungs- und Aktivitätsdatensätze: Der allgemeine Änderungs- und Aktivitätsverlauf kann nach dem Löschen aktueller Datensätze noch frühere Kontoprofilfelder oder verschlüsselte Momentaufnahmen von Chats und Artefakten enthalten. Für diesen historischen Verlauf gibt es derzeit keinen durchgesetzten automatischen Ablauf. Er ist kein inhaltsfreier Löschmarker."
@@ -14232,7 +14405,7 @@
           "text": "Compliance-Protokolle: Für historische Datenbank-Änderungs- und Aktivitätsdatensätze gibt es derzeit keinen durchgesetzten automatischen Ablauf nach zwei Jahren. Finanztransaktionsdaten sind vorbehaltlich der unten beschriebenen, datensatzspezifischen gesetzlichen Pflichten und Aufbewahrungsanordnungen für bis zu zehn Jahre konfiguriert."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
+          "text": "Wenn der Ablauf unbezahlten persönlichen Speichers aktiviert ist, kann ein unbezahlter Speicherzeitraum erst dann zur Entfernung der betroffenen persönlichen Dateien führen, wenn vier wöchentliche Warn-E-Mails von unserem E-Mail-Anbieter als zugestellt bestätigt wurden und jeweils mindestens 7 Tage auseinanderliegen. Die Entfernung darf frühestens zum spätesten der folgenden Zeitpunkte erfolgen: dem angekündigten Ablaufdatum, 28 Tage nach der ersten zugestellten Warnung oder 7 Tage nach der vierten zugestellten Warnung. Wir prüfen die Zahlung unmittelbar vor der Entfernung erneut. Die betroffenen Dateien stehen für diesen abgemahnten Zeitraum fest. Aus dieser Menge wählen wir vollständige persönliche Dateieinheiten aus, beginnend mit den ältesten, und entfernen nur so viele, wie nötig sind, um die anrechenbare Nutzung auf das kostenlose Kontingent zu begrenzen. Team-Dateien oder geteilte Dateien, aktive Dateien, die einzige verbleibende Offline-Wiederherstellungskopie, Dateien mit unklaren Eigentumsverhältnissen oder unklarer Sicherheit der Entfernung sowie Dateien, die durch später bezahlte Speicherzeiträume abgedeckt sind, sind geschützt. Wenn keine sichere Auswahl vollständiger, geeigneter Einheiten die Nutzung auf das Kontingent begrenzen kann, entfernen wir nichts und erlassen nichts. Erst nachdem wir überprüft haben, dass die betroffenen Dateien entfernt wurden und die anrechenbare Nutzung höchstens dem kostenlosen Kontingent entspricht, erlassen wir die unbezahlten Speicherrechnungen, die in diesem Warnzeitraum enthalten waren. Ihr Status wird zu waived_on_expiry, nicht zu paid; dieser Erlass führt zu keinem Credit-Abzug. Spätere Schulden, die nicht Gegenstand der Warnungen waren, sowie bezahlte Speicherzeiträume bleiben unberührt. Die logische Entfernung erzeugt regionale Löschmarkierungen ohne Inhaltsdaten und reiht die physische Löschung von Objekten erst dann in die Warteschlange ein, wenn die letzten aufbewahrten Verweise entfernt wurden; sie verspricht keine sofortige physische Löschung. Für die Aufbewahrung von Sicherungskopien und historischen Datensätzen gelten weiterhin die Angaben in unserer Datenschutzerklärung. Wenn der Ablauf unbezahlten Team-Speichers aktiviert ist, benachrichtigen wir den aktuellen Team-Eigentümer und die Admins. Jede der vier wöchentlichen Warnrunden zählt erst, nachdem unser E-Mail-Anbieter die Zustellung an alle erforderlichen Empfänger bestätigt hat. Es gelten dieselben Mindestabstände zwischen den Warnungen und dieselben Ablaufzeitpunkte. Wir wählen vollständige Team-Dateieinheiten aus, die ausdrücklich Gegenstand der Warnungen waren, beginnend mit den ältesten, und entfernen nur so viele, wie nötig sind, um das separate kostenlose Kontingent dieses Teams wieder einzuhalten. Aktive Arbeit, einzige Wiederherstellungskopien, erforderliche Verweise außerhalb der ausgewählten Einheiten, unklare Eigentumsverhältnisse oder eine unklare Sicherheit der Entfernung sowie später bezahlte Daten bleiben geschützt. Vor der Entfernung prüfen wir erneut das Team-Guthaben, die aktuelle Mitgliedschaft, die Zustellung der Benachrichtigungen, die Nutzung und die Verweise. Wenn keine sichere Auswahl das Kontingent wiederherstellen kann, entfernen wir nichts und erlassen nichts. Nur eine überprüfte Entfernung, durch die das Kontingent wieder eingehalten wird, kann zum Erlass des abgemahnten unbezahlten Speicherzeitraums dieses Teams führen; spätere Schulden und bezahlte Zeiträume bleiben unberührt."
         }
       },
       "legal_basis": {
@@ -14501,6 +14674,22 @@
             "text": "Wenn du sehr hohe Datenschutzanforderungen hast, kannst du erwägen, OpenMates selbst zu hosten und lokale oder offline laufende KI-Modelle statt Drittanbieter-KI-Anbietern zu verwenden. Das gibt dir mehr Kontrolle über Infrastruktur, Modellauswahl, Logs, Backups und Anbieter-Exposition. Es erfordert technische Erfahrung, laufende Wartung, sichere Serveradministration und ausreichend Hardware für brauchbare lokale KI-Inferenz. Self-Hosting macht nicht automatisch alles privat: Du musst Server, Backups, Geheimnisse, Netzwerkzugriff, Logs und alle aktivierten externen Anbieter trotzdem absichern."
           }
         },
+        "third_party_providers_v2": {
+          "question": {
+            "text": "Erhalten Drittanbieter meine Inhalte?"
+          },
+          "answer": {
+            "text": "Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+          }
+        },
+        "voice_recordings": {
+          "question": {
+            "text": "Was passiert, wenn ich Audio aufnehme?"
+          },
+          "answer": {
+            "text": "Audio wird über TLS durch das bei Hetzner gehostete OpenMates-Backend übertragen und zur Transkription an Mistral gesendet. Echtzeitaudio wird gestreamt; hochgeladene Aufnahmen werden vor der dauerhaften Speicherung von unserem Upload-Dienst verschlüsselt und nur im Arbeitsspeicher des Servers für die Transkription entschlüsselt. Das Rohtranskript wird anschließend an Google Gemini gesendet, um offensichtliche Transkriptionsfehler zu korrigieren und einen Titel zu erstellen. Bei Audio und Rohtranskripten erfolgt nicht die Platzhalterersetzung, die für geeignete eingetippte Chatnachrichten verwendet wird. OpenMates speichert Aufnahmen und Transkripte als verschlüsselte Kontoinhalte, Mistral und Google können API-Anfragedaten jedoch nach ihren eigenen Richtlinien aufbewahren."
+          }
+        },
         "voice_calls": {
           "question": {
             "text": "Was passiert während eines Sprachanrufs?"
@@ -14699,6 +14888,22 @@
           "description": {
             "text": "OpenMates ist Open Source. Jedes obige Versprechen wird durch Code gestützt, den du lesen kannst, Tests, die du ausführen kannst, und Architektur-Dokumente, die du in unserem öffentlichen Repository prüfen kannst. Unser Privacy-Promises-Register verknüpft jede Behauptung mit den exakten Dateien, die sie erzwingen."
           }
+        },
+        "client_side_chat_encryption_v2": {
+          "heading": {
+            "text": "Strukturierte Chatdaten werden vor der Synchronisierung verschlüsselt"
+          },
+          "description": {
+            "text": "Strukturierte Chatdaten, Einstellungen und Erinnerungen werden vor der Synchronisierung in deinem Browser mit AES-256-GCM verschlüsselt; der Server speichert die verschlüsselten Daten auf Datenträgern, in Caches und in Sicherungskopien. Hochgeladene Dateien und Aufnahmen werden dagegen über TLS an unser Backend übertragen und vor der dauerhaften Speicherung vom Upload-Dienst verschlüsselt. Dies ist keine Ende-zu-Ende-Verschlüsselung; serverseitige Aufgaben entschlüsseln relevante Inhalte vorübergehend im Arbeitsspeicher, wenn dies zur Bereitstellung einer angeforderten Funktion erforderlich ist."
+          }
+        },
+        "pii_placeholder_substitution_v2": {
+          "heading": {
+            "text": "Erkannte personenbezogene Daten werden in geeigneten eingetippten Chats ersetzt"
+          },
+          "description": {
+            "text": "Bevor eine geeignete eingetippte Chatnachricht an einen KI-Anbieter gesendet wird, erkennt dein Browser unterstützte Kategorien personenbezogener Daten und Geheimnisse und ersetzt erkannte Werte durch Platzhalter. Die Zuordnung der Platzhalter wird mit deinem Chat-Schlüssel verschlüsselt. Die Erkennung kann Daten übersehen. Dieser Schutz umfasst kein Sprachaudio, keine Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Inhalte verbundener Konten oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+          }
         }
       },
       "limitations_of_erasure": {
@@ -14757,6 +14962,14 @@
             "text": "Geheimtext-Backups deiner eigenen Datenexporte verbleiben über eine Lifecycle-Regel für 60 Tage in S3, damit du einen Export wiederherstellen kannst, falls dein Gerät verloren geht. Da wir deinen Verschlüsselungsschlüssel bei der Kontolöschung vernichtet haben, können auch wir diese Backups nicht entschlüsseln – sie sind praktisch inaktiver Geheimtext, bis sie ablaufen."
           }
         },
+        "third_party_ai_logs_v2": {
+          "heading": {
+            "text": "Von KI-Drittanbietern aufbewahrte Protokolle"
+          },
+          "description": {
+            "text": "KI-Anbieter bewahren Anfrageprotokolle unabhängig von OpenMates nach ihren eigenen Richtlinien auf, und wir können keine Daten aus ihren Systemen löschen. Die Aufbewahrung ist anbieterspezifisch; Mistral nennt beispielsweise einen gleitenden Zeitraum von 30 Tagen für gewöhnliche API-Ein- und -Ausgaben, sofern die Null-Datenaufbewahrung nicht aktiviert ist, während die aktuelle Gemini-Dokumentation von Google zur Missbrauchsüberwachung 55 Tage für protokollierte Prompts, Kontext und Ausgaben nennt. Bei geeigneten eingetippten Chats erfolgt eine clientseitige Platzhalterersetzung, die die Offenlegung verringert, aber Daten übersehen kann und kein Sprachaudio, keine Rohtranskripte, hochgeladenen Dateien oder Referenzdateien, Inhalte verbundener Konten oder strukturierten Skill-Eingaben umfasst, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
+          }
+        },
         "intro_v2": {
           "text": "Wenn du dein Konto löschst, vernichten wir seine vom Konto kontrollierten Verschlüsselungsschlüssel und entfernen Datensätze im Zuständigkeitsbereich dieser Löschung. Gemeinsam genutzte Inhalte, die einem anderen berechtigten Eigentümer oder Team erhalten bleiben, können bestehen bleiben. Auch einige gesondert gesetzlich aufbewahrte oder außerhalb unseres unmittelbaren Einflusses liegende Daten können bestehen bleiben:"
         },
@@ -14800,6 +15013,9 @@
         "status_limited_use": {
           "text": "Anonymisierte Ableitungen können genutzt werden"
         }
+      },
+      "provider_link_label_v2": {
+        "text": "Datenschutz- oder rechtliche Informationen des Anbieters"
       }
     },
     "terms": {
@@ -14894,13 +15110,13 @@
           "text": "Rückgaberecht: Sie können innerhalb von 14 Tagen nach dem Kauf eine Rückerstattung für ungenutzte Credits beantragen. Ihr Widerrufsrecht erlischt, sobald Credits verbraucht sind. Weitere Details zu den Rückgabebedingungen finden Sie in unserem Anmeldeprozess."
         },
         "storage_billing": {
-          "text": "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Where Team storage billing is enabled, each Team has its own separate 1 GiB free allowance and pays the same weekly rate from its Team credit wallet. Personal and Team allowances, balances and invoices are separate; an owner's personal balance is not charged for Team-owned storage under this policy."
+          "text": "Wenn die Abrechnung persönlichen Speichers für dein Konto aktiviert ist, ist das erste 1 GiB anrechenbaren persönlichen verschlüsselten Objektspeichers kostenlos. Oberhalb dieses Kontingents kostet jedes angefangene zusätzliche GiB 3 Credits pro Woche, die sonntags um 03:00 UTC berechnet werden. Wir zählen jedes logische verschlüsselte S3-Objekt einmal; regionale Replikate verursachen keine zusätzlichen Gebühren. Frühere Uploads werden im Rahmen dieser Einführung nicht rückwirkend einbezogen oder berechnet. Wenn die Abrechnung von Team-Speicher aktiviert ist, hat jedes Team ein eigenes separates kostenloses Kontingent von 1 GiB und zahlt denselben wöchentlichen Satz aus seinem Team-Credit-Guthaben. Persönliche und Team-Kontingente, Guthaben und Rechnungen sind getrennt; das persönliche Guthaben eines Eigentümers wird nach dieser Regelung nicht für Speicher im Eigentum des Teams belastet."
         },
         "storage_expiry": {
-          "text": "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
+          "text": "Wenn der Ablauf unbezahlten persönlichen Speichers aktiviert ist, kann ein unbezahlter Speicherzeitraum erst dann zur Entfernung der betroffenen persönlichen Dateien führen, wenn vier wöchentliche Warn-E-Mails von unserem E-Mail-Anbieter als zugestellt bestätigt wurden und jeweils mindestens 7 Tage auseinanderliegen. Die Entfernung darf frühestens zum spätesten der folgenden Zeitpunkte erfolgen: dem angekündigten Ablaufdatum, 28 Tage nach der ersten zugestellten Warnung oder 7 Tage nach der vierten zugestellten Warnung. Wir prüfen die Zahlung unmittelbar vor der Entfernung erneut. Die betroffenen Dateien stehen für diesen abgemahnten Zeitraum fest. Aus dieser Menge wählen wir vollständige persönliche Dateieinheiten aus, beginnend mit den ältesten, und entfernen nur so viele, wie nötig sind, um die anrechenbare Nutzung auf das kostenlose Kontingent zu begrenzen. Team-Dateien oder geteilte Dateien, aktive Dateien, die einzige verbleibende Offline-Wiederherstellungskopie, Dateien mit unklaren Eigentumsverhältnissen oder unklarer Sicherheit der Entfernung sowie Dateien, die durch später bezahlte Speicherzeiträume abgedeckt sind, sind geschützt. Wenn keine sichere Auswahl vollständiger, geeigneter Einheiten die Nutzung auf das Kontingent begrenzen kann, entfernen wir nichts und erlassen nichts. Wenn der Ablauf unbezahlten Team-Speichers aktiviert ist, benachrichtigen wir den aktuellen Team-Eigentümer und die Admins. Jede der vier wöchentlichen Warnrunden zählt erst, nachdem unser E-Mail-Anbieter die Zustellung an alle erforderlichen Empfänger bestätigt hat. Es gelten dieselben Mindestabstände zwischen den Warnungen und dieselben Ablaufzeitpunkte. Wir wählen vollständige Team-Dateieinheiten aus, die ausdrücklich Gegenstand der Warnungen waren, beginnend mit den ältesten, und entfernen nur so viele, wie nötig sind, um das separate kostenlose Kontingent dieses Teams wieder einzuhalten. Aktive Arbeit, einzige Wiederherstellungskopien, erforderliche Verweise außerhalb der ausgewählten Einheiten, unklare Eigentumsverhältnisse oder eine unklare Sicherheit der Entfernung sowie später bezahlte Daten bleiben geschützt. Vor der Entfernung prüfen wir erneut das Team-Guthaben, die aktuelle Mitgliedschaft, die Zustellung der Benachrichtigungen, die Nutzung und die Verweise. Wenn keine sichere Auswahl das Kontingent wiederherstellen kann, entfernen wir nichts und erlassen nichts. Nur eine überprüfte Entfernung, durch die das Kontingent wieder eingehalten wird, kann zum Erlass des abgemahnten unbezahlten Speicherzeitraums dieses Teams führen; spätere Schulden und bezahlte Zeiträume bleiben unberührt."
         },
         "storage_invoice_waiver": {
-          "text": "Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. The waived amount is written off without taking credits or recording a payment. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy."
+          "text": "Erst nachdem wir überprüft haben, dass die betroffenen Dateien entfernt wurden und die anrechenbare Nutzung höchstens dem kostenlosen Kontingent entspricht, erlassen wir die unbezahlten Speicherrechnungen, die in diesem Warnzeitraum enthalten waren. Der erlassene Betrag wird ausgebucht, ohne Credits abzuziehen oder eine Zahlung zu verbuchen. Spätere Schulden, die nicht Gegenstand der Warnungen waren, sowie bezahlte Speicherzeiträume bleiben unberührt. Die logische Entfernung erzeugt regionale Löschmarkierungen ohne Inhaltsdaten und reiht die physische Löschung von Objekten erst dann in die Warteschlange ein, wenn die letzten aufbewahrten Verweise entfernt wurden; sie verspricht keine sofortige physische Löschung. Für die Aufbewahrung von Sicherungskopien und historischen Datensätzen gelten weiterhin die Angaben in unserer Datenschutzerklärung."
         }
       },
       "disclaimer": {
@@ -19180,6 +19396,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automatisch (Browsersprache)"
+      },
+      "account_save_error": {
+        "text": "Die Sprache konnte nicht in deinem Konto gespeichert werden. Bitte versuche es erneut."
+      },
+      "text": "Sprache"
+    },
     "local_models": {
       "title": {
         "text": "Lokales Modelllabor"
@@ -22432,9 +22657,6 @@
     },
     "devices": {
       "text": "Geräte"
-    },
-    "language": {
-      "text": "Sprache"
     },
     "passkeys": {
       "text": "Passkeys"

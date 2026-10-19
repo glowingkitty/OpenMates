@@ -98,13 +98,13 @@ export async function saveInspirationToIndexedDB(
 
     // Encrypt the text content fields and optional rich metadata
     const videoMetadataJson = inspiration.video
-      ? JSON.stringify(inspiration.video)
+      ? JSON.stringify({ ...inspiration.video, language: inspiration.language })
       : null;
     const wikiMetadataJson = inspiration.wiki
-      ? JSON.stringify(inspiration.wiki)
+      ? JSON.stringify({ ...inspiration.wiki, language: inspiration.language })
       : null;
     const featureMetadataJson = inspiration.feature
-      ? JSON.stringify(inspiration.feature)
+      ? JSON.stringify({ ...inspiration.feature, language: inspiration.language })
       : null;
 
     // Use the short title for encrypted_title (falls back to phrase for older
@@ -377,6 +377,7 @@ export async function loadInspirationsFromIndexedDB(): Promise<
           video,
           wiki,
           feature,
+          language: video?.language ?? wiki?.language ?? feature?.language,
           generated_at: record.generated_at,
           embed_id: record.embed_id,
           is_opened: record.is_opened,
@@ -789,6 +790,7 @@ export async function loadInspirationsFromAPI(): Promise<DailyInspiration[]> {
           video,
           wiki,
           feature,
+          language: video?.language ?? wiki?.language ?? feature?.language,
           generated_at: record.generated_at as number,
           embed_id: (record.embed_id as string | null) ?? null,
           is_opened: (record.is_opened as boolean) ?? false,
@@ -1035,6 +1037,7 @@ export async function processInspirationRecordsFromSync(
           video,
           wiki,
           feature,
+          language: video?.language ?? wiki?.language ?? feature?.language,
           generated_at: record.generated_at as number,
           embed_id: (record.embed_id as string | null) ?? null,
           is_opened: (record.is_opened as boolean) ?? false,

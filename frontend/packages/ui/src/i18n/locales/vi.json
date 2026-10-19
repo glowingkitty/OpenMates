@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Tự động (ngôn ngữ trình duyệt)"
+      },
+      "account_save_error": {
+        "text": "Không thể lưu ngôn ngữ tài khoản. Vui lòng thử lại."
+      },
+      "text": "Ngôn ngữ"
+    },
     "open_settings_menu": {
       "text": "Mở menu cài đặt"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Thiết bị"
-    },
-    "language": {
-      "text": "Ngôn ngữ"
     },
     "passkeys": {
       "text": "Khóa truy cập"

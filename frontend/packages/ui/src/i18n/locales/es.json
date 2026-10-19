@@ -17320,6 +17320,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automático (idioma del navegador)"
+      },
+      "account_save_error": {
+        "text": "No se pudo guardar el idioma de tu cuenta. Inténtalo de nuevo."
+      },
+      "text": "Idioma"
+    },
     "open_settings_menu": {
       "text": "Abrir menú de configuración"
     },
@@ -20084,9 +20093,6 @@
     },
     "devices": {
       "text": "Dispositivos"
-    },
-    "language": {
-      "text": "Idioma"
     },
     "passkeys": {
       "text": "Claves de acceso"

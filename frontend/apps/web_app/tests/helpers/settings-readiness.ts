@@ -1,5 +1,22 @@
 import { expect, type Page, type TestInfo } from '@playwright/test';
 
+/** Desktop drawers remain mounted while clipped; DOM visibility is not closed state. */
+export async function closeSettingsPanel(page: Page, testInfo: TestInfo): Promise<void> {
+	const toggle = page.getByTestId('profile-container');
+	const menu = page.getByTestId('settings-menu');
+	try {
+		await page.getByTestId('icon-button-close').click();
+		await expect(toggle).toHaveAttribute('data-action', 'open-settings');
+		await expect(menu).toHaveCSS('opacity', '0');
+	} catch (error) {
+		await testInfo.attach('settings-close-state', {
+			body: JSON.stringify({ toggleAction: await toggle.getAttribute('data-action'), menuBounds: await menu.boundingBox() }),
+			contentType: 'application/json'
+		});
+		throw error;
+	}
+}
+
 /** A restored settings route can appear before its asynchronous data is ready. */
 export async function waitForSettingsView(
 	page: Page,

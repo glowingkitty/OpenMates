@@ -6,14 +6,20 @@
     appBaseUrl: string;
     websiteBaseUrl: string;
     language: string;
+    languageMode?: 'manual' | 'account' | 'auto';
     onLanguageChange: (code: string) => void;
     availableLanguages?: readonly string[];
     publication?: "news" | "blog";
   }
 
-  let { appBaseUrl, websiteBaseUrl, language, onLanguageChange, availableLanguages, publication }: Props = $props();
-  const appUrl = (path: string) => `${appBaseUrl.replace(/\/$/, '')}${path}`;
-  const siteUrl = (path: string) => `${websiteBaseUrl.replace(/\/$/, '')}${path}`;
+  let { appBaseUrl, websiteBaseUrl, language, languageMode = 'manual', onLanguageChange, availableLanguages, publication }: Props = $props();
+  const localizedUrl = (base: string, path: string, preserveDocumentLanguage = true) => {
+    const url = new URL(path, base);
+    if (preserveDocumentLanguage || languageMode === 'manual') url.searchParams.set('lang', language);
+    return url.href;
+  };
+  const appUrl = (path: string) => localizedUrl(appBaseUrl, path, false);
+  const siteUrl = (path: string) => localizedUrl(websiteBaseUrl, path);
   let copy = $derived(landingCopy[language === 'de' ? 'de' : 'en']);
   let languageOptions = $derived(supportedLanguages.filter((option) => !availableLanguages || availableLanguages.includes(option.code)));
   let languageOpen = $state(false);
@@ -40,7 +46,7 @@
 </script>
 
 <svelte:document onpointerdown={onPointerDown} onkeydown={onKeyDown} />
-<header class="site-header" class:with-publication={!!publication} data-testid="public-site-header">
+<header class="site-header" class:with-publication={!!publication} data-testid="public-site-header" data-language-mode={languageMode}>
   <a class="wordmark" href={siteUrl('/')} aria-label="OpenMates home"><span>Open</span>Mates</a>
   {#if publication}
     <nav class="publication-links" aria-label={language === 'de' ? 'Veröffentlichungen' : 'Publications'}>
@@ -59,8 +65,9 @@
           <div class="language-heading"><strong>{copy.language}</strong><button type="button" aria-label={copy.close} onclick={() => closeLanguagePanel(true)}>×</button></div>
           <p>{copy.languageHint}</p>
           <div class="language-options">
+            <button type="button" class:selected={languageMode === 'auto'} aria-pressed={languageMode === 'auto'} data-testid="landing-language-auto" onclick={() => selectLanguage('auto')}>{language === 'de' ? 'Automatisch (Browser)' : 'Automatic (browser)'}</button>
             {#each languageOptions as option (option.code)}
-              <button type="button" class:selected={language === option.code} lang={option.code} aria-pressed={language === option.code} onclick={() => selectLanguage(option.code)}>{option.nativeName ?? option.name}</button>
+              <button type="button" class:selected={languageMode !== 'auto' && language === option.code} lang={option.code} aria-pressed={languageMode !== 'auto' && language === option.code} onclick={() => selectLanguage(option.code)}>{option.nativeName ?? option.name}</button>
             {/each}
           </div>
         </div>

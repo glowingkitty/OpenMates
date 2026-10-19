@@ -19,7 +19,7 @@ import { chatDB } from "../services/db";
 import { userProfile, defaultProfile, updateProfile } from "./userProfile";
 import { resetTwoFAData } from "./twoFAState";
 import { processedImageUrl } from "./profileImage";
-import { locale } from "svelte-i18n";
+import { applyAccountLanguage } from "../i18n/setup";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId";
 import { phasedSyncState } from "./phasedSyncStateStore";
@@ -393,13 +393,9 @@ export async function login(
             const consent_privacy =
               !!data.user.consent_privacy_and_apps_default_settings;
             const consent_mates = !!data.user.consent_mates_default_settings;
-            const userLanguage = data.user.language || defaultProfile.language;
+            const userLanguage = await applyAccountLanguage(data.user.language || defaultProfile.language);
             const userDarkMode = data.user.darkmode ?? defaultProfile.darkmode;
             const userUiFont = data.user.ui_font ?? defaultProfile.ui_font;
-
-            if (userLanguage && userLanguage !== get(locale)) {
-              locale.set(userLanguage);
-            }
 
             updateProfile({
               user_id: data.user.id || null,

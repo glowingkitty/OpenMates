@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "自动（浏览器语言）"
+      },
+      "account_save_error": {
+        "text": "无法保存账户语言。请重试。"
+      },
+      "text": "语言"
+    },
     "open_settings_menu": {
       "text": "打开设置菜单"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "设备"
-    },
-    "language": {
-      "text": "语言"
     },
     "passkeys": {
       "text": "通行密钥"

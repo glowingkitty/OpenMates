@@ -148,6 +148,73 @@ FEATURE_TIPS = [
 ]
 
 
+# Static copy deliberately uses no model or translation service.
+FEATURE_TIPS_DE = {
+    "export-data": {
+        "title": "Deine OpenMates-Daten exportieren",
+        "description": "Sichere Chats, Einstellungen, Erinnerungen und mehr, wann "
+        "immer du sie brauchst.",
+        "phrase": "Behalte deine eigene Sicherung. Exportiere deine OpenMates-Daten "
+        "jederzeit.",
+    },
+    "custom-pii-detection": {
+        "title": "Persönliche Daten gezielt schützen",
+        "description": "Lege fest, welche persönlichen Angaben OpenMates "
+        "vor Modellaufrufen verbergen soll.",
+        "phrase": "Du möchtest mehr Datenschutz? Ergänze persönliche "
+        "Angaben, die OpenMates verbergen soll.",
+    },
+    "events-search": {
+        "title": "Veranstaltungen finden",
+        "description": "Durchsuche Meetup, Luma, Eventbrite, Resident Advisor und "
+        "weitere Quellen.",
+        "phrase": "Du möchtest etwas unternehmen? OpenMates findet Veranstaltungen "
+        "aus verschiedenen Quellen.",
+    },
+    "web-video-skills": {
+        "title": "Zitate aus verlässlichen Quellen",
+        "description": "Lass deine Mates Quellen prüfen und die Textstellen "
+        "zitieren, die eine Antwort belegen.",
+        "phrase": "Du möchtest eine Antwort überprüfen? Bitte OpenMates um ein "
+        "Zitat aus der Quelle.",
+    },
+    "image-detection": {
+        "title": "KI-Bilder erkennen",
+        "description": "Lade ein Bild hoch und untersuche Hinweise auf "
+        "KI-Erzeugung direkt im Chat.",
+        "phrase": "Wurde ein Bild mit KI erzeugt? Lade es hoch und prüfe die Hinweise.",
+    },
+    "focus-modes": {
+        "title": "Fokusmodi",
+        "description": "Richte einen Chat vorübergehend auf ein bestimmtes Ziel aus, "
+        "um passendere Antworten zu erhalten.",
+        "phrase": "Du brauchst eine gezieltere Antwort? Gib deinem Mate eine "
+        "konkrete Aufgabe.",
+    },
+    "memories": {
+        "title": "Erinnerungen",
+        "description": "Speichere Vorlieben und Erinnerungen, damit deine Mates den "
+        "Kontext nicht erneut benötigen.",
+        "phrase": "Du möchtest dich nicht wiederholen? Speichere den Kontext, den deine "
+        "Mates kennen sollen.",
+    },
+    "incognito-mode": {
+        "title": "Inkognito-Chats",
+        "description": "Starte vorübergehende Chats, die nicht im Verlauf "
+        "gespeichert werden.",
+        "phrase": "Du brauchst einen vorübergehenden Chat? Halte ihn aus deinem "
+        "gespeicherten Verlauf heraus.",
+    },
+    "privacy-dashboard": {
+        "title": "Datenschutzeinstellungen",
+        "description": "Verwalte das Verbergen persönlicher Daten, verbundene "
+        "Konten und automatisches Löschen an einem Ort.",
+        "phrase": "Prüfe in Ruhe, wie OpenMates deine Daten schützt und welche "
+        "Einstellungen du nutzen kannst.",
+    },
+}
+
+
 def _build_direct_video(tip: dict) -> DailyInspirationDirectVideo | None:
     filename = tip.get("direct_video_filename")
     if not filename:
@@ -181,6 +248,7 @@ def build_feature_inspirations(
     count: int = 4,
     *,
     include_authenticated_only: bool = True,
+    language: str = "en",
 ) -> List[DailyInspiration]:
     """Return up to ``count`` static feature inspiration objects."""
     now_ts = int(time.time())
@@ -192,6 +260,9 @@ def build_feature_inspirations(
         and (include_authenticated_only or not tip.get("requires_authentication", True))
     ]
     for tip in linked_tips[:max(0, count)]:
+        content_language = "de" if language.lower().split("-")[0] == "de" else "en"
+        if content_language == "de":
+            tip = {**tip, **FEATURE_TIPS_DE[tip["feature_id"]]}
         feature = DailyInspirationFeature(
             feature_id=tip["feature_id"],
             icon=tip["icon"],
@@ -203,6 +274,7 @@ def build_feature_inspirations(
         inspirations.append(
             DailyInspiration(
                 inspiration_id=str(uuid.uuid4()),
+                language=content_language,
                 phrase=tip["phrase"],
                 title=tip["title"],
                 assistant_response=tip["description"],

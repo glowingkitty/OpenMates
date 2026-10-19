@@ -1,0 +1,45 @@
+schema_version: 1
+id: feature.language-preferences
+version: 1
+status: draft
+title: Website and Web App Language Preferences
+summary: Website and web-app visitors receive their selected or best-supported browser language from the first visible text, with consistent manual controls and localized German content.
+scope:
+  includes:
+    - Automatic and explicit language selection across the public website and first-party web app.
+    - Initial rendering, account preference restoration, language settings and navigation.
+    - German legal text and daily-inspiration content, including fallback and persisted sets.
+  excludes:
+    - Changes to Apple applications, model routing, authentication or chat encryption protocols.
+    - New translations for public website languages beyond its existing English and German copy.
+assertions:
+  - id: language-preferences.resolution
+    type: behavior
+    must: A supported explicit URL language takes precedence for the visit, followed by a saved manual preference, then the browser's ordered supported language preferences and finally English. Regional language tags resolve to a supported base language. Automatic detection never overwrites a manual account choice. Existing valid saved choices remain respected.
+    depends_on: [examples.resolution]
+  - id: language-preferences.first-paint
+    type: behavior
+    must: The website sends localized readable HTML and metadata before browser initialization and retains that language during hydration. The client-rendered app resolves its selected language and dictionary before displaying interface text, using only a neutral shell while loading; cached account language is restored without an English-first transition. Public caches separate language variants and public startup does not wait for chat synchronization.
+    depends_on: [examples.startup]
+  - id: language-preferences.manual-choice
+    type: behavior
+    must: One language screen is reachable from Account and Interface, shows the active language accurately, and offers Automatic browser language alongside explicit languages. Selecting a language applies and persists it even if it matches browser language. Manual choices propagate between website and app; account-save failures are visible. Legal and public navigation preserve the selected locale.
+    depends_on: [examples.controls]
+  - id: language-preferences.content-language
+    type: behavior
+    must: German legal documents contain translated prose, including storage, audio and retention disclosures. German daily inspirations use German static and fallback copy and never silently fill shortages with English. Language changes refresh mismatched cached or persisted sets while preserving opened-chat associations and personal history.
+    depends_on: [examples.content]
+applies_to:
+  rest_api: {required: true, role: Public default-inspiration locale response semantics.}
+  cli: {required: false}
+  sdks:
+    required: false
+    implementations: {npm: {required: false}, pip: {required: false}}
+  gui:
+    required: true
+    implementations: {web: {required: true}, apple: {required: false}}
+examples:
+  file: examples.yml
+  required_groups: [resolution, startup, controls, content]
+approval_source:
+  instruction: User explicitly approved the six concrete recommendations in this chat and requested implementation, deployment and video proof. This transcribes that approved scope without claiming a new exact-fingerprint review.

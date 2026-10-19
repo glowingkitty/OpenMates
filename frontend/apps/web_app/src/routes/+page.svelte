@@ -53,9 +53,6 @@
 		getKeyFromStorage,
 		text,
 		LANGUAGE_CODES,
-		getDetectedBrowserLanguage,
-		getLanguageByCode,
-		isRtlLanguage,
 		forcedLogoutInProgress,
 		setForcedLogoutInProgress,
 		resetForcedLogoutInProgress,
@@ -94,7 +91,7 @@
 	import { chatNavigationReader } from '@repo/ui/services/chatNavigationReader';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
 	import { onMount, onDestroy, setContext, tick, untrack } from 'svelte';
-	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
+	import { waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
@@ -1878,18 +1875,6 @@
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 		document.documentElement.setAttribute('data-hash-router-ready', 'true');
 
-		// ?lang= has absolute priority over stored preferredLanguage.
-		// Apply it here — at the very top of onMount, before any chat loading
-		// (Priority 1/2/3), so translateDemoChat always uses the URL-specified
-		// language regardless of whether this is a first visit or a return visit.
-		if (browser) {
-			const langParamEarly = new URLSearchParams(window.location.search).get('lang');
-			if (langParamEarly && LANGUAGE_CODES.includes(langParamEarly)) {
-				locale.set(langParamEarly);
-				await waitLocale();
-			}
-		}
-
 		// Persistent Cmd/Ctrl+F interceptor at page level.
 		// Chats.svelte is conditionally mounted, so its KeyboardShortcuts instance can be
 		// unavailable while the sidebar is closed. Keeping this at page level guarantees we
@@ -2461,88 +2446,6 @@
 
 			// Clear the deep link processing flag
 			deepLinkProcessing.set(false);
-		}
-
-		// Handle ?lang= query parameter for language selection
-		if (browser) {
-			const urlParams = new URLSearchParams(window.location.search);
-			const langParam = urlParams.get('lang');
-			// Use supported locales from single source of truth
-			const supportedLocales = LANGUAGE_CODES;
-
-			if (langParam && supportedLocales.includes(langParam)) {
-				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
-
-				// Set the locale and wait for translations to fully load
-				locale.set(langParam);
-				await waitLocale();
-
-				// Save to localStorage (sole source of truth for language preference)
-				localStorage.setItem('preferredLanguage', langParam);
-
-				// Update HTML lang + dir attributes (RTL languages need dir="rtl")
-				document.documentElement.setAttribute('lang', langParam);
-				document.documentElement.setAttribute(
-					'dir',
-					isRtlLanguage(langParam) ? 'rtl' : 'ltr'
-				);
-
-				// Notify all components that depend on language-changed events.
-				// This matches the event flow in SettingsLanguage.svelte and ensures
-				// components like Chats.svelte (intro chat titles), DailyInspirationBanner,
-				// and ActiveChat re-render with the correct locale after ?lang= param.
-				setTimeout(() => {
-					window.dispatchEvent(new CustomEvent('language-changed'));
-					setTimeout(() => {
-						window.dispatchEvent(new CustomEvent('language-changed-complete'));
-					}, 50);
-				}, 0);
-
-				// Remove the lang parameter from URL (cleaner URL after setting preference)
-				const newUrl = new URL(window.location.href);
-				newUrl.searchParams.delete('lang');
-				replaceState(newUrl.toString(), {});
-			}
-		}
-
-		// One-time language suggestion: if the visitor's browser language differs from English
-		// and they have no stored preference, show a notification in English letting
-		// them switch. Marked shown immediately so a page refresh doesn't re-show it.
-		if (browser) {
-			const hasPreference = !!localStorage.getItem("preferredLanguage");
-			const alreadyShown = !!localStorage.getItem("language_suggestion_shown");
-
-			if (!hasPreference && !alreadyShown) {
-				const browserLang = getDetectedBrowserLanguage();
-				if (browserLang !== "en" && LANGUAGE_CODES.includes(browserLang)) {
-					const language = getLanguageByCode(browserLang);
-					if (language) {
-						localStorage.setItem("language_suggestion_shown", "1");
-						const notificationId = notificationStore.addNotificationWithOptions("info", {
-							title: "Language Detected",
-							message: `Your browser language is ${language.nativeName}.`,
-							duration: 7000,
-							dismissible: true,
-							actionLabel: `Switch to ${language.nativeName}`,
-							onAction: async () => {
-								window.dispatchEvent(new CustomEvent('language-changed'));
-								locale.set(browserLang);
-								await waitLocale();
-								localStorage.setItem("preferredLanguage", browserLang);
-								document.documentElement.setAttribute("lang", browserLang);
-								document.documentElement.setAttribute(
-									"dir",
-									isRtlLanguage(browserLang) ? "rtl" : "ltr"
-								);
-								setTimeout(() => {
-									window.dispatchEvent(new CustomEvent('language-changed-complete'));
-									notificationStore.removeNotification(notificationId);
-								}, 50);
-							}
-						});
-					}
-				}
-			}
 		}
 
 		// NOTE: Shared chat cleanup for unauthenticated users

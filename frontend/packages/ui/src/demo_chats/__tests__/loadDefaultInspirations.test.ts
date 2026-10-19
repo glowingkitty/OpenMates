@@ -238,3 +238,36 @@ describe("loadDefaultInspirations", () => {
     unsubscribe();
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=language-preferences.content-language
+describe("inspiration language consistency", () => {
+  afterEach(() => { vi.unstubAllGlobals(); dailyInspirationStore.reset(); locale.set("en"); authStore.set({ ...authInitialState }); });
+
+  it("replaces an English personalized display with German fallback after locale restore", async () => {
+    authenticate();
+    dailyInspirationStore.setInspirations(getAuthenticatedFallbackInspirations("en"), { personalized: true });
+    locale.set("de");
+    const resolveFetch = stubDelayedDefaultFetch({ inspirations: getAuthenticatedFallbackInspirations("en") });
+    const loading = loadDefaultInspirations({ allowIndexedDB: false });
+    expect(get(dailyInspirationStore).inspirations.every((item) => item.language === "de")).toBe(true);
+    resolveFetch();
+    await loading;
+    expect(get(dailyInspirationStore).inspirations.every((item) => item.language === "de")).toBe(true);
+    expect(get(dailyInspirationStore).source).toBe("authenticated-fallback");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=language-preferences.content-language
+  it("ignores an English response that finishes after switching to German", async () => {
+    authenticate();
+    const resolveFetch = stubDelayedDefaultFetch({ inspirations: getAuthenticatedFallbackInspirations("en") });
+    const loading = loadDefaultInspirations({ allowIndexedDB: false });
+    // Let the request capture the original English locale before it is changed.
+    await Promise.resolve();
+    locale.set("de");
+    dailyInspirationStore.reset();
+    dailyInspirationStore.setInspirations(getAuthenticatedFallbackInspirations("de"), { source: "authenticated-fallback" });
+    resolveFetch();
+    await loading;
+    expect(get(dailyInspirationStore).inspirations.every((item) => item.language === "de")).toBe(true);
+  });
+});

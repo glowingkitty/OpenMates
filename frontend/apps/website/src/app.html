@@ -1,10 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="%openmates.language%" dir="ltr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="%sveltekit.assets%/favicon.svg" />
     <script>
+      // Migrate a historical manual choice before the body is painted. The
+      // server owns rendered language; never translate the page during hydration.
+      try {
+        const host = location.hostname;
+        const dev = /(^|\.)dev\.openmates\.org$/.test(host);
+        const name = dev ? 'om_language_dev' : 'om_language';
+        const cookie = document.cookie.split(';').map(part => part.trim()).find(part => part.startsWith(name + '='));
+        const preference = cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : null;
+        const mode = localStorage.getItem('openmatesLanguageMode');
+        const legacy = localStorage.getItem('preferredLanguage');
+        // An explicit Automatic/manual cookie wins; an account default cannot
+        // replace a historical manual browser choice during migration.
+        if (!preference || (preference.startsWith('account:') && mode !== 'auto' && legacy)) {
+          const account = localStorage.getItem('openmatesAccountLanguage');
+          const saved = mode === 'auto' ? null : legacy || account;
+          const language = saved && saved.toLowerCase().split(/[-_]/)[0];
+          if (mode === 'auto' || language === 'en' || language === 'de') {
+            const value = mode === 'auto' ? 'auto' : (legacy ? 'manual:' : 'account:') + language;
+            const domain = dev ? 'dev.openmates.org' : /(^|\.)openmates\.org$/.test(host) ? 'openmates.org' : null;
+            document.cookie = name + '=' + encodeURIComponent(value) + '; Path=/; Max-Age=31536000; SameSite=Lax' + (domain ? '; Domain=' + domain : '') + (location.protocol === 'https:' ? '; Secure' : '');
+            const explicit = /^(en|de)([-_][a-z0-9]+)*$/i.test(new URLSearchParams(location.search).get('lang') || '') || /^\/(?:de\/)?(news|blog)(\/|$)/.test(location.pathname);
+            if (!explicit && language && language !== document.documentElement.lang && document.cookie.split(';').some(part => part.trim().startsWith(name + '='))) {
+              document.documentElement.style.visibility = 'hidden';
+              location.reload();
+            }
+          }
+        }
+      } catch (_) {}
       try {
         const choice = localStorage.getItem('theme_mode');
         const dark = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);

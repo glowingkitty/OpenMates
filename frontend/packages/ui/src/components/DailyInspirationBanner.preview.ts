@@ -24,6 +24,21 @@ import {
   type DailyInspiration,
 } from "../stores/dailyInspirationStore";
 
+import { locale, waitLocale } from "svelte-i18n";
+import { getAuthenticatedFallbackInspirations } from "../demo_chats/hardcodedInspirations";
+
+// The preview loader awaits readiness before applying variant props and mounting.
+// Seed German data only after the asynchronous dictionary has become active.
+export const ready = (async () => {
+  if (
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("variant") === "germanPersonalized"
+  ) {
+    await locale.set("de");
+    await waitLocale("de");
+  }
+})();
+
 // ─── Mock inspiration data ────────────────────────────────────────────────────
 
 const inspirationSoftware: DailyInspiration = {
@@ -154,6 +169,15 @@ function makeVariant(
 // ─── Named variants ───────────────────────────────────────────────────────────
 
 export const variants = {
+  germanPersonalized: {
+    get onStartChat() {
+      dailyInspirationStore.reset();
+      const localized = getAuthenticatedFallbackInspirations("de").slice(0, 2);
+      localized[0] = { ...localized[0], is_opened: true, opened_chat_id: "preview-existing-chat" };
+      dailyInspirationStore.setInspirations(localized, { personalized: true });
+      return (inspiration: DailyInspiration) => console.log("[Preview:germanPersonalized]", inspiration.inspiration_id);
+    },
+  },
   /**
    * Three-card carousel — shows left/right arrows and dot indicators.
    * Use the arrow buttons inside the banner to switch cards.

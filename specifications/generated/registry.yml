@@ -547,6 +547,14 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  feature.language-preferences:
+    version: 1
+    status: draft
+    path: features/language-preferences
+    fingerprint: 7640ce49edc61f6f526bf11444a352269a880c69eeb323db1ecf1e45e8939b83
+    required_applies_to:
+    - rest_api
+    - gui.web
   feature.marketing-landing:
     version: 12
     status: draft
@@ -6994,6 +7002,38 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  language-preferences.resolution:
+    specification: feature.language-preferences@1
+    specification_id: feature.language-preferences
+    type: behavior
+    fingerprint: 33da0fb4c1ab2cc8af36632b6d8dc4d1e133d024107f643edfec6ccce6daa6f2
+    required_applies_to:
+    - rest_api
+    - gui.web
+  language-preferences.first-paint:
+    specification: feature.language-preferences@1
+    specification_id: feature.language-preferences
+    type: behavior
+    fingerprint: 315f4b5d18f25ad6adf41c15a5bf6e16baca0b417e225606bb3a74ae2bf7931a
+    required_applies_to:
+    - rest_api
+    - gui.web
+  language-preferences.manual-choice:
+    specification: feature.language-preferences@1
+    specification_id: feature.language-preferences
+    type: behavior
+    fingerprint: 5a3bfdc96afbdf023982e24db8bd8d697c1dbfb1dea4bc9511306d4c1998c16c
+    required_applies_to:
+    - rest_api
+    - gui.web
+  language-preferences.content-language:
+    specification: feature.language-preferences@1
+    specification_id: feature.language-preferences
+    type: behavior
+    fingerprint: 8242e8f310a5fd04634676d01ba1e15b97f38d2a10415418e346f9ca0b1aa4b0
+    required_applies_to:
+    - rest_api
+    - gui.web
   marketing-landing.independent-scroll:
     specification: feature.marketing-landing@12
     specification_id: feature.marketing-landing

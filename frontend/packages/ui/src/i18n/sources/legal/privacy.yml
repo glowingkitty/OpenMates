@@ -7075,7 +7075,7 @@ providers.image_generation.bfl.description:
 providers.audio_generation.heading:
   context: Subheading for audio generation and speech providers
   en: Audio generation and speech (only when you use an audio generation skill)
-  de: Audio generation and speech (only when you use an audio generation skill)
+  de: "Audioerzeugung und Sprachausgabe (nur wenn du einen Skill zur Audioerzeugung verwendest)"
   zh: Audio generation and speech (only when you use an audio generation skill)
   es: Audio generation and speech (only when you use an audio generation skill)
   fr: Audio generation and speech (only when you use an audio generation skill)
@@ -7100,7 +7100,7 @@ providers.audio_generation.heading:
 providers.audio_generation.description:
   context: Description of audio generation and speech providers
   en: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
-  de: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
+  de: "Diese Anbieter werden nur verwendet, wenn du einen Skill zur Audioerzeugung oder Text-zu-Sprache aufrufst. Wenn du die Skills zur Audioerzeugung nie verwendest, werden keine deiner Daten mit diesen Anbietern geteilt."
   zh: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
   es: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
   fr: These providers are only used when you invoke an audio generation or text-to-speech skill. If you never use the audio generation skills, none of your data is shared with them.
@@ -7125,7 +7125,7 @@ providers.audio_generation.description:
 providers.audio_generation.elevenlabs.heading:
   context: Heading for ElevenLabs audio generation provider entry
   en: ElevenLabs (sound effects and text-to-speech)
-  de: ElevenLabs (sound effects and text-to-speech)
+  de: "ElevenLabs (Soundeffekte und Text-zu-Sprache)"
   zh: ElevenLabs (sound effects and text-to-speech)
   es: ElevenLabs (sound effects and text-to-speech)
   fr: ElevenLabs (sound effects and text-to-speech)
@@ -7150,7 +7150,7 @@ providers.audio_generation.elevenlabs.heading:
 providers.audio_generation.elevenlabs.description:
   context: ElevenLabs audio generation and speech data sharing disclosure
   en: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
-  de: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
+  de: "ElevenLabs ermöglicht Soundeffekte mit audio.generate und Text-zu-Sprache mit audio.speak. ElevenLabs erhält deine Soundeffekt-Prompts oder den gewünschten Sprachtext, die gewählte OpenMates-Stimmvoreinstellung, Akzent, Stil, Geschwindigkeit, Ausgabeformat, Dauer und Erzeugungseinstellungen nur, wenn du diese Skills aufrufst. Der Text für audio.speak wird zunächst von der Groq-Sicherheitsprüfung geprüft; abgelehnte Anfragen werden nicht an ElevenLabs gesendet und es werden keine Credits für die Erzeugung berechnet."
   zh: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
   es: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
   fr: ElevenLabs powers audio.generate sound effects and audio.speak text-to-speech. ElevenLabs receives your sound-effect prompts or requested speech text, chosen OpenMates voice preset, accent, style, speed, output format, duration, and generation settings only when you invoke those skills. audio.speak text is checked by the Groq safeguard first; rejected requests are not sent to ElevenLabs and are not charged generation credits.
@@ -7713,7 +7713,7 @@ providers.web_and_search.webshare.domain_fallback:
 providers.web_and_search.gandi.heading:
   context: "Heading for Gandi domain search provider entry"
   en: "Gandi (domain search)"
-  de: "Gandi (domain search)"
+  de: "Gandi (Domainsuche)"
   zh: "Gandi (domain search)"
   es: "Gandi (domain search)"
   fr: "Gandi (domain search)"
@@ -10275,22 +10275,27 @@ training_policies.status_limited_use:
 provider_link_label_v2:
   context: Label before a link to a provider's privacy notice, legal terms, or official service documentation
   en: Provider privacy or legal information
+  de: "Datenschutz- oder rechtliche Informationen des Anbieters"
   verified_by_human: []
 quick_answers.third_party_providers_v2.question:
   context: Privacy policy quick-answer question about third-party processing
   en: Do third-party providers receive my content?
+  de: "Erhalten Drittanbieter meine Inhalte?"
   verified_by_human: []
 quick_answers.third_party_providers_v2.answer:
   context: Privacy policy quick-answer response about third-party processing and placeholder limitations
   en: Yes, when you choose a model or use a provider-powered feature, the content needed for that request may be sent to the provider. Eligible typed chat messages use client-side placeholder substitution for recognized personal details and secrets. Anything not detected may be sent as typed, and the protection does not cover voice recordings, raw transcripts, uploaded files, reference images, calendar content, or structured skill inputs unless a feature explicitly says otherwise.
+  de: "Ja, wenn du ein Modell auswählst oder eine Funktion nutzt, die auf einem Anbieter basiert, können die für diese Anfrage benötigten Inhalte an den Anbieter gesendet werden. Bei geeigneten eingetippten Chatnachrichten werden erkannte persönliche Angaben und Geheimnisse clientseitig durch Platzhalter ersetzt. Nicht erkannte Angaben können so gesendet werden, wie du sie eingegeben hast. Der Schutz umfasst keine Sprachaufnahmen, Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Kalenderinhalte oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
   verified_by_human: []
 quick_answers.voice_recordings.question:
   context: Privacy policy quick-answer question about audio recording processing
   en: What happens when I record audio?
+  de: "Was passiert, wenn ich Audio aufnehme?"
   verified_by_human: []
 quick_answers.voice_recordings.answer:
   context: Privacy policy quick-answer response naming the audio transcription and correction providers
   en: Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral and Google may retain API request data under their own policies.
+  de: "Audio wird über TLS durch das bei Hetzner gehostete OpenMates-Backend übertragen und zur Transkription an Mistral gesendet. Echtzeitaudio wird gestreamt; hochgeladene Aufnahmen werden vor der dauerhaften Speicherung von unserem Upload-Dienst verschlüsselt und nur im Arbeitsspeicher des Servers für die Transkription entschlüsselt. Das Rohtranskript wird anschließend an Google Gemini gesendet, um offensichtliche Transkriptionsfehler zu korrigieren und einen Titel zu erstellen. Bei Audio und Rohtranskripten erfolgt nicht die Platzhalterersetzung, die für geeignete eingetippte Chatnachrichten verwendet wird. OpenMates speichert Aufnahmen und Transkripte als verschlüsselte Kontoinhalte, Mistral und Google können API-Anfragedaten jedoch nach ihren eigenen Richtlinien aufbewahren."
   verified_by_human: []
 quick_answers.voice_calls.question:
   context: Privacy policy quick-answer question about native AI voice calls
@@ -10305,198 +10310,247 @@ quick_answers.voice_calls.answer:
 data_categories.content_v2:
   context: Privacy policy data category covering user content and the applicable encryption boundary
   en: "Content: Chat messages, prompts, attachments, reminders, voice recordings and transcripts, calendar content, and uploaded images or videos needed to provide the service. Structured chat fields are generally encrypted in the browser before sync. Uploads and recordings travel to our backend over TLS and are encrypted before durable object storage; they are not necessarily client-side encrypted before transmission. Anonymous free-usage chats stay on the user's device until signup and are uploaded only if promoted into account sync."
+  de: "Inhalte: Chatnachrichten, Prompts, Anhänge, Erinnerungen, Sprachaufnahmen und Transkripte, Kalenderinhalte sowie hochgeladene Bilder oder Videos, die zur Bereitstellung des Dienstes benötigt werden. Strukturierte Chatfelder werden im Allgemeinen vor der Synchronisierung im Browser verschlüsselt. Uploads und Aufnahmen werden über TLS an unser Backend übertragen und vor der dauerhaften Objektspeicherung verschlüsselt; sie sind nicht unbedingt bereits vor der Übertragung clientseitig verschlüsselt. Chats im Rahmen der anonymen kostenlosen Nutzung bleiben bis zur Registrierung auf dem Gerät des Nutzers und werden nur hochgeladen, wenn sie in die Kontosynchronisierung übernommen werden."
   verified_by_human: []
 data_categories.connected_accounts:
   context: Privacy policy data category for connected external accounts such as Google Calendar
   en: "Connected accounts: If you connect an external account, we process the provider, granted scopes, encrypted credential material, and the data needed for each authorized action. For Google Calendar this can include calendar names, time zones, event titles, descriptions, locations, dates, attendee email addresses, and provider event IDs."
+  de: "Verbundene Konten: Wenn du ein externes Konto verbindest, verarbeiten wir den Anbieter, die erteilten Berechtigungen, verschlüsselte Zugangsdaten und die für jede autorisierte Aktion benötigten Daten. Bei Google Calendar kann dies Kalendernamen, Zeitzonen, Termintitel, Beschreibungen, Orte, Datumsangaben, E-Mail-Adressen von Teilnehmenden und Termin-IDs des Anbieters umfassen."
   verified_by_human: []
 promises.client_side_chat_encryption_v2.heading:
   context: Privacy promise heading for the encryption boundary of structured chat data
   en: Structured chat data is encrypted before sync
+  de: "Strukturierte Chatdaten werden vor der Synchronisierung verschlüsselt"
   verified_by_human: []
 promises.client_side_chat_encryption_v2.description:
   context: Privacy promise explaining browser encryption and the separate upload path
   en: Structured chat data, settings, and memories are encrypted in your browser with AES-256-GCM before sync, and the server stores ciphertext on disk, in caches, and in backups. Uploaded files and recordings instead travel to our backend over TLS and are encrypted by the upload service before durable storage. This is not end-to-end encryption; server-side tasks decrypt relevant content transiently in memory when needed to provide a requested feature.
+  de: "Strukturierte Chatdaten, Einstellungen und Erinnerungen werden vor der Synchronisierung in deinem Browser mit AES-256-GCM verschlüsselt; der Server speichert die verschlüsselten Daten auf Datenträgern, in Caches und in Sicherungskopien. Hochgeladene Dateien und Aufnahmen werden dagegen über TLS an unser Backend übertragen und vor der dauerhaften Speicherung vom Upload-Dienst verschlüsselt. Dies ist keine Ende-zu-Ende-Verschlüsselung; serverseitige Aufgaben entschlüsseln relevante Inhalte vorübergehend im Arbeitsspeicher, wenn dies zur Bereitstellung einer angeforderten Funktion erforderlich ist."
   verified_by_human: []
 promises.pii_placeholder_substitution_v2.heading:
   context: Privacy promise heading for eligible typed-message placeholder substitution
   en: Recognized personal data is replaced in eligible typed chat
+  de: "Erkannte personenbezogene Daten werden in geeigneten eingetippten Chats ersetzt"
   verified_by_human: []
 promises.pii_placeholder_substitution_v2.description:
   context: Privacy promise explaining the exact scope and limitations of placeholder substitution
   en: Before an eligible typed chat message is sent to an AI provider, your browser detects supported categories of personal data and secrets and replaces recognized values with placeholders. The substitution map is encrypted with your chat key. Detection can miss data, and this protection does not cover voice audio, raw transcripts, uploaded files, reference images, connected-account content, or structured skill inputs unless a feature explicitly says otherwise.
+  de: "Bevor eine geeignete eingetippte Chatnachricht an einen KI-Anbieter gesendet wird, erkennt dein Browser unterstützte Kategorien personenbezogener Daten und Geheimnisse und ersetzt erkannte Werte durch Platzhalter. Die Zuordnung der Platzhalter wird mit deinem Chat-Schlüssel verschlüsselt. Die Erkennung kann Daten übersehen. Dieser Schutz umfasst kein Sprachaudio, keine Rohtranskripte, hochgeladenen Dateien, Referenzbilder, Inhalte verbundener Konten oder strukturierten Skill-Eingaben, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
   verified_by_human: []
 providers.always_active.hetzner_v2.heading:
   context: Provider heading for Hetzner infrastructure
   en: Hetzner
+  de: "Hetzner"
   verified_by_human: []
 providers.always_active.hetzner_v2.description:
   context: Hetzner infrastructure disclosure including encrypted storage and upload transit
   en: We host backend services, databases, caches, S3-compatible object storage, backups, and our self-hosted OpenObserve platform on Hetzner infrastructure in the EU. Hetzner processes TLS-encrypted service traffic and stores ciphertext. Uploads and recordings also pass through its infrastructure before our upload service encrypts them for durable storage. Encryption reduces what Hetzner can read at rest but does not remove Hetzner's role as an infrastructure processor.
+  de: "Wir hosten Backend-Dienste, Datenbanken, Caches, S3-kompatiblen Objektspeicher, Sicherungskopien und unsere selbst gehostete OpenObserve-Plattform auf der Infrastruktur von Hetzner in der EU. Hetzner verarbeitet TLS-verschlüsselten Dienstverkehr und speichert verschlüsselte Daten. Uploads und Aufnahmen durchlaufen ebenfalls die Infrastruktur von Hetzner, bevor unser Upload-Dienst sie für die dauerhafte Speicherung verschlüsselt. Die Verschlüsselung verringert, was Hetzner bei gespeicherten Daten lesen kann, hebt aber die Rolle von Hetzner als Auftragsverarbeiter für die Infrastruktur nicht auf."
   verified_by_human: []
 providers.ai_models.description_v2:
   context: AI provider group description clarifying placeholder coverage
   en: OpenMates routes requests to these providers according to the model or provider-powered feature you use. Eligible typed chat messages use client-side placeholder substitution. Recordings, raw transcripts, uploaded files, reference images, connected-account content, and structured skill inputs are not covered unless a feature explicitly says otherwise. Selectable models show their provider in AI settings.
+  de: "OpenMates leitet Anfragen entsprechend dem Modell oder der anbietergestützten Funktion, die du nutzt, an diese Anbieter weiter. Bei geeigneten eingetippten Chatnachrichten erfolgt eine clientseitige Platzhalterersetzung. Aufnahmen, Rohtranskripte, hochgeladene Dateien, Referenzbilder, Inhalte verbundener Konten und strukturierte Skill-Eingaben sind nicht abgedeckt, sofern eine Funktion nicht ausdrücklich etwas anderes angibt. Bei auswählbaren Modellen wird der Anbieter in den KI-Einstellungen angezeigt."
   verified_by_human: []
 providers.ai_models.mistral_v2.heading:
   context: Provider heading for Mistral AI
   en: Mistral AI
+  de: "Mistral AI"
   verified_by_human: []
 providers.ai_models.mistral_v2.description:
   context: Mistral disclosure for selected chat models and voice transcription
   en: Mistral processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path.
+  de: "Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung."
   verified_by_human: []
 providers.ai_models.openai_v2.heading:
   context: Provider heading for OpenAI
   en: OpenAI
+  de: "OpenAI"
   verified_by_human: []
 providers.ai_models.openai_v2.description:
   context: OpenAI disclosure for chat and GPT Image features
   en: OpenAI processes eligible chat messages when you select a GPT-family model. It also receives image prompts, generation settings, and any reference images when you select GPT Image for generation or editing. Reference images are not covered by typed-message placeholder substitution.
+  de: "OpenAI verarbeitet geeignete Chatnachrichten, wenn du ein Modell der GPT-Familie auswählst. OpenAI erhält außerdem Bild-Prompts, Erzeugungseinstellungen und etwaige Referenzbilder, wenn du GPT Image zur Erzeugung oder Bearbeitung auswählst. Referenzbilder sind nicht durch die Platzhalterersetzung für eingetippte Nachrichten abgedeckt."
   verified_by_human: []
 providers.ai_models.google_gemini_v2.heading:
   context: Provider heading for Google Gemini
   en: Google Gemini
+  de: "Google Gemini"
   verified_by_human: []
 providers.ai_models.google_gemini_v2.description:
   context: Google Gemini disclosure including transcript correction and media features
   en: Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini Live receives raw microphone audio, submitted text, and permitted chat context during voice calls. Gemini is also used to correct raw Mistral voice transcripts and create titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Call audio and raw transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days.
+  de: "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn du ein Gemini-Modell auswählst. Gemini Live erhält während Sprachanrufen unverarbeitetes Mikrofonaudio, übermittelten Text und zulässigen Chatkontext. Gemini wird außerdem verwendet, um Mistral-Rohtranskripte von Sprachaufnahmen zu korrigieren und Titel zu erstellen, und kann Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Anrufaudio und Rohtranskripte erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
   verified_by_human: []
 providers.model_generation_v2.heading:
   context: Provider group heading for 3D model search and generation
   en: 3D model search and generation
+  de: "Suche und Erzeugung von 3D-Modellen"
   verified_by_human: []
 providers.model_generation_v2.description:
   context: Provider group description for 3D model search and generation
   en: These providers are used only when you search the public 3D model catalog or invoke a 3D model generation skill.
+  de: "Diese Anbieter werden nur verwendet, wenn du den öffentlichen 3D-Modellkatalog durchsuchst oder einen Skill zur Erzeugung von 3D-Modellen aufrufst."
   verified_by_human: []
 providers.model_generation_v2.printables.heading:
   context: Provider heading for Printables
   en: Printables by Prusa Research
+  de: "Printables von Prusa Research"
   verified_by_human: []
 providers.model_generation_v2.printables.description:
   context: Printables provider disclosure
   en: Printables receives the 3D model search query and requested result limit when you search its public catalog. The request is sent server-side without an OpenMates user identifier.
+  de: "Printables erhält die Suchanfrage für 3D-Modelle und die gewünschte Ergebnisbegrenzung, wenn du den öffentlichen Katalog durchsuchst. Die Anfrage wird serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
   verified_by_human: []
 providers.web_and_search.google_lens.heading:
   context: Provider heading for Google Lens reverse-image search
   en: Google Lens
+  de: "Google Lens"
   verified_by_human: []
 providers.web_and_search.google_lens.description:
   context: Google Lens disclosure for reverse-image search brokered through SerpAPI
   en: When you request reverse-image search, SerpAPI brokers the request to Google Lens. SerpAPI and Google receive a short-lived public URL to a decrypted copy of the selected image and any optional text refinement. The URL expires, and no OpenMates user identifier is included.
+  de: "Wenn du eine umgekehrte Bildersuche anforderst, vermittelt SerpAPI die Anfrage an Google Lens. SerpAPI und Google erhalten eine kurzzeitig öffentliche URL zu einer entschlüsselten Kopie des ausgewählten Bildes und eine etwaige optionale Texteingabe zur Verfeinerung. Die URL läuft ab, und es wird keine OpenMates-Nutzerkennung übermittelt."
   verified_by_human: []
 providers.travel.serpapi_v2.heading:
   context: Provider heading for SerpAPI
   en: SerpAPI
+  de: "SerpAPI"
   verified_by_human: []
 providers.travel.serpapi_v2.description:
   context: SerpAPI disclosure covering all current search uses
   en: SerpAPI powers flight, hotel, Amazon product, and Google Lens reverse-image searches. It receives the relevant query and localization filters without an OpenMates user identifier. Reverse-image search also sends a short-lived URL to a decrypted copy of the selected image and any optional refinement query.
+  de: "SerpAPI ermöglicht die Suche nach Flügen, Hotels und Amazon-Produkten sowie die umgekehrte Bildersuche mit Google Lens. SerpAPI erhält die jeweilige Suchanfrage und Lokalisierungsfilter ohne eine OpenMates-Nutzerkennung. Bei der umgekehrten Bildersuche werden außerdem eine kurzzeitig gültige URL zu einer entschlüsselten Kopie des ausgewählten Bildes und eine etwaige optionale Suchanfrage zur Verfeinerung gesendet."
   verified_by_human: []
 providers.travel.transitous.heading:
   context: Provider heading for Transitous
   en: Transitous
+  de: "Transitous"
   verified_by_human: []
 providers.travel.transitous.description:
   context: Transitous public transport routing disclosure
   en: Transitous receives origin and destination stations or locations, travel date and time, transport modes, and route options for supported European public-transport routing. Requests are server-side without an OpenMates user identifier. Transitous states that request URLs and server request metadata are retained for up to two days.
+  de: "Transitous erhält Start- und Zielhaltestellen oder -orte, Reisedatum und -zeit, Verkehrsmittel und Routenoptionen für die unterstützte Routenplanung im europäischen öffentlichen Verkehr. Anfragen erfolgen serverseitig ohne eine OpenMates-Nutzerkennung. Laut Transitous werden Anfrage-URLs und Metadaten von Serveranfragen bis zu zwei Tage aufbewahrt."
   verified_by_human: []
 providers.events.eventbrite.heading:
   context: Provider heading for Eventbrite
   en: Eventbrite
+  de: "Eventbrite"
   verified_by_human: []
 providers.events.eventbrite.description:
   context: Eventbrite public event search disclosure
   en: Eventbrite receives the event query, city, category, dates, and requested result count for public event search and page retrieval. Requests are sent server-side without an OpenMates user identifier.
+  de: "Eventbrite erhält die Veranstaltungssuchanfrage, Stadt, Kategorie, Datumsangaben und gewünschte Ergebnisanzahl für die öffentliche Veranstaltungssuche und den Abruf von Seiten. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
   verified_by_human: []
 providers.events.siegessaeule.heading:
   context: Provider heading for Siegessäule
   en: Siegessäule
+  de: "Siegessäule"
   verified_by_human: []
 providers.events.siegessaeule.description:
   context: Siegessäule Berlin event search disclosure
   en: Siegessäule receives the date range and, when applicable, a matching event section or category for Berlin LGBTQ+ event listings. Requests are routed through Webshare without an OpenMates user identifier; unmatched free-text filtering happens locally.
+  de: "Siegessäule erhält den Datumsbereich und gegebenenfalls einen passenden Veranstaltungsbereich oder eine passende Kategorie für Berliner LGBTQ+-Veranstaltungen. Anfragen werden ohne eine OpenMates-Nutzerkennung über Webshare geleitet; die Filterung anhand von Freitext ohne passende Zuordnung erfolgt lokal."
   verified_by_human: []
 providers.events.berlin_philharmonic.heading:
   context: Provider heading for Berliner Philharmoniker
   en: Berliner Philharmoniker
+  de: "Berliner Philharmoniker"
   verified_by_human: []
 providers.events.berlin_philharmonic.description:
   context: Berliner Philharmoniker public calendar search disclosure
   en: Berliner Philharmoniker receives the concert query, date filters, tags, and requested result count when you search its public calendar. Requests are sent server-side without an OpenMates user identifier.
+  de: "Berliner Philharmoniker erhält die Konzertsuchanfrage, Datumsfilter, Schlagwörter und gewünschte Ergebnisanzahl, wenn du den öffentlichen Kalender durchsuchst. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
   verified_by_human: []
 providers.shopping.stoffe.heading:
   context: Provider heading for Stoffe.de
   en: Stoffe.de
+  de: "Stoffe.de"
   verified_by_human: []
 providers.shopping.stoffe.description:
   context: Stoffe.de public storefront search disclosure
   en: Stoffe.de receives the product query, category, sorting, pagination, and compatible shipping-country filters for fabric, sewing-supply, and pattern searches. Requests are sent server-side without an OpenMates user identifier.
+  de: "Stoffe.de erhält die Produktsuchanfrage, Kategorie, Sortierung, Seitenauswahl und unterstützte Filter für das Lieferland bei der Suche nach Stoffen, Nähzubehör und Schnittmustern. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
   verified_by_human: []
 providers.connected_services.heading:
   context: Provider group heading for user-connected external services
   en: Connected services
+  de: "Verbundene Dienste"
   verified_by_human: []
 providers.connected_services.description:
   context: Provider group description for connected accounts
   en: These providers are used only after you connect an external account and authorize access. OpenMates requests the scopes needed for the action and stores durable credential material encrypted.
+  de: "Diese Anbieter werden erst verwendet, nachdem du ein externes Konto verbunden und den Zugriff autorisiert hast. OpenMates fordert die für die Aktion benötigten Berechtigungen an und speichert dauerhaft benötigte Zugangsdaten verschlüsselt."
   verified_by_human: []
 providers.connected_services.google_calendar.heading:
   context: Provider heading for Google Calendar
   en: Google Calendar
+  de: "Google Calendar"
   verified_by_human: []
 providers.connected_services.google_calendar.description:
   context: Google Calendar connected-account disclosure
   en: After you connect Google Calendar, OpenMates exchanges the OAuth authorization code and stores refresh or access tokens encrypted. Authorized actions may access calendar IDs, names, time zones, event IDs, titles, descriptions, locations, dates, and attendee email addresses. OpenMates reads, creates, updates, or deletes only within the scopes and action you authorize.
+  de: "Nachdem du Google Calendar verbunden hast, tauscht OpenMates den OAuth-Autorisierungscode ein und speichert Refresh- oder Zugriffstoken verschlüsselt. Autorisierte Aktionen können auf Kalender-IDs, Namen, Zeitzonen, Termin-IDs, Titel, Beschreibungen, Orte, Datumsangaben und E-Mail-Adressen von Teilnehmenden zugreifen. OpenMates liest, erstellt, aktualisiert oder löscht nur im Rahmen der Berechtigungen und der Aktion, die du autorisierst."
   verified_by_human: []
 providers.business_data.heading:
   context: Provider group heading for public company information
   en: Public business data
+  de: "Öffentliche Unternehmensdaten"
   verified_by_human: []
 providers.business_data.description:
   context: Provider group description for public company information
   en: These providers are used when you request company financial information or trademark searches.
+  de: "Diese Anbieter werden verwendet, wenn du Finanzinformationen zu Unternehmen oder Markenrecherchen anforderst."
   verified_by_human: []
 providers.business_data.sec_edgar.heading:
   context: Provider heading for SEC EDGAR
   en: SEC EDGAR
+  de: "SEC EDGAR"
   verified_by_human: []
 providers.business_data.sec_edgar.description:
   context: SEC EDGAR lookup disclosure
   en: The SEC receives the explicit company name, ticker, or CIK and the filing or period fields needed for a public-company lookup. Requests are sent server-side without an OpenMates user identifier.
+  de: "Die SEC erhält den ausdrücklich angegebenen Unternehmensnamen, das Börsenkürzel oder die CIK sowie die für die Recherche zu einem börsennotierten Unternehmen benötigten Angaben zu Einreichungen oder Zeiträumen. Anfragen werden serverseitig ohne eine OpenMates-Nutzerkennung gesendet."
   verified_by_human: []
 providers.weather.heading:
   context: Provider group heading for weather data
   en: Weather services
+  de: "Wetterdienste"
   verified_by_human: []
 providers.weather.description:
   context: Provider group description for geocoding, forecasts, and radar
   en: A named place is first geocoded by Open-Meteo. Germany forecasts then use Bright Sky's DWD-derived data; forecasts elsewhere use Open-Meteo. These services receive location and forecast parameters without an OpenMates user identifier.
+  de: "Ein benannter Ort wird zunächst von Open-Meteo geokodiert. Vorhersagen für Deutschland verwenden anschließend die auf DWD-Daten basierenden Daten von Bright Sky; Vorhersagen für andere Länder verwenden Open-Meteo. Diese Dienste erhalten Standort- und Vorhersageparameter ohne eine OpenMates-Nutzerkennung."
   verified_by_human: []
 providers.weather.open_meteo.heading:
   context: Provider heading for Open-Meteo
   en: Open-Meteo
+  de: "Open-Meteo"
   verified_by_human: []
 providers.weather.open_meteo.description:
   context: Open-Meteo geocoding and weather disclosure
   en: Open-Meteo receives a place name and language for geocoding, and coordinates, date range, time zone, and requested weather fields for global forecasts outside the Germany-specific path. Requests exclude OpenMates user identifiers. Open-Meteo states that API logs may contain coordinates and are deleted after 90 days.
+  de: "Open-Meteo erhält einen Ortsnamen und eine Sprache für die Geokodierung sowie Koordinaten, Datumsbereich, Zeitzone und angeforderte Wetterfelder für weltweite Vorhersagen außerhalb des gesonderten Verarbeitungspfads für Deutschland. Anfragen enthalten keine OpenMates-Nutzerkennungen. Laut Open-Meteo können API-Protokolle Koordinaten enthalten und werden nach 90 Tagen gelöscht."
   verified_by_human: []
 providers.weather.bright_sky.heading:
   context: Provider heading for Bright Sky
   en: Bright Sky
+  de: "Bright Sky"
   verified_by_human: []
 providers.weather.bright_sky.description:
   context: Bright Sky Germany weather and radar disclosure
   en: Bright Sky receives coordinates, date range, time zone, radar radius, and requested weather fields for Germany forecasts and rain radar using public DWD-derived data. Requests exclude OpenMates user identifiers. Bright Sky does not publish a standalone privacy notice, so the link points to its official service documentation.
+  de: "Bright Sky erhält Koordinaten, Datumsbereich, Zeitzone, Radarradius und angeforderte Wetterfelder für Vorhersagen und Regenradar in Deutschland auf Grundlage öffentlicher DWD-Daten. Anfragen enthalten keine OpenMates-Nutzerkennungen. Bright Sky veröffentlicht keine eigenständige Datenschutzerklärung, daher verweist der Link auf die offizielle Dienstdokumentation."
   verified_by_human: []
 limitations_of_erasure.third_party_ai_logs_v2.heading:
   context: Privacy policy heading for provider-controlled AI request logs
   en: Logs retained by third-party AI providers
+  de: "Von KI-Drittanbietern aufbewahrte Protokolle"
   verified_by_human: []
 limitations_of_erasure.third_party_ai_logs_v2.description:
   context: Privacy policy disclosure of provider-specific log retention and deletion limitations
   en: AI providers retain request logs under their own policies, independently of OpenMates, and we cannot delete data from their systems. Retention is provider-specific; for example, Mistral states 30 rolling days for ordinary API input and output unless zero-data retention is active, while Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs. Eligible typed chat uses client-side placeholder substitution, which reduces exposure but may miss data and does not cover voice audio, raw transcripts, uploaded or reference files, connected-account content, or structured skill inputs unless a feature explicitly says otherwise.
+  de: "KI-Anbieter bewahren Anfrageprotokolle unabhängig von OpenMates nach ihren eigenen Richtlinien auf, und wir können keine Daten aus ihren Systemen löschen. Die Aufbewahrung ist anbieterspezifisch; Mistral nennt beispielsweise einen gleitenden Zeitraum von 30 Tagen für gewöhnliche API-Ein- und -Ausgaben, sofern die Null-Datenaufbewahrung nicht aktiviert ist, während die aktuelle Gemini-Dokumentation von Google zur Missbrauchsüberwachung 55 Tage für protokollierte Prompts, Kontext und Ausgaben nennt. Bei geeigneten eingetippten Chats erfolgt eine clientseitige Platzhalterersetzung, die die Offenlegung verringert, aber Daten übersehen kann und kein Sprachaudio, keine Rohtranskripte, hochgeladenen Dateien oder Referenzdateien, Inhalte verbundener Konten oder strukturierten Skill-Eingaben umfasst, sofern eine Funktion nicht ausdrücklich etwas anderes angibt."
   verified_by_human: []
 
 quick_answers.storage_protection_v2.answer:
@@ -10950,7 +11004,7 @@ quick_answers.deletion_v3.answer:
 data_retention.content_v3:
   context: Current historical revision and activity retention after canonical deletion
   en: "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
-  de: "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
+  de: "Aktuelle persönliche Chat- und Artefaktdatensätze bleiben erhalten, bis du sie löschst oder dein Konto schließt; geeignete persönliche Dateien können jedoch nach den unten beschriebenen Warn- und Ablaufschutzmaßnahmen für unbezahlten Speicher entfernt werden, wenn diese Funktion aktiviert ist. Eine ausstehende Assistentenantwort, die mit einem öffentlichen Client-Schlüssel verschlüsselt ist, bleibt verfügbar, bis ein autorisierter Client ihre reguläre clientseitig verschlüsselte Speicherung überprüft und bestätigt oder der zugehörige Chat oder das Konto gelöscht wird. Der Ablauf einer Wiederholungs-Lease oder des KI-Arbeitscaches allein entfernt diese ausstehende Kopie nicht, und beim Ablauf unbezahlten Speichers ist die einzige verbleibende Offline-Wiederherstellungskopie geschützt. Ein anderer autorisierter Eigentümer oder ein Team kann geteilte Inhalte aufbewahren. Frühere Datenbankrevisionen und Aktivitätsdatensätze können nach dem Löschen aktueller Datensätze erhalten bleiben, wie unten gesondert beschrieben."
   zh: "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
   es: "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
   fr: "Current personal chat and artifact records remain until you delete them or close your account, except eligible personal files may be removed under the unpaid-storage warning and expiry safeguards below where that feature is enabled. A pending assistant response sealed to a client public key remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. Retry-lease or AI working-cache expiry alone does not remove that pending copy, and unpaid-storage expiry protects the sole remaining offline recovery copy. Another authorized owner or Team can retain shared content. Earlier database revision and activity records can remain after current records are deleted, as described separately below."
@@ -11125,7 +11179,7 @@ limitations_of_erasure.historical_snapshots.description_v2:
 data_retention.storage_expiry:
   context: Conditional personal unpaid-storage expiry safeguards and retention limits
   en: "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
-  de: "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
+  de: "Wenn der Ablauf unbezahlten persönlichen Speichers aktiviert ist, kann ein unbezahlter Speicherzeitraum erst dann zur Entfernung der betroffenen persönlichen Dateien führen, wenn vier wöchentliche Warn-E-Mails von unserem E-Mail-Anbieter als zugestellt bestätigt wurden und jeweils mindestens 7 Tage auseinanderliegen. Die Entfernung darf frühestens zum spätesten der folgenden Zeitpunkte erfolgen: dem angekündigten Ablaufdatum, 28 Tage nach der ersten zugestellten Warnung oder 7 Tage nach der vierten zugestellten Warnung. Wir prüfen die Zahlung unmittelbar vor der Entfernung erneut. Die betroffenen Dateien stehen für diesen abgemahnten Zeitraum fest. Aus dieser Menge wählen wir vollständige persönliche Dateieinheiten aus, beginnend mit den ältesten, und entfernen nur so viele, wie nötig sind, um die anrechenbare Nutzung auf das kostenlose Kontingent zu begrenzen. Team-Dateien oder geteilte Dateien, aktive Dateien, die einzige verbleibende Offline-Wiederherstellungskopie, Dateien mit unklaren Eigentumsverhältnissen oder unklarer Sicherheit der Entfernung sowie Dateien, die durch später bezahlte Speicherzeiträume abgedeckt sind, sind geschützt. Wenn keine sichere Auswahl vollständiger, geeigneter Einheiten die Nutzung auf das Kontingent begrenzen kann, entfernen wir nichts und erlassen nichts. Erst nachdem wir überprüft haben, dass die betroffenen Dateien entfernt wurden und die anrechenbare Nutzung höchstens dem kostenlosen Kontingent entspricht, erlassen wir die unbezahlten Speicherrechnungen, die in diesem Warnzeitraum enthalten waren. Ihr Status wird zu waived_on_expiry, nicht zu paid; dieser Erlass führt zu keinem Credit-Abzug. Spätere Schulden, die nicht Gegenstand der Warnungen waren, sowie bezahlte Speicherzeiträume bleiben unberührt. Die logische Entfernung erzeugt regionale Löschmarkierungen ohne Inhaltsdaten und reiht die physische Löschung von Objekten erst dann in die Warteschlange ein, wenn die letzten aufbewahrten Verweise entfernt wurden; sie verspricht keine sofortige physische Löschung. Für die Aufbewahrung von Sicherungskopien und historischen Datensätzen gelten weiterhin die Angaben in unserer Datenschutzerklärung. Wenn der Ablauf unbezahlten Team-Speichers aktiviert ist, benachrichtigen wir den aktuellen Team-Eigentümer und die Admins. Jede der vier wöchentlichen Warnrunden zählt erst, nachdem unser E-Mail-Anbieter die Zustellung an alle erforderlichen Empfänger bestätigt hat. Es gelten dieselben Mindestabstände zwischen den Warnungen und dieselben Ablaufzeitpunkte. Wir wählen vollständige Team-Dateieinheiten aus, die ausdrücklich Gegenstand der Warnungen waren, beginnend mit den ältesten, und entfernen nur so viele, wie nötig sind, um das separate kostenlose Kontingent dieses Teams wieder einzuhalten. Aktive Arbeit, einzige Wiederherstellungskopien, erforderliche Verweise außerhalb der ausgewählten Einheiten, unklare Eigentumsverhältnisse oder eine unklare Sicherheit der Entfernung sowie später bezahlte Daten bleiben geschützt. Vor der Entfernung prüfen wir erneut das Team-Guthaben, die aktuelle Mitgliedschaft, die Zustellung der Benachrichtigungen, die Nutzung und die Verweise. Wenn keine sichere Auswahl das Kontingent wiederherstellen kann, entfernen wir nichts und erlassen nichts. Nur eine überprüfte Entfernung, durch die das Kontingent wieder eingehalten wird, kann zum Erlass des abgemahnten unbezahlten Speicherzeitraums dieses Teams führen; spätere Schulden und bezahlte Zeiträume bleiben unberührt."
   zh: "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
   es: "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
   fr: "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
@@ -11149,6 +11203,7 @@ data_retention.storage_expiry:
 providers.business_data.uspto.heading:
   context: USPTO provider heading
   en: USPTO
+  de: "USPTO"
   verified_by_human: []
 providers.business_data.uspto.description:
   context: Disclosure of data sent to USPTO
@@ -11227,7 +11282,7 @@ providers.jobs.description:
 providers.jobs.arbeitsagentur.heading:
   context: Provider heading for German Federal Employment Agency
   en: "German Federal Employment Agency"
-  de: "German Federal Employment Agency"
+  de: "Bundesagentur für Arbeit"
   zh: "German Federal Employment Agency"
   es: "German Federal Employment Agency"
   fr: "German Federal Employment Agency"

@@ -80,6 +80,7 @@ class DailyInspiration(BaseModel):
     podcasts, challenges, etc.) but only 'video' is generated currently.
     """
 
+    language: Optional[str] = Field(None, description="Language of generated inspiration text (ISO 639-1)")
     inspiration_id: str = Field(..., description="UUID for this inspiration (used for view tracking)")
     phrase: str = Field(
         ...,

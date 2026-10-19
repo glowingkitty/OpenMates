@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "자동 (브라우저 언어)"
+      },
+      "account_save_error": {
+        "text": "계정 언어를 저장하지 못했습니다. 다시 시도해 주세요."
+      },
+      "text": "언어"
+    },
     "open_settings_menu": {
       "text": "설정 메뉴 열기"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "기기"
-    },
-    "language": {
-      "text": "언어"
     },
     "passkeys": {
       "text": "패스키"

@@ -51,7 +51,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
       await expect(row).not.toHaveClass(/revealed/);
       await expect(row.locator('.publication-intro')).toHaveCSS('opacity', '0');
     }
-    await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
+    await expect(root.getByTestId('public-site-header').locator('.wordmark')).toHaveAttribute('href', `${APP}/?lang=en`);
     await expect(compose).toBeVisible();
     const geometry = await root.evaluate(element => {
       const rect = (id: string) => element.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect().toJSON();
@@ -297,6 +297,11 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   expect(await page.evaluate(() => localStorage.getItem('preferredLanguage'))).toBe('de');
   await language.click(); await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0); await expect(language).toBeFocused();
+  // Production SSR supplies the persisted preference as initial props. Encode
+  // that server input in the preview URL before checking its reload state;
+  // website-language.spec.ts covers the real cookie-to-server round trip.
+  const savedLanguage = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
+  await page.evaluate(url => history.replaceState(history.state, '', url), preview(320, 'dark', { events, initialLanguage: savedLanguage, initialLanguageMode: 'manual' }));
   await page.reload(); await waitForComponentPreview(page, 30_000);
   await expect(language).toHaveText('');
   await expect(language).toHaveAttribute('aria-label', /Deutsch/);
@@ -599,10 +604,10 @@ for (const [device, viewports] of Object.entries(responsiveGroups)) {
         await expect(header.locator('.wordmark')).toBeVisible();
         await expect(header.locator('.wordmark')).toHaveText('OpenMates');
         await expect(header.locator('.wordmark')).toHaveCSS('font-size', '20px');
-        await expect(header.locator('.wordmark')).toHaveAttribute('href', `${APP}/`);
+        await expect(header.locator('.wordmark')).toHaveAttribute('href', `${APP}/?lang=${language}`);
         const appLink = header.getByTestId('landing-open-web-app');
         await expect(appLink).toHaveText(language === 'en' ? 'Open Web App' : 'Web-App öffnen');
-        await expect(appLink).toHaveAttribute('href', `${APP}/`);
+        await expect(appLink).toHaveAttribute('href', `${APP}/?lang=${language}`);
         await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
         if (width >= 542) await expect(header.locator('.github-link')).toBeVisible();
 

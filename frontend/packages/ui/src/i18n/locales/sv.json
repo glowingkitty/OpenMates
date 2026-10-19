@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automatiskt (webbläsarens språk)"
+      },
+      "account_save_error": {
+        "text": "Kontots språk kunde inte sparas. Försök igen."
+      },
+      "text": "Språk"
+    },
     "open_settings_menu": {
       "text": "Öppna inställningsmenyn"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Enheter"
-    },
-    "language": {
-      "text": "Språk"
     },
     "passkeys": {
       "text": "Åtkomstnycklar"

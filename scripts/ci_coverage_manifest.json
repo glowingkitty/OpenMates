@@ -798,6 +798,16 @@
         "anonymous-usage-limit.spec.ts",
         "components/anonymous-usage-limit.spec.ts"
       ]
+    },
+    "language_preferences": {
+      "execution": "e2e",
+      "enabling_work": "Runner-local browser language resolution, public website server rendering and first-party settings/inspiration checks. Component-marked previews use the Vite-only profile; route checks use the isolated core API and disposable accounts. Static localized content only, with no live AI inference or provider credentials.",
+      "specs": [
+        "components/language-settings.spec.ts",
+        "components/inspiration-language.spec.ts",
+        "website-language.spec.ts",
+        "inspiration-language.spec.ts"
+      ]
     }
   },
   "holds": {

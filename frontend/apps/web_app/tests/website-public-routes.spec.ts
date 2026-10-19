@@ -22,10 +22,12 @@ async function assertPublicHeader(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: /archive/i })).toHaveCount(0);
   const header = page.getByTestId('public-site-header');
+  const language = await page.locator('html').getAttribute('lang');
+  const mode = await header.getAttribute('data-language-mode');
   await expect(header).toBeVisible();
-  await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
+  await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site(`/?lang=${language}`));
   await expect(header.locator('.wordmark')).toHaveText('OpenMates');
-  await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+  await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/${mode === 'manual' ? `?lang=${language}` : ''}`);
   await expect(header.getByTestId('landing-language-button')).toHaveText('');
   await expect(page.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
   await expect(page.getByTestId('header-login-signup-btn')).toHaveCount(0);
@@ -274,7 +276,7 @@ test('news subscriptions open the standalone public form in the publication lang
   ] as const) {
     await page.goto(site(route), { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: label }).click();
-    await expect(page).toHaveURL(site('/#newsletter'));
+    await expect(page).toHaveURL(site(`/?lang=${locale}#newsletter`));
     await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', locale);
     await expect(page.getByTestId('landing-newsletter')).toBeInViewport();
     await expect(page.locator('#newsletter input[type="email"]')).toBeVisible();
@@ -286,29 +288,32 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
   const noPrivateStartup = watchPrivateStartup(page);
   for (const slug of ['privacy', 'terms', 'imprint']) {
     let english = '';
-    for (const suffix of ['', '?lang=de']) {
-      const route = `/legal/${slug}${suffix}`;
+    for (const locale of ['en', 'de']) {
+      const route = `/legal/${slug}?lang=${locale}`;
       const response = await request.get(site(route));
       expect(response.status(), route).toBe(200);
       const html = await response.text();
       expect(html).toContain(`href="${site(`/legal/${slug}`)}"`);
+      expect(html).toContain(`<html lang="${locale}" dir="ltr">`);
       expect(html).toMatch(/<main class="legal-document(?:\s|")/);
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
       const article = page.locator('.legal-document article');
       const header = page.getByTestId('public-site-header');
       await expect(header).toBeVisible();
-      await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site('/'));
-      await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/`);
+      await expect(header.getByRole('link', { name: 'OpenMates home' })).toHaveAttribute('href', site(`/?lang=${locale}`));
+      await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', `${app}/${await header.getAttribute('data-language-mode') === 'manual' ? `?lang=${locale}` : ''}`);
       await expect(header.locator('.workspace-nav, [data-testid^="landing-nav-"]')).toHaveCount(0);
       await expect(header.locator('.wordmark')).toBeVisible();
       await expect(header.getByTestId('landing-language-button')).toHaveText('');
       await header.getByTestId('landing-language-button').click();
       const languageOptions = header.getByTestId('landing-language-panel').locator('.language-options button');
-      await expect(languageOptions).toHaveCount(2);
-      expect(await languageOptions.evaluateAll((options) => options.map((option) => option.getAttribute('lang')).sort())).toEqual(['de', 'en']);
-      await header.getByTestId('landing-language-panel').getByRole('button', { name: suffix ? 'English' : 'Deutsch', exact: true }).click();
-      await expect(page).toHaveURL(site(`/legal/${slug}${suffix ? '' : '?lang=de'}`));
+      await expect(languageOptions).toHaveCount(3);
+      expect(await header.getByTestId('landing-language-panel').locator('.language-options button[lang]').evaluateAll((options) => options.map((option) => option.getAttribute('lang')).sort())).toEqual(['de', 'en']);
+      await header.getByTestId('landing-language-panel').getByRole('button', { name: locale === 'de' ? 'English' : 'Deutsch', exact: true }).click();
+      await expect(page).toHaveURL(site(`/legal/${slug}?lang=${locale === 'de' ? 'en' : 'de'}`));
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
       await expect(article.locator('h1')).toBeVisible();
       const body = await article.innerText();
       expect(body.length, `${route} must contain the complete legal document`).toBeGreaterThan(slug === 'imprint' ? 50 : 1_000);
@@ -321,7 +326,7 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
           expect((await request.get(new URL(source!, website).href)).status()).toBe(200);
         }
       }
-      if (!suffix) english = body;
+      if (locale === 'en') english = body;
       else expect(body).not.toBe(english);
       expect(await article.evaluate((element) => getComputedStyle(element).lineHeight)).not.toBe('normal');
       await expect(page.locator('[data-testid="active-chat-container"]')).toHaveCount(0);

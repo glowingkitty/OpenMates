@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automatisch (browsertaal)"
+      },
+      "account_save_error": {
+        "text": "De accounttaal kon niet worden opgeslagen. Probeer het opnieuw."
+      },
+      "text": "Taal"
+    },
     "open_settings_menu": {
       "text": "Instellingenmenu openen"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Apparaten"
-    },
-    "language": {
-      "text": "Taal"
     },
     "passkeys": {
       "text": "Toegangssleutels"

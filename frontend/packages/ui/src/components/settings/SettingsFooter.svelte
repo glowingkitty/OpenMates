@@ -1,5 +1,6 @@
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { locale } from 'svelte-i18n';
     import { externalLinks, getPublicLegalUrl } from '../../config/links';
     import { getApiUrl } from '../../config/api';
     // Props using Svelte 5 runes
@@ -20,7 +21,7 @@
     }
     
     function getLegalUrl(slug: 'imprint' | 'privacy' | 'terms'): string {
-        return getPublicLegalUrl(`/legal/${slug}`);
+        return getPublicLegalUrl(`/legal/${slug}?lang=${encodeURIComponent($locale || 'en')}`);
     }
 </script>
 

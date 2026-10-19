@@ -118,7 +118,7 @@ async def generate_and_deliver_inspirations_for_user(
         language=language,
         task_id=f"{task_id}_wiki",
     )
-    feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT)
+    feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT, language=language)
     inspirations = video_inspirations + wiki_inspirations + feature_inspirations
 
     policy_checked_inspirations = []
@@ -159,6 +159,7 @@ async def generate_and_deliver_inspirations_for_user(
     random.Random(f"{user_id}:{today_seed}").shuffle(inspirations)
     ordered_base_ts = int(datetime.now(timezone.utc).timestamp())
     for idx, inspiration in enumerate(inspirations):
+        inspiration.language = inspiration.language or language
         inspiration.generated_at = ordered_base_ts - idx
 
     # Serialize inspiration objects to dicts for delivery / cache storage

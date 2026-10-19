@@ -17320,6 +17320,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Automatique (langue du navigateur)"
+      },
+      "account_save_error": {
+        "text": "La langue du compte n’a pas pu être enregistrée. Réessaie."
+      },
+      "text": "Langue"
+    },
     "open_settings_menu": {
       "text": "Ouvrir le menu des paramètres"
     },
@@ -20084,9 +20093,6 @@
     },
     "devices": {
       "text": "Appareils"
-    },
-    "language": {
-      "text": "Langue"
     },
     "passkeys": {
       "text": "Clés d'accès"

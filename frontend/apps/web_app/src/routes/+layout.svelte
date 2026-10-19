@@ -20,7 +20,7 @@
 	import { notificationStore } from '@repo/ui/stores/notificationStore';
 	import { onDestroy, onMount, type Component } from 'svelte';
 	import { browser } from '$app/environment';
-	import { waitLocale } from 'svelte-i18n';
+	import { setupI18n } from '@repo/ui/i18n/setup';
 	import { page, updated } from '$app/state';
 	import { beforeNavigate } from '$app/navigation';
 
@@ -34,7 +34,6 @@
 	let MetaTagsComponent = $state<Component | null>(null);
 	let ConnectionStatusControllerComponent = $state<Component | null>(null);
 	let themeInitialized = $state(false);
-	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
 		{ key: 'fallback', rel: 'alternate icon', type: 'image/png', href: '/favicon.png' },
@@ -138,6 +137,9 @@
 		themeInitialized = true;
 		initializeUiFont();
 		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
+		// Only dictionary/local preference readiness gates app text. Auth and sync start afterwards.
+		await setupI18n();
+		loaded = true;
 		if (!isSeoRoute) {
 			const [metaTags, connectionStatusController, metaConfig, serverStatus] = await Promise.all([
 				import('@repo/ui/components/MetaTags.svelte'),
@@ -160,22 +162,6 @@
 			subtree: true
 		});
 		window.addEventListener('focus', ensureOpenMatesFavicons);
-
-		try {
-			await Promise.race([
-				waitLocale(),
-				new Promise((_, reject) =>
-					setTimeout(
-						() => reject(new Error('Translation startup timed out')),
-						TRANSLATION_STARTUP_TIMEOUT_MS
-					)
-				)
-			]);
-		} catch (error) {
-			console.warn('[Layout] Translation loading failed during startup:', error);
-		} finally {
-			loaded = true;
-		}
 
 		// =====================================================================
 		// Privacy-preserving first-party analytics beacon
@@ -375,26 +361,27 @@
 	});
 </script>
 
-<!--
-	Rendering strategy:
-	  - `{@render children()}` is called unconditionally so SEO routes (inside the
-	    (seo) layout group) emit their full HTML server-side for crawlers to index.
-	  - MetaTags and connection feedback are SPA-specific; they mount after `loaded`
-	    (= after waitLocale() + initializeTheme() run in onMount), preventing FOUC.
-	  - The SPA root (/) has ssr=false so its children render empty on the server;
-	    the `{#if loaded}` on SPA-specific children preserves existing behaviour.
-	  - The `<main>` wrapper is always present; on SPA routes it's empty until
-	    hydration completes (same as before — the SPA mounts into the Svelte body div).
--->
+<!-- Public SEO routes retain server HTML; app text waits for its selected dictionary. -->
 {#if loaded && !isSeoRoute && MetaTagsComponent && ConnectionStatusControllerComponent}
 	<MetaTagsComponent />
 	<ConnectionStatusControllerComponent />
 {/if}
 <main>
-	{@render children()}
+	{#if isSeoRoute || loaded}
+		{@render children()}
+	{:else}
+		<div class="language-startup" data-testid="language-startup" aria-busy="true">
+			<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="60 40" /></svg>
+		</div>
+	{/if}
 </main>
 
 <style>
+	.language-startup { min-height: 100dvh; display: grid; place-items: center; color: var(--color-font-tertiary); }
+	.language-startup svg { animation: language-startup-spin 1s linear infinite; }
+	@keyframes language-startup-spin { to { transform: rotate(360deg); } }
+	@media (prefers-reduced-motion: reduce) { .language-startup svg { animation: none; } }
+
 	/* Apply background color to the body */
 	:global(html),
 	:global(body) {

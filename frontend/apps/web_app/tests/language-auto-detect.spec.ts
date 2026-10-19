@@ -1,559 +1,152 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-export {};
+import { expect, test } from './helpers/cookie-audit';
+import { germanDictionaryPath, waitForNeutralLanguageStartup } from './helpers/language-readiness';
 
-/**
- * Language auto-detection E2E test.
- *
- * Validates the new "English-first" language loading strategy:
- *  - All first-time visitors land on English regardless of browser locale.
- *  - If the browser locale is a supported non-English language and no
- *    preferredLanguage is stored, a one-time "Language Detected" notification
- *    appears offering to switch, with a "Switch to <NativeName>" action button.
- *  - Clicking "Switch to …" applies the language and saves it to localStorage.
- *  - Dismissing the notification sets language_suggestion_shown so it never
- *    re-appears on subsequent visits.
- *  - An explicit ?lang=XX URL param still applies the language directly
- *    (existing behaviour) and prevents the notification from appearing.
- *  - A valid localStorage preferredLanguage is respected, no notification shown.
- *
- * Test matrix:
- * 1. German browser, no preference   → English UI, notification "Switch to Deutsch"
- * 2. Czech browser, no preference    → English UI, notification "Switch to Čeština"
- * 3. Unsupported locale (sw-TZ)      → English UI, no notification
- * 4. Invalid LS cleared + de browser → English UI, notification shown
- * 5. Valid LS (fr) + de browser      → French UI, no notification
- * 6. Click "Switch to Deutsch"       → html[lang]="de", preferredLanguage saved
- * 7. Dismiss notification            → language_suggestion_shown set, English kept
- * 8. Revisit after dismiss           → no notification shown again
- * 9. ?lang=de URL param              → German UI, no notification (preferredLanguage saved by handler)
- *
- * These tests do NOT require login — they test the pre-auth language detection
- * flow in i18n/setup.ts and the onMount notification logic in +page.svelte.
- *
- * Bug history: OPE-39 (wrong language auto-applied from stale localStorage).
- *
- * REQUIRED ENV VARS:
- * - PLAYWRIGHT_TEST_BASE_URL (defaults to https://app.dev.openmates.org)
- */
+// playwright-account: not_required reason=guest_language_startup
+// contract-test: direct surface=gui.web assertions=language-preferences.resolution,language-preferences.first-paint,language-preferences.manual-choice
 
-const { test, expect } = require('./helpers/cookie-audit');
-const {
-	createSignupLogger,
-	archiveExistingScreenshots,
-	createStepScreenshotter,
-	getE2EDebugUrl
-} = require('./signup-flow-helpers');
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Creates a fresh browser context with a specific locale and optional
- * localStorage seeding, then navigates to the app root.
- */
-async function createLocalizedPage(
-	browser: any,
-	locale: string,
-	localStorageSeed?: Record<string, string>
-): Promise<any> {
-	const context = await browser.newContext({ locale });
-	const page = await context.newPage();
-
-	if (localStorageSeed) {
-		await page.addInitScript((seed: Record<string, string>) => {
-			for (const [key, value] of Object.entries(seed)) {
-				localStorage.setItem(key, value);
-			}
-		}, localStorageSeed);
-	}
-
-	return { page, context };
+async function observeWelcome(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    (window as any).__welcomeLanguages = [];
+    const record = () => {
+      const heading = document.querySelector('[data-testid="chat-welcome-heading"]');
+      if (heading?.textContent?.trim()) {
+        const sample = { lang: document.documentElement.lang, text: heading.textContent.trim() };
+        const samples = (window as any).__welcomeLanguages;
+        if (samples.length < 100 && samples.at(-1)?.text !== sample.text) samples.push(sample);
+      }
+    };
+    new MutationObserver(record).observe(document, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['lang'] });
+    record();
+  });
 }
 
-/**
- * Waits for the app to initialize i18n (html[lang] attribute is set).
- */
-async function waitForLocaleInit(page: any): Promise<string> {
-	await page.waitForLoadState('domcontentloaded');
-	// i18n setup is synchronous at module load; allow Vite module hydration
-	await page.waitForTimeout(3000);
-	return page.evaluate(() => document.documentElement.getAttribute('lang') || '');
+for (const entry of [
+  { locale: 'de-DE', expected: 'de', heading: 'Hallo!' },
+  { locale: 'de-AT', expected: 'de', heading: 'Hallo!' },
+  { locale: 'fr-CA', expected: 'fr', heading: 'Salut toi!' },
+  { locale: 'sw-TZ', expected: 'en', heading: 'Hey there!' },
+]) {
+  // contract-test: direct surface=gui.web assertions=language-preferences.resolution,language-preferences.first-paint,language-preferences.manual-choice
+  test(`first app text uses supported browser language ${entry.locale}`, async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: entry.locale, recordVideo: { dir: test.info().outputPath('browser-video') } });
+    const page = await context.newPage();
+    try {
+      await observeWelcome(page);
+      await page.goto('/');
+      await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 30_000 });
+      await expect(page.locator('html')).toHaveAttribute('lang', entry.expected);
+      const samples = await page.evaluate(() => (window as any).__welcomeLanguages);
+      expect(samples.length).toBeGreaterThan(0);
+      expect(samples.every((sample: { lang: string; text: string }) => sample.lang === entry.expected && sample.text === entry.heading)).toBe(true);
+      await expect(page.getByTestId('chat-welcome-heading')).toHaveText(entry.heading);
+      await expect(page.getByText('Language Detected', { exact: true })).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByTestId('chat-welcome-heading')).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('lang', entry.expected);
+    } finally {
+      const video = page.video();
+      await context.close();
+      if (video) await test.info().attach('video', { path: await video.path(), contentType: 'video/webm' });
+    }
+  });
 }
 
-/**
- * Waits for the language-suggestion notification to appear (or confirms it
- * does not appear within the timeout).
- *
- * Returns true if a notification with "Language Detected" is visible.
- */
-async function waitForLanguageNotification(page: any, timeoutMs = 8000): Promise<boolean> {
-	try {
-		// The notification title is always "Language Detected"
-		await page.getByText('Language Detected').waitFor({ state: 'visible', timeout: timeoutMs });
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Test suite
-// ---------------------------------------------------------------------------
-
-const consoleLogs: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
+// contract-test: direct surface=gui.web assertions=language-preferences.resolution,language-preferences.first-paint,language-preferences.manual-choice
+test('a saved English choice wins over German and an explicit URL can change it', async ({ browser }) => {
+  const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'de-DE', recordVideo: { dir: test.info().outputPath('browser-video') } });
+  const page = await context.newPage();
+  try {
+    await page.addInitScript(() => localStorage.setItem('preferredLanguage', 'en'));
+    await observeWelcome(page);
+    await page.goto('/');
+    await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await page.goto('/?lang=de');
+    await expect(page.getByTestId('chat-welcome-heading')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  } finally {
+      const video = page.video();
+      await context.close();
+      if (video) await test.info().attach('video', { path: await video.path(), contentType: 'video/webm' });
+    }
 });
 
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		consoleLogs.slice(-30).forEach((log) => console.log(log));
-		console.log('\n--- END DEBUG INFO ---\n');
-	}
+// contract-test: direct surface=gui.web assertions=language-preferences.resolution,language-preferences.first-paint,language-preferences.manual-choice
+test('a delayed German dictionary exposes only a neutral shell before German text', async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem('preferredLanguage', 'de'));
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let dictionaryRequested = false;
+  const dictionaryPath = await germanDictionaryPath(testInfo);
+  await page.route(url => url.pathname === dictionaryPath, async route => {
+    dictionaryRequested = true;
+    await gate;
+    await route.continue();
+  });
+  await observeWelcome(page);
+  try {
+    await page.goto('/', { waitUntil: 'commit' });
+    await expect.poll(() => dictionaryRequested, { message: 'German dictionary response intercepted', timeout: 15_000 }).toBe(true);
+    await waitForNeutralLanguageStartup(page, testInfo);
+    release();
+    await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+    const samples = await page.evaluate(() => (window as any).__welcomeLanguages);
+    expect(samples.length).toBeGreaterThan(0);
+    expect(samples.every((sample: {lang: string; text: string}) => sample.lang === 'de' && sample.text === 'Hallo!')).toBe(true);
+  } finally {
+    release();
+    // All intercepted module requests must finish before the page is torn down.
+    await page.unrouteAll({ behavior: 'wait' });
+  }
 });
 
-test.describe('language selection — English-first with browser suggestion', () => {
-	// ── 1 ──────────────────────────────────────────────────────────────────
-	test('German browser, no preference → English UI + language notification', async ({
-		browser
-	}) => {
-		test.setTimeout(60000);
-
-		const log = createSignupLogger('LANG_DE_EN_DEFAULT');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const { page, context } = await createLocalizedPage(browser, 'de-DE');
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale de-DE, no preferredLanguage...');
-		await page.goto(getE2EDebugUrl('/'));
-		const htmlLang = await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-initial-load');
-
-		log(`html[lang] = "${htmlLang}"`);
-		expect(htmlLang).toBe('en');
-
-		log('Waiting for language suggestion notification...');
-		const notifVisible = await waitForLanguageNotification(page);
-		await takeScreenshot(page, '02-notification');
-
-		expect(notifVisible).toBe(true);
-		await expect(page.getByText('Language Detected')).toBeVisible();
-		// Use the action button (unique element) to confirm the correct language is shown.
-		// getByText('Deutsch') would match both the message text and the button — strict mode violation.
-		await expect(page.getByTestId('notification-action')).toHaveText('Switch to Deutsch');
-
-		log('✓ German browser → English default + notification confirmed.');
-		await context.close();
-	});
-
-	// ── 2 ──────────────────────────────────────────────────────────────────
-	test('Czech browser, no preference → English UI + notification for Čeština', async ({
-		browser
-	}) => {
-		test.setTimeout(60000);
-
-		const log = createSignupLogger('LANG_CS_EN_DEFAULT');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const { page, context } = await createLocalizedPage(browser, 'cs-CZ');
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale cs-CZ, no preferredLanguage...');
-		await page.goto(getE2EDebugUrl('/'));
-		const htmlLang = await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-initial-load');
-
-		expect(htmlLang).toBe('en');
-
-		const notifVisible = await waitForLanguageNotification(page);
-		await takeScreenshot(page, '02-notification');
-
-		expect(notifVisible).toBe(true);
-		// nativeName for Czech is "Čeština" — use the action button (unique) to avoid strict mode violation.
-		await expect(page.getByTestId('notification-action')).toHaveText('Switch to Čeština');
-
-		log('✓ Czech browser → English default + Čeština notification confirmed.');
-		await context.close();
-	});
-
-	// ── 3 ──────────────────────────────────────────────────────────────────
-	test('unsupported browser locale (sw-TZ) → English fallback, no notification', async ({
-		browser
-	}) => {
-		test.setTimeout(60000);
-
-		const log = createSignupLogger('LANG_UNSUPPORTED_FALLBACK');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const { page, context } = await createLocalizedPage(browser, 'sw-TZ');
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with unsupported locale sw-TZ...');
-		await page.goto(getE2EDebugUrl('/'));
-		const htmlLang = await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-en-fallback');
-
-		expect(htmlLang).toBe('en');
-
-		// Swahili is not a supported language → no notification
-		const notifVisible = await waitForLanguageNotification(page, 4000);
-		expect(notifVisible).toBe(false);
-
-		log('✓ Unsupported locale → English, no notification confirmed.');
-		await context.close();
-	});
-
-	// ── 4 ──────────────────────────────────────────────────────────────────
-	test('invalid localStorage value cleared → English UI + notification for German browser', async ({
-		browser
-	}) => {
-		test.setTimeout(60000);
-
-		const log = createSignupLogger('LANG_INVALID_LS_CLEARED');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const { page, context } = await createLocalizedPage(browser, 'de-DE', {
-			preferredLanguage: 'xyz-invalid'
-		});
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale de-DE + invalid localStorage "xyz-invalid"...');
-		await page.goto(getE2EDebugUrl('/'));
-		const htmlLang = await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-invalid-ls');
-
-		// Invalid LS is cleared → English default
-		expect(htmlLang).toBe('en');
-
-		// Invalid value should have been cleared
-		const lsValue = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-		expect(lsValue).toBeNull();
-
-		// With no valid preference and German browser → notification appears
-		const notifVisible = await waitForLanguageNotification(page);
-		await takeScreenshot(page, '02-notification');
-		expect(notifVisible).toBe(true);
-
-		log('✓ Invalid LS cleared → English + notification confirmed.');
-		await context.close();
-	});
-
-	// ── 5 ──────────────────────────────────────────────────────────────────
-	test('valid localStorage preferredLanguage overrides browser language, no notification', async ({
-		browser
-	}) => {
-		test.setTimeout(60000);
-
-		const log = createSignupLogger('LANG_LS_OVERRIDE');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		// Browser is de-DE but localStorage says French
-		const { page, context } = await createLocalizedPage(browser, 'de-DE', {
-			preferredLanguage: 'fr'
-		});
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale de-DE + valid localStorage "fr"...');
-		await page.goto(getE2EDebugUrl('/'));
-		const htmlLang = await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-fr-from-ls');
-
-		expect(htmlLang).toBe('fr');
-
-		// preferredLanguage is set → no notification
-		const notifVisible = await waitForLanguageNotification(page, 4000);
-		expect(notifVisible).toBe(false);
-
-		const lsValue = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-		expect(lsValue).toBe('fr');
-
-		log('✓ Valid LS overrides browser language, no notification confirmed.');
-		await context.close();
-	});
-
-	// ── 6 ──────────────────────────────────────────────────────────────────
-	test('clicking "Switch to Deutsch" applies German and saves preferredLanguage', async ({
-		browser
-	}) => {
-		test.setTimeout(90000);
-
-		const log = createSignupLogger('LANG_SWITCH_ACTION');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const { page, context } = await createLocalizedPage(browser, 'de-DE');
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale de-DE, no preferredLanguage...');
-		await page.goto(getE2EDebugUrl('/'));
-		await waitForLocaleInit(page);
-
-		log('Waiting for language suggestion notification...');
-		const notifVisible = await waitForLanguageNotification(page);
-		expect(notifVisible).toBe(true);
-		await takeScreenshot(page, '01-notification');
-
-		log('Clicking "Switch to Deutsch" action button...');
-		await page.getByTestId('notification-action').click();
-
-		// Wait for locale change to propagate
-		await page.waitForTimeout(2000);
-		await takeScreenshot(page, '02-after-switch');
-		await expect(page.getByText('Language Detected')).toHaveCount(0);
-
-		const htmlLangAfter = await page.evaluate(() =>
-			document.documentElement.getAttribute('lang')
-		);
-		log(`html[lang] after switch = "${htmlLangAfter}"`);
-		expect(htmlLangAfter).toBe('de');
-
-		const savedPref = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-		log(`localStorage.preferredLanguage = "${savedPref}"`);
-		expect(savedPref).toBe('de');
-
-		log('✓ Switch to Deutsch applied language and saved preference.');
-		await context.close();
-	});
-
-	// ── 7 ──────────────────────────────────────────────────────────────────
-	test('dismissing notification keeps English and sets language_suggestion_shown', async ({
-		browser
-	}) => {
-		test.setTimeout(90000);
-
-		const log = createSignupLogger('LANG_DISMISS_NOTIFICATION');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const { page, context } = await createLocalizedPage(browser, 'de-DE');
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale de-DE...');
-		await page.goto(getE2EDebugUrl('/'));
-		await waitForLocaleInit(page);
-
-		log('Waiting for language suggestion notification...');
-		const notifVisible = await waitForLanguageNotification(page);
-		expect(notifVisible).toBe(true);
-		await takeScreenshot(page, '01-notification');
-
-		// language_suggestion_shown is set immediately when notification fires
-		const shownFlag = await page.evaluate(() =>
-			localStorage.getItem('language_suggestion_shown')
-		);
-		expect(shownFlag).toBe('1');
-
-		// Dismiss the notification via the close/X button
-		await page.getByTestId('notification-dismiss').first().click();
-		await page.waitForTimeout(1000);
-		await takeScreenshot(page, '02-after-dismiss');
-
-		// HTML lang should still be English
-		const htmlLang = await page.evaluate(() =>
-			document.documentElement.getAttribute('lang')
-		);
-		expect(htmlLang).toBe('en');
-
-		// preferredLanguage should NOT be saved
-		const pref = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-		expect(pref).toBeNull();
-
-		log('✓ Dismiss keeps English, language_suggestion_shown set.');
-		await context.close();
-	});
-
-	// ── 8 ──────────────────────────────────────────────────────────────────
-	test('revisit after dismiss → no notification shown again', async ({ browser }) => {
-		test.setTimeout(90000);
-
-		const log = createSignupLogger('LANG_NO_REPEAT_NOTIFICATION');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		// Simulate a return visitor: language_suggestion_shown already set
-		const { page, context } = await createLocalizedPage(browser, 'de-DE', {
-			language_suggestion_shown: '1'
-		});
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with locale de-DE + language_suggestion_shown="1"...');
-		await page.goto(getE2EDebugUrl('/'));
-		await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-revisit');
-
-		// No notification should appear on revisit
-		const notifVisible = await waitForLanguageNotification(page, 5000);
-		expect(notifVisible).toBe(false);
-
-		// Still English
-		const htmlLang = await page.evaluate(() =>
-			document.documentElement.getAttribute('lang')
-		);
-		expect(htmlLang).toBe('en');
-
-		log('✓ No notification on revisit after prior dismiss confirmed.');
-		await context.close();
-	});
-
-	// ── 9 ──────────────────────────────────────────────────────────────────
-	test('?lang=de URL param applies German directly, no notification', async ({ browser }) => {
-		test.setTimeout(60000);
-
-		const log = createSignupLogger('LANG_URL_PARAM');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		// No locale override on the context — browser appears English
-		const context = await browser.newContext();
-		const page = await context.newPage();
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with ?lang=de URL parameter...');
-		await page.goto(getE2EDebugUrl('/?lang=de#chat-id=demo-for-everyone'));
-		await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-lang-param');
-
-		const htmlLang = await page.evaluate(() =>
-			document.documentElement.getAttribute('lang')
-		);
-		log(`html[lang] = "${htmlLang}"`);
-		expect(htmlLang).toBe('de');
-
-		const savedPref = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-		expect(savedPref).toBe('de');
-
-		// preferredLanguage is set by the ?lang= handler → no notification
-		const notifVisible = await waitForLanguageNotification(page, 4000);
-		expect(notifVisible).toBe(false);
-
-		log('✓ ?lang=de applies German directly, no notification shown.');
-		await context.close();
-	});
-
-	// ── 10 ─────────────────────────────────────────────────────────────────
-	test('?lang=de active chat content renders in German on first load (race condition guard)', async ({
-		browser
-	}) => {
-		test.setTimeout(90000);
-
-		const log = createSignupLogger('LANG_URL_INTRO_CHAT');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		// English-browser context (no locale preference set) so the page defaults to English.
-		// The ?lang=de URL param must set German BEFORE the deep-linked demo chat is loaded.
-		const context = await browser.newContext();
-		const page = await context.newPage();
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with ?lang=de — checking for-everyone active chat renders in German...');
-		await page.goto(getE2EDebugUrl('/?lang=de#chat-id=demo-for-everyone'));
-		await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-after-lang-param');
-
-		// The for-everyone chat is explicitly deep-linked because the root page now shows the welcome screen.
-		// The ChatHeader teaser line 1 in German is "KI Team-Mates." (was hardcoded English before this fix).
-		// The chat message H1 in German is "Digitale Team-Mates für alle".
-		// Without the early-locale fix it renders as "Digital team mates for everyone" (English).
-		log('Checking that the active chat message body is in German...');
-		const germanHeading = page.getByText('Digitale Team-Mates', { exact: false });
-		await expect(germanHeading).toBeVisible({ timeout: 10000 });
-		await takeScreenshot(page, '02-german-active-chat');
-
-		// Confirm the English heading is NOT visible
-		await expect(page.getByText('Digital team mates for everyone', { exact: false })).not.toBeVisible();
-
-		// Also open the sidebar and verify the intro chat list title is in German
-		log('Opening sidebar to verify intro chat list title...');
-		await page.getByTestId('sidebar-toggle').click();
-		await page.waitForTimeout(1000);
-		await takeScreenshot(page, '03-sidebar-german-title');
-		await expect(page.getByText('OpenMates | Für alle').first()).toBeVisible({ timeout: 5000 });
-
-		log('✓ Both active chat and sidebar title render in German on first load.');
-		await context.close();
-	});
-
-	// ── 11 ─────────────────────────────────────────────────────────────────
-	test('?lang=es active chat content renders in Spanish on first load (parity with German)', async ({
-		browser
-	}) => {
-		test.setTimeout(90000);
-
-		const log = createSignupLogger('LANG_URL_ES_INTRO_CHAT');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		const context = await browser.newContext();
-		const page = await context.newPage();
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with ?lang=es...');
-		await page.goto(getE2EDebugUrl('/?lang=es#chat-id=demo-for-everyone'));
-		await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-after-lang-param');
-
-		// Spanish for-everyone H1: "Compañeros de equipo digitales para todos"
-		// Spanish ChatHeader teaser line 1: "Compañeros de equipo IA."
-		log('Checking that the active chat message body is in Spanish...');
-		await expect(page.getByText('Compañeros de equipo digitales', { exact: false }))
-			.toBeVisible({ timeout: 10000 });
-		await takeScreenshot(page, '02-spanish-active-chat');
-
-		await expect(page.getByText('Digital team mates for everyone', { exact: false })).not.toBeVisible();
-		// ChatHeader teaser must not be hardcoded English
-		await expect(page.getByText('AI team mates.', { exact: false })).not.toBeVisible();
-
-		log('✓ Active chat renders in Spanish on first load.');
-		await context.close();
-	});
-
-	// ── 12 ─────────────────────────────────────────────────────────────────
-	test('?lang=de overrides stored preferredLanguage from a previous visit', async ({
-		browser
-	}) => {
-		test.setTimeout(90000);
-
-		const log = createSignupLogger('LANG_URL_OVERRIDE_STORED');
-		const takeScreenshot = createStepScreenshotter(log);
-		await archiveExistingScreenshots(log);
-
-		// Simulate a returning user who previously chose French.
-		const { page, context } = await createLocalizedPage(browser, 'en-US', {
-			preferredLanguage: 'fr'
-		});
-		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
-
-		log('Navigating with ?lang=de and stored preferredLanguage=fr...');
-		await page.goto(getE2EDebugUrl('/?lang=de#chat-id=demo-for-everyone'));
-		await waitForLocaleInit(page);
-		await takeScreenshot(page, '01-after-lang-param');
-
-		// html[lang] must be "de" despite preferredLanguage=fr in localStorage
-		const htmlLang = await page.evaluate(() => document.documentElement.getAttribute('lang'));
-		expect(htmlLang).toBe('de');
-
-		// For-everyone chat message body must be German
-		log('Checking that active chat is in German despite stored French preference...');
-		await expect(page.getByText('Digitale Team-Mates', { exact: false }))
-			.toBeVisible({ timeout: 10000 });
-		await takeScreenshot(page, '02-german-overrides-french');
-
-		// Stored preference must now be updated to German
-		const savedPref = await page.evaluate(() => localStorage.getItem('preferredLanguage'));
-		expect(savedPref).toBe('de');
-
-		log('✓ ?lang=de correctly overrides stored preferredLanguage=fr.');
-		await context.close();
-	});
+// contract-test: direct surface=gui.web assertions=language-preferences.manual-choice,language-preferences.resolution
+test('an explicit selection supersedes an incoming German URL hint', async ({ page }) => {
+  await page.goto('/?lang=de#settings/interface/language');
+  await expect(page.getByTestId('language-option-en')).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId('language-option-en').click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  expect(new URL(page.url()).searchParams.has('lang')).toBe(false);
+  await page.reload();
+  await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!', { timeout: 30_000 });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  // Startup consumes ordinary settings deep links. Reopen the control to inspect
+  // persisted language; URL/hash preservation is covered by languageCoordinator.
+  await page.goto('/#settings/interface/language');
+  await expect(page.getByTestId('language-option-en').locator('input')).toBeChecked({ timeout: 30_000 });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+});
+
+// contract-test: direct surface=gui.web assertions=language-preferences.first-paint
+test('an existing local German account locale is ready before the first app text', async ({ page }) => {
+  // Seed only the existing local preference store; no network account or personal data is used.
+  await page.goto('/dev/preview/settings/interface/SettingsLanguage?chrome=0');
+  await page.evaluate(async () => {
+    localStorage.removeItem('preferredLanguage');
+    localStorage.removeItem('openmatesLanguageMode');
+    localStorage.removeItem('openmatesAccountLanguage');
+    document.cookie = 'om_language=; Max-Age=0; Path=/';
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open('user_db');
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains('user_data')) request.result.createObjectStore('user_data');
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction('user_data', 'readwrite');
+        transaction.objectStore('user_data').put('language-proof-local-account', 'id');
+        transaction.objectStore('user_data').put('de', 'language');
+        transaction.oncomplete = () => { database.close(); resolve(); };
+        transaction.onerror = () => reject(transaction.error);
+      };
+    });
+  });
+  await observeWelcome(page);
+  await page.goto('/');
+  await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hallo!', { timeout: 30_000 });
+  const samples = await page.evaluate(() => (window as any).__welcomeLanguages);
+  expect(samples.length).toBeGreaterThan(0);
+  expect(samples.every((sample: {lang: string; text: string}) => sample.lang === 'de' && sample.text === 'Hallo!')).toBe(true);
 });

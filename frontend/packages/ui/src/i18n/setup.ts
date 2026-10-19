@@ -1,6 +1,9 @@
-import { register, init, addMessages, getLocaleFromNavigator } from "svelte-i18n";
+import { register, init, addMessages, locale, waitLocale } from "svelte-i18n";
+import { writable } from "svelte/store";
+import { tick } from "svelte";
+import { normalizeLanguage, negotiateLanguage, resolveLanguage, readBrowserPreference, saveBrowserPreference, type LanguagePreference } from "@repo/public-site/languagePreference";
+import { readCachedAccountLanguage } from "./cachedAccountLanguage";
 import { browser } from "$app/environment";
-import { isValidLocale } from "./types";
 import { LANGUAGE_CODES, isRtlLanguage } from "./languages";
 import { waitForTranslations } from "../stores/i18n";
 import enMessages from "./locales/en.json";
@@ -73,51 +76,95 @@ const loadLocaleData = async (locale: string) => {
   }
 };
 
-// Function to normalize locale code to match our supported locales
-function normalizeLocale(locale: string): string {
-  // First check if the locale is already supported as-is
-  if (isValidLocale(locale)) {
-    return locale;
-  }
-
-  // If not, try to match the language part (before the hyphen)
-  const languagePart = locale.split("-")[0].toLowerCase();
-  if (isValidLocale(languagePart)) {
-    return languagePart;
-  }
-
-  return "en"; // fallback to English if no match
-}
-
-// Function to get the current language - defaults to English unless user set a preference.
-// Browser language is offered via a one-time notification in +page.svelte instead of
-// being auto-applied, so first-time visitors always land on a consistent English UI.
+/** Use one resolution policy before the app exposes any translated text. */
 export function getCurrentLanguage(): string {
-  if (browser) {
-    // Only use preferredLanguage if explicitly set by user AND it's a valid locale
-    const userPreference = localStorage.getItem("preferredLanguage");
-    if (userPreference && isValidLocale(userPreference)) {
-      return userPreference;
-    }
-    // Clear invalid/stale values (e.g. "cs-CZ" instead of "cs") to prevent persistence loops
-    if (userPreference) {
-      localStorage.removeItem("preferredLanguage");
-    }
-    // Default to English — browser language suggestion is shown as a notification
-    return "en";
-  }
-  return "en"; // Fallback for server-side rendering
+  if (!browser) return "en";
+  return resolveLanguage({
+    urlLanguage: new URLSearchParams(window.location.search).get("lang"),
+    preference: readBrowserPreference(),
+    browserLanguages: navigator.languages?.length ? navigator.languages : [navigator.language],
+    supported: LANGUAGE_CODES,
+  });
 }
 
-/**
- * Returns the normalised browser language code (e.g. "de" for "de-DE"), or "en"
- * if undetectable. Used by the language-suggestion notification in +page.svelte.
- */
 export function getDetectedBrowserLanguage(): string {
-  if (browser) {
-    return normalizeLocale(getLocaleFromNavigator() || "en");
+  return browser ? negotiateLanguage(navigator.languages?.length ? navigator.languages : [navigator.language], LANGUAGE_CODES) : "en";
+}
+
+export const languagePreferenceMode = writable<LanguagePreference['mode']>(browser ? readBrowserPreference()?.mode ?? 'auto' : 'auto');
+
+function updateDocumentLanguage(language: string): void {
+  if (!browser) return;
+  document.documentElement.lang = language;
+  document.documentElement.dir = isRtlLanguage(language) ? 'rtl' : 'ltr';
+}
+
+/** Load first, then switch: the previous dictionary remains visible during a manual change. */
+let userPreferenceGeneration = 0;
+let pendingUserPreference: LanguagePreference | null = null;
+async function applyLocale(language: string, stillCurrent = () => true): Promise<boolean> {
+  if (language !== 'en') {
+    const messages = await loadLocaleData(language);
+    if (!messages) throw new Error(`Translations unavailable: ${language}`);
+    addMessages(language, messages);
   }
-  return "en";
+  // svelte-i18n's locale.set can be asynchronous while a registered loader remains.
+  // Flush the selected queue, then recheck intent before committing the locale.
+  await waitLocale(language);
+  if (!stillCurrent()) return false;
+  await locale.set(language);
+  await waitLocale(language);
+  if (!stillCurrent()) return false;
+  updateDocumentLanguage(language);
+  return true;
+}
+
+export async function setAppLanguagePreference(choice: string): Promise<string> {
+  const language = choice === 'auto' ? getDetectedBrowserLanguage() : normalizeLanguage(choice, LANGUAGE_CODES);
+  if (!language) throw new Error('Unsupported language');
+  const generation = ++userPreferenceGeneration;
+  const preference: LanguagePreference = choice === 'auto' ? { mode: 'auto' } : { mode: 'manual', language };
+  pendingUserPreference = preference;
+  try {
+    if (!await applyLocale(language, () => generation === userPreferenceGeneration)) return getCurrentLanguage();
+    saveBrowserPreference(preference);
+    languagePreferenceMode.set(preference.mode);
+    // An explicit switch supersedes the incoming page hint for future restores/reloads.
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('lang')) {
+      url.searchParams.delete('lang');
+      window.history.replaceState(window.history.state, '', url);
+    }
+    await tick();
+    window.dispatchEvent(new CustomEvent('language-changed'));
+    window.dispatchEvent(new CustomEvent('language-changed-complete'));
+    return language;
+  } finally {
+    if (generation === userPreferenceGeneration) pendingUserPreference = null;
+  }
+}
+
+/** Account restoration never overrides a current manual choice or explicit Automatic mode. */
+export async function applyAccountLanguage(value: string | null | undefined): Promise<string> {
+  const generation = userPreferenceGeneration;
+  const preference = pendingUserPreference ?? readBrowserPreference();
+  const requested = browser ? new URLSearchParams(window.location.search).get('lang') : null;
+  const accountLanguage = normalizeLanguage(value, LANGUAGE_CODES);
+  const language = resolveLanguage({
+    urlLanguage: requested,
+    preference: preference?.mode === 'manual' || preference?.mode === 'auto' ? preference
+      : accountLanguage ? { mode: 'account', language: accountLanguage } : preference,
+    browserLanguages: browser ? navigator.languages : [], supported: LANGUAGE_CODES,
+  });
+  const explicitPreference = (value: LanguagePreference | null) => value?.mode === 'manual' || value?.mode === 'auto' ? JSON.stringify(value) : null;
+  const unchanged = () => generation === userPreferenceGeneration
+    && explicitPreference(preference) === explicitPreference(pendingUserPreference ?? readBrowserPreference());
+  if (!await applyLocale(language, unchanged)) return getCurrentLanguage();
+  if (!requested && preference?.mode !== 'manual' && preference?.mode !== 'auto' && accountLanguage) {
+    saveBrowserPreference({ mode: 'account', language: accountLanguage });
+    languagePreferenceMode.set('account');
+  }
+  return language;
 }
 
 // Register all supported locales from languages.json immediately when module loads
@@ -152,7 +199,24 @@ if (browser && typeof document !== "undefined") {
 
 // Async function for explicit initialization if needed
 // This is mainly for backwards compatibility - the init() above already ran
-export async function setupI18n() {
-  // Wait for initial translations to load
-  await waitForTranslations();
+let startup: Promise<void> | null = null;
+export async function setupI18n(): Promise<void> {
+  startup ??= (async () => {
+    const urlLanguage = normalizeLanguage(new URLSearchParams(window.location.search).get('lang'), LANGUAGE_CODES);
+    const preference = readBrowserPreference();
+    if (urlLanguage) {
+      saveBrowserPreference({ mode: 'manual', language: urlLanguage });
+      languagePreferenceMode.set('manual');
+      await applyLocale(urlLanguage);
+    } else if (!preference || preference.mode === 'account') {
+      const cached = await readCachedAccountLanguage();
+      if (cached) await applyAccountLanguage(cached);
+    } else {
+      // Also migrate a legacy localStorage selection to the server-readable cookie.
+      saveBrowserPreference(preference);
+    }
+    await applyLocale(getCurrentLanguage());
+    await waitForTranslations();
+  })();
+  return startup;
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
   import LandingFeatureAnimation from './LandingFeatureAnimation.svelte';
   import LandingNativeIcon from './LandingNativeIcon.svelte';
@@ -8,7 +8,8 @@
   import NewsletterSignup from '../NewsletterSignup.svelte';
   import PublicSiteHeader from './PublicSiteHeader.svelte';
   import { publicApps } from '../../data/publicApps';
-  import { socialLinks, supportedLanguages } from '../../data/siteMetadata';
+  import { socialLinks } from '../../data/siteMetadata';
+  import { negotiateLanguage, saveBrowserPreference } from '../../languagePreference';
   import { proxyImage } from '../../data/proxyImage';
   import { landingCopy } from './landingLocale';
 
@@ -16,15 +17,29 @@
     appBaseUrl: string;
     websiteBaseUrl: string;
     apiBaseUrl: string;
+    initialLanguage?: 'en' | 'de';
+    initialLanguageMode?: 'manual' | 'account' | 'auto';
+    navigateOnLanguageChange?: boolean;
     serverStatusUrl?: string;
     events?: LandingPublication[];
     news?: LandingPublication[];
     posts?: LandingPublication[];
   }
 
-  let { appBaseUrl, websiteBaseUrl, apiBaseUrl, serverStatusUrl, events = [], news = [], posts = [] }: Props = $props();
-  const appUrl = (path: string) => `${appBaseUrl.replace(/\/$/, '')}${path}`;
-  const siteUrl = (path: string) => `${websiteBaseUrl.replace(/\/$/, '')}${path}`;
+  let { appBaseUrl, websiteBaseUrl, apiBaseUrl, initialLanguage = 'en', initialLanguageMode = 'auto', navigateOnLanguageChange = false, serverStatusUrl, events = [], news = [], posts = [] }: Props = $props();
+  const appUrl = (path: string) => {
+    const url = new URL(path, appBaseUrl);
+    // The app treats an explicit language query as a manual choice. Automatic
+    // and account modes travel through the shared preference cookie instead.
+    if (languageMode === 'manual') url.searchParams.set('lang', chosenLanguage);
+    return url.href;
+  };
+  const siteUrl = (path: string) => {
+    const url = new URL(path, websiteBaseUrl);
+    if (chosenLanguage === 'de' && /^\/(news|blog)(\/|$)/.test(url.pathname)) url.pathname = `/de${url.pathname}`;
+    url.searchParams.set('lang', chosenLanguage);
+    return url.href;
+  };
 
   const promptIntervalMs = 3400;
   const orderedApps = publicApps;
@@ -33,7 +48,8 @@
   let promptHasChanged = $state(false);
   let heroEntranceComplete = $state(false);
   let reducedMotion = $state(false);
-  let chosenLanguage = $state('en');
+  let chosenLanguage = $state(untrack(() => initialLanguage));
+  let languageMode = $state(untrack(() => initialLanguageMode));
   let freeUsageAvailable = $state<boolean | null>(null);
   let copy = $derived(landingCopy[chosenLanguage === 'de' ? 'de' : 'en']);
   let composerAlternative = $state(false);
@@ -106,9 +122,20 @@
   let selectApp = (_index: number) => {};
 
   function selectLanguage(code: string): void {
-    chosenLanguage = code;
-    try { localStorage.setItem('preferredLanguage', code); } catch { /* Storage can be disabled. */ }
-    document.documentElement.lang = code === 'de' ? 'de' : 'en';
+    const automatic = code === 'auto';
+    const language = automatic ? negotiateLanguage(navigator.languages, ['en', 'de']) : code;
+    if (language !== 'en' && language !== 'de') return;
+    languageMode = automatic ? 'auto' : 'manual';
+    saveBrowserPreference(automatic ? { mode: 'auto' } : { mode: 'manual', language });
+    if (navigateOnLanguageChange) {
+      const url = new URL(window.location.href);
+      if (automatic) url.searchParams.delete('lang');
+      else url.searchParams.set('lang', language);
+      window.location.assign(url.href);
+      return;
+    }
+    chosenLanguage = language;
+    document.documentElement.lang = language;
     document.documentElement.dir = 'ltr';
   }
 
@@ -138,10 +165,7 @@
   });
 
   onMount(() => {
-    let storedLanguage: string | null = null;
-    try { storedLanguage = localStorage.getItem('preferredLanguage'); } catch { /* Storage can be disabled. */ }
-    if (storedLanguage && supportedLanguages.some((item) => item.code === storedLanguage)) chosenLanguage = storedLanguage;
-    document.documentElement.lang = chosenLanguage === 'de' ? 'de' : 'en';
+    document.documentElement.lang = chosenLanguage;
     document.documentElement.dir = 'ltr';
 
     touchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -471,7 +495,7 @@
 </script>
 
 <div class="landing-page" class:hero-entrance-complete={heroEntranceComplete} bind:this={landingRoot} data-testid="landing-page" lang={chosenLanguage === 'de' ? 'de' : 'en'}>
-  <PublicSiteHeader {appBaseUrl} {websiteBaseUrl} language={chosenLanguage} onLanguageChange={selectLanguage} />
+  <PublicSiteHeader {appBaseUrl} {websiteBaseUrl} language={chosenLanguage} {languageMode} availableLanguages={['en', 'de']} onLanguageChange={selectLanguage} />
 
   <div class="viewport-container" data-testid="landing-viewport-container">
     <main class="scroll-container" bind:this={scrollContainer} data-testid="landing-scroll-container">

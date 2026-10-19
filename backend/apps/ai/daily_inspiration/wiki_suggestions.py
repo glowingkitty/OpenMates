@@ -64,11 +64,75 @@ WIKI_TIPS = [
 ]
 
 
-def build_wiki_inspirations(count: int = 3) -> List[DailyInspiration]:
+WIKI_TIPS_DE = [
+    {
+        "title": "Der Mechanismus von Antikythera",
+        "description": "Ein antikes griechisches, handbetriebenes Modell des Kosmos.",
+        "phrase": "Ein antikes Schiffswrack barg eine Maschine, die den Himmel vorhersagte.",
+        "assistant_response": "Der Mechanismus von Antikythera gilt als der älteste bekannte "
+        "Analogrechner. Bronzezahnräder bildeten astronomische Zyklen, "
+        "Finsternisse und Kalender ab. Entdecke, was Ingenieure vor mehr als "
+        "2.000 Jahren bereits wussten.",
+    },
+    {
+        "title": "Biolumineszenz",
+        "description": "Lebende Organismen erzeugen Licht durch chemische Reaktionen.",
+        "phrase": "Manche Tiere erzeugen ihr eigenes Licht. Die Chemie dahinter ist überraschend "
+        "elegant.",
+        "assistant_response": "Organismen leuchten für die Jagd, Tarnung, Kommunikation und "
+        "Verteidigung. Das Phänomen findet sich bei Tiefseetieren, Pilzen, "
+        "Bakterien und Insekten. Entdecke, wie Chemie zu Licht ohne große "
+        "Wärmeentwicklung wird.",
+    },
+    {
+        "title": "Kollektives Verhalten bei Tieren",
+        "description": "Wie Tiergruppen ihre Bewegungen und Entscheidungen koordinieren.",
+        "phrase": "Tausende Tiere bewegen sich wie ein einziges Wesen. Ganz ohne Dirigenten.",
+        "assistant_response": "Fischschwärme, Vogelschwärme und Insektengruppen koordinieren sich "
+        "durch lokale Wechselwirkungen. Einfache Reaktionen auf Nachbarn "
+        "erzeugen große Muster, die choreografiert wirken. Entdecke, wie "
+        "komplexes Verhalten aus einfachen Regeln entsteht.",
+    },
+    {
+        "title": "Die Bibliothek von Alexandria",
+        "description": "Eines der berühmtesten Wissenszentren der Antike.",
+        "phrase": "Die berühmteste Bibliothek der Antike war auch eine Forschungseinrichtung.",
+        "assistant_response": "Die Bibliothek von Alexandria gehörte zu einer größeren "
+        "Gelehrtengemeinschaft am Museion. Sie sammelte Texte, beherbergte "
+        "Forscher und wurde zum Sinnbild für die Bewahrung von Wissen. "
+        "Entdecke, was Historiker über sie wissen und was Legende ist.",
+    },
+    {
+        "title": "Tensegrität",
+        "description": "Strukturen, die durch das Gleichgewicht von Zug und Druck stabil bleiben.",
+        "phrase": "Manche Bauwerke scheinen zu schweben. Zugkräfte leisten die verborgene Arbeit.",
+        "assistant_response": "Tensegritätsstrukturen verbinden einzelne Druckelemente durch ein "
+        "durchgehendes Netz unter Spannung. Dadurch wirken sie erstaunlich "
+        "leicht und bleiben dennoch stabil. Entdecke, warum dieses Prinzip "
+        "Kunst, Architektur und Biologie beschäftigt.",
+    },
+    {
+        "title": "Das Fermi-Paradoxon",
+        "description": "Der Widerspruch zwischen möglichem außerirdischem Leben und fehlenden "
+        "eindeutigen Belegen.",
+        "phrase": "Wenn das Universum so groß ist, warum scheint es dann so still zu sein?",
+        "assistant_response": "Das Fermi-Paradoxon fragt, warum wir trotz der Größe und des Alters "
+        "des Universums keine überzeugenden Hinweise auf außerirdische "
+        "Zivilisationen gefunden haben. Mögliche Antworten reichen von "
+        "seltenem Leben bis zu Grenzen der Kommunikation. Entdecke eine der "
+        "großen offenen Fragen der Wissenschaft.",
+    },
+]
+
+
+def build_wiki_inspirations(count: int = 3, *, language: str = "en") -> List[DailyInspiration]:
     """Return up to ``count`` static public wiki inspiration objects."""
     now_ts = int(time.time())
     inspirations: List[DailyInspiration] = []
-    for tip in WIKI_TIPS[:max(0, count)]:
+    for index, tip in enumerate(WIKI_TIPS[:max(0, count)]):
+        content_language = "de" if language.lower().split("-")[0] == "de" else "en"
+        if content_language == "de":
+            tip = {**tip, **WIKI_TIPS_DE[index]}
         wiki = DailyInspirationWiki(
             title=tip["title"],
             wiki_title=tip["wiki_title"],
@@ -78,6 +142,7 @@ def build_wiki_inspirations(count: int = 3) -> List[DailyInspiration]:
         inspirations.append(
             DailyInspiration(
                 inspiration_id=str(uuid.uuid4()),
+                language=content_language,
                 phrase=tip["phrase"],
                 title=tip["title"],
                 assistant_response=tip["assistant_response"],

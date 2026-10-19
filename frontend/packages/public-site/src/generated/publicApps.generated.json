@@ -69,7 +69,7 @@
     },
     "exampleChatId": "example-mastodon-public-post-themes",
     "promptEn": "Summarize public posts",
-    "promptDe": "Fasse \u00f6ffentliche Beitr\u00e4ge zusammen"
+    "promptDe": "Fasse öffentliche Beiträge zusammen"
   },
   {
     "id": "mail",
@@ -117,7 +117,7 @@
     },
     "exampleChatId": "example-berlin-weather-bike-commute",
     "promptEn": "Check the weather",
-    "promptDe": "Pr\u00fcfe das Wetter"
+    "promptDe": "Prüfe das Wetter"
   },
   {
     "id": "shopping",
@@ -285,7 +285,7 @@
     },
     "exampleChatId": "example-social-app-name-domain",
     "promptEn": "Find available domains",
-    "promptDe": "Finde verf\u00fcgbare Domains"
+    "promptDe": "Finde verfügbare Domains"
   },
   {
     "id": "models3d",

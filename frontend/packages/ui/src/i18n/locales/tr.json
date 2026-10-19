@@ -17293,6 +17293,15 @@
         }
       }
     },
+    "language": {
+      "automatic": {
+        "text": "Otomatik (tarayıcı dili)"
+      },
+      "account_save_error": {
+        "text": "Hesap dili kaydedilemedi. Lütfen tekrar dene."
+      },
+      "text": "Dil"
+    },
     "open_settings_menu": {
       "text": "Ayarlar menüsünü aç"
     },
@@ -20057,9 +20066,6 @@
     },
     "devices": {
       "text": "Cihazlar"
-    },
-    "language": {
-      "text": "Dil"
     },
     "passkeys": {
       "text": "Erişim anahtarları"
