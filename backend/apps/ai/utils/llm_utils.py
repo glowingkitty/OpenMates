@@ -935,6 +935,7 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
             if not tool_call_id:
                 logger.warning(f"Tool message at index {idx} missing tool_call_id, skipping")
                 continue
+            shopping_tool = msg.get("name") in {"shopping-search_products", "shopping-search-products", "shopping.search_products"}
             
             content_input = msg.get("content", "")
             # Tool content is either plain text (TOON/JSON) or a list of content blocks
@@ -961,7 +962,15 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                     
                     # Try to decode TOON content
                     try:
-                        decoded_content = decode(plain_text_content)
+                        if shopping_tool:
+                            # The TOON decoder can accept JSON as a malformed key
+                            # without raising. Honor Shopping's JSON fallback first.
+                            try:
+                                decoded_content = json.loads(plain_text_content)
+                            except (ValueError, TypeError):
+                                decoded_content = decode(plain_text_content)
+                        else:
+                            decoded_content = decode(plain_text_content)
                         original_length = len(plain_text_content)
                         
                         # Filter the decoded content
@@ -974,6 +983,9 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                     ignore_fields_for_inference
                                 )
                                 filtered_content = {"results": filtered_results, "count": len(filtered_results)}
+                                if shopping_tool:
+                                    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                    filtered_content.update(shopping_inference_metadata(decoded_content))
                                 logger.debug(
                                     f"Filtered {len(filtered_results)} tool result(s) from history. "
                                     f"Removed fields: {ignore_fields_for_inference}"
@@ -1031,6 +1043,9 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                                         ignore_fields_for_inference
                                     )
                                     filtered_content = {"results": filtered_results, "count": len(filtered_results)}
+                                    if shopping_tool:
+                                        from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+                                        filtered_content.update(shopping_inference_metadata(decoded_content))
                                     logger.debug(
                                         f"Filtered {len(filtered_results)} tool result(s) from history (JSON format, multiple). "
                                         f"Removed fields: {ignore_fields_for_inference}"

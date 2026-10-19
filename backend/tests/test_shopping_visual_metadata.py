@@ -49,6 +49,72 @@ def test_empty_comparison_tool_and_preview_wrappers_preserve_evidence_without_pr
     assert merged["visual_evaluations"] == metadata["visual_evaluations"]
 
 
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.privacy.minimized
+@pytest.mark.parametrize("error", ["Reference image is unavailable to this caller", "PRIVATE provider URL and credentials", {"private": "diagnostics"}])
+def test_failed_search_tool_payload_retains_safe_error_instead_of_claiming_no_matches(error):
+    metadata = shopping_result_parent_metadata([{"id": "failed", "results": [], "error": error}])
+    payload = decode(encode(shopping_result_payload([], _flatten_for_toon_tabular(metadata))))
+    assert payload["count"] == 0 and payload["results"] == []
+    assert payload["request_errors"][0]["request_id"] == "failed"
+    assert "not evidence of no matching products" in payload["failure_notice"]
+    assert "PRIVATE" not in str(payload) and "diagnostics" not in str(payload)
+    if isinstance(error, str) and error.startswith("Reference image"):
+        assert "reference image could not be accessed" in payload["request_errors"][0]["message"]
+    assert "visual_evaluations" not in payload
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
+def test_partial_request_failure_keeps_successful_products_and_its_own_request_identity():
+    groups = [{"id": "failed", "results": [], "error": "Reference image is no longer available"},
+              {"id": "matched", "results": [{"title": "Fabric"}], "visual_evaluation": summary()}]
+    metadata = shopping_result_parent_metadata(groups)
+    payload = shopping_result_payload(groups[1]["results"], metadata)
+    assert payload["results"] == [{"title": "Fabric"}] and payload["count"] == 1
+    assert payload["request_errors"][0]["request_id"] == "failed"
+    assert payload["visual_evaluations"][0]["request_id"] == "matched"
+    assert shopping_result_parent_metadata([{"id": "empty-success", "results": []}]) == {}
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.privacy.minimized
+@pytest.mark.parametrize("product_count", [0, 1, 2])
+@pytest.mark.parametrize("wire_format", ["toon", "json"])
+def test_real_history_conversion_retains_comparison_evidence_and_still_excludes_image_urls(product_count, wire_format):
+    import json
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+
+    products = [{"title": "Fabric", "image_urls": ["PRIVATE PHOTO URL"], "price_cents": 1299}
+                for _ in range(product_count)]
+    evidence = shopping_result_parent_metadata([{"id": "compared", "results": products,
+                                                "visual_evaluation": summary("partial", 2)}])
+    payload = {"results": products, "count": product_count, **evidence,
+               "private_wrapper_key": "PRIVATE WRAPPER VALUE"}
+    content = encode(_flatten_for_toon_tabular(payload)) if wire_format == "toon" else json.dumps(payload)
+    transformed = _transform_message_history_for_llm([{
+        "role": "tool", "name": "shopping-search_products", "tool_call_id": "visual",
+        "content": content, "ignore_fields_for_inference": ["image_urls"],
+    }])
+    decoded = decode(transformed[0]["content"])
+    assert decoded["visual_evaluations"][0]["request_id"] == "compared"
+    assert decoded["visual_evaluations"][0]["visual_evaluation"]["status"] == "partial"
+    assert decoded["count"] == product_count
+    assert "PRIVATE" not in str(decoded)
+    if product_count:
+        assert decoded["results"][0]["price_cents"] == 1299
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized,shopping-search.relevance.truthful-fallback
+def test_history_retention_uses_only_safe_shopping_metadata():
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_inference_metadata
+
+    raw = {"request_errors": [{"request_id": 1, "message": "PRIVATE error"},
+                               {"request_id": 2, "message": "The shopping request could not be completed.", "secret": "PRIVATE"}],
+           "failure_notice": "PRIVATE notice", "image_url": "PRIVATE photo"}
+    retained = shopping_inference_metadata(raw)
+    assert retained["request_errors"] == [{"request_id": 2, "message": "The shopping request could not be completed."}]
+    assert "not evidence of no matching products" in retained["failure_notice"]
+    assert "PRIVATE" not in str(retained)
+
+
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.relevance.visual-and-text
 @pytest.mark.parametrize("operation", ["create", "update"])
 @pytest.mark.parametrize("product_count", [0, 1])

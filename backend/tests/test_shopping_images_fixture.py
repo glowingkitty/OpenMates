@@ -9,7 +9,11 @@ from backend.apps.ai.processing.jev_preprocessing import (
     decide_app_and_project_routing_with_jev, decide_preprocessing_with_jev,
 )
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
-from backend.apps.ai.testing.shopping_images_fixture import GROUP, PROMPT, active, llm_fixture
+from backend.apps.ai.testing.shopping_images_fixture import (
+    GROUP, PROMPT, active, llm_fixture, REFERENCE_ERROR_PROMPT, REFERENCE_ERROR_ID,
+    REFERENCE_ERROR_MESSAGE, REFERENCE_ERROR_RESPONSE, MISSING_ERROR_METADATA_RESPONSE,
+)
+from toon_format import decode, encode
 from backend.shared.providers.typesafe import budget as jev_budget
 from backend.shared.testing.api_response_cache import ApiResponseCache
 from backend.shared.testing.mock_context import mock_group_var, mock_mode_var
@@ -93,3 +97,92 @@ def test_gallery_replay_rejects_unrecognized_prompt(shopping_replay):
     assert llm_fixture("llm/gemini-3.5-flash-lite", {
         "model": "gemini-3.5-flash-lite", "messages": [{"role": "user", "content": "Another request"}],
     }) is None
+
+
+def test_reference_failure_replay_dispatches_a_real_unowned_image_lookup(shopping_replay):
+    response = llm_fixture("llm/gemini-3.5-flash-lite", {
+        "model": "gemini-3.5-flash-lite", "stream": True,
+        "messages": [{"role": "user", "content": REFERENCE_ERROR_PROMPT}],
+        "tools": [{"function": {"name": "shopping-search_products"}}],
+    })
+    [call] = response["response"]["chunks"]
+    assert call["value"]["function_name"] == "shopping-search_products"
+    [request] = call["value"]["function_arguments_parsed"]["requests"]
+    assert request["id"] == REFERENCE_ERROR_ID
+    assert request["reference_images"] == ["00000000-0000-4000-8000-000000000001"]
+
+
+@pytest.mark.parametrize("encoding", [json.dumps, encode], ids=["json", "toon"])
+@pytest.mark.parametrize("invalid", [None, "missing-errors", "missing-notice", "wrong-request", "missing-reference-explanation", "boolean-request", "multiple-errors"])
+def test_reference_failure_answer_depends_on_actual_server_error_metadata(shopping_replay, encoding, invalid):
+    payload = {
+        "results": [], "count": 0,
+        "request_errors": [{"request_id": REFERENCE_ERROR_ID, "message": REFERENCE_ERROR_MESSAGE}],
+        "failure_notice": "Failed requests are not evidence of no matching products. Do not invent a catalogue explanation.",
+    }
+    if invalid == "missing-errors":
+        payload.pop("request_errors")
+    elif invalid == "missing-notice":
+        payload.pop("failure_notice")
+    elif invalid == "wrong-request":
+        payload["request_errors"][0]["request_id"] = "different-request"
+    elif invalid == "missing-reference-explanation":
+        payload["request_errors"][0]["message"] = "The shopping request could not be completed."
+    elif invalid == "boolean-request":
+        payload["request_errors"][0]["request_id"] = True
+    elif invalid == "multiple-errors":
+        payload["request_errors"].append({"request_id": "another", "message": REFERENCE_ERROR_MESSAGE})
+    result = llm_fixture("llm/gemini-3.5-flash-lite", {
+        "model": "gemini-3.5-flash-lite", "stream": True,
+        "messages": [{"role": "user", "content": REFERENCE_ERROR_PROMPT},
+                     {"role": "tool", "content": encoding(payload)}],
+    })
+    [chunk] = result["response"]["chunks"]
+    assert chunk["value"] == (REFERENCE_ERROR_RESPONSE if invalid is None else MISSING_ERROR_METADATA_RESPONSE)
+
+
+@pytest.mark.parametrize("request_id", [1, "1"])
+def test_reference_failure_accepts_the_authoritative_single_request_placeholder_id(shopping_replay, request_id):
+    payload = {"results": [], "count": 0,
+               "request_errors": [{"request_id": request_id, "message": REFERENCE_ERROR_MESSAGE}],
+               "failure_notice": "Failed requests are not evidence of no matching products."}
+    response = llm_fixture("llm/gemini-3.5-flash-lite", {
+        "model": "gemini-3.5-flash-lite", "stream": True,
+        "messages": [{"role": "user", "content": REFERENCE_ERROR_PROMPT},
+                     {"role": "tool", "content": encode(payload)}],
+    })
+    assert response["response"]["chunks"][0]["value"] == REFERENCE_ERROR_RESPONSE
+
+
+@pytest.mark.parametrize("tool_name", ["shopping-search-products", "shopping-search_products", "shopping.search_products"])
+@pytest.mark.parametrize("encoding", [encode, json.dumps], ids=["toon", "json"])
+def test_reference_failure_survives_real_server_projection_and_provider_history_transform(
+    shopping_replay, tool_name, encoding,
+):
+    # Require the real filter import so a lazy-import fallback cannot falsely
+    # pass by skipping production history filtering altogether.
+    from backend.apps.ai.processing.main_processor import _filter_skill_results_for_llm
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+    from backend.apps.shopping.skills.search_products import SearchProductsResponse
+    from backend.core.api.app.services.embed_service import _flatten_for_toon_tabular
+
+    assert callable(_filter_skill_results_for_llm)
+    metadata = shopping_result_parent_metadata([{
+        "id": 1, "results": [], "error": "Reference image is unavailable to this caller",
+    }])
+    payload = shopping_result_payload([], _flatten_for_toon_tabular(metadata))
+    history = [{"role": "user", "content": REFERENCE_ERROR_PROMPT}, {
+        "role": "tool", "tool_call_id": "shopping-gallery-fixture", "name": tool_name,
+        "content": encoding(payload),
+        "ignore_fields_for_inference": SearchProductsResponse().ignore_fields_for_inference,
+    }]
+
+    transformed = _transform_message_history_for_llm(history)
+    tool_payload = decode(transformed[-1]["content"])
+    assert tool_payload["request_errors"] == payload["request_errors"]
+    assert tool_payload["failure_notice"] == payload["failure_notice"]
+    response = llm_fixture("llm/gemini-3.5-flash-lite", {
+        "model": "gemini-3.5-flash-lite", "stream": True, "messages": transformed,
+    })
+    assert response["response"]["chunks"][0]["value"] == REFERENCE_ERROR_RESPONSE

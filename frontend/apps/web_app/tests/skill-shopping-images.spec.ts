@@ -12,6 +12,9 @@ const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 const fs = require('node:fs');
 
 const PROMPT = 'Find bio joghurt on REWE. SHOPPING_IMAGES_E2E:gallery <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const REFERENCE_ERROR_PROMPT = 'Find bio joghurt on REWE using my reference image. SHOPPING_IMAGES_E2E:reference-error <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const REFERENCE_ERROR_MESSAGE = 'A reference image could not be accessed. Use its exact reference from this chat or upload it again.';
+const REFERENCE_ERROR_RESPONSE = 'The reference image could not be accessed. Please upload it again or use its exact reference from this chat. The shopping search did not run.';
 const GALLERY = [
 	'https://img.rewe-static.de/8304439/31937745_digital-image.png',
 	'https://img.rewe-static.de/synthetic-gallery/reverse.png',
@@ -155,6 +158,85 @@ test.describe('Shopping product galleries and reference images', () => {
 			expect(result.recording && fs.existsSync(result.recording.videoPath), `Reference validation CLI terminal capture: ${output}`).toBe(true);
 			expect(output).toMatch(count === 4 ? /List should have at most 3 items after validation, not 4/i : /Reference image is unavailable to this caller/i);
 			expect(output).not.toContain('img.rewe-static.de');
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=app-skills.surface.semantic-parity,shopping-search.references.authorized,shopping-search.relevance.truthful-fallback
+	test('an inaccessible reference stays a failed search and reaches the assistant truthfully', async ({ page }: { page: any }, testInfo: any) => {
+		test.skip(!getTestAccount().email, 'Disposable CI account required.');
+		const { createRequire } = require('node:module');
+		const { pathToFileURL } = require('node:url');
+		const { decode } = await import(pathToFileURL(createRequire(CLI_DIST).resolve('@toon-format/toon')).href);
+		const home = createWorkflowCliHome('shopping-reference-error');
+		const env = { ...workflowCliEnv(apiUrl, home), LIBGL_ALWAYS_SOFTWARE: 'true', GALLIUM_DRIVER: 'llvmpipe' };
+		const options = { useApiKey: false, record: false, env };
+		let chatId: string | undefined;
+		let markerSubmitted = false;
+		let failedReferenceDelivered = false;
+		let finishedShoppingDelivered = false;
+		page.on('websocket', (socket: any) => {
+			socket.on('framesent', (frame: { payload: string | Buffer }) => {
+				try {
+					const packet = JSON.parse(frame.payload.toString());
+					const marker = packet.payload?.inference_request?.test_mock_marker || packet.payload?.test_mock_marker;
+					if (marker === '<<<TEST_LIVE_MOCK:shopping_images_web>>>') markerSubmitted = true;
+				} catch { /* Ignore transport frames that are not application JSON. */ }
+			});
+			socket.on('framereceived', (frame: { payload: string | Buffer }) => {
+				try {
+					const packet = JSON.parse(frame.payload.toString());
+					if (packet.type !== 'send_embed_data') return;
+					const payload = packet.payload?.payload || packet.payload;
+					if (typeof payload?.content !== 'string') return;
+					let content;
+					try { content = JSON.parse(payload.content); } catch { content = decode(payload.content); }
+					if (content.app_id !== 'shopping' || content.skill_id !== 'search_products') return;
+					if (payload.status === 'finished') finishedShoppingDelivered = true;
+					if (payload.status === 'error' && content.status === 'error' && content.error === REFERENCE_ERROR_MESSAGE) {
+						failedReferenceDelivered = true;
+					}
+				} catch { /* Other app/socket traffic is outside this scenario. */ }
+			});
+		});
+		try {
+			await installE2EServerContentOverrideGate(page, 'shopping-reference-error');
+			await loginToTestAccount(page);
+			await startNewChat(page);
+			await sendMessage(page, REFERENCE_ERROR_PROMPT);
+			await expect.poll(() => markerSubmitted, { timeout: 5000 }).toBe(true);
+			const assistant = page.getByTestId('message-assistant').last();
+			// The upstream fixture emits this only after reading the real tool's
+			// request_errors and inaccessible-reference explanation, never from the prompt.
+			await expect(assistant).toContainText(REFERENCE_ERROR_RESPONSE, { timeout: 60_000 });
+			await expect.poll(() => failedReferenceDelivered, {
+				message: 'The failed reference updates the real shopping placeholder to error', timeout: 10_000
+			}).toBe(true);
+			expect(finishedShoppingDelivered, 'A reference failure must not become a finished zero-product result').toBe(false);
+			await expect(page.locator('[data-testid="embed-preview"][data-app-id="shopping"][data-status="finished"]')).toHaveCount(0);
+			await expect(assistant.getByTestId('embed-error-banner')).toBeVisible();
+			await expect(assistant).not.toContainText(/no matching products|no products found|REGRESSION:/i);
+			chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1]
+				|| await page.locator('[data-action="message-input"]').last().getAttribute('data-current-chat-id');
+			expect(chatId).toBeTruthy();
+			await pairDirectChatCli(page, apiUrl, home, CLI_DIST);
+			await page.close();
+			const saved = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 45_000, {
+				...options, record: true,
+				env: { ...env, OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'skill-shopping-images-reference-error' }
+			});
+			if (saved.recording && fs.existsSync(saved.recording.videoPath)) {
+				await testInfo.attach('shopping-reference-error-cli-terminal', { path: saved.recording.videoPath, contentType: 'video/mp4' });
+			}
+			expectCliSuccess(saved, 'Read the persisted truthful reference failure');
+			expect(saved.recording && fs.existsSync(saved.recording.videoPath)).toBe(true);
+			const messages = parseCliJson(saved).messages;
+			const answers = messages.filter((message: any) => message.role === 'assistant').map((message: any) => message.content).join('\n');
+			expect(answers).toContain(REFERENCE_ERROR_RESPONSE);
+			expect(answers).not.toMatch(/no matching products|no products found|REGRESSION:/i);
+			// Error embeds are intentionally transient; the assistant explanation persists.
+		} finally {
+			if (chatId) await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000, options);
+			removeWorkflowCliHome(home);
 		}
 	});
 });

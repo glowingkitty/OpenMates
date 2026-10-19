@@ -10843,7 +10843,8 @@ async def handle_main_processing(
                                 if app_id == "jobs" and skill_id == "search":
                                     request_metadata_with_provider.update(jobs_result_parent_metadata(grouped_result))
                                 if app_id == "shopping" and skill_id == "search_products":
-                                    request_metadata_with_provider.pop("visual_evaluations", None)
+                                    for server_key in ("visual_evaluations", "request_errors", "failure_notice"):
+                                        request_metadata_with_provider.pop(server_key, None)
                                     request_metadata_with_provider.update(shopping_result_parent_metadata([grouped_result]))
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
@@ -11111,13 +11112,38 @@ async def handle_main_processing(
                                                  f"{'<redacted>' if redact_group_ids else embed_data.get('request_id')}")
                         else:
                             # Single request: Update the existing placeholder embed
+                            single_shopping_errors = (
+                                shopping_visual_metadata.get("request_errors", [])
+                                if app_id == "shopping" and skill_id == "search_products"
+                                and grouped_results and len(grouped_results) == 1 else []
+                            )
                             single_hosting_group = (
                                 grouped_results[0]
                                 if app_id == "hosting" and skill_id == "search_domains"
                                 and grouped_results and len(grouped_results) == 1
                                 else None
                             )
-                            if placeholder_embed_data:
+                            if single_shopping_errors:
+                                # A failed reference lookup/search is not a successful
+                                # empty product result. Keep the tool error and existing
+                                # error-banner behavior aligned for single requests too.
+                                failed_placeholders = (
+                                    placeholder_embed_data.get("placeholders", [])
+                                    if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple")
+                                    else [placeholder_embed_data] if placeholder_embed_data else []
+                                )
+                                for failed_placeholder in failed_placeholders:
+                                    if failed_placeholder.get("embed_id"):
+                                        await embed_service.update_embed_status_to_error(
+                                            embed_id=failed_placeholder["embed_id"],
+                                            app_id=app_id, skill_id=skill_id,
+                                            error_message=single_shopping_errors[0]["message"],
+                                            chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id, task_id=task_id,
+                                            log_prefix=log_prefix,
+                                        )
+                            elif placeholder_embed_data:
                                 # CRITICAL: Check if placeholder_embed_data has "multiple" structure but we fell here
                                 # because is_multiple_requests was False (e.g., skill returned non-grouped results)
                                 # In this case, we need to update each placeholder with the same results
@@ -11220,7 +11246,8 @@ async def handle_main_processing(
                                     )
                                     single_request_metadata.update(final_preview_metadata)
                                     if app_id == "shopping" and skill_id == "search_products":
-                                        single_request_metadata.pop("visual_evaluations", None)
+                                        for server_key in ("visual_evaluations", "request_errors", "failure_notice"):
+                                            single_request_metadata.pop(server_key, None)
                                     single_request_metadata.update(shopping_visual_metadata)
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results

@@ -8,12 +8,19 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Mapping
+from toon_format import decode
 
 from backend.shared.providers.typesafe.models import DecisionResponse
 from backend.shared.testing.mock_context import get_mock_group, mock_mode_var
 
 GROUP = "shopping_images_web"
 PROMPT = "Find bio joghurt on REWE. SHOPPING_IMAGES_E2E:gallery"
+REFERENCE_ERROR_PROMPT = "Find bio joghurt on REWE using my reference image. SHOPPING_IMAGES_E2E:reference-error"
+REFERENCE_ERROR_ID = "reference-error"
+REFERENCE_ERROR_MESSAGE = "A reference image could not be accessed. Use its exact reference from this chat or upload it again."
+REFERENCE_ERROR_RESPONSE = "The reference image could not be accessed. Please upload it again or use its exact reference from this chat. The shopping search did not run."
+MISSING_ERROR_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its reference failure metadata."
+_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT)
 
 
 def active() -> bool:
@@ -25,7 +32,7 @@ def active() -> bool:
 def _matches(messages: Any) -> bool:
     if not isinstance(messages, list):
         return False
-    return next((PROMPT in str(message.get("content") or "")
+    return next((any(prompt in str(message.get("content") or "") for prompt in _PROMPTS)
                  for message in reversed(messages)
                  if isinstance(message, dict) and message.get("role") == "user"), False)
 
@@ -33,7 +40,7 @@ def _matches(messages: Any) -> bool:
 def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: str) -> DecisionResponse | None:
     if not active() or not isinstance(state, Mapping) or not questions:
         return None
-    if not (_matches(state.get("messages")) or PROMPT in str(state.get("user_message") or "")):
+    if not (_matches(state.get("messages")) or any(prompt in str(state.get("user_message") or "") for prompt in _PROMPTS)):
         return None
     answers = {}
     preferred = {"complexity": "simple", "task_area": "general", "topic_shift": "noticeable_shift",
@@ -72,6 +79,39 @@ def _call(name: str, arguments: dict[str, Any], model: str) -> dict[str, Any]:
                       "parsing_error": None}}
 
 
+def _has_reference_failure_metadata(tail: list[dict[str, Any]]) -> bool:
+    """Depend on the real server tool payload, never fabricate a skill outcome."""
+    for message in tail:
+        if not isinstance(message, dict) or message.get("role") != "tool":
+            continue
+        content = message.get("content")
+        if not isinstance(content, str):
+            continue
+        try:
+            payload = json.loads(content)
+        except (ValueError, TypeError):
+            try:
+                payload = decode(content)
+            except (ValueError, TypeError):
+                continue
+        if not isinstance(payload, dict) or not isinstance(payload.get("request_errors"), list):
+            continue
+        errors = payload["request_errors"]
+        if len(errors) != 1 or payload.get("results") != [] or type(payload.get("count")) is not int or payload["count"] != 0:
+            continue
+        notice = payload.get("failure_notice")
+        if not isinstance(notice, str) or "not evidence of no matching products" not in notice:
+            continue
+        error = errors[0]
+        request_id = error.get("request_id") if isinstance(error, dict) else None
+        # The real placeholder phase normalizes this one request to ID 1.
+        matches_request = (type(request_id) is int and request_id == 1
+                           or type(request_id) is str and request_id in {REFERENCE_ERROR_ID, "1"})
+        if matches_request and error.get("message") == REFERENCE_ERROR_MESSAGE:
+            return True
+    return False
+
+
 def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     if not active() or not _matches(kwargs.get("messages")):
         return None
@@ -97,10 +137,18 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     messages = kwargs["messages"]
     last_user = max(index for index, message in enumerate(messages) if isinstance(message, dict) and message.get("role") == "user")
     tail = messages[last_user + 1:]
+    reference_error = REFERENCE_ERROR_PROMPT in str(messages[last_user].get("content") or "")
     if not tail and "shopping-search_products" in names:
+        request = {"query": "bio joghurt", "provider": "REWE", "max_results": 1}
+        if reference_error:
+            request.update({"id": REFERENCE_ERROR_ID,
+                            "reference_images": ["00000000-0000-4000-8000-000000000001"]})
         return {"response": {"type": "mixed_stream", "chunks": [
-            _call("shopping-search_products", {"requests": [{"query": "bio joghurt", "provider": "REWE", "max_results": 1}]}, model)]}}
+            _call("shopping-search_products", {"requests": [request]}, model)]}}
     if any(isinstance(message, dict) and message.get("role") == "tool" for message in tail):
+        answer = "The REWE search result is available in the shopping card."
+        if reference_error:
+            answer = REFERENCE_ERROR_RESPONSE if _has_reference_failure_metadata(tail) else MISSING_ERROR_METADATA_RESPONSE
         return {"response": {"type": "mixed_stream", "chunks": [
-            {"kind": "text", "value": "The REWE search result is available in the shopping card."}]}}
+            {"kind": "text", "value": answer}]}}
     return None

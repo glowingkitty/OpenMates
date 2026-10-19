@@ -80,6 +80,7 @@ from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
+    enrich_historical_image_aliases,
     load_and_merge_artifact_ledger,
     recover_inline_upload_artifacts,
 )
@@ -2500,6 +2501,21 @@ async def _prepare_artifact_context(
         current_index=current_artifact_index,
         persist=not request_data.is_incognito and not request_data.is_external,
     ) or None
+    try:
+        request_data.embed_file_path_index = await asyncio.wait_for(
+            enrich_historical_image_aliases(
+                artifact_index=request_data.embed_file_path_index,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+            ),
+            timeout=5.0,
+        ) or None
+    except asyncio.TimeoutError:
+        logger.warning("[Task ID: %s] Historical image alias metadata timed out; retaining canonical refs", task_id)
     request_data.historical_artifact_context = None
     if request_data.embed_file_path_index and user_vault_key_id:
         try:

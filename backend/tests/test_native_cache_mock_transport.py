@@ -57,6 +57,9 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
             ("POST", "http://api:8000/internal/billing/charge"),
             ("POST", "http://api:8000/internal/billing/reservation/release"),
         ]
+        image_resolver = ("POST", "http://api:8000/internal/uploads/resolve-image")
+        if group == "shopping_images_web":
+            allowed.append(image_resolver)
         for method, url in allowed:
             response = await httpx.AsyncHTTPTransport.handle_async_request(
                 object(), httpx.Request(method, url),
@@ -76,7 +79,13 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
             ("POST", "http://api:8000/internal/billing/team/reserve"),
             ("POST", "http://api:8000/internal/billing/team/charge"),
             ("POST", "http://api:8000@evil.example/internal/billing/charge"),
+            ("GET", "http://api:8000/internal/uploads/resolve-image"),
+            ("POST", "http://api:8000/internal/uploads/resolve-image?override=1"),
+            ("POST", "http://api:8000/internal/uploads/resolve-image/other"),
+            ("POST", "http://api:8001/internal/uploads/resolve-image"),
         ]
+        if group != "shopping_images_web":
+            blocked.append(image_resolver)
         for method, url in blocked:
             with pytest.raises(DailyAITestBudgetExceeded, match="raw HTTP provider dispatch"):
                 await httpx.AsyncHTTPTransport.handle_async_request(

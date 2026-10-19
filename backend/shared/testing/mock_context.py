@@ -459,9 +459,13 @@ def _allow_isolated_capacity_internal(raw_url: Any, method: Any = None) -> bool:
         os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") == "http://api:8000"
         and url.netloc == "api:8000"
         and str(method).upper() == "POST"
-        and url.path in (
-            _ISOLATED_NATIVE_BILLING_POST_PATHS if native_fixture
-            else _ISOLATED_CAPACITY_BILLING_POST_PATHS
+        and (
+            url.path in (
+                _ISOLATED_NATIVE_BILLING_POST_PATHS if native_fixture
+                else _ISOLATED_CAPACITY_BILLING_POST_PATHS
+            )
+            or (native_fixture and group == "shopping_images_web"
+                and url.path == "/internal/uploads/resolve-image")
         )
         and not url.query
     )

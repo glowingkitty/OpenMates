@@ -5,12 +5,16 @@
 from __future__ import annotations
 
 import json
+import time
+from types import SimpleNamespace
 
 import pytest
 
 from backend.apps.ai.processing.artifact_ledger import (
     MAX_ARTIFACT_REFERENCES,
+    MAX_IMAGE_ALIAS_EMBEDS,
     build_historical_artifact_context,
+    enrich_historical_image_aliases,
     load_and_merge_artifact_ledger,
     recover_inline_upload_artifacts,
     sanitize_artifact_index,
@@ -184,3 +188,225 @@ async def test_recovers_cli_inline_upload_ref_from_unique_chat_embed_prefix() ->
         "typesafe-jev-md-7a0d7e9f-9709-41fe-949a--331740":
             "7a0d7e9f-9709-41fe-949a-519215cbead0"
     }
+
+
+def _upload_ref(filename: str, suffix: str) -> str:
+    return filename.replace(".", "-") + f"-{suffix}-1111-4111-8111--331740"
+
+
+def _image_record(filename: str) -> dict:
+    from toon_format import encode
+
+    return {
+        "hashed_user_id": "owner-hash",
+        "encrypted_content": "encrypted:" + encode({
+            "app_id": "images", "skill_id": "upload", "type": "image",
+            "filename": filename,
+        }),
+    }
+
+
+async def _image_aliases(index, records, *, persisted=None):
+    class MetadataCache:
+        calls = []
+
+        async def get_embed_from_cache(self, embed_id):
+            self.calls.append(embed_id)
+            return records.get(embed_id)
+
+    class MetadataEncryption:
+        calls = []
+
+        async def decrypt_with_user_key(self, ciphertext, key_id):
+            assert key_id == "vault-key"
+            self.calls.append(ciphertext)
+            return ciphertext.removeprefix("encrypted:")
+
+    db_calls = []
+
+    async def get_embed_by_id(embed_id):
+        db_calls.append(embed_id)
+        return (persisted or {}).get(embed_id)
+
+    cache, encryption = MetadataCache(), MetadataEncryption()
+    result = await enrich_historical_image_aliases(
+        artifact_index=index, cache_service=cache,
+        directus_service=SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=get_embed_by_id)),
+        encryption_service=encryption, user_vault_key_id="vault-key",
+        user_id="owner", user_id_hash="owner-hash",
+    )
+    return result, cache.calls, encryption.calls, db_calls
+
+
+@pytest.mark.asyncio
+async def test_three_prior_images_gain_verified_filename_and_mixed_aliases() -> None:
+    names = ["front.png", "side.jpg", "detail.webp"]
+    ids = ["server_embed_0001", "server_embed_0002", "server_embed_0003"]
+    # Client UUIDs deliberately have no relationship to the server embed IDs.
+    index = {_upload_ref(name, f"{position:08d}"): embed_id
+             for position, (name, embed_id) in enumerate(zip(names, ids))}
+    records = {embed_id: _image_record(name) for name, embed_id in zip(names, ids)}
+    result, calls, _, db_calls = await _image_aliases(index, records)
+    assert all(result[ref] == embed_id for ref, embed_id in index.items())
+    assert [result[names[0]], result[list(index)[1]], result[names[2]]] == ids
+    assert len(calls) == 3
+    assert db_calls == []
+
+
+@pytest.mark.asyncio
+async def test_duplicate_filename_keeps_canonical_refs_and_removes_bare_alias() -> None:
+    first, second = _upload_ref("cloth.png", "11111111"), _upload_ref("cloth.png", "22222222")
+    index = {first: "server_embed_0001", second: "server_embed_0002", "cloth.png": "server_embed_0002"}
+    result, _, _, _ = await _image_aliases(index, {
+        "server_embed_0001": _image_record("cloth.png"),
+        "server_embed_0002": _image_record("cloth.png"),
+    })
+    assert result == {first: "server_embed_0001", second: "server_embed_0002"}
+
+
+@pytest.mark.asyncio
+async def test_multiple_refs_for_same_embed_are_not_ambiguous_or_reloaded() -> None:
+    index = {
+        _upload_ref("cloth.png", "11111111"): "server_embed_0001",
+        "cloth.png (2)": "server_embed_0001",
+    }
+    result, calls, decryptions, _ = await _image_aliases(index, {
+        "server_embed_0001": _image_record("cloth.png"),
+    })
+    assert result == {**index, "cloth.png": "server_embed_0001"}
+    assert calls == ["server_embed_0001"]
+    assert len(decryptions) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", [
+    None,
+    {"hashed_user_id": "foreign", "encrypted_content": "never decrypt"},
+    {"user_id": "foreign", "hashed_user_id": "owner-hash", "encrypted_content": "never decrypt"},
+    {"hashed_user_id": "owner-hash", "expires_at": 1, "encrypted_content": "never decrypt"},
+    {"hashed_user_id": "owner-hash", "expires_at": True, "encrypted_content": "never decrypt"},
+    {"hashed_user_id": "owner-hash"},
+])
+async def test_missing_foreign_or_expired_competitor_vetoes_filename(invalid) -> None:
+    first, second = _upload_ref("cloth.png", "11111111"), _upload_ref("cloth.png", "22222222")
+    index = {first: "server_embed_0001", second: "server_embed_0002"}
+    result, _, decryptions, db_calls = await _image_aliases(index, {
+        "server_embed_0001": _image_record("cloth.png"), "server_embed_0002": invalid,
+    })
+    assert result == index
+    assert len(decryptions) == 1
+    assert db_calls == (["server_embed_0002"] if invalid is None else [])
+
+
+@pytest.mark.asyncio
+async def test_alias_metadata_cache_miss_uses_exact_persisted_embed() -> None:
+    ref = _upload_ref("cloth.png", "11111111")
+    result, _, _, db_calls = await _image_aliases({ref: "server_embed_0001"}, {}, persisted={
+        "server_embed_0001": _image_record("cloth.png"),
+    })
+    assert result == {ref: "server_embed_0001", "cloth.png": "server_embed_0001"}
+    assert db_calls == ["server_embed_0001"]
+
+
+@pytest.mark.asyncio
+async def test_fresh_upload_alias_preserves_absolute_expiry_without_decryption() -> None:
+    ref = _upload_ref("cloth.png", "11111111")
+    created_at = int(time.time()) - 60
+    record = {
+        "user_id": "owner", "embed_id": "server_embed_0001", "filename": "cloth.png",
+        "created_at": created_at, "expires_at": created_at + 86400,
+        "content_type": "image/png", "files": {"original": {"s3_key": "private-placeholder"}},
+        "vault_wrapped_aes_key": "wrapped-placeholder",
+    }
+    original = dict(record)
+    result, _, decryptions, db_calls = await _image_aliases({ref: "server_embed_0001"}, {
+        "server_embed_0001": record,
+    })
+    assert result == {ref: "server_embed_0001", "cloth.png": "server_embed_0001"}
+    assert record == original
+    assert decryptions == db_calls == []
+
+
+@pytest.mark.asyncio
+async def test_non_upload_metadata_never_creates_an_image_alias() -> None:
+    from toon_format import encode
+
+    ref = _upload_ref("cloth.png", "11111111")
+    record = _image_record("cloth.png")
+    record["encrypted_content"] = "encrypted:" + encode({
+        "app_id": "images", "skill_id": "view", "filename": "cloth.png",
+    })
+    result, _, _, _ = await _image_aliases({ref: "server_embed_0001"}, {"server_embed_0001": record})
+    assert result == {ref: "server_embed_0001"}
+
+
+@pytest.mark.asyncio
+async def test_alias_enrichment_is_bounded_and_never_evicts_canonical_refs() -> None:
+    index = {_upload_ref(f"image-{position}.png", f"{position:08d}"): f"server_embed_{position:04d}"
+             for position in range(MAX_ARTIFACT_REFERENCES)}
+    records = {embed_id: _image_record(f"image-{position}.png")
+               for position, embed_id in enumerate(index.values())}
+    result, calls, _, _ = await _image_aliases(index, records)
+    assert result == index
+    assert len(calls) == MAX_IMAGE_ALIAS_EMBEDS
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fields", [
+    {"expires_at": 1}, {"created_at": 1}, {"content_type": "application/pdf"},
+    {"files": {}}, {"vault_wrapped_aes_key": ""},
+])
+async def test_invalid_fresh_upload_metadata_cannot_add_alias(fields) -> None:
+    ref = _upload_ref("cloth.png", "11111111")
+    created_at = int(time.time()) - 60
+    record = {
+        "user_id": "owner", "filename": "cloth.png", "created_at": created_at,
+        "expires_at": created_at + 86400, "content_type": "image/png",
+        "files": {"original": {"s3_key": "private-placeholder"}},
+        "vault_wrapped_aes_key": "wrapped-placeholder", **fields,
+    }
+    result, _, decryptions, _ = await _image_aliases({ref: "server_embed_0001"}, {
+        "server_embed_0001": record,
+    })
+    assert result == {ref: "server_embed_0001"}
+    assert decryptions == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("filename, competitor", [
+    ("cloth.png", "cloth.png (2)"),
+    ("a-very-long-original-reference-image-filename.png", "a-very-long-original-reference-image-file"[:40] + "-abcdef"),
+    ("cloth.png", "cloth-png-22222222-1111-4111-8111-111111-abcdef"),
+])
+async def test_unavailable_numbered_or_truncated_cli_ref_vetoes_alias(filename, competitor) -> None:
+    first = _upload_ref(filename, "11111111")
+    index = {first: "server_embed_0001", competitor: "server_embed_0002"}
+    result, _, _, _ = await _image_aliases(index, {"server_embed_0001": _image_record(filename)})
+    assert result == index
+
+
+@pytest.mark.asyncio
+async def test_filename_collision_never_removes_another_upload_canonical_ref() -> None:
+    first = _upload_ref("first.png", "11111111")
+    second = _upload_ref("second.png", "22222222")
+    index = {first: "server_embed_0001", second: "server_embed_0002"}
+    result, _, _, _ = await _image_aliases(index, {
+        "server_embed_0001": _image_record(second),
+        "server_embed_0002": _image_record("second.png"),
+    })
+    assert result == {**index, "second.png": "server_embed_0002"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", [
+    None,
+    {"hashed_user_id": "foreign", "encrypted_content": "never decrypt"},
+    {"hashed_user_id": "owner-hash", "expires_at": 1, "encrypted_content": "never decrypt"},
+])
+async def test_unverifiable_competitor_removes_preexisting_bare_filename_alias(invalid) -> None:
+    first, second = _upload_ref("cloth.png", "11111111"), _upload_ref("cloth.png", "22222222")
+    index = {first: "server_embed_0001", second: "server_embed_0002", "cloth.png": "server_embed_0002"}
+    result, _, _, _ = await _image_aliases(index, {
+        "server_embed_0001": _image_record("cloth.png"), "server_embed_0002": invalid,
+    })
+    assert result == {first: "server_embed_0001", second: "server_embed_0002"}
