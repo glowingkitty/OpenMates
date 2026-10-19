@@ -97,7 +97,7 @@ Model selection is configured in [`backend/apps/ai/app.yml`](../../backend/apps/
 
 - **`enable_auto_model_selection`**: When `true` (current default), uses intelligent leaderboard-based selection. When `false`, falls back to hardcoded `default_llms`.
 - **`default_llms`**: Hardcoded model IDs for preprocessing, simple requests, complex requests, and content sanitization.
-- **Current defaults**: Jev (`typesafe/jev-1.13`) for bounded decisions and Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) for generative preprocessing fallback. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
+- **Current defaults**: Jev (`typesafe/jev-1.14`) for bounded decisions and Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) for generative preprocessing fallback. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
 
 | Request complexity | Automatic model | Google thinking | Saved preference bucket |
 | --- | --- | --- | --- |
