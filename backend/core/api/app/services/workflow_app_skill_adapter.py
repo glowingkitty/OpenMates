@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import contextmanager
 import hashlib
 import hmac
 import json
@@ -83,6 +84,36 @@ class WorkflowSkillBillingError(RuntimeError):
         super().__init__(message)
         self.code = code
         self.credit_cost = credit_cost if isinstance(credit_cost, int) and not isinstance(credit_cost, bool) and credit_cost >= 0 else 0
+
+
+@contextmanager
+def _workflow_ai_authority(app_id: str, skill_id: str, user_id: str | None):
+    """Bind AI dispatch to the owner resolved by the authorized workflow runner.
+
+    Authored node inputs never supply this principal. Workflow AI currently uses
+    the runner's Personal billing context; an ambient Team or different owner
+    must not be silently replaced with Personal authority.
+    """
+    if (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
+        yield
+        return
+    from backend.shared.python_utils.volatile_embed_authority import (
+        AuthenticatedVolatileAI,
+        active_authenticated_volatile_ai,
+    )
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise PermissionError("Workflow AI owner is unavailable")
+    principal = AuthenticatedVolatileAI(
+        owner_id=user_id, owner_hash=hashlib.sha256(user_id.encode()).hexdigest(), mode="external",
+    )
+    active = active_authenticated_volatile_ai.get()
+    if active is not None and active != principal:
+        raise PermissionError("Workflow AI authority does not match its owner")
+    token = active_authenticated_volatile_ai.set(principal)
+    try:
+        yield
+    finally:
+        active_authenticated_volatile_ai.reset(token)
 
 
 class WorkflowAppSkillAdapter:
@@ -170,7 +201,7 @@ class WorkflowAppSkillAdapter:
                 metadata=metadata,
                 max_credits_remaining=remaining,
             )
-        with central_app_skill_dispatch():
+        with central_app_skill_dispatch(), _workflow_ai_authority(app_id, skill_id, user_id):
             raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
         if hasattr(raw_output, "model_dump"):
             raw_output = raw_output.model_dump(mode="json")
@@ -268,7 +299,7 @@ class WorkflowAppSkillAdapter:
         if remaining is not None:
             skill_request["workflow_budget"] = sign_workflow_ai_budget(user_id, billing_context, remaining)
         skill_request["stream"] = True
-        with central_app_skill_dispatch():
+        with central_app_skill_dispatch(), _workflow_ai_authority("ai", "ask", user_id):
             response = await registry.dispatch_skill("ai", "ask", skill_request)
         if not isinstance(response, StreamingResponse):
             raise WorkflowSkillBillingError("WORKFLOW_AI_STREAM_UNAVAILABLE", "Ask AI streaming is unavailable")

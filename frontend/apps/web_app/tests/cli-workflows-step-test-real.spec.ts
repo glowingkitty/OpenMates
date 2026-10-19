@@ -29,6 +29,7 @@ const NEWS_SEARCH_FIXTURE_QUERY = 'openmates_e2e_news_fixture_ai';
 test.describe('CLI Workflows real step tests', () => {
 	test.setTimeout(420_000);
 
+	// contract-test: direct surface=cli assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
 	test('runs real app-skill and side-effect step tests for a disabled Workflow', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -101,6 +102,12 @@ steps:
 				expect(run.trigger_type).toBe('step_test');
 				expect(run.status).toBe('completed');
 				expect(run.node_runs[0].node_id).toBe(stepId);
+				if (stepId === 'ai') {
+					expect(run.node_runs[0].output_summary.answer).toContain('step test ok');
+					expect(run.node_runs[0].status).toBe('completed');
+					expect(run.node_runs[0].error_code).toBeFalsy();
+					expect(run.node_runs[0].error_summary).toBeFalsy();
+				}
 			}
 
 			const unconfirmedNotification = await runWorkflowCli(apiUrl, homeDir, ['workflows', 'step-test', workflowId, 'notify', '--json'], 30_000);

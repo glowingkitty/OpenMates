@@ -103,6 +103,46 @@ asyncio.run(main())
   expect(output.trim()).toBe('queue fixture applied');
 }
 
+function validateQueuedWorkerScope(chatId: string): void {
+  const program = `
+import asyncio,json,logging,os,sys
+logging.disable(logging.CRITICAL)
+assert os.environ.get('OPENMATES_CI_ISOLATED') == '1'
+from backend.core.api.app.services.cache import CacheService
+from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.tasks.ask_skill_task import _validated_queued_messages, _validated_recovery_queued_member
+async def main():
+    chat_id=json.load(sys.stdin)['chat_id']; cache=CacheService()
+    try:
+        client=await cache.client
+        raw=await client.lrange(f'chat:{chat_id}:message_queue',0,19)
+        assert len(raw) == 1, 'Expected the actual admitted WebSocket queue member'
+        members=[json.loads(row) for row in raw]
+        assert members[0].get('is_external') is False
+        assert members[0].get('is_anonymous') is False
+        request=AskSkillRequest.model_validate(members[0])
+        scope=('chat_id','user_id','user_id_hash','is_incognito','is_external','is_anonymous',
+               'team_id','team_id_hash','team_workspace_type','team_object_id_hash')
+        assert all(members[0].get(field) == getattr(request,field) for field in scope)
+        lease={'messages':members,'raw_messages':raw}
+        if request.recovery_task_id:
+            validated=_validated_recovery_queued_member(lease)
+            assert validated.message_id == request.message_id
+        else:
+            ids,_=_validated_queued_messages(request,lease)
+            assert ids == [request.message_id]
+        print('queued worker scope validated')
+    finally:
+        await cache.close()
+asyncio.run(main())
+`;
+  const output = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T', '-e',
+    'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program], {
+    cwd: root, input: JSON.stringify({ chat_id: chatId }), encoding: 'utf8', timeout: 60_000
+  });
+  expect(output.trim()).toBe('queued worker scope validated');
+}
+
 async function requestQueueEvent(page: any, url: string, type: string,
   payload: Record<string, unknown>, responseType: string): Promise<Record<string, any>> {
   return page.evaluate(async ({ url, type, payload, responseType }: {
@@ -300,6 +340,7 @@ test.describe('Queued follow-up authenticated protocol', () => {
       expect(typeof messageId).toBe('string');
       expect(queuedFrame.payload.queue_revision).toBe(1);
       expect(queuedFrame.payload.queue_mode).toBe('follow_up');
+      validateQueuedWorkerScope(chatId);
       await expect.poll(() => otherFrames.some((frame) => frame.type === 'queued_message_status'
         && frame.payload.user_message_id === messageId)).toBe(true);
 

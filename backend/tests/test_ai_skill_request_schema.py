@@ -7,6 +7,11 @@
 
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest
 
+import json
+
+import pytest
+from pydantic import ValidationError
+
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.segmentation.immutable-source
 def test_core_ask_skill_request_preserves_runtime_flags() -> None:
@@ -44,3 +49,36 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     assert dumped["assistant_response_source_revision"] == 7
     assert dumped["current_chat_summary"] == "Previous discussion summary"
     assert dumped["current_chat_summary_v"] == 4
+
+
+@pytest.mark.parametrize("incognito", [False, True])
+@pytest.mark.parametrize("team_id", [None, "team-1"])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced,chat-queued-followups.access.scoped
+def test_websocket_queue_scope_matches_worker_without_default_coercion(incognito, team_id):
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest as WorkerRequest
+    from backend.apps.ai.tasks.ask_skill_task import _validated_queued_messages
+    from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+
+    raw = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="owner",
+        user_id_hash="hash-1", is_incognito=incognito, team_id=team_id,
+        team_id_hash="team-hash" if team_id else None, team_workspace_type=None,
+        message_history=[{"message_id": "message-1", "role": "user",
+                          "content": "Queued follow-up", "created_at": 1}]).model_dump()
+    worker = WorkerRequest.model_validate(raw)
+    assert raw["is_external"] is False and raw["is_anonymous"] is False
+    assert _validated_queued_messages(worker, {
+        "messages": [raw], "raw_messages": [json.dumps(raw)],
+    }) == (["message-1"], ["Queued follow-up"])
+    with pytest.raises(RequiredRecoveryOutputError, match="mismatch"):
+        _validated_queued_messages(worker, {
+            "messages": [{**raw, "user_id": "other-owner"}],
+            "raw_messages": [json.dumps(raw)],
+        })
+
+
+@pytest.mark.parametrize("mode", ["is_external", "is_anonymous"])
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.access.scoped
+def test_websocket_schema_cannot_claim_external_or_anonymous_scope(mode):
+    with pytest.raises(ValidationError):
+        AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="owner",
+                        user_id_hash="hash-1", message_history=[], **{mode: True})

@@ -446,11 +446,18 @@ def test_task_wrapper_revoked_runtime_failure_does_not_notify(monkeypatch):
 
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
-def test_task_wrapper_completed_envelope_with_terminal_error_queues_once(monkeypatch):
+@pytest.mark.parametrize("failure_reason,should_notify", [
+    (None, True),
+    ("anonymous_usage_limit", False),
+    ("protocol_guard", True),
+    ("provider_exhausted", True),
+    ("private-provider-detail", True),
+])
+def test_task_wrapper_retains_stream_failure_category(monkeypatch, failure_reason, should_notify):
     from backend.apps.ai.tasks import ask_skill_task
     from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
 
-    terminal_result = {
+    terminal_result = ask_skill_task._retain_main_processing_failure_category({
         "task_id": "task-1",
         "status": "completed",
         "preprocessing_summary": {"can_proceed": True},
@@ -461,7 +468,12 @@ def test_task_wrapper_completed_envelope_with_terminal_error_queues_once(monkeyp
         "interrupted_by_soft_time_limit": False,
         "interrupted_by_revocation": False,
         "_celery_task_state": "SUCCESS",
-    }
+    }, {"main_processing_failure_reason": failure_reason})
+    assert terminal_result.get("failure_category") == (
+        failure_reason if failure_reason in {
+            "anonymous_usage_limit", "protocol_guard", "provider_exhausted",
+        } else None
+    )
     notify = AsyncMock()
     monkeypatch.setattr(
         ask_skill_task,
@@ -495,4 +507,49 @@ def test_task_wrapper_completed_envelope_with_terminal_error_queues_once(monkeyp
 
     assert result == terminal_result
     actor_check.assert_awaited_once()
-    notify.assert_awaited_once_with("chat-1:message-1", stage="inference")
+    assert result["main_processing_output"].startswith("Useful partial app output.")
+    if should_notify:
+        notify.assert_awaited_once_with("chat-1:message-1", stage="inference")
+    else:
+        notify.assert_not_awaited()
+
+
+@pytest.mark.parametrize("reason,expected_stage", [
+    ("anonymous_usage_limit", None),
+    ("protocol_guard", "inference"),
+])
+# contract-test: direct surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger,operational-monitoring.chat-failures.safe-delivery,billing.anonymous.hard-capped-provider-metering
+def test_consumed_terminal_outcome_retains_partial_answer_and_notification_policy(monkeypatch, reason, expected_stage):
+    from backend.apps.ai.processing.preprocessor import PreprocessingResult
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.tasks import ask_skill_task, stream_consumer
+    from backend.apps.ai.utils.main_processing_failure import main_processing_failure
+    from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
+
+    async def limited_stream(**_kwargs):
+        yield "Useful partial app output."
+        yield main_processing_failure(reason)
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", limited_stream)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult",
+                        lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1",
+        user_id_hash="hash-1", message_history=[], is_external=True, is_anonymous=True)
+    output, revoked, soft_limited, _thinking, metadata = asyncio.run(
+        stream_consumer._consume_main_processing_stream(
+            task_id="task-1", request_data=request,
+            preprocessing_result=PreprocessingResult(can_proceed=True),
+            base_instructions={}, directus_service=None, encryption_service=None,
+            user_vault_key_id=None, all_mates_configs=[], discovered_apps_metadata={},
+            cache_service=None,
+        )
+    )
+    result = ask_skill_task._retain_main_processing_failure_category({
+        "status": "completed", "main_processing_output": output,
+        "interrupted_by_revocation": revoked, "interrupted_by_soft_time_limit": soft_limited,
+        "_celery_task_state": "SUCCESS",
+    }, metadata)
+    assert result["failure_category"] == reason
+    assert "Useful partial app output." in output
+    assert dispatch.failure_stage(result, STANDARDIZED_USER_ERROR_MESSAGE) == expected_stage
+    assert reason not in output

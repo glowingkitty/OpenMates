@@ -13,7 +13,7 @@ const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates
 skipWithoutCredentials(test, email, password, otpKey);
 
 // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
-test('epoch-zero first chat survives reload and a follow-up with Projects disabled', async ({ page }: { page: any }) => {
+test('epoch-zero first chat survives reload and a follow-up with Projects disabled', async ({ page }: { page: any }, testInfo: any) => {
 	test.setTimeout(180_000);
 	const projectRequests: string[] = [];
 	await page.route('**/v1/features/availability', async (route: any) => {
@@ -30,10 +30,12 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 	const admissionFrames: Array<Record<string, any>> = [];
 	const acknowledgements: Array<Record<string, any>> = [];
 	const errors: Array<Record<string, any>> = [];
+	const viewed: Array<Record<string, any>> = [];
 	page.on('websocket', (socket: any) => {
 		if (!new URL(socket.url()).pathname.endsWith('/v1/ws')) return;
 		for (const [event, target, type] of [
 			['framesent', admissionFrames, 'chat_turn_admit'],
+			['framesent', viewed, 'chat_message_viewed'],
 			['framereceived', acknowledgements, 'chat_turn_preflight_ack'],
 			['framereceived', errors, 'error'],
 		] as const) {
@@ -68,6 +70,17 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 	);
 	const chatId = first.chat_id as string;
 	const firstMessageId = first.message_id as string;
+	await page.bringToFront();
+	await expect.poll(() => viewed.filter(frame => frame.chat_id === chatId).length,
+		{ timeout: 15_000, message: 'Visible synced messages must emit read receipts' }).toBeGreaterThan(0);
+	await page.evaluate(() => new Promise<void>(resolve => {
+		let frames = 60;
+		const next = () => --frames <= 0 ? resolve() : requestAnimationFrame(next);
+		requestAnimationFrame(next);
+	}));
+	const initialViewed = viewed.filter(frame => frame.chat_id === chatId).map(frame => frame.message_id);
+	expect(initialViewed.length, 'Animation frames must not queue duplicate read receipts ahead of send preparation')
+		.toBe(new Set(initialViewed).size);
 	const canonicalWindow = async () => {
 		const response = await page.request.get(
 			`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?limit=20&respect_compression_boundary=false`,
@@ -97,6 +110,14 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 			&& users.filter((row) => row.message_id === firstMessageId).length === 1
 			&& users.every((row) => typeof row.encrypted_content === 'string' && row.encrypted_content.length > 0);
 	}, { timeout: 30_000, message: 'Follow-up must add one canonical encrypted user row' }).toBe(true);
+	await testInfo.attach('admission-identities', { contentType: 'application/json', body: JSON.stringify({
+		admissions: admissionFrames.map(({ chat_id, turn_id, message_id, expected_messages_v }) =>
+			({ chat_id, turn_id, message_id, expected_messages_v })),
+		acknowledgements: acknowledgements.map(({ turn_id, state, committed_messages_v }) =>
+			({ turn_id, state, committed_messages_v })),
+		errors: errors.map(({ code, chat_id, turn_id, message_id, user_message_id }) =>
+			({ code, chat_id, turn_id, message_id, user_message_id })),
+	}) });
 	expect(errors.filter((error) => error.code === 'inference_temporarily_paused'
 		|| error.code === 'chat_not_found')).toHaveLength(0);
 	expect(projectRequests).toEqual([]);

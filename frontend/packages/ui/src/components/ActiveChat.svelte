@@ -44,6 +44,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
+    import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
     import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
@@ -10000,6 +10001,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
 
+    const visibleMessageReceipts = new VisibleMessageReceipts();
+
     // Handle scrolled to bottom (mark as read)
     async function reportVisibleMessages(chatId: string) {
         if (!$authStore.isAuthenticated || isPublicChat(chatId)) return;
@@ -10007,17 +10010,24 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         await tick();
         if (document.visibilityState !== 'visible' || !document.hasFocus() || currentChat?.chat_id !== chatId) return;
         const { webSocketService } = await import('../services/websocketService');
+        if (!$authStore.isAuthenticated || currentChat?.chat_id !== chatId) return;
+        const scope = { ownerId: $userProfile.user_id || '', chatId,
+            epoch: getWorkspaceCacheEpoch(), connection: webSocketService.getConnectionForSend() };
         const finalIds = new Set(currentMessages.filter(m =>
             (m.role === 'assistant' || m.role === 'user') && m.status === 'synced'
         ).map(m => m.message_id));
         const seen = new Set<string>();
         for (const element of document.querySelectorAll<HTMLElement>('[data-message-id]')) {
+            if (!$authStore.isAuthenticated || currentChat?.chat_id !== chatId
+                || $userProfile.user_id !== scope.ownerId || getWorkspaceCacheEpoch() !== scope.epoch) return;
             const messageId = element.dataset.messageId;
             if (!messageId || !finalIds.has(messageId) || seen.has(messageId)) continue;
             const bounds = element.getBoundingClientRect();
             if (bounds.bottom <= 0 || bounds.top >= window.innerHeight || bounds.height <= 0) continue;
             seen.add(messageId);
-            await webSocketService.sendMessage('chat_message_viewed', { chat_id: chatId, message_id: messageId });
+            await visibleMessageReceipts.report(scope, messageId, () =>
+                webSocketService.sendMessage('chat_message_viewed', { chat_id: chatId, message_id: messageId },
+                    { expectedConnection: scope.connection }));
         }
     }
 

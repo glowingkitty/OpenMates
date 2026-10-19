@@ -2523,6 +2523,23 @@ async def _prepare_artifact_context(
             )
 
 
+def _retain_main_processing_failure_category(
+    result: dict[str, Any], debug_metadata: object,
+) -> dict[str, Any]:
+    """Preserve bounded stream outcomes for terminal notification classification."""
+    from backend.apps.ai.utils.main_processing_failure import (
+        MAIN_PROCESSING_FAILURE_MARKER, main_processing_failure_reason,
+    )
+    if isinstance(debug_metadata, dict):
+        reason = main_processing_failure_reason({
+            MAIN_PROCESSING_FAILURE_MARKER: True,
+            "reason": debug_metadata.get("main_processing_failure_reason"),
+        })
+        if reason:
+            result["failure_category"] = reason
+    return result
+
+
 def _orchestration_budget_failure_result(debug_metadata: object) -> dict[str, Any] | None:
     """Keep bounded orchestration stops on the existing structured failure path."""
     from backend.apps.ai.utils.main_processing_failure import (
@@ -5096,7 +5113,7 @@ async def _async_process_ai_skill_ask_task(
     if request_data.same_turn_batch_id:
         from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
         await release_same_turn_handoffs(request_data)
-    return {
+    return _retain_main_processing_failure_category({
         "task_id": task_id,
         "status": final_status_message,
         "preprocessing_summary": preprocessing_result.model_dump() if preprocessing_result else {},
@@ -5105,7 +5122,7 @@ async def _async_process_ai_skill_ask_task(
         "interrupted_by_soft_time_limit": task_was_soft_limited, # Return determined flag
         "interrupted_by_revocation": task_was_revoked, # Return determined flag
         "_celery_task_state": "SUCCESS"
-    }
+    }, main_processor_debug_metadata)
 
 
 @celery_config.app.task(

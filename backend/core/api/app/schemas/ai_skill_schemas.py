@@ -36,6 +36,10 @@ class AskSkillRequest(BaseModel):
     assistant_speech_lazy_dispatch: bool = Field(default=False, description="The owner client can request registered speech chapters as playback advances.")
     assistant_response_source_revision: int = Field(default=1, ge=1, description="Stable client-assigned revision for this assistant response source.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
+    # Authenticated WebSocket requests must serialize the worker's complete
+    # scope before queueing; missing booleans compare as None during handoff.
+    is_external: Literal[False] = Field(default=False, description="First-party WebSocket requests are never external API requests.")
+    is_anonymous: Literal[False] = Field(default=False, description="This schema is used only after WebSocket authentication.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted Focus phase state; server authority is rechecked.")

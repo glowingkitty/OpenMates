@@ -611,12 +611,25 @@ class AskSkill(BaseSkill):
         from backend.shared.python_utils.volatile_embed_authority import (
             active_authenticated_volatile_ai,
         )
-        token = active_authenticated_volatile_ai.set(principal)
+        stream = self._stream_openai_response(internal_request, request)
         try:
-            async for chunk in self._stream_openai_response(internal_request, request):
+            while True:
+                # Never retain a ContextVar token across yield: an interrupted
+                # SSE iterator can be closed by a different asyncio context.
+                token = active_authenticated_volatile_ai.set(principal)
+                try:
+                    chunk = await anext(stream)
+                except StopAsyncIteration:
+                    return
+                finally:
+                    active_authenticated_volatile_ai.reset(token)
                 yield chunk
         finally:
-            active_authenticated_volatile_ai.reset(token)
+            token = active_authenticated_volatile_ai.set(principal)
+            try:
+                await stream.aclose()
+            finally:
+                active_authenticated_volatile_ai.reset(token)
 
     async def _transform_openai_to_internal(self, openai_request: OpenAICompletionRequest) -> AskSkillRequest:
         """

@@ -680,7 +680,8 @@ async def test_epoch_one_worker_claim_closes_own_prefix_before_parent_ack(monkey
 
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
-async def test_epoch_one_parent_accepts_verified_worker_ack_race():
+async def test_epoch_one_parent_accepts_verified_worker_ack_race(monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
     request = AskSkillRequest.model_validate(_recovery_member("B", "Question B"))
     durable = SimpleNamespace(chat=SimpleNamespace(
         get_queued_revision_state=AsyncMock(return_value={
