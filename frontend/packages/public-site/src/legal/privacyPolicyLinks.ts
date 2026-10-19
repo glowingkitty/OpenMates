@@ -17,7 +17,9 @@ export const privacyPolicyLinks = {
   anthropic: "https://www.anthropic.com/legal/privacy",
   openai: "https://openai.com/policies/privacy-policy",
   openrouter: "https://openrouter.ai/privacy",
-  typesafe: "https://typesafe.ai/legal/privacy-policy", // verified 2026-10-06
+  typesafe: "https://typesafe.ai/legal/privacy-policy", // verified 2026-10-19
+  typesafeDataProcessing: "https://typesafe.ai/legal/data-processing", // verified 2026-10-19
+  typesafeLegal: "https://docs.typesafe.ai/legal", // verified 2026-10-19
   cerebras: "https://www.cerebras.ai/privacy-policy",
   google: "https://policies.google.com/privacy",
   googleGemini: "https://ai.google.dev/gemini-api/terms",

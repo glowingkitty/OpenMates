@@ -20,7 +20,7 @@ import pytest
 import yaml
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 
 
 class _StubLimiter:
@@ -234,6 +234,15 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
                                 "query": {"type": "string", "minLength": 2},
                                 "count": {"type": "integer", "minimum": 1, "maximum": 20},
                                 "relevance_criteria": {"type": "string", "maxLength": 1000},
+                                "reference_images": {
+                                    "type": "array", "items": {"type": "string"}, "maxItems": 3,
+                                },
+                                "legs": {
+                                    "type": "array", "items": {
+                                        "type": "object", "properties": {"origin": {"type": "string"}},
+                                        "required": ["origin"],
+                                    },
+                                },
                                 "model": {
                                     "type": "string", "enum": ["eleven_v4", "eleven_v4_turbo"],
                                     "default": "eleven_v4_turbo",
@@ -273,6 +282,16 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert item_schema["properties"]["model"]["enum"] == ["eleven_v4", "eleven_v4_turbo"]
     assert item_schema["properties"]["model"]["default"] == "eleven_v4_turbo"
     assert "relevance_criteria" not in item_schema["required"]
+    references_schema = next(option for option in item_schema["properties"]["reference_images"]["anyOf"]
+                             if option.get("type") == "array")
+    assert references_schema["items"] == {"type": "string"}
+    assert references_schema["maxItems"] == 3
+    assert "reference_images" not in item_schema["required"]
+    legs_schema = next(option for option in item_schema["properties"]["legs"]["anyOf"]
+                       if option.get("type") == "array")
+    leg_schema = openapi["components"]["schemas"][legs_schema["items"]["$ref"].rsplit("/", 1)[-1]]
+    assert leg_schema["properties"]["origin"]["type"] == "string"
+    assert leg_schema["required"] == ["origin"]
 
     route = next(route for route in app.routes if getattr(route, "path", None) ==
                  "/v1/apps/rest_schema_contract/skills/search" and "POST" in getattr(route, "methods", set()))
@@ -289,6 +308,26 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert request_model.model_validate({"requests": [{"query": "hi"}]}).countries == ["DE"]
     with pytest.raises(ValueError):
         request_model.model_validate({"countries": [], "requests": [{"query": "hi"}]})
+    assert request_model.model_validate({"requests": [{
+        "query": "hi", "reference_images": ["first", "second", "third"], "legs": [{"origin": "Berlin"}],
+    }]}).model_dump()["requests"][0]["reference_images"] == ["first", "second", "third"]
+    for invalid_references in [[123], [True], [{"url": "forged"}], ["one", "two", "three", "four"]]:
+        with pytest.raises(ValueError):
+            request_model.model_validate({"requests": [{"query": "hi", "reference_images": invalid_references}]})
+    with pytest.raises(ValueError):
+        request_model.model_validate({"requests": [{"query": "hi", "legs": [{}]}]})
+
+
+@pytest.mark.parametrize("schema_type,values", [
+    ("string", ["first", "second"]), ("integer", [1, 2]),
+    ("number", [1.5, 2.5]), ("boolean", [True, False]),
+])
+def test_dynamic_rest_primitive_array_types(schema_type, values) -> None:
+    adapter = TypeAdapter(apps_api._json_schema_request_python_type({
+        "type": "array", "items": {"type": schema_type},
+    }))
+    assert adapter.json_schema() == {"type": "array", "items": {"type": schema_type}}
+    assert adapter.validate_python(values) == values
 
 
 # contract-test: supporting surface=rest_api assertions=maps-search.discovery.bounded-provider-routing,maps-search.compatibility.regular-search

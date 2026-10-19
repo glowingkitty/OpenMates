@@ -1,24 +1,24 @@
 schema_version: 1
 approved_specifications: 8
-assertions_total: 1001
-assertions_with_tests: 884
+assertions_total: 1007
+assertions_with_tests: 890
 assertions_with_current_proof: 0
 surface_parity:
   rest_api:
-    required: 654
+    required: 660
     proven: 0
   cli:
-    required: 754
+    required: 760
     proven: 0
   sdks.npm:
-    required: 559
+    required: 565
     proven: 0
   sdks.pip:
-    required: 559
+    required: 565
     proven: 0
   gui.web:
-    required: 847
+    required: 853
     proven: 0
   gui.apple:
-    required: 596
+    required: 602
     proven: 0

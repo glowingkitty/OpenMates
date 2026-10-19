@@ -66,6 +66,13 @@ skills:
       a currency but no country, select a supported marketplace using that currency (for example,
       country de for euros) rather than relying on a locale fallback. Preserve an explicitly
       requested destination; do not guess a conversion for an unsupported currency.
+      When the user supplies image references, put up to three exact uploaded or generated
+      image embed_refs in reference_images, and describe the requested visual qualities in
+      relevance_criteria. Product descriptions and up to three supplied product photos are
+      compared together. Do not call images.search to supplement shopping results. Read
+      visual_evaluation and each product's visual_match status: unavailable or partial
+      comparison must never be presented as visually verified; similarity does not prove
+      exact product identity. No extra marketplace detail requests are made for images.
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
       per_unit:
@@ -80,6 +87,7 @@ skills:
       - type
       - product_id
       - image_url
+      - image_urls
       - category_ids
       - order_limit
       - search_rank
@@ -169,6 +177,22 @@ skills:
                   need, desired quality, or preference that should change ordering. Example: "Good
                   for travel, with explicit quiet-click, long-battery, and multi-device evidence."
                   Omit only for a neutral search fully expressed by query and structured fields.
+              reference_images:
+                x-ui:
+                  basic: true
+                type: array
+                maxItems: 3
+                items:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                description: >
+                  Up to three exact image embed_refs from the conversation, including uploaded
+                  and generated images. Authenticated API/CLI callers can supply their uploaded
+                  image embed UUIDs. Uses available product photos AND descriptions to rank and
+                  filter visual matches; preserves structured product and price results. An empty
+                  array leaves normal search behavior unchanged. No raw image URLs or base64.
+                  Inspect visual_evaluation and visual_match for unavailable comparisons.
               sort:
                 x-ui:
                   basic: false

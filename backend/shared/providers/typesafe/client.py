@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import math
@@ -250,6 +251,18 @@ class JevDecisionClient:
                 raise DecisionProviderUnavailable("Diagram replay has no decision fixture for this request")
             record_cache_hit()
             return fixture
+        from backend.apps.ai.testing.shopping_images_fixture import active as shopping_fixture_active
+
+        if shopping_fixture_active():
+            from backend.apps.ai.testing.shopping_images_fixture import jev_response
+            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
+
+            fixture = jev_response(state, questions, self._model)
+            if fixture is None:
+                record_blocked_provider_call()
+                raise DecisionProviderUnavailable("Shopping gallery replay has no decision fixture for this request")
+            record_cache_hit()
+            return fixture
         owns_client = self._http_client is None
         client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
@@ -265,6 +278,57 @@ class JevDecisionClient:
                             provider, estimated_tokens, result.usage.input_tokens, len(questions))
                 return result
             raise last_error or DecisionProviderUnavailable("No Jev provider is configured")
+        finally:
+            if owns_client:
+                await client.aclose()
+
+    async def evaluate_with_images(
+        self, *, state: Any, questions: Mapping[str, Mapping[str, Any]],
+        images: Mapping[str, bytes],
+    ) -> DecisionResponse:
+        """Evaluate bounded, prepared JPEG assets through TypeSafe's image contract.
+
+        Image support is opt-in and does not change ordinary text decisions or
+        model selection. No image is forwarded to the text-only router fallback.
+        Callers must authorize private inputs before calling this method.
+        See https://docs.typesafe.ai/images (verified 2026-10-19).
+        """
+        if (self._endpoint not in (None, TYPESAFE_DECISIONS_URL)
+                or self._providers == ("openrouter",)):
+            raise DecisionProviderUnavailable("Image decisions require the TypeSafe endpoint")
+        text_tokens = self._validate_request(state, questions)
+        if not images or len(images) > 18:
+            raise DecisionRequestTooLarge("image decisions require 1-18 prepared images")
+        from io import BytesIO
+        from PIL import Image
+
+        serialized = json.dumps({"state": state, "questions": questions})
+        image_tokens = 0
+        for reference, content in images.items():
+            if (not isinstance(reference, str) or not 32 <= len(reference) <= 128
+                    or serialized.count(reference) != 1 or not isinstance(content, bytes)
+                    or not 0 < len(content) <= 256 * 1024):
+                raise DecisionRequestTooLarge("invalid prepared image asset")
+            try:
+                with Image.open(BytesIO(content)) as image:
+                    if image.format != "JPEG" or image.size != (336, 336):
+                        raise ValueError("unsupported prepared image")
+                    image.verify()
+            except Exception as exc:
+                raise DecisionProviderError("invalid prepared JPEG asset") from exc
+            # 336x336 / 14x14 patches, plus conservative framing headroom.
+            image_tokens += 600
+        if text_tokens + image_tokens > MAX_ESTIMATED_INPUT_TOKENS:
+            raise DecisionRequestTooLarge("image decision exceeds the input token budget")
+        assets = {reference: {"type": "image", "format": "jpg",
+                              "data_base64": base64.b64encode(content).decode("ascii")}
+                  for reference, content in images.items()}
+        owns_client = self._http_client is None
+        client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
+        try:
+            # The provider's experimental image schema is not documented by the
+            # OpenRouter fallback; do not disclose private images to it on error.
+            return await self._evaluate_provider(client, "typesafe", state, questions, assets=assets)
         finally:
             if owns_client:
                 await client.aclose()

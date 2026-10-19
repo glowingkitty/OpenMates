@@ -141,7 +141,7 @@ def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _json_schema_request_python_type(schema: Dict[str, Any]) -> Any:
-    """Type a declared top-level app-skill input without admitting extra fields."""
+    """Type a declared app-skill input, including primitive array items."""
     schema_type = schema.get("type")
     if isinstance(schema_type, list):
         schema_type = next((item for item in schema_type if item != "null"), None)
@@ -3152,7 +3152,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                         else:
                                             prop_type = List[Any]
                                     else:
-                                        prop_type = List[Any]
+                                        prop_type = _json_schema_request_python_type(prop_schema)
                                 elif schema_type == "number":
                                     prop_type = float
                                 elif schema_type == "object":

@@ -37,6 +37,7 @@ def _get_search_products_skill_class():
     return SearchProductsSkill
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_stoffe_parse_product_extracts_fabric_fields():
     raw = {
         "item": {
@@ -64,7 +65,15 @@ def test_stoffe_parse_product_extracts_fabric_fields():
         "unit": {"names": {"name": "Meter"}},
         "stock": {"net": 20.5},
         "filter": {"isSalable": True},
-        "images": {"all": [{"urlPreview": "https://example.test/fabric.jpg"}]},
+        "images": {"all": [
+            {"urlPreview": "https://example.test/fabric.jpg", "url": "https://example.test/fabric-full.jpg"},
+            {"urlPreview": "https://example.test/fabric-back.jpg"},
+            {"urlPreview": "https://example.test/fabric.jpg"},
+            None,
+            {"urlMiddle": "https://example.test/fabric-detail.jpg"},
+            {"url": "https://example.test/fabric-scale.jpg"},
+            {"urlPreview": "javascript:invalid"},
+        ]},
         "ids": {"categories": {"branches": [13701]}},
         "variationProperties": [
             {
@@ -95,8 +104,16 @@ def test_stoffe_parse_product_extracts_fabric_fields():
     assert product["purchase_url"] == "https://www.stoffe.de/zitronen-musselin/a-68087512/"
     assert product["color_child_item_ids"] == ["68087513", "68087514"]
     assert product["attributes"]["Baumwolle %"] == "100"
+    assert product["image_url"] == "https://example.test/fabric.jpg"
+    assert product["image_urls"] == [
+        "https://example.test/fabric.jpg",
+        "https://example.test/fabric-back.jpg",
+        "https://example.test/fabric-detail.jpg",
+        "https://example.test/fabric-scale.jpg",
+    ]
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_category_routes_to_stoffe_when_provider_omitted():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider(None, "fabrics")
@@ -105,6 +122,7 @@ def test_shopping_category_routes_to_stoffe_when_provider_omitted():
     assert provider == SearchProductsSkill.STOFFE_PROVIDER
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_category_schema_exposes_enum_values():
     from backend.apps.shopping.skills.search_products import SearchProductsRequestItem
 
@@ -118,6 +136,7 @@ def test_shopping_category_schema_exposes_enum_values():
     assert "grocery" in enum_values
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_category_allows_fabrics_on_amazon():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider("Amazon", "fabrics")
@@ -126,6 +145,7 @@ def test_shopping_category_allows_fabrics_on_amazon():
     assert provider == SearchProductsSkill.AMAZON_PROVIDER
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_category_rejects_groceries_on_stoffe():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider("Stoffe.de", "grocery")
@@ -135,6 +155,7 @@ def test_shopping_category_rejects_groceries_on_stoffe():
     assert "cannot search category 'grocery'" in error
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_country_routes_unsupported_rewe_country_to_amazon_when_provider_omitted():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider(None, "grocery", "US")
@@ -143,6 +164,7 @@ def test_shopping_country_routes_unsupported_rewe_country_to_amazon_when_provide
     assert provider == SearchProductsSkill.AMAZON_PROVIDER
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_country_rejects_explicit_rewe_outside_germany():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider("REWE", "grocery", "US")
@@ -152,6 +174,7 @@ def test_shopping_country_rejects_explicit_rewe_outside_germany():
     assert "does not support destination country 'US'" in error
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_country_allows_stoffe_supported_european_destination():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider(None, "fabrics", "AT")
@@ -160,6 +183,7 @@ def test_shopping_country_allows_stoffe_supported_european_destination():
     assert provider == SearchProductsSkill.STOFFE_PROVIDER
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_shopping_country_routes_unsupported_stoffe_country_to_amazon_when_provider_omitted():
     SearchProductsSkill = _get_search_products_skill_class()
     provider, error = SearchProductsSkill._resolve_provider(None, "fabrics", "US")

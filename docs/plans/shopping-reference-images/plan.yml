@@ -1,0 +1,30 @@
+schema_version: 2
+profile: concise
+id: shopping-reference-images
+title: Shopping product images and visual relevance
+status: implementing
+goal: >-
+  Improve the shopping search skill by getting additional images, adding support
+  for using Jev to evaluate / filter also based on user/assistant provided images
+  and compare to the product description and product images.
+scope:
+  - Preserve all distinct image URLs already supplied by each product search response.
+  - Keep the existing primary image and structured product identity, price and purchase link.
+  - Accept up to three authorized uploaded or generated reference images per request.
+  - Compare references, stated requirements, product descriptions and bounded product photos with Jev.
+  - Expose evaluated versus unavailable visual comparisons; do not claim exact identity from appearance alone.
+decisions:
+  - User chose no additional paid Amazon product-details requests for gallery enrichment.
+  - Keep shopping results separate from images.search; no additional search provider integration.
+  - Keep the existing Jev model route; no global version change or SubQ fallback.
+  - Filter only on a usable evaluation; preserve deterministic fallback when image evaluation is unavailable.
+  - Limit and validate image downloads and owner-check private reference embeds before decryption.
+checks:
+  - Focused parser tests cover image order, duplicate/malformed entries, prices and primary compatibility.
+  - Focused visual-ranking tests cover three references, multimodal evaluation, authorization and fallback.
+  - Isolated GitHub E2E covers structured image results and reference validation through real skill dispatch.
+  - Relevant local lint, TypeSafe provider tests and schema checks pass before scoped dev publication.
+related_tasks:
+  shopping: d7038041-a992-4b13-a66e-962836eeedf0
+  privacy: 2aca2bef-0daf-41e0-9310-8bcdc9829fa7
+  provider_assessment: 19f120e0-323d-49de-8660-40aa4da35a2e

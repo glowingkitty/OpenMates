@@ -14,11 +14,12 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 import httpx
 
+from backend.apps.shopping.providers.product_images import normalize_image_urls
 from backend.shared.testing.caching_http_transport import create_http_client
 
 logger = logging.getLogger(__name__)
@@ -71,9 +72,11 @@ class StoffeProduct:
     attributes: dict[str, Any]
     color_child_item_ids: list[str]
     search_rank: int = 0
+    image_urls: list[str] = field(default_factory=list)
 
     def to_result_dict(self) -> dict[str, Any]:
         data = asdict(self)
+        data["image_urls"] = normalize_image_urls([self.image_url, *self.image_urls])
         data["type"] = "product"
         data["price_eur"] = data["price"]
         return data
@@ -190,10 +193,11 @@ def _parse_product(raw: dict[str, Any], rank: int) -> StoffeProduct:
             if category.get("id") is not None
         ]
 
-    image_url = (
-        images[0].get("urlPreview")
-        if images and isinstance(images[0], dict)
-        else None
+    # One URL per photo; resolution variants are not separate gallery images.
+    image_urls = normalize_image_urls(
+        image.get("urlPreview") or image.get("urlMiddle") or image.get("url")
+        for image in images
+        if isinstance(image, dict)
     )
     availability = ((variation.get("availability") or {}).get("names") or {}).get("name")
 
@@ -219,7 +223,8 @@ def _parse_product(raw: dict[str, Any], rank: int) -> StoffeProduct:
         availability=availability,
         is_salable=bool(filter_data.get("isSalable")),
         purchase_url=_build_purchase_url(item_id, raw, attributes),
-        image_url=image_url,
+        image_url=image_urls[0] if image_urls else None,
+        image_urls=image_urls,
         category_path=None,
         category_ids=category_ids,
         attributes=attributes,

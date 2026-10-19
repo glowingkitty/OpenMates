@@ -442,12 +442,13 @@ provider_groups:
           - Chat messages with PII placeholders substituted client-side
           - On text-only TypeSafe Jev fallback, the same minimized recent-message context, decision candidate metadata, optional public-search relevance data, or caller-supplied ai.decide state and questions sent on the direct path; image requests do not fall back to OpenRouter
       typesafe:
-        privacy_policy: https://typesafe.ai/legal/privacy-policy  # verified 2026-10-06
+        privacy_policy: https://typesafe.ai/legal/privacy-policy  # verified 2026-10-19
         location: US
         used_for:
           - direct bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions
           - direct request-safety, response-safety, and prompt-injection classification
           - direct optional relevance ranking for supported public search results
+          - direct optional shopping visual matching, only when reference images are provided
           - caller-requested ai.decide judgments over supplied state, questions, and optional inline PNG/JPEG images
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
@@ -455,6 +456,10 @@ provider_groups:
           - User-stated relevance criteria, search parameters, and minimized public result metadata, without OpenMates user identifiers
           - Caller-supplied ai.decide state, instructions, criteria, and inline image content; send only information needed for the decision, since image bytes and raw API inputs are not protected by typed-message placeholder substitution
           - These inline decisions create no saved chat, embed, or stored upload in OpenMates; transient processing does not promise zero retention by TypeSafe
+          - "For shopping visual matching, only when reference images are provided: up to three authorized user-uploaded or assistant-generated reference images and bounded public product photos, prepared as metadata-stripped JPEG images with a maximum dimension of 336 pixels. Visible image content can contain personal data. These images are not forwarded to OpenRouter."
+          - "Data handling: TypeSafe states that it does not train or fine-tune models on submitted input."
+          - "Retention: TypeSafe's public processing terms describe retention according to processing purposes and applicable law, without a fixed maximum retention period."
+          - "Zero data retention is offered separately to enterprise customers; OpenMates does not guarantee zero data retention on the standard TypeSafe route."
       cerebras:
         privacy_policy: https://www.cerebras.ai/privacy-policy
         location: US

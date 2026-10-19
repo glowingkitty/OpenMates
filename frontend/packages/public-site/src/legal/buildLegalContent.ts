@@ -284,6 +284,12 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.ai_models.openai_v2", privacyPolicyLinks.openai);
   renderProvider("legal.privacy.providers.ai_models.openrouter", privacyPolicyLinks.openrouter);
   renderProvider("legal.privacy.providers.ai_models.typesafe", privacyPolicyLinks.typesafe);
+  lines.push(
+    t("legal.privacy.providers.ai_models.typesafe.data_handling")
+      .replace("{data_processing_url}", privacyPolicyLinks.typesafeDataProcessing)
+      .replace("{legal_url}", privacyPolicyLinks.typesafeLegal),
+  );
+  lines.push("");
   renderProvider("legal.privacy.providers.ai_models.cerebras", privacyPolicyLinks.cerebras);
   renderProvider("legal.privacy.providers.ai_models.google_gemini_v2", privacyPolicyLinks.googleGemini);
   renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);

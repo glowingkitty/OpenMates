@@ -48,9 +48,10 @@ from __future__ import annotations
 import logging
 import re
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Optional, TYPE_CHECKING
 
+from backend.apps.shopping.providers.product_images import normalize_image_urls
 from backend.shared.testing.caching_http_transport import create_http_client
 
 if TYPE_CHECKING:
@@ -147,6 +148,7 @@ class REWEProduct:
 
     # Search metadata
     search_rank: int = 0
+    image_urls: list[str] = field(default_factory=list)
 
     def price_eur(self) -> Optional[str]:
         """Return formatted price like '1,39 €' or None if unavailable."""
@@ -161,6 +163,7 @@ class REWEProduct:
         Field names match what the frontend ShoppingSearchEmbedPreview expects.
         """
         d = asdict(self)
+        d["image_urls"] = normalize_image_urls([self.image_url, *self.image_urls])
         # Add human-readable price
         d["price_eur"] = self.price_eur()
         d["type"] = "product"
@@ -263,15 +266,16 @@ def _parse_product(raw: dict, rank: int) -> REWEProduct:
         slug = _slugify(title)
         purchase_url = f"{PRODUCT_PAGE_BASE}/p/{slug}/{product_id}"
 
-    # Image
-    image_url: Optional[str] = None
-    media = raw.get("media", {})
-    if media:
-        images = media.get("images", [])
-        if images:
-            image_url = images[0].get("_links", {}).get("self", {}).get("href")
-    if not image_url:
-        image_url = raw.get("imageURL")
+    # Preserve every supplied photo; the legacy fallback may supply another one.
+    images = (raw.get("media") or {}).get("images") or []
+    image_urls = normalize_image_urls([
+        *(
+            ((image.get("_links") or {}).get("self") or {}).get("href")
+            for image in images
+            if isinstance(image, dict)
+        ),
+        raw.get("imageURL"),
+    ])
 
     # Brand
     brand_obj = raw.get("brand")
@@ -322,7 +326,8 @@ def _parse_product(raw: dict, rank: int) -> REWEProduct:
         grammage=grammage,
         deposit_cents=deposit_cents,
         purchase_url=purchase_url,
-        image_url=image_url,
+        image_url=image_urls[0] if image_urls else None,
+        image_urls=image_urls,
         category_path=category_path,
         category_ids=category_ids,
         attributes=attributes,

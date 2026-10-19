@@ -571,6 +571,13 @@ def _safe_native_fixture_miss_diagnostic(
 def _generated_capacity_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     """Use only explicitly supported synthetic capacity phases after cache miss."""
     import os
+    if get_mock_group() == "shopping_images_web":
+        from backend.apps.ai.testing.shopping_images_fixture import llm_fixture
+
+        response = llm_fixture(category, kwargs)
+        if response is not None:
+            record_cache_hit()
+        return response
     if get_mock_group() == "diagram_html_web":
         from backend.apps.ai.testing.diagram_html_fixture import llm_fixture
 

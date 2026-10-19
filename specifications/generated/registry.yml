@@ -265,6 +265,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.shopping-search:
+    version: 1
+    status: draft
+    path: features/app-skills/shopping-search
+    fingerprint: 04e52a7c5720d3e24e62d5b85306a139ae6546bd4a571a319778be37a5a2f2fc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.trademark-search:
     version: 1
     status: draft
@@ -3911,6 +3923,78 @@ assertions:
     specification_id: feature.app-skill.news-search
     type: parity
     fingerprint: c5543b474859fdf701fa1b0537ce8835ff9c3529d06e0fb61683d470b58a0876
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.products.supplied-gallery:
+    specification: feature.app-skill.shopping-search@1
+    specification_id: feature.app-skill.shopping-search
+    type: invariant
+    fingerprint: eab7b07e10b8a0cef62ff1ccc8f3a8403eb082a03d7dbb143d1a3d643b5a7439
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.references.authorized:
+    specification: feature.app-skill.shopping-search@1
+    specification_id: feature.app-skill.shopping-search
+    type: security
+    fingerprint: b204bf525ebf9e53e5fb1bba516557a04293dcd453bd650ba74ab661414a2683
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.relevance.visual-and-text:
+    specification: feature.app-skill.shopping-search@1
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 7ffe1e50cd78e219081b857ec5668ca1473bb0fcf31d07481aa68860649eab77
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.relevance.bounded:
+    specification: feature.app-skill.shopping-search@1
+    specification_id: feature.app-skill.shopping-search
+    type: invariant
+    fingerprint: 1a6d5a2c798914d9f34f93dcbfa2621ec748fc761c057c2f3a7268545498f640
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.relevance.truthful-fallback:
+    specification: feature.app-skill.shopping-search@1
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: db6a7c10cf8ed5f4e0cc6f3bd346222c35de87249356aa9faba29af3e57e9881
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.privacy.minimized:
+    specification: feature.app-skill.shopping-search@1
+    specification_id: feature.app-skill.shopping-search
+    type: privacy
+    fingerprint: 84d61bc4387349e20cbf357c05322e41c403f723a8eb6420494ac2f42254f34f
     required_applies_to:
     - rest_api
     - cli

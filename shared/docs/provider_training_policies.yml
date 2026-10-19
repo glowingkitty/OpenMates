@@ -95,8 +95,11 @@ providers:
       if direct credentials are unavailable or direct authentication, transport,
       or transient service failures occur. TypeSafe offers zero data retention
       separately for enterprise customers; the standard route does not imply it.
+      Its public privacy policy and Data Processing Addendum do not specify a
+      fixed maximum retention period; retention depends on processing purposes
+      and applicable law. A no-training commitment does not imply immediate deletion.
     action_required: none
-    last_verified: "2026-10-06T00:00:00Z"
+    last_verified: "2026-10-19T00:00:00Z"
 
   mistral:
     status: no_training

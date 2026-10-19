@@ -2542,6 +2542,23 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/shopping/skills/search_products") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "Amazon",
+            results: [{ id: 1, results: [{
+              type: "product", title: "Compact Travel Bag", provider: "Amazon",
+              price_cents: 12890, currency: "EUR",
+              purchase_url: "https://www.amazon.de/dp/TESTBAG001",
+            }] }],
+          },
+          credits_charged: 0,
+        });
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/apps/fitness/skills/search_locations") {
         const body = await readJsonBody(request);
         requests.push({ url: request.url, body });
@@ -3784,6 +3801,44 @@ describe("apps metadata commands", () => {
           }],
         },
       });
+    });
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity,shopping-search.references.authorized,shopping-search.relevance.visual-and-text
+  it("forwards shopping reference images through generated typed flags with provider and price filters", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
+      const references = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "shopping", "search_products",
+        "--query", "travel bag",
+        "--provider", "Amazon",
+        "--country", "de",
+        "--max-results", "3",
+        "--min-price", "50.5",
+        "--max-price", "150",
+        "--reference-images", references.join(","),
+        "--relevance-criteria", "compact olive bag matching the reference images for train travel",
+        "--json",
+      ]);
+
+      assert.deepEqual(requests, [{
+        url: "/v1/apps/shopping/skills/search_products",
+        body: { requests: [{
+          query: "travel bag",
+          provider: "Amazon",
+          country: "de",
+          max_results: 3,
+          min_price: 50.5,
+          max_price: 150,
+          reference_images: references,
+          relevance_criteria: "compact olive bag matching the reference images for train travel",
+        }] },
+      }]);
+      const product = JSON.parse(output).data.results[0].results[0];
+      assert.equal(product.price_cents, 12890);
+      assert.equal(product.currency, "EUR");
+      assert.equal(product.provider, "Amazon");
     });
   });
 

@@ -46,7 +46,10 @@ from backend.apps.ai.utils.instruction_loader import (
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
-from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata
+from backend.apps.ai.utils.app_skill_result_groups import (
+    is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata,
+    shopping_result_parent_metadata, shopping_result_payload,
+)
 from backend.apps.ai.utils.answer_recovery import (
     ANSWER_RECOVERY_INSTRUCTION,
     AnswerRecoveryState,
@@ -10306,6 +10309,11 @@ async def handle_main_processing(
                                 flattened_results.extend(response_results)
                     results = flattened_results  # Use flattened for LLM inference
                 
+                shopping_visual_metadata = (
+                    shopping_result_parent_metadata(grouped_results)
+                    if (app_id, skill_id) == ("shopping", "search_products") else {}
+                )
+
                 # Extract ignore_fields_for_inference from skill results (if present)
                 # This is a skill-defined list of fields to exclude from LLM inference
                 # Skills can define this in their response to control what gets sent to LLM
@@ -10396,7 +10404,12 @@ async def handle_main_processing(
                         # DEBUG: Log original JSON structure (first 15 lines)
                         json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
                         json_lines = json_before.split('\n')
-                        if len(results) == 1:
+                        if shopping_visual_metadata:
+                            results_toon = encode(shopping_result_payload(
+                                [_flatten_for_toon_tabular(item) for item in results],
+                                _flatten_for_toon_tabular(shopping_visual_metadata),
+                            ))
+                        elif len(results) == 1:
                             # Single result - flatten and encode as TOON
                             # Note: Single result encoded directly (not wrapped in dict) for efficiency
                             flattened_result = _flatten_for_toon_tabular(results[0])
@@ -10418,10 +10431,7 @@ async def handle_main_processing(
                     except Exception as e:
                         # Fallback to JSON if TOON encoding fails (should rarely happen)
                         logger.warning(f"{log_prefix} TOON encoding failed for preview_data, falling back to JSON: {e}")
-                        if len(results) == 1:
-                            preview_data["results_toon"] = json.dumps(results[0])
-                        else:
-                            preview_data["results_toon"] = json.dumps({"results": results, "count": len(results)})
+                        preview_data["results_toon"] = json.dumps(shopping_result_payload(results, shopping_visual_metadata))
                 
                 # Inject embed_ref slugs into composite skill results (web search, flights, places, etc.)
                 # CRITICAL: Slugs are generated HERE (once) so that:
@@ -10638,7 +10648,7 @@ async def handle_main_processing(
                             else None
                         )
 
-                        if len(filtered_results_with_refs) == 1:
+                        if len(filtered_results_with_refs) == 1 and not shopping_visual_metadata:
                             # Single result - flatten and encode filtered result as TOON for LLM inference
                             flattened_result = _flatten_for_toon_tabular(filtered_results_with_refs[0])
                             if _sq_hint:
@@ -10652,6 +10662,8 @@ async def handle_main_processing(
                             # Flattening enables TOON to use tabular format for uniform objects
                             flattened_results = [_flatten_for_toon_tabular(result) for result in filtered_results_with_refs]
                             toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(filtered_results_with_refs)}
+                            if shopping_visual_metadata:
+                                toon_wrapper.update(_flatten_for_toon_tabular(shopping_visual_metadata))
                             if _sq_hint:
                                 toon_wrapper["source_quote_hint"] = _sq_hint
                             toon_wrapper["embed_ref_hint"] = _ref_hint
@@ -10669,10 +10681,7 @@ async def handle_main_processing(
                     except Exception as e:
                         # Fallback to JSON if TOON encoding fails — still use filtered results
                         logger.warning(f"{log_prefix} TOON encoding failed for skill '{tool_name}', falling back to JSON: {e}")
-                        if len(filtered_results_with_refs) == 1:
-                            tool_result_content_str = json.dumps(filtered_results_with_refs[0])
-                        else:
-                            tool_result_content_str = json.dumps({"results": filtered_results_with_refs, "count": len(filtered_results_with_refs)})
+                        tool_result_content_str = json.dumps(shopping_result_payload(filtered_results_with_refs, shopping_visual_metadata))
                 
                 # Async skills retain their authenticated Celery billing path. Anonymous
                 # requests settle the conservative quote when provider work is dispatched.
@@ -10833,6 +10842,9 @@ async def handle_main_processing(
                                     request_metadata_with_provider.update(maps_result_parent_metadata(grouped_result))
                                 if app_id == "jobs" and skill_id == "search":
                                     request_metadata_with_provider.update(jobs_result_parent_metadata(grouped_result))
+                                if app_id == "shopping" and skill_id == "search_products":
+                                    request_metadata_with_provider.pop("visual_evaluations", None)
+                                    request_metadata_with_provider.update(shopping_result_parent_metadata([grouped_result]))
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
@@ -11138,6 +11150,7 @@ async def handle_main_processing(
                                             log_prefix=log_prefix,
                                         )
                                         placeholder_metadata.update(final_preview_metadata)
+                                        placeholder_metadata.update(shopping_visual_metadata)
                                         
                                         # CRITICAL: Pass results_with_refs (pre-generated embed_ref slugs)
                                         updated_embed_data = await embed_service.update_embed_with_results(
@@ -11206,6 +11219,9 @@ async def handle_main_processing(
                                         log_prefix=log_prefix,
                                     )
                                     single_request_metadata.update(final_preview_metadata)
+                                    if app_id == "shopping" and skill_id == "search_products":
+                                        single_request_metadata.pop("visual_evaluations", None)
+                                    single_request_metadata.update(shopping_visual_metadata)
                                     
                                     # DEBUG: Log what's being passed to update_embed_with_results
                                     if results and len(results) > 0:
@@ -11271,7 +11287,10 @@ async def handle_main_processing(
                                     user_vault_key_id=user_vault_key_id,
                                     task_id=task_id,
                                     log_prefix=log_prefix,
-                                    request_metadata=(parsed_args.get("requests", [{}])[0] if isinstance(parsed_args, dict) and isinstance(parsed_args.get("requests"), list) and parsed_args["requests"] and isinstance(parsed_args["requests"][0], dict) else None) if single_hosting_group else None,
+                                    request_metadata=(
+                                        {**(parsed_args.get("requests", [{}])[0] if isinstance(parsed_args, dict) and isinstance(parsed_args.get("requests"), list) and parsed_args["requests"] and isinstance(parsed_args["requests"][0], dict) else {}), **shopping_visual_metadata}
+                                        if single_hosting_group or shopping_visual_metadata else None
+                                    ),
                                     learning_mode_context=getattr(request_data, "learning_mode", None),
                                     hosting_group=single_hosting_group,
                                 )

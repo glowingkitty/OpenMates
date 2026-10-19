@@ -43,6 +43,7 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_simple,
 )
 from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
+from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
     active_recovery_output_context,
@@ -261,6 +262,11 @@ class EmbedService:
             return {}
         sanitized: Dict[str, Any] = {}
         for key, value in metadata.items():
+            if key == "visual_evaluations":
+                evaluations = sanitize_shopping_visual_evaluations(value)
+                if evaluations:
+                    sanitized[key] = evaluations
+                continue
             if (
                 key in EMBED_REQUEST_METADATA_EXCLUDE_FIELDS
                 or any(key.startswith(prefix) for prefix in EMBED_REQUEST_METADATA_EXCLUDE_PREFIXES)
@@ -7020,7 +7026,12 @@ class EmbedService:
         """
         hosting_graph = app_id == "hosting" and skill_id == "search_domains" and isinstance(hosting_group, dict)
         embed_results = EmbedService._hosting_checked_children(hosting_group, results) if hosting_graph else results
-        if not embed_results and not hosting_graph:
+        shopping_visual_graph = (
+            app_id == "shopping" and skill_id == "search_products"
+            and isinstance(request_metadata, dict)
+            and bool(sanitize_shopping_visual_evaluations(request_metadata.get("visual_evaluations")))
+        )
+        if not embed_results and not hosting_graph and not shopping_visual_graph:
             logger.warning(f"{log_prefix} No results to create embeds from")
             return None
 
@@ -7188,6 +7199,8 @@ class EmbedService:
                             parent_content["provider"] = safe_request_metadata["provider"]
                         if "providers" in safe_request_metadata:
                             parent_content["providers"] = safe_request_metadata["providers"]
+                        if app_id == "shopping" and skill_id == "search_products" and "visual_evaluations" in safe_request_metadata:
+                            parent_content["visual_evaluations"] = safe_request_metadata["visual_evaluations"]
                         # Add other user-visible request metadata needed to distinguish searches.
                         for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "time_range", "location"]:
                             if key in safe_request_metadata:

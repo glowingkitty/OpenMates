@@ -33,7 +33,7 @@ def _native_fixture_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "shopping_images_web"])
 async def test_signed_mock_allows_only_isolated_internal_transport(
     monkeypatch: pytest.MonkeyPatch, group: str,
 ) -> None:
@@ -52,6 +52,7 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
             ("GET", "http://cms:8055/items/chats"),
             ("POST", "http://cms:8055/chat-recovery-transaction"),
             ("GET", "http://vault:8200/v1/kv/data/user-keys"),
+            ("POST", "http://vault:8200/v1/transit/decrypt/test-user-key"),
             ("POST", "http://api:8000/internal/billing/reserve"),
             ("POST", "http://api:8000/internal/billing/charge"),
             ("POST", "http://api:8000/internal/billing/reservation/release"),
@@ -64,6 +65,8 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
 
         blocked = [
             ("GET", "https://api.openai.com/v1/responses"),
+            ("POST", "https://api.typesafe.ai/v1/systemone"),
+            ("POST", "https://generativelanguage.googleapis.com/v1beta/models/test:generateContent"),
             ("GET", "http://cms:8056/items/chats"),
             ("GET", "https://cms:8055/items/chats"),
             ("GET", "http://vault:8200/not-v1/kv/data/user-keys"),
@@ -86,7 +89,7 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
         deactivate_mock_mode()
 
 
-@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web"])
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "shopping_images_web"])
 @pytest.mark.parametrize("invalid", [
     {"CI": "false"},
     {"OPENMATES_CI_ISOLATED": "0"},
@@ -118,8 +121,9 @@ def test_signed_mock_rejects_nonmarker_profiles(
 def test_native_mock_requires_exact_group_and_task(monkeypatch: pytest.MonkeyPatch) -> None:
     _native_fixture_environment(monkeypatch)
     for group, task_id in (("native_cache_tools_v2", "task"), ("diagram_html_web_v2", "task"),
+                           ("shopping_images_web_v2", "task"),
                            ("other_flow", "task"), ("native_cache_tools_v1", None),
-                           ("diagram_html_web", None)):
+                           ("diagram_html_web", None), ("shopping_images_web", None)):
         activate_mock_mode("mock", group, task_id=task_id)
         try:
             assert not mock_context._allow_isolated_capacity_internal("http://cms:8055/items/chats", "GET")
@@ -127,12 +131,13 @@ def test_native_mock_requires_exact_group_and_task(monkeypatch: pytest.MonkeyPat
             deactivate_mock_mode()
 
 
-def test_diagram_internal_transport_requires_signed_replay_marker(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("group", ["diagram_html_web", "shopping_images_web"])
+def test_internal_transport_requires_signed_replay_marker(
+    monkeypatch: pytest.MonkeyPatch, group: str,
 ) -> None:
     _native_fixture_environment(monkeypatch)
     monkeypatch.setenv("DAILY_AI_TEST_CONTEXT_SECRET", "isolated-fixture-test-secret")
-    marker = "<<<TEST_LIVE_MOCK:diagram_html_web>>>"
+    marker = f"<<<TEST_LIVE_MOCK:{group}>>>"
     with pytest.raises(RuntimeError, match="Invalid or unauthorized"):
         resolve_live_marker_or_raise(marker, "test-user")
     signed = sign_live_marker(marker, "test-user", is_allowlisted_test_account=True)
@@ -150,7 +155,7 @@ def test_diagram_internal_transport_requires_signed_replay_marker(
     finally:
         deactivate_mock_mode()
 
-    activate_mock_mode("record", "diagram_html_web", task_id="signed-fixture-task")
+    activate_mock_mode("record", group, task_id="signed-fixture-task")
     try:
         assert not mock_context._allow_isolated_capacity_internal(
             "http://cms:8055/items/user_credits", "GET",

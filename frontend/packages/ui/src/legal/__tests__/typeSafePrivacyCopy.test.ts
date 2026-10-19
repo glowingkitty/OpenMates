@@ -40,4 +40,51 @@ describe("TypeSafe Jev privacy disclosure", () => {
     expect(training.providers.typesafe.notes).toContain("standard route does not imply it");
     expect(privacyPolicyChat.metadata?.lastUpdated).toBe("2026-10-19T00:00:00Z");
   });
+
+  // contract-test: supporting surface=gui.web assertions=storage.privacy.ciphertext-boundary
+  it("discloses optional shopping image processing and excludes image fallback forwarding", () => {
+    const provider = canonical.provider_groups.ai_models.providers.typesafe;
+    expect(provider.used_for.join(" ")).toContain("shopping visual matching, only when reference images are provided");
+    const shared = provider.data_shared.join(" ");
+    expect(shared).toContain("up to three authorized user-uploaded or assistant-generated reference images");
+    expect(shared).toContain("bounded public product photos");
+    expect(shared).toContain("metadata-stripped JPEG images with a maximum dimension of 336 pixels");
+    expect(shared).toContain("Visible image content can contain personal data");
+    expect(shared).toContain("not forwarded to OpenRouter");
+    const english = render("en");
+    expect(english).toContain("only when reference images are provided");
+    expect(english).toContain("up to three authorized user-uploaded or assistant-generated reference images");
+    expect(english).toContain("bounded public product photos");
+    expect(english).toContain("visible image content can still contain personal data");
+    expect(english).toContain("Image requests use direct TypeSafe only");
+    const german = render("de");
+    expect(german).toContain("nur dann Bilder, wenn Referenzbilder angegeben werden");
+    expect(german).toContain("bis zu drei autorisierte");
+    expect(german).toContain("sichtbare Bildinhalte können weiterhin personenbezogene Daten enthalten");
+    expect(german).toContain("Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.privacy.ciphertext-boundary
+  it("separates the no-training promise from retention and resolves the source links", () => {
+    const handling = canonical.provider_groups.ai_models.providers.typesafe.data_shared.join(" ");
+    expect(handling).toContain("does not train or fine-tune");
+    expect(handling).toContain("without a fixed maximum retention period");
+    expect(handling).toContain("does not guarantee zero data retention");
+    expect(training.providers.typesafe.last_verified).toBe("2026-10-19T00:00:00Z");
+    expect(training.providers.typesafe.notes).toContain("no-training commitment does not imply immediate deletion");
+
+    const english = render("en");
+    expect(english).toContain("does not train or fine-tune models on submitted input");
+    expect(english).toContain("without a fixed maximum retention period");
+    expect(english).toContain("does not guarantee zero data retention");
+    const german = render("de");
+    expect(german).toContain("ohne eine feste maximale Aufbewahrungsfrist");
+    expect(german).toContain("Ein Ausschluss des Modelltrainings bedeutet nicht");
+    for (const policy of [english, german]) {
+      expect(policy).toContain("https://typesafe.ai/legal/data-processing");
+      expect(policy).toContain("https://docs.typesafe.ai/legal");
+      expect(policy).not.toContain("{data_processing_url}");
+      expect(policy).not.toContain("{legal_url}");
+    }
+  });
 });

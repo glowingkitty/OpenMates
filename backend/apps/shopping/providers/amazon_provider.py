@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import httpx
 
+from backend.apps.shopping.providers.product_images import normalize_image_urls
 from backend.shared.providers.serpapi import SERPAPI_BASE, get_serpapi_key_async
 from backend.shared.testing.caching_http_transport import create_http_client
 
@@ -120,9 +121,11 @@ class AmazonProduct:
     bought_last_month: Optional[str]
     sponsored: Optional[bool]
     total_result_count: int
+    image_urls: List[str] = field(default_factory=list)
 
     def to_result_dict(self) -> Dict[str, Any]:
         data = asdict(self)
+        data["image_urls"] = normalize_image_urls([self.image_url, *self.image_urls])
         data["type"] = "product"
         # Keep compatibility with existing shopping fullscreen sale logic.
         data["price_eur"] = data["price"]
@@ -316,11 +319,14 @@ async def search_products(
         old_price_text = raw.get("old_price")
         currency_symbol = _detect_currency_symbol(price_text, amazon_domain)
 
+        # Amazon search supplies one thumbnail. Do not add paid detail requests.
+        image_urls = normalize_image_urls([raw.get("thumbnail")])
         products.append(
             AmazonProduct(
                 title=raw.get("title") or "Untitled product",
                 purchase_url=raw.get("link_clean") or raw.get("link"),
-                image_url=raw.get("thumbnail"),
+                image_url=image_urls[0] if image_urls else None,
+                image_urls=image_urls,
                 price=price_text,
                 price_amount=price_amount,
                 old_price=old_price_text,

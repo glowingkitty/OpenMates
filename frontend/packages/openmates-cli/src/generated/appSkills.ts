@@ -6585,6 +6585,19 @@ export const APP_SKILL_METADATA = [
                 "maxLength": 1000,
                 "description": "Optional concise natural-language product-ranking goal, separate from the product query. Set it whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering. Example: \"Good for travel, with explicit quiet-click, long-battery, and multi-device evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
+              "reference_images": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "description": "Up to three exact image embed_refs from the conversation, including uploaded and generated images. Authenticated API/CLI callers can supply their uploaded image embed UUIDs. Uses available product photos AND descriptions to rank and filter visual matches; preserves structured product and price results. An empty array leaves normal search behavior unchanged. No raw image URLs or base64. Inspect visual_evaluation and visual_match for unavailable comparisons.\n"
+              },
               "sort": {
                 "x-ui": {
                   "basic": false

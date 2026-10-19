@@ -1,4 +1,4 @@
-"""Focused Amazon price-bound behavior with a mocked SerpAPI response."""
+"""Amazon price-bound and supplied-thumbnail behavior with mocked SerpAPI."""
 # contract-test-file: infrastructure
 
 import httpx
@@ -59,3 +59,39 @@ async def test_price_bounds_exclude_unpriced_and_unparseable_products(monkeypatc
     unbounded, _ = await amazon_provider.search_products("headphones", country="de")
     assert "No price" in [item.title for item in unbounded]
     assert next(item for item in unbounded if item.title == "No price").price_amount is None
+
+
+@pytest.mark.asyncio
+async def test_search_exposes_supplied_thumbnail_without_product_details_requests(monkeypatch):
+    calls = []
+
+    async def fake_key(_secrets_manager):
+        return "synthetic-key"
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def get(self, url, *, params):
+            calls.append(params)
+            assert params["engine"] == "amazon"
+            return httpx.Response(200, json={"organic_results": [
+                {"title": "With photo", "thumbnail": "https://example.test/product.jpg",
+                 "link": "https://amazon.de/dp/SYNTHETIC", "price": "10,00 €", "extracted_price": 10},
+                {"title": "Without photo"},
+            ]}, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(amazon_provider, "get_serpapi_key_async", fake_key)
+    monkeypatch.setattr(amazon_provider, "create_http_client", lambda *_args, **_kwargs: FakeClient())
+    products, _ = await amazon_provider.search_products("synthetic product", country="de")
+    with_photo, without_photo = [product.to_result_dict() for product in products]
+    assert len(calls) == 1
+    assert with_photo["image_url"] == "https://example.test/product.jpg"
+    assert with_photo["image_urls"] == [with_photo["image_url"]]
+    assert with_photo["price_eur"] == "10,00 €"
+    assert with_photo["purchase_url"] == "https://amazon.de/dp/SYNTHETIC"
+    assert without_photo["image_url"] is None
+    assert without_photo["image_urls"] == []

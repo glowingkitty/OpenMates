@@ -22,7 +22,9 @@ See: docs/architecture/shopping-cookie-pool.md for the cookie harvesting design.
 """
 
 import logging
+import asyncio
 import re
+import time
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -42,6 +44,13 @@ from backend.apps.shopping.providers.amazon_provider import (
 from backend.apps.shopping.providers.amazon_provider import infer_country_from_locale
 from backend.apps.shopping.providers.rewe_provider import search_products as rewe_search
 from backend.apps.shopping.providers.stoffe_provider import search_products as stoffe_search
+from backend.apps.shopping.visual_ranking import (
+    ReferenceImageAccessDenied,
+    rank_products_visually,
+    resolve_reference_images,
+    unavailable_visual_results,
+    validate_reference_images,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +126,15 @@ class SearchProductsRequestItem(BaseModel):
         max_length=1_000,
         description="Optional natural-language purchase goal used only to rank matching products.",
     )
+    reference_images: Optional[List[str]] = Field(
+        default=None,
+        max_length=3,
+        description=(
+            "Up to 3 image embed_refs from this conversation (uploaded or generated images). "
+            "Authenticated API/CLI callers may supply their uploaded image embed UUIDs. "
+            "Compares available product photos and descriptions; no exact-identity guarantee."
+        ),
+    )
     sort: str = Field(
         default="relevance",
         description="Sort order: 'relevance', 'price_asc', 'price_desc', 'new' (REWE), "
@@ -170,6 +188,7 @@ class SearchProductsResponse(BaseModel):
             "type",
             "product_id",
             "image_url",
+            "image_urls",
             "category_ids",
             "order_limit",
             "search_rank",
@@ -204,7 +223,7 @@ class SearchProductsSkill(BaseSkill):
     - price_cents (current price in euro-cents, requires auth cookie)
     - was_price_cents (if on sale), grammage, deposit_cents
     - price_eur (formatted price string, e.g. "1,39 €")
-    - purchase_url, image_url
+    - purchase_url, image_url (primary), image_urls (all supplied photos)
     - attributes: is_organic, is_vegan, is_vegetarian, etc.
 
     REWE pricing requires an active session stored in Vault (cookie pool).
@@ -368,7 +387,9 @@ class SearchProductsSkill(BaseSkill):
                 logger=logger,
             )
 
-        # 3. Process requests in parallel
+        visual_evaluation_summaries: Dict[Any, Dict[str, Any]] = {}
+        # 3. Process requests in parallel. Image context is server-injected,
+        # never read from a caller's request item.
         all_results = await self._process_requests_in_parallel(
             requests=validated_requests,
             process_single_request_func=self._process_single_request,
@@ -376,6 +397,14 @@ class SearchProductsSkill(BaseSkill):
             logger=logger,
             secrets_manager=secrets_manager,
             cache_service=kwargs.get("cache_service"),
+            encryption_service=kwargs.get("encryption_service"),
+            user_id=kwargs.get("user_id"),
+            user_vault_key_id=kwargs.get("user_vault_key_id"),
+            file_path_index=kwargs.get("file_path_index"),
+            directus_service=kwargs.get("directus_service"),
+            s3_service=kwargs.get("s3_service"),
+            internal_api_request=getattr(getattr(self, "app", None), "_make_internal_api_request", None),
+            visual_evaluation_summaries=visual_evaluation_summaries,
         )
 
         # 4. Group results by request ID
@@ -389,6 +418,10 @@ class SearchProductsSkill(BaseSkill):
             invalid_grouped_results,
             requests,
         )
+        for group in grouped_results:
+            summary = visual_evaluation_summaries.get(group.get("id"))
+            if summary:
+                group["visual_evaluation"] = summary
 
         provider_values = {
             self._resolve_provider(
@@ -439,6 +472,14 @@ class SearchProductsSkill(BaseSkill):
             Tuple of (request_id, results_list, error_string_or_none)
         """
         secrets_manager = kwargs.get("secrets_manager")
+        # Leave three seconds for response normalization within the assistant's
+        # existing twenty-second skill deadline. Optional image work must never
+        # discard a successful provider search by exhausting that deadline.
+        visual_deadline = time.monotonic() + 17.0
+        try:
+            reference_images = validate_reference_images(req.get("reference_images"))
+        except ValueError as exc:
+            return (request_id, [], str(exc))
 
         # Extract parameters with defaults
         query: str = req.get("query", "").strip()
@@ -455,7 +496,7 @@ class SearchProductsSkill(BaseSkill):
         relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         max_results = (
             relevance_candidate_target(requested_max_results, profile="shopping")
-            if relevance_criteria
+            if relevance_criteria or reference_images
             else requested_max_results
         )
         sort: str = req.get("sort", "relevance")
@@ -473,6 +514,19 @@ class SearchProductsSkill(BaseSkill):
 
         if not query:
             return (request_id, [], "Missing 'query' in request")
+
+        resolved_images = []
+        if reference_images:
+            try:
+                resolved_images = await asyncio.wait_for(
+                    resolve_reference_images(reference_images, kwargs), timeout=6.0,
+                )
+            except ReferenceImageAccessDenied as exc:
+                return (request_id, [], str(exc))
+            except Exception as exc:
+                # Technical image failure must not turn a valid search into a
+                # claimed visual match or disclose private image diagnostics.
+                logger.warning("Shopping reference images unavailable error_type=%s", type(exc).__name__)
 
         try:
             if provider == self.REWE_PROVIDER:
@@ -564,7 +618,7 @@ class SearchProductsSkill(BaseSkill):
             )
             return (request_id, [], "Content sanitization failed")
 
-        if relevance_criteria:
+        if relevance_criteria or reference_images:
             results = stable_deduplicate_candidates(
                 results,
                 key=lambda item: (
@@ -576,7 +630,31 @@ class SearchProductsSkill(BaseSkill):
                     or str(item.get("title") or item.get("name") or "").casefold()
                 ),
             )
-            ranking = await rank_search_candidates(
+
+        visual_applied = False
+        if reference_images:
+            if resolved_images:
+                remaining = visual_deadline - time.monotonic()
+                if remaining <= 0:
+                    visual = unavailable_visual_results(results, len(reference_images))
+                else:
+                    try:
+                        visual = await asyncio.wait_for(rank_products_visually(
+                            candidates=results, reference_images=resolved_images,
+                            relevance_criteria=relevance_criteria, query=query,
+                            secrets_manager=secrets_manager,
+                        ), timeout=remaining)
+                    except asyncio.TimeoutError:
+                        visual = unavailable_visual_results(results, len(reference_images))
+            else:
+                visual = unavailable_visual_results(results, len(reference_images))
+            results, visual_applied = visual.candidates, visual.applied
+            summaries = kwargs.get("visual_evaluation_summaries")
+            if isinstance(summaries, dict):
+                summaries[request_id] = visual.summary
+
+        if relevance_criteria and not visual_applied and (not reference_images or time.monotonic() < visual_deadline):
+            ranking_call = rank_search_candidates(
                 candidates=results,
                 candidate_projections=[
                     {
@@ -614,7 +692,12 @@ class SearchProductsSkill(BaseSkill):
                 profile="shopping",
                 secrets_manager=secrets_manager,
             )
-            results = ranking.candidates
+            try:
+                ranking = (await asyncio.wait_for(ranking_call, timeout=max(.001, visual_deadline - time.monotonic()))
+                           if reference_images else await ranking_call)
+                results = ranking.candidates
+            except asyncio.TimeoutError:
+                logger.warning("Shopping relevance fallback reached its bounded deadline")
 
         results = results[:requested_max_results]
 

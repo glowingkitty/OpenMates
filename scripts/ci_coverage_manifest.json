@@ -576,6 +576,7 @@
         "skill-math-calculate.spec.ts",
         "skill-news-search.spec.ts",
         "skill-reminder-set.spec.ts",
+        "skill-shopping-images.spec.ts",
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts"
       ]
