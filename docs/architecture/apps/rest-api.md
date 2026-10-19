@@ -70,12 +70,14 @@ POST /v1/apps/{app_id}/skills/{skill_id}
 
 Examples: `POST /v1/apps/web/skills/search`, `POST /v1/apps/videos/skills/get_transcript`, `POST /v1/apps/images/skills/generate`
 
-### Anonymous CLI Skill Calls
+### Anonymous REST, CLI and SDK Calls
 
-The official cloud also accepts logged-out CLI calls at
+The official cloud also accepts logged-out REST, CLI and SDK calls at
 `POST /v1/anonymous/apps/{app_id}/skills/{skill_id}` with a stable
 `X-OpenMates-Anonymous-ID` header. The body uses the same skill schema, with
-exactly one provider request per call. Provider rate-limit waits are rejected
+one logical skill operation per call. Batch-style skills accept exactly one
+request; `ai.decide` accepts bounded state and typed questions directly.
+Provider rate-limit waits are rejected
 instead of queued. Only skills explicitly marked
 `anonymous_access: inline` in `app.yml` are eligible: they return an immediate
 result, require no connected account, and create no file or background job.
@@ -84,7 +86,11 @@ require authentication.
 
 The server quotes and reserves credits before dispatch against the same
 per-identity and server-wide daily, weekly, and monthly anonymous limits used
-by web and CLI chat. When a limit is exhausted, anonymous work returns 429;
+by web and CLI chat. When the budget is inactive or cannot cover a request,
+anonymous work returns HTTP 429 with `detail.signup_required: true` and a human
+message explaining that the free allowance is unavailable and an account is
+needed. This is an admission refusal, separate from provider or meter failures
+(HTTP 503). Both SDKs expose `OpenMatesSignupRequiredError` for this response;
 authenticated users with account credits continue through the authenticated
 endpoint. Anonymous calls pass no user, chat, message, embed, or upload context
 to skills and create no permanent Directus content records. The anonymous route
@@ -96,6 +102,73 @@ tightest remaining daily allowance across the local identity, IP identity, and
 shared daily pool. Without a guest ID, the percentage is `null`. The public
 response does not expose credit counts or identity hashes; `can_send_text` and
 `reason` also reflect weekly and monthly limits.
+
+Both SDKs support eligible skills and transient text chat without an API key.
+Use `new OpenMates({ anonymous: true })` in JavaScript or
+`OpenMates(anonymous=True)` in Python to explicitly ignore an environment API key
+and use the free allowance. The clients persist a guest identity, expose
+`anonymous.status()`, and use `/v1/anonymous/chat/stream` for `chats.send`.
+Saved chats, files, account data and caller-selected models require an account.
+An invalid authenticated key never falls back to anonymous execution.
+
+### Inline Decisions
+
+`POST /v1/anonymous/apps/ai/skills/decide` accepts JSON `state` and a map of
+1–16 named `questions`, each with a `type` and `instructions`. Types are `noul`
+(yes/no probability), `choice` (2–16 named criteria), and `score` (2–10 ordered
+criteria). Normalized state and questions are limited to 16,384 UTF-8 bytes, separately from image assets.
+The authenticated route is `/v1/apps/ai/skills/decide`. Neither route accepts
+provider, model, or usage overrides.
+
+The same operation is available as `apps.ai.decide(input)` in both SDKs and
+`openmates apps ai decide --input '<JSON>' --json` in the CLI. Results use the
+standard skill envelope; typed answers are in `data.answers`, and server usage
+is in `data.usage`.
+
+The server pins Jev 1.14 (`jev-1.14.0` at TypeSafe). Text requests make at most
+one direct TypeSafe attempt and one OpenRouter fallback attempt, without retries.
+Image requests make one direct TypeSafe attempt and never use OpenRouter.
+Reservations use reviewed provider context ceilings and the catalogue tariff;
+actual native usage, including image input tokens, settles the reservation.
+Ambiguous incurred spend retains its corresponding conservative charge. A small
+request may need more credit headroom for admission than its final charge.
+Decisions create no saved chat, embed, or file.
+
+#### Experimental image decisions
+
+Add an `assets` map to the same JSON request. The example shape is:
+
+```json
+{
+  "state": { "game_board": "902f1e2a-1869-4d54-8e08-91db56598c53" },
+  "questions": {
+    "clear": { "type": "noul", "instructions": "Is there a clear path to the exit on the game board?" }
+  },
+  "assets": {
+    "902f1e2a-1869-4d54-8e08-91db56598c53": { "type": "image", "format": "png", "data_base64": "<base64 file bytes>" }
+  }
+}
+```
+
+Replace the placeholder with standard base64 from an actual PNG/JPEG file.
+References are string values in state, instructions, or criteria; every asset
+must be referenced. Use canonical lowercase UUID reference keys, generated anew for each image. SDKs accept this same JSON shape; they do not use a separate upload
+method. OpenMates sets the required TypeSafe image header on the provider call.
+
+OpenMates accepts at most four still images, each at most 1 MiB decoded and at
+most 4 MiB decoded in total. Both width and height must be 280–1568 pixels, and
+real image content is validated. The whole JSON body is limited to 6 MiB; the
+16 KiB state/questions bound remains separate. Supported formats are `png`,
+`jpg`, and `jpeg`. Remote URL fetching, multipart bodies, stored-upload refs,
+audio, and video are not part of this interface. Existing upload flows still
+require an account. Question types remain `noul`, `choice`, and `score`.
+
+Treat this as a prototype feature. Image tokens consume the same applicable
+free allowance or account credits as other input tokens; no separate image
+free pool is promised. Caller state, questions, and images are sent to TypeSafe.
+Text-only requests may use OpenRouter fallback; images do not. Transient handling
+by OpenMates does not guarantee zero provider retention. See [TypeSafe integration](../../apis/typesafe-jev.md),
+[TypeSafe images](https://docs.typesafe.ai/images), and [TypeSafe models](https://docs.typesafe.ai/models).
 
 ### Auto-Registration
 

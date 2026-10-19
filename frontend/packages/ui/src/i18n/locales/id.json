@@ -1166,6 +1166,20 @@
             "text": "Bantu saya menulis email profesional kepada bos tentang kenaikan gaji"
           }
         }
+      },
+      "decide": {
+        "text": "Putuskan",
+        "description": {
+          "text": "Pilih opsi berdasarkan konteks Anda."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Karakter game saya tinggal sedikit nyawanya, sebaiknya mundur atau terus bertarung?"
+          },
+          "2": {
+            "text": "Pilih kategori dukungan untuk permintaan ini: penagihan, teknis, atau akun."
+          }
+        }
       }
     },
     "audio": {

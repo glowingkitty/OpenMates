@@ -440,7 +440,7 @@ provider_groups:
           - fallback routing to TypeSafe Jev when direct TypeSafe credentials are unavailable or direct authentication, transport, or transient service failures occur
         data_shared:
           - Chat messages with PII placeholders substituted client-side
-          - On TypeSafe Jev fallback, the same minimized recent-message context, decision candidate metadata, and optional public-search relevance data sent on the direct path
+          - On text-only TypeSafe Jev fallback, the same minimized recent-message context, decision candidate metadata, optional public-search relevance data, or caller-supplied ai.decide state and questions sent on the direct path; image requests do not fall back to OpenRouter
       typesafe:
         privacy_policy: https://typesafe.ai/legal/privacy-policy  # verified 2026-10-06
         location: US
@@ -448,10 +448,13 @@ provider_groups:
           - direct bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions
           - direct request-safety, response-safety, and prompt-injection classification
           - direct optional relevance ranking for supported public search results
+          - caller-requested ai.decide judgments over supplied state, questions, and optional inline PNG/JPEG images
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers
           - User-stated relevance criteria, search parameters, and minimized public result metadata, without OpenMates user identifiers
+          - Caller-supplied ai.decide state, instructions, criteria, and inline image content; send only information needed for the decision, since image bytes and raw API inputs are not protected by typed-message placeholder substitution
+          - These inline decisions create no saved chat, embed, or stored upload in OpenMates; transient processing does not promise zero retention by TypeSafe
       cerebras:
         privacy_policy: https://www.cerebras.ai/privacy-policy
         location: US

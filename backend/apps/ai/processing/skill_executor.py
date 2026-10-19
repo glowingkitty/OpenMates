@@ -292,7 +292,9 @@ async def execute_skill(
     logger.debug(f"Executing skill '{app_id}.{skill_id}' in-process with arguments: {list(arguments.keys())}")
 
     last_exception: Optional[Exception] = None
-    total_attempts = max_retries + 1
+    # The public decision quote includes exactly one attempt per provider.
+    # Jev already owns its bounded outage fallback; never retry the whole skill.
+    total_attempts = 1 if (app_id, skill_id) == ("ai", "decide") else max_retries + 1
     successful_result: Any = None
     skill_succeeded = False
 

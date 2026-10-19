@@ -1166,6 +1166,20 @@
             "text": "Pomoz mi napsat profesionální email šéfovi o zvýšení platu"
           }
         }
+      },
+      "decide": {
+        "text": "Rozhodnout",
+        "description": {
+          "text": "Vyberte možnost podle svého kontextu."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Má moje herní postava s malým počtem životů ustoupit, nebo bojovat dál?"
+          },
+          "2": {
+            "text": "Vyberte kategorii podpory pro tento požadavek: fakturace, technická podpora nebo účet."
+          }
+        }
       }
     },
     "audio": {

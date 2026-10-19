@@ -137,6 +137,16 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.ai-decide:
+    version: 1
+    status: draft
+    path: features/app-skills/ai-decide
+    fingerprint: 8ceb673f123250c22db2091d17d386a2391359dbacf5c70a4f55152a3c77815a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
   feature.app-skill.audio-generate:
     version: 1
     status: approved
@@ -748,7 +758,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: 412c011a95b631653021f4c32d82cf078444740eac29983285499759858d5ff6
+    fingerprint: a197b59d5b56ef8ba6fcb2f2ef68ecb9d5d440a9254b19784966d544765f0f3c
     required_applies_to:
     - rest_api
     - cli
@@ -2458,6 +2468,56 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  ai-decide.request.bounded:
+    specification: feature.app-skill.ai-decide@1
+    specification_id: feature.app-skill.ai-decide
+    type: validation
+    fingerprint: 1b5a0e23c8f785a18d4f130db4207acdba7c661a37907064fbe7ec7f05f61432
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  ai-decide.answers.typed:
+    specification: feature.app-skill.ai-decide@1
+    specification_id: feature.app-skill.ai-decide
+    type: behavior
+    fingerprint: 565e5bbbb7b49818e6e548789802c9a160117b66a2dcbf6a5356bad410c0c0fb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  ai-decide.images.inline:
+    specification: feature.app-skill.ai-decide@1
+    specification_id: feature.app-skill.ai-decide
+    type: security
+    fingerprint: d9f0908a63ef7e2790185326f6fe9e85c377c7fb410b59f54f527f460973b9aa
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  ai-decide.billing.bounded:
+    specification: feature.app-skill.ai-decide@1
+    specification_id: feature.app-skill.ai-decide
+    type: security
+    fingerprint: 6093f28cf1ca6f100e50e339b70d1e90a35e5cf0b9c30e8cf8c266fe54c94266
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  ai-decide.failures.distinct:
+    specification: feature.app-skill.ai-decide@1
+    specification_id: feature.app-skill.ai-decide
+    type: failure
+    fingerprint: ed4642211202f7bd543ac5c1b3ed2eda20b90f60e99241bac84aaa254243a909
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
   audio-generate.request.validated:
     specification: feature.app-skill.audio-generate@1
     specification_id: feature.app-skill.audio-generate
@@ -10544,7 +10604,7 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: security
-    fingerprint: 06401c5ddd86cc77bb7f3add63444f558a284f00bb82cd7ed77c19ae2c68507e
+    fingerprint: 046414b583b541bc02e2f979cf0d019f747da0e275a053e5720234304dfacdc5
     required_applies_to:
     - rest_api
     - cli
@@ -10594,7 +10654,27 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: parity
-    fingerprint: 668b71ac41e948eae198e5727ce290759b4c548b75efea3c2d77552a802ff0ee
+    fingerprint: 0b8fa2adb4f9df458f9fb7126681348f8b6a3d52e97e30e732c5d45bd0f5667e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.anonymous.execution:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: security
+    fingerprint: 1ed7d11cd7a29a049b554a9d545004a8da55184380980ad93464a64acff08c4b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.anonymous.signup-required:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: failure
+    fingerprint: 3f9ad3f15ba28b82dad73930b7e4306caa3ec82ada4f5530c3799fc23f2f9155
     required_applies_to:
     - rest_api
     - cli

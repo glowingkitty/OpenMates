@@ -298,7 +298,7 @@ class WorkflowNLPlanner:
             metrics["jev_calls"] += 1
             metrics["jev_seconds"] = round(metrics.get("jev_seconds", 0) + time.perf_counter() - began, 3)
             tokens = response.usage.input_tokens
-            metrics["input_tokens"]["jev-1.13"] = metrics["input_tokens"].get("jev-1.13", 0) + tokens
+            metrics["input_tokens"]["jev-1.14"] = metrics["input_tokens"].get("jev-1.14", 0) + tokens
             metrics["estimated_cost_usd"] += tokens * JEV_INPUT_USD_PER_MILLION / 1_000_000
             if not isinstance(answer, ChoiceAnswer) or answer.choice not in criteria or answer.confidence < 0.55:
                 raise WorkflowNLDecisionUncertain("Jev could not identify one workflow")
@@ -388,7 +388,7 @@ class WorkflowNLPlanner:
                 metrics["jev_calls"] += 1
                 metrics["jev_seconds"] = round(metrics.get("jev_seconds", 0) + time.perf_counter() - began, 3)
                 tokens = response.usage.input_tokens
-                metrics["input_tokens"]["jev-1.13"] = metrics["input_tokens"].get("jev-1.13", 0) + tokens
+                metrics["input_tokens"]["jev-1.14"] = metrics["input_tokens"].get("jev-1.14", 0) + tokens
                 metrics["estimated_cost_usd"] += tokens * JEV_INPUT_USD_PER_MILLION / 1_000_000
                 try:
                     decisions: dict[str, str] = {}

@@ -182,6 +182,27 @@ def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=ai-decide.billing.bounded
+async def test_decide_rest_billing_uses_only_server_result_native_credits() -> None:
+    metadata = AppYAML.model_validate({"id": "ai", "name_translation_key": "ai", "description_translation_key": "ai.description", "skills": []})
+    result = {"success": True, "model": "jev-1.14.0", "answers": {"ok": {"type": "noul", "noul": .9}},
+              "usage": {"input_tokens": 15800, "output_tokens": 3, "credits": 2, "complete": True}}
+    assert await apps_api.calculate_skill_credits(metadata, "decide", {"usage": {"credits": 0}}, result, app_id="ai") == 2
+    with pytest.raises(HTTPException) as caught:
+        await apps_api.calculate_skill_credits(metadata, "decide", {"usage": {"credits": 0}}, {}, app_id="ai")
+    assert caught.value.status_code == 503
+
+
+# contract-test: direct surface=rest_api assertions=ai-decide.request.bounded,ai-decide.billing.bounded
+def test_decide_rest_preflight_validates_entire_request_and_quotes_fallback() -> None:
+    body = {"state": "hello", "questions": {"ok": {"type": "noul", "instructions": "Is this a greeting?"}}}
+    assert apps_api.get_variable_preflight_reserved_credits("ai", "decide", body) == 43
+    with pytest.raises(HTTPException) as caught:
+        apps_api.get_variable_preflight_reserved_credits("ai", "decide", {**body, "model": "other/model"})
+    assert caught.value.status_code == 422
+
+
 # contract-test: direct surface=rest_api assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
 def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) -> None:
     module_name = "backend.apps.rest_schema_contract"

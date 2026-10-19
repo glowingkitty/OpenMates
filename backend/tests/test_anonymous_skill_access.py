@@ -161,6 +161,9 @@ async def test_anonymous_postprocessor_skips_provider_when_quote_denied(monkeypa
 
 @pytest.fixture(autouse=True)
 def use_in_process_anonymous_meter(monkeypatch: pytest.MonkeyPatch) -> None:
+    # These direct-function tests exercise the local-ID and shared ledger
+    # limits themselves, independently of SlowAPI's process-wide HTTP counter.
+    monkeypatch.setattr(anonymous_routes.limiter, "enabled", False, raising=False)
     monkeypatch.setattr(
         anonymous_routes,
         "_anonymous_usage_service",
@@ -697,7 +700,7 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     body = "".join([chunk.decode() if isinstance(chunk, bytes) else str(chunk) async for chunk in response.body_iterator])
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final = next(event for event in events if event.get("is_final_chunk"))
-    expected = "Create an account to keep using OpenMates."
+    expected = anonymous_routes.ANONYMOUS_USAGE_LIMIT_MESSAGE
     retained = snapshots.get(snapshot_kind, "").replace(STANDARDIZED_USER_ERROR_MESSAGE, "").rstrip()
     if retained:
         expected = f"{retained}\n\n{expected}"
@@ -706,6 +709,7 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     if snapshot_kind.endswith("disclaimer"):
         assert disclaimer in final["full_content_so_far"]
     assert final["rejection_reason"] == "anonymous_usage_limit"
+    assert final["signup_required"] is True
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)
 
@@ -841,7 +845,7 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final_chunk = next(event for event in events if event["type"] == "ai_message_chunk" and event["is_final_chunk"])
     expected_content = (
-        app_fence + f"Corrected{separator}[source](embed:source-ref).\n\nCreate an account to keep using OpenMates."
+        app_fence + f"Corrected{separator}[source](embed:source-ref).\n\n{anonymous_routes.ANONYMOUS_USAGE_LIMIT_MESSAGE}"
         if failure_reason else snapshots[-1]
     )
     assert final_chunk["full_content_so_far"] == expected_content
@@ -1138,7 +1142,7 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
-async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_anonymous_sse_admits_before_opening_response(monkeypatch: pytest.MonkeyPatch) -> None:
     reserve_started = asyncio.Event()
     release_reservation = asyncio.Event()
 
@@ -1188,7 +1192,11 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
         plaintext_message="Reply after delayed reservation",
     )
 
-    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
+    response_task = asyncio.create_task(anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache()))
+    await asyncio.wait_for(reserve_started.wait(), timeout=0.5)
+    assert response_task.done() is False
+    release_reservation.set()
+    response = await asyncio.wait_for(response_task, timeout=0.5)
     iterator = response.body_iterator
     first = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
     second = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
@@ -1198,13 +1206,7 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
     assert typing_event["type"] == "ai_typing_started"
     assert typing_event["title"] == "Reply after delayed reservation"
 
-    third_chunk_task = asyncio.create_task(iterator.__anext__())
-    await asyncio.wait_for(reserve_started.wait(), timeout=0.5)
-    await asyncio.sleep(0)
-    assert third_chunk_task.done() is False
-
-    release_reservation.set()
-    third = await asyncio.wait_for(third_chunk_task, timeout=0.5)
+    third = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
     assert json.loads(str(third).removeprefix("data: "))["type"] == "ai_message_chunk"
 
 

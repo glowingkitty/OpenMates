@@ -1166,6 +1166,20 @@
             "text": "Giúp tôi viết email chuyên nghiệp cho sếp về việc tăng lương"
           }
         }
+      },
+      "decide": {
+        "text": "Quyết định",
+        "description": {
+          "text": "Chọn một phương án dựa trên bối cảnh của bạn."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Nhân vật trong trò chơi của tôi còn ít máu, nên rút lui hay tiếp tục chiến đấu?"
+          },
+          "2": {
+            "text": "Chọn danh mục hỗ trợ cho yêu cầu này: thanh toán, kỹ thuật hoặc tài khoản."
+          }
+        }
       }
     },
     "audio": {

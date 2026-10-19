@@ -1166,6 +1166,20 @@
             "text": "Aide-moi à rédiger un email professionnel à mon patron pour une augmentation"
           }
         }
+      },
+      "decide": {
+        "text": "Décider",
+        "description": {
+          "text": "Choisissez une option selon votre contexte."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Mon personnage devrait-il battre en retraite ou continuer à combattre avec peu de points de vie ?"
+          },
+          "2": {
+            "text": "Choisissez une catégorie d’assistance pour cette demande : facturation, technique ou compte."
+          }
+        }
       }
     },
     "audio": {

@@ -1166,6 +1166,20 @@
             "text": "Hjälp mig skriva ett professionellt mejl till min chef om löneförhöjning"
           }
         }
+      },
+      "decide": {
+        "text": "Bestäm",
+        "description": {
+          "text": "Välj ett alternativ utifrån ditt sammanhang."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Ska min spelkaraktär med lite hälsa dra sig tillbaka eller fortsätta slåss?"
+          },
+          "2": {
+            "text": "Välj en supportkategori för den här förfrågan: fakturering, teknik eller konto."
+          }
+        }
       }
     },
     "audio": {

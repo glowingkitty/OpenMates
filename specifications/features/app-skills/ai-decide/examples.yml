@@ -1,0 +1,43 @@
+schema_version: 1
+specification: feature.app-skill.ai-decide@1
+decide_inputs:
+  - id: game-retreat-question
+    given: A beginner's game has a player with low health and a nearby enemy.
+    when: The program submits that state and a named noul question asking whether the player should retreat.
+    then: The skill validates the bounded input and evaluates it without executing game actions or creating an account record.
+  - id: unsupported-or-oversized-request
+    given: A caller submits seventeen questions, an oversized state, or a caller-selected model.
+    when: The request is validated.
+    then: It is rejected before inference or charging, rather than silently dropping questions or model instructions.
+decide_answers:
+  - id: typed-game-decisions
+    given: A game asks whether to retreat, which of three actions to take, and how dangerous the situation is on a three-level rubric.
+    when: The decision provider returns complete valid answers.
+    then: The caller receives one typed answer under each original question ID, the model actually used, and server-produced usage and credits.
+decide_billing:
+  - id: anonymous-reservation-and-fallback
+    given: A guest has enough remaining allowance to reserve the complete bounded decision operation.
+    when: The primary provider is unavailable and the allowed fallback succeeds.
+    then: The existing ledger covers both possible attempts, settles verified usage, retains coverage for ambiguous spend, and refunds unused capacity without creating an anonymous credit balance.
+  - id: missing-usage-is-not-free-success
+    given: The provider returns an answer without usable native token accounting.
+    when: The public skill tries to complete the request.
+    then: It reports an accounting or provider failure and retains potentially incurred cost instead of returning an unmetered successful decision.
+decide_images:
+  - id: inline-image-decision
+    given: A beginner has a 280-by-280 PNG and enough free allowance, and puts its UUID asset reference in the state.
+    when: Their REST, CLI, npm or pip program asks whether a red rectangle is visible in that image.
+    then: Jev 1.14 receives the inline image on the direct TypeSafe route and returns a typed probability with metered usage, without creating a saved upload or chat.
+  - id: invalid-image-rejected-before-inference
+    given: A caller sends a remote image URL, invalid base64, an unreferenced image, a fifth image, or an image outside the byte or dimension limits.
+    when: The skill validates the request.
+    then: It rejects the request before provider dispatch, without fetching a URL, logging image bytes, silently resizing it or charging for inference.
+decide_failures:
+  - id: exhausted-allowance-requires-signup
+    given: The guest's daily allowance or the shared server allowance cannot cover a decision request.
+    when: The guest calls REST, CLI, npm or pip.
+    then: The response clearly says that free usage is unavailable or used up and that an account is required to continue, with no misleading processing-failed message and no provider dispatch after admission denial.
+  - id: provider-outage-is-not-quota
+    given: The allowance is available but the permitted decision providers fail.
+    when: The request terminates.
+    then: The caller receives a distinct provider failure, not an empty successful answer or a signup-required quota response.

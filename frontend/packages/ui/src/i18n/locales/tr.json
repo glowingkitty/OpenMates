@@ -1166,6 +1166,20 @@
             "text": "Patronuma zam hakkında profesyonel bir e-posta yazmama yardım et"
           }
         }
+      },
+      "decide": {
+        "text": "Karar ver",
+        "description": {
+          "text": "Bağlamınıza göre bir seçenek belirleyin."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Canı az olan oyun karakterim geri mi çekilmeli, savaşmaya devam mı etmeli?"
+          },
+          "2": {
+            "text": "Bu talep için bir destek kategorisi seçin: faturalandırma, teknik veya hesap."
+          }
+        }
       }
     },
     "audio": {

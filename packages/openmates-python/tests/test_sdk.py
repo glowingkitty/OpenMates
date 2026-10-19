@@ -63,7 +63,7 @@ def test_missing_api_key_raises_typed_config_error(monkeypatch):
     client = OpenMates()
 
     with pytest.raises(OpenMatesConfigError):
-        client.apps.web.search({"requests": [{"query": "hello"}]})
+        client.account.info()
 
 
 def test_device_identity_is_injectable_and_stable_without_api_key_material(monkeypatch, tmp_path):

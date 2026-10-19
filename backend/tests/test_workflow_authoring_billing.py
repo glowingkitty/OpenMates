@@ -62,7 +62,8 @@ def ledger(monkeypatch):
 def test_catalog_prices_jev_from_standard_formula_and_keeps_it_out_of_chat_routing():
     from backend.scripts.calculate_per_credit_unit import calculate_per_credit_unit
 
-    jev = Catalog().get_model_pricing("typesafe", "jev-1.13")
+    jev = Catalog().get_model_pricing("typesafe", "jev-1.14")
+    assert Catalog().get_model_pricing("typesafe", "jev-1.13") is not None
     assert jev["for_app_skill"] == "workflows.create-or-modify"
     assert jev["allow_auto_select"] is False
     assert jev["pricing"]["tokens"]["input"]["per_credit_unit"] == calculate_per_credit_unit(0.042)

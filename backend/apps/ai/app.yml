@@ -35,6 +35,289 @@ model_aliases:
     icon: lightning
 
 skills:
+  - id: decide
+    anonymous_access: inline
+    parallel_safe: true
+    name_translation_key: ai.decide
+    description_translation_key: ai.decide.description
+    icon_image: ai.svg
+    class_path: backend.apps.ai.skills.decide_skill.DecideSkill
+    full_model_reference: typesafe/jev-1.14
+    external_data: false
+    preprocessor_hint: Evaluate bounded inline state with named typed noul, choice or score questions. Optional
+      transient PNG/JPEG assets support image decisions. Returns structured decisions without chat, files
+      or embeds.
+    tool_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        state:
+          description: Inline JSON state to evaluate. State and questions together must fit 16384 UTF-8
+            bytes. Reference optional image assets by their UUID in string values.
+        questions:
+          type: object
+          minProperties: 1
+          maxProperties: 16
+          propertyNames:
+            pattern: ^[A-Za-z0-9_-]{1,64}$
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            properties:
+              type:
+                type: string
+                enum:
+                - noul
+                - choice
+                - score
+              instructions:
+                type: string
+                minLength: 1
+                maxLength: 2000
+              criteria:
+                description: 'Required for choice: object of 2..16 labels to descriptions. Required for
+                  score: ordered array of 2..10 descriptions. Optional for noul: object with true and false
+                  descriptions. Descriptions are 1..500 characters; labels 1..64 characters.'
+            required:
+            - type
+            - instructions
+        assets: &id001
+          maxProperties: 4
+          patternProperties:
+            ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$:
+              additionalProperties: false
+              properties:
+                type:
+                  const: image
+                  type: string
+                format:
+                  enum:
+                  - png
+                  - jpg
+                  - jpeg
+                  type: string
+                data_base64:
+                  maxLength: 1398104
+                  minLength: 4
+                  type: string
+              required:
+              - type
+              - format
+              - data_base64
+              type: object
+          type: object
+      required:
+      - state
+      - questions
+    sdk_output_schema:
+      properties:
+        success:
+          default: true
+          type: boolean
+        model:
+          type: string
+        answers:
+          additionalProperties:
+            anyOf:
+            - properties:
+                type:
+                  const: noul
+                  type: string
+                noul:
+                  maximum: 1.0
+                  minimum: 0.0
+                  type: number
+              required:
+              - type
+              - noul
+              type: object
+            - properties:
+                type:
+                  const: choice
+                  type: string
+                choice:
+                  type: string
+                probabilities:
+                  additionalProperties:
+                    type: number
+                  type: object
+                confidence:
+                  maximum: 1.0
+                  minimum: 0.0
+                  type: number
+              required:
+              - type
+              - choice
+              - probabilities
+              - confidence
+              type: object
+            - properties:
+                type:
+                  const: score
+                  type: string
+                score:
+                  type: number
+                legend:
+                  additionalProperties:
+                    type: string
+                  type: object
+                probabilities:
+                  additionalProperties:
+                    type: number
+                  type: object
+                confidence:
+                  maximum: 1.0
+                  minimum: 0.0
+                  type: number
+              required:
+              - type
+              - score
+              - legend
+              - probabilities
+              - confidence
+              type: object
+          type: object
+        usage:
+          additionalProperties: false
+          properties:
+            input_tokens:
+              minimum: 0
+              type: integer
+            output_tokens:
+              minimum: 0
+              type: integer
+            credits:
+              minimum: 1
+              type: integer
+            complete:
+              default: true
+              type: boolean
+          required:
+          - input_tokens
+          - output_tokens
+          - credits
+          type: object
+      required:
+      - model
+      - answers
+      - usage
+      type: object
+    example_entries:
+    - state:
+        message: Please reset my password
+      questions:
+        route:
+          type: choice
+          instructions: Choose the support queue.
+          criteria:
+            account: Account access requests
+            billing: Payment and invoice requests
+    - state:
+        temperature_c: 22
+      questions:
+        comfortable:
+          type: noul
+          instructions: Is this a comfortable indoor temperature?
+    - state:
+        photo: 550e8400-e29b-41d4-a716-446655440000
+      questions:
+        blue:
+          type: noul
+          instructions: Does the image show a blue surface?
+      assets:
+        550e8400-e29b-41d4-a716-446655440000:
+          type: image
+          format: png
+          data_base64: iVBORw0KGgoAAAANSUhEUgAAARgAAAEYCAIAAAAI7H7bAAADIklEQVR4nO3TwQkAIRDAwNX+e74rwoAgMxXkkzXzDXBm3w6AFxgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCgJEgYCQIGAkCRoKAkSBgJAgYCQJGgoCRIGAkCBgJAkaCwA9aHQMvbW94kAAAAABJRU5ErkJggg==
+    sdk_tool_schema:
+      additionalProperties: false
+      properties:
+        state: {}
+        questions:
+          maxProperties: 16
+          minProperties: 1
+          patternProperties:
+            ^[A-Za-z0-9_-]{1,64}$:
+              oneOf:
+              - additionalProperties: false
+                properties:
+                  type:
+                    const: noul
+                    type: string
+                  instructions:
+                    maxLength: 2000
+                    minLength: 1
+                    type: string
+                  criteria:
+                    anyOf:
+                    - additionalProperties:
+                        maxLength: 500
+                        minLength: 1
+                        type: string
+                      propertyNames:
+                        enum:
+                        - 'true'
+                        - 'false'
+                      type: object
+                    - type: 'null'
+                    default: null
+                required:
+                - type
+                - instructions
+                type: object
+              - additionalProperties: false
+                properties:
+                  type:
+                    const: choice
+                    type: string
+                  instructions:
+                    maxLength: 2000
+                    minLength: 1
+                    type: string
+                  criteria:
+                    additionalProperties:
+                      maxLength: 500
+                      minLength: 1
+                      type: string
+                    maxProperties: 16
+                    minProperties: 2
+                    propertyNames:
+                      maxLength: 64
+                      minLength: 1
+                    type: object
+                required:
+                - type
+                - instructions
+                - criteria
+                type: object
+              - additionalProperties: false
+                properties:
+                  type:
+                    const: score
+                    type: string
+                  instructions:
+                    maxLength: 2000
+                    minLength: 1
+                    type: string
+                  criteria:
+                    items:
+                      maxLength: 500
+                      minLength: 1
+                      type: string
+                    maxItems: 10
+                    minItems: 2
+                    type: array
+                required:
+                - type
+                - instructions
+                - criteria
+                type: object
+          type: object
+        assets: *id001
+      required:
+      - state
+      - questions
+      type: object
   - id: ask
     anonymous_access: authenticated
     name_translation_key: ai.ask
@@ -95,7 +378,7 @@ skills:
       default_llms:
         # Jev handles bounded decisions directly through TypeSafe (OpenRouter fallback). Existing generative
         # models remain independent fallbacks for availability and free-form text.
-        decision_model: typesafe/jev-1.13
+        decision_model: typesafe/jev-1.14
         # Latency-sensitive routing primary. Recovery uses Mistral before the
         # alternate Vertex server so Google outages have independent recovery.
         preprocessing_model: google/gemini-3.5-flash-lite
@@ -105,7 +388,7 @@ skills:
         main_processing_complex: google/gemini-3.8-flash
         main_processing_complex_name: Gemini 3.8 Flash
         content_sanitization_model: openai/gpt-oss-safeguard-20b
-        prompt_injection_decision_model: typesafe/jev-1.13
+        prompt_injection_decision_model: typesafe/jev-1.14
         # Chat import uses the same model via Groq (primary), with OpenRouter as automatic fallback
         # when Groq hits its daily cap or returns the "json" tool-name quirk error (see llm_utils.py).
         chat_import_sanitization_model: openai/gpt-oss-safeguard-20b

@@ -1236,6 +1236,8 @@ def create_app() -> FastAPI:
     # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
     app.add_middleware(LoggingMiddleware)
+    from backend.core.api.app.middleware.ai_decide_body import AIDecideBodyLimitMiddleware
+    app.add_middleware(AIDecideBodyLimitMiddleware)
     from backend.core.api.app.services.storage_archive_client_compatibility import StorageArchiveClientCompatibilityMiddleware
     app.add_middleware(StorageArchiveClientCompatibilityMiddleware)
     app.add_middleware(SessionCookiePublicationMiddleware)

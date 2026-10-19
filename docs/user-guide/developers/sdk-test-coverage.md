@@ -47,6 +47,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `account` | `om.account.startExport()` | `om.account.start_export()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.storageFiles()` | `om.account.storage_files()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
 | `account` | `om.account.storageOverview()` | `om.account.storage_overview()` | namespace smoke: sdk.test.ts, account-export-sdk.test.ts, account-import-sdk.test.ts | namespace smoke: test_sdk.py, test_account_export.py, test_account_import.py |
+| `anonymous` | `om.anonymous.status()` | `om.anonymous.status()` | direct | direct |
 | `api_keys` | `om.apiKeys.create()` | `om.api_keys.create()` | direct | direct |
 | `api_keys` | `om.apiKeys.list()` | `om.api_keys.list()` | direct | direct |
 | `api_keys` | `om.apiKeys.revoke()` | `om.api_keys.revoke()` | direct | direct |

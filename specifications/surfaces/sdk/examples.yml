@@ -1,6 +1,25 @@
 schema_version: 1
 specification: surface.sdk@1
 
+sdk_anonymous:
+  - id: free-decision-and-chat
+    given: A new developer uses either SDK without an API key while the existing anonymous allowance can cover the request.
+    when: They inspect allowance status, call apps.ai.decide with a game state, and send a transient text chat.
+    then: Both SDKs use the public anonymous routes with the same stable guest identity and return the supported results without requiring signup or a payment method.
+  - id: account-boundary-and-explicit-free-mode
+    given: An environment contains an API key but the developer explicitly selects anonymous mode.
+    when: They call an eligible skill and then try to save a chat or access private account data.
+    then: The skill uses the guest route without the environment key, while private account work is rejected; an explicitly supplied key conflicting with anonymous mode is also rejected, and authenticated errors never trigger guest fallback.
+sdk_anonymous_failures:
+  - id: allowance-refusal-is-actionable
+    given: A guest has used their allowance or the shared server budget cannot cover a request.
+    when: They call a skill or send a chat through either SDK.
+    then: OpenMatesSignupRequiredError exposes the reason and a clear create-an-account message, without implying inference or skill processing failed.
+  - id: processing-failure-stays-distinct
+    given: The free allowance is available but a provider or the usage meter returns an unavailable error.
+    when: Either SDK receives that response.
+    then: It preserves the processing error as a distinct API failure and never presents it as an exhausted allowance or retries anonymously with a different identity.
+
 sdk_auth:
   - id: stable-device-id-without-secret-material
     input:

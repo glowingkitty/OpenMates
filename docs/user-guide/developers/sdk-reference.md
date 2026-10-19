@@ -50,6 +50,12 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.account.storageFiles()` | `om.account.storage_files()` | `input` | `input` | `object` |
 | `om.account.storageOverview()` | `om.account.storage_overview()` | `none` | `none` | `object` |
 
+## `anonymous`
+
+| npm | pip | npm inputs | pip inputs | Return |
+| --- | --- | --- | --- | --- |
+| `om.anonymous.status()` | `om.anonymous.status()` | `none` | `none` | `object` |
+
 ## `api_keys`
 
 | npm | pip | npm inputs | pip inputs | Return |

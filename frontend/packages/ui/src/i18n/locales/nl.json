@@ -1166,6 +1166,20 @@
             "text": "Help me een professionele e-mail te schrijven aan mijn baas over een loonsverhoging"
           }
         }
+      },
+      "decide": {
+        "text": "Beslissen",
+        "description": {
+          "text": "Kies een optie op basis van je context."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Moet mijn spelpersonage met weinig levenspunten zich terugtrekken of doorvechten?"
+          },
+          "2": {
+            "text": "Kies een ondersteuningscategorie voor dit verzoek: facturering, technisch of account."
+          }
+        }
       }
     },
     "audio": {

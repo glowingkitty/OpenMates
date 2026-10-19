@@ -1,0 +1,41 @@
+schema_version: 2
+profile: concise
+id: anonymous-decisions-sdk
+title: Anonymous decisions and SDK access
+status: implementing
+goal: >-
+  Implement ai.decide and anonymous access in both SDKs using the existing free
+  usage budget, clearly explain when signup is required, and add English and
+  German developer blog posts with language-specific slugs.
+authorization:
+  source: Explicit user implementation request in Codex chat 01a1447c-df71-7c32-8f33-8b536ffa3fb1 on 2026-10-16.
+  decisions:
+    - Reuse the existing anonymous daily, weekly, monthly, local-ID and IP budgets.
+    - No workshop passes, new free balances, or caller-selected inference providers.
+    - Add a bounded inline ai.decide skill and anonymous SDK chat and eligible skills.
+    - Preserve authenticated account and encryption boundaries.
+    - Budget refusals must clearly require signup, without implying processing failed.
+    - Publish English and German versions with different localized slugs.
+    - User approved specification deployment and requested Jev 1.14 with inline image processing on 2026-10-19.
+scope:
+  in:
+    - Typed noul, choice and score questions using the existing server-configured Jev transport.
+    - Jev 1.14 default routing and bounded transient PNG/JPEG assets through the direct TypeSafe image transport.
+    - Conservative reservation before provider work and settlement with existing catalog token pricing.
+    - Keyless npm and pip execution, stable guest identity, allowance status and typed signup-required responses.
+    - Existing CLI behavior, clear quota messages and generated ai.decide command coverage.
+    - Bilingual developer article, localized route lookup, canonical URLs and reciprocal language links.
+  out:
+    - New account, stored-file, connected-account or durable anonymous capabilities.
+    - Remote image URL fetching, bounding boxes, audio, video and long-context modes.
+    - New decision embeds or Apple UI changes.
+    - Production rollout, package publication, email or social distribution.
+verification:
+  required:
+    - Focused backend, SDK, CLI and publication unit checks and generated wrapper consistency.
+    - Isolated CI REST authorization and quota boundaries plus localized article navigation.
+    - Real dev inference through REST, CLI and both SDKs with disposable guest identity/state when the existing allowance admits the request.
+  notes:
+    - Real AI inference remains outside CI; no shared free-budget configuration is changed for tests.
+    - A conservative reservation may refuse a request when the remaining allowance cannot cover its maximum bounded work.
+    - Preserve source/run identity and deliver the selected existing E2E recordings.

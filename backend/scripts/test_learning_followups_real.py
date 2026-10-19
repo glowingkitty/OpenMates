@@ -46,7 +46,7 @@ async def main():
                 message_history=[],
                 teaching_context={"focus": {"phase_id": "independent_check"}},
                 secrets_manager=secrets,
-                model_id="typesafe/jev-1.13",
+                model_id="typesafe/jev-1.14",
             )
             results.append(
                 {

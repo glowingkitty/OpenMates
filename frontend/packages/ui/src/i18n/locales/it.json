@@ -1166,6 +1166,20 @@
             "text": "Aiutami a scrivere un'email professionale al mio capo per un aumento"
           }
         }
+      },
+      "decide": {
+        "text": "Decidi",
+        "description": {
+          "text": "Scegli un’opzione in base al tuo contesto."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Il mio personaggio con poca salute dovrebbe ritirarsi o continuare a combattere?"
+          },
+          "2": {
+            "text": "Scegli una categoria di assistenza per questa richiesta: fatturazione, tecnica o account."
+          }
+        }
       }
     },
     "audio": {

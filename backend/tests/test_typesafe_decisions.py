@@ -33,13 +33,15 @@ class FakeSecrets:
 async def test_parses_all_decision_answer_types() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "https://api.typesafe.ai/v1/systemone"
-        assert json.loads(request.content)["model"] == "jev-1.13.0"
+        assert json.loads(request.content)["model"] == "jev-1.14.0"
         assert request.headers["authorization"] == "Bearer test-key"
         assert "HTTP-Referer" not in request.headers
+        assert "TypeSafe-Danger-Zone-Images" not in request.headers
+        assert "TypeSafe-Danger-Zone-Long-Context" not in request.headers
         return httpx.Response(
             200,
             json={
-                "model": "jev-1.13.0",
+                "model": "jev-1.14.0",
                 "answers": {
                     "route": {"type": "choice", "choice": "code", "probabilities": {"code": 0.9, "general": 0.1}, "confidence": 0.8},
                     "unsafe": {"type": "noul", "noul": 0.03},
@@ -120,7 +122,7 @@ class SeparateSecrets:
 
 
 QUESTIONS = {"ok": {"type": "noul", "instructions": "ok?"}}
-ANSWER = {"model": "jev-1.13.0", "answers": {"ok": {"type": "noul", "noul": 0.9}}, "usage": {"input_tokens": 10, "output_tokens": 2}}
+ANSWER = {"model": "jev-1.14.0", "answers": {"ok": {"type": "noul", "noul": 0.9}}, "usage": {"input_tokens": 10, "output_tokens": 2}}
 
 
 def test_jev_telemetry_tariff_matches_provider_catalog() -> None:
@@ -150,7 +152,7 @@ async def test_jev_cost_telemetry_reports_direct_tokens_without_private_payload(
     events = _cost_events(caplog)
     assert len(events) == 1
     assert events[0]["inference_host"] == "typesafe"
-    assert events[0]["model_id"] == "jev-1.13.0"
+    assert events[0]["model_id"] == "jev-1.14.0"
     assert events[0]["input_tokens"] == 1000
     assert events[0]["output_tokens"] == 0
     assert events[0]["supplier_cost_usd"] == pytest.approx(0.000042)
@@ -225,7 +227,7 @@ async def test_primary_outage_uses_separate_router_credentials(failure) -> None:
         assert request.url.host == "openrouter.ai"
         assert request.headers["authorization"] == "Bearer router-key"
         assert request.headers["HTTP-Referer"] == "https://openmates.org"
-        assert json.loads(request.content)["model"] == "typesafe/jev-1.13"
+        assert json.loads(request.content)["model"] == "typesafe/jev-1.14"
         return httpx.Response(200, json=ANSWER)
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler), timeout=45) as http_client:

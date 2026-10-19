@@ -1094,6 +1094,11 @@ class AskSkill(BaseSkill):
             # Detect and handle errors in the response content
             # Error messages from the task are prefixed with "Error:" and are sent via Redis stream
             # These should be returned as proper OpenAI error responses, not as assistant messages
+            if getattr(internal_request, "is_anonymous", False) and final_metadata.get("failure_reason") == "anonymous_usage_limit":
+                raise HTTPException(status_code=429, detail={
+                    "code": "anonymous_usage_limit", "signup_required": True,
+                    "message": "The free allowance is unavailable or cannot cover this request. Create an account to keep using OpenMates.",
+                })
             error_content = response_content.strip()
             if error_content.startswith("Error:"):
                 # Extract the error message (remove "Error: " prefix)

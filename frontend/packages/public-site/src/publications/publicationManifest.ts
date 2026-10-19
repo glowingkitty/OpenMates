@@ -5,6 +5,7 @@ type ManifestKind = 'blog' | 'social';
 type SocialPlatform = 'bluesky' | 'instagram' | 'mastodon';
 
 export interface PublicManifestCopy {
+	slug?: string;
 	title: string;
 	description: string;
 	bodyMarkdown: string;
@@ -40,7 +41,7 @@ export interface PublicPublicationManifest {
 
 const ROOT_KEYS = new Set(['schemaVersion', 'revision', 'generatedAt', 'publications']);
 const RECORD_KEYS = new Set(['id', 'slug', 'kind', 'publishedAt', 'updatedAt', 'author', 'locales', 'media', 'socialLinks']);
-const COPY_KEYS = new Set(['title', 'description', 'bodyMarkdown']);
+const COPY_KEYS = new Set(['slug', 'title', 'description', 'bodyMarkdown']);
 const MEDIA_KEYS = new Set(['type', 'url', 'alt', 'posterUrl']);
 const SOCIAL_LINK_KEYS = new Set(['platform', 'label', 'href']);
 const MEDIA_HOSTS = new Set(['openmates-buffer-media.nbg1.your-objectstorage.com']);
@@ -68,6 +69,18 @@ function requiredString(value: unknown, label: string): string {
 	return value;
 }
 
+function safeSlug(value: unknown, label: string): string {
+	const slug = requiredString(value, label);
+	if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+		throw new Error(`${label} must be a lowercase URL slug`);
+	}
+	return slug;
+}
+
+export function localizedPublicationSlug(record: PublicManifestRecord, locale: ManifestLocale): string {
+	return (record.locales[locale] ?? record.locales.en)?.slug ?? record.slug;
+}
+
 function isoDate(value: unknown, label: string): string {
 	const parsed = requiredString(value, label);
 	if (!/^\d{4}-\d{2}-\d{2}T/.test(parsed) || Number.isNaN(Date.parse(parsed))) {
@@ -92,6 +105,7 @@ function parseCopy(value: unknown, label: string): PublicManifestCopy {
 	const copy = objectValue(value, label);
 	exactKeys(copy, COPY_KEYS, label);
 	return {
+		...(copy.slug !== undefined ? { slug: safeSlug(copy.slug, `${label}.slug`) } : {}),
 		title: requiredString(copy.title, `${label}.title`),
 		description: requiredString(copy.description, `${label}.description`),
 		bodyMarkdown: requiredString(copy.bodyMarkdown, `${label}.bodyMarkdown`)
@@ -148,7 +162,7 @@ function parseRecord(value: unknown, index: number): PublicManifestRecord {
 
 	return {
 		id: requiredString(record.id, `${label}.id`),
-		slug: requiredString(record.slug, `${label}.slug`),
+		slug: safeSlug(record.slug, `${label}.slug`),
 		kind,
 		publishedAt: isoDate(record.publishedAt, `${label}.publishedAt`),
 		updatedAt: isoDate(record.updatedAt, `${label}.updatedAt`),
@@ -169,9 +183,13 @@ export function parsePublicPublicationManifest(value: unknown): PublicPublicatio
 	const slugs = new Set<string>();
 	for (const publication of publications) {
 		if (ids.has(publication.id)) throw new Error(`duplicate publication id: ${publication.id}`);
-		if (slugs.has(publication.slug)) throw new Error(`duplicate publication slug: ${publication.slug}`);
 		ids.add(publication.id);
-		slugs.add(publication.slug);
+		for (const locale of ['en', 'de'] as const) {
+			const slug = localizedPublicationSlug(publication, locale);
+			const route = `${publication.kind}:${locale}:${slug}`;
+			if (slugs.has(route)) throw new Error(`duplicate publication slug: ${route}`);
+			slugs.add(route);
+		}
 	}
 	return {
 		schemaVersion: 1,

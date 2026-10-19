@@ -1006,6 +1006,22 @@ async def call_app_skill(
     sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
     skill_input_data = strip_request_security_controls(sanitized_input_data)
 
+    if (app_id, skill_id) == ("ai", "decide"):
+        # Public developer/session REST surface; existing authentication and
+        # API-key scope checks above apply. No account content is loaded.
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        from pydantic import ValidationError
+        try:
+            validated = DecideRequest.model_validate(skill_input_data)
+            quote = decision_quote(has_assets=bool(validated.assets))
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_decision_request", "message": "Provide bounded state and valid typed questions."}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_pricing_unavailable"}) from exc
+        await require_api_key_budget_for_charge(
+            directus_service, user_info=user_info, requested_credits=quote,
+        )
+
     # Build the request body the same way the old HTTP path did: tool_schema
     # structure (e.g. {"requests": [...]}) plus underscore-prefixed metadata.
     request_payload = skill_input_data.copy() if isinstance(skill_input_data, dict) else {}
@@ -1198,6 +1214,14 @@ async def calculate_skill_credits(
         Number of credits to charge
     """
     resolved_app_id = app_id or getattr(app_metadata, "id", "")
+    if (resolved_app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import decision_result_credits
+        try:
+            # Only the server-produced result is trusted; caller input never
+            # determines token usage or credits for this skill.
+            return decision_result_credits(result_data, has_assets=bool(input_data.get("assets")))
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_usage_unavailable"}) from exc
     declared_result_credits = get_variable_result_credits(
         resolved_app_id,
         skill_id,
@@ -1388,6 +1412,16 @@ def get_variable_preflight_reserved_credits(
     skill_id: str,
     input_data: Dict[str, Any],
 ) -> int:
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        from pydantic import ValidationError
+        try:
+            validated = DecideRequest.model_validate(input_data)
+            return decision_quote(has_assets=bool(validated.assets))
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_decision_request"}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_pricing_unavailable"}) from exc
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return 0
     if app_id == "code" and skill_id == "image_to_html":

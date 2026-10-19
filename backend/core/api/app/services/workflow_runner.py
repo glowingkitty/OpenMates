@@ -1153,7 +1153,7 @@ async def _charge_workflow_ai_check(
             usage_details={
                 "source": source,
                 "units_processed": 1,
-                "model_used": "typesafe/jev-1.13",
+                "model_used": "typesafe/jev-1.14",
                 # This unit is prepaid, before the successful transport is known.
                 "server_provider": "Jev",
                 "server_region": "unknown",

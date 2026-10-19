@@ -40,13 +40,15 @@ function writeJson(response: ServerResponse, status: number, value: unknown): vo
 
 async function withAnonymousMockApi<T>(
   options: AnonymousMockOptions,
-  run: (params: { apiUrl: string; tempHome: string; requests: Record<string, unknown>[]; skillRequests: Array<{ body: Record<string, unknown>; anonymousId: string | undefined }> }) => T | Promise<T>,
+  run: (params: { apiUrl: string; tempHome: string; requests: Record<string, unknown>[]; httpRequests: Array<{ path: string; authorization: string | undefined }>; skillRequests: Array<{ body: Record<string, unknown>; anonymousId: string | undefined }> }) => T | Promise<T>,
 ): Promise<T> {
   const requests: Record<string, unknown>[] = [];
+  const httpRequests: Array<{ path: string; authorization: string | undefined }> = [];
   const skillRequests: Array<{ body: Record<string, unknown>; anonymousId: string | undefined }> = [];
   const tempHome = join(tmpdir(), `openmates-cli-anonymous-free-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(tempHome, { recursive: true });
   const server = createServer(async (request, response) => {
+    httpRequests.push({ path: request.url ?? "", authorization: request.headers.authorization });
     try {
       if (request.method === "GET" && request.url === "/v1/anonymous/free-usage/status") {
         writeJson(response, options.statusCode ?? 200, options.statusBody ?? {
@@ -71,7 +73,7 @@ async function withAnonymousMockApi<T>(
         });
         return;
       }
-      if (request.method === "POST" && request.url === "/v1/anonymous/apps/web/skills/search") {
+      if (request.method === "POST" && ["/v1/anonymous/apps/web/skills/search", "/v1/anonymous/apps/ai/skills/decide"].includes(request.url ?? "")) {
         const body = await readJsonBody(request);
         skillRequests.push({ body, anonymousId: request.headers["x-openmates-anonymous-id"] as string | undefined });
         writeJson(response, options.skillStatusCode ?? 200, options.skillBody ?? {
@@ -88,7 +90,7 @@ async function withAnonymousMockApi<T>(
   const address = server.address();
   assert.ok(address && typeof address === "object");
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, tempHome, requests, skillRequests });
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, tempHome, requests, httpRequests, skillRequests });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -100,7 +102,7 @@ async function runCliJson(args: string[], env: Record<string, string>): Promise<
   const { stdout } = await execFileAsync("node", ["dist/cli.js", ...args], {
     cwd: PACKAGE_ROOT,
     encoding: "utf-8",
-    env: { ...process.env, TERM: "dumb", ...env },
+    env: { ...process.env, OPENMATES_API_KEY: "", TERM: "dumb", ...env },
     timeout: 15_000,
   });
   return JSON.parse(stdout) as Record<string, unknown>;
@@ -111,7 +113,7 @@ async function runCliExpectError(args: string[], env: Record<string, string>): P
     await execFileAsync("node", ["dist/cli.js", ...args], {
       cwd: PACKAGE_ROOT,
       encoding: "utf-8",
-      env: { ...process.env, TERM: "dumb", ...env },
+      env: { ...process.env, OPENMATES_API_KEY: "", TERM: "dumb", ...env },
       timeout: 15_000,
     });
   } catch (error) {
@@ -147,7 +149,67 @@ describe("anonymous free usage CLI", () => {
           { HOME: tempHome, USERPROFILE: tempHome },
         );
         assert.match(stderr, /Create an account to keep using OpenMates/);
+        assert.match(stderr, /signup required/i);
+        assert.doesNotMatch(stderr, /failed/i);
         assert.equal(skillRequests.length, 1);
+      },
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=ai-decide.request.bounded,ai-decide.answers.typed
+  it("dispatches generated ai.decide with nested questions and the persisted guest identity", async () => {
+    const input = { state: { health: 10, enemyNearby: true }, questions: { retreat: { type: "noul", instructions: "Should the player retreat?" } } };
+    await withAnonymousMockApi(
+      { skillBody: { success: true, data: { success: true, model: "test-decision-model", answers: { retreat: { type: "noul", noul: 0.9 } }, usage: { input_tokens: 100, output_tokens: 5, credits: 1, complete: true } }, credits_charged: 1 } },
+      async ({ apiUrl, tempHome, skillRequests }) => {
+        const result = await runCliJson(["apps", "ai", "decide", "--input", JSON.stringify(input), "--json", "--api-url", apiUrl], { HOME: tempHome, USERPROFILE: tempHome });
+        assert.equal(result.credits_charged, 1);
+        assert.deepEqual(skillRequests[0].body, input);
+        assert.ok(skillRequests[0].anonymousId);
+      },
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=ai-decide.images.inline,sdk.anonymous.execution
+  it("forwards generated ai.decide --input image assets unchanged without auth or allowance preflights", async () => {
+    const imageId = "4a3a8538-f152-423f-9fb3-fc9dce5db19c";
+    // Synthetic base64 is a transport fixture, not evidence of image validation.
+    const input = {
+      state: { screenshot_id: imageId, player: { health: 10 } },
+      questions: { retreat: { type: "noul", instructions: `Inspect screenshot ${imageId}. Should the player retreat?` } },
+      assets: { [imageId]: { type: "image", format: "png", data_base64: "AQIDBA==" } },
+    };
+    await withAnonymousMockApi(
+      { skillBody: { success: true, data: { answers: { retreat: { type: "noul", noul: 0.9 } } }, credits_charged: 1 } },
+      async ({ apiUrl, tempHome, skillRequests, httpRequests }) => {
+        const args = ["apps", "ai", "decide", "--input", JSON.stringify(input), "--json", "--api-url", apiUrl];
+        for (let turn = 0; turn < 2; turn++) {
+          const result = await runCliJson(args, { HOME: tempHome, USERPROFILE: tempHome });
+          assert.equal(result.credits_charged, 1);
+        }
+        assert.deepEqual(httpRequests.map(request => request.path), [
+          "/v1/anonymous/apps/ai/skills/decide", "/v1/anonymous/apps/ai/skills/decide",
+        ]);
+        assert.ok(httpRequests.every(request => request.authorization === undefined));
+        assert.equal(skillRequests.length, 2);
+        const diskState = JSON.parse(readFileSync(join(tempHome, ".openmates", "anonymous.json"), "utf-8")) as { anonymousId?: string };
+        assert.ok(diskState.anonymousId);
+        for (const request of skillRequests) {
+          assert.deepEqual(request.body, input);
+          assert.equal(request.anonymousId, diskState.anonymousId);
+        }
+      },
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=ai-decide.failures.distinct
+  it("keeps real provider failures distinct from signup-required allowance refusal", async () => {
+    await withAnonymousMockApi(
+      { skillStatusCode: 503, skillBody: { detail: { code: "decision_provider_unavailable", message: "Decision provider unavailable. Please try again later." } } },
+      async ({ apiUrl, tempHome }) => {
+        const stderr = await runCliExpectError(["apps", "web", "search", "--query", "OpenMates", "--json", "--api-url", apiUrl], { HOME: tempHome, USERPROFILE: tempHome });
+        assert.match(stderr, /provider unavailable/i);
+        assert.doesNotMatch(stderr, /Create an account/i);
       },
     );
   });

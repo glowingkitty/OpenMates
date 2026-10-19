@@ -88,7 +88,7 @@ async def filter_learning_followups(
             },
             questions=questions,
             secrets_manager=secrets_manager,
-            model_id=model_id or "typesafe/jev-1.13",
+            model_id=model_id or "typesafe/jev-1.14",
             max_retries=0,
         )
         return [

@@ -2233,6 +2233,11 @@ async def _resolve_skill_billing_config(
         logger.warning("%s Skill '%s' not found in app '%s'; billing is unavailable", log_prefix, skill_id, app_id)
         return None, None
 
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import decision_configuration
+        _, pricing = decision_configuration()
+        return skill_def, pricing
+
     if skill_def.pricing:
         return skill_def, skill_def.pricing.model_dump(exclude_none=True)
 
@@ -2282,6 +2287,10 @@ def _get_variable_preflight_reserved_credits(
     skill_id: str,
     parsed_args: Dict[str, Any],
 ) -> Optional[List[int]]:
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        validated = DecideRequest.model_validate(parsed_args)
+        return [decision_quote(has_assets=bool(validated.assets))]
     if (app_id, skill_id) not in VARIABLE_RESULT_BILLING_SKILLS:
         return None
     requests = parsed_args.get("requests")
@@ -2429,7 +2438,17 @@ async def _settle_anonymous_skill_quote(
     discovered_apps_metadata: Dict[str, AppYAML],
     reserved_operation_ids: list[str],
     log_prefix: str,
+    failure: Optional[Exception] = None,
 ) -> int:
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecisionExecutionError, decision_quote
+        credits = failure.incurred_credits if isinstance(failure, DecisionExecutionError) else decision_quote(has_assets=bool(parsed_args.get("assets")))
+        for operation_id in reserved_operation_ids:
+            if credits > 0:
+                await _finalize_anonymous_charge(charge_id=operation_id, actual_credits=credits)
+            else:
+                await _release_anonymous_operation(operation_id=operation_id, reason="decision_not_dispatched")
+        return credits
     skill_definition, pricing_config = await _resolve_skill_billing_config(
         app_id=app_id,
         skill_id=skill_id,
@@ -3262,7 +3281,11 @@ async def _charge_skill_credits(
             provider attribution before results are flattened for model inference.
     """
     charged_operation_ids: set[str] = set()
-    anonymous_settlement_failed = False
+    # A failed bounded decision may already have reached the provider. Keep its
+    # admitted hold until expiry unless authoritative usage settles it below.
+    anonymous_settlement_failed = bool(
+        getattr(request_data, "is_anonymous", False) and (app_id, skill_id) == ("ai", "decide")
+    )
     try:
         skill_def, pricing_config = await _resolve_skill_billing_config(
             app_id=app_id,
@@ -3350,7 +3373,13 @@ async def _charge_skill_credits(
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no successful requests, skipping billing entirely.")
             return
         
-        result_declared_charge_items = _get_result_declared_charge_items(app_id, skill_id, results)
+        if (app_id, skill_id) == ("ai", "decide"):
+            from backend.shared.python_utils.ai_decide import decision_result_credits
+            decision_result = provider_result_data if provider_result_data is not None else (results[0] if len(results) == 1 else None)
+            decision_credits = decision_result_credits(decision_result, has_assets=bool(parsed_args.get("assets")))
+            result_declared_charge_items = [(0, decision_credits, {})]
+        else:
+            result_declared_charge_items = _get_result_declared_charge_items(app_id, skill_id, results)
         if result_declared_charge_items is not None:
             if not result_declared_charge_items:
                 logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}': no result-declared successful charges, skipping billing.")
@@ -6273,7 +6302,7 @@ async def handle_main_processing(
     last_context_identity = None
     pending_direction = None
     applied_context_revision = 0
-    decision_model = ((skill_config_dict or {}).get("default_llms") or {}).get("decision_model") or "typesafe/jev-1.13"
+    decision_model = ((skill_config_dict or {}).get("default_llms") or {}).get("decision_model") or "typesafe/jev-1.14"
     review_model = ((skill_config_dict or {}).get("default_llms") or {}).get("preprocessing_model")
 
     async def refresh_agentic_context(*, initial=False):
@@ -9943,6 +9972,7 @@ async def handle_main_processing(
                                 discovered_apps_metadata=discovered_apps_metadata,
                                 reserved_operation_ids=reserved_skill_operation_ids,
                                 log_prefix=log_prefix,
+                                failure=skill_error,
                             )
                         finally:
                             reserved_skill_operation_ids = []

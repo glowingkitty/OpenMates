@@ -1166,6 +1166,20 @@
             "text": "Pomóż mi napisać profesjonalny email do szefa o podwyżkę"
           }
         }
+      },
+      "decide": {
+        "text": "Zdecyduj",
+        "description": {
+          "text": "Wybierz opcję na podstawie swojego kontekstu."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Czy moja postać w grze z małą liczbą punktów zdrowia powinna się wycofać czy walczyć dalej?"
+          },
+          "2": {
+            "text": "Wybierz kategorię pomocy dla tego zgłoszenia: rozliczenia, techniczna lub konto."
+          }
+        }
       }
     },
     "audio": {

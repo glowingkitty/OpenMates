@@ -44,11 +44,26 @@ logger = logging.getLogger(__name__)
 MAX_ANONYMOUS_MESSAGE_CHARS = 20_000
 MAX_ANONYMOUS_HISTORY_MESSAGES = 50
 ANONYMOUS_INFERENCE_ERROR_MESSAGE = "Anonymous inference failed. Please try again."
-ANONYMOUS_USAGE_LIMIT_MESSAGE = "Create an account to keep using OpenMates."
+ANONYMOUS_USAGE_LIMIT_MESSAGE = "The free allowance is unavailable or cannot cover this request. Create an account to keep using OpenMates."
 ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE = 60
 ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE = 20
 ANONYMOUS_POSTPROCESS_MAX_OUTPUT_TOKENS = 2048
 MAX_ANONYMOUS_SKILL_BODY_BYTES = 20_000
+
+
+def _allowance_denial(reason: str | None) -> dict[str, Any]:
+    return {"code": reason or "budget_exhausted", "signup_required": True,
+            "message": ANONYMOUS_USAGE_LIMIT_MESSAGE}
+
+
+async def _open_anonymous_request(service: Any, **kwargs: Any) -> Any:
+    try:
+        admission = await service.open_request(**kwargs)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"code": "anonymous_meter_unavailable", "message": "Anonymous usage meter unavailable."}) from exc
+    if not admission.accepted:
+        raise HTTPException(status_code=429, detail=_allowance_denial(admission.reason))
+    return admission
 
 EMBED_REFERENCE_PATTERN = re.compile(
     r'```(?:json|json_embed)\s*\n\s*\{[^`]*("embed_id"|"type"\s*:\s*"(?:image|audio|pdf|document|file)")',
@@ -214,6 +229,17 @@ def _anonymous_skill_quote(request: Request, app_id: str, skill: Any, body: dict
     from backend.core.api.app.utils.config_manager import ConfigManager
     from backend.shared.python_utils.billing_utils import calculate_total_credits
 
+    if (app_id, skill.id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import DecideRequest, decision_quote
+        from pydantic import ValidationError
+        try:
+            validated = DecideRequest.model_validate(body)
+            return decision_quote(has_assets=bool(validated.assets))
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail={"code": "invalid_decision_request", "message": "Provide bounded state and valid typed questions."}) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=503, detail={"code": "decision_pricing_unavailable"}) from exc
+
     pricing = skill.pricing.model_dump(exclude_none=True) if skill.pricing else None
     if pricing and "per_request_credits" in pricing:
         pricing = {"per_unit": {"credits": pricing["per_request_credits"]}}
@@ -297,7 +323,7 @@ async def _enforce_local_rate_limit(
     if not allowed:
         raise HTTPException(
             status_code=429,
-            detail={"code": "rate_limited", "message": "Create an account to keep using OpenMates."},
+            detail=_allowance_denial("rate_limited"),
         )
 
 
@@ -339,7 +365,9 @@ async def anonymous_app_skill_availability(
     anonymous_id = request.headers.get("X-OpenMates-Anonymous-ID", "")
     if not 1 <= len(anonymous_id) <= 128:
         raise HTTPException(status_code=422, detail={"code": "anonymous_id_required"})
-    if len(json.dumps(body).encode("utf-8")) > MAX_ANONYMOUS_SKILL_BODY_BYTES:
+    from backend.shared.providers.typesafe.assets import MAX_DECISION_BODY_BYTES
+    body_limit = MAX_DECISION_BODY_BYTES if (app_id, skill_id) == ("ai", "decide") else MAX_ANONYMOUS_SKILL_BODY_BYTES
+    if len(json.dumps(body).encode("utf-8")) > body_limit:
         return AnonymousSkillAvailabilityResponse(allowed=False, reason="skill_input_too_large")
     try:
         _reject_anonymous_skill_references(body)
@@ -401,7 +429,9 @@ async def anonymous_app_skill(
     anonymous_id = request.headers.get("X-OpenMates-Anonymous-ID", "")
     if not 1 <= len(anonymous_id) <= 128:
         raise HTTPException(status_code=422, detail={"code": "anonymous_id_required"})
-    if len(json.dumps(body).encode("utf-8")) > MAX_ANONYMOUS_SKILL_BODY_BYTES:
+    from backend.shared.providers.typesafe.assets import MAX_DECISION_BODY_BYTES
+    body_limit = MAX_DECISION_BODY_BYTES if (app_id, skill_id) == ("ai", "decide") else MAX_ANONYMOUS_SKILL_BODY_BYTES
+    if len(json.dumps(body).encode("utf-8")) > body_limit:
         raise HTTPException(status_code=413, detail={"code": "skill_input_too_large"})
     _reject_anonymous_skill_references(body)
     from backend.shared.python_utils.anonymous_skill_policy import has_single_anonymous_provider_request
@@ -426,6 +456,10 @@ async def anonymous_app_skill(
         raise HTTPException(status_code=404, detail={"code": "skill_not_found"})
     assert_rest_skill_execution_allowed(registry, app_id, skill_id)
     validate_anonymous_skill_allowed(app_id, skill.model_dump())
+    if (app_id, skill_id) == ("ai", "decide"):
+        # Reject oversize/extra caller fields before sanitization or stripping
+        # controls can shrink or discard any part of the public request.
+        _anonymous_skill_quote(request, app_id, skill, body)
     sanitized_body, _ = sanitize_text_payload_for_ascii_smuggling(body, log_prefix="[anonymous skill]")
     sanitized_body = strip_request_security_controls(sanitized_body)
     quoted_credits = _anonymous_skill_quote(request, app_id, skill, sanitized_body)
@@ -436,24 +470,42 @@ async def anonymous_app_skill(
         max_requests=ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE,
     )
     request_id = str(uuid.uuid4())
-    admission = await service.open_request(
+    await _open_anonymous_request(service,
         request_id=request_id, anonymous_id=anonymous_id,
         ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
     )
-    if not admission.accepted:
-        raise HTTPException(status_code=429, detail={"code": admission.reason or "budget_exhausted"})
     operation_id = str(uuid.uuid4())
-    reservation = await service.reserve_operation(
-        parent_request_id=request_id, operation_id=operation_id,
-        charge_id=operation_id, quoted_credits=quoted_credits,
-    )
+    try:
+        reservation = await service.reserve_operation(
+            parent_request_id=request_id, operation_id=operation_id,
+            charge_id=operation_id, quoted_credits=quoted_credits,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"code": "anonymous_meter_unavailable"}) from exc
     if not reservation.accepted:
-        raise HTTPException(status_code=429, detail={"code": reservation.reason or "budget_exhausted"})
+        raise HTTPException(status_code=429, detail=_allowance_denial(reservation.reason))
 
-    # No account, chat, message, embed, or Vault context is passed to the skill.
+    # No account, chat, message, embed, or user Vault context is passed.
+    # The decision provider may use the server's service credentials only.
+    dispatch_body = sanitized_body
+    if (app_id, skill_id) == ("ai", "decide"):
+        server_secrets = getattr(request.app.state, "secrets_manager", None)
+        if server_secrets is not None:
+            dispatch_body = {**sanitized_body, "_secrets_manager": server_secrets}
     # Keep ambiguous provider attempts reserved for the normal expiry path.
-    with central_app_skill_dispatch(), anonymous_inline_execution():
-        result = await registry.dispatch_skill(app_id, skill_id, sanitized_body)
+    from backend.shared.python_utils.ai_decide import DecisionExecutionError
+    try:
+        with central_app_skill_dispatch(), anonymous_inline_execution():
+            result = await registry.dispatch_skill(app_id, skill_id, dispatch_body)
+    except DecisionExecutionError as exc:
+        try:
+            if exc.incurred_credits > 0:
+                await service.finalize_charge(operation_id, actual_credits=exc.incurred_credits)
+            else:
+                await service.release_reservation(operation_id, reason="decision_not_dispatched")
+        except Exception as meter_exc:
+            raise HTTPException(status_code=503, detail={"code": "anonymous_meter_unavailable"}) from meter_exc
+        raise
     if isinstance(result, dict) and (
         result.get("task_id") or result.get("status") in {"scheduled", "queued", "processing"}
     ):
@@ -476,8 +528,22 @@ async def anonymous_app_skill(
     if not _anonymous_skill_result_succeeded(result):
         await service.release_reservation(operation_id, reason="skill_failed")
         return {"success": False, "data": safe_result, "credits_charged": 0}
-    await service.finalize_charge(operation_id, actual_credits=quoted_credits)
-    return {"success": True, "data": safe_result, "credits_charged": quoted_credits}
+    actual_credits = quoted_credits
+    if (app_id, skill_id) == ("ai", "decide"):
+        from backend.shared.python_utils.ai_decide import decision_result_credits
+        try:
+            actual_credits = decision_result_credits(result, has_assets=bool(body.get("assets")))
+        except ValueError as exc:
+            # A malformed successful result cannot erase already-incurred work.
+            await service.finalize_charge(operation_id, actual_credits=quoted_credits)
+            raise HTTPException(status_code=503, detail={"code": "decision_usage_unavailable"}) from exc
+        if actual_credits > quoted_credits:
+            raise HTTPException(status_code=503, detail={"code": "decision_usage_unavailable"})
+    try:
+        await service.finalize_charge(operation_id, actual_credits=actual_credits)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={"code": "anonymous_meter_unavailable"}) from exc
+    return {"success": True, "data": safe_result, "credits_charged": actual_credits}
 
 
 def _anonymous_sse_event(payload: dict[str, Any]) -> str:
@@ -600,17 +666,13 @@ async def anonymous_chat_stream(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"code": "invalid_learning_mode", "message": str(exc)}) from exc
 
+    # Admit before opening an SSE response so all admission denials retain 429.
+    admission = await _open_anonymous_request(
+        service, request_id=request_id, anonymous_id=payload.anonymous_id,
+        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+    )
     if not _wants_event_stream(request):
-        reservation = await service.open_request(
-            request_id=request_id,
-            anonymous_id=payload.anonymous_id,
-            ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
-        )
-        if not reservation.accepted:
-            raise HTTPException(
-                status_code=429,
-                detail={"code": reservation.reason or "budget_exhausted", "message": "Create an account to keep using OpenMates."},
-            )
+        reservation = admission
         try:
             from backend.core.api.app.services.skill_registry import get_global_registry
 
@@ -633,6 +695,8 @@ async def anonymous_chat_stream(
                 },
             )
             choice = (result.get("choices") or [{}])[0] if isinstance(result, dict) else {}
+            if isinstance(result, dict) and result.get("failure_reason") == "anonymous_usage_limit":
+                raise HTTPException(status_code=429, detail=_allowance_denial("anonymous_usage_limit"))
             message = choice.get("message") or {}
             assistant = str(message.get("content") or "")
             _require_anonymous_answer(assistant)
@@ -671,7 +735,7 @@ async def anonymous_chat_stream(
         model_name: str | None = None
         full_content = ""
         sequence = 0
-        reservation = None
+        reservation = admission
         upstream_error_frame = False
         upstream_error_snapshot = None
         upstream_failure_reason = None
@@ -699,32 +763,6 @@ async def anonymous_chat_stream(
         })
 
         try:
-            reservation = await service.open_request(
-                request_id=request_id,
-                anonymous_id=payload.anonymous_id,
-                ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
-            )
-            if not reservation.accepted:
-                yield _anonymous_sse_event({
-                    "type": "ai_message_chunk",
-                    "task_id": task_id,
-                    "chat_id": payload.client_chat_id,
-                    "message_id": assistant_message_id,
-                    "user_message_id": payload.client_message_id,
-                    "full_content_so_far": ANONYMOUS_USAGE_LIMIT_MESSAGE,
-                    "sequence": sequence + 1,
-                    "is_final_chunk": True,
-                    "model_name": model_name,
-                    "rejection_reason": reservation.reason or "budget_exhausted",
-                })
-                yield _anonymous_sse_event({
-                    "type": "ai_task_ended",
-                    "chatId": payload.client_chat_id,
-                    "taskId": task_id,
-                    "status": "failed",
-                })
-                return
-
             result = await get_global_registry().dispatch_skill(
                 "ai",
                 "ask",
@@ -879,6 +917,7 @@ async def anonymous_chat_stream(
                 "is_final_chunk": True,
                 "model_name": model_name,
                 "rejection_reason": upstream_failure_reason or "anonymous_inference_failed",
+                "signup_required": upstream_failure_reason == "anonymous_usage_limit",
             })
             yield _anonymous_sse_event({
                 "type": "ai_task_ended",

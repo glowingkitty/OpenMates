@@ -53,6 +53,77 @@ SDK methods authenticate lazily. You do not need to call `connect()`.
 New SDK devices may need approval in **Settings > Developers > Devices** before
 they can access encrypted account data.
 
+## Try without an account
+
+Without an explicit or environment API key, app skills and `chats.send()` use the
+shared free allowance. Use `anonymous=True` to ignore an environment key explicitly:
+
+```python
+from openmates import OpenMates, OpenMatesSignupRequiredError
+
+om = OpenMates(anonymous=True)
+try:
+    response = om.chats.send("Explain how a rainbow forms.")
+    print(response.content)
+except OpenMatesSignupRequiredError as error:
+    print(error)  # Free allowance used or unavailable; create an account to continue.
+
+print(om.anonymous.status())
+```
+
+The SDK reuses its persisted device identity for the allowance. An optional
+`anonymous_id="my-device"` supplies a stable identity of 1–128 characters. Status
+is informational: each operation's actual allowance is checked by the server.
+Anonymous chats send plaintext for processing without saving an account transcript.
+For follow-up turns, pass a `history` list with `role`, `content`, and optional integer
+`created_at` fields. Account storage, Projects, Teams, memories, connected accounts,
+focus modes, goals, and model overrides require authenticated APIs. Anonymous AI
+requests use `chats.send()`; `apps.ai.ask()` directs callers there.
+
+Supplying an API key keeps requests authenticated; authentication failures and
+credit exhaustion never switch to the free allowance. Combining an explicit key
+with `anonymous=True` raises `OpenMatesConfigError`.
+
+## Experimental image decisions
+
+`apps.ai.decide` supports Jev 1.14 judgments over inline PNG/JPEG images:
+
+```python
+import base64
+import uuid
+from pathlib import Path
+from openmates import OpenMates
+
+om = OpenMates(anonymous=True)
+ref = str(uuid.uuid4())
+result = om.apps.ai.decide({
+    "state": {"board": ref},
+    "questions": {
+        "clear": {"type": "noul", "instructions": "Is the path to the exit clear?"}
+    },
+    "assets": {
+        ref: {
+            "type": "image", "format": "png",
+            "data_base64": base64.b64encode(Path("board.png").read_bytes()).decode("ascii")
+        }
+    }
+})
+print(result["data"]["answers"])
+```
+
+Each image needs a canonical lowercase UUID key referenced in a string value in
+state, instructions, or criteria. OpenMates validates up to four still images,
+1 MiB decoded per image and 4 MiB total, with both dimensions 280–1568 pixels.
+State/questions remain limited to 16 KiB; the complete JSON body is limited to
+6 MiB. Use `jpg` or `jpeg` for JPEG bytes.
+
+This prototype feature uses direct TypeSafe only, without OpenRouter fallback.
+Image tokens use the same applicable free allowance or account credits. Callers
+need no provider key or image header. This path does not fetch remote images or
+create stored uploads; the separate account upload flow still needs signup.
+Handle `OpenMatesSignupRequiredError` and provider failures as for text requests.
+See [REST image decisions](https://github.com/glowingkitty/OpenMates/blob/dev/docs/architecture/apps/rest-api.md#experimental-image-decisions).
+
 ## Common Examples
 
 ### Send a private chat message
@@ -191,6 +262,7 @@ except OpenMatesApiError as error:
 The SDK raises:
 
 - `OpenMatesConfigError` for missing API keys or local key-unwrapping problems.
+- `OpenMatesSignupRequiredError` (an `OpenMatesApiError` subclass) when the free allowance is exhausted or unavailable; exposes `signup_required`, `code`, and `reason`.
 - `OpenMatesApiError` for API responses such as expired keys, unapproved devices,
   missing scopes, or exceeded credit limits.
 

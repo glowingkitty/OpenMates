@@ -21,7 +21,7 @@ from backend.shared.providers.typesafe.client import JevDecisionClient
 
 logger = logging.getLogger(__name__)
 
-JEV_MODEL_ID = "typesafe/jev-1.13"
+JEV_MODEL_ID = "typesafe/jev-1.14"
 GEMINI_FALLBACK_MODEL_ID = "google/gemini-3.8-flash"
 MAX_AUTHORING_INSTRUCTION_CHARS = 4_000
 MAX_REFERENCE_COUNT = 24

@@ -20,7 +20,7 @@ import type {
 } from '$lib/publications/types';
 import { renderPublicationMarkdown } from './publicationMarkdown';
 import { isOfficialOpenMatesPublicationHost } from './publicationHosting';
-import { publicPublicationManifest } from './publicationManifest';
+import { publicPublicationManifest, localizedPublicationSlug } from './publicationManifest';
 
 const RELEASE_SLUGS = new Set([
 	'introducing-openmates-v09',
@@ -61,7 +61,7 @@ function manifestRecords(
 		.filter((record) => record.kind === kind)
 		.map((record) => ({
 			id: record.id,
-			slug: record.slug,
+			slug: localizedPublicationSlug(record, locale),
 			kind,
 			copy: record.locales[locale] ?? record.locales.en as LocalizedCopy,
 			publishedAt: record.publishedAt,
@@ -73,7 +73,9 @@ function manifestRecords(
 		.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
 }
 
-const socialRecords = manifestRecords('social', 'en');
+function recordsForSection(section: PublicPublicationSection, locale: PublicPublicationLocale): PublicationRecord[] {
+	return section === 'news' ? newsRecords(locale) : manifestRecords(section, locale);
+}
 
 function formatDate(value: string, locale: PublicPublicationLocale): string {
 	return new Intl.DateTimeFormat(locale === 'de' ? 'de-DE' : 'en-US', {
@@ -248,6 +250,7 @@ function buildSurface(
 	const news = newsRecords(locale);
 	const blogs = blogRecords(locale);
 	const coverage = coverageRecords(locale);
+	const socialRecords = manifestRecords('social', locale);
 	const selectedPool = section === 'news' ? news : section === 'blog' ? blogs : socialRecords;
 	const selected = selectedSlug ? selectedPool.find((record) => record.slug === selectedSlug) ?? null : null;
 	if (selectedSlug && !selected) error(404, 'Publication not found');
@@ -309,7 +312,10 @@ export function loadPublicationPage(args: {
 	const path = publicationPath(locale, section, slug ?? undefined);
 	const alternateLocale: PublicPublicationLocale = locale === 'de' ? 'en' : 'de';
 	const canonicalUrl = `${url.origin}${path}`;
-	const alternateUrl = `${url.origin}${publicationPath(alternateLocale, section, slug ?? undefined)}`;
+	const alternateSlug = selected
+		? recordsForSection(section, alternateLocale).find((record) => record.id === selected.id)?.slug
+		: undefined;
+	const alternateUrl = `${url.origin}${publicationPath(alternateLocale, section, alternateSlug)}`;
 	const pageTitle = selected?.copy.title ?? (section === 'blog'
 		? (locale === 'de' ? 'OpenMates Blog' : 'OpenMates Blog')
 		: (locale === 'de' ? 'OpenMates Newsroom' : 'OpenMates Newsroom'));
@@ -386,11 +392,6 @@ export function loadPublicationPage(args: {
 }
 
 export function getPublicationSitemapEntries(): PublicationSitemapEntry[] {
-	const recordsBySection: Array<[PublicPublicationSection, PublicationRecord[]]> = [
-		['news', newsRecords('en')],
-		['blog', blogRecords('en')],
-		['social', socialRecords]
-	];
 	const entries: PublicationSitemapEntry[] = [];
 	for (const locale of ['en', 'de'] as const) {
 		for (const section of ['news', 'blog'] as const) {
@@ -401,11 +402,14 @@ export function getPublicationSitemapEntries(): PublicationSitemapEntry[] {
 				lastModified: '2026-09-21'
 			});
 		}
-		for (const [section, records] of recordsBySection) {
-			for (const record of records) {
+		for (const section of ['news', 'blog', 'social'] as const) {
+			const alternateLocale = locale === 'en' ? 'de' : 'en';
+			const alternateRecords = recordsForSection(section, alternateLocale);
+			for (const record of recordsForSection(section, locale)) {
+				const alternateSlug = alternateRecords.find((alternate) => alternate.id === record.id)?.slug;
 				entries.push({
 					path: publicationPath(locale, section, record.slug),
-					alternatePath: publicationPath(locale === 'en' ? 'de' : 'en', section, record.slug),
+					alternatePath: publicationPath(alternateLocale, section, alternateSlug),
 					locale,
 					lastModified: record.updatedAt.slice(0, 10)
 				});

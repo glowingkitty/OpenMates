@@ -1,0 +1,62 @@
+schema_version: 1
+id: feature.app-skill.ai-decide
+version: 1
+status: draft
+title: AI Decisions
+summary: Evaluate bounded text, structured state and inline images with Jev 1.14 through REST, CLI and both SDKs, including sponsored anonymous use.
+inherits:
+  - architecture.app-skill-execution@1
+scope:
+  includes:
+    - Inline ai.decide with noul, choice and score answers using the server-configured decision model.
+    - Transient PNG and JPEG image assets for prototype image decisions, without stored uploads.
+    - Anonymous admission and conservative provider accounting under the existing free-usage budget.
+  excludes:
+    - Generated prose, external tools, stored file handling, remote image fetching, saved chats, account mutations and new embeds.
+    - Bounding-box answers, audio, video and provider long-context modes.
+    - Caller model or provider overrides and new anonymous balances or workshop passes.
+assertions:
+  - id: ai-decide.request.bounded
+    type: validation
+    must: The skill accepts one bounded JSON-compatible state and one to sixteen named questions with bounded instructions and criteria. Noul questions return a yes probability, choice questions select among two to sixteen caller-defined options, and score questions evaluate an ordered rubric of two to ten levels. Invalid, oversized, unknown-field or unsupported requests are rejected before any provider work; model and provider selection remain server-controlled.
+    depends_on: [examples.decide_inputs]
+  - id: ai-decide.answers.typed
+    type: behavior
+    must: A completed inline request returns the actual model identifier and validated typed answers for every requested question, including probabilities and the selected choice or score when applicable. The result contains usage and charged credits, never invented prose answers, pending task identifiers or persisted embeds.
+    depends_on: [examples.decide_answers]
+  - id: ai-decide.images.inline
+    type: security
+    must: Optional image assets are canonical base64 PNG or JPEG still images, keyed by UUID references used in string values of the state, instructions or criteria. At most four images are accepted, each at most one MiB decoded, four MiB combined, with each side between 280 and 1568 pixels. State and questions excluding assets remain within 16384 UTF-8 bytes; the entire JSON body is at most six MiB and is bounded before parsing. Invalid, unreferenced, oversized, animated or mismatched image data is rejected before provider work. Jev 1.14 image requests use the direct TypeSafe transport with image support enabled, no long-context mode, retries or unverified image fallback. Bytes remain transient and are never logged, stored as uploads, or fetched from caller-provided URLs. Image tokens count against the same existing free usage budget and verified native usage accounting as text.
+    depends_on: [examples.decide_images]
+  - id: ai-decide.billing.bounded
+    type: security
+    must: Anonymous requests reserve a conservative quote before provider dispatch against the existing shared and identity limits. The permitted bounded attempts, including fallback, cannot exceed that quote. Settlement uses the configured token tariff for verified native usage and retains conservative coverage for ambiguous attempts. Missing or invalid provider usage cannot become a free successful request. Authenticated execution uses normal authorized account billing with the same server-produced decision usage; client-supplied fields cannot control charges.
+    depends_on: [examples.decide_billing]
+  - id: ai-decide.failures.distinct
+    type: failure
+    must: An inactive, exhausted or insufficient anonymous allowance returns a structured signup-required outcome with a clear human-readable account-creation message, before provider work when admission fails. Actual provider, validation and usage-meter failures remain distinguishable and do not claim that signup will fix a processing failure. Anonymous content remains transient under the inherited anonymous storage boundary.
+    depends_on: [examples.decide_failures]
+applies_to:
+  rest_api:
+    required: true
+    role: Public anonymous skill route and authenticated developer app-skill route preserve their respective budget and authorization boundaries.
+  cli:
+    required: true
+    parity: semantic
+    role: Generated ai decide command and existing anonymous identity handling.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: false
+    role: No new decision embed or dedicated graphical interaction is introduced.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+examples:
+  file: examples.yml
+  required_groups: [decide_inputs, decide_answers, decide_images, decide_billing, decide_failures]

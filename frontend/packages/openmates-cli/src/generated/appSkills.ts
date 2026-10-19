@@ -11,6 +11,311 @@ export type SkillInput = Record<string, unknown>;
 export const APP_SKILL_METADATA = [
   {
     "app_id": "ai",
+    "skill_id": "decide",
+    "app_namespace_ts": "ai",
+    "skill_method_ts": "decide",
+    "app_namespace_py": "ai",
+    "skill_method_py": "decide",
+    "description_key": "ai.decide.description",
+    "description": "Evaluate bounded inline state with named typed noul, choice or score questions. Optional transient PNG/JPEG assets support image decisions. Returns structured decisions without chat, files or embeds.",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {},
+        "questions": {
+          "maxProperties": 16,
+          "minProperties": 1,
+          "patternProperties": {
+            "^[A-Za-z0-9_-]{1,64}$": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "noul",
+                      "type": "string"
+                    },
+                    "instructions": {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "criteria": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": {
+                            "maxLength": 500,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "propertyNames": {
+                            "enum": [
+                              "true",
+                              "false"
+                            ]
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "instructions"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "choice",
+                      "type": "string"
+                    },
+                    "instructions": {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "criteria": {
+                      "additionalProperties": {
+                        "maxLength": 500,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "maxProperties": 16,
+                      "minProperties": 2,
+                      "propertyNames": {
+                        "maxLength": 64,
+                        "minLength": 1
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "instructions",
+                    "criteria"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "const": "score",
+                      "type": "string"
+                    },
+                    "instructions": {
+                      "maxLength": 2000,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "criteria": {
+                      "items": {
+                        "maxLength": 500,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "maxItems": 10,
+                      "minItems": 2,
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "instructions",
+                    "criteria"
+                  ],
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "assets": {
+          "maxProperties": 4,
+          "patternProperties": {
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "const": "image",
+                  "type": "string"
+                },
+                "format": {
+                  "enum": [
+                    "png",
+                    "jpg",
+                    "jpeg"
+                  ],
+                  "type": "string"
+                },
+                "data_base64": {
+                  "maxLength": 1398104,
+                  "minLength": 4,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "format",
+                "data_base64"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "state",
+        "questions"
+      ],
+      "type": "object"
+    },
+    "output_schema": {
+      "properties": {
+        "success": {
+          "default": true,
+          "type": "boolean"
+        },
+        "model": {
+          "type": "string"
+        },
+        "answers": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "properties": {
+                  "type": {
+                    "const": "noul",
+                    "type": "string"
+                  },
+                  "noul": {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "noul"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "const": "choice",
+                    "type": "string"
+                  },
+                  "choice": {
+                    "type": "string"
+                  },
+                  "probabilities": {
+                    "additionalProperties": {
+                      "type": "number"
+                    },
+                    "type": "object"
+                  },
+                  "confidence": {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "choice",
+                  "probabilities",
+                  "confidence"
+                ],
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "const": "score",
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "legend": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "probabilities": {
+                    "additionalProperties": {
+                      "type": "number"
+                    },
+                    "type": "object"
+                  },
+                  "confidence": {
+                    "maximum": 1.0,
+                    "minimum": 0.0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "score",
+                  "legend",
+                  "probabilities",
+                  "confidence"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "usage": {
+          "additionalProperties": false,
+          "properties": {
+            "input_tokens": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "output_tokens": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "credits": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "complete": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "input_tokens",
+            "output_tokens",
+            "credits"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "model",
+        "answers",
+        "usage"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "app_id": "ai",
     "skill_id": "ask",
     "app_namespace_ts": "ai",
     "skill_method_ts": "ask",
@@ -1126,7 +1431,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "image_to_html",
     "description_key": "app_skills.code.image_to_html.description",
-    "description": "Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.",
+    "description": "Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls. After the generated application is ready, include its returned code embed inline in the final answer and describe any missing screenshot or failed conversion h",
     "schema": {
       "type": "object",
       "properties": {
@@ -8901,6 +9206,14 @@ export class AiAppSkills {
   async ask<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("ai", "ask", input, options);
   }
+  /**
+   * Evaluate bounded inline state with named typed noul, choice or score questions. Optional transient PNG/JPEG assets support image decisions. Returns structured decisions without chat, files or embeds.
+   * Description key: ai.decide.description
+   * Skill: ai/decide
+   */
+  async decide<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("ai", "decide", input, options);
+  }
 }
 
 export class AudioAppSkills {
@@ -9010,7 +9323,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "get_project_overview", input, options);
   }
   /**
-   * Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls.
+   * Turn an uploaded screenshot into one standalone index.html code embed with inline CSS and optional inline JavaScript. Use this when the user asks to convert a screenshot, mockup, UI image, or app screen into HTML. Do not use remote image URLs; pass source_image with the uploaded image embed_ref in chat, or image_base64 for REST/API calls. After the generated application is ready, include its returned code embed inline in the final answer and describe any missing screenshot or failed conversion h
    * Description key: app_skills.code.image_to_html.description
    * Skill: code/image_to_html
    */

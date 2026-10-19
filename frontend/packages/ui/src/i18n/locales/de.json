@@ -1174,6 +1174,20 @@
             "text": "Hilf mir, eine professionelle E-Mail an meinen Chef wegen einer Gehaltserhöhung zu schreiben"
           }
         }
+      },
+      "decide": {
+        "text": "Entscheiden",
+        "description": {
+          "text": "Wähle anhand deines Kontexts eine Option aus."
+        },
+        "how_to_use": {
+          "1": {
+            "text": "Soll mein Spielcharakter mit wenig Lebenspunkten fliehen oder weiterkämpfen?"
+          },
+          "2": {
+            "text": "Wähle für diese Anfrage eine Support-Kategorie: Abrechnung, Technik oder Konto."
+          }
+        }
       }
     },
     "audio": {
@@ -13363,6 +13377,17 @@
           "openrouter": {
             "heading": {
               "text": "OpenRouter (USA, Routing-Aggregator)"
+            },
+            "description": {
+              "text": "OpenRouter leitet Anfragen an mehrere Modelle anderer Anbieter weiter, darunter bei Cerebras betriebene Modelle. Dabei erhält OpenRouter Chatnachrichten, in denen personenbezogene Angaben clientseitig durch Platzhalter ersetzt wurden, und leitet sie an den Modellbetreiber weiter. Fehlen direkte TypeSafe-Zugangsdaten oder treten bei der direkten Verbindung Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auf, kann OpenRouter auch reine Textentscheidungen von TypeSafe Jev mit den unten beschriebenen minimierten Eingaben weiterleiten. Bei selbst angeforderten ai.decide-Textentscheidungen gehören dazu der übergebene Zustand, die Anweisungen und die Kriterien. Bildentscheidungen werden nicht ersatzweise über OpenRouter weitergeleitet."
+            }
+          },
+          "typesafe": {
+            "heading": {
+              "text": "TypeSafe Jev (USA)"
+            },
+            "description": {
+              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
             }
           },
           "cerebras": {

@@ -264,6 +264,43 @@ test('canonical news and blog details render in English and German', async ({ pa
   noPrivateStartup();
 });
 
+// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives,public-publications.seo.crawlable
+test('switches the developer blog between distinct English and German slugs', async ({ page, request }) => {
+  const noPrivateStartup = watchPrivateStartup(page);
+  const en = '/blog/build-with-ai-openmates-rest-api-cli-sdk';
+  const de = '/de/blog/mit-ki-entwickeln-openmates-rest-api-cli-sdk';
+  await page.goto(site(en));
+  for (const [locale, route, alternateLocale, alternateRoute, title, imageHeading, imageUsage, nextLanguage] of [
+    ['en', en, 'de', de, 'Build with AI: OpenMates REST API, CLI, and SDKs', 'A picture can be part of a decision', 'their image tokens use the same free allowance or account credits', 'Deutsch'],
+    ['de', de, 'en', en, 'Mit KI entwickeln: REST-API, CLI und SDKs von OpenMates', 'Ein Bild kann Teil einer Entscheidung sein', 'Ihre Bildtokens verbrauchen dasselbe kostenlose Kontingent oder Kontoguthaben', 'English'],
+    ['en', en, 'de', de, 'Build with AI: OpenMates REST API, CLI, and SDKs', 'A picture can be part of a decision', 'their image tokens use the same free allowance or account credits', null]
+  ] as const) {
+    await expect(page).toHaveURL(site(route));
+    await assertPublicHeader(page);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', site(route));
+    await expect(page.locator(`link[hreflang="${locale}"]`)).toHaveAttribute('href', site(route));
+    await expect(page.locator(`link[hreflang="${alternateLocale}"]`)).toHaveAttribute('href', site(alternateRoute));
+    await expect(page.locator('link[hreflang="x-default"]')).toHaveAttribute('href', site(en));
+    const article = page.locator('.article-markdown');
+    await expect(article).toContainText('OpenMatesSignupRequiredError');
+    await expect(article).toContainText('detail.signup_required: true');
+    await expect(article.getByRole('heading', { name: imageHeading, exact: true })).toBeVisible();
+    await expect(article).toContainText(imageUsage);
+    await expect(article).toContainText('randomUUID()');
+    await expect(article).toContainText('uuid.uuid4()');
+    await expect(article).toContainText('data_base64');
+    if (nextLanguage) {
+      await page.getByTestId('landing-language-button').click();
+      await page.getByTestId('landing-language-panel').getByRole('button', { name: nextLanguage, exact: true }).click();
+    }
+  }
+  const sitemap = await request.get(site('/sitemap.xml'));
+  // Local preview stays unindexed; publications.test.ts verifies localized production sitemap entries.
+  expect(sitemap.status()).toBe(404);
+  noPrivateStartup();
+});
+
 for (const width of [390, 1440]) {
   // contract-test: direct surface=gui.web assertions=marketing-landing.destinations,marketing-landing.public-content,marketing-landing.language-theme
   test(`public article language switching preserves its route and shared header (${width}px)`, async ({ page }, testInfo) => {

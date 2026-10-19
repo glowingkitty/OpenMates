@@ -8043,7 +8043,9 @@ async function handleGeneratedAppSkillCommand(
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`\x1b[31m✗ ${command.app_id}/${command.skill_id} failed:\x1b[0m ${msg}`);
+    const signupRequired = err instanceof Error && err.name === "OpenMatesSignupRequiredError";
+    const outcome = signupRequired ? "signup required" : "failed";
+    console.error(`\x1b[31m✗ ${command.app_id}/${command.skill_id} ${outcome}:\x1b[0m ${msg}`);
     process.exit(1);
   }
 }

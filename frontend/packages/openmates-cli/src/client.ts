@@ -12796,6 +12796,12 @@ export class OpenMatesClient {
     );
     if (!response.ok) {
       const body = response.data as Record<string, unknown> | undefined;
+      const detailRecord = body?.detail && typeof body.detail === "object" && !Array.isArray(body.detail)
+        ? body.detail as Record<string, unknown>
+        : undefined;
+      const signupRequired = detailRecord?.signup_required === true || (
+        response.status === 429 && ["budget_exhausted", "per_identity_exhausted", "inactive"].includes(String(detailRecord?.code ?? ""))
+      );
       const detail =
         typeof body?.detail === "string"
           ? body.detail
@@ -12807,10 +12813,13 @@ export class OpenMatesClient {
                 .join("; ")
             : undefined;
       const err = new Error(
-        detail
+        signupRequired
+          ? detailRecord?.message ? String(detailRecord.message) : "The free allowance is unavailable or cannot cover this request. Create an account to keep using OpenMates."
+          : detail
           ? `Skill execution failed: ${detail}`
           : `Skill execution failed with HTTP ${response.status}`,
       );
+      if (signupRequired) err.name = "OpenMatesSignupRequiredError";
       (err as Error & { statusCode: number }).statusCode = response.status;
       throw err;
     }

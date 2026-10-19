@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import rawManifest from '@repo/public-site/publications/publicationManifest.v1.json';
-import { parsePublicPublicationManifest } from './publicationManifest';
+import { parsePublicPublicationManifest, localizedPublicationSlug } from './publicationManifest';
 
 describe('public publication manifest', () => {
 	// contract-test: direct surface=gui.web assertions=public-publications.authoring.public-boundary,public-publications.social.official-backfill,public-publications.media.read-only-delivery
@@ -45,4 +45,45 @@ describe('public publication manifest', () => {
 			expect(() => parsePublicPublicationManifest(candidate)).toThrow();
 		}
 	});
+	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
+	it('uses localized slugs and preserves legacy and missing-translation fallbacks', () => {
+		const record = parsePublicPublicationManifest(rawManifest).publications[0];
+		expect(localizedPublicationSlug(record, 'en')).toBe(record.slug);
+		record.locales.en!.slug = 'build-with-ai';
+		expect(localizedPublicationSlug(record, 'en')).toBe('build-with-ai');
+		if (record.locales.de) {
+			expect(localizedPublicationSlug(record, 'de')).toBe(record.slug);
+			record.locales.de.slug = 'mit-ki-entwickeln';
+			expect(localizedPublicationSlug(record, 'de')).toBe('mit-ki-entwickeln');
+		}
+		delete record.locales.de;
+		expect(localizedPublicationSlug(record, 'de')).toBe('build-with-ai');
+	});
+
+	// contract-test: direct surface=gui.web assertions=public-publications.routes.localized-archives
+	it('rejects unsafe slugs and collisions with fallback routes within a kind and locale', () => {
+		for (const slug of ['../private', 'has/slash', 'has space', 'Uppercase', 'query?x=1', '']) {
+			const candidate = structuredClone(rawManifest);
+			Object.assign(candidate.publications[0].locales.en, { slug });
+			expect(() => parsePublicPublicationManifest(candidate)).toThrow(/slug/);
+		}
+		const candidate = structuredClone(rawManifest);
+		const duplicate = structuredClone(candidate.publications[0]);
+		duplicate.id = 'localized-slug-collision';
+		duplicate.slug = 'otherwise-unique-root';
+		Object.assign(duplicate.locales.en, { slug: candidate.publications[0].slug });
+		candidate.publications.push(duplicate);
+		expect(() => parsePublicPublicationManifest(candidate)).toThrow(/duplicate publication slug/);
+		const missingTranslation = structuredClone(rawManifest);
+		const source = missingTranslation.publications[0];
+		const fallback = structuredClone(source);
+		fallback.id = 'german-fallback-collision';
+		fallback.slug = 'different-root';
+		delete fallback.locales.de;
+		Object.assign(fallback.locales.en, { slug: 'german-only-route' });
+		Object.assign(source.locales.de!, { slug: 'german-only-route' });
+		missingTranslation.publications.push(fallback);
+		expect(() => parsePublicPublicationManifest(missingTranslation)).toThrow(/blog:de:german-only-route/);
+	});
+
 });

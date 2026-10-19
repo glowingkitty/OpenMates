@@ -10,17 +10,18 @@ import os
 from typing import Any, Literal, Mapping, Optional
 
 import httpx
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.typesafe.models import DecisionResponse
 from backend.shared.providers.typesafe.budget import MAX_ESTIMATED_INPUT_TOKENS, estimate_request_tokens
+from backend.shared.providers.typesafe.assets import DecisionAssets, validate_asset_references
 
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
-TYPESAFE_MODEL = "jev-1.13.0"
+DEFAULT_JEV_MODEL = "typesafe/jev-1.14"
+TYPESAFE_MODEL = "jev-1.14.0"
 TYPESAFE_DECISIONS_URL = "https://api.typesafe.ai/v1/systemone"
 TYPESAFE_SECRET_PATH = "kv/data/providers/typesafe"
 TYPESAFE_SECRET_KEY = "api_key"
@@ -45,7 +46,10 @@ TYPESAFE_INPUT_USD_PER_MILLION = 0.042
 def _reported_number(value: Any) -> Optional[float]:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    number = float(value)
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
+        return None
     return number if math.isfinite(number) and number >= 0 else None
 
 
@@ -98,6 +102,7 @@ class JevDecisionClient:
         provider: Optional[Literal["typesafe", "openrouter"]] = None,
         telemetry_task_id: Optional[str] = None,
         telemetry_purpose: Optional[str] = None,
+        accounting: Optional[list[dict[str, Any]]] = None,
     ) -> None:
         self._secrets_manager = secrets_manager
         self._model = model
@@ -106,6 +111,7 @@ class JevDecisionClient:
         self._max_retries = max(0, max_retries)
         self._telemetry_task_id = telemetry_task_id
         self._telemetry_purpose = telemetry_purpose
+        self._accounting = accounting
         if provider is not None and provider not in PROVIDER_SETTINGS:
             raise ValueError("Unsupported Jev provider")
         if endpoint is not None or provider is not None:
@@ -117,6 +123,10 @@ class JevDecisionClient:
 
     def _log_cost_attempt(self, *, provider: str, model: str, status: Optional[int],
                           response: Optional[httpx.Response], success: bool) -> None:
+        if self._accounting is not None:
+            input_tokens, output_tokens, _ = _raw_usage(response)
+            self._accounting.append({"provider": provider, "input_tokens": input_tokens,
+                                     "output_tokens": output_tokens, "success": success})
         if not self._telemetry_task_id:
             return
         try:
@@ -213,7 +223,20 @@ class JevDecisionClient:
         *,
         state: Any,
         questions: Mapping[str, Mapping[str, Any]],
+        assets: Optional[Mapping[str, Mapping[str, Any]]] = None,
     ) -> DecisionResponse:
+        validated_assets = None
+        providers = self._providers
+        if assets:
+            try:
+                parsed_assets = TypeAdapter(DecisionAssets).validate_python(dict(assets))
+                validate_asset_references(parsed_assets, state, questions)
+            except (ValidationError, ValueError):
+                raise DecisionProviderError("Jev image assets are invalid") from None
+            if "typesafe" not in providers:
+                raise DecisionProviderError("Jev image decisions require the direct TypeSafe provider")
+            providers = ("typesafe",)
+            validated_assets = {key: asset.model_dump() for key, asset in parsed_assets.items()}
         estimated_tokens = self._validate_request(state, questions)
         from backend.apps.ai.testing.diagram_html_fixture import active as diagram_fixture_active
 
@@ -231,9 +254,9 @@ class JevDecisionClient:
         client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
             last_error: Optional[DecisionProviderUnavailable] = None
-            for provider in self._providers:
+            for provider in providers:
                 try:
-                    result = await self._evaluate_provider(client, provider, state, questions)
+                    result = await self._evaluate_provider(client, provider, state, questions, validated_assets)
                 except DecisionProviderUnavailable as exc:
                     last_error = exc
                     logger.warning("Jev %s unavailable", provider)
@@ -249,15 +272,20 @@ class JevDecisionClient:
     async def _evaluate_provider(
         self, client: httpx.AsyncClient, provider: str, state: Any,
         questions: Mapping[str, Mapping[str, Any]],
+        assets: Optional[dict[str, Any]] = None,
     ) -> DecisionResponse:
         api_key = await self._api_key(provider)
         model = self._model
-        if provider == "typesafe" and model == DEFAULT_JEV_MODEL:
-            model = TYPESAFE_MODEL
-        elif provider == "openrouter" and model == TYPESAFE_MODEL:
-            model = DEFAULT_JEV_MODEL
+        pinned_models = {DEFAULT_JEV_MODEL: TYPESAFE_MODEL, "typesafe/jev-1.13": "jev-1.13.0"}
+        if provider == "typesafe" and model in pinned_models:
+            model = pinned_models[model]
+        elif provider == "openrouter" and model in pinned_models.values():
+            model = next(public for public, pinned in pinned_models.items() if pinned == model)
         payload = {"model": model, "state": state, "questions": dict(questions)}
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        if assets:
+            payload["assets"] = assets
+            headers["TypeSafe-Danger-Zone-Images"] = "true"
         if provider == "openrouter":
             headers.update({"HTTP-Referer": "https://openmates.org", "X-Title": "OpenMates decision processing"})
         endpoint = self._endpoint or PROVIDER_SETTINGS[provider][0]
@@ -336,4 +364,5 @@ def _is_context_overflow(response: httpx.Response) -> bool:
         "context_length_exceeded", "context_window_exceeded", "input_too_long",
         "request_too_large", "maximum context", "context length", "context window",
         "too many tokens", "input token limit", "token limit exceeded",
+        "max_tokens_exceeded",
     ))

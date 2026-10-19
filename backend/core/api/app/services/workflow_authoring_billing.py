@@ -19,7 +19,7 @@ from backend.shared.python_utils.billing_utils import (
 
 APP_ID = "workflows"
 SKILL_ID = "create-or-modify"
-JEV_MODEL = "typesafe/jev-1.13"
+JEV_MODEL = "typesafe/jev-1.14"
 GEMINI_MODEL = "google/gemini-3.8-flash"
 
 

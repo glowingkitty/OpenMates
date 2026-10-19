@@ -19,7 +19,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppFocusDefinitio
 from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, choice_value
 
 logger = logging.getLogger(__name__)
-MODEL = "typesafe/jev-1.13"
+MODEL = "typesafe/jev-1.14"
 EVIDENCE_CONTENT_LIMIT = 4000
 _EVIDENCE_TRUNCATION = "\n[... content truncated for phase evidence ...]\n"
 _FENCED_BLOCK = re.compile(r"(?m)^```([^\n]*)\r?\n(.*?)^```[ \t]*(?=\r?\n|\Z)", re.DOTALL)
