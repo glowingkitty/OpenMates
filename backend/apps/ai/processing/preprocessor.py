@@ -87,10 +87,6 @@ logger = logging.getLogger(__name__)
 SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
-IMAGE_CHAT_SAFE_MODEL_ID = "anthropic/claude-haiku-5-5"
-IMAGE_CHAT_SAFE_MODEL_NAME = "Claude Haiku 5.5"
-IMAGE_CHAT_EXCLUDED_PROVIDER_IDS = {"google"}
-EXPLICIT_IMAGE_CHAT_MODEL_ID = "google/gemini-3.8-flash"
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 
@@ -271,31 +267,6 @@ def _request_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
             return True
     return False
 
-
-def _is_explicit_image_model_override(
-    model_ref: Optional[str], user_overrides: Optional[UserOverrides],
-) -> bool:
-    """Allow the exact Gemini 3.8 Flash chat selection through both image guards.
-
-    Saved defaults and automatic routing keep the existing Google exclusion.
-    Check the authored override as well as the canonical selected model so an
-    unrelated mention cannot bypass the guard.
-    """
-    if model_ref != EXPLICIT_IMAGE_CHAT_MODEL_ID or not user_overrides:
-        return False
-    override_model_id = getattr(user_overrides, "model_id", None)
-    if override_model_id == EXPLICIT_IMAGE_CHAT_MODEL_ID:
-        return True
-    if override_model_id != EXPLICIT_IMAGE_CHAT_MODEL_ID.split("/", 1)[1]:
-        return False
-    override_provider = getattr(user_overrides, "model_provider", None)
-    return not override_provider or _resolve_override_model_provider(
-        override_model_id, override_provider, config_manager,
-    ) == "google"
-
-
-def _is_google_model(model_ref: Optional[str]) -> bool:
-    return bool(model_ref and model_ref.startswith("google/"))
 
 TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
     "openmates_platform": "Questions about OpenMates itself, its features, mates, apps, skills, account, pricing, or onboarding.",
@@ -1806,11 +1777,6 @@ async def _select_main_model(
         )
 
     has_image_upload_embed = _request_has_image_upload_embed(request_data)
-    if has_image_upload_embed:
-        logger.info(
-            f"{log_prefix} IMAGE_MODEL_GUARD: Detected uploaded image embed in chat history. "
-            f"Google/Gemini text models will be excluded unless Gemini 3.8 Flash was explicitly selected."
-        )
 
     # Initialize model selection variables
     selected_llm_for_main_id: Optional[str] = None
@@ -1873,21 +1839,6 @@ async def _select_main_model(
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
-            if (
-                has_image_upload_embed
-                and _is_google_model(selected_llm_for_main_id)
-                and not _is_explicit_image_model_override(selected_llm_for_main_id, user_overrides)
-            ):
-                logger.warning(
-                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
-                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                )
-                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                model_selection_reason = (
-                    f"Image upload guard: replaced user override {override_model_id} "
-                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                )
         elif override_provider:
             # User provided model + provider (e.g., @ai-model:claude-opus-5-5:anthropic)
             resolved_override_provider = _resolve_override_model_provider(override_model_id, override_provider, config_manager)
@@ -1905,21 +1856,6 @@ async def _select_main_model(
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
             )
-            if (
-                has_image_upload_embed
-                and _is_google_model(selected_llm_for_main_id)
-                and not _is_explicit_image_model_override(selected_llm_for_main_id, user_overrides)
-            ):
-                logger.warning(
-                    f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
-                    f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                )
-                selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                model_selection_reason = (
-                    f"Image upload guard: replaced user override {override_provider}/{override_model_id} "
-                    f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                )
         else:
             # User provided only model_id without provider prefix - try to resolve the provider
             logger.info(
@@ -1937,21 +1873,6 @@ async def _select_main_model(
                     f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
                     f"Full model ID: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
                 )
-                if (
-                    has_image_upload_embed
-                    and _is_google_model(selected_llm_for_main_id)
-                    and not _is_explicit_image_model_override(selected_llm_for_main_id, user_overrides)
-                ):
-                    logger.warning(
-                        f"{log_prefix} IMAGE_MODEL_GUARD: Replacing user-selected Google model "
-                        f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                    )
-                    selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                    selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                    model_selection_reason = (
-                        f"Image upload guard: replaced user override {resolved_provider}/{override_model_id} "
-                        f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                    )
             else:
                 logger.warning(
                     f"{log_prefix} USER_OVERRIDE: Could not resolve provider for model '{override_model_id}'. "
@@ -2013,17 +1934,6 @@ async def _select_main_model(
                     f"({user_default_key}={selected_llm_for_main_id}, complexity={complexity_val}). "
                     f"Name: {selected_llm_for_main_name}"
                 )
-                if has_image_upload_embed and _is_google_model(selected_llm_for_main_id):
-                    logger.warning(
-                        f"{log_prefix} IMAGE_MODEL_GUARD: Replacing Google user default "
-                        f"'{selected_llm_for_main_id}' with '{IMAGE_CHAT_SAFE_MODEL_ID}' for uploaded-image chat inference."
-                    )
-                    selected_llm_for_main_id = IMAGE_CHAT_SAFE_MODEL_ID
-                    selected_llm_for_main_name = IMAGE_CHAT_SAFE_MODEL_NAME
-                    model_selection_reason = (
-                        f"Image upload guard: replaced user default {user_default_model} "
-                        f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
-                    )
 
     # --- Use Intelligent Model Selector if no user override ---
     if not model_override_applied:
@@ -2046,7 +1956,6 @@ async def _select_main_model(
                     complexity=complexity_val,
                     china_related=china_related,
                     user_unhappy=user_unhappy_val,
-                    excluded_provider_ids=IMAGE_CHAT_EXCLUDED_PROVIDER_IDS if has_image_upload_embed else None,
                     log_prefix=log_prefix
                 )
 

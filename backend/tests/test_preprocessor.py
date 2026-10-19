@@ -24,8 +24,6 @@ try:
         _resolve_override_model_provider,
         _resolve_explicit_mate,
         _usable_chat_model_reference,
-        IMAGE_CHAT_SAFE_MODEL_ID,
-        IMAGE_CHAT_SAFE_MODEL_NAME,
         _latest_assistant_category_from_history,
         _normalize_topic_area,
         _resolve_category_from_topic_area,
@@ -187,7 +185,7 @@ def image_routing_config(monkeypatch):
 
     config = FakeConfigManager()
     for provider, model_ids in {
-        "google": ["gemini-3.8-flash", "gemini-3.7-flash"],
+        "google": ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-4-argon"],
         "anthropic": ["claude-haiku-5-5"],
     }.items():
         config.provider_configs.setdefault(provider, {"models": []})["models"].extend({
@@ -201,8 +199,8 @@ def image_routing_config(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.parametrize("override_form", ["full", "provider", "bare"])
-@pytest.mark.parametrize("model_id", ["gemini-3.8-flash", "gemini-3.7-flash"])
-async def test_uploaded_image_respects_only_explicit_gemini_38_override(
+@pytest.mark.parametrize("model_id", ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-4-argon"])
+async def test_uploaded_image_respects_explicit_google_override(
     image_routing_config, override_form, model_id,
 ):
     from backend.core.api.app.utils.override_parser import UserOverrides
@@ -213,48 +211,70 @@ async def test_uploaded_image_respects_only_explicit_gemini_38_override(
     )
     result = await _select_main_model(
         {"complexity": "low", "china_model_sensitive": False},
-        SimpleNamespace(has_image_upload_embed=True, user_preferences={}),
-        SimpleNamespace(enable_auto_model_selection=False), overrides, "test",
+        SimpleNamespace(has_image_upload_embed=True, user_preferences={
+            "default_ai_model_simple": "anthropic/claude-haiku-5-5",
+        }),
+        SimpleNamespace(enable_auto_model_selection=True), overrides, "test",
     )
-    expected = "google/gemini-3.8-flash" if model_id == "gemini-3.8-flash" else IMAGE_CHAT_SAFE_MODEL_ID
-    assert result["selected_llm_for_main_id"] == expected
+    assert result["selected_llm_for_main_id"] == f"google/{model_id}"
     assert result["model_override_applied"] is True
     assert result["selected_llm_thinking_level"] is None
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
-async def test_uploaded_image_keeps_google_saved_default_guard(image_routing_config):
+@pytest.mark.parametrize("tier,preference_key", [
+    ("low", "default_ai_model_simple"),
+    ("medium", "default_ai_model_complex"),
+    ("high", "default_ai_model_complex"),
+    ("max", "default_ai_model_most_demanding"),
+])
+@pytest.mark.parametrize("model_id", [
+    "google/gemini-3.8-flash", "google/gemini-4-argon", "anthropic/claude-haiku-5-5",
+])
+async def test_uploaded_image_preserves_saved_tier_default(image_routing_config, tier, preference_key, model_id):
     result = await _select_main_model(
-        {"complexity": "low", "china_model_sensitive": False},
-        SimpleNamespace(has_image_upload_embed=True, user_preferences={
-            "default_ai_model_simple": "google/gemini-3.8-flash",
-        }),
-        SimpleNamespace(enable_auto_model_selection=False), None, "test",
+        {"complexity": tier, "china_model_sensitive": False},
+        SimpleNamespace(has_image_upload_embed=True, user_preferences={preference_key: model_id}),
+        SimpleNamespace(enable_auto_model_selection=True), None, "test",
     )
-    assert result["selected_llm_for_main_id"] == IMAGE_CHAT_SAFE_MODEL_ID
+    assert result["selected_llm_for_main_id"] == model_id
+    assert result["model_override_applied"] is True
     assert result["selected_llm_thinking_level"] is None
 
 
-# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
-async def test_uploaded_image_keeps_google_automatic_selection_exclusion(image_routing_config, monkeypatch):
-    from unittest.mock import AsyncMock, Mock
-    from backend.apps.ai.processing import preprocessor
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("tier,model_id,thinking_level", [
+    ("low", "google/gemini-3.8-flash", "LOW"),
+    ("medium", "google/gemini-3.8-flash", "MEDIUM"),
+    ("high", "google/gemini-3.8-flash", "HIGH"),
+    ("max", "google/gemini-4-argon", "HIGH"),
+])
+@pytest.mark.parametrize("image_source", ["current_upload", "history"])
+async def test_uploaded_image_auto_keeps_google_tier_profile(
+    image_routing_config, monkeypatch, tier, model_id, thinking_level, image_source,
+):
+    from unittest.mock import AsyncMock
     from backend.core.api.app.tasks import leaderboard_tasks
 
-    monkeypatch.setattr(leaderboard_tasks, "get_leaderboard_data", AsyncMock(return_value={}))
-    selector = Mock()
-    selector.select_models.return_value = SimpleNamespace(
-        primary_model_id=IMAGE_CHAT_SAFE_MODEL_ID, secondary_model_id=None,
-        fallback_model_id=None, selection_reason="image-safe", filtered_cn_models=False,
+    # A ranked Qwen candidate reproduced the old provider exclusion selecting it
+    # ahead of the configured Google default. Use the real selector here.
+    monkeypatch.setattr(leaderboard_tasks, "get_leaderboard_data", AsyncMock(return_value={
+        "rankings": [{"rank": 1, "provider_id": "alibaba", "model_id": "qwen3-235b-a22b-2507"}],
+    }))
+    request = SimpleNamespace(
+        has_image_upload_embed=image_source == "current_upload", user_preferences={},
+        message_history=[_user_msg("app_id: images\nskill_id: upload\nembed_ref: photo.jpg")]
+        if image_source == "history" else [],
     )
-    monkeypatch.setattr(preprocessor, "ModelSelector", Mock(return_value=selector))
     result = await _select_main_model(
-        {"complexity": "low", "china_model_sensitive": False},
-        SimpleNamespace(has_image_upload_embed=True, user_preferences={}),
+        {"complexity": tier, "china_model_sensitive": False}, request,
         SimpleNamespace(enable_auto_model_selection=True), None, "test",
     )
-    assert selector.select_models.call_args.kwargs["excluded_provider_ids"] == {"google"}
-    assert result["selected_llm_for_main_id"] == IMAGE_CHAT_SAFE_MODEL_ID
+    assert result["has_image_upload_embed"] is True
+    assert result["model_override_applied"] is False
+    assert result["selected_llm_for_main_id"] == model_id
+    assert result["selected_llm_thinking_level"] == thinking_level
+    assert "configured" in result["model_selection_reason"]
 
 
 # ===========================================================================
@@ -558,10 +578,6 @@ class TestImageUploadEmbedDetection:
         })()
 
         assert _request_has_image_upload_embed(request) is False
-
-    def test_safe_model_matches_image_reroute_contract(self):
-        assert IMAGE_CHAT_SAFE_MODEL_ID == "anthropic/claude-haiku-5-5"
-        assert IMAGE_CHAT_SAFE_MODEL_NAME == "Claude Haiku 5.5"
 
 
 # ===========================================================================

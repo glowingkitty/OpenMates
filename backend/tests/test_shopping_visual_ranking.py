@@ -114,7 +114,8 @@ async def test_multiple_references_score_photos_and_text_filter_conflicts_and_pr
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.products.supplied-gallery
 @pytest.mark.asyncio
-async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch):
+async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch, caplog):
+    caplog.set_level("INFO", logger=visual.__name__)
     prepared = visual.prepare_image(image_bytes())
     calls, active, peak = [], 0, 0
     downloads = []
@@ -125,7 +126,8 @@ async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch):
 
     class FakeClient:
         def __init__(self, **kwargs):
-            pass
+            assert kwargs["telemetry_task_id"] == "test-visual-cost-correlation"
+            assert kwargs["telemetry_purpose"] == "shopping_visual_relevance"
 
         async def evaluate_with_images(self, *, state, questions, images):
             nonlocal active, peak
@@ -140,16 +142,25 @@ async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch):
     monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
     candidates = [{"title": str(i), "image_urls": [f"https://cdn.example/{i}/{j}.jpg" for j in range(8)]} for i in range(20)]
     result = await visual.rank_products_visually(candidates=candidates, reference_images=[prepared] * 3,
-                                                 relevance_criteria=None, query="fabric", secrets_manager=None)
+                                                 relevance_criteria=None, query="fabric", secrets_manager=None,
+                                                 telemetry_task_id="test-visual-cost-correlation")
     assert calls == [(5, 18)] * 4 and peak <= 3 and len(downloads) == 60
     assert len(result.candidates) == 20 and result.summary["status"] == "evaluated"
     assert len(result.candidates[0]["image_urls"]) == 8
+    batches = [record.message for record in caplog.records if record.message.startswith("SHOPPING_VISUAL_BATCH")]
+    assert len(batches) == 4
+    assert all("images=18" in message and "client_wall_ms=" in message for message in batches)
+    stages = [record.message for record in caplog.records if record.message.startswith("SHOPPING_VISUAL_STAGES")]
+    assert len(stages) == 1 and "product_images=60" in stages[0] and "evaluated=20" in stages[0]
+    assert "https://" not in " ".join(batches + stages)
+    assert "preparation_wall_ms" not in result.summary
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
 @pytest.mark.parametrize("failure", ["provider", "incomplete", "nonfinite"])
 @pytest.mark.asyncio
-async def test_unavailable_or_malformed_visual_decisions_preserve_order_and_mark_fallback(monkeypatch, failure):
+async def test_unavailable_or_malformed_visual_decisions_preserve_order_and_mark_fallback(monkeypatch, failure, caplog):
+    caplog.set_level("INFO", logger=visual.__name__)
     prepared = visual.prepare_image(image_bytes())
     monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=prepared))
 
@@ -159,7 +170,7 @@ async def test_unavailable_or_malformed_visual_decisions_preserve_order_and_mark
 
         async def evaluate_with_images(self, **kwargs):
             if failure == "provider":
-                raise DecisionProviderUnavailable("outage")
+                raise DecisionProviderUnavailable("PRIVATE provider error body")
             return DecisionResponse(model="jev-1.13.0", answers={} if failure == "incomplete" else {
                 "candidate_000": score(float("nan")), "candidate_001": score(4),
             })
@@ -170,6 +181,8 @@ async def test_unavailable_or_malformed_visual_decisions_preserve_order_and_mark
     assert result.applied is False and result.summary["status"] == "unavailable"
     assert [row["title"] for row in result.candidates] == ["A", "B"]
     assert all(row["visual_match"]["status"] == "unavailable" for row in result.candidates)
+    assert "SHOPPING_VISUAL_BATCH" in caplog.text and "evaluated=0" in caplog.text
+    assert "PRIVATE" not in caplog.text and "https://" not in caplog.text
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
@@ -279,6 +292,40 @@ async def test_skill_validates_before_search_and_forwards_authorized_context(mon
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
+@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.asyncio
+async def test_visual_provider_usage_telemetry_is_correlated_and_keeps_inputs_private(monkeypatch, caplog, status):
+    caplog.set_level("INFO", logger="backend.shared.providers.typesafe.client")
+    monkeypatch.setattr(JevDecisionClient, "_validate_request", staticmethod(lambda *_: 100))
+    reference = str(uuid4())
+    body = {"model": "jev-1.14.0", "answers": {"fit": score(3)},
+            "usage": {"input_tokens": 1234, "output_tokens": 25}}
+
+    async def handler(request):
+        return httpx.Response(status, json=body if status == 200 else {"error": "PRIVATE error body"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = JevDecisionClient(secrets_manager=None, http_client=http, max_retries=0,
+                                   telemetry_task_id="visual-correlation", telemetry_purpose="shopping_visual_relevance")
+        monkeypatch.setattr(client, "_api_key", AsyncMock(return_value="PRIVATE-test-key"))
+        call = client.evaluate_with_images(state={"photo": reference, "private": "PRIVATE query"},
+            questions={"fit": {"type": "score", "instructions": "compare", "criteria": ["wrong", "fit"]}},
+            images={reference: visual.prepare_image(image_bytes())})
+        if status == 200:
+            assert (await call).usage.input_tokens == 1234
+        else:
+            with pytest.raises(DecisionProviderUnavailable):
+                await call
+    entries = [json.loads(record.message.split("LLM_JEV_COST ", 1)[1])
+               for record in caplog.records if record.message.startswith("LLM_JEV_COST ")]
+    assert len(entries) == 1 and entries[0]["task_id"] == "visual-correlation"
+    assert entries[0]["purpose"] == "shopping_visual_relevance"
+    assert entries[0]["success"] is (status == 200)
+    assert entries[0]["supplier_cost_usd"] == (pytest.approx(0.000051828) if status == 200 else None)
+    assert "PRIVATE" not in caplog.text and "data_base64" not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
 @pytest.mark.asyncio
 async def test_typesafe_image_wire_contract_keeps_current_model_and_no_router_fallback():
     reference = str(uuid4())
@@ -381,7 +428,8 @@ async def test_slow_search_preserves_results_when_optional_visual_deadline_is_sp
     visual_call, text_call = AsyncMock(), AsyncMock()
     monkeypatch.setattr(shopping, "rank_products_visually", visual_call)
     monkeypatch.setattr(shopping, "rank_search_candidates", text_call)
-    ticks = iter([0, 18, 18])
+    # Reference-image telemetry adds two clock reads before the provider search.
+    ticks = iter([0, 0, 0, 18, 18])
     monkeypatch.setattr(shopping, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
     summaries = {}
     _id, items, error = await skill._process_single_request(

@@ -253,9 +253,12 @@ def unavailable_visual_results(candidates: Sequence[dict[str, Any]], reference_c
 async def rank_products_visually(
     *, candidates: Sequence[dict[str, Any]], reference_images: Sequence[bytes],
     relevance_criteria: str | None, query: str, secrets_manager: Any,
+    telemetry_task_id: str | None = None,
 ) -> VisualRankingResult:
     """Compare available photos plus product facts; filter only completed decisions."""
     original = list(candidates)
+    telemetry_task_id = telemetry_task_id or str(uuid4())
+    preparation_started = time.monotonic()
     if not 1 <= len(reference_images) <= 3 or len(original) > MAX_CANDIDATES:
         return unavailable_visual_results(original, len(reference_images))
     semaphore = asyncio.Semaphore(6)
@@ -291,14 +294,16 @@ async def rank_products_visually(
         raise
 
     available = [(index, item, images) for index, (item, images) in enumerate(zip(original, product_images)) if images]
+    preparation_ms = (time.monotonic() - preparation_started) * 1000
     batches = [available[index:index + CANDIDATES_PER_BATCH] for index in range(0, len(available), CANDIDATES_PER_BATCH)]
     if not batches:
         return unavailable_visual_results(original, len(reference_images))
     client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=0,
+                               telemetry_task_id=telemetry_task_id,
                                telemetry_purpose="shopping_visual_relevance")
     decision_semaphore = asyncio.Semaphore(3)
 
-    async def evaluate(batch: list[tuple[int, dict[str, Any], list[bytes]]]) -> dict[int, float]:
+    async def evaluate(batch: list[tuple[int, dict[str, Any], list[bytes]]], batch_index: int) -> dict[int, float]:
         assets = {}
 
         def asset(content: bytes) -> str:
@@ -329,7 +334,15 @@ async def rank_products_visually(
         } for row in rows}
         try:
             async with decision_semaphore:
-                response = await client.evaluate_with_images(state=state, questions=questions, images=assets)
+                request_started = time.monotonic()
+                try:
+                    response = await client.evaluate_with_images(state=state, questions=questions, images=assets)
+                finally:
+                    # Client wall time includes serialization, credentials and HTTP;
+                    # it is not a provider-side compute-time measurement.
+                    logger.info("SHOPPING_VISUAL_BATCH task_id=%s batch=%d candidates=%d images=%d client_wall_ms=%.1f",
+                                telemetry_task_id, batch_index, len(batch), len(assets),
+                                (time.monotonic() - request_started) * 1000)
             if set(response.answers) != set(questions):
                 return {}
             scores = {}
@@ -344,7 +357,8 @@ async def rank_products_visually(
             return {}
 
     # At most four batches. Deadline includes all calls; each batch is atomic.
-    decision_tasks = [asyncio.create_task(evaluate(batch)) for batch in batches]
+    decisions_started = time.monotonic()
+    decision_tasks = [asyncio.create_task(evaluate(batch, index)) for index, batch in enumerate(batches)]
     try:
         _done, pending = await asyncio.wait(decision_tasks, timeout=VISUAL_EVALUATION_SECONDS)
         for task in pending:
@@ -357,6 +371,9 @@ async def rank_products_visually(
             task.cancel()
         await asyncio.gather(*decision_tasks, return_exceptions=True)
         raise
+    logger.info("SHOPPING_VISUAL_STAGES task_id=%s candidates=%d product_images=%d reference_images=%d batches=%d evaluated=%d preparation_wall_ms=%.1f decisions_wall_ms=%.1f",
+                telemetry_task_id, len(original), sum(map(len, product_images)), len(reference_images),
+                len(batches), len(scores), preparation_ms, (time.monotonic() - decisions_started) * 1000)
     if not scores:
         return unavailable_visual_results(original, len(reference_images))
     selected = []

@@ -28,12 +28,7 @@ from backend.shared.python_utils.calendar_action_journal import calendar_undo_pa
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.processing.preprocessor import (
-    IMAGE_CHAT_SAFE_MODEL_ID,
-    IMAGE_CHAT_SAFE_MODEL_NAME,
-    _is_explicit_image_model_override,
-    PreprocessingResult,
-)
+from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -4138,8 +4133,8 @@ async def handle_main_processing(
             logger.error(f"{log_prefix} Error handling app settings/memories requests: {e}", exc_info=True)
             # Continue without app settings/memories - don't fail the entire request
 
-    # Validate and apply final model guard before prompt construction so the
-    # creator/model instruction and actual inference model cannot diverge.
+    # Require a valid preprocessor selection before prompt construction so the
+    # creator/model instruction and actual inference model use the same choice.
     if not preprocessing_results.selected_main_llm_model_id:
         error_msg = (
             f"{log_prefix} Cannot proceed with main processing: selected_main_llm_model_id is None. "
@@ -4148,24 +4143,6 @@ async def handle_main_processing(
         )
         logger.error(error_msg)
         raise ValueError(error_msg)
-
-    if (
-        preprocessing_results.relevant_app_skills
-        and "images-view" in preprocessing_results.relevant_app_skills
-        and preprocessing_results.selected_main_llm_model_id.startswith("google/")
-        and not _is_explicit_image_model_override(
-            preprocessing_results.selected_main_llm_model_id, user_overrides,
-        )
-    ):
-        logger.warning(
-            f"{log_prefix} IMAGE_MODEL_GUARD: Final safety reroute from "
-            f"'{preprocessing_results.selected_main_llm_model_id}' to '{IMAGE_CHAT_SAFE_MODEL_ID}' "
-            f"because images-view is preselected."
-        )
-        preprocessing_results.selected_main_llm_model_id = IMAGE_CHAT_SAFE_MODEL_ID
-        preprocessing_results.selected_main_llm_model_name = IMAGE_CHAT_SAFE_MODEL_NAME
-        preprocessing_results.selected_main_llm_thinking_level = None
-        preprocessing_results.selected_secondary_model_id = None
 
     wikipedia_reference_context = ""
     wikipedia_references = getattr(user_overrides, "wikipedia_references", None) or []

@@ -56,9 +56,6 @@ ask_skill_stub.AskSkillRequest = object
 _install_stub("backend.apps.ai.skills.ask_skill", ask_skill_stub)
 
 preprocessor_stub = types.ModuleType("backend.apps.ai.processing.preprocessor")
-preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_ID = "test-model"
-preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_NAME = "Test Model"
-preprocessor_stub._is_explicit_image_model_override = _context_main_processor._is_explicit_image_model_override
 preprocessor_stub.PreprocessingResult = object
 _install_stub("backend.apps.ai.processing.preprocessor", preprocessor_stub)
 
@@ -2092,26 +2089,50 @@ async def test_main_model_call_forwards_only_saved_profile_choice(monkeypatch, m
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
-async def test_image_reroute_clears_automatic_profile_level(monkeypatch) -> None:
+@pytest.mark.parametrize("tier,model_id,thinking_level", [
+    ("low", "google/gemini-3.8-flash", "LOW"),
+    ("medium", "google/gemini-3.8-flash", "MEDIUM"),
+    ("high", "google/gemini-3.8-flash", "HIGH"),
+    ("max", "google/gemini-4-argon", "HIGH"),
+])
+async def test_uploaded_image_auto_profile_reaches_main_dispatch(
+    monkeypatch, tier, model_id, thinking_level,
+) -> None:
+    from backend.apps.ai.processing.preprocessor import _select_main_model
+    from backend.core.api.app.tasks import leaderboard_tasks
+
+    monkeypatch.setattr(leaderboard_tasks, "get_leaderboard_data", AsyncMock(return_value={
+        "rankings": [{"rank": 1, "provider_id": "alibaba", "model_id": "qwen3-235b-a22b-2507"}],
+    }))
+    selection = await _select_main_model(
+        {"complexity": tier, "china_model_sensitive": False},
+        SimpleNamespace(user_preferences={}, has_image_upload_embed=False, message_history=[
+            SimpleNamespace(role="user", content="app_id: images\nskill_id: upload\nembed_ref: photo.jpg"),
+        ]),
+        SimpleNamespace(enable_auto_model_selection=True), None, "test",
+    )
+    assert selection["selected_llm_for_main_id"] == model_id
+    assert selection["selected_llm_thinking_level"] == thinking_level
+    assert selection["model_override_applied"] is False
     _output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch, streams=[["Answer."]], preprocessing_overrides={
-            "selected_main_llm_model_id": "google/gemini-3.8-flash",
-            "selected_main_llm_thinking_level": "LOW",
+            "selected_main_llm_model_id": selection["selected_llm_for_main_id"],
+            "selected_main_llm_thinking_level": selection["selected_llm_thinking_level"],
             "relevant_app_skills": ["images-view"],
         },
     )
     assert len(calls) == 1
-    assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
-    assert calls[0]["thinking_level"] is None
+    assert calls[0]["model_id"] == model_id
+    assert calls[0]["thinking_level"] == thinking_level
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.parametrize("override_form", ["full", "provider", "bare"])
+@pytest.mark.parametrize("model_id", ["gemini-3.8-flash", "gemini-4-argon"])
 @pytest.mark.parametrize("thinking_level", [None, "LOW"])
 async def test_explicit_gemini_image_selection_preserves_model_and_thinking(
-    monkeypatch, override_form, thinking_level,
+    monkeypatch, override_form, model_id, thinking_level,
 ) -> None:
-    model_id = "gemini-3.8-flash"
     overrides = SimpleNamespace(
         model_id=f"google/{model_id}" if override_form == "full" else model_id,
         model_provider="google" if override_form == "provider" else None,
@@ -2119,36 +2140,30 @@ async def test_explicit_gemini_image_selection_preserves_model_and_thinking(
     )
     _output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch, streams=[["Answer."]], preprocessing_overrides={
-            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_model_id": f"google/{model_id}",
             "selected_main_llm_thinking_level": thinking_level,
             "relevant_app_skills": ["images-view"],
         }, user_overrides_for_main=overrides,
     )
     assert len(calls) == 1
-    assert calls[0]["model_id"] == "google/gemini-3.8-flash"
+    assert calls[0]["model_id"] == f"google/{model_id}"
     assert calls[0]["thinking_level"] == thinking_level
 
 
-# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.defaults.google-tier-profiles
-@pytest.mark.parametrize("selected_model,override_model,override_provider", [
-    ("google/gemini-3.7-flash", "gemini-3.7-flash", "google"),
-    ("google/gemini-3.8-flash", "gemini-3.7-flash", "google"),
-    ("google/gemini-3.8-flash", "gemini-3.8-flash", "anthropic"),
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.precedence.chat-over-tier-over-auto
+@pytest.mark.parametrize("model_id", [
+    "google/gemini-3.8-flash", "google/gemini-4-argon", "anthropic/claude-haiku-5-5",
 ])
-async def test_image_guard_rejects_other_or_mismatched_explicit_models(
-    monkeypatch, selected_model, override_model, override_provider,
-) -> None:
+async def test_saved_image_model_selection_reaches_main_unchanged(monkeypatch, model_id) -> None:
     _output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch, streams=[["Answer."]], preprocessing_overrides={
-            "selected_main_llm_model_id": selected_model,
-            "selected_main_llm_thinking_level": "LOW",
+            "selected_main_llm_model_id": model_id,
+            "selected_main_llm_thinking_level": None,
             "relevant_app_skills": ["images-view"],
-        }, user_overrides_for_main=SimpleNamespace(
-            model_id=override_model, model_provider=override_provider,
-            skills=None, wikipedia_references=[],
-        ),
+        },
     )
-    assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == model_id
     assert calls[0]["thinking_level"] is None
 
 

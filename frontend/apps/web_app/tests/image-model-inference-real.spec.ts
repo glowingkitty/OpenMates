@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.defaults.google-tier-profiles
 export {};
 
 /**
  * Real image-model inference regression test.
  *
- * Uploads a repo screenshot fixture, asks for design feedback with an explicit
- * @ai-model override, then captures the actual model response. This intentionally
- * avoids TEST_MOCK markers because the production regression was provider/runtime
+ * Uploads a repo screenshot fixture and asks for design feedback through Auto
+ * or an explicit @ai-model override, then captures the actual model response.
+ * Avoids TEST_MOCK markers because the production regression was provider/runtime
  * behavior after images.view returned uploaded image bytes.
  */
 
@@ -38,7 +38,7 @@ const IMAGE_FIXTURE = path.resolve(
 const PROMPT = 'Evaluate the design and give recommendations for improvements.';
 const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
-const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-38-flash'];
+const DEFAULT_SMOKE_MODEL_LABELS = ['auto', 'gemini-38-flash'];
 const IMAGE_VIEW_TIMEOUT_MS = 180000;
 const ASSISTANT_MESSAGE_START_TIMEOUT_MS = 180000;
 const ASSISTANT_COMPLETION_TIMEOUT_MS = 240000;
@@ -48,10 +48,15 @@ type ModelCase = {
 	model: string;
 	label: string;
 	expectedGeneratedBy: RegExp;
-	expectsReroute?: boolean;
 };
 
 const MODELS: ModelCase[] = [
+	{
+		provider: 'auto',
+		model: 'auto',
+		label: 'auto',
+		expectedGeneratedBy: /Gemini 3\.8 Flash|gemini-3\.8-flash/i
+	},
 	{
 		provider: 'google',
 		model: 'gemini-3.8-flash',
@@ -110,22 +115,19 @@ const MODELS: ModelCase[] = [
 		provider: 'google',
 		model: 'gemini-3-flash-preview',
 		label: 'gemini-flash',
-		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
-		expectsReroute: true
+		expectedGeneratedBy: /Gemini 3 Flash|gemini-3-flash-preview/i
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.7-flash',
 		label: 'gemini-36-flash',
-		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
-		expectsReroute: true
+		expectedGeneratedBy: /Gemini 3\.7 Flash|gemini-3\.7-flash/i
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.5-flash',
 		label: 'gemini-35-flash',
-		expectedGeneratedBy: /Claude Haiku 5\.5|claude-haiku-5-5/i,
-		expectsReroute: true
+		expectedGeneratedBy: /Gemini 3\.5 Flash|gemini-3\.5-flash/i
 	}
 ];
 
@@ -141,6 +143,7 @@ const activeModels = MODELS.filter((model) => selectedLabels.has(model.label));
 const activeTrials = TRIALS;
 
 function modelDirective(model: { provider: string; model: string }): string {
+	if (model.model === 'auto') return '';
 	return `@ai-model:${model.model}:${model.provider}`;
 }
 
@@ -274,7 +277,7 @@ test.describe.configure({ mode: 'serial' });
 
 for (const model of activeModels) {
 	for (const trial of activeTrials) {
-		// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection
+		// contract-test: supporting surface=gui.web assertions=ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.defaults.google-tier-profiles
 		test(`real image inference ${model.label} trial ${trial}`, async ({ page }: { page: any }, testInfo: any) => {
 			test.slow();
 			test.setTimeout(420000);
@@ -294,7 +297,8 @@ for (const model of activeModels) {
 			await waitForChatReady(page, log, 90000);
 			await attachImage(page, log);
 
-			const message = `${PROMPT} ${modelDirective(model)}`;
+			const message = `${PROMPT} ${modelDirective(model)}`.trim();
+			if (model.model === 'auto') expect(message).not.toContain('@ai-model:');
 			await closeEmbedFullscreenIfOpen(page, log);
 			await typePromptAndSendAfterAttachment(page, message, log, screenshot, `image-question-${model.label}-${trial}`);
 			const { generatedByText, responseText } = await waitForImageViewAndResponse(page, log);
@@ -304,7 +308,6 @@ for (const model of activeModels) {
 				provider: model.provider,
 				requestedModel: model.model,
 				trial,
-				expectsReroute: Boolean(model.expectsReroute),
 				generatedByText,
 				score,
 				responseText
@@ -316,9 +319,6 @@ for (const model of activeModels) {
 			console.log(`[IMAGE_MODEL_RESPONSE] ${JSON.stringify(artifact)}`);
 
 			expect(generatedByText).toMatch(model.expectedGeneratedBy);
-			if (model.expectsReroute) {
-				expect(generatedByText).not.toMatch(/gemini|google/i);
-			}
 			expect(score.rawDumpSuspected, `response looked like a raw coordinate/label dump: ${responseText.slice(0, 500)}`).toBe(false);
 			expect(responseText).toMatch(DESIGN_FEEDBACK_PATTERN);
 

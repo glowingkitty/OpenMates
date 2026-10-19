@@ -405,6 +405,8 @@ class SearchProductsSkill(BaseSkill):
             s3_service=kwargs.get("s3_service"),
             internal_api_request=getattr(getattr(self, "app", None), "_make_internal_api_request", None),
             visual_evaluation_summaries=visual_evaluation_summaries,
+            telemetry_task_id=(f"{kwargs['chat_id']}_{kwargs['message_id']}"
+                               if kwargs.get("chat_id") and kwargs.get("message_id") else None),
         )
 
         # 4. Group results by request ID
@@ -517,10 +519,14 @@ class SearchProductsSkill(BaseSkill):
 
         resolved_images = []
         if reference_images:
+            reference_started = time.monotonic()
             try:
                 resolved_images = await asyncio.wait_for(
                     resolve_reference_images(reference_images, kwargs), timeout=6.0,
                 )
+                logger.info("SHOPPING_REFERENCE_PREPARATION task_id=%s images=%d wall_ms=%.1f",
+                            kwargs.get("telemetry_task_id"), len(resolved_images),
+                            (time.monotonic() - reference_started) * 1000)
             except ReferenceImageAccessDenied as exc:
                 return (request_id, [], str(exc))
             except Exception as exc:
@@ -643,6 +649,7 @@ class SearchProductsSkill(BaseSkill):
                             candidates=results, reference_images=resolved_images,
                             relevance_criteria=relevance_criteria, query=query,
                             secrets_manager=secrets_manager,
+                            telemetry_task_id=kwargs.get("telemetry_task_id"),
                         ), timeout=remaining)
                     except asyncio.TimeoutError:
                         visual = unavailable_visual_results(results, len(reference_images))
