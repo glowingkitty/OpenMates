@@ -9,6 +9,7 @@ account creation.
 from __future__ import annotations
 
 import re
+import ipaddress
 import uuid
 import json
 import logging
@@ -20,7 +21,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
-from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
 from backend.core.api.app.utils.server_mode import validate_request_domain
 from backend.shared.python_utils.learning_mode import build_anonymous_request_learning_mode_context
 from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
@@ -90,7 +90,7 @@ class AnonymousHistoryMessage(BaseModel):
 
 
 class AnonymousChatStreamRequest(BaseModel):
-    anonymous_id: str = Field(..., min_length=1, max_length=128)
+    anonymous_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     client_chat_id: str = Field(..., min_length=1, max_length=128)
     client_message_id: str = Field(..., min_length=1, max_length=128)
     plaintext_message: str = Field(..., min_length=1, max_length=MAX_ANONYMOUS_MESSAGE_CHARS)
@@ -309,17 +309,46 @@ def _anonymous_usage_service(directus_service: Any, cache_service: Any) -> Anony
     )
 
 
+def _anonymous_client_ip(request: Request) -> str:
+    """Trust forwarding headers only with a valid proxy peer; never log raw IPs."""
+    peer = request.client.host if request.client else None
+    try:
+        peer_ip = ipaddress.ip_address(peer or "")
+    except ValueError:
+        # All unknown peers share a conservative stable bucket.
+        return "unknown"
+    if not (peer_ip.is_private or peer_ip.is_loopback):
+        return str(peer_ip)
+    # Official Caddy replaces XFF with one transport-peer address. X-Real-IP
+    # remains caller-controlled. Other proxy chains require an explicit policy.
+    forwarded = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded and "," not in forwarded:
+        try:
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            pass
+    return str(peer_ip)
+
+
+def _anonymous_header_id(request: Request) -> str | None:
+    identity = request.headers.get("X-OpenMates-Anonymous-ID")
+    if identity is not None and not 1 <= len(identity) <= 128:
+        raise HTTPException(status_code=422, detail={"code": "invalid_anonymous_id"})
+    return identity
+
+
 async def _enforce_local_rate_limit(
     service: AnonymousFreeUsageService,
     *,
     anonymous_id: str,
+    bucket: str,
     max_requests: int,
 ) -> None:
     try:
-        allowed = await service.consume_local_rate_limit(anonymous_id, max_requests=max_requests)
+        allowed = await service.consume_local_rate_limit(f"{bucket}:{anonymous_id}", max_requests=max_requests)
     except Exception as exc:
         logger.exception("Anonymous local-ID rate limiter failed")
-        raise HTTPException(status_code=503, detail="Anonymous usage meter unavailable") from exc
+        raise HTTPException(status_code=503, detail={"code": "anonymous_meter_unavailable", "message": "Anonymous usage meter unavailable."}) from exc
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -337,16 +366,16 @@ async def get_anonymous_free_usage_status(
 ) -> AnonymousStatusResponse:
     _require_official_cloud(request)
     service = _anonymous_usage_service(directus_service, cache_service)
-    local_id = anonymous_id or request.headers.get("X-OpenMates-Anonymous-ID")
-    if local_id:
-        await _enforce_local_rate_limit(
-            service,
-            anonymous_id=local_id,
-            max_requests=ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE,
-        )
+    local_id = anonymous_id or _anonymous_header_id(request)
+    await _enforce_local_rate_limit(
+        service,
+        anonymous_id=service.request_identity(None, _anonymous_client_ip(request)),
+        bucket="status",
+        max_requests=ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE,
+    )
     return AnonymousStatusResponse(**(await service.get_public_status(
         anonymous_id=local_id,
-        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+        ip_address=_anonymous_client_ip(request),
     )))
 
 
@@ -362,9 +391,7 @@ async def anonymous_app_skill_availability(
 ) -> AnonymousSkillAvailabilityResponse:
     """Quote one direct request against current guest limits without reserving or dispatching it."""
     _require_official_cloud(request)
-    anonymous_id = request.headers.get("X-OpenMates-Anonymous-ID", "")
-    if not 1 <= len(anonymous_id) <= 128:
-        raise HTTPException(status_code=422, detail={"code": "anonymous_id_required"})
+    anonymous_id = _anonymous_header_id(request)
     from backend.shared.providers.typesafe.assets import MAX_DECISION_BODY_BYTES
     body_limit = MAX_DECISION_BODY_BYTES if (app_id, skill_id) == ("ai", "decide") else MAX_ANONYMOUS_SKILL_BODY_BYTES
     if len(json.dumps(body).encode("utf-8")) > body_limit:
@@ -400,12 +427,13 @@ async def anonymous_app_skill_availability(
 
     service = _anonymous_usage_service(directus_service, cache_service)
     await _enforce_local_rate_limit(
-        service, anonymous_id=anonymous_id,
+        service, anonymous_id=service.request_identity(None, _anonymous_client_ip(request)),
+        bucket="status",
         max_requests=ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE,
     )
     status = await service.get_public_status(
         anonymous_id=anonymous_id,
-        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+        ip_address=_anonymous_client_ip(request),
         estimated_credits=quote,
     )
     return AnonymousSkillAvailabilityResponse(
@@ -426,9 +454,7 @@ async def anonymous_app_skill(
 ) -> dict[str, Any]:
     """Public official-cloud CLI surface for transient, priced read-only skills."""
     _require_official_cloud(request)
-    anonymous_id = request.headers.get("X-OpenMates-Anonymous-ID", "")
-    if not 1 <= len(anonymous_id) <= 128:
-        raise HTTPException(status_code=422, detail={"code": "anonymous_id_required"})
+    anonymous_id = _anonymous_header_id(request)
     from backend.shared.providers.typesafe.assets import MAX_DECISION_BODY_BYTES
     body_limit = MAX_DECISION_BODY_BYTES if (app_id, skill_id) == ("ai", "decide") else MAX_ANONYMOUS_SKILL_BODY_BYTES
     if len(json.dumps(body).encode("utf-8")) > body_limit:
@@ -466,13 +492,14 @@ async def anonymous_app_skill(
 
     service = _anonymous_usage_service(directus_service, cache_service)
     await _enforce_local_rate_limit(
-        service, anonymous_id=anonymous_id,
+        service, anonymous_id=service.request_identity(None, _anonymous_client_ip(request)),
+        bucket="execution",
         max_requests=ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE,
     )
     request_id = str(uuid.uuid4())
     await _open_anonymous_request(service,
         request_id=request_id, anonymous_id=anonymous_id,
-        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+        ip_address=_anonymous_client_ip(request),
     )
     operation_id = str(uuid.uuid4())
     try:
@@ -648,7 +675,8 @@ async def anonymous_chat_stream(
     service = _anonymous_usage_service(directus_service, cache_service)
     await _enforce_local_rate_limit(
         service,
-        anonymous_id=payload.anonymous_id,
+        anonymous_id=service.request_identity(None, _anonymous_client_ip(request)),
+        bucket="execution",
         max_requests=ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE,
     )
 
@@ -669,7 +697,7 @@ async def anonymous_chat_stream(
     # Admit before opening an SSE response so all admission denials retain 429.
     admission = await _open_anonymous_request(
         service, request_id=request_id, anonymous_id=payload.anonymous_id,
-        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+        ip_address=_anonymous_client_ip(request),
     )
     if not _wants_event_stream(request):
         reservation = admission

@@ -23,23 +23,16 @@ pip install --pre --upgrade openmates
 
 ## Quick Start
 
-1. Open OpenMates.
-2. Go to **Settings > Developers > API Keys**.
-3. Create an API key with the scopes and credit limit your script needs.
-4. Copy the key immediately. OpenMates only shows it once.
-
-Set the key in your environment:
-
-```bash
-export OPENMATES_API_KEY="sk-api-..."
-```
+Try eligible requests without an account or API key while the shared free
+allowance is available. If `OPENMATES_API_KEY` is configured, the same constructor
+automatically uses your account.
 
 Run your first request:
 
 ```python
 from openmates import OpenMates
 
-om = OpenMates()  # reads OPENMATES_API_KEY
+om = OpenMates()
 
 result = om.apps.web.search({
     "requests": [{"query": "OpenMates SDK examples"}],
@@ -56,12 +49,12 @@ they can access encrypted account data.
 ## Try without an account
 
 Without an explicit or environment API key, app skills and `chats.send()` use the
-shared free allowance. Use `anonymous=True` to ignore an environment key explicitly:
+shared free allowance:
 
 ```python
 from openmates import OpenMates, OpenMatesSignupRequiredError
 
-om = OpenMates(anonymous=True)
+om = OpenMates()
 try:
     response = om.chats.send("Explain how a rainbow forms.")
     print(response.content)
@@ -71,18 +64,21 @@ except OpenMatesSignupRequiredError as error:
 print(om.anonymous.status())
 ```
 
-The SDK reuses its persisted device identity for the allowance. An optional
-`anonymous_id="my-device"` supplies a stable identity of 1–128 characters. Status
-is informational: each operation's actual allowance is checked by the server.
+No identity setup is needed. Free usage is limited by public IP and a shared
+daily, weekly, and monthly service allowance; people on the same network may
+share the IP limit. Status is informational: each operation's actual allowance
+is checked by the server.
 Anonymous chats send plaintext for processing without saving an account transcript.
 For follow-up turns, pass a `history` list with `role`, `content`, and optional integer
 `created_at` fields. Account storage, Projects, Teams, memories, connected accounts,
 focus modes, goals, and model overrides require authenticated APIs. Anonymous AI
 requests use `chats.send()`; `apps.ai.ask()` directs callers there.
 
-Supplying an API key keeps requests authenticated; authentication failures and
-credit exhaustion never switch to the free allowance. Combining an explicit key
-with `anonymous=True` raises `OpenMatesConfigError`.
+For account access, create a key in **Settings > Developers > API Keys** with the
+scopes and credit limit your script needs, then set `OPENMATES_API_KEY`.
+Authentication failures and credit exhaustion never switch to the free allowance.
+For advanced free-only use, `anonymous=True` ignores an environment key; combining
+it with an explicit key raises `OpenMatesConfigError`.
 
 ## Experimental image decisions
 
@@ -94,7 +90,7 @@ import uuid
 from pathlib import Path
 from openmates import OpenMates
 
-om = OpenMates(anonymous=True)
+om = OpenMates()
 ref = str(uuid.uuid4())
 result = om.apps.ai.decide({
     "state": {"board": ref},

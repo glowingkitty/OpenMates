@@ -1,3 +1,4 @@
+import { publicationCodeFixture } from '@repo/public-site/components/newsroom/codeFixture';
 import type { NewsroomView } from '@repo/public-site/components/newsroom/types';
 
 const props = (view: NewsroomView, locale: 'en' | 'de' = 'en') => ({
@@ -11,6 +12,7 @@ export default props('news');
 export const layout = 'fill';
 
 export const variants = {
+  'Code highlighting': { ...props('blog-post'), data: publicationCodeFixture },
   'Social post': props('social-post'),
   Blog: props('blog'),
   Release: props('release'),

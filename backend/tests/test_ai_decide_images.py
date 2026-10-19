@@ -196,13 +196,16 @@ def test_actual_logging_stack_never_logs_invalid_inline_image_data(path: str, in
 async def test_anonymous_large_image_uses_image_quote_in_availability_and_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.core.api.app.routes import anonymous
     from backend.core.api.app.services import skill_registry
+    from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
     from backend.shared.python_utils import app_skill_output_safety
     from backend.shared.python_schemas.app_metadata_schemas import AppSkillDefinition
     skill = AppSkillDefinition(id="decide", name_translation_key="ai.decide", description_translation_key="ai.decide.description", anonymous_access="inline")
     result = {**ANSWER, "success": True, "usage": {**ANSWER["usage"], "credits": 2, "complete": True}}
     registry = SimpleNamespace(get_metadata=lambda app: SimpleNamespace(skills=[skill]), is_skill_available=lambda *args: True,
         dispatch_skill=AsyncMock(return_value=result))
+    identity_service = AnonymousFreeUsageService(directus_service=None, hmac_secret="image-test-secret")
     service = SimpleNamespace(open_request=AsyncMock(return_value=SimpleNamespace(accepted=True)),
+        request_identity=identity_service.request_identity,
         consume_local_rate_limit=AsyncMock(return_value=True), reserve_operation=AsyncMock(return_value=SimpleNamespace(accepted=True)),
         finalize_charge=AsyncMock(), release_reservation=AsyncMock(), get_public_status=AsyncMock(return_value={"active": True, "can_send_text": True}))
     monkeypatch.setattr(anonymous.limiter, "enabled", False, raising=False)

@@ -2,10 +2,11 @@
   import PublicSiteHeader from '@repo/public-site/components/landing/PublicSiteHeader.svelte';
   import NewsroomSurface from '@repo/public-site/components/newsroom/NewsroomSurface.svelte';
   import { newsroomFixtures } from '@repo/public-site/components/newsroom/fixtures';
-  import type { NewsroomAction, NewsroomView } from '@repo/public-site/components/newsroom/types';
+  import type { NewsroomAction, NewsroomView, NewsroomSurfaceData } from '@repo/public-site/components/newsroom/types';
 
   interface Props {
     view?: NewsroomView;
+    data?: NewsroomSurfaceData;
     locale?: 'en' | 'de';
     appBaseUrl?: string;
     websiteBaseUrl?: string;
@@ -13,6 +14,7 @@
 
   let {
     view = 'news',
+    data,
     locale = 'en',
     appBaseUrl = 'https://app.dev.openmates.org',
     websiteBaseUrl = 'https://landing.dev.openmates.org',
@@ -22,7 +24,7 @@
   let currentLocale = $state<'en' | 'de'>('en');
   $effect(() => { currentView = view; });
   $effect(() => { currentLocale = locale; });
-  const currentData = $derived(newsroomFixtures[currentLocale]);
+  const currentData = $derived(data ?? newsroomFixtures[currentLocale]);
   const indexHref = $derived(
     `${websiteBaseUrl}${currentLocale === 'de' ? '/de' : ''}/${currentView === 'blog' || currentView === 'blog-post' ? 'blog' : 'news'}`,
   );

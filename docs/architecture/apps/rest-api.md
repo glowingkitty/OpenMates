@@ -73,8 +73,8 @@ Examples: `POST /v1/apps/web/skills/search`, `POST /v1/apps/videos/skills/get_tr
 ### Anonymous REST, CLI and SDK Calls
 
 The official cloud also accepts logged-out REST, CLI and SDK calls at
-`POST /v1/anonymous/apps/{app_id}/skills/{skill_id}` with a stable
-`X-OpenMates-Anonymous-ID` header. The body uses the same skill schema, with
+`POST /v1/anonymous/apps/{app_id}/skills/{skill_id}` without an API key or
+custom identity header. The body uses the same skill schema, with
 one logical skill operation per call. Batch-style skills accept exactly one
 request; `ai.decide` accepts bounded state and typed questions directly.
 Provider rate-limit waits are rejected
@@ -85,7 +85,7 @@ File generation, uploads, account actions, and private chat/embed references
 require authentication.
 
 The server quotes and reserves credits before dispatch against the same
-per-identity and server-wide daily, weekly, and monthly anonymous limits used
+public-IP and server-wide daily, weekly, and monthly anonymous limits used
 by web and CLI chat. When the budget is inactive or cannot cover a request,
 anonymous work returns HTTP 429 with `detail.signup_required: true` and a human
 message explaining that the free allowance is unavailable and an account is
@@ -96,18 +96,20 @@ endpoint. Anonymous calls pass no user, chat, message, embed, or upload context
 to skills and create no permanent Directus content records. The anonymous route
 is intentionally outside the authenticated developer OpenAPI schema.
 
-`GET /v1/anonymous/free-usage/status?anonymous_id=<guest-id>` returns the
-guest's `daily_remaining_percent` as a whole number from 0 to 100. It uses the
-tightest remaining daily allowance across the local identity, IP identity, and
-shared daily pool. Without a guest ID, the percentage is `null`. The public
-response does not expose credit counts or identity hashes; `can_send_text` and
-`reason` also reflect weekly and monthly limits.
+`GET /v1/anonymous/free-usage/status` needs no identity header or query parameter.
+Without an installation identity, `daily_remaining_percent` is `null`; IP limits
+still gate availability. SDKs may supply their internal installation identity
+and receive a personal daily percentage. The public response does not expose
+credit counts or identity hashes; `can_send_text` and `reason` reflect the
+applicable daily, weekly, and monthly limits. Status is informational and does
+not reserve allowance. REST callers need no identity setup.
 
 Both SDKs support eligible skills and transient text chat without an API key.
-Use `new OpenMates({ anonymous: true })` in JavaScript or
-`OpenMates(anonymous=True)` in Python to explicitly ignore an environment API key
-and use the free allowance. The clients persist a guest identity, expose
-`anonymous.status()`, and use `/v1/anonymous/chat/stream` for `chats.send`.
+Use `new OpenMates()` in JavaScript or `OpenMates()` in Python: the constructor
+uses guest access without a key and account access when `OPENMATES_API_KEY` is
+configured. The clients expose `anonymous.status()` and use
+`/v1/anonymous/chat/stream` for `chats.send`. An advanced free-only override,
+`anonymous: true` / `anonymous=True`, ignores an environment API key.
 Saved chats, files, account data and caller-selected models require an account.
 An invalid authenticated key never falls back to anonymous execution.
 

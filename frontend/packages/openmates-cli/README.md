@@ -339,12 +339,12 @@ Treat these files like account credentials.
 
 The npm package also exports a Node.js SDK. Without an API key, supported app
 skills and `chats.send()` use the shared free allowance without an account.
-Use `anonymous: true` for free-only examples, even when `OPENMATES_API_KEY` is set.
+A configured `OPENMATES_API_KEY` automatically uses your account instead.
 
-```ts
+```typescript
 import { OpenMates } from "openmates";
 
-const om = new OpenMates({ anonymous: true });
+const om = new OpenMates();
 
 const search = await om.apps.web.search({
   requests: [{ query: "OpenMates SDK examples" }],
@@ -353,15 +353,16 @@ const search = await om.apps.web.search({
 const response = await om.chats.send("Summarize this release note draft.");
 ```
 
-Check the allowance with `await om.anonymous.status()`. Guest identity defaults
-to a persisted device ID; set `anonymousId` to reuse your own stable identity.
+Check the allowance with `await om.anonymous.status()`. No identity setup is
+needed. Free usage is limited by public IP and a shared daily, weekly, and monthly
+service allowance; people on the same network may share the IP limit.
 When the allowance is used or unavailable, `OpenMatesSignupRequiredError` exposes
 `signupRequired`, `code`, and `reason`, with a message directing users to create
 an account. Provider and network failures remain separate errors.
 
-Pass `apiKey` (or set `OPENMATES_API_KEY` without `anonymous: true`) to use an
-account. Invalid or exhausted keys never fall back to free usage. Explicit
-`anonymous: true` and `apiKey` cannot be combined.
+Pass `apiKey` or set `OPENMATES_API_KEY` to use an account. Invalid or exhausted
+keys never fall back to free usage. For advanced free-only use, `anonymous: true`
+ignores an environment key; it cannot be combined with an explicit `apiKey`.
 
 SDK chats are non-persistent by default. Account-only options, including saved
 chats, Memories, Teams, focus modes, and model overrides, require an API key.
@@ -397,7 +398,7 @@ import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { OpenMates } from "openmates";
 
-const om = new OpenMates({ anonymous: true });
+const om = new OpenMates();
 const ref = randomUUID();
 const result = await om.apps.ai.decide({
   state: { board: ref },

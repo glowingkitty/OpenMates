@@ -103,6 +103,10 @@ class AnonymousFreeUsageService:
         self.require_distributed_lock = require_distributed_lock
         self.now_provider = now_provider or (lambda: datetime.now(timezone.utc))
 
+    def request_identity(self, anonymous_id: str | None, ip_address: str) -> str:
+        """Keep missing caller IDs stable and server-only, using the existing HMAC secret."""
+        return anonymous_id or self._hmac_identity("headerless", ip_address)
+
     async def consume_local_rate_limit(self, anonymous_id: str, *, max_requests: int) -> bool:
         """Atomically enforce a per-minute limit without storing the raw local ID."""
         if max_requests < 1:
@@ -166,20 +170,20 @@ class AnonymousFreeUsageService:
         reason = status.reason
         daily_remaining_percent: int | None = None
         identity_remaining: int | None = None
-        if anonymous_id and ip_address:
+        if ip_address:
             cap = status.per_identity_daily_cap_credits
             if cap > 0:
-                local_hash = self._hmac_identity("local", anonymous_id)
-                ip_hash = self._hmac_identity("ip", ip_address)
-                local_row = await self._get_identity_row(local_hash)
-                ip_row = await self._get_identity_row(ip_hash)
-                identity_remaining = min(
-                    max(0, cap - _safe_nonnegative_int((local_row or {}).get("used_credits"))),
-                    max(0, cap - _safe_nonnegative_int((ip_row or {}).get("used_credits"))),
-                )
-                available_today = min(identity_remaining, status.daily_remaining_credits)
-                daily_remaining_percent = min(100, available_today * 100 // cap)
-            else:
+                ip_row = await self._get_identity_row(self._hmac_identity("ip", ip_address))
+                identity_remaining = max(0, cap - _safe_nonnegative_int((ip_row or {}).get("used_credits")))
+                if anonymous_id:
+                    local_row = await self._get_identity_row(self._hmac_identity("local", anonymous_id))
+                    identity_remaining = min(
+                        identity_remaining,
+                        max(0, cap - _safe_nonnegative_int((local_row or {}).get("used_credits"))),
+                    )
+                    available_today = min(identity_remaining, status.daily_remaining_credits)
+                    daily_remaining_percent = min(100, available_today * 100 // cap)
+            elif anonymous_id:
                 daily_remaining_percent = 0
         if active and estimated_credits > 0 and (
             estimated_credits > status.daily_remaining_credits
@@ -291,7 +295,7 @@ class AnonymousFreeUsageService:
         self,
         *,
         request_id: str,
-        anonymous_id: str,
+        anonymous_id: str | None,
         ip_address: str,
         estimated_credits: int,
     ) -> AnonymousReservationResult:
@@ -306,7 +310,7 @@ class AnonymousFreeUsageService:
                 request_id=request_id,
                 parent_request_id=None,
                 charge_id=request_id,
-                local_hash=self._hmac_identity("local", anonymous_id),
+                local_hash=self._hmac_identity("local", self.request_identity(anonymous_id, ip_address)),
                 ip_hash=self._hmac_identity("ip", ip_address),
                 estimated_credits=estimated_credits,
             )
@@ -315,11 +319,11 @@ class AnonymousFreeUsageService:
         self,
         *,
         request_id: str,
-        anonymous_id: str,
+        anonymous_id: str | None,
         ip_address: str,
     ) -> AnonymousReservationResult:
         """Open a zero-cost request ledger that operations can safely charge."""
-        if not request_id or not anonymous_id or not ip_address:
+        if not request_id or not ip_address:
             return AnonymousReservationResult(accepted=False, request_id=request_id, reason="invalid_identity")
         if self.require_distributed_lock:
             try:
@@ -327,7 +331,7 @@ class AnonymousFreeUsageService:
                     "open_request",
                     {
                         "request_id": request_id,
-                        "local_id_hash": self._hmac_identity("local", anonymous_id),
+                        "local_id_hash": self._hmac_identity("local", self.request_identity(anonymous_id, ip_address)),
                         "ip_hash": self._hmac_identity("ip", ip_address),
                     },
                 )
@@ -366,7 +370,7 @@ class AnonymousFreeUsageService:
                     "request_id": request_id,
                     "parent_request_id": None,
                     "charge_id": None,
-                    "local_id_hash": self._hmac_identity("local", anonymous_id),
+                    "local_id_hash": self._hmac_identity("local", self.request_identity(anonymous_id, ip_address)),
                     "ip_hash": self._hmac_identity("ip", ip_address),
                     "reserved_credits": 0,
                     "checkpoint_credits": None,

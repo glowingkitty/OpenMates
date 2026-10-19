@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderPublicationMarkdown } from './publicationMarkdown';
+import { renderPublicationMarkdown } from '../../../../../packages/public-site/src/publications/publicationMarkdown';
 
 describe('renderPublicationMarkdown', () => {
 	// contract-test: direct surface=gui.web assertions=public-publications.content.media-groups
@@ -47,5 +47,35 @@ https://media.openmates.org/three.webp
 [![Diagram](/publications/blog/diagram.webp)](https://media.openmates.org/diagram.png)`);
 		expect(html.match(/target="_blank"/g)).toHaveLength(2);
 		expect(html.match(/rel="noopener noreferrer"/g)).toHaveLength(2);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=public-publications.content.media-groups
+	it.each([
+		['typescript', 'const name: string = "OpenMates";', 'hljs-keyword'],
+		['ts', 'const enabled = true;', 'hljs-keyword'],
+		['python', 'def greet():\n    return "Hello"', 'hljs-keyword'],
+		['bash', 'echo "Hello"', 'hljs-string'],
+		['json', '{"enabled": true, "count": 3}', 'hljs-number'],
+	])('highlights %s during server rendering', (language, source, token) => {
+		const html = renderPublicationMarkdown('```' + language + '\n' + source + '\n```');
+		expect(html).toContain('class="language-' + language + '"');
+		expect(html).toContain(token);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=public-publications.authoring.public-boundary
+	it.each(['typescript', 'unknown-language', '', 'text'])('escapes hostile code with %s language', (language) => {
+		const html = renderPublicationMarkdown('```' + language + '\n<script>alert("x")</script><img src=x onerror=alert(1)>\n```');
+		expect(html).not.toMatch(/<(?:script|img)\b/);
+		expect(html).toContain('&lt;');
+		expect(html).toContain('&gt;');
+		if (language !== 'typescript') expect(html).not.toContain('<span');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=public-publications.authoring.public-boundary
+	it('escapes malicious fence info instead of creating attributes', () => {
+		const html = renderPublicationMarkdown('```unknown" onclick="alert(1)\n<unsafe>&\n```');
+		expect(html).toContain('language-unknown&quot;');
+		expect(html).toContain('&lt;unsafe&gt;&amp;');
+		expect(html).not.toContain(' onclick=');
 	});
 });

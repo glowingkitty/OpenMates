@@ -13,10 +13,7 @@ const decisionInput = {
 
 test.describe('Anonymous CLI skill boundary', () => {
 	// contract-test: direct surface=rest_api assertions=ai-decide.request.bounded
-	test('decision execution requires a guest identity and authenticated route stays private', async ({ request }: { request: any }) => {
-		const guest = await request.post(`${API_URL}/v1/anonymous/apps/ai/skills/decide`, { data: decisionInput });
-		expect(guest.status()).toBe(422);
-		expect((await guest.json()).detail.code).toBe('anonymous_id_required');
+	test('authenticated decision route stays private', async ({ request }: { request: any }) => {
 		const account = await request.post(`${API_URL}/v1/apps/ai/skills/decide`, { data: decisionInput });
 		expect(account.status()).toBe(401);
 	});
@@ -63,11 +60,11 @@ test.describe('Anonymous CLI skill boundary', () => {
 		expect(availability.status()).toBe(200);
 		expect((await availability.json()).active).toBe(false);
 		const decision = await request.post(`${API_URL}/v1/anonymous/apps/ai/skills/decide`, {
-			headers: { 'X-OpenMates-Anonymous-ID': 'e2e-decision-budget-boundary' }, data: decisionInput
+			data: decisionInput
 		});
 		for (const response of [decision, ...await Promise.all(['application/json', 'text/event-stream'].map(Accept =>
 			request.post(`${API_URL}/v1/anonymous/chat/stream`, {
-				headers: { Accept }, data: { anonymous_id: 'e2e-decision-chat-budget', client_chat_id: 'e2e-guest-chat',
+				headers: { Accept }, data: { client_chat_id: 'e2e-guest-chat',
 					client_message_id: `message-${Accept}`, plaintext_message: 'Hello', message_history: [] }
 			})
 		))]) {
@@ -81,12 +78,17 @@ test.describe('Anonymous CLI skill boundary', () => {
 	});
 
 	// contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
-	test('requires an anonymous identity before a skill can run', async ({ request }: { request: any }) => {
-		const response = await request.post(`${API_URL}/v1/anonymous/apps/web/skills/search`, {
+	test('headerless skill availability uses the disabled shared allowance', async ({ request }: { request: any }) => {
+		const status = await request.get(`${API_URL}/v1/anonymous/free-usage/status`);
+		expect(status.status()).toBe(200);
+		const budget = await status.json();
+		expect(budget.active).toBe(false);
+		expect(budget.daily_remaining_percent).toBeNull();
+		const response = await request.post(`${API_URL}/v1/anonymous/apps/web/skills/search/availability`, {
 			data: { requests: [{ query: 'OpenMates' }] }
 		});
-		expect(response.status()).toBe(422);
-		expect((await response.json()).detail.code).toBe('anonymous_id_required');
+		expect(response.status()).toBe(200);
+		expect((await response.json()).allowed).toBe(false);
 	});
 
 	// contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering

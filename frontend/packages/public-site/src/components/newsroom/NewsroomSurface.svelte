@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick, type Snippet } from "svelte";
+  import "../../styles/publication-code.css";
   import PublicationIcon from "./PublicationIcon.svelte";
   import { socialLinks } from "../../data/siteMetadata";
   import NewsroomMedia from "./NewsroomMedia.svelte";
@@ -828,6 +829,20 @@
     display: grid;
     gap: var(--spacing-8);
     min-width: 0;
+  }
+  .article-markdown :global(pre) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 0;
+    padding: var(--spacing-6);
+    border-radius: var(--radius-4);
+    background: var(--color-grey-10);
+    line-height: 1.6;
+  }
+  .article-markdown :global(pre code) {
+    font-family: monospace;
+    white-space: pre;
   }
   .article-markdown :global(h1),
   .article-markdown :global(h2),

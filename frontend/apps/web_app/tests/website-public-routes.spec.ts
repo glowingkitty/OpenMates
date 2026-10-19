@@ -192,6 +192,24 @@ test('switches the developer blog between distinct English and German slugs', as
     await expect(article).toContainText('randomUUID()');
     await expect(article).toContainText('uuid.uuid4()');
     await expect(article).toContainText('data_base64');
+    await expect(article).not.toContainText('X-OpenMates-Anonymous-ID');
+    await expect(article).not.toContainText('OPENMATES_ANONYMOUS_ID');
+    await expect(article).not.toContainText('anonymous: true');
+    await expect(article).not.toContainText('anonymous=True');
+    await expect(article).toContainText('new OpenMates()');
+    await expect(article).toContainText('om = OpenMates()');
+    const restExample = article.locator('code.language-bash').filter({ hasText: '/v1/anonymous/apps/ai/skills/decide' });
+    await expect(restExample).toContainText("-H 'Content-Type: application/json'");
+    const statusExample = article.locator('code.language-bash').filter({ hasText: '/v1/anonymous/free-usage/status' });
+    await expect(statusExample).toHaveText('curl https://api.openmates.org/v1/anonymous/free-usage/status');
+    for (const language of ['typescript', 'python', 'bash']) {
+      const code = article.locator(`code.language-${language}`).filter({ has: page.locator('.hljs-string') }).first();
+      const token = code.locator('.hljs-string').first();
+      await expect(token).toBeAttached();
+      expect(await token.evaluate(el => getComputedStyle(el).color)).not.toBe(
+        await code.evaluate(el => getComputedStyle(el).color)
+      );
+    }
     if (nextLanguage) {
       await page.getByTestId('landing-language-button').click();
       await page.getByTestId('landing-language-panel').getByRole('button', { name: nextLanguage, exact: true }).click();
