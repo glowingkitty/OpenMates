@@ -708,6 +708,7 @@
         "long-chat-history.spec.ts",
         "logout-blocked-userdb-relogin.spec.ts",
         "model-toggle-settings.spec.ts",
+        "mercury3-model-picker.spec.ts",
         "mistral-large4-model-picker.spec.ts",
         "newsletter-categories.spec.ts",
         "passkey-login-alternatives.spec.ts",
