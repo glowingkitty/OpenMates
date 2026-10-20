@@ -39,6 +39,38 @@ private final class RecordingUploadURLProtocol: URLProtocol, @unchecked Sendable
 }
 
 final class APIClientUploadTransportTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete
+    func testFinalCoreRequestsPreserveEscapedPathSegmentsAndQueryExactlyOnce() async throws {
+        let api = APIClient()
+        let baseURL = try XCTUnwrap(URL(string: "https://fixture.invalid/gateway/"))
+        let webURL = try XCTUnwrap(URL(string: "https://app.fixture.invalid"))
+        let cases = [
+            ("workflow-run:fixture", "workflow-run%3Afixture"),
+            ("workflow-schedule:trigger:123", "workflow-schedule%3Atrigger%3A123"),
+            ("literal%3Avalue", "literal%253Avalue"),
+            ("path/segment", "path%2Fsegment"),
+            ("two words", "two%20words"),
+            ("café猫", "caf%C3%A9%E7%8C%AB"),
+            ("query?key=value&#fragment", "query%3Fkey%3Dvalue%26%23fragment"),
+        ]
+        for (id, encodedID) in cases {
+            let path = UserTasksPaths.task(id) + "/dependencies?cursor=literal%253A%2F%20%E7%8C%AB&team_id=team%2Fa"
+            let request = try await api.buildRequest(.get, path: path, headers: ["X-Fixture": "preserved"],
+                baseURL: baseURL, webAppURL: webURL)
+            let url = try XCTUnwrap(request.url)
+            let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+            XCTAssertEqual(components.percentEncodedPath, "/gateway/v1/user-tasks/" + encodedID + "/dependencies", id)
+            XCTAssertEqual(components.percentEncodedQuery, "cursor=literal%253A%2F%20%E7%8C%AB&team_id=team%2Fa", id)
+            XCTAssertEqual(components.queryItems?.first?.value, "literal%3A/ 猫", id)
+            XCTAssertEqual(components.queryItems?.last?.value, "team/a", id)
+            XCTAssertEqual(url.host, "fixture.invalid")
+            XCTAssertNil(components.fragment)
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), webURL.absoluteString)
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Fixture"), "preserved")
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     func testHostedDevelopmentUploadsUseSharedSatelliteWithDevelopmentOrigin() throws {
         XCTAssertEqual(ServerProfile.development.webBaseURL.absoluteString, "https://app.dev.openmates.org")

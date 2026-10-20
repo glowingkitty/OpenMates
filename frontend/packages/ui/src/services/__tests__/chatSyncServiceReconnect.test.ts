@@ -201,6 +201,8 @@ vi.mock("../chatSyncServiceHandlersPhasedSync", () => ({}));
 vi.mock("../chatSyncServiceHandlersAppSettings", () => ({}));
 vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
+vi.mock("../voiceCallMetadata", () => ({ initializeVoiceCallMetadata: vi.fn() }));
+vi.mock("../voiceCallMessages", () => ({ retryPendingCallMessages: vi.fn(async () => undefined), applyCallMessageChanged: vi.fn() }));
 
 import { ChatSynchronizationService, canReuseEarlyEmptyConnectedAccounts, chatSyncService } from "../chatSyncService";
 import { sendNewMessageImpl } from "../chatSyncServiceSenders";
@@ -218,7 +220,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'object' && 'url' in input ? input.url : String(input);
     if (!url.includes('/v1/chats/activity')) throw new Error(`Unmocked unit HTTP request: ${url}`);
-    return { ok: true, status: 200, json: async () => ({ chats: [] }) };
+    return { ok: true, status: 200, json: async () => ({ chats: [], active_tasks: [] }) };
   }));
 });
 afterEach(async () => {

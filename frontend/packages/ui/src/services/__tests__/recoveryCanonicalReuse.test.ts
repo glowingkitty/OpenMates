@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  getChat: vi.fn(async () => ({ team_id: null })),
+  getChat: vi.fn(async () => ({ team_id: null as string | null })),
   putEncrypted: vi.fn(async () => undefined),
   storeEmbedKeys: vi.fn(async () => undefined),
   reconstruct: vi.fn(async () => "old-source"),
@@ -47,6 +47,7 @@ const { reuseAcknowledgedRecoveredEmbed } = await import("../chatSyncServiceHand
 
 const embed = {
   embed_id: "embed-1", hashed_chat_id: "hash:chat-1", hashed_message_id: "hash:message-1",
+  hashed_user_id: "owner",
   encrypted_type: "type-cipher", encrypted_content: "head-v2-cipher", version_number: 2,
   status: "finished", created_at: 1, updated_at: 2,
 };
@@ -60,6 +61,7 @@ const wrappers = [
 describe("ordinary finalized embed after exact typed recovery ACK", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getChat.mockResolvedValue({ team_id: null });
     vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
       ok: true, status: 200,
       json: async () => url.includes("/versions/1")
@@ -86,6 +88,24 @@ describe("ordinary finalized embed after exact typed recovery ACK", () => {
         encrypted_content: "head-v2-cipher", version_number: 2,
       }), "code", undefined, { app_id: "code", skill_id: "code" },
     );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("verifies Team chat wrappers without requesting owner master-key envelopes", async () => {
+    mocks.getChat.mockResolvedValue({ team_id: "team-1" });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({ embed, embed_keys: wrappers.filter(row => row.key_type === "chat") }),
+    })));
+    await withCanonicalEmbedWrite("embed-1", async (lease) => {
+      markAcknowledgedRecoveredEmbed(lease, "chat-1", 2);
+      expect(await reuseAcknowledgedRecoveredEmbed(lease, {
+        embed_id: "embed-1", chat_id: "chat-1", message_id: "message-1",
+        type: "code", content: "new-source", version_number: 2,
+      }, new Uint8Array([1, 2]), new Uint8Array([1, 2]))).toBe(true);
+    });
+    expect(mocks.storeEmbedKeys).toHaveBeenCalledWith([wrappers[1]]);
+    expect(vi.mocked(fetch).mock.calls.every(([url]) => String(url).includes("team_id=team-1"))).toBe(true);
   });
 
   // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery

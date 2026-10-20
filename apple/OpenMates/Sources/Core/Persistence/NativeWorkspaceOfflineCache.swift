@@ -1116,6 +1116,10 @@ enum TeamWorkspaceOfflineRetention {
         for row in rows {
             if let returnedTeam = row["team_id"] as? String, returnedTeam != teamID { throw TeamWorkspaceError.invalidResponse }
             guard let id = row[idKey] as? String else { throw TeamWorkspaceError.invalidResponse }
+            // Both run and scheduled-run rows use the board's workflow_run
+            // discriminator. Keep them in the inventory, but they have no
+            // canonical Task dependency graph or activity collection.
+            if namespace == "user-tasks", row["source"] as? String == "workflow_run" { continue }
             let path = base + "/" + UserTasksPaths.escaped(id)
             if namespace == "workflows" {
                 let detail = try await get(path, teamID: teamID, fence: fence, transport: transport)

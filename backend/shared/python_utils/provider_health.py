@@ -83,5 +83,10 @@ def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
         return "youtube"
     elif provider_name == "Brave" or provider_name == "Brave Search":
         return "brave"
-    # Most providers just need to be lowercased
-    return provider_name.lower().strip()
+    normalized = provider_name.lower().strip()
+    aliases = {
+        "urban sports club": "urban_sports_club",
+        "deutsche bahn": "deutsche_bahn",
+        "stoffe.de": "stoffe",
+    }
+    return aliases.get(normalized, normalized)

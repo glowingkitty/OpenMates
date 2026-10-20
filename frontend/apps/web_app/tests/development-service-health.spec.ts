@@ -54,6 +54,28 @@ test('catalog retains unpriced providers and search skills load their request sc
 		}
 	}
 
+	for (const id of ['serpapi', 'remotion', 'transitous', 'deutsche_bahn', 'stoffe']) {
+		const matching = providers.filter((provider: any) => provider.provider === id);
+		expect(matching.length, `${id} remains listed without optional provider pricing`).toBeGreaterThan(0);
+		for (const provider of matching) expect(provider.pricing).toEqual({});
+	}
+	const fitness = apps.find((app: any) => app.id === 'fitness');
+	for (const id of ['search_locations', 'search_classes']) {
+		const skill = fitness.skills.find((item: any) => item.id === id);
+		expect(skill.providers).toEqual(expect.arrayContaining([
+			expect.objectContaining({ provider: 'skill', pricing: { fixed: 5 } }),
+			expect.objectContaining({ provider: 'urban_sports_club', pricing: { per_unit: { credits: 5 } } }),
+		]));
+	}
+	for (const [appId, skillId, credits] of [
+		['travel', 'search_connections', 25], ['travel', 'search_stays', 25], ['shopping', 'search_products', 10]
+	]) {
+		const skill = apps.find((app: any) => app.id === appId).skills.find((item: any) => item.id === skillId);
+		expect(skill.providers).toEqual(expect.arrayContaining([
+			expect.objectContaining({ provider: 'skill', pricing: { per_unit: { credits } } })
+		]));
+	}
+
 	// Missing query is rejected by the real skill's imported Pydantic schema,
 	// before execution or paid provider calls. An unresolved class gives 404.
 	for (const app of ['news', 'videos']) {

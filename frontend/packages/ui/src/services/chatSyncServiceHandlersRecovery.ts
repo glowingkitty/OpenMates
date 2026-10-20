@@ -396,42 +396,6 @@ export async function sendEmbedStoreWithReceipt(
   }
 }
 
-async function sendEmbedKeysWithReceipt(
-  keys: Array<Record<string, unknown>>, recoveryRecordId: string,
-): Promise<void> {
-  const requestId = crypto.randomUUID();
-  let stop = () => {};
-  const confirmation = new Promise<void>((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      stop();
-      reject(new RecoveryCanonicalTransientError("Canonical embed key confirmation timed out."));
-    }, CHAT_RECOVERY_EVENT_TIMEOUT_MS);
-    const onConfirmed = (raw: unknown) => {
-      const event = raw as Record<string, unknown>;
-      if (event.request_id !== requestId) return;
-      stop();
-      if (event.failed_count !== 0 || event.created_count !== keys.length
-        || event.requested_count !== keys.length) {
-        reject(new Error("Canonical embed key storage was incomplete."));
-      } else resolve();
-    };
-    stop = () => {
-      window.clearTimeout(timer);
-      webSocketService.off("store_embed_keys_confirmed", onConfirmed);
-    };
-    webSocketService.on("store_embed_keys_confirmed", onConfirmed);
-  });
-  try {
-    await webSocketService.sendMessage("store_embed_keys", {
-      keys, request_id: requestId, recovery_record_id: recoveryRecordId,
-    });
-    await confirmation;
-  } catch (error) {
-    stop();
-    throw error;
-  }
-}
-
 async function verifyExactCanonicalEmbedWrappers(
   output: Pick<AvailableRecoveryOutput, "target_chat_id">, keySubject: string,
   embedKey: Uint8Array, chatKey: Uint8Array,
@@ -442,19 +406,61 @@ async function verifyExactCanonicalEmbedWrappers(
     `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}${query}`,
   ), { credentials: "include" });
   if (!response.ok) throw canonicalReadError("Canonical embed wrapper read failed", response.status);
-  const page = await response.json() as { embed_keys?: Array<Record<string, unknown>> };
+  const page = await response.json() as {
+    embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+    embed_keys_has_more_after?: boolean; embed_keys_end_cursor?: string;
+    oversized_embed_key_id?: string | null;
+  };
   const hashedSubject = await computeSHA256(keySubject);
   const hashedChat = await computeSHA256(output.target_chat_id);
-  const wrappers = (page.embed_keys ?? []).filter((row) => row.hashed_embed_id === hashedSubject
-    && (row.key_type === "master" || row.key_type === "chat"));
-  if (wrappers.length !== 2
-    || wrappers.filter((row) => row.key_type === "master" && row.hashed_chat_id == null).length !== 1
-    || wrappers.filter((row) => row.key_type === "chat" && row.hashed_chat_id === hashedChat).length !== 1) {
+  const ownerHash = page.embed?.hashed_user_id;
+  if (page.embed?.embed_id !== keySubject || typeof ownerHash !== "string"
+    || !Array.isArray(page.embed_keys) || page.oversized_embed_key_id) {
+    throw new Error("Canonical recovery embed wrapper proof was incomplete.");
+  }
+  const wrappers = [...page.embed_keys];
+  let more = page.embed_keys_has_more_after === true;
+  let cursor = page.embed_keys_end_cursor;
+  const cursors = new Set<string>();
+  let pages = 1;
+  // Historical duplicates remain durable. Exhaust the scoped key window before
+  // proving equivalence; never silently validate only its first page.
+  while (more) {
+    if (!cursor || cursors.has(cursor) || ++pages > 8 || wrappers.length >= 128) {
+      throw new Error("Canonical recovery embed wrapper proof was incomplete.");
+    }
+    cursors.add(cursor);
+    const params = new URLSearchParams({ embed_ids: keySubject, after_key_id: cursor });
+    if (chat?.team_id) params.set("team_id", chat.team_id);
+    const continuation = await storageArchiveFetch(getApiEndpoint(
+      `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/keys/window?${params}`,
+    ), { credentials: "include" });
+    if (!continuation.ok) throw canonicalReadError("Canonical embed wrapper read failed", continuation.status);
+    const next = await continuation.json() as {
+      embed_keys?: Array<Record<string, unknown>>; has_more_after?: boolean;
+      end_cursor?: string; oversized_key_id?: string | null;
+    };
+    if (!Array.isArray(next.embed_keys) || !next.embed_keys.length || next.oversized_key_id) {
+      throw new Error("Canonical recovery embed wrapper proof was incomplete.");
+    }
+    wrappers.push(...next.embed_keys);
+    more = next.has_more_after === true;
+    cursor = next.end_cursor;
+  }
+  if (wrappers.length > 128
+    || !wrappers.some((row) => row.key_type === "chat" && row.hashed_chat_id === hashedChat)
+    || (!chat?.team_id && !wrappers.some((row) => row.key_type === "master" && row.hashed_chat_id == null))) {
     throw new Error("Canonical recovery embed wrappers were not exact.");
   }
   for (const wrapper of wrappers) {
-    if (typeof wrapper.encrypted_embed_key !== "string") {
-      throw new Error("Canonical recovery embed wrapper ciphertext was missing.");
+    if (wrapper.hashed_embed_id !== hashedSubject || wrapper.hashed_user_id !== ownerHash
+      || !["master", "chat"].includes(String(wrapper.key_type))
+      || (wrapper.key_type === "master" ? chat?.team_id || wrapper.hashed_chat_id != null
+        : wrapper.hashed_chat_id !== hashedChat)
+      || ["hashed_project_id", "hashed_plan_id", "hashed_team_id", "team_key_epoch"]
+        .some((field) => wrapper[field] != null)
+      || typeof wrapper.encrypted_embed_key !== "string" || !wrapper.encrypted_embed_key) {
+      throw new Error("Canonical recovery embed wrapper scope was invalid.");
     }
     const unwrapped = wrapper.key_type === "master"
       ? await unwrapEmbedKeyWithMasterKey(wrapper.encrypted_embed_key, keySubject)
@@ -671,6 +677,13 @@ async function persistRecoveredEmbed(
     output, content.content, content.type, content.message_id, embedKey,
     (ciphertext) => { priorEncryptedType = ciphertext; },
   );
+  if (existingDigest) {
+    // A readable canonical head is already durable. Prove every wrapper opens
+    // to its expected key, including historical duplicates, without reciphering
+    // or rewriting any existing encrypted record.
+    await verifyExactCanonicalEmbedWrappers(output, parentEmbedId || embedId, embedKey, chatKey);
+    return existingDigest;
+  }
   const encryptedContent = existingDigest ? null : await encryptWithEmbedKey(content.content, embedKey);
   const encryptedType = priorEncryptedType ?? await encryptWithEmbedKey(content.type, embedKey);
   if ((!encryptedContent && !existingDigest) || !encryptedType) throw new Error("Recovered embed encryption failed.");
@@ -695,22 +708,23 @@ async function persistRecoveredEmbed(
     created_at: typeof content.createdAt === "number" ? content.createdAt : Math.floor(Date.now() / 1000),
     updated_at: typeof content.updatedAt === "number" ? content.updatedAt : Math.floor(Date.now() / 1000),
   };
-  const writeReceipt = !existingDigest
-    ? await sendEmbedStoreWithReceipt("store_embed", "store_embed_confirmed",
-      storePayload as unknown as Record<string, unknown>, embedId, undefined, output.record_id)
-    : null;
+  const atomicPayload = storePayload as unknown as Record<string, unknown>;
   if (!parentEmbedId && !priorEncryptedType) {
+    if (output.output_version !== 1) throw new Error("Initial recovery embed version was invalid.");
     const wrappedMaster = await wrapEmbedKeyWithMasterKey(embedKey);
     const wrappedChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
     if (!wrappedMaster || !wrappedChat) throw new Error("Recovered embed key wrapping failed.");
     const hashedEmbedId = await computeSHA256(embedId);
-    await sendEmbedKeysWithReceipt([
+    atomicPayload.recovery_key_wrappers = [
       { hashed_embed_id: hashedEmbedId, key_type: "master", hashed_chat_id: null,
         encrypted_embed_key: wrappedMaster, hashed_user_id: ownerHash, created_at: Math.floor(Date.now() / 1000) },
       { hashed_embed_id: hashedEmbedId, key_type: "chat", hashed_chat_id: await computeSHA256(output.target_chat_id),
         encrypted_embed_key: wrappedChat, hashed_user_id: ownerHash, created_at: Math.floor(Date.now() / 1000) },
-    ], output.record_id);
+    ];
+    atomicPayload.recovery_message_id = content.message_id;
   }
+  const writeReceipt = await sendEmbedStoreWithReceipt("store_embed", "store_embed_confirmed",
+    atomicPayload, embedId, undefined, output.record_id);
   const savedDigest = await readRecoveredCanonicalEmbed(
     output, content.content, content.type, content.message_id, embedKey,
   );

@@ -7,6 +7,8 @@
 // Assertions: apple-notifications.registration.lifecycle
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete
 
 import Foundation
 #if os(iOS)
@@ -350,7 +352,7 @@ actor APIClient {
     func validateNativeSession(serverProfile: ServerProfile, body: SessionRequest,
                                expectedAccountID: String?,
                                isCurrent: @escaping @MainActor () -> Bool) async throws -> SessionResponse {
-        var request = buildRequest(.post, path: "/v1/auth/session", headers: nil,
+        var request = try buildRequest(.post, path: "/v1/auth/session", headers: nil,
             baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
         request.httpBody = try encoder.encode(body)
         let prepared = request
@@ -383,7 +385,7 @@ actor APIClient {
                                         body: (any Encodable & Sendable)? = nil, headers: [String: String]? = nil,
                                         verifyResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil,
                                         validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
-        var request = buildRequest(method, path: path, headers: headers,
+        var request = try buildRequest(method, path: path, headers: headers,
                                    baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
         if let body {
             if let rawBody = body as? JSONRawBody { request.httpBody = rawBody.data }
@@ -431,7 +433,7 @@ actor APIClient {
         body: (any Encodable)? = nil,
         headers: [String: String]? = nil
     ) async throws -> Data {
-        var urlRequest = buildRequest(method, path: path, headers: headers)
+        var urlRequest = try buildRequest(method, path: path, headers: headers)
 
         if let body {
             if let rawBody = body as? JSONRawBody {
@@ -453,7 +455,7 @@ actor APIClient {
         expectedAccountID: String? = nil, expectedScope: UUID? = nil,
         expectedTeamContext: APIRequestTeamContext? = nil
     ) async throws -> Data {
-        var urlRequest = buildRequest(
+        var urlRequest = try buildRequest(
             method,
             path: path,
             headers: headers,
@@ -535,7 +537,7 @@ actor APIClient {
         body dict: [String: Any],
         headers: [String: String]? = nil
     ) async throws -> Data {
-        var urlRequest = buildRequest(method, path: path, headers: headers)
+        var urlRequest = try buildRequest(method, path: path, headers: headers)
         urlRequest.httpBody = try JSONSerialization.data(withJSONObject: dict)
         return try await execute(urlRequest)
     }
@@ -666,24 +668,29 @@ actor APIClient {
         _ method: HTTPMethod,
         path: String,
         headers: [String: String]?
-    ) -> URLRequest {
-        buildRequest(method, path: path, headers: headers, baseURL: baseURL, webAppURL: webAppURL)
+    ) throws -> URLRequest {
+        try buildRequest(method, path: path, headers: headers, baseURL: baseURL, webAppURL: webAppURL)
     }
 
-    private func buildRequest(
+    func buildRequest(
         _ method: HTTPMethod,
         path: String,
         headers: [String: String]?,
         baseURL: URL,
         webAppURL: URL
-    ) -> URLRequest {
+    ) throws -> URLRequest {
         let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1).map(String.init)
-        var url = baseURL.appendingPathComponent(pathAndQuery[0])
-        if pathAndQuery.count == 2, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-            components.percentEncodedQuery = pathAndQuery[1]
-            url = components.url ?? url
-        }
+        let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        // Route builders escape individual IDs already. Appending that string as
+        // a raw path component would encode each '%' again (e.g. %3A -> %253A).
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+              let route = URLComponents(string: "/" + pathAndQuery[0]),
+              route.host == nil, route.fragment == nil else { throw APIError.invalidResponse }
+        let basePath = components.percentEncodedPath.hasSuffix("/")
+            ? String(components.percentEncodedPath.dropLast()) : components.percentEncodedPath
+        components.percentEncodedPath = basePath + route.percentEncodedPath
+        components.percentEncodedQuery = pathAndQuery.count == 2 ? pathAndQuery[1] : nil
+        guard let url = components.url else { throw APIError.invalidResponse }
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

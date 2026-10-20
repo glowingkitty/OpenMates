@@ -78,7 +78,9 @@ def test_report_preserves_distinct_events_and_same_source_repeats():
 # contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
 def test_collect_degraded_rows_pages_the_entire_fixed_window(monkeypatch):
     calls = []
-    pages = [[_row("api", "ERROR", "failed")] * 2, [_row("core-worker", "ERROR", "failed")]]
+    first = dict(_row("api", "ERROR", "failed"), _timestamp=200)
+    last = dict(_row("core-worker", "ERROR", "failed"), _timestamp=100)
+    pages = [[first, first], [last]]
 
     class Collector:
         async def _search(self, stream, sql, **kwargs):
@@ -94,6 +96,7 @@ def test_collect_degraded_rows_pages_the_entire_fixed_window(monkeypatch):
     assert "OFFSET 2" in calls[1][1]
     assert "job" in calls[0][1]
     assert calls[0][2] == calls[1][2]
+    assert calls[0][2]["use_cache"] is False
 
 
 # contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
@@ -162,3 +165,110 @@ def test_select_degraded_report_webhook_falls_back_by_environment(monkeypatch):
 
     assert report.select_degraded_report_webhook_url("production") == "https://example.test/prod"
     assert report.select_degraded_report_webhook_url("development") == "https://example.test/dev"
+
+
+@pytest.mark.parametrize("boundary", ["reversed", "overlap", "unordered", "missing_timestamp"])
+# contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_collect_degraded_rows_rejects_inconsistent_pages(monkeypatch, boundary):
+    first = dict(_row("api", "ERROR", "failed"), _timestamp=200)
+    second = dict(_row("api", "ERROR", "failed again"), _timestamp=100)
+    bad = dict(first, _timestamp=150)
+    pages = {
+        "reversed": [[first, second], [bad]],
+        "overlap": [[first, second], [second]],
+        "unordered": [[second, first]],
+        "missing_timestamp": [[_row("api", "ERROR", "failed")]],
+    }[boundary]
+
+    class Collector:
+        async def _search(self, *args, **kwargs):
+            return pages.pop(0)
+
+    monkeypatch.setattr(report, "DEGRADED_SERVICES_REPORT_QUERY_LIMIT", 2)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.openobserve_log_collector",
+                        SimpleNamespace(OpenObserveLogCollectorService=Collector))
+    with pytest.raises(RuntimeError, match="degraded-services log"):
+        asyncio.run(report.collect_recent_degraded_log_rows())
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_report_prioritizes_errors_without_suppressing_security_or_warning_evidence():
+    rows = (
+        [_row("api", "WARNING", "Request failed: GET /internal/config/provider_pricing/serpapi (404)")] * 50
+        + [_row("api", "ERROR", "Import failed: app module")] * 3
+        + [_row("api", "CRITICAL", "Worker failed: unavailable")] * 3
+        + [_row("api", "WARNING", "Request failed: authentication rejected (403)")] * 4
+    )
+    issues = report.build_degraded_issue_report(rows)
+    assert [issue["level"] for issue in issues] == ["CRITICAL", "ERROR", "WARNING", "WARNING"]
+    assert issues[2]["count"] == 50
+    assert "authentication rejected" in issues[3]["message"]
+    assert report.build_degraded_issue_report(rows, top_messages=2) == issues[:2]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("incomplete", [None, "is_partial", "function_error", "missing_hits"])
+@pytest.mark.parametrize("use_cache", [False, True])
+# contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+async def test_report_search_cache_control_and_partial_results(monkeypatch, incomplete, use_cache):
+    from backend.core.api.app.services import openobserve_log_collector as logs
+
+    captured = {}
+    row = dict(_row("api", "ERROR", "failed"), _timestamp=100)
+
+    class Response:
+        status = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def json(self):
+            result = {"hits": [row]}
+            if incomplete == "missing_hits":
+                return {}
+            if incomplete:
+                result[incomplete] = True if incomplete == "is_partial" else "query incomplete"
+            return result
+
+    class Session:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def post(self, url, **kwargs):
+            captured.update(url=url, **kwargs)
+            return Response()
+
+    monkeypatch.setattr(logs.aiohttp, "ClientSession", Session)
+    result = await logs.OpenObserveLogCollectorService()._search("default", "SELECT * FROM default", use_cache=use_cache)
+    if use_cache:
+        assert captured["url"].endswith("/_search")
+        assert "use_cache" not in captured["json"]
+    else:
+        assert captured["url"].endswith("/_search?use_cache=false")
+        assert captured["json"]["use_cache"] is False
+    assert result == (None if incomplete else [row])
+
+
+# contract-test: supporting surface=cli assertions=operational-monitoring.alerts.actionable-low-noise
+def test_collect_degraded_rows_keeps_distinct_ingestion_events_with_identical_messages(monkeypatch):
+    first = dict(_row("api", "ERROR", "failed"), _timestamp=200)
+    second = dict(first, _timestamp=100)
+    pages = [[first], [second], []]
+
+    class Collector:
+        async def _search(self, *args, **kwargs):
+            return pages.pop(0)
+
+    monkeypatch.setattr(report, "DEGRADED_SERVICES_REPORT_QUERY_LIMIT", 1)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.openobserve_log_collector",
+                        SimpleNamespace(OpenObserveLogCollectorService=Collector))
+    assert asyncio.run(report.collect_recent_degraded_log_rows()) == [first, second]

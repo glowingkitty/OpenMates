@@ -285,6 +285,114 @@ async function requireRegisteredChildWrite(trx, embedId, actor, payload) {
   return chat.hashed_team_id ?? null;
 }
 
+const directChatMarked = (chat) => chat && (
+  (chat.chat_visibility != null && chat.chat_visibility !== 'team')
+  || chat.participant_user_hashes != null || chat.participant_key_envelopes != null
+);
+const directJson = (value) => {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { fail(404, 'chat_not_found'); }
+};
+function requireDirectParticipant(chat, actorHash) {
+  if (!directChatMarked(chat)) return false;
+  const participants = directJson(chat.participant_user_hashes);
+  const envelopes = directJson(chat.participant_key_envelopes);
+  if (chat.chat_visibility !== 'direct' || !chat.hashed_team_id
+    || (chat.encrypted_chat_key != null && chat.encrypted_chat_key !== '')
+    || !Array.isArray(participants) || participants.length !== 2
+    || participants.some((hash) => typeof hash !== 'string' || !HEX_64_RE.test(hash))
+    || new Set(participants).size !== 2
+    || !envelopes || typeof envelopes !== 'object' || Array.isArray(envelopes)
+    || Object.keys(envelopes).length !== 2
+    || participants.some((hash) => !Object.hasOwn(envelopes, hash))
+    || !participants.includes(actorHash)) fail(404, 'chat_not_found');
+  for (const hash of participants) {
+    const envelope = envelopes[hash];
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)
+      || Object.keys(envelope).sort().join(',') !== 'encrypted_chat_key,key_id'
+      || typeof envelope.key_id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(envelope.key_id)
+      || typeof envelope.encrypted_chat_key !== 'string'
+      || !/^OMDM1\.[A-Za-z0-9._-]{16,16378}$/.test(envelope.encrypted_chat_key)) {
+      fail(404, 'chat_not_found');
+    }
+  }
+  return true;
+}
+async function requireLegacyChatWrite(trx, chat, actor) {
+  if (!chat || chat.storage_state === 'deleting') fail(403, 'chat_write_denied');
+  const direct = requireDirectParticipant(chat, actor);
+  if (!chat.hashed_team_id) {
+    if (chat.hashed_user_id !== actor) fail(403, 'chat_write_denied');
+    return;
+  }
+  const membership = await trx(MEMBERSHIPS).where({ hashed_team_id: chat.hashed_team_id,
+    hashed_user_id: actor, status: 'active' }).forShare().first();
+  const team = await trx(TEAMS).where({ hashed_team_id: chat.hashed_team_id,
+    status: 'active' }).forShare().first();
+  if (!team || !membership
+    || !(direct ? ['owner', 'admin', 'member', 'viewer'] : ['owner', 'admin', 'member']).includes(membership.role)) {
+    fail(403, 'chat_write_denied');
+  }
+}
+
+/* Internal-only first-party wrapper write. Share the head writer's database lock:
+ * two missing-row lookups must never race into duplicate cryptographic identities. */
+export async function writeLegacyEmbedKey(database, raw) {
+  const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'wrapper']),
+    ['embed_id', 'actor_user_hash', 'wrapper']);
+  const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
+  const actor = hexDigest(input.actor_user_hash, 'invalid_actor');
+  const wrapper = exactFields(input.wrapper, new Set(['hashed_embed_id', 'key_type',
+    'hashed_chat_id', 'hashed_user_id', 'encrypted_embed_key', 'created_at']),
+  ['hashed_embed_id', 'key_type', 'hashed_chat_id', 'hashed_user_id', 'encrypted_embed_key', 'created_at']);
+  if (wrapper.hashed_embed_id !== sha256(embedId) || wrapper.hashed_user_id !== actor
+    || !['master', 'chat'].includes(wrapper.key_type)
+    || (wrapper.key_type === 'master' && wrapper.hashed_chat_id !== null)) fail(400, 'invalid_wrapper_scope');
+  if (wrapper.key_type === 'chat') hexDigest(wrapper.hashed_chat_id, 'invalid_wrapper_scope');
+  boundedString(wrapper.encrypted_embed_key, 'invalid_wrapper', MAX_CIPHERTEXT_BYTES);
+  safeInteger(wrapper.created_at, 'invalid_wrapper');
+  return database.transaction(async (trx) => {
+    await lockIdentity(trx, `embed:${embedId}`);
+    const heads = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().limit(2);
+    if (heads.length !== 1 || heads[0].hashed_user_id !== actor
+      || heads[0].hashed_embed_id !== wrapper.hashed_embed_id) fail(403, 'embed_access_denied');
+    const embed = heads[0];
+    if (await trx(PROJECT_ITEMS).where({ target_id_hash: sha256(embedId) })
+      .whereIn('item_type', ['embed', 'upload']).first()) fail(403, 'project_context_required');
+    if (wrapper.key_type === 'chat') {
+      const chats = await trx(CHATS)
+        .whereRaw("encode(digest(id::text, 'sha256'), 'hex') = ?", [wrapper.hashed_chat_id])
+        .forShare().limit(2);
+      if (chats.length !== 1) fail(403, 'chat_write_denied');
+      await requireLegacyChatWrite(trx, chats[0], actor);
+    }
+    if (wrapper.key_type === 'master' && embed.hashed_team_id != null) {
+      const sources = await trx(CHATS)
+        .whereRaw("encode(digest(id::text, 'sha256'), 'hex') = ?", [embed.hashed_chat_id])
+        .forShare().limit(2);
+      if (sources.length !== 1 || sources[0].hashed_team_id !== embed.hashed_team_id) {
+        fail(403, 'chat_write_denied');
+      }
+      await requireLegacyChatWrite(trx, sources[0], actor);
+    }
+    const scope = { hashed_embed_id: wrapper.hashed_embed_id, key_type: wrapper.key_type,
+      hashed_chat_id: wrapper.hashed_chat_id };
+    const rows = await trx(EMBED_KEYS).where(scope).forUpdate().limit(2);
+    if (rows.length > 1) fail(409, 'embed_key_ambiguous');
+    if (rows.length) {
+      const row = rows[0];
+      if (!row.id || row.hashed_user_id !== actor
+        || row.hashed_project_id != null || row.hashed_team_id != null || row.hashed_plan_id != null) {
+        fail(403, 'embed_key_owner_mismatch');
+      }
+      if (row.encrypted_embed_key !== wrapper.encrypted_embed_key) {
+        await trx(EMBED_KEYS).where({ id: row.id }).update({ encrypted_embed_key: wrapper.encrypted_embed_key });
+      }
+    } else await trx(EMBED_KEYS).insert({ id: randomUUID(), ...wrapper });
+    return { status: rows.length ? 'updated' : 'created', embed };
+  });
+}
+
 /** Serialize a legacy client ciphertext write with Project revision publication. */
 export async function writeLegacyEmbed(database, raw) {
   const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'payload', 'bundle_context',
@@ -320,7 +428,7 @@ export async function writeLegacyEmbed(database, raw) {
   if (input.bundle_context !== undefined) {
     bundle = exactFields(input.bundle_context, new Set([
       'chat_id', 'message_id', 'hashed_team_id', 'allow_new_personal_chat', 'preflight_id',
-      'key_wrappers',
+      'key_wrappers', 'recovery_record_id',
     ]), ['chat_id', 'message_id', 'hashed_team_id', 'allow_new_personal_chat', 'key_wrappers']);
     boundedString(bundle.chat_id, 'invalid_bundle_chat', 128);
     boundedString(bundle.message_id, 'invalid_bundle_message', 255);
@@ -400,20 +508,32 @@ export async function writeLegacyEmbed(database, raw) {
           || (!bundle.hashed_team_id && chat.hashed_user_id !== actor)) {
           fail(403, 'bundle_chat_scope_mismatch');
         }
+        if (!bundle.hashed_team_id) requireDirectParticipant(chat, actor);
         if (bundle.hashed_team_id) {
-          const membership = await trx(MEMBERSHIPS).where({
-            hashed_team_id: bundle.hashed_team_id, hashed_user_id: actor, status: 'active',
-          }).forShare().first();
-          const team = await trx(TEAMS).where({
-            hashed_team_id: bundle.hashed_team_id, status: 'active',
-          }).forShare().first();
-          if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
-            fail(403, 'bundle_team_write_denied');
+          try { await requireLegacyChatWrite(trx, chat, actor); }
+          catch (error) {
+            if (error instanceof ProtocolError) fail(403, 'bundle_team_write_denied');
+            throw error;
           }
         }
       } else if (bundle.hashed_team_id || bundle.preflight_id != null
         || !bundle.allow_new_personal_chat) {
         fail(403, 'bundle_chat_scope_mismatch');
+      }
+      if (bundle.recovery_record_id != null) {
+        boundedString(bundle.recovery_record_id, 'invalid_recovery_record', 128);
+        const output = await trx(RECOVERY_OUTPUTS).where({ id: bundle.recovery_record_id,
+          hashed_user_id: actor, subject_id: embedId, target_chat_id: bundle.chat_id,
+          output_kind: 'embed', output_version: 1, state: 'PENDING' }).whereNull('deleted_at').forShare().first();
+        if (!output || payload.parent_embed_id != null || Number(payload.version_number ?? 1) !== 1
+          || (output.root_hashed_team_id ?? null) !== bundle.hashed_team_id) {
+          fail(403, 'recovery_bundle_scope_mismatch');
+        }
+        const root = await trx(CHATS).where({ id: output.root_chat_id }).forShare().first();
+        if (!root || (root.hashed_team_id ?? null) !== (output.root_hashed_team_id ?? null)) {
+          fail(403, 'recovery_bundle_scope_mismatch');
+        }
+        await requireLegacyChatWrite(trx, root, actor);
       }
       if (bundle.preflight_id != null) {
         const preflight = await trx(PREFLIGHTS).where({ id: bundle.preflight_id }).forShare().first();
@@ -643,6 +763,8 @@ async function persistBundleWrappers(trx, embedId, actor, wrappers) {
     if (!Array.isArray(existing) || existing.length > 1) fail(409, 'bundle_wrapper_ambiguous');
     if (existing.length === 1) {
       if (existing[0].hashed_user_id !== actor
+        || existing[0].hashed_project_id != null || existing[0].hashed_team_id != null
+        || existing[0].hashed_plan_id != null
         || existing[0].encrypted_embed_key !== wrapper.encrypted_embed_key) {
         fail(409, 'bundle_wrapper_mismatch');
       }

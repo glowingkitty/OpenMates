@@ -632,3 +632,49 @@ async def test_metadata_enrichment_transaction_conflict_has_no_confirmation_or_b
     assert directus.embed.updated == []
     assert manager.personal_messages[0][0]["payload"]["request_id"] == "conflict-1"
     assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_recovery_initial_root_routes_head_and_wrappers_to_one_transaction():
+    manager, directus = FakeConnectionManager(), FakeDirectusService()
+    message_id = "recovery-message"
+    wrappers = [{"key_type": kind, "encrypted_embed_key": "sealed-wrapper"}
+                for kind in ("master", "chat")]
+    payload = store_payload(request_id="recovery-request", recovery_record_id="output-record",
+        recovery_message_id=message_id, recovery_key_wrappers=wrappers,
+        hashed_message_id=hashlib.sha256(message_id.encode()).hexdigest(), version_number=1)
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    call = directus.write_calls[0]
+    assert call["bundle_context"] == {
+        "chat_id": "legacy-chat", "message_id": message_id, "hashed_team_id": None,
+        "allow_new_personal_chat": False, "key_wrappers": wrappers,
+        "recovery_record_id": "output-record",
+    }
+    assert not any(field.startswith("recovery_") for field in call["payload"])
+    assert manager.personal_messages[0][0]["type"] == "store_embed_confirmed"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mutation", ["record", "message", "parent", "version", "wrappers"])
+async def test_recovery_bundle_rejects_uncorrelated_or_noninitial_payload_before_writing(mutation):
+    manager, directus = FakeConnectionManager(), FakeDirectusService()
+    payload = store_payload(recovery_record_id="output-record", recovery_message_id="message",
+        recovery_key_wrappers=[{}, {}], hashed_message_id=hashlib.sha256(b"message").hexdigest(),
+        version_number=1)
+    if mutation == "record":
+        payload.pop("recovery_record_id")
+    if mutation == "message":
+        payload["recovery_message_id"] = "different-message"
+    if mutation == "parent":
+        payload["parent_embed_id"] = "parent"
+    if mutation == "version":
+        payload["version_number"] = 2
+    if mutation == "wrappers":
+        payload["recovery_key_wrappers"] = [{}]
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    assert directus.write_calls == []
+    assert manager.personal_messages[0][0]["type"] == "error"

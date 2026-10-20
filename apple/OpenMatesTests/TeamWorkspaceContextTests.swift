@@ -513,6 +513,43 @@ final class TeamWorkspaceOfflineRetentionTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.maintenance,tasks.workflow-projections.read-only
+    func testPersonalRetentionPreservesWorkflowProjectionsWithoutCanonicalTaskSubresources() async throws {
+        let fixture = RetentionFixture(); defer { fixture.clean() }
+        let runID = "workflow-run:synthetic-run"
+        let scheduledID = "workflow-schedule:synthetic-trigger:123"
+        let rows: [[String: Any]] = [
+            ["task_id": "canonical-task", "encrypted_title": "synthetic-ciphertext"],
+            ["task_id": runID, "source": "workflow_run", "projection_kind": "current_run"],
+            ["task_id": scheduledID, "source": "workflow_run", "projection_kind": "next_run"],
+        ]
+        var paths: [String] = []
+        try await fixture.retain(teams: []) { path, _ in
+            paths.append(path)
+            let route = URLComponents(string: "https://fixture.invalid" + path)!.path
+            if route == "/v1/user-tasks" {
+                return try JSONSerialization.data(withJSONObject: ["tasks": rows, "complete": true])
+            }
+            if route.hasPrefix("/v1/user-tasks/workflow-") {
+                XCTFail("Workflow projections have no canonical Task subresources")
+                throw APIError.invalidResponse
+            }
+            return try fixture.response(path)
+        }
+        let scope = fixture.scope(nil)
+        await fixture.cache.configure(scope: scope, masterKey: fixture.key)
+        let retained = try await fixture.cache.read(namespace: "user-tasks", path: "/v1/user-tasks", scope: scope)
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(retained)) as? [String: Any])
+        let retainedRows = try XCTUnwrap(payload["tasks"] as? [[String: Any]])
+        XCTAssertEqual(retainedRows.compactMap { $0["task_id"] as? String }, ["canonical-task", runID, scheduledID])
+        XCTAssertEqual(retainedRows.first?["encrypted_title"] as? String, "synthetic-ciphertext")
+        let complete = try await fixture.cache.hasCompleteSnapshot(namespace: "user-tasks", scope: scope)
+        XCTAssertTrue(complete)
+        XCTAssertTrue(paths.contains("/v1/user-tasks/canonical-task/dependencies"))
+        XCTAssertTrue(paths.contains { $0.hasPrefix("/v1/user-tasks/canonical-task/activity") })
+        XCTAssertFalse(paths.contains { $0.hasPrefix("/v1/user-tasks/workflow-") })
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.maintenance
     func testPartialNamespaceKeepsPreviousCompleteSnapshotAndContinuesOtherNamespaces() async throws {
         let fixture = RetentionFixture(); defer { fixture.clean() }

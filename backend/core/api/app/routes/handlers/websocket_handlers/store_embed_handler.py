@@ -195,7 +195,20 @@ async def handle_store_embed(
             # Recovery correlation is a WebSocket protocol field, not an embeds
             # column. The capability gate has already consumed it before this
             # handler forwards the encrypted head to the legacy transaction.
-            payload.pop("recovery_record_id", None)
+            recovery_record_id = payload.pop("recovery_record_id", None)
+            recovery_wrappers = payload.pop("recovery_key_wrappers", None)
+            recovery_message_id = payload.pop("recovery_message_id", None)
+            has_recovery_bundle = recovery_wrappers is not None or recovery_message_id is not None
+            if has_recovery_bundle and (
+                not isinstance(recovery_record_id, str) or not recovery_record_id
+                or not isinstance(recovery_wrappers, list) or len(recovery_wrappers) != 2
+                or not isinstance(recovery_message_id, str) or not recovery_message_id
+                or payload.get("parent_embed_id") is not None
+                or payload.get("version_number", 1) != 1 or enrichment is not None
+            ):
+                await _reject_store_embed_write(manager, user_id, device_fingerprint_hash,
+                                               embed_id, "invalid_recovery_bundle", request_id)
+                return
             # Public app/skill IDs may be projected for paginated discovery. The
             # chat and Team IDs are authorization inputs only, never Directus embed
             # fields or plaintext content.
@@ -317,6 +330,20 @@ async def handle_store_embed(
                 )
                 return
 
+            bundle_context = None
+            if has_recovery_bundle:
+                if (not isinstance(chat_id, str) or not direct_chat_metadata
+                        or payload.get("hashed_message_id") != _user_hash(recovery_message_id)):
+                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash,
+                                                   embed_id, "invalid_recovery_bundle", request_id)
+                    return
+                bundle_context = {
+                    "chat_id": chat_id, "message_id": recovery_message_id,
+                    "hashed_team_id": direct_chat_metadata.get("hashed_team_id") or None,
+                    "allow_new_personal_chat": False, "key_wrappers": recovery_wrappers,
+                    "recovery_record_id": recovery_record_id,
+                }
+
             logger.info(f"Processing store_embed for embed {embed_id} from user {user_id}")
 
             # CRITICAL FIX: Convert camelCase timestamp fields to snake_case for Directus
@@ -356,6 +383,7 @@ async def handle_store_embed(
                 ).write_legacy_embed(
                     embed_id, payload, user_id=user_id,
                     canonical_metadata_enrichment=enrichment,
+                    **({"bundle_context": bundle_context} if bundle_context is not None else {}),
                 )
             except EmbedVersionTransactionError as exc:
                 if exc.status_code in (403, 409):

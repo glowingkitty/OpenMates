@@ -54,6 +54,31 @@ class EmbedVersionTransactionService:
     def __init__(self, directus_service: Any) -> None:
         self._directus = directus_service
 
+    async def write_legacy_embed_key(
+        self, embed_id: str, wrapper: Mapping[str, Any], *, user_id: str,
+    ) -> dict[str, Any]:
+        """Upsert a wrapper under the canonical head's shared database lock."""
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for embed transactions")
+        response = await self._directus._make_api_request(
+            "POST", f"{self._directus.base_url.rstrip('/')}/embed-version-transaction/legacy-embed-key-write",
+            headers={"X-Internal-Service-Token": token},
+            json={"embed_id": embed_id, "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+                  "wrapper": dict(wrapper)},
+        )
+        body = response.json()
+        if response.status_code != 200:
+            error = body.get("error") if isinstance(body, dict) else None
+            raise EmbedVersionTransactionError(
+                response.status_code, error.get("code", "key_transaction_failed") if isinstance(error, dict)
+                else "key_transaction_failed",
+            )
+        result = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(result, dict) or not isinstance(result.get("embed"), dict):
+            raise RuntimeError("Legacy embed key transaction returned malformed success data")
+        return result
+
     async def write_legacy_embed(
         self, embed_id: str, payload: Mapping[str, Any], *, user_id: str,
         bundle_context: Mapping[str, Any] | None = None,

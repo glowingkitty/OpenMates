@@ -6,6 +6,8 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { runCli } = require('./helpers/cli-test-helpers');
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
+const { observeRecoveryFrames, focusRecoveryPage, requireForegroundRecoveryLifecycle } = require('./storage-recovery-fixtures');
+const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -56,7 +58,11 @@ async def main():
             created,duplicate=await directus.chat.create_chat_in_directus(data['chat']); assert created and not duplicate
             assert await directus.chat.create_message_in_directus(data['message'])
             child=data['childEmbed']; assert child['hashed_user_id']==owner and child['hashed_chat_id']==hashlib.sha256(data['chatId'].encode()).hexdigest()
-            created,_=await directus.create_item('embeds',child,admin_required=True); assert created
+            if not data.get('omitCanonicalHead'):
+                created,_=await directus.create_item('embeds',child,admin_required=True); assert created
+            for wrapper in data.get('keyWrappers',[]):
+                assert wrapper['hashed_user_id']==owner and wrapper['hashed_embed_id']==child['hashed_embed_id']
+                created,_=await directus.create_item('embed_keys',wrapper,admin_required=True); assert created
             _,public=derive_recovery_keypair(data['fixtureChatKey'],data['chatId'],1)
             for output,content in zip(data['outputs'],data['sealedContents']):
                 assert output['hashed_user_id']==owner and output['root_chat_id']==data['chatId'] and output['target_chat_id']==data['chatId']
@@ -72,6 +78,18 @@ async def main():
             assert await cache.add_chat_to_ids_versions(data['ownerId'],data['chatId'],data['chat']['last_edited_overall_timestamp'])
             assert await cache.set_chat_list_item_data(data['ownerId'],data['chatId'],_chat_list_cache_data_from_metadata(data['chat']))
             assert await cache.set_chat_versions(data['ownerId'],data['chatId'],_chat_versions_from_metadata(data['chat']))
+        elif data['operation']=='inspect':
+            embed=data['childEmbed']
+            heads=await directus.get_items('embeds',params={'filter':{'embed_id':{'_eq':embed['embed_id']}},'limit':2},no_cache=True,admin_required=True)
+            keys=await directus.get_items('embed_keys',params={'filter':{'hashed_embed_id':{'_eq':embed['hashed_embed_id']}},'limit':10},no_cache=True,admin_required=True)
+            outputs=await directus.get_items('chat_recovery_outputs',params={'filter':{'id':{'_in':[row['id'] for row in data['outputs']]}},'limit':3},no_cache=True,admin_required=True)
+            assert all(row['hashed_user_id']==owner for row in heads+keys+outputs)
+            expected={row['id']:row['encrypted_embed_key'] for row in data.get('keyWrappers',[])}
+            print(json.dumps({'headPresent':len(heads)==1,'headUnchanged':len(heads)==1 and all(heads[0].get(field)==embed.get(field) for field in ('id','encrypted_content','encrypted_type','hashed_user_id','hashed_chat_id','hashed_message_id','version_number')),
+                'wrapperCount':len(keys),'wrapperIdsUnchanged':set(expected)=={row['id'] for row in keys},
+                'wrapperCiphertextsUnchanged':all(expected.get(row['id'])==row['encrypted_embed_key'] for row in keys) and len(keys)==len(expected),
+                'states':[row['state'] for row in outputs]}))
+            return
         else:
             metadata=await directus.chat.get_chat_metadata(data['chatId'])
             if metadata:
@@ -86,7 +104,7 @@ async def main():
                     for row in rows:
                         assert row['hashed_user_id']==owner and row['hashed_chat_id']==hashlib.sha256(data['chatId'].encode()).hexdigest()
                         assert await directus.delete_item('embeds',row['id'],admin_required=True)
-                    keys=await directus.get_items('embed_keys',params={'filter':{'hashed_embed_id':{'_eq':hashlib.sha256(embed_id.encode()).hexdigest()}},'limit':3},no_cache=True,admin_required=True)
+                    keys=await directus.get_items('embed_keys',params={'filter':{'hashed_embed_id':{'_eq':hashlib.sha256(embed_id.encode()).hexdigest()}},'limit':10},no_cache=True,admin_required=True)
                     for key in keys:
                         assert key['hashed_user_id']==owner
                         assert await directus.delete_item('embed_keys',key['id'],admin_required=True)
@@ -285,3 +303,121 @@ test('sealed child discovery recovers a later parent across pages without rewrit
 	}
 	if (cleanupErrors.length) throw cleanupErrors[0];
 });
+
+
+for (const mode of ['equivalent', 'conflicting', 'initial'] as const) {
+	// contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.completion.recovery-takeover,chats.persistence.client-encrypted
+	test(`browser sealed recovery preserves ${mode} canonical wrapper records`, async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(240_000);
+		skipWithoutCredentials(test, email, password, otpKey);
+		test.skip(process.env.OPENMATES_CI_ISOLATED !== '1', 'Synthetic encrypted records require isolated CI');
+		const apiUrl = workflowApiUrl(), home = createWorkflowCliHome(`browser-wrapper-${mode}`);
+		let fixture: any;
+		const frames = observeRecoveryFrames(page, true);
+		const recoveryErrors: string[] = [];
+		page.on('console', (message: any) => {
+			const value = message.text();
+			if (value.includes('[ChatSyncService:Recovery] Output recovery failed:')) recoveryErrors.push(value);
+		});
+		const apply = (operation: string): any => {
+			const output = execFileSync('docker', ['compose', '-f', isolatedCompose, 'exec', '-T', '-e',
+				'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', sealedParentDependencyFixtureProgram()], {
+				cwd: repositoryRoot, input: JSON.stringify({ ...fixture, operation }), encoding: 'utf8', timeout: 90_000
+			}).trim();
+			if (operation === 'inspect') return JSON.parse(output);
+			expect(output).toBe('sealed parent dependency fixture applied');
+		};
+		let primaryFailed = false;
+		let cleanupFailure: AggregateError | undefined;
+		try {
+			await loginWorkflowCliViaPair(page, apiUrl, home, `BROWSER_WRAPPERS_${mode.toUpperCase()}`);
+			// Close the originating connection before seeding. Only the restored
+			// real browser may discover and acknowledge this synthetic output.
+			await page.goto('about:blank');
+			fixture = canonicalHistorySdk(apiUrl, home, `
+				const owner=await client.whoAmI();if(!owner.id||client.getActiveTeamId())throw Error('Personal owner required');
+				const chatId=randomUUID(),messageId=randomUUID(),embedId=randomUUID(),key=randomBytes(32),turnId=randomUUID();
+				const ownerHash=hash(owner.id),now=Math.floor(Date.now()/1000),date=new Date().toISOString();
+				const chat={id:chatId,hashed_user_id:ownerHash,created_at:now,updated_at:now,last_edited_overall_timestamp:now,
+					last_message_timestamp:now,messages_v:1,title_v:1,metadata_v:1,unread_count:0,
+					encrypted_chat_key:await encrypt(key,client.getMasterKeyBytes()),encrypted_title:await encrypt('Canonical wrapper recovery',key)};
+				const message={id:messageId,client_message_id:messageId,message_id:messageId,chat_id:chatId,hashed_user_id:ownerHash,
+					role:'user',created_at:now,updated_at:now,encrypted_sender_name:await encrypt('You',key),
+					encrypted_content:await encrypt('Wrapper recovery fixture.',key)};
+				const hkdf=await webcrypto.subtle.importKey('raw',key,'HKDF',false,['deriveBits']);
+				const embedKey=Buffer.from(await webcrypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:Buffer.from('openmates-embed-key-v1'),info:Buffer.from(embedId)},hkdf,256));
+				const content='type: website\\nurl: https://example.test/preserved-wrapper';
+				const childEmbed={id:randomUUID(),embed_id:embedId,hashed_embed_id:hash(embedId),hashed_chat_id:hash(chatId),
+					hashed_message_id:hash(messageId),hashed_user_id:ownerHash,version_number:1,status:'finished',encryption_mode:'client',
+					encrypted_content:await encrypt(content,embedKey),encrypted_type:await encrypt('website',embedKey),created_at:now,updated_at:now};
+				const keyWrappers=[];
+				if(input.mode!=='initial')for(const kind of ['master','chat'])for(let duplicate=0;duplicate<2;duplicate++){
+					const wrappingKey=kind==='master'?client.getMasterKeyBytes():key;
+					const keyToWrap=input.mode==='conflicting'&&kind==='chat'&&duplicate===1?randomBytes(32):embedKey;
+					keyWrappers.push({id:randomUUID(),hashed_embed_id:hash(embedId),hashed_user_id:ownerHash,key_type:kind,
+						hashed_chat_id:kind==='chat'?hash(chatId):null,encrypted_embed_key:await encrypt(keyToWrap,wrappingKey),created_at:now});
+				}
+				const outputs=[{id:randomUUID(),hashed_user_id:ownerHash,root_chat_id:chatId,target_chat_id:chatId,root_hashed_team_id:null,
+					turn_id:turnId,preflight_id:randomUUID(),inference_task_id:randomUUID(),output_kind:'embed',message_role:null,
+					output_version:1,chat_key_version:1,state:'PENDING',subject_id:embedId,created_at:date}];
+				const sealedContents=[{embed_id:embedId,chat_id:chatId,parent_embed_id:null,version_number:1,type:'website',content,message_id:messageId}];
+				process.stdout.write(JSON.stringify({ownerId:owner.id,chatId,parentId:randomUUID(),chat,message,childEmbed,outputs,sealedContents,
+					keyWrappers,omitCanonicalHead:input.mode==='initial',fixtureChatKey:key.toString('base64url')}));
+			`, { mode });
+			apply('seed');
+			frames.length = 0;
+			await page.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(fixture.chatId)}`));
+			await focusRecoveryPage(page);
+			await requireForegroundRecoveryLifecycle(frames);
+			const recordId = fixture.outputs[0].id;
+			const scoped = () => frames.filter((frame: any) => frame.payload.record_id === recordId
+				|| frame.payload.recovery_record_id === recordId || frame.payload.embed_id === fixture.childEmbed.embed_id
+				|| frame.payload.keys?.some((key: any) => key.hashed_embed_id === fixture.childEmbed.hashed_embed_id));
+			await expect.poll(() => scoped().some((frame: any) => frame.direction === 'received'
+				&& frame.type === 'recovery_output_ready'), { timeout: 90_000 }).toBe(true);
+			if (mode === 'conflicting') {
+				await expect.poll(() => recoveryErrors.some(value => value.includes('wrapper did not open to the expected key')),
+					{ timeout: 60_000 }).toBe(true);
+				expect(scoped().some((frame: any) => frame.type === 'recovery_output_ack_embed')).toBe(false);
+			} else {
+				await expect.poll(() => scoped().some((frame: any) => frame.direction === 'received'
+					&& frame.type === 'recovery_output_embed_acknowledged' && frame.payload.state === 'ACKNOWLEDGED'),
+				{ timeout: 90_000 }).toBe(true);
+			}
+			const stored = apply('inspect');
+			expect(stored.states).toEqual([mode === 'conflicting' ? 'PENDING' : 'ACKNOWLEDGED']);
+			const writes = scoped().filter((frame: any) => frame.direction === 'sent'
+				&& ['store_embed', 'store_embed_keys'].includes(frame.type));
+			if (mode === 'initial') {
+				expect(writes.map((frame: any) => frame.type)).toEqual(['store_embed']);
+				expect(writes[0].payload.recovery_key_wrappers).toHaveLength(2);
+				expect(writes[0].payload.recovery_message_id).toBe(fixture.message.client_message_id);
+				expect(stored).toMatchObject({ headPresent: true, wrapperCount: 2 });
+			} else {
+				expect(writes).toEqual([]);
+				expect(stored).toMatchObject({ headUnchanged: true, wrapperCount: 4,
+					wrapperIdsUnchanged: true, wrapperCiphertextsUnchanged: true });
+			}
+			expect(frames.some((frame: any) => frame.direction === 'sent' && frame.payload.chat_id === fixture.chatId
+				&& ['chat_turn_admit', 'new_chat', 'chat_message'].includes(frame.type))).toBe(false);
+			await expect(page.locator('[data-authenticated="true"]')).toBeVisible();
+			await page.screenshot({ path: testInfo.outputPath(`canonical-wrappers-${mode}.png`), fullPage: true });
+			await testInfo.attach(`canonical-wrappers-${mode}`, { body: JSON.stringify({ mode, ...stored,
+				writeTypes: writes.map((frame: any) => frame.type) }), contentType: 'application/json' });
+		} catch (error) {
+			primaryFailed = true;
+			throw error;
+		} finally {
+			const cleanupErrors: unknown[] = [];
+			try { await page.goto('about:blank'); } catch (error) { cleanupErrors.push(error); }
+			try { if (fixture) apply('delete'); } catch (error) { cleanupErrors.push(error); }
+			try { removeWorkflowCliHome(home); } catch (error) { cleanupErrors.push(error); }
+			if (cleanupErrors.length) {
+				await testInfo.attach('wrapper-fixture-cleanup-errors', { body: JSON.stringify({ primaryFailed,
+					errors: cleanupErrors.map(error => error instanceof Error ? error.message : String(error)) }), contentType: 'application/json' });
+				if (!primaryFailed) cleanupFailure = new AggregateError(cleanupErrors, 'Encrypted wrapper fixture cleanup failed');
+			}
+		}
+		if (cleanupFailure) throw cleanupFailure;
+	});
+}

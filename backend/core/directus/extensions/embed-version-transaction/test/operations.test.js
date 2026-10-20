@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { isAuthorized } from '../src/index.js';
 import { activateEmbedArchiveReader, commitChatDiagramRevision, commitEmbedRevision, finalizeEmbedArchiveCopy,
   prepareEmbedArchiveCopy, retireEmbedArchiveCopy, pruneEmbedArchivePayload,
-  publishEmbedSnapshot, writeLegacyEmbed, ProtocolError, testing } from '../src/operations.js';
+  publishEmbedSnapshot, writeLegacyEmbed, writeLegacyEmbedKey, ProtocolError, testing } from '../src/operations.js';
 
 const ACTOR = 'a'.repeat(64);
 const PROJECT_ID = 'project-1';
@@ -81,13 +81,17 @@ function fakeDatabase(initial) {
       };
       return query;
     };
-    knex.raw = async (sql) => String(sql).includes('AS pending')
-      ? { rows: [{ pending: database.pendingRecovery ?? false }] } : undefined;
+    knex.raw = async (sql, bindings) => {
+      if (String(sql).includes('pg_advisory_xact_lock')) database.locks.push(bindings[0]);
+      return String(sql).includes('AS pending')
+        ? { rows: [{ pending: database.pendingRecovery ?? false }] } : undefined;
+    };
     return knex;
   };
 
   const database = client(rows);
   database.rows = rows;
+  database.locks = [];
   database.pendingRecovery = false;
   database.transaction = async (callback) => {
     const transaction = tail.then(async () => {
@@ -1517,4 +1521,144 @@ test('acknowledged legacy heads reject explicit ciphertext clearing and encrypte
     } })).status, 'updated');
   seed.embeds[0].hashed_embed_id = createHash('sha256').update(body.embed_id).digest('hex');
   assert.deepEqual(database.rows, seed);
+});
+
+
+function legacyKeySeed() {
+  const body = bundleWrite({ chatId: 'chat-a', allowNew: false });
+  const seed = existingSeed();
+  seed.embeds.push({ id: 'legacy-key-head', ...body.payload,
+    hashed_embed_id: bundleHash(body.embed_id) });
+  return { seed, body, key: { embed_id: body.embed_id, actor_user_hash: ACTOR,
+    wrapper: body.bundle_context.key_wrappers[1] } };
+}
+
+// contract-test: direct surface=rest_api assertions=projects.files.concurrent-chat-safety
+test('serialized legacy wrapper creates and bundle retries share one canonical identity', async () => {
+  const { seed, body, key } = legacyKeySeed();
+  const database = fakeDatabase(seed);
+  await Promise.all([writeLegacyEmbedKey(database, key), writeLegacyEmbedKey(database, key),
+    writeLegacyEmbed(database, body)]);
+  assert.equal(database.rows.embed_keys.filter(row => row.key_type === 'chat').length, 1);
+  assert.equal(database.rows.embed_keys.filter(row => row.key_type === 'master').length, 1);
+  assert.deepEqual(database.locks, Array(3).fill(`embed:${body.embed_id}`));
+});
+
+// contract-test: direct surface=rest_api assertions=projects.files.hosted-ciphertext-commit
+test('legacy wrapper ambiguity preserves all ciphertext and rejects rather than choosing a row', async () => {
+  const { seed, key } = legacyKeySeed();
+  seed.embed_keys = [{ id: 'first', ...key.wrapper }, { id: 'second', ...key.wrapper,
+    encrypted_embed_key: 'conflicting-key' }];
+  const database = fakeDatabase(seed), before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbedKey(database, key), error => error.code === 'embed_key_ambiguous');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: direct surface=rest_api assertions=projects.files.hosted-ciphertext-commit
+test('legacy wrapper transaction rechecks canonical owner, Project links, and active chat authorization', async () => {
+  for (const mutation of ['owner', 'project', 'chat-owner', 'deleting']) {
+    const { seed, key } = legacyKeySeed();
+    if (mutation === 'owner') seed.embeds.at(-1).hashed_user_id = 'f'.repeat(64);
+    if (mutation === 'project') seed.project_items.push({ item_type: 'embed', target_id_hash: key.wrapper.hashed_embed_id });
+    if (mutation === 'chat-owner') seed.chats[0].hashed_user_id = 'f'.repeat(64);
+    if (mutation === 'deleting') seed.chats[0].storage_state = 'deleting';
+    const database = fakeDatabase(seed), before = structuredClone(database.rows);
+    await assert.rejects(writeLegacyEmbedKey(database, key), error => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('recovery bundle correlates the pending output and rolls back before changing any ciphertext', async () => {
+  const { seed, body } = legacyKeySeed();
+  body.bundle_context.recovery_record_id = 'recovery-output-1';
+  body.payload.version_number = 1;
+  seed.embeds.at(-1).version_number = 1;
+  seed.chat_recovery_outputs = [{ id: 'recovery-output-1', hashed_user_id: ACTOR,
+    subject_id: body.embed_id, root_chat_id: 'chat-a', target_chat_id: 'chat-a', output_kind: 'embed',
+    output_version: 1, state: 'PENDING', root_hashed_team_id: null }];
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbed(database, body);
+  const saved = structuredClone(database.rows);
+  database.rows.chat_recovery_outputs[0].subject_id = 'foreign-embed';
+  const before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body), error => error.code === 'recovery_bundle_scope_mismatch');
+  assert.deepEqual(database.rows, before);
+  assert.equal(saved.embed_keys.length, 2);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('recovery root revocation or deletion preserves head and wrappers without publishing', async () => {
+  for (const change of ['missing', 'deleting', 'owner', 'team']) {
+    const { seed, body } = legacyKeySeed();
+    seed.embeds.pop();
+    seed.chats.push({ id: 'recovery-root', hashed_user_id: ACTOR, hashed_team_id: null, storage_state: 'hot' });
+    body.bundle_context.recovery_record_id = 'root-output';
+    seed.chat_recovery_outputs = [{ id: 'root-output', hashed_user_id: ACTOR,
+      subject_id: body.embed_id, root_chat_id: 'recovery-root', target_chat_id: 'chat-a',
+      output_kind: 'embed', output_version: 1, state: 'PENDING', root_hashed_team_id: null }];
+    if (change === 'missing') seed.chats.pop();
+    if (change === 'deleting') seed.chats.at(-1).storage_state = 'deleting';
+    if (change === 'owner') seed.chats.at(-1).hashed_user_id = 'f'.repeat(64);
+    if (change === 'team') seed.chats.at(-1).hashed_team_id = 'f'.repeat(64);
+    const database = fakeDatabase(seed), before = structuredClone(database.rows);
+    await assert.rejects(writeLegacyEmbed(database, body), error => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('ambiguous existing wrappers roll back a recovery bundle head creation without deleting data', async () => {
+  const { seed, body } = legacyKeySeed();
+  seed.embeds.pop();
+  seed.embed_keys = ['first', 'second'].map(id => ({ id, ...body.bundle_context.key_wrappers[0] }));
+  const database = fakeDatabase(seed), before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body), error => error.code === 'bundle_wrapper_ambiguous');
+  assert.deepEqual(database.rows, before);
+});
+
+
+function directLegacySeed() {
+  const state = legacyKeySeed(), peer = 'b'.repeat(64), team = 'c'.repeat(64);
+  Object.assign(state.seed.chats[0], { hashed_team_id: team, chat_visibility: 'direct',
+    encrypted_chat_key: null, participant_user_hashes: [ACTOR, peer],
+    participant_key_envelopes: Object.fromEntries([ACTOR, peer].map(hash => [hash,
+      { key_id: 'key-1', encrypted_chat_key: 'OMDM1.' + 'x'.repeat(16) }])) });
+  state.seed.team_memberships = [{ hashed_team_id: team, hashed_user_id: ACTOR,
+    status: 'active', role: 'viewer' }];
+  state.seed.teams = [{ hashed_team_id: team, status: 'active' }];
+  state.body.bundle_context.hashed_team_id = team;
+  return state;
+}
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('direct participant viewers retain wrapper and atomic bundle writes; outsiders and revoked members cannot write', async () => {
+  for (const mode of ['wrapper', 'bundle']) {
+    const { seed, body, key } = directLegacySeed();
+    const database = fakeDatabase(seed);
+    const write = () => mode === 'wrapper' ? writeLegacyEmbedKey(database, key) : writeLegacyEmbed(database, body);
+    await write();
+    database.rows.team_memberships[0].status = 'removed';
+    const before = structuredClone(database.rows);
+    await assert.rejects(write(), error => error instanceof ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+  const { seed, key } = directLegacySeed();
+  seed.chats[0].participant_user_hashes[0] = 'd'.repeat(64);
+  const database = fakeDatabase(seed), before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbedKey(database, key), error => error.code === 'chat_not_found');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('Team master wrapper writes recheck current source membership without changing Personal cross-chat keys', async () => {
+  const { seed, body, key } = directLegacySeed();
+  seed.embeds.at(-1).hashed_team_id = seed.chats[0].hashed_team_id;
+  key.wrapper = body.bundle_context.key_wrappers[0];
+  const database = fakeDatabase(seed);
+  await writeLegacyEmbedKey(database, key);
+  database.rows.team_memberships[0].status = 'removed';
+  const before = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbedKey(database, key), error => error instanceof ProtocolError);
+  assert.deepEqual(database.rows, before);
 });

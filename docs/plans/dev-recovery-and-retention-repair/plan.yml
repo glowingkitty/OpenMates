@@ -1,0 +1,36 @@
+schema_version: 2
+profile: concise
+id: dev-recovery-and-retention-repair
+title: Preserve encrypted data while repairing development recovery and retention
+status: implementing
+goal: >-
+  Implement the recommended fixes, starting with embed recovery and Apple offline
+  retention. Add regression coverage, deploy to dev, and verify the fixes.
+  Preserve all existing encrypted data.
+scope:
+  - Reuse cryptographically verified canonical embed ciphertext and equivalent duplicate wrappers without rewriting records.
+  - Publish new initial recovery heads and their wrappers atomically and serialize legacy wrapper upserts.
+  - Retain Apple workflow projections without canonical Task subresource requests; encode request paths once.
+  - Correct optional provider-pricing lookup aliases and reliable complete degraded-report scans.
+  - Complete the existing UI unit-test network-isolation follow-up when its Task can be safely reused.
+contracts:
+  - specifications/architecture/storage-lifecycle/specification.yml
+  - specifications/features/chats/specification.yml
+  - specifications/features/tasks/specification.yml
+constraints:
+  - No deletion, migration, arbitrary selection or rewriting of ambiguous existing ciphertext or key wrappers.
+  - Conflicting, foreign, incomplete or oversized wrapper proofs remain explicit failures without recovery acknowledgement.
+  - Preserve owner, Team, direct-chat, Project, revision, lease and canonical-receipt authorization fences.
+  - No new inference or changes to inference routing or account defaults.
+required_checks:
+  - Focused backend transaction and authorization regressions including rollback and overlapping wrapper writes.
+  - Focused web recovery tests including equivalent/conflicting duplicate keys and complete bounded wrapper proofs.
+  - Isolated GitHub browser E2E for recovered canonical output and unchanged encrypted data.
+  - Focused native regression coverage for mixed offline inventory and final URLRequest encoding.
+  - Exact-source Xcode tests when the configured Mac verifier becomes reachable; otherwise record the actual verification gap.
+  - Focused pricing/report unit checks and isolated catalog E2E.
+  - Managed dev publication, exact-source runtime readiness and deployment receipts.
+evidence:
+  investigation_task: TASK-7279
+  implementation_task: TASK-7702
+  native_verifier_initial_status: Configured Mac was unreachable; user has been asked to restore access while independent work continues.

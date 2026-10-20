@@ -1179,3 +1179,47 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
     assert captured["budget"]["user_info"] is user_info
     assert captured["budget"]["requested_credits"] == 25
     assert fake_embed_service.called is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_name,provider_id,configured,priced", [
+    ("SerpAPI", "serpapi", False, False),
+    ("Urban Sports Club", "urban_sports_club", True, True),
+    ("Remotion", "remotion", False, False),
+    ("Transitous", "transitous", False, False),
+    ("Deutsche Bahn", "deutsche_bahn", True, False),
+    ("Stoffe.de", "stoffe", True, False),
+])
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise,app-skills.surface.semantic-parity
+async def test_catalog_optional_pricing_keeps_provider_ids_and_skill_tariffs(
+    monkeypatch, provider_name, provider_id, configured, priced,
+):
+    class ConfigManager:
+        def get_provider_config(self, requested_id):
+            assert requested_id == provider_id
+            if not configured:
+                return None
+            return {"name": provider_name, "description": "Provider metadata",
+                    **({"pricing": {"per_request_credits": 5}} if priced else {})}
+
+    calls = []
+
+    async def fetch(requested_id):
+        calls.append(requested_id)
+        assert priced
+        return {"per_unit": {"credits": 5}}
+
+    monkeypatch.setattr(apps_api, "fetch_provider_pricing", fetch)
+    providers = await apps_api.get_skill_providers_with_pricing(
+        AppSkillDefinition(
+            id="search", name_translation_key="test", description_translation_key="test",
+            pricing={"fixed": 5}, providers=[ProviderRef(name=provider_name)],
+        ), "test", ConfigManager(),
+    )
+    assert providers[0].provider == "skill"
+    assert providers[0].pricing == {"fixed": 5}
+    assert providers[1].provider == provider_id
+    assert providers[1].name == provider_name
+    assert providers[1].description == ("Provider metadata" if configured else "")
+    assert providers[1].pricing == ({"per_unit": {"credits": 5}} if priced else {})
+    assert calls == ([provider_id] if priced else [])

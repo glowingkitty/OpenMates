@@ -49,6 +49,8 @@ class OpenObserveLogCollectorService:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
+        *,
+        use_cache: bool = True,
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Execute a SQL search against an OpenObserve stream.
@@ -69,6 +71,8 @@ class OpenObserveLogCollectorService:
         # OpenObserve v0.70+ uses /api/{org}/_search (stream is in SQL FROM clause)
         # Previously: /api/{org}/{stream}/_search (removed in v0.70)
         url = f"{self.base_url}/api/{self.org}/_search"
+        if not use_cache:
+            url += "?use_cache=false"
         body = {
             "query": {
                 "sql": sql,
@@ -77,12 +81,19 @@ class OpenObserveLogCollectorService:
             }
         }
 
+        if not use_cache:
+            body["use_cache"] = False
+
         try:
             timeout = aiohttp.ClientTimeout(total=30)
             async with aiohttp.ClientSession(timeout=timeout, auth=self._auth()) as session:
                 async with session.post(url, json=body) as response:
                     if response.status == 200:
                         result = await response.json()
+                        if (result.get("is_partial") or result.get("function_error")
+                                or not isinstance(result.get("hits"), list)):
+                            logger.error("OpenObserve returned incomplete search results (stream=%s)", stream)
+                            return None
                         return result.get("hits", [])
                     else:
                         error_text = await response.text()
