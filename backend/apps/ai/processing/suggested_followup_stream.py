@@ -5,9 +5,21 @@ withholds delimiter prefixes across arbitrary provider chunk boundaries, so no
 part of a recognized metadata block reaches the answer stream or tool history.
 """
 
+from enum import Enum
+
+
 OPEN = "<<suggested_followup_message>>"
 CLOSE = "<</suggested_followup_message>>"
 MAX_SUGGESTION_CHARS = 400
+
+
+class SuggestedFollowupOutcome(str, Enum):
+    """Content-free parser result for diagnosing missing composer metadata."""
+
+    ABSENT = "absent"
+    VALID = "valid"
+    INVALID = "invalid"
+    INCOMPLETE = "incomplete"
 
 
 class SuggestedFollowupStream:
@@ -24,6 +36,17 @@ class SuggestedFollowupStream:
     @property
     def suggestion(self) -> str | None:
         return self._suggestion if self._state == "closed" and self._valid else None
+
+    @property
+    def outcome(self) -> SuggestedFollowupOutcome:
+        """Describe trailer presence and validity without exposing its content."""
+        if not self._valid:
+            return SuggestedFollowupOutcome.INVALID
+        if self._state == "closed":
+            return SuggestedFollowupOutcome.VALID
+        if self._state == "metadata":
+            return SuggestedFollowupOutcome.INCOMPLETE
+        return SuggestedFollowupOutcome.ABSENT
 
     def _emit(self, value: str) -> str:
         for char in value:
@@ -73,7 +96,14 @@ class SuggestedFollowupStream:
                     continue
                 answer.append(self._emit(self._candidate))
                 self._candidate = ""
-            if not self._fenced and not self._line and char == OPEN[0]:
+            # Markdown permits up to three leading spaces before a block.
+            # Four spaces, tabs, quotes and inline markers remain answer text.
+            if (
+                not self._fenced
+                and len(self._line) <= 3
+                and not self._line.strip(" ")
+                and char == OPEN[0]
+            ):
                 self._candidate = char
             else:
                 answer.append(self._emit(char))

@@ -805,7 +805,7 @@
         dispatch('dismissGhostSuggestion');
     }
     let visibleGhostSuggestion = $derived(
-        !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
+        isMessageFieldFocused && !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
         !hasSendableDraft && !queuedEdit && !$editMessageStore &&
         !$recordingState.isRecordingActive && !$recordingState.showRecordAudioUI &&
         !recordingCorrectionPending && !showCamera && !showSketch && !showMaps &&
@@ -7125,7 +7125,7 @@
             <div class="content-wrapper">
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
                 {#if visibleGhostSuggestion}
-                    <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" transition:fade={{ duration: 250 }}>{ghostSuggestion}</div>
+                    <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" in:fade={{ duration: 250 }}>{ghostSuggestion}</div>
                 {/if}
             </div>
         </div>

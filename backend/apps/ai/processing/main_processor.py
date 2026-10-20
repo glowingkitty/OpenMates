@@ -8002,6 +8002,12 @@ async def handle_main_processing(
                 [*current_message_history, {"role": "assistant", "content": final_buffered_text_for_turn}],
             ):
                 yield phase_state_marker()
+            if composer_suggestion_enabled:
+                logger.info(
+                    "%s Composer metadata outcome=%s",
+                    log_prefix,
+                    suggested_followup_stream.outcome.value,
+                )
             if composer_suggestion_enabled and suggested_followup_stream.suggestion:
                 yield {
                     "__suggested_followup_message__": True,
