@@ -30,15 +30,23 @@ decision_notes:
 evidence:
   implementation_commit: 1c753c461f9b97e1bc1e4c61c1d06b431e19bae1
   retrieval_language_fix_commit: 0e235d47780b3082802fbb0d169dc45db7cd4cda
-  focused_tests: 134 backend cases and 19 frontend unit cases passed; fourteen search-locale cases passed after live discovery fixes.
+  focused_tests: 148 focused inspiration cases and 19 frontend unit cases passed; fourteen search-locale cases also passed in isolated CI.
   isolated_backend: https://github.com/glowingkitty/OpenMates/actions/runs/39471945379
   isolated_component: https://github.com/glowingkitty/OpenMates/actions/runs/39471951724
   isolated_public_feed: https://github.com/glowingkitty/OpenMates/actions/runs/39474468256
-  isolated_search_locales: https://github.com/glowingkitty/OpenMates/actions/runs/39478392531
+  isolated_search_locales: https://github.com/glowingkitty/OpenMates/actions/runs/39483183607
   application_source: 0bc10e895f172067491e06ecf6128d9ec697d4fa
   harness: d2733343be7dbfa5cfcd2d8849f8742956f8b6aa
   live_controls: 33 of 34 correct; all five image controls correct. One valid Japanese paraphrase was coherent but conservatively withheld for low grounding confidence.
-  runtime: docker-2074e2a0 and docker-afe21e92 completed with all seventeen affected backend consumers healthy.
+  deadline_fix_commit: 785f15a0a9237a96640927d1b5f6cf1e2d6c4005
+  deadline_adapter_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39483991623
+  deadline_adapter_result: 54 passed including all new deadline cases; two unchanged Google accounting expectations fail and qualify supplier cost estimates.
+  runtime: docker-434fef82 completed with all seventeen affected backend consumers healthy; exact frontend deployment succeeded.
+  paired_benchmark: 400 slots completed over twenty languages; Mercury-chain 110 first / 165 final admissions versus Gemini 112 first / 150 final, out of 200 each.
+  blinded_review: All 315 admitted cards reviewed and adjudicated before unblinding; 12 Mercury-chain and 7 Gemini material cards, with 1 and 3 additional uncertain cards.
+  qualification: Failed for both arms; keep qualification active and retain requested Mercury retry chain on dev. Proposed targets are unchanged.
+  experiment_delivery: Requested implementation, benchmark, comparison decision and scoped dev deployment complete; production qualification remains open.
+  aggregate_receipt: docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
   current_report: docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
   historical_reports:
     - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md

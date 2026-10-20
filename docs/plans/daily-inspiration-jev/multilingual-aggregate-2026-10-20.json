@@ -1,0 +1,409 @@
+{
+  "source_contexts": 200,
+  "arms": {
+    "mercury_chain": {
+      "completed_batches": 80,
+      "requested": 200,
+      "first_draft_admitted": 110,
+      "final_admitted": 165,
+      "full_batches": 49,
+      "latency_p50": 15.95516320085153,
+      "latency_p95": 24.81552078574896,
+      "production_seconds": 1179.4726323168725,
+      "first_attempt_outcomes": {
+        "reviewed": 71,
+        "Client call failed for preprocessing: Inception request could not be completed": 8,
+        "shape": 1
+      },
+      "final_copy_writers": {
+        "google/gemini-3.5-flash-lite": 48,
+        "inception/mercury-3": 117
+      },
+      "attempt_count": 183,
+      "writer_supplier_known_usd": 0.20876067,
+      "writer_supplier_upper_bound_usd": 0.20876067,
+      "jev_known_usd": 0.032416398,
+      "writer_usage_missing": 0,
+      "usage_incomplete": 65,
+      "cache_read_tokens": 124007,
+      "output_tokens": 304198,
+      "reasoning_tokens": 217814,
+      "by_language": {
+        "en": {
+          "requested": 10,
+          "first": 9,
+          "final": 9
+        },
+        "de": {
+          "requested": 10,
+          "first": 8,
+          "final": 9
+        },
+        "zh": {
+          "requested": 10,
+          "first": 5,
+          "final": 8
+        },
+        "es": {
+          "requested": 10,
+          "first": 7,
+          "final": 9
+        },
+        "fr": {
+          "requested": 10,
+          "first": 8,
+          "final": 9
+        },
+        "pt": {
+          "requested": 10,
+          "first": 6,
+          "final": 8
+        },
+        "ru": {
+          "requested": 10,
+          "first": 2,
+          "final": 7
+        },
+        "ja": {
+          "requested": 10,
+          "first": 5,
+          "final": 10
+        },
+        "ko": {
+          "requested": 10,
+          "first": 3,
+          "final": 7
+        },
+        "it": {
+          "requested": 10,
+          "first": 7,
+          "final": 9
+        },
+        "tr": {
+          "requested": 10,
+          "first": 4,
+          "final": 9
+        },
+        "vi": {
+          "requested": 10,
+          "first": 1,
+          "final": 7
+        },
+        "id": {
+          "requested": 10,
+          "first": 6,
+          "final": 8
+        },
+        "pl": {
+          "requested": 10,
+          "first": 6,
+          "final": 7
+        },
+        "nl": {
+          "requested": 10,
+          "first": 5,
+          "final": 9
+        },
+        "ar": {
+          "requested": 10,
+          "first": 6,
+          "final": 9
+        },
+        "hi": {
+          "requested": 10,
+          "first": 6,
+          "final": 7
+        },
+        "th": {
+          "requested": 10,
+          "first": 7,
+          "final": 7
+        },
+        "cs": {
+          "requested": 10,
+          "first": 4,
+          "final": 8
+        },
+        "sv": {
+          "requested": 10,
+          "first": 5,
+          "final": 9
+        }
+      },
+      "blinded_review": {
+        "reviewed": 165,
+        "material_cards": 12,
+        "uncertain_cards": 1,
+        "material_by_language": {
+          "th": 2,
+          "sv": 1,
+          "es": 1,
+          "zh": 1,
+          "vi": 1,
+          "nl": 1,
+          "de": 1,
+          "it": 1,
+          "pl": 1,
+          "fr": 1,
+          "cs": 1
+        },
+        "material_ids": [
+          "card-2bd6e6548764",
+          "card-488912680f00",
+          "card-49c44dda776f",
+          "card-685a499fe03e",
+          "card-6bc707660ed2",
+          "card-a489d9928f1c",
+          "card-be1183b9b61c",
+          "card-bf6017073c52",
+          "card-c7d6efa69f2d",
+          "card-d60db9fceb69",
+          "card-e4ee2203f046",
+          "card-f431a11cb6b3"
+        ],
+        "uncertain_ids": [
+          "card-ec3144f2a351"
+        ]
+      },
+      "known_writer_and_final_jev_usd": 0.241177068,
+      "cost_complete": false,
+      "locale_assessment_failures": 1,
+      "structure_issues": 0,
+      "source_identity_issues": 0,
+      "format_diagnostic_cards": 54,
+      "observed_native_models": [
+        "gemini-3.5-flash-lite",
+        "mercury-3"
+      ],
+      "material_card_writers": {
+        "google/gemini-3.5-flash-lite": 5,
+        "inception/mercury-3": 7
+      },
+      "observed_provider_errors": {
+        "Client call failed for preprocessing: Inception request could not be completed": 18
+      },
+      "uncached_input_sensitivity_delta_usd": 0.01116063000000001,
+      "uncached_writer_and_final_jev_estimate_usd": 0.252337698
+    },
+    "gemini_only": {
+      "completed_batches": 80,
+      "requested": 200,
+      "first_draft_admitted": 112,
+      "final_admitted": 150,
+      "full_batches": 42,
+      "latency_p50": 6.635845629032701,
+      "latency_p95": 10.327991495840251,
+      "production_seconds": 492.67263284046203,
+      "first_attempt_outcomes": {
+        "reviewed": 78,
+        "shape": 2
+      },
+      "final_copy_writers": {
+        "google/gemini-3.5-flash-lite": 150
+      },
+      "attempt_count": 190,
+      "writer_supplier_known_usd": 0.33759724,
+      "writer_supplier_upper_bound_usd": 0.33759724,
+      "jev_known_usd": 0.035690466000000004,
+      "writer_usage_missing": 0,
+      "usage_incomplete": 182,
+      "cache_read_tokens": 16238,
+      "output_tokens": 81295,
+      "reasoning_tokens": 0,
+      "by_language": {
+        "en": {
+          "requested": 10,
+          "first": 7,
+          "final": 7
+        },
+        "de": {
+          "requested": 10,
+          "first": 6,
+          "final": 10
+        },
+        "zh": {
+          "requested": 10,
+          "first": 6,
+          "final": 8
+        },
+        "es": {
+          "requested": 10,
+          "first": 4,
+          "final": 5
+        },
+        "fr": {
+          "requested": 10,
+          "first": 5,
+          "final": 7
+        },
+        "pt": {
+          "requested": 10,
+          "first": 5,
+          "final": 7
+        },
+        "ru": {
+          "requested": 10,
+          "first": 4,
+          "final": 6
+        },
+        "ja": {
+          "requested": 10,
+          "first": 6,
+          "final": 8
+        },
+        "ko": {
+          "requested": 10,
+          "first": 4,
+          "final": 6
+        },
+        "it": {
+          "requested": 10,
+          "first": 5,
+          "final": 7
+        },
+        "tr": {
+          "requested": 10,
+          "first": 5,
+          "final": 7
+        },
+        "vi": {
+          "requested": 10,
+          "first": 6,
+          "final": 7
+        },
+        "id": {
+          "requested": 10,
+          "first": 5,
+          "final": 7
+        },
+        "pl": {
+          "requested": 10,
+          "first": 7,
+          "final": 9
+        },
+        "nl": {
+          "requested": 10,
+          "first": 5,
+          "final": 9
+        },
+        "ar": {
+          "requested": 10,
+          "first": 6,
+          "final": 6
+        },
+        "hi": {
+          "requested": 10,
+          "first": 6,
+          "final": 8
+        },
+        "th": {
+          "requested": 10,
+          "first": 5,
+          "final": 8
+        },
+        "cs": {
+          "requested": 10,
+          "first": 7,
+          "final": 9
+        },
+        "sv": {
+          "requested": 10,
+          "first": 8,
+          "final": 9
+        }
+      },
+      "blinded_review": {
+        "reviewed": 150,
+        "material_cards": 7,
+        "uncertain_cards": 3,
+        "material_by_language": {
+          "nl": 1,
+          "th": 2,
+          "id": 1,
+          "tr": 1,
+          "ar": 1,
+          "cs": 1
+        },
+        "material_ids": [
+          "card-4d557a74cab1",
+          "card-7e3a34a64363",
+          "card-84ad3dd2abc6",
+          "card-a46a2c71be72",
+          "card-d399e32936fc",
+          "card-eeef1d0d6f7d",
+          "card-fe2a22dcaa0a"
+        ],
+        "uncertain_ids": [
+          "card-c368bca8fa09",
+          "card-d1189852804e",
+          "card-f639b90d64a2"
+        ]
+      },
+      "known_writer_and_final_jev_usd": 0.37328770600000005,
+      "cost_complete": false,
+      "locale_assessment_failures": 4,
+      "structure_issues": 0,
+      "source_identity_issues": 0,
+      "format_diagnostic_cards": 60,
+      "observed_native_models": [
+        "gemini-3.5-flash-lite"
+      ],
+      "material_card_writers": {
+        "google/gemini-3.5-flash-lite": 7
+      },
+      "observed_provider_errors": {},
+      "uncached_input_sensitivity_delta_usd": 0.00438426,
+      "uncached_writer_and_final_jev_estimate_usd": 0.377671966
+    }
+  },
+  "date": "2026-10-20",
+  "application_commit": "785f15a0a9237a96640927d1b5f6cf1e2d6c4005",
+  "policy_version": "daily-editorial-v5",
+  "source_sha256": {
+    "config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+    "decisions.py": "c38a7d7aa579bbf6588b8b6c61b99fca4d64db97f1a751c79839c1e2b6f55eb5",
+    "generator.py": "ae36eebb6e43b58520cbd1629782a289db07a69d95100c440647e3bfae6465bf",
+    "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+    "wiki_generator.py": "4a21bfa394e751e57d92a34e025a553b04e3c384a1c304ea7c845be836f0e21e",
+    "writer.py": "52a44fc6cfc4d8ff8f52701b1ab901d859e091ff9a672e840ab69e952a50f6ad",
+    "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+    "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef"
+  },
+  "benchmark_sha256": "0c408bcdaae24a5ee0fede4fd77a26f18eaa721cbe08e592eafeff3a91ed82fd",
+  "unique_source_ids": 147,
+  "distinct_video_ids": 47,
+  "distinct_wikipedia_ids": 100,
+  "initial_discovery_contexts": 183,
+  "supplemented_contexts": 17,
+  "controls": {
+    "correct": 33,
+    "total": 34,
+    "visual_correct": 5,
+    "visual_total": 5,
+    "valid_japanese_grounding_false_negative": 1
+  },
+  "qualification": {
+    "first_draft_target": 0.95,
+    "final_target": 0.99,
+    "known_material_admission_target": 0,
+    "qualified_arms": [],
+    "decision": "Retain requested Mercury/Mercury/Gemini chain on dev; neither arm qualifies for production."
+  },
+  "method_limits": [
+    "Shared initial source eligibility frozen; fresh final Jev copy and video-pixel review. Gemini-only refers to writing, not removal of Jev.",
+    "Fixed Mercury-then-Gemini arm order; cache sensitivity is not a randomized production bill.",
+    "Automated blinded review, adjudicated before provider unblinding; not native-speaker or human qualification.",
+    "Nineteen material cards and four uncertain cards across 315 admitted cards; source-only criterion, not an assertion every unsupported fact is false.",
+    "Source discovery is first eligible, not full production ranking; backup videos matched query-slot index, not human semantic matching.",
+    "No account, chat or pool writes; no ordinary routing override.",
+    "Cost estimates precede credits and exclude retrieval, initial source gates, exploratory runs and independent review; failed transports and incomplete usage can undercount."
+  ],
+  "evidence_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-multilingual-30s-final-20261020",
+  "blinded_review_receipt_sha256": {
+    "adjudication-final-1-extra.json": "a99fefd4b2cc3c21ecd446eda9a2878708dd45ae6caa9f9a2e44c89a9c2bdbb8",
+    "adjudication-final-1.json": "47407e91daf283cb9565c3adaf854217dc1e7fba38b24cdc7ece878cb2bd936f",
+    "adjudication-final-2.json": "3da6db5cb98e102ec702458e7319bbb6c564455c5ccf764ed74711c6605d5bd2",
+    "adjudication-final-3.json": "775272c76c8f01469a15103e28af9618bfaebba7a6af183058003a72be6b14b0",
+    "adjudication-final-4.json": "de10b1e7c99b5cdb94084dd90337b9362dc6869049df1bdf19a98bbeb840b3e1"
+  }
+}

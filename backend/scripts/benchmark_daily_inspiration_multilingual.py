@@ -471,6 +471,10 @@ async def run(options):
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
                                   for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, llm_utils)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    if options.expected_source_manifest:
+        expected = json.loads(Path(options.expected_source_manifest).read_text())
+        if manifest['source_sha256'] != expected:
+            raise ValueError('Runtime sources differ from the reviewed benchmark candidate')
     manifest_path = root / 'manifest.json'
     if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
         raise ValueError('Output manifest differs; use the original code/options or another output directory')
@@ -609,6 +613,7 @@ def main():
     parser.add_argument('--languages', nargs='+', choices=LANGUAGES, default=LANGUAGES)
     parser.add_argument('--limit', type=int, choices=range(1, 6), default=5)
     parser.add_argument('--phase-minutes', type=int, choices=range(1, 31), default=30)
+    parser.add_argument('--expected-source-manifest', help='Require these reviewed application source hashes before paid calls')
     options = parser.parse_args()
     if not options.execute:
         print(json.dumps({'execute': False, 'languages': options.languages,
