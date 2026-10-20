@@ -1,26 +1,13 @@
 # backend/apps/ai/daily_inspiration/video_processor.py
 # Video search and enrichment pipeline for the Daily Inspiration feature.
 #
-# Pipeline:
-# 1. Brave video search → raw results (YouTube + others mixed)
-# 2. Filter to YouTube-only results by extracting video IDs from URLs
-# 3. Anti-corporate channel filtering (two layers):
-#    a. Fast-path: check channel name against seed blocklist patterns
-#    b. LLM-based: classify remaining channels as corporate or independent
-#    Both layers ensure no company/brand PR channels reach the inspirations.
-# 4. Attempt YouTube Data API enrichment (view counts, likes, duration)
-#    — gracefully falls back to Brave-provided metadata if API is unavailable
-# 5. Sort by view count descending
-# 6. Return top N candidates for LLM selection
-#
-# Privacy: No user data is passed to or stored by Brave or YouTube.
-#
-# Architecture: Anti-corporate filtering is documented in
-# docs/architecture/daily-inspiration-content-policy.md (if it exists).
+# Search -> deterministic policy/audience/age checks -> Jev eligibility, ranking
+# and categories. Retain public descriptions as evidence for the writing stage.
+# No user/account identifiers are sent to the decision provider.
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -30,7 +17,7 @@ from backend.apps.ai.daily_inspiration.category_age_policy import (
     video_age_years,
 )
 from backend.apps.ai.daily_inspiration.content_filter import check_video_metadata
-from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, call_preprocessing_llm
+from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.brave.brave_search import search_videos
 
@@ -45,188 +32,6 @@ YOUTUBE_DATA_API_URL = "https://www.googleapis.com/youtube/v3/videos"
 # Vault path for YouTube API key
 YOUTUBE_SECRET_PATH = "kv/data/providers/youtube"
 YOUTUBE_API_KEY_NAME = "api_key"
-
-# LLM model for lightweight channel classification (cheap, fast)
-CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-latest"
-
-# The old corporate_channel_patterns.yml fast-path check has been replaced by
-# Layer 3 (content_filter.check_video_metadata) which checks all text fields
-# against the canonical blocked_content_keywords.yml — including company names.
-# See: backend/apps/ai/daily_inspiration/content_filter.py
-
-
-async def _classify_channels_with_llm(
-    candidates: List[Dict[str, Any]],
-    secrets_manager: SecretsManager,
-    task_id: str = "daily_inspiration",
-) -> Set[str]:
-    """
-    Use an LLM to classify YouTube channel names as 'corporate' or 'independent'.
-
-    Sends a batch of (channel_name, video_title) pairs to a lightweight model and
-    returns the set of youtube_ids whose channels were classified as corporate.
-
-    This is the second layer of anti-corporate filtering — it catches channels that
-    don't match the seed patterns but are still clearly corporate (e.g. 'Bayer Science',
-    'Shell Energy', 'Google DeepMind PR', etc.).
-
-    Args:
-        candidates: List of candidate dicts with 'youtube_id', 'channel_name', 'title'.
-        secrets_manager: For LLM API key retrieval.
-        task_id: For logging context.
-
-    Returns:
-        Set of youtube_ids that were classified as corporate and should be rejected.
-        Returns empty set on LLM failure (fail-open: prefer some corporate content
-        over silently dropping all candidates).
-    """
-    # Only classify candidates where we actually have a channel name
-    classifiable = [c for c in candidates if c.get("channel_name")]
-    if not classifiable:
-        logger.debug(f"[DailyInspiration][{task_id}] No channel names available for LLM classification")
-        return set()
-
-    # Build channel list for classification
-    channel_entries = []
-    for c in classifiable:
-        channel_entries.append(
-            f'- youtube_id: "{c["youtube_id"]}" | channel: "{c["channel_name"]}" | title: "{c["title"][:80]}"'
-        )
-
-    channel_list_text = "\n".join(channel_entries)
-
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                "Classify each YouTube channel into one of these categories.\n\n"
-                "CORPORATE: Owned by or officially represents a company, brand, or corporation "
-                "— car manufacturers, oil companies, pharma, tech giants, banks, retailers, "
-                "defense contractors, chemical companies, food corporations, consumer brands, "
-                "PR agencies, lobbying groups, etc.\n\n"
-                "RELIGIOUS_ORG: Owned by a religious organization, church, ministry, or faith-based "
-                "group. Channels that primarily produce sermons, prayer guides, bible studies, "
-                "worship content, or religious testimonials. Examples: Shalom World, Bible Unbound, "
-                "DesiringGod, Hillsong, The Bible Project, GotQuestions, Daily Bread.\n\n"
-                "REVIEW_CHANNEL: Primarily produces product reviews, unboxing videos, buying guides, "
-                "tech comparisons, or deal alerts. The channel's main purpose is evaluating commercial "
-                "products. Examples: RTINGS, Unbox Therapy, JerryRigEverything, MKBHD (when reviewing "
-                "products), Linus Tech Tips (when reviewing products).\n\n"
-                "INDEPENDENT: Individual creator, educator, journalist, university, non-profit, "
-                "documentary maker, or research institution. NOT commercially owned by a corporation, "
-                "NOT a religious organization, NOT primarily a review channel.\n\n"
-                "Examples: Kurzgesagt, Veritasium, 3Blue1Brown, TED-Ed, SciShow = INDEPENDENT.\n"
-                "BMW, Shell, Pfizer, Google, McKinsey = CORPORATE.\n"
-                "Shalom World, Bible Unbound, DesiringGod = RELIGIOUS_ORG.\n"
-                "RTINGS, Unbox Therapy = REVIEW_CHANNEL.\n\n"
-                "Also output English keyword tags for each channel to describe its content focus.\n\n"
-                f"Channels to classify:\n{channel_list_text}\n\n"
-                "For each entry, return its youtube_id, classification, and content tags."
-            ),
-        }
-    ]
-
-    tool_definition = {
-        "type": "function",
-        "function": {
-            "name": "classify_channels",
-            "description": "Classify YouTube channels by type and content focus.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "classifications": {
-                        "type": "array",
-                        "description": "Classification result for each channel.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "youtube_id": {
-                                    "type": "string",
-                                    "description": "The YouTube video ID.",
-                                },
-                                "classification": {
-                                    "type": "string",
-                                    "enum": ["corporate", "religious_org", "review_channel", "independent"],
-                                    "description": "The channel type classification.",
-                                },
-                                "tags": {
-                                    "type": "array",
-                                    "description": (
-                                        "English keyword tags describing the channel's content focus. "
-                                        "Always in English regardless of channel language. "
-                                        "Examples: ['religion', 'bible', 'sermon'] or ['tech-review', 'gadget', 'unboxing']."
-                                    ),
-                                    "items": {"type": "string"},
-                                },
-                            },
-                            "required": ["youtube_id", "classification", "tags"],
-                        },
-                    }
-                },
-                "required": ["classifications"],
-            },
-        },
-    }
-
-    try:
-        result: LLMPreprocessingCallResult = await call_preprocessing_llm(
-            observability_purpose="inspiration",
-            task_id=f"{task_id}_channel_classifier",
-            model_id=CHANNEL_CLASSIFIER_MODEL_ID,
-            message_history=messages,
-            tool_definition=tool_definition,
-            secrets_manager=secrets_manager,
-        )
-
-        if result.error_message or not result.arguments:
-            logger.warning(
-                f"[DailyInspiration][{task_id}] Channel classifier LLM call failed: "
-                f"{result.error_message} — skipping LLM classification (fail-open)"
-            )
-            return set()
-
-        classifications = result.arguments.get("classifications", [])
-        rejected_ids: Set[str] = set()
-        rejected_classifications: Dict[str, str] = {}  # youtube_id → classification
-        for item in classifications:
-            if not isinstance(item, dict):
-                continue
-            classification = item.get("classification", "")
-            youtube_id = item.get("youtube_id")
-            if not youtube_id:
-                continue
-
-            # Reject corporate, religious orgs, and review channels
-            if classification in ("corporate", "religious_org", "review_channel"):
-                rejected_ids.add(youtube_id)
-                rejected_classifications[youtube_id] = classification
-                continue
-
-            # Also check the LLM-generated tags against the hardcoded blocklist
-            tags = [t.lower().strip() for t in item.get("tags", []) if isinstance(t, str)]
-            if tags:
-                from backend.apps.ai.daily_inspiration.content_filter import check_tags
-                blocked_tags, _ = check_tags(tags)
-                if blocked_tags:
-                    rejected_ids.add(youtube_id)
-                    rejected_classifications[youtube_id] = f"independent(blocked_tags:{blocked_tags})"
-
-        independent_count = len(classifiable) - len(rejected_ids)
-        logger.info(
-            f"[DailyInspiration][{task_id}] LLM channel classifier: "
-            f"{len(rejected_ids)} rejected ({rejected_classifications}) / "
-            f"{independent_count} independent out of {len(classifiable)} classified"
-        )
-        return rejected_ids
-
-    except Exception as e:
-        logger.warning(
-            f"[DailyInspiration][{task_id}] Channel classifier LLM call raised exception: {e} "
-            f"— skipping LLM classification (fail-open)",
-            exc_info=True,
-        )
-        return set()
-
 
 def _extract_youtube_id(url: str) -> Optional[str]:
     """
@@ -345,6 +150,9 @@ async def _enrich_with_youtube(
             published_at_iso: Optional[str] = snippet.get("publishedAt")
 
             enrichment[vid_id] = {
+                "description": snippet.get("description", ""),
+                "title": snippet.get("title", ""),
+                "channel_name": snippet.get("channelTitle", ""),
                 "view_count": int(stats.get("viewCount", 0)) if stats.get("viewCount") else None,
                 "duration_seconds": duration_seconds,
                 "published_at": published_at_iso,
@@ -551,6 +359,7 @@ async def find_video_candidates(
             {
                 "youtube_id": youtube_id,
                 "title": result.get("title", ""),
+                "description": result.get("description", ""),
                 "thumbnail_url": thumbnail_url,
                 "channel_name": channel_name,
                 "view_count": None,  # Will be filled by YouTube enrichment
@@ -610,43 +419,6 @@ async def find_video_candidates(
         )
         return []
 
-    # ── Channel classification (LLM-based) ─────────────────────────────────
-    # Company names are already caught by Layer 3 keyword filter above.
-    # This LLM layer catches channels that keywords miss: religious organizations,
-    # review-focused channels, and corporate channels with non-obvious names.
-
-    # Layer 4: LLM-based channel classification — classify remaining candidates as
-    # corporate, religious_org, review_channel, or independent. Also generates English
-    # tags per channel which are checked against the hardcoded blocklist.
-    # Fails open: if the LLM call fails, all remaining candidates proceed unfiltered.
-    rejected_youtube_ids = await _classify_channels_with_llm(
-        candidates, secrets_manager, task_id=task_id
-    )
-    if rejected_youtube_ids:
-        llm_rejected = [
-            f"{c.get('channel_name')} ({c['youtube_id']})"
-            for c in candidates
-            if c["youtube_id"] in rejected_youtube_ids
-        ]
-        logger.info(
-            f"[DailyInspiration][{task_id}] LLM classifier blocked {len(rejected_youtube_ids)} "
-            f"channel(s) for '{topic_phrase}': {llm_rejected}"
-        )
-        candidates = [c for c in candidates if c["youtube_id"] not in rejected_youtube_ids]
-
-    if not candidates:
-        logger.warning(
-            f"[DailyInspiration][{task_id}] All candidates rejected by LLM channel classifier "
-            f"for '{topic_phrase}' — no independent creators found"
-        )
-        return []
-
-    logger.info(
-        f"[DailyInspiration][{task_id}] {len(candidates)} independent channel candidates "
-        f"remaining after channel filtering for '{topic_phrase}'"
-    )
-    # ── End channel filtering ────────────────────────────────────────────────
-
     # Enrich with YouTube Data API (view counts, duration)
     candidates = await _enrich_with_youtube(candidates, secrets_manager)
 
@@ -668,14 +440,9 @@ async def find_video_candidates(
         )
         return []
 
-    # Sort by view count descending (None = 0 for sorting purposes)
-    candidates.sort(
-        key=lambda c: c.get("view_count") or 0,
-        reverse=True,
+    # Review enriched source evidence before any writing. Failed/uncertain
+    # decisions withhold new candidates and leave existing fallback content usable.
+    candidates = await review_candidates(
+        candidates, secrets_manager, topic=topic_phrase, rank=True, task_id=task_id,
     )
-
-    top_candidates = candidates[:TOP_CANDIDATES_FOR_LLM]
-    logger.info(
-        f"[DailyInspiration] Returning {len(top_candidates)} enriched candidates for '{topic_phrase}'"
-    )
-    return top_candidates
+    return candidates[:TOP_CANDIDATES_FOR_LLM]

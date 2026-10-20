@@ -65,17 +65,18 @@ Provides curiosity-driven content from independent educators, journalists, docum
 
 Runs in `app-ai-worker` Celery container:
 
-1. **Topic filtering** -- removes OpenMates refs, sensitive content, corporate/greenwashing framing via keyword blocklists in `generator.py`
-2. **Brave Video Search** -- appends "educational independent creator" to bias toward independents; safesearch=strict, 20 results per slot
-3. **YouTube-only + family-friendly filter** -- rejects non-YouTube and `family_friendly=False`
-4. **Anti-corporate filter** -- seed blocklist (119 patterns in `corporate_channel_patterns.yml`) + Mistral Small LLM classifier for remaining channels (fails open)
-5. **YouTube Data API enrichment** -- view count, duration, published_at, made-for-kids status
-6. **Made-for-kids filter** -- rejects videos YouTube marks as Made for Kids before ranking or LLM selection
-7. **Sort by view count** -- top 20 candidates per slot
-8. **Main LLM call** -- single Mistral Small call for the 3 video slots; selects best videos and writes phrase/title/assistant_response/category/follow_up_suggestions
-9. **Wiki generation** -- one cheap LLM call proposes Wikipedia article titles from the same recent topic pool, validates them via `batch_validate_topics()`, then fetches summaries through the Wikimedia provider
-10. **Feature tips** -- four static OpenMates feature cards from `feature_suggestions.py`, no LLM/API cost
-11. **Daily order** -- the 10-card set is shuffled once per user per UTC day before delivery and persisted in that order
+1. **Topic filtering** -- deterministic shared content-policy filters remove prohibited/promotional interests.
+2. **Brave Video Search** -- localized YouTube discovery, strict SafeSearch, up to 20 candidates per video slot.
+3. **Source enrichment** -- retain descriptions, publication dates and audience metadata; reject made-for-kids and over-age videos.
+4. **Jev editorial decisions** -- pinned Jev 1.14 screens eligibility, ranks educational relevance and assigns categories. Conspiracy promotion, misleading clickbait and instruction injection are prohibited. Evidence-based debunking and honest curiosity are allowed. Uncertain or failed decisions withhold new candidates.
+5. **Video writing** -- one allowlisted Mistral Small or Mercury 3 call writes the three exact preselected sources. Only public source evidence reaches the writer, with no cross-provider fallback.
+6. **Wikipedia discovery and writing** -- search real localized article titles, validate them and fetch summaries/Wikidata before Jev selection. The writer paraphrases only the selected public summaries; it cannot invent article targets.
+7. **Final review** -- Jev separately checks editorial policy and material factual grounding for both content types, including follow-ups. Missing/failed/uncertain reviews withhold the card. A material grounding check targets invented specific claims while allowing ordinary explanatory paraphrases.
+8. **Feature tips** -- four static feature cards, no inference.
+9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
+10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
+
+The writer is selected only for this pipeline through `DAILY_INSPIRATION_WRITER_MODEL`, restricted to `mistral/mistral-small-latest` and `inception/mercury-3`. It does not change account settings or ordinary assistant routing. See `docs/plans/daily-inspiration-jev/` for the paired benchmark and selected default.
 
 ### Generation Triggers
 
@@ -116,7 +117,7 @@ Runs in `app-ai-worker` Celery container:
 
 | Table | Purpose |
 |-------|---------|
-| `daily_inspiration_pool` | Shared cleartext pool, capped at 100 |
+| `daily_inspiration_pool` | Shared cleartext public-source pool, capped at 500 |
 | `daily_inspiration_defaults` | Top 3 per language per day |
 | `user_daily_inspirations` | Per-user encrypted records |
 
@@ -131,9 +132,9 @@ Runs in `app-ai-worker` Celery container:
 
 ## Edge Cases
 
-- **LLM classifier failure:** Fails open -- candidates proceed unfiltered rather than dropping all content
+- **Editorial decision failure:** Withhold new external candidates; preserve existing feed recovery instead of publishing unreviewed cards
 - **Video cost remains capped:** existing 3-video/day budget is unchanged
-- **Wiki cost:** one small LLM call plus free Wikimedia API requests
+- **Wiki cost:** one writing call, bounded Jev decisions and free Wikimedia API requests
 - **Feature cost:** static/no external API calls
 
 ## Related Docs

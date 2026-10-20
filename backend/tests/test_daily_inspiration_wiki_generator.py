@@ -29,10 +29,22 @@ fake_llm_utils.resolve_fallback_servers_from_provider_config = lambda _model_id:
 fake_llm_utils.truncate_message_history_to_token_budget = lambda message_history, **_kwargs: message_history
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_wiki_generator_rejects_company_profile_cards(monkeypatch) -> None:
     """Wikipedia cards must not promote company profiles like SpaceX."""
     monkeypatch.setitem(sys.modules, "backend.apps.ai.utils.llm_utils", fake_llm_utils)
     wiki_generator = importlib.import_module("backend.apps.ai.daily_inspiration.wiki_generator")
+
+    async def allow_reviewed(candidates, *_args, **_kwargs):
+        assert len(candidates) == 1  # company entries must be removed before paid review
+        return [{**candidate, "editorial_category": "history"} for candidate in candidates]
+
+    async def fake_search(*_args, **_kwargs):
+        return [SimpleNamespace(key="fixture", disambiguation=False)]
+
+    monkeypatch.setattr(wiki_generator, "search_wikipedia_titles", fake_search)
+
+    monkeypatch.setattr(wiki_generator, "review_candidates", allow_reviewed)
 
     async def fake_call_preprocessing_llm(*_args, **_kwargs):
         return SimpleNamespace(
@@ -115,10 +127,22 @@ def test_wiki_generator_rejects_company_profile_cards(monkeypatch) -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_wiki_generator_rejects_wikidata_company_entity_type(monkeypatch) -> None:
     """Wikidata instance-of company/business types must reject neutral-looking wiki cards."""
     monkeypatch.setitem(sys.modules, "backend.apps.ai.utils.llm_utils", fake_llm_utils)
     wiki_generator = importlib.import_module("backend.apps.ai.daily_inspiration.wiki_generator")
+
+    async def allow_reviewed(candidates, *_args, **_kwargs):
+        assert len(candidates) == 1  # company entries must be removed before paid review
+        return [{**candidate, "editorial_category": "history"} for candidate in candidates]
+
+    async def fake_search(*_args, **_kwargs):
+        return [SimpleNamespace(key="fixture", disambiguation=False)]
+
+    monkeypatch.setattr(wiki_generator, "search_wikipedia_titles", fake_search)
+
+    monkeypatch.setattr(wiki_generator, "review_candidates", allow_reviewed)
 
     async def fake_call_preprocessing_llm(*_args, **_kwargs):
         return SimpleNamespace(

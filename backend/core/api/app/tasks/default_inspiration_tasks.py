@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
+from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.apps.ai.daily_inspiration.media_coherence import (
     check_inspiration_media_coherence,
     is_inspiration_media_coherent,
@@ -60,6 +61,38 @@ def _score_pool_entry(entry: Dict[str, Any], now_ts: float) -> float:
     age_seconds = max(now_ts - generated_at, 0)
     age_hours = age_seconds / 3600.0
     return interaction_count / (age_hours + 1)
+
+
+async def _review_pool_entries(entries, secrets_manager, task_id):
+    """Legacy pool rows get the same editorial gate before public selection.
+
+    Static first-party feature tips retain their deterministic public/auth checks.
+    Failed review withholds external rows without deleting stored content.
+    """
+    external = []
+    features = []
+    for entry in entries:
+        if entry.get("content_type") == "feature":
+            features.append(entry)
+            continue
+        wiki = entry.get("wiki_metadata") or {}
+        suggestions = entry.get("follow_up_suggestions") or []
+        try:
+            wiki = json.loads(wiki) if isinstance(wiki, str) else wiki
+            suggestions = json.loads(suggestions) if isinstance(suggestions, str) else suggestions
+            external.append({
+                "title": entry.get("video_title") or wiki.get("title") or entry.get("title", ""),
+                "channel_name": entry.get("video_channel_name") or "Wikipedia",
+                "description": entry.get("video_description") or wiki.get("description") or "",
+                "extract": wiki.get("extract") or "", "card_title": entry.get("title") or "",
+                "phrase": entry.get("phrase") or "",
+                "assistant_response": entry.get("assistant_response") or "",
+                "follow_up_suggestions": suggestions, "record": entry,
+            })
+        except (TypeError, ValueError, AttributeError):
+            continue
+    reviewed = await review_candidates(external, secrets_manager, task_id=task_id)
+    return [row["record"] for row in reviewed] + features
 
 
 def _entry_id(entry: Dict[str, Any]) -> str:
@@ -234,6 +267,7 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
     en_entries: List[Dict[str, Any]] = []
     if "en" in pool_languages:
         en_entries = await directus.inspiration_pool.get_pool_entries_by_language("en", limit=50)
+        en_entries = await _review_pool_entries(en_entries, task._secrets_manager, task_id)
 
     # Score and sort English entries
     en_scored = sorted(
@@ -263,8 +297,9 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
             }
 
             if lang in pool_languages:
-                entries = await directus.inspiration_pool.get_pool_entries_by_language(
-                    lang, limit=50
+                entries = en_entries if lang == "en" else await _review_pool_entries(
+                    await directus.inspiration_pool.get_pool_entries_by_language(lang, limit=50),
+                    task._secrets_manager, task_id,
                 )
             else:
                 entries = []

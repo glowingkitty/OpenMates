@@ -1,0 +1,23 @@
+schema_version: 2
+profile: concise
+id: daily-inspiration-jev
+title: Jev daily inspirations with Mistral Small or Mercury 3
+status: implementing
+goal: >-
+  implement, test out, benchmark and then decide for deploying one of the setups:
+  jev 1.14 for everything where decision model is enough + mistral small for llm stuff.
+  or jev 1.14 + mercury 3
+scope_notes:
+  - Jev source eligibility, educational ranking, categories and final editorial review for video and Wikipedia cards.
+  - Explicit rejection of conspiracy promotion and misleading clickbait, preserving honest educational curiosity and debunking.
+  - Compare the same production writing prompts with direct Mistral Small and Mercury 3, without inference fallbacks.
+  - Preserve ten-card delivery, static recovery, encryption and ordinary chat routing.
+checks:
+  - Focused unit/integration regressions for complete decisions, outages, evidence grounding and both content types.
+  - Isolated CI public-feed browser coverage and delivery of its recording.
+  - Bounded real-provider benchmark with model identity, raw public outputs, usage, latency and human review.
+  - Select the deployment setup using content safety and usable-card quality before latency and cost.
+decision_notes:
+  - User explicitly authorized implementation, comparison and the resulting scoped dev deployment on 2026-10-20.
+  - Existing daily-inspiration public-safe feed and language assertions remain applicable; provider/ranking internals are outside that Specification's scope.
+  - Gemini Batch and a general shared-pool redesign are outside this two-setup comparison.

@@ -25,6 +25,7 @@ class DailyInspirationVideo(BaseModel):
 
     youtube_id: str = Field(..., description="YouTube video ID (e.g., 'dQw4w9WgXcQ')")
     title: str = Field(..., description="Video title")
+    description: Optional[str] = Field(None, description="Public source description used for editorial grounding")
     thumbnail_url: str = Field(..., description="URL of the video thumbnail (YouTube or Brave-provided)")
     channel_name: Optional[str] = Field(None, description="YouTube channel / uploader name")
     view_count: Optional[int] = Field(None, description="View count from YouTube Data API")

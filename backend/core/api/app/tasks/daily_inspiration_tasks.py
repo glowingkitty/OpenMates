@@ -83,7 +83,9 @@ async def generate_and_deliver_inspirations_for_user(
     Returns:
         True if generation and delivery succeeded, False on error
     """
-    from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
+    from backend.apps.ai.daily_inspiration.feature_suggestions import (
+        build_feature_inspirations, has_complete_daily_inspiration_set,
+    )
     from backend.apps.ai.daily_inspiration.content_filter import check_daily_inspiration_entry
     from backend.apps.ai.daily_inspiration.generator import generate_inspirations
     from backend.apps.ai.daily_inspiration.wiki_generator import generate_wiki_inspirations
@@ -204,6 +206,7 @@ async def generate_and_deliver_inspirations_for_user(
                         category=insp.category,
                         content_type=insp.content_type,
                         video_title=insp.video.title if insp.video else None,
+                        video_description=insp.video.description if insp.video else None,
                         video_thumbnail_url=insp.video.thumbnail_url if insp.video else None,
                         video_channel_name=insp.video.channel_name if insp.video else None,
                         video_view_count=insp.video.view_count if insp.video else None,
@@ -231,6 +234,12 @@ async def generate_and_deliver_inspirations_for_user(
         logger.warning(
             f"[DailyInspiration][{task_id}] Pool copy failed (non-fatal): {pool_err}"
         )
+
+    # Do not replace usable personalized content with a partial rejected set.
+    # Approved partial inventory has still entered the shared pool above.
+    if not has_complete_daily_inspiration_set(serialized):
+        logger.info("[DailyInspiration][%s] Withholding incomplete reviewed daily set", task_id)
+        return False
 
     # ── 1. Always store in pending cache (belt-and-suspenders) ──────────────────
     # The pending cache ensures inspirations survive even if the user is offline or
