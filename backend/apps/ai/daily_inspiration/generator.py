@@ -73,7 +73,7 @@ AVAILABLE_CATEGORIES = [
 ]
 
 # Language code → Brave search country mapping.
-# Maps UI locale codes to the closest Brave country/language pair.
+# Maps UI locale codes to supported Brave enums; unsupported countries use all regions.
 # For unknown locales, falls back to "us"/"en".
 _LANGUAGE_TO_SEARCH_PARAMS: Dict[str, Dict[str, str]] = {
     "en": {"country": "us", "search_lang": "en"},
@@ -95,14 +95,14 @@ _LANGUAGE_TO_SEARCH_PARAMS: Dict[str, Dict[str, str]] = {
     "da": {"country": "dk", "search_lang": "da"},
     "fi": {"country": "fi", "search_lang": "fi"},
     "no": {"country": "no", "search_lang": "nb"},
-    "uk": {"country": "ua", "search_lang": "uk"},
-    "cs": {"country": "cz", "search_lang": "cs"},
-    "ro": {"country": "ro", "search_lang": "ro"},
-    "hu": {"country": "hu", "search_lang": "hu"},
+    "uk": {"country": "all", "search_lang": "uk"},
+    "cs": {"country": "all", "search_lang": "cs"},
+    "ro": {"country": "all", "search_lang": "ro"},
+    "hu": {"country": "all", "search_lang": "hu"},
     "el": {"country": "gr", "search_lang": "el"},
-    "he": {"country": "il", "search_lang": "he"},
-    "th": {"country": "th", "search_lang": "th"},
-    "vi": {"country": "vn", "search_lang": "vi"},
+    "he": {"country": "all", "search_lang": "he"},
+    "th": {"country": "all", "search_lang": "th"},
+    "vi": {"country": "all", "search_lang": "vi"},
     # Brave has no Indonesian search-language enum; keep the localized query
     # and country while using its supported default language filter.
     "id": {"country": "id", "search_lang": "en"},

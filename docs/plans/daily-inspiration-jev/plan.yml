@@ -1,79 +1,45 @@
 schema_version: 2
 profile: concise
 id: daily-inspiration-jev
-title: Qualify Mercury daily inspirations with bounded retry and Gemini Flash Lite recovery
+title: Qualify multilingual daily inspirations and thumbnail screening
 status: implementing
 goal: >-
-  Fix the Japanese coherence issue using Jev instead of word overlap, tighten follow-up
-  relevance, and localize static cards for all 20 languages. Then run the proposed
-  benchmark against Gemini-only. Ensure Jev processes video thumbnails to exclude
-  super clickbaity videos, and deploy the changes.
+  Fix Japanese coherence using Jev instead of word overlap, tighten follow-up
+  relevance, localize static cards for all twenty feed languages, review actual
+  video thumbnails, benchmark against Gemini-only writing, and deploy to dev.
 scope_notes:
-  - Replace lexical overlap with separate Jev semantic coherence and explicit source-concept follow-up checks.
-  - Review actual bounded YouTube thumbnail pixels through direct Jev, withholding unavailable or uncertain image decisions.
-  - Persist review-bound public-video proof; no paid provider requests from the anonymous endpoint.
-  - Reuse the multilingual fallback source catalog for all backend static cards.
-  - Paired Mercury/retry/Gemini versus Gemini-only qualification across twenty locales, real source snapshots and three-card batches.
-  - Jev source eligibility, educational ranking, categories and final editorial review for video and Wikipedia cards.
-  - Explicit rejection of conspiracy promotion and misleading clickbait, preserving honest educational curiosity and debunking.
-  - Mercury 3 LOW is the only primary writer; retry once after transport, malformed copy or editorial/source rejection, then Gemini 3.5 Flash-Lite once.
-  - Keep retrieval fixed and independently review every attempt; distinguish natural fallback from injected-failure coverage.
-  - Preserve provider usage and public outputs in persistent receipts; assess copy quality before price or speed.
-  - Preserve ten-card delivery, static recovery, encryption and ordinary chat routing.
+  - Jev separately reviews source policy, grounding, semantic coherence, explicit source-concept follow-ups and copy language.
+  - Review bounded actual YouTube thumbnail pixels through direct Jev; withhold failed, unavailable or uncertain image decisions.
+  - Persist versioned review proof; anonymous feed requests make no paid provider calls.
+  - Localize all fifteen backend static cards using the shared YAML catalog and preserve canonical Wikipedia source editions.
+  - Preserve ten-card delivery, localized static recovery, encryption and ordinary account/chat model routing.
+  - Compare Mercury 3 LOW twice then Gemini 3.5 Flash-Lite once against three bounded Gemini writing attempts, using the same Jev gates.
+  - Freeze real approved public sources across writer arms; every generated draft still receives fresh native Jev review.
+  - Select the writer using source-grounded quality before latency or estimated supplier cost; do not weaken admission thresholds to improve scores.
+  - Keep retrieval shortages, source re-review variation, writer failures and independent automated review distinct.
 checks:
-  - Focused unit/integration regressions for complete decisions, outages, evidence grounding and both content types.
-  - Isolated CI public-feed browser coverage and delivery of its recording.
-  - Bounded real-provider benchmark with model identity, raw public outputs, usage, latency and human review.
-  - Select the deployment setup using content safety and usable-card quality before latency and cost.
+  - Focused backend regressions for semantic decisions, source identities, thumbnail transport, pool proof, retry bounds and all static locales.
+  - Frontend fallback/store unit checks and isolated CI component/public-feed browser coverage, including Japanese source navigation and all twenty endpoint locales.
+  - Real provider paired benchmark with actual model identity, drafts, Jev decisions, usage, latency and blinded automated source-grounded review.
+  - Proposed qualification targets are zero known unsafe/material unsupported admissions, 95 percent first-draft admission and 99 percent final admission; report failures honestly.
 decision_notes:
-  - User rejected Mistral on 2026-10-20 because its output was less reliable; availability alone must not outweigh copy quality.
-  - User explicitly authorized implementation, comparison and the resulting scoped dev deployment on 2026-10-20.
-  - Existing daily-inspiration public-safe feed and language assertions remain applicable; provider/ranking internals are outside that Specification's scope.
-  - Gemini Batch and a general shared-pool redesign are outside this two-setup comparison.
+  - User rejected Mistral because its output was less reliable; it remains excluded.
+  - User authorized implementation, real-provider benchmarking, the resulting writer decision and scoped dev deployment.
+  - Existing public-safe feed and language Specifications apply; ordinary model routing is outside this work.
+  - Gemini Batch and a general shared-pool redesign remain outside scope.
 evidence:
-  recovery_qualification:
-    focused_tests: 57 passed across writer, decisions, generators and existing delivery/language regressions.
-    isolated_pytest: https://github.com/glowingkitty/OpenMates/actions/runs/39462228307
-    source: 0fe379386057cf4a378c8ba65316b4001ace02ca
-    harness: 9bc40b22b2c6246791301798b2bd42382eb819b7
-    browser_request: 842059e203ba2c76cfffb49198a99f60d964684818ab30ff197339b6252a36d1
-    corrected_browser_request: 01dcb206ed3f539f09eef8722b0877d7d8fe89ecadc1e1bbbaa63f9d3db9212c
-    browser_source: aa38f372a27827cf97fb392c99829d027166a542
-    browser_harness: 96f2dcf1ccab15a56745d128924c3372bcf48d01
-    browser_result: https://github.com/glowingkitty/OpenMates/actions/runs/39465871355; both cases passed and recordings uploaded.
-    implementation_commit: 6ca5b49de24f5e6a797b17bc1b5447cc7d909634
-    live_results: 11/12 natural cards admitted first pass; 10/10 word-based checks; both forced recoveries admitted; 20 unique Jev controls matched twice.
-    live_limits: Japanese video withheld by existing whole-token coherence filter for both models; one follow-up exceeds strict source-concept scope. Final multilingual sign-off is not claimed.
-    runtime_operation: docker-19af755d; all affected backend consumers running and healthy.
-    continuation_lease: daily-inspiration-recovery-d115-continuation
-    retained_receipts: logs/daily-inspiration-jev/recovery-2026-10-20/{a,b}/receipt.json
-    next_check: Correct Japanese coherence and follow-up scope, then the proposed real-source multilingual batch benchmark; this recommendation is not an execution gate for the bounded retest.
-    report: docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
-  focused_tests: 39 passed; backend/tests/test_daily_inspiration_{decisions,generator,wiki_generator,video_processor,content_policy,public_defaults,language}.py
-  lint: sessions.py lint --session d115 passed, including the touched TypeScript spec.
-  browser:
-    source: 74878459347333ad0c20d555aac6c1bdb7121176
-    harness: 05e65b3be97619d57c6629c6ed642c484b1b4224
-    request: 145940dce28b45f5421e9430ffe7c34930ce0c56a0d00829ce85a29235caf13e
-    run: https://github.com/glowingkitty/OpenMates/actions/runs/39427339752
-    result: 2 passed, no skipped or flaky cases; isolated cleanup complete.
-    recordings: Both successful recordings uploaded; selected links are delivered in the final chat.
-  actual_source_generation: 3 reviewed videos, 3 reviewed wiki cards and 4 static feature tips; source hashes match the published implementation.
-  prior_setup: Mistral deployment superseded by user correction; its weaker copy quality is disqualifying.
-  candidate_setup: Jev 1.14 plus Mercury LOW, one Mercury retry, then Gemini 3.5 Flash-Lite; qualification pending.
-  benchmark_report: docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
-  implementation_commit: a0def9059fa52494fca903a5732c35bf19e17902
-  final_pool_regression:
-    source: f4a1a9290bc0968e0582032785d371b92b106ef1
-    harness: b09abc8d53bac58f383a406de49b91ad93d6aa21
-    request: 625af8751c7a34ed36899b485996495e21f24488b898cafbd4ad0c5cb1abe9dd
-    run: https://github.com/glowingkitty/OpenMates/actions/runs/39431748500
-    result: Isolated pytest passed for the complete decision regression file, including missing video source identity.
-  runtime:
-    operation: docker-6f9ff71e
-    result: Schema applied before all affected backend consumers were recreated; API and Directus healthy.
-    active_writer: mistral/mistral-small-latest
-    policy: daily-editorial-v4
-    schema_field: daily_inspiration_pool.video_description verified through Directus.
-    public_refresh: One successful selector job wrote 190 defaults for 19 languages on 2026-10-20.
-  retention_limit: Original paired raw receipts were removed by a shared API recreation; captured summaries/manual review and the later persistent selected-setup receipts are distinguished in the report.
+  implementation_commit: 1c753c461f9b97e1bc1e4c61c1d06b431e19bae1
+  retrieval_language_fix_commit: 0e235d47780b3082802fbb0d169dc45db7cd4cda
+  focused_tests: 134 backend cases and 19 frontend unit cases passed; fourteen search-locale cases passed after live discovery fixes.
+  isolated_backend: https://github.com/glowingkitty/OpenMates/actions/runs/39471945379
+  isolated_component: https://github.com/glowingkitty/OpenMates/actions/runs/39471951724
+  isolated_public_feed: https://github.com/glowingkitty/OpenMates/actions/runs/39474468256
+  isolated_search_locales: https://github.com/glowingkitty/OpenMates/actions/runs/39478392531
+  application_source: 0bc10e895f172067491e06ecf6128d9ec697d4fa
+  harness: d2733343be7dbfa5cfcd2d8849f8742956f8b6aa
+  live_controls: 33 of 34 correct; all five image controls correct. One valid Japanese paraphrase was coherent but conservatively withheld for low grounding confidence.
+  runtime: docker-2074e2a0 and docker-afe21e92 completed with all seventeen affected backend consumers healthy.
+  current_report: docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+  historical_reports:
+    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md

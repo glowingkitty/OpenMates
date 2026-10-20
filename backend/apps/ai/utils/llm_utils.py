@@ -3,6 +3,7 @@
 # ruff: noqa: E402
 
 import logging
+import math
 from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Union
 import copy
 from pydantic import BaseModel
@@ -1313,7 +1314,29 @@ async def call_preprocessing_llm(
     usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     max_output_tokens: Optional[int] = None,
     resolve_logical_fallbacks: bool = False,
+    single_attempt_timeout_seconds: Optional[float] = None,
 ) -> LLMPreprocessingCallResult:
+    # Background callers may own their retry schedule and need a longer single
+    # request. Ordinary preprocessing retains its existing request/chain limits.
+    if single_attempt_timeout_seconds is not None and (
+        allow_retries is not False
+        or isinstance(single_attempt_timeout_seconds, bool)
+        or not isinstance(single_attempt_timeout_seconds, (int, float))
+        or not 0 < single_attempt_timeout_seconds <= 30
+        or not math.isfinite(single_attempt_timeout_seconds)
+    ):
+        raise ValueError(
+            "single_attempt_timeout_seconds requires allow_retries=False "
+            "and a finite positive number no greater than 30"
+        )
+    request_timeout_seconds = (
+        single_attempt_timeout_seconds
+        if single_attempt_timeout_seconds is not None else PREPROCESSING_TIMEOUT_SECONDS
+    )
+    total_timeout_seconds = (
+        single_attempt_timeout_seconds
+        if single_attempt_timeout_seconds is not None else PREPROCESSING_TOTAL_TIMEOUT_SECONDS
+    )
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
     if temperature is not None and (
@@ -1603,15 +1626,15 @@ async def call_preprocessing_llm(
     preprocessing_started_at = asyncio.get_running_loop().time()
 
     def _remaining_preprocessing_budget_seconds() -> Optional[float]:
-        if PREPROCESSING_TOTAL_TIMEOUT_SECONDS <= 0:
+        if total_timeout_seconds <= 0:
             return None
         elapsed = asyncio.get_running_loop().time() - preprocessing_started_at
-        return PREPROCESSING_TOTAL_TIMEOUT_SECONDS - elapsed
+        return total_timeout_seconds - elapsed
 
     def _preprocessing_budget_exhausted_error() -> str:
         return (
             "Preprocessing retry budget exhausted after "
-            f"{_format_timeout_seconds(PREPROCESSING_TOTAL_TIMEOUT_SECONDS)}s"
+            f"{_format_timeout_seconds(total_timeout_seconds)}s"
         )
 
     # Helper function to call a single provider
@@ -1722,9 +1745,9 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["temperature"] = temperature
                     if max_output_tokens is not None:
                         provider_request_kwargs["max_tokens"] = max_output_tokens
-                    effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
+                    effective_timeout = request_timeout_seconds
                     if timeout_seconds is not None:
-                        effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
+                        effective_timeout = min(request_timeout_seconds, max(0.0, timeout_seconds))
                     if effective_timeout <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
 
@@ -1916,12 +1939,25 @@ async def call_preprocessing_llm(
                 attempt_budget_seconds /= remaining_providers
 
             with ai_provider_span(observability_purpose) as provider_span:
-                result = await _call_single_provider(
+                provider_call = _call_single_provider(
                     provider_model_id,
                     is_last_provider=is_last_provider,
                     timeout_seconds=attempt_budget_seconds,
                     is_primary_model=provider_idx == 0,
                 )
+                if single_attempt_timeout_seconds is not None:
+                    # Bound provider setup/health checks as well as the request;
+                    # this independent deadline also survives a slow adapter.
+                    try:
+                        result = await asyncio.wait_for(
+                            provider_call, timeout=remaining_budget_seconds,
+                        )
+                    except asyncio.TimeoutError:
+                        result = LLMPreprocessingCallResult(
+                            error_message=_preprocessing_budget_exhausted_error(),
+                        )
+                else:
+                    result = await provider_call
                 telemetry = result.usage_telemetry or {}
                 provider_span.set_attribute("ai.aux_input_tokens", telemetry.get("input_tokens") or 0)
                 provider_span.set_attribute("ai.aux_output_tokens", telemetry.get("output_tokens") or 0)

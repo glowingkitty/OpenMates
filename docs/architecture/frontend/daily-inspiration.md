@@ -76,7 +76,7 @@ Runs in `app-ai-worker` Celery container:
 9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
 10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
 
-The primary writer is restricted to `inception/mercury-3`; Mistral is no longer an allowed primary. Recovery uses `google/gemini-3.5-flash-lite`. The chain has at most three logical writing attempts, a 30-second writer timeout per attempt, and no facade fallback or Mercury SDK retries. It does not change account settings or ordinary assistant routing. See `docs/plans/daily-inspiration-jev/` for the paired benchmark and selected default.
+The primary writer is restricted to `inception/mercury-3`; Mistral is no longer an allowed primary. Recovery uses `google/gemini-3.5-flash-lite`. The chain has at most three logical writing attempts, a 30-second writer timeout per attempt (explicitly propagated through the preprocessing adapter), and no facade fallback or Mercury SDK retries. It does not change account settings or ordinary assistant routing. See `docs/plans/daily-inspiration-jev/` for the paired benchmark and selected default.
 
 ### Generation Triggers
 

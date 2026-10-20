@@ -48,6 +48,7 @@ async def write_reviewed_cards(*, writer_call, accept, count, collection, **requ
                 **request, model_id=model, fallback_models=[], allow_retries=False,
                 reasoning_effort="low", temperature=.5, max_output_tokens=4096,
                 observability_purpose="inspiration",
+                single_attempt_timeout_seconds=ATTEMPT_TIMEOUT_SECONDS,
             ), timeout=ATTEMPT_TIMEOUT_SECONDS)
             if result.error_message or not _complete_arguments(result.arguments, collection, count):
                 reason = "provider_or_shape_failure"

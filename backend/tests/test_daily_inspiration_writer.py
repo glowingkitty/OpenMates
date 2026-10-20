@@ -29,6 +29,7 @@ async def test_second_mercury_attempt_recovers_all_failure_classes(monkeypatch, 
         calls.append(kwargs)
         assert kwargs["fallback_models"] == [] and kwargs["allow_retries"] is False
         assert kwargs["reasoning_effort"] == "low"
+        assert kwargs["single_attempt_timeout_seconds"] == writer.ATTEMPT_TIMEOUT_SECONDS
         if len(calls) == 1:
             if failure == "exception":
                 raise ConnectionError()
@@ -65,6 +66,7 @@ async def test_fallback_is_exactly_bounded_and_always_reviewed(monkeypatch, acce
 
     async def call(**kwargs):
         models.append(kwargs["model_id"])
+        assert kwargs["single_attempt_timeout_seconds"] == writer.ATTEMPT_TIMEOUT_SECONDS
         return SimpleNamespace(arguments=draft("articles"), error_message=None)
 
     async def accept(arguments):
@@ -96,6 +98,7 @@ async def test_attempt_deadline_reserves_a_real_gemini_attempt(monkeypatch):
 
     async def call(**kwargs):
         models.append(kwargs["model_id"])
+        assert kwargs["single_attempt_timeout_seconds"] == writer.ATTEMPT_TIMEOUT_SECONDS
         if len(models) < 3:
             await asyncio.sleep(10)
         return SimpleNamespace(arguments=draft("articles"), error_message=None)

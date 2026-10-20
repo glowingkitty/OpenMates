@@ -17,6 +17,8 @@ import json
 import logging
 import re
 import random
+import math
+import statistics
 from pathlib import Path
 import time
 from types import SimpleNamespace
@@ -27,6 +29,7 @@ def load_runtime():
     global httpx, AsyncModels, config, decisions, generator, thumbnail_review
     global video_processor, wiki_generator, writer, call_preprocessing_llm
     global SecretsManager, JevDecisionClient, wikipedia
+    global llm_utils
     import httpx
     from google.genai.models import AsyncModels
     
@@ -34,6 +37,7 @@ def load_runtime():
         config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer,
     )
     from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
+    from backend.apps.ai.utils import llm_utils
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     from backend.shared.providers.typesafe.client import JevDecisionClient
     from backend.shared.providers.wikipedia import wikipedia_api as wikipedia
@@ -274,7 +278,7 @@ async def collect(options, root, manager):
                                 query=query, retrieved_at=time.time(), errors=errors,
                                 english_retrieval_fallback=snapshot['retrieval_language'] == 'en' and language != 'en')
                 if image:
-                    image_path = root / 'thumbnails' / f'{identity}.jpg'
+                    image_path = root / 'thumbnails' / f'{identity}-{hashlib.sha256(image).hexdigest()[:16]}.jpg'
                     image_path.parent.mkdir(parents=True, exist_ok=True)
                     image_path.write_bytes(image)
                     snapshot['image'] = {'path': str(image_path.relative_to(root)), 'bytes': len(image),
@@ -312,6 +316,8 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
         async def recorded_accept(arguments):
             cards = await accept(arguments)
             row['attempts'][-1]['admitted'] = len(cards)
+            row['attempts'][-1]['admitted_items'] = [card.model_dump(mode='json') for card in cards]
+            row['attempts'][-1]['format_issues'] = [copy_format_issues(card, language) for card in cards]
             return cards
 
         return await original_write(**{**kwargs, 'accept': recorded_accept})
@@ -417,10 +423,15 @@ def summarize(root, options):
         selected = [row for row in rows if row['arm'] == arm and row.get('status') == 'complete']
         billed_rows = [row for row in [*rows, *prior_rows] if row['arm'] == arm]
         usage = [attempt['result'].get('usage_telemetry') or {} for row in billed_rows for attempt in row['attempts'] if 'result' in attempt]
-        accounting = [item for row in billed_rows for item in row.get('decision_accounting', [])]
+        accounting = [item for row in billed_rows for item in row.get('decision_accounting', [])[:row.get('production_decision_count', len(row.get('decision_accounting', [])))]]
+        latencies = sorted(row.get('production_seconds', row['seconds']) for row in selected)
         admitted = sum(len(row['items']) for row in selected)
         summary['arms'][arm] = {
             'completed_batches': len(selected), 'admitted': admitted,
+            'full_batch_admissions': sum(len(row['items']) == row['requested_count'] for row in selected),
+            'first_draft_format_clean': sum(sum(not issues for issues in row['attempts'][0].get('format_issues', [])) if row['attempts'] else 0 for row in selected),
+            'p50_batch_seconds': statistics.median(latencies) if latencies else None,
+            'p95_batch_seconds': latencies[math.ceil(.95 * len(latencies)) - 1] if latencies else None,
             'eligible_writer_slots': sum(row.get('eligible_count', 0) for row in selected),
             'source_gate_shortfalls': sum(row['requested_count'] - row.get('eligible_count', 0) for row in selected),
             'locale_failures': sum(answer.get('choice') != 'pass' or answer.get('confidence', 0) < .5
@@ -433,7 +444,8 @@ def summarize(root, options):
             'first_draft_admitted': sum((row['attempts'][0].get('admitted', 0) if row['attempts'] else 0) for row in selected),
             'recovery_batches': sum(len(row['attempts']) > 1 for row in selected),
             'fallback_gemini_attempts': sum('gemini' in attempt['requested_model'] for row in selected for attempt in row['attempts']) if arm == 'mercury_chain' else 0,
-            'seconds': sum(row['seconds'] for row in selected),
+            'seconds': sum(row.get('production_seconds', row['seconds']) for row in selected),
+            'assessment_seconds': sum(row.get('assessment_seconds', 0) for row in selected),
             'by_language': {language: {
                 'admitted': sum(len(row['items']) for row in selected if row['language'] == language),
                 'requested': options.limit * 2,
@@ -457,7 +469,7 @@ async def run(options):
     manifest = {'comparison': 'writer_and_fresh_final_review_on_shared_live_approved_sources',
                 'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
-                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review)}}
+                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, llm_utils)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     manifest_path = root / 'manifest.json'
     if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
@@ -543,6 +555,8 @@ async def run(options):
                                     cards = await asyncio.wait_for(qualify_batch(sources, kind, language, arm, row, manager, root), timeout=min(300, max(.01, options.phase_minutes * 60 - (time.monotonic() - started))))
                                 finally:
                                     random.setstate(saved_random)
+                                row['production_seconds'] = time.monotonic() - stamp
+                                row['production_decision_count'] = len(row.get('decision_accounting', []))
                                 row['items'] = [card.model_dump(mode='json') for card in cards]
                                 row['format_issues'] = [copy_format_issues(card, language) for card in cards]
                                 row['structure_issues'] = [index for index, card in enumerate(cards) if
@@ -553,6 +567,7 @@ async def run(options):
                                               source['valid']['wiki_title'].replace(' ', '_') == card.wiki.wiki_title), None))
                                     not in row['source_ids']]
                                 if cards:
+                                    assessment_start = time.monotonic()
                                     client = decisions.JevDecisionClient(secrets_manager=manager,
                                         telemetry_task_id='multilingual_locale_assessment',
                                         telemetry_purpose='inspiration_decision')
@@ -572,6 +587,7 @@ async def run(options):
                                         row['locale_assessment'] = assessment.model_dump(mode='json')
                                     except Exception as error:
                                         row['locale_assessment'] = {'error': type(error).__name__}
+                                    row['assessment_seconds'] = time.monotonic() - assessment_start
                                 row['status'] = 'complete'
                             except Exception as error:
                                 row.update(status='failed', error=type(error).__name__)
