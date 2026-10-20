@@ -66,8 +66,16 @@ skills:
       a currency but no country, select a supported marketplace using that currency (for example,
       country de for euros) rather than relying on a locale fallback. Preserve an explicitly
       requested destination; do not guess a conversion for an unsupported currency.
+      Set max_results to the user's requested final cap (for example, 5 for "at most five").
+      Discovery already retrieves up to 40 candidates before relevance filtering; do not set
+      max_results to 20 to enlarge that pool. For one visual requirement, issue one request
+      with sort=relevance; returned products already include available prices. Do not add
+      parallel price-sorted requests with the same query,
+      criteria and references unless the user explicitly requests separate sorted searches.
       When the user supplies image references, put up to three exact uploaded or generated
-      image embed_refs in reference_images, and describe the requested visual qualities in
+      image embed_refs in reference_images. When a product query is already known, forward
+      these references directly without an extra images.view call unless the user explicitly
+      asks to inspect the images or inspection is needed to identify the query. Describe the requested visual qualities in
       relevance_criteria. Product descriptions and up to three supplied product photos are
       compared together. Do not call images.search to supplement shopping results. Read
       visual_evaluation and each product's visual_match status: unavailable or partial
@@ -115,7 +123,8 @@ skills:
           type: array
           description: >
             Array of product search requests. Each request searches for
-            products matching a query on a compatible shopping provider.
+            products matching a query on a compatible shopping provider. Use separate entries
+            for distinct user requirements, not alternative sorts of one visual requirement.
           items:
             type: object
             properties:
@@ -172,7 +181,10 @@ skills:
                 x-ui:
                   basic: true
                 type: integer
-                description: Maximum number of products to return (1-20, default 10).
+                description: >
+                  Final product cap (1-20, default 10). Honor the user's requested maximum,
+                  e.g. 5 for "at most five". Relevance/reference searches already discover up to
+                  40 candidates internally; a larger final cap does not increase discovery.
                 minimum: 1
                 maximum: 20
                 default: 10
@@ -208,7 +220,8 @@ skills:
                   basic: false
                 type: string
                 description: >
-                  Sort order for results.
+                  Provider discovery order. For one visual requirement use relevance; do not
+                  create redundant parallel price-sort searches unless explicitly requested.
                   REWE supports: relevance, price_asc, price_desc, new.
                   Amazon supports: relevance, price_asc, price_desc, review_rank,
                   newest, best_sellers.

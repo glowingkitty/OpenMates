@@ -644,3 +644,73 @@ async def test_forty_candidate_deadline_retains_completed_batches_and_unverified
     assert result.summary["filtered_count"] == 0 and cancelled
     assert result.candidates[-1]["product_id"] == "39"
     assert result.candidates[-1]["visual_match"] == {"status": "unavailable"}
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.products.supplied-gallery,shopping-search.privacy.minimized
+@pytest.mark.asyncio
+@pytest.mark.parametrize("host,path,expected_host", [
+    ("cdn02.plentymarkets.com", "/5rtbqcd0flq3/item/images/123/preview/item.jpg", "cdn02.plentyone.com"),
+    ("cdn02.plentymarkets.com", "/other-tenant/item/images/123.jpg", "cdn02.plentymarkets.com"),
+    ("cdn02.plentymarkets.com.attacker.example", "/5rtbqcd0flq3/item/images/123.jpg", "cdn02.plentymarkets.com.attacker.example"),
+])
+async def test_known_stoffe_cdn_alias_keeps_path_and_public_pinned_transport(monkeypatch, host, path, expected_host):
+    original_client = httpx.AsyncClient
+    calls = []
+    async def handler(request):
+        calls.append(request)
+        assert request.url.host == "8.8.8.8" and request.url.path == path
+        assert request.url.params["version"] == "1"
+        assert request.headers["Host"] == expected_host
+        assert request.extensions["sni_hostname"] == expected_host
+        return httpx.Response(200, content=image_bytes(), headers={"Content-Type": "image/png"})
+    def client(**kwargs):
+        assert kwargs["follow_redirects"] is False and kwargs["trust_env"] is False
+        return original_client(transport=httpx.MockTransport(handler), **kwargs)
+    dns = AsyncMock(return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443))])
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", dns)
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+    original_url = f"https://{host}{path}?version=1"
+    decision = SimpleNamespace(evaluate_with_images=AsyncMock(return_value=DecisionResponse(
+        model="jev-1.14.0", answers={"candidate_000": score(3)})))
+    monkeypatch.setattr(visual, "JevDecisionClient", lambda **kwargs: decision)
+    result = await visual.rank_products_visually(
+        candidates=[{"title": "Fabric", "image_url": original_url, "image_urls": [original_url]}],
+        reference_images=[b"prepared reference"], relevance_criteria=None, query="fabric", secrets_manager=None)
+    assert result.summary["evaluated_count"] == 1
+    assert result.candidates[0]["image_url"] == original_url
+    assert result.candidates[0]["image_urls"] == [original_url]
+    assert dns.await_args.args[:2] == (expected_host, 443) and len(calls) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
+@pytest.mark.asyncio
+async def test_known_cdn_alias_still_rejects_private_dns_before_http(monkeypatch):
+    dns = AsyncMock(return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 443))])
+    client = AsyncMock()
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", dns)
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+    with pytest.raises(ValueError, match="not public"):
+        await visual.download_public_product_image("https://cdn02.plentymarkets.com/5rtbqcd0flq3/item/images/123.jpg")
+    assert dns.await_args.args[0] == "cdn02.plentyone.com"
+    client.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback,shopping-search.privacy.minimized
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_photo", [False, True])
+async def test_zero_prepared_products_logs_fixed_failure_counts_without_private_data(monkeypatch, caplog, has_photo):
+    caplog.set_level("INFO", logger=visual.__name__)
+    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(side_effect=visual.ProductImageHTTPUnavailable(301)))
+    decision = AsyncMock()
+    monkeypatch.setattr(visual, "JevDecisionClient", decision)
+    result = await visual.rank_products_visually(
+        candidates=[{"title": "PRIVATE PRODUCT", **({"image_url": "https://private.example/product.jpg"} if has_photo else {})}],
+        reference_images=[b"PRIVATE REFERENCE"], relevance_criteria=None, query="PRIVATE QUERY", secrets_manager=None)
+    assert result.summary["unavailable_count"] == 1 and result.summary["evaluated_count"] == 0
+    assert result.candidates[0]["title"] == "PRIVATE PRODUCT"
+    assert result.candidates[0]["visual_match"] == {"status": "unavailable"}
+    decision.assert_not_called()
+    logs = " ".join(record.message for record in caplog.records)
+    assert "available_candidates=0" in logs
+    assert ("'redirect': 1" in logs) if has_photo else "failures={}" in logs
+    assert "PRIVATE" not in logs and "https://" not in logs

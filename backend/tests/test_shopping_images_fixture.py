@@ -307,11 +307,12 @@ async def test_forty_replay_runs_real_provider_ranking_and_final_limit(shopping_
         "tools": [{"function": {"name": "shopping-search_products"}}],
     })
     [request] = response["response"]["chunks"][0]["value"]["function_arguments_parsed"]["requests"]
+    assert request["max_results"] == 5
     # The signed replay's cached HTTP transport returns forty raw products and
     # the real Jev ranking fixture scores the late candidate through real batching.
     _, rows, error = await object.__new__(SearchProductsSkill)._process_single_request(
         request, "forty", secrets_manager=None)
-    assert error is None and len(rows) == 3
+    assert error is None and len(rows) == 5
     assert rows[0]["product_id"] == "forty-039"
     payload = shopping_result_payload(rows, shopping_result_parent_metadata([{"id": 1, "results": rows}]))
     answer = llm_fixture("llm/gemini-fixture", {

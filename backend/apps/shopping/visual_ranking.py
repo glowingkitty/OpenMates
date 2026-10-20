@@ -7,6 +7,7 @@ identifiers, filenames, URLs, encryption material, or account details.
 from __future__ import annotations
 
 import asyncio
+from collections import Counter
 from dataclasses import dataclass
 import hashlib
 from io import BytesIO
@@ -76,6 +77,14 @@ def prepare_image(content: bytes) -> bytes:
             return output.getvalue()
 
 
+class ProductImageHTTPUnavailable(ValueError):
+    """Metadata-free HTTP failure category for aggregate preparation diagnostics."""
+
+    def __init__(self, status_code: int):
+        self.category = "redirect" if 300 <= status_code < 400 else "http_error"
+        super().__init__("Product image could not be read")
+
+
 async def download_public_product_image(url: str) -> bytes:
     """Fetch only public HTTPS, pin DNS to the validated IP and reject redirects.
 
@@ -86,6 +95,13 @@ async def download_public_product_image(url: str) -> bytes:
     if (len(url) > 4096 or parsed.scheme != "https" or not parsed.hostname
             or parsed.username or parsed.password or parsed.port not in (None, 443)):
         raise ValueError("Unsupported product image URL")
+    # This Stoffe.de tenant migrated its image CDN with a same-path 301. Map
+    # only that verified alias before the normal public-DNS and pinned-IP checks.
+    # Result gallery URLs stay provider supplied; arbitrary redirects stay denied.
+    if (parsed.hostname == "cdn02.plentymarkets.com"
+            and parsed.path.startswith("/5rtbqcd0flq3/item/images/")):
+        url = str(httpx.URL(url).copy_with(host="cdn02.plentyone.com"))
+        parsed = urlsplit(url)
     hostname = parsed.hostname.encode("idna").decode("ascii")
     addresses = await asyncio.wait_for(
         asyncio.get_running_loop().getaddrinfo(hostname, 443, type=socket.SOCK_STREAM), timeout=1.0,
@@ -100,7 +116,7 @@ async def download_public_product_image(url: str) -> bytes:
             extensions={"sni_hostname": hostname},
         ) as response:
             if response.status_code != 200:
-                raise ValueError("Product image could not be read")
+                raise ProductImageHTTPUnavailable(response.status_code)
             if response.headers.get("content-type", "").split(";", 1)[0].lower() not in {
                 "image/jpeg", "image/png", "image/webp", "image/jpg",
             }:
@@ -265,6 +281,7 @@ async def rank_products_visually(
     if not 1 <= len(reference_images) <= 3 or len(original) > MAX_CANDIDATES:
         return unavailable_visual_results(original, len(reference_images))
     semaphore = asyncio.Semaphore(6)
+    photo_failures: Counter[str] = Counter()
 
     async def load_product(item: Mapping[str, Any]) -> list[bytes]:
         async with semaphore:
@@ -278,8 +295,13 @@ async def rank_products_visually(
             for url in urls:
                 try:
                     images.append(await download_public_product_image(url))
-                except Exception:
-                    # No URLs or image bytes in logs, including remote exception strings.
+                except Exception as exc:
+                    # Fixed categories only: no URLs, content, or remote exception strings.
+                    category = (exc.category if isinstance(exc, ProductImageHTTPUnavailable)
+                                else "timeout" if isinstance(exc, (asyncio.TimeoutError, httpx.TimeoutException))
+                                else "invalid_image_or_url" if isinstance(exc, ValueError)
+                                else "transport_or_decode_error")
+                    photo_failures[category] += 1
                     continue
             return images
 
@@ -299,6 +321,9 @@ async def rank_products_visually(
     available = [(index, item, images) for index, (item, images) in enumerate(zip(original, product_images)) if images]
     preparation_ms = (time.monotonic() - preparation_started) * 1000
     batches = [available[index:index + CANDIDATES_PER_BATCH] for index in range(0, len(available), CANDIDATES_PER_BATCH)]
+    logger.info("SHOPPING_PRODUCT_PREPARATION task_id=%s candidates=%d available_candidates=%d product_images=%d cancelled_products=%d failures=%s preparation_wall_ms=%.1f",
+                telemetry_task_id, len(original), len(available), sum(map(len, product_images)),
+                sum(task.cancelled() for task in tasks), dict(sorted(photo_failures.items())), preparation_ms)
     if not batches:
         return unavailable_visual_results(original, len(reference_images))
     client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=0,

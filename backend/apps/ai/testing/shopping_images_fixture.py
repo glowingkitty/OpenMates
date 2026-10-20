@@ -26,9 +26,9 @@ GROUNDING_RESPONSE = "The similarity score is 3.24 out of 4. All 2 candidate pro
 MISSING_GROUNDING_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its score scale, evaluation counts or factual grounding notice."
 MISSING_ERROR_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its reference failure metadata."
 FORTY_QUERY = "synthetic forty candidate shopping test"
-FORTY_PROMPT = "Find the late matching grocery product on REWE. SHOPPING_IMAGES_E2E:forty"
+FORTY_PROMPT = "Find the late matching grocery product on REWE; return at most five products. SHOPPING_IMAGES_E2E:forty"
 FORTY_CRITERIA = "synthetic late candidate 39"
-FORTY_RESPONSE = "The late matching product from forty candidates is first; the shopping card contains three products."
+FORTY_RESPONSE = "The late matching product from forty candidates is first; the shopping card contains five products."
 MISSING_FORTY_RESPONSE = "REGRESSION: forty-candidate discovery did not preserve the late match and final limit."
 _PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT, FORTY_PROMPT)
 
@@ -210,7 +210,7 @@ def _has_forty_results(tail: list[dict[str, Any]]) -> bool:
             except (ValueError, TypeError):
                 continue
         rows = payload.get("results") if isinstance(payload, dict) else None
-        if (isinstance(rows, list) and len(rows) == 3 and isinstance(rows[0], dict)
+        if (isinstance(rows, list) and len(rows) == 5 and isinstance(rows[0], dict)
                 and rows[0].get("title") == "Synthetic candidate 39"):
             return True
     return False
@@ -247,7 +247,7 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     if not tail and "shopping-search_products" in names:
         request = {"query": "bio joghurt", "provider": "REWE", "max_results": 1}
         if forty:
-            request.update({"query": FORTY_QUERY, "max_results": 3, "relevance_criteria": FORTY_CRITERIA})
+            request.update({"query": FORTY_QUERY, "max_results": 5, "relevance_criteria": FORTY_CRITERIA})
         if reference_error:
             request.update({"id": REFERENCE_ERROR_ID,
                             "reference_images": ["00000000-0000-4000-8000-000000000001"]})

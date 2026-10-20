@@ -120,7 +120,9 @@ class SearchProductsRequestItem(BaseModel):
         default=10,
         ge=1,
         le=20,
-        description="Maximum number of products to return (1-20, default 10).",
+        description=("Final product cap (1-20, default 10). Honor the user's requested maximum, "
+                     "e.g. 5 for at most five. Relevance/reference searches already discover up to "
+                     "40 candidates internally; a larger final cap does not increase discovery."),
     )
     relevance_criteria: Optional[str] = Field(
         default=None,
@@ -138,7 +140,8 @@ class SearchProductsRequestItem(BaseModel):
     )
     sort: str = Field(
         default="relevance",
-        description="Sort order: 'relevance', 'price_asc', 'price_desc', 'new' (REWE), "
+        description="Provider discovery order. For one visual requirement use relevance; avoid parallel "
+        "price-sort requests unless explicitly requested. Sort order: 'relevance', 'price_asc', 'price_desc', 'new' (REWE), "
         "'review_rank', 'newest', 'best_sellers' (Amazon).",
     )
     service_type: Optional[str] = Field(
@@ -158,7 +161,8 @@ class SearchProductsRequest(BaseModel):
 
     requests: List[SearchProductsRequestItem] = Field(
         description=(
-            "Array of product search request objects. Each object requires "
+            "Array of distinct product search requirements; do not duplicate one visual requirement "
+            "across alternative sorts unless explicitly requested. Each object requires "
             "a 'query' field (e.g. 'bio joghurt') and optionally "
             "'provider', 'category', 'country', 'max_results', 'sort', and provider-specific filters."
         )

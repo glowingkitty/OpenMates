@@ -89,10 +89,10 @@ test.describe('Shopping product galleries and reference images', () => {
 		try {
 			await sendMessage(
 				page,
-				'Find the late matching grocery product on REWE. SHOPPING_IMAGES_E2E:forty <<<TEST_LIVE_MOCK:shopping_images_web>>>'
+				'Find the late matching grocery product on REWE; return at most five products. SHOPPING_IMAGES_E2E:forty <<<TEST_LIVE_MOCK:shopping_images_web>>>'
 			);
 			await expect(page.getByTestId('message-assistant').last()).toContainText(
-				'The late matching product from forty candidates is first; the shopping card contains three products.',
+				'The late matching product from forty candidates is first; the shopping card contains five products.',
 				{ timeout: 60_000 }
 			);
 			await expect(page.getByTestId('message-assistant').last()).not.toContainText('REGRESSION:');
