@@ -462,9 +462,9 @@ jobs:
           else
             npx playwright install --with-deps chromium
           fi
-          if ! command -v ffmpeg >/dev/null; then
+          if ! command -v ffmpeg >/dev/null || ! command -v Xvfb >/dev/null || ! command -v zutty >/dev/null; then
             sudo apt-get update
-            sudo apt-get install -y ffmpeg
+            sudo apt-get install -y ffmpeg xvfb zutty
           fi
       - name: Provision empty runner-local Codex thread
         if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
