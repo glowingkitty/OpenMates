@@ -96,6 +96,20 @@ test.describe.serial('Audio recording and assistant speech', () => {
 	test('sends corrected transcript text and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
+		// The isolated replay has no paid-provider credentials. Model only the
+		// runtime capability response here; speech storage and delivery stay real.
+		let speechProviderAvailable = true;
+		const metadataUrl = /\/v1\/apps\/metadata(?:\?.*)?$/;
+		await page.route(metadataUrl, async (route: any) => {
+			const response = await route.fetch();
+			const data = await response.json();
+			const audio = data.apps?.audio ?? {};
+			const otherSkills = (audio.skills ?? []).filter((skill: { id: string }) => skill.id !== 'speak');
+			data.apps = { ...data.apps, audio: { ...audio, skills: speechProviderAvailable
+				? [...otherSkills, { id: 'speak', providers: [{ name: 'ElevenLabs' }] }]
+				: otherSkills } };
+			await route.fulfill({ response, json: data });
+		});
 		await page.addInitScript(() => {
 			let nextElementId = 1;
 			const elementIds = new WeakMap<HTMLMediaElement, number>();
@@ -407,6 +421,16 @@ test.describe.serial('Audio recording and assistant speech', () => {
 
 		await expect(player).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false');
+		await player.getByTestId('assistant-speech-close').click();
+		// Reload the actual owned chat to prove provider availability controls
+		// private generation, including when the sidebar is closed.
+		speechProviderAvailable = false;
+		await page.reload();
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
+		speechProviderAvailable = true;
+		await page.reload();
+		await expect(page.getByTestId('assistant-message-speak').last()).toBeVisible({ timeout: 30_000 });
 		await deleteActiveChat(page, log);
 	});
 });

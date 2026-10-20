@@ -19,6 +19,8 @@ except ImportError:  # pragma: no cover - lightweight contract-test environments
 MEDIA_CHILD_TYPES = {
     "images": "generated_image",
     "audio": "generated_audio",
+    # Private assistant narration uses the same encrypted audio asset transport.
+    "assistant_response_speech": "generated_audio",
     "music": "generated_music",
     "videos": "generated_video",
     "models3d": "generated_model",

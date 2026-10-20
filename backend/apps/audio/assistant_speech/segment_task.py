@@ -133,6 +133,10 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         async def store_encrypted(*, audio_bytes: bytes, segment_id: str) -> dict[str, object]:
             nonlocal generated_asset_id
             await ensure_active()
+            # A failed publication may already have indexed the segment's old
+            # asset. Separate attempt identities let retry recover without
+            # overwriting that upload or colliding with its unique embed ID.
+            asset_id = str(uuid.uuid4())
             await store_generated_audio_asset(
                 task,
                 app_id="assistant_response_speech",
@@ -142,7 +146,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 chat_id=str(arguments.get("chat_id") or ""),
                 message_id=str(arguments.get("assistant_message_id") or ""),
                 external_request=False,
-                embed_id=segment_id,
+                embed_id=asset_id,
                 audio_bytes=audio_bytes,
                 mime_type="audio/mpeg",
                 duration_seconds=0,
@@ -156,7 +160,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             )
             # Encryption material remains in upload_files and its owner-scoped
             # generated-asset event; segment metadata stores only this reference.
-            generated_asset_id = segment_id
+            generated_asset_id = asset_id
             return {"generated_asset_id": generated_asset_id}
 
         async def record_submission(*, submitted_characters: int) -> None:

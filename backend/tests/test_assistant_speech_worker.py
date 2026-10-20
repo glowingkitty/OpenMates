@@ -442,6 +442,8 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
 
     assert first["status"] == second["status"] == "ready"
     assert len(calls) == 1
+    assert first["generated_asset_id"] == second["generated_asset_id"] == calls[0]["embed_id"]
+    assert calls[0]["embed_id"] != arguments["segment_id"]
     assert calls[0]["chat_id"] == "chat-1"
     assert calls[0]["message_id"] == "message-1"
     assert calls[0]["external_request"] is False
@@ -456,7 +458,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
                 "payload": {
                     "segment_id": "segment-3",
                     "status": "ready",
-                    "generated_asset_id": "segment-3",
+                    "generated_asset_id": calls[0]["embed_id"],
                     "duration_seconds": 1.0,
                     "kind": "prose_paragraph",
                     "sequence": 0,
@@ -649,7 +651,6 @@ def test_additive_schema_and_tasks_keep_one_upload_backed_object_per_segment_wit
     assert "aes_key" not in schema
     assert "aes_nonce" not in schema
     assert "vault_wrapped_aes_key" not in schema
-    assert "embed_id=segment_id" in segment_task
     assert '"assistant_speech_segment"' in segment_task
     assert "cleanup_generated_speech_asset" in delete_task
 

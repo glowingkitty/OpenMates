@@ -180,6 +180,9 @@ class AssistantSpeechController {
     this.chatId = chatId;
     this.messageId = messageId;
     this.error = null;
+    for (const [id, status] of this.latestStatusBySegmentId) {
+      if (status.status === "error") this.latestStatusBySegmentId.delete(id);
+    }
     this.publicPlayback = false;
     this.mateName = mate.name || "OpenMates";
     this.mateCategory = mate.category || "default";
@@ -254,6 +257,10 @@ class AssistantSpeechController {
     }
     this.waitingForSource.delete(segment.id);
     this.generationRequestedIds.add(segment.id);
+    // A user retry starts a fresh attempt; stale queue events cannot reset a failure.
+    if (this.latestStatusBySegmentId.get(segment.id)?.status === "error") {
+      this.latestStatusBySegmentId.delete(segment.id);
+    }
     try {
       const { chapter: _chapter, ...requestSegment } = projected;
       await webSocketService.sendMessage("assistant_speech", {
@@ -363,7 +370,7 @@ class AssistantSpeechController {
         const source = projected.find((segment) => segment.sequence === sequence);
         if (!status.segment_id || !source) return [];
         const latest = this.latestStatusBySegmentId.get(status.segment_id);
-        if (latest?.status === "ready") status = { ...status, ...latest };
+        if (latest?.status === "ready" || latest?.status === "error") status = { ...status, ...latest };
         this.latestStatusBySegmentId.set(status.segment_id, status);
         this.segmentSequence.set(status.segment_id, sequence);
         const presentation = {
@@ -407,7 +414,8 @@ class AssistantSpeechController {
     }
     if (payload.segment_id) {
       const latest = this.latestStatusBySegmentId.get(payload.segment_id);
-      if (latest?.status === "ready" && ["queued", "generating"].includes(payload.status ?? "")) return;
+      if ((latest?.status === "ready" || latest?.status === "error")
+        && ["registered", "queued", "generating"].includes(payload.status ?? "")) return;
       this.latestStatusBySegmentId.set(payload.segment_id, payload);
       if (payload.status === "queued" || payload.status === "generating" || payload.status === "ready") {
         this.generationRequestedIds.add(payload.segment_id);

@@ -54,6 +54,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getActiveProjectFocus, getProject, getProjectContents } from '../services/projectService';
     import { activeChatFocusStore } from '../stores/activeChatFocusStore';
     import { assistantSpeechController } from '../services/assistantSpeechController';
+    import { assistantSpeechGenerationAvailable } from '../services/assistantSpeechAvailability';
     import { getAssistantSpeechPreference, setAssistantSpeechPreference } from '../services/assistantSpeechPreference';
     import { isTeamAIInvocation } from '../services/teamService';
     import type { UploadedFileSearchResult } from '../services/embedStore';
@@ -74,7 +75,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { CHUNK_ERROR_MESSAGE, forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
     import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
-    import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
+    import { appSkillsStore, initializeUserAvailableSkills, initializeFeatureAvailability } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
     import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
@@ -5706,10 +5707,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
       }
 
+      $effect(() => {
+        if (!$authStore.isAuthenticated) return;
+        void initializeUserAvailableSkills();
+        void initializeFeatureAvailability();
+      });
+
       function canSpeakAssistantMessage(messageId: string): boolean {
         const chatId = currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito) return false;
-        if (!isPublicChat(chatId)) return true;
+        if (!isPublicChat(chatId)) return $assistantSpeechGenerationAvailable;
         // Public chats cannot generate speech: only published message fixtures
         // can back the action, so an empty manifest must not expose a dead button.
         const fixtures = currentChat?.public_speech?.[messageId] ?? [];
@@ -5717,7 +5724,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
       }
 
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
-        if (voiceCallOwnsAudio) return;
+        if (voiceCallOwnsAudio || !canSpeakAssistantMessage(messageId)) return;
         const chatId = currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito) return;
         const assistantMessage = currentMessages.find((message) => message.message_id === messageId);

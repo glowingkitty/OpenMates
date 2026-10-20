@@ -174,6 +174,13 @@ function generatedMediaPreview(fixture: typeof mediaMusic, source: string, strea
 
 /** Named variants for different message types and states */
 export const variants = {
+  speechAvailable: {
+    ...defaultProps, role: 'assistant' as const, content: 'A response ready to speak.',
+    onSpeak: () => { document.documentElement.dataset.previewSpeechRequested = 'true'; },
+  },
+  speechUnavailable: {
+    ...defaultProps, role: 'assistant' as const, content: 'A response ready to speak.',
+  },
   voiceCallProcessingArtifact: { ...defaultProps, role: 'assistant' as const, status: 'synced' as const,
     content: voiceArtifactDocument, currentChatId: 'preview-chat',
     original_message: { message_id: 'voice-artifact-assistant', chat_id: 'preview-chat', role: 'assistant' as const,

@@ -419,7 +419,8 @@
         "guest-workspace-navigation.spec.ts",
         "legal-website-navigation.spec.ts",
         "example-chat-removals.spec.ts",
-        "components/shopping-product-gallery.spec.ts"
+        "components/shopping-product-gallery.spec.ts",
+        "components/assistant-speech-action.spec.ts"
       ],
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "execution": "e2e"
@@ -782,7 +783,8 @@
         "audio-recording.spec.ts",
         "example-chat-embed-uuid-isolation.spec.ts",
         "multi-tab-session-routing.spec.ts",
-        "offline-draft-replay.spec.ts"
+        "offline-draft-replay.spec.ts",
+        "assistant-speech-availability.spec.ts"
       ],
       "enabling_work": "Run against existing core stack and fresh real accounts; report missing fixture or product assertion failures without restoring shared accounts."
     },

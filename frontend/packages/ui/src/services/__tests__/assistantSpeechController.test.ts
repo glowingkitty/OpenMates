@@ -121,6 +121,24 @@ it("retains readiness delivered before the queued acceptance", async () => {
   await controller.close();
 });
 
+// contract-test: supporting surface=gui.web assertions=assistant-speech.failure.nonblocking-visible-resumable
+it("retains an early failure across stale acceptance and permits an explicit retry", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "message", "First paragraph.");
+  await mocks.handlers.get("assistant_speech_status")?.({ ...ready, status: "error", generated_asset_id: undefined });
+  await accepted([{ segment_id: "segment-0", sequence: 0, status: "queued" }]);
+  expect(get(controller.player).status).toBe("failed");
+  expect(get(controller.player).error).toBeTruthy();
+  await mocks.handlers.get("assistant_speech_status")?.({ ...ready, status: "generating", generated_asset_id: undefined });
+  expect(get(controller.player).status).toBe("failed");
+  await controller.play();
+  expect(mocks.send).toHaveBeenLastCalledWith("assistant_speech", expect.objectContaining({ action: "generate" }));
+  await mocks.handlers.get("assistant_speech_status")?.(ready);
+  await vi.waitFor(() => expect(get(controller.player).status).toBe("playing"));
+  expect(get(controller.player).error).toBeNull();
+  await controller.close();
+});
+
 // contract-test: supporting surface=gui.web assertions=assistant-speech.playback.deterministic-chapter-labels
 it("maps mixed cached and queued acceptance rows by sequence", async () => {
   const { assistantSpeechController: controller } = await import("../assistantSpeechController");
@@ -193,7 +211,7 @@ it("uses the selected German locale for on-demand News search summaries", async 
   locale.set("de");
   const { assistantSpeechController: controller } = await import("../assistantSpeechController");
   await controller.request("chat", "message", '```json\n{"type":"app_skill_use","app_id":"news","skill_id":"search"}\n```\n\nAntwort.');
-  expect(mocks.send.mock.calls.at(-1)?.[1].segments.map((segment: { speakable_text: string }) => segment.speakable_text)).toEqual([
+  expect(mocks.send.mock.calls[mocks.send.mock.calls.length - 1]?.[1].segments.map((segment: { speakable_text: string }) => segment.speakable_text)).toEqual([
     "Ich habe die News-Suche verwendet.", "Antwort.",
   ]);
   await controller.close();
