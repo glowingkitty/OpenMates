@@ -44,7 +44,7 @@ async def correct_transcript_with_mercury(
             {"role": "user", "content": f'Raw Transcript:\n"{raw_transcript}"'},
         ],
         temperature=0.5,
-        reasoning_effort="instant",
+        reasoning_effort="low",
         max_completion_tokens=8192,
         tools=[{
             "type": "function",

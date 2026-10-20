@@ -24,7 +24,7 @@ async def test_mercury_correction_preserves_forced_function_contract(monkeypatch
     result = await correction.correct_transcript_with_mercury("ähm grüne boxen unter 50 euro", "private-key", "de")
     assert result == {"title": "Grüne Boxen", "corrected_transcript": "Suche grüne Boxen unter 50 Euro."}
     request = complete.call_args.args[0]
-    assert request.reasoning_effort == "instant"
+    assert request.reasoning_effort == "low"
     assert request.temperature == 0.5
     assert request.tool_choice["function"]["name"] == "finalize_transcript"
     assert "de" in request.messages[0]["content"]
