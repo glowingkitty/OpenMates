@@ -692,6 +692,7 @@ def compose_profile(
         "DRAGONFLY_URL": "cache:6379",
         "DRAGONFLY_PASSWORD": credentials["cache"],
         "VAULT_URL": "http://vault:8200",
+        "APPS_RECOMMENDATIONS_DIR": "/app/data/apps-recommendations",
         "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
         "SERVER_ENVIRONMENT": "development",
         "OPENMATES_DEPLOYMENT_MODE": "self_host",
@@ -750,6 +751,7 @@ def compose_profile(
         "backend-logs:/app/backend/core/api/logs",
         "api-cache:/app/backend/apps/ai/testing/api_cache",
         "vault-tokens:/vault-data",
+        "apps-recommendations-data:/app/data/apps-recommendations",
     ]
     if storage_capacity:
         source_mounts.append(f"{SOURCE}/test-results/ci-private/capacity-receipts:/app/capacity-receipts")
@@ -1113,6 +1115,7 @@ def compose_profile(
                 mounts.append(mount)
         if mounts:
             service["volumes"] = mounts
+    volumes["apps-recommendations-data"]["labels"] = {"openmates.backup.exclude": "true"}
     if telemetry_proxy:
         # Only the telemetry boundary spec needs to reach the proxy body read.
         # The absent collector stays inside the disposable network; no operator

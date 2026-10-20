@@ -29,6 +29,19 @@ from scripts.ci_environment import (
 )
 
 
+def test_apps_library_storage_is_explicit_and_shared_in_isolated_runtime():
+    profile = compose_profile("a" * 40)
+    target = "/app/data/apps-recommendations"
+    for name in ("api", "core-worker"):
+        service = profile["services"][name]
+        assert service["environment"]["APPS_RECOMMENDATIONS_DIR"] == target
+        mounts = [mount for mount in service["volumes"]
+                  if isinstance(mount, dict) and mount.get("target") == target]
+        assert mounts == [{"type": "volume", "source": "apps-recommendations-data",
+                           "target": target, "volume": {"nocopy": True}}]
+    assert profile["volumes"]["apps-recommendations-data"]["labels"]["openmates.backup.exclude"] == "true"
+
+
 def test_profile_is_private_and_source_bound():
     profile = compose_profile("a" * 40)
     assert profile["name"] == "openmates-ci"
