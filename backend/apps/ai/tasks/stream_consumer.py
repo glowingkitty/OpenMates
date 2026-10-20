@@ -98,12 +98,17 @@ from backend.apps.ai.utils.diagram_html_fences import (
 )
 from backend.apps.ai.utils.mindmap_fences import is_mindmap_fence
 from backend.apps.ai.utils.embeds_map_view import (
+    MAP_VIEW_CAPABLE_SKILLS,
     append_missing_embeds_map_view_block,
     content_has_map_capable_app_skill_use,
     extract_map_capable_source_refs,
+    extract_results_view_source_refs,
     is_embeds_map_view_fence_language,
     is_map_view_suppressed_request,
     normalize_embeds_map_view_blocks,
+    map_view_source_bindings_from_tool_calls,
+    preferred_map_view_source_refs,
+    validate_embeds_map_view_sources,
     should_include_embeds_map_view_hint,
 )
 from backend.shared.python_utils.billing_utils import (
@@ -3174,23 +3179,44 @@ def _map_view_source_refs_from_tool_calls(
     tool_calls_info: Optional[List[Dict[str, Any]]],
     user_texts: list[str],
 ) -> list[str]:
-    source_refs: list[str] = []
-    seen: set[str] = set()
-    for tool_call in tool_calls_info or []:
-        if not isinstance(tool_call, dict):
+    """Prefer the actual short parent refs authored by completed tools."""
+    if is_map_view_suppressed_request(user_texts):
+        return []
+    return preferred_map_view_source_refs(map_view_source_bindings_from_tool_calls(tool_calls_info))
+
+
+async def _available_map_view_sources(
+    content: str, request_data: AskSkillRequest, tool_calls_info: Optional[List[Dict[str, Any]]],
+    graph: Optional[FinalizationEmbedGraph],
+) -> dict[str, str]:
+    """Verify only requested historical parents, reusing the finalization graph."""
+    available = map_view_source_bindings_from_tool_calls(tool_calls_info)
+    if graph is None:
+        return available
+    index = getattr(request_data, "embed_file_path_index", None) or {}
+    historical_ids = {
+        embed_id for message in request_data.message_history or []
+        for text in [message.content if hasattr(message, "content") else message.get("content", "")]
+        for embed_id in [
+            *extract_map_capable_source_refs(text),
+            *(ref for ref in extract_results_view_source_refs(text or "") if EMBED_ID_UUID_PATTERN.fullmatch(ref)),
+        ]
+    }
+    for ref in extract_results_view_source_refs(content):
+        if ref in available:
             continue
-        app_id = str(tool_call.get("app_id") or "")
-        skill_id = str(tool_call.get("skill_id") or "")
-        embed_id = tool_call.get("embed_id")
-        if not isinstance(embed_id, str) or not embed_id.strip():
+        embed_id = index.get(ref) or (ref if ref in historical_ids else None)
+        if not isinstance(embed_id, str) or not embed_id:
             continue
-        if not should_include_embeds_map_view_hint(app_id, skill_id, user_texts):
-            continue
-        if embed_id in seen:
-            continue
-        seen.add(embed_id)
-        source_refs.append(embed_id)
-    return source_refs
+        node = await graph.get(embed_id)
+        if (node and (node.decoded.get("app_id"), node.decoded.get("skill_id")) in MAP_VIEW_CAPABLE_SKILLS
+                and node.decoded.get("embed_ids")):
+            available[ref] = embed_id
+            available[embed_id] = embed_id
+            alias = node.decoded.get("embed_ref")
+            if isinstance(alias, str) and alias:
+                available[alias] = embed_id
+    return available
 
 
 def _build_sub_chat_batch_marker(
@@ -10589,7 +10615,24 @@ async def _consume_main_processing_stream(
                 )
 
     native_presentation_steps: List[Dict[str, Any]] = []
+    native_map_requires_cold_reset = False
 
+    finalization_embed_graph: Optional[FinalizationEmbedGraph] = None
+    if cache_service and encryption_service and user_vault_key_id:
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        finalization_embed_graph = FinalizationEmbedGraph(
+            EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            ),
+            user_vault_key_id,
+            log_prefix,
+        )
+
+
+    had_results_view_block = bool(extract_results_view_source_refs(aggregated_response))
     # --- Embeds Map View Guard ---
     # Normalize virtual map/list blocks before persistence. This drops unsupported
     # fields such as filters/provider/enrichment and cannot dispatch paid skills.
@@ -10599,15 +10642,33 @@ async def _consume_main_processing_stream(
             tool_calls_info,
             map_view_user_texts,
         )
-        map_view_fixed_response, map_view_changed = normalize_embeds_map_view_blocks(
-            aggregated_response,
-            source_refs=map_view_source_refs,
+        available_map_sources = await _available_map_view_sources(
+            aggregated_response, request_data, tool_calls_info, finalization_embed_graph,
         )
+        map_view_fixed_response, map_view_changed = validate_embeds_map_view_sources(
+            aggregated_response,
+            available_sources=available_map_sources,
+            repair_source_refs=map_view_source_refs,
+        )
+        unresolved_map_sources = set(extract_results_view_source_refs(aggregated_response)) - set(available_map_sources)
+        if map_view_changed and unresolved_map_sources:
+            logger.warning(
+                "%s [RESULTS_VIEW] Repaired or removed %d unresolved parent source reference(s)",
+                log_prefix, len(unresolved_map_sources),
+            )
         if map_view_changed:
+            # Native replay can prove only current tool results. Historical refs
+            # were verified through the graph above; preserve their selection and
+            # start a fresh provider cache segment instead of replaying a different view.
+            current_map_sources = map_view_source_bindings_from_tool_calls(tool_calls_info)
+            native_map_requires_cold_reset = any(
+                ref not in current_map_sources
+                for ref in extract_results_view_source_refs(map_view_fixed_response)
+            )
             native_presentation_steps.append({
                 "kind": "normalize_map_view",
                 "refs": list(dict.fromkeys([
-                    *extract_map_capable_source_refs(aggregated_response), *map_view_source_refs,
+                    *map_view_source_refs, *extract_map_capable_source_refs(aggregated_response),
                 ])),
             })
             aggregated_response = map_view_fixed_response
@@ -10647,20 +10708,6 @@ async def _consume_main_processing_stream(
                     f"Published response with mixed URL+embed references fixed "
                     f"(length: {len(aggregated_response)})"
                 )
-
-    finalization_embed_graph: Optional[FinalizationEmbedGraph] = None
-    if cache_service and encryption_service and user_vault_key_id:
-        from backend.core.api.app.services.embed_service import EmbedService
-
-        finalization_embed_graph = FinalizationEmbedGraph(
-            EmbedService(
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service,
-            ),
-            user_vault_key_id,
-            log_prefix,
-        )
 
     # --- Source Quote Verification ---
     # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
@@ -10820,7 +10867,7 @@ async def _consume_main_processing_stream(
             not is_map_view_suppressed_request(user_texts)
             and content_has_map_capable_app_skill_use(aggregated_response)
         )
-        if should_repair_map_view:
+        if should_repair_map_view and not had_results_view_block:
             map_view_source_refs = _map_view_source_refs_from_tool_calls(tool_calls_info, user_texts)
             map_view_repaired_response, map_view_repaired = append_missing_embeds_map_view_block(
                 aggregated_response,
@@ -11179,7 +11226,10 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
 
     final_native_cache_context = None
+    if native_map_requires_cold_reset and native_cache_completion is not None:
+        logger.info("%s Historical results view was normalized; next request starts a fresh cache segment", log_prefix)
     if (native_cache_completion is not None and not is_error and not is_server_error
+            and not native_map_requires_cold_reset
             and stream_exception is None and terminal_failure_reason is None
             and not was_revoked_during_stream and not was_soft_limited_during_stream
             and not request_data.is_incognito and not request_data.is_external):

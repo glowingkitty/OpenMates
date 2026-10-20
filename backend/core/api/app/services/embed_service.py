@@ -807,6 +807,9 @@ class EmbedService:
                 "skill_task_id": skill_task_id,  # For individual skill cancellation
                 **sanitized_metadata
             }
+            placeholder_content["embed_ref"] = self._generate_direct_embed_ref(
+                f"{app_id}-{skill_id}", embed_id,
+            )
             
             # Log metadata for debugging (especially query for web search)
             if sanitized_metadata:
@@ -898,6 +901,7 @@ class EmbedService:
             return {
                 "embed_id": embed_id,
                 "embed_reference": embed_reference,
+                "embed_ref": placeholder_content["embed_ref"],
                 "skill_task_id": skill_task_id  # Return skill_task_id for cancellation tracking
             }
 
@@ -5847,6 +5851,10 @@ class EmbedService:
                         **original_metadata,  # Preserve query, provider, url, etc. from placeholder
                         **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                     }
+                    parent_content["embed_ref"] = (
+                        (original_content or {}).get("embed_ref")
+                        or self._generate_direct_embed_ref(f"{app_id}-{skill_id}", embed_id)
+                    )
                     if hosting_graph:
                         parent_content.update(EmbedService._hosting_parent_metadata(
                             hosting_group, embed_results, child_embed_ids, original_metadata,
@@ -5945,6 +5953,7 @@ class EmbedService:
                     return {
                         "embed_id": embed_id,
                         "child_embed_ids": child_embed_ids,
+                        "embed_ref": parent_content["embed_ref"],
                         "status": "finished"
                     }
 
@@ -7171,9 +7180,8 @@ class EmbedService:
                     # Generate an embed_ref for the parent (composite skill result).
                     # Format: "{app_id}-{skill_id}-{suffix}" so the LLM can refer to the
                     # whole result set (e.g. "web-search-k8D") as well as individual items.
-                    parent_embed_ref = self._generate_embed_ref_slug(
-                        f"{app_id}-{skill_id}",
-                        safe_request_metadata,
+                    parent_embed_ref = self._generate_direct_embed_ref(
+                        f"{app_id}-{skill_id}", parent_embed_id,
                     )
 
                     # Parent embed content: metadata about the skill execution
@@ -7311,6 +7319,7 @@ class EmbedService:
                     return {
                         "parent_embed_id": parent_embed_id,
                         "embed_reference": embed_reference,
+                        "embed_ref": parent_embed_ref,
                         "child_embed_ids": child_embed_ids
                     }
             

@@ -18,6 +18,7 @@ from backend.shared.python_utils.native_cache_history import canonical_content_s
 from backend.apps.ai.utils.embed_display_text import derive_display_text_from_embed_ref
 from backend.apps.ai.utils.embeds_map_view import (
     append_missing_embeds_map_view_block, normalize_embeds_map_view_blocks,
+    map_view_source_bindings_from_tool_calls, validate_embeds_map_view_sources,
 )
 
 
@@ -530,6 +531,11 @@ def _replay_presentation_steps(
     result = expected
     order = {"normalize_map_view": 0, "strip_invalid_links": 1, "append_map_view": 2}
     trusted_embed_ids = _server_app_skill_embed_ids(tool_calls_info)
+    map_sources = {
+        ref: embed_id for ref, embed_id in map_view_source_bindings_from_tool_calls(tool_calls_info).items()
+        if embed_id in trusted_embed_ids
+    }
+    trusted_map_refs = trusted_embed_ids | set(map_sources)
     previous = -1
     for step in steps:
         if not isinstance(step, Mapping) or set(step) != {"kind", "refs"}:
@@ -543,10 +549,13 @@ def _replay_presentation_steps(
             return None
         if kind == "strip_invalid_links" and not refs:
             return None
-        if kind != "strip_invalid_links" and not set(refs).issubset(trusted_embed_ids):
+        if kind != "strip_invalid_links" and not set(refs).issubset(trusted_map_refs):
             return None
         previous = order[kind]
         if kind == "normalize_map_view":
+            result, _ = validate_embeds_map_view_sources(
+                result, available_sources=map_sources, repair_source_refs=refs,
+            )
             result, _ = normalize_embeds_map_view_blocks(result, source_refs=refs)
         elif kind == "strip_invalid_links":
             result, _ = strip_invalid_inline_embed_links(result, set(refs))

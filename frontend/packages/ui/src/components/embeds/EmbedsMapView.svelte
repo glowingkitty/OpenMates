@@ -23,6 +23,7 @@
   import type { Component } from 'svelte';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
+  import { resolveResultsViewRefToId } from '../../services/resultsViewRefResolver';
   import { embedAvailabilityVersion, embedRefIndexVersion, embedStore } from '../../services/embedStore';
   import { chatSyncService } from '../../services/chatSyncService';
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
@@ -1276,9 +1277,7 @@
   }
 
   async function resolveRefToId(ref: string): Promise<string | null> {
-    const normalizedRef = normalizeMapViewRef(ref);
-    const indexed = await embedStore.resolveByRefDeep(normalizedRef);
-    return indexed || normalizedRef;
+    return resolveResultsViewRefToId(normalizeMapViewRef(ref), embedStore);
   }
 
   async function resolveEntryPreview(entry: MapViewEntry): Promise<EntryPreview | null> {

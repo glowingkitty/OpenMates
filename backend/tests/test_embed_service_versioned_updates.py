@@ -66,6 +66,42 @@ encode = EmbedService.update_application_embed_thumbnail.__globals__["encode"]
 decode = EmbedService.update_application_embed_thumbnail.__globals__["decode"]
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_search_parent_short_ref_survives_placeholder_completion(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    service = EmbedService(FakeCacheService({}), object(), FakeEncryptionService())
+    sent = AsyncMock(return_value=True)
+    monkeypatch.setattr(service, "send_embed_data_to_client", sent)
+    monkeypatch.setattr(service, "_cache_embed", AsyncMock())
+    monkeypatch.setattr(service, "_schedule_embed_persistence_fallback", lambda *_: None)
+    monkeypatch.setattr(EmbedService, "get_composite_child_embed_type", AsyncMock(return_value="event"))
+    args = dict(app_id="events", skill_id="search", chat_id="chat-one", message_id="message-one",
+                user_id="owner-one", user_id_hash="owner-hash", user_vault_key_id="vault-one")
+    placeholder = await service.create_processing_embed_placeholder(**args)
+    original = decode(sent.call_args.kwargs["content_toon"])
+    short_ref = placeholder["embed_ref"]
+    assert original["embed_ref"] == short_ref
+    assert short_ref.startswith("events-search-")
+    assert len(short_ref) < len(placeholder["embed_id"])
+    monkeypatch.setattr(service, "_get_cached_embed", AsyncMock(return_value=original))
+
+    finished = await service.update_embed_with_results(
+        embed_id=placeholder["embed_id"], results=[{"title": "Synthetic AI event", "embed_ref": "ai-event-Ab1"}],
+        **args,
+    )
+    parent = next(call.kwargs for call in reversed(sent.call_args_list)
+                  if call.kwargs["embed_id"] == placeholder["embed_id"])
+    assert finished["embed_ref"] == short_ref
+    assert decode(parent["content_toon"])["embed_ref"] == short_ref
+    filtered, historical_ref = service._filter_toon_for_llm(parent["content_toon"], placeholder["embed_id"])
+    assert historical_ref == short_ref
+    assert decode(filtered)["embed_ref"] == short_ref
+    assert parent["finished_cache_data"]["encrypted_content"]
+    assert len(finished["child_embed_ids"]) == 1
+
+
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fail_at", [1, 3, None])

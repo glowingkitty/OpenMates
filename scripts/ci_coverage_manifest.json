@@ -168,6 +168,7 @@
     },
     "browser_component_contract": {
       "specs": [
+        "components/results-view-source-validation.spec.ts",
         "components/embed-preview-visual-fixes.spec.ts",
         "components/generated-media-child.spec.ts",
         "example-chat-ipad-multitab.spec.ts",

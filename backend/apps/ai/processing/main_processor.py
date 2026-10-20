@@ -92,6 +92,7 @@ from backend.apps.ai.processing.chat_direction import (
 from backend.apps.ai.processing.chat_direction_review import review_chat_direction as _review_chat_direction
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
+    collect_results_view_sources,
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
@@ -10517,6 +10518,9 @@ async def handle_main_processing(
                             **{key: value for key, value in preview_data.items() if key != "results_toon"},
                             **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
                         }
+                        parent_content["embed_ref"] = _AnonymousEmbedSvc._generate_direct_embed_ref(
+                            f"{app_id}-{skill_id}", parent_embed_id,
+                        )
                         parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
                             app_id,
                             skill_id,
@@ -10524,6 +10528,7 @@ async def handle_main_processing(
                         )
                         anonymous_embed_payloads.append({
                             "embed_id": parent_embed_id,
+                            "embed_ref": parent_content["embed_ref"],
                             "type": "app_skill_use",
                             "content": encode(_flatten_for_toon_tabular(parent_content)),
                             "status": "finished",
@@ -11497,6 +11502,23 @@ async def handle_main_processing(
                     "embed_ids": [embed["embed_id"] for embed in anonymous_embed_payloads] if anonymous_embed_payloads else (embed_ids if len(embed_ids) > 1 else None),  # All embed IDs (for multiple requests)
                     "anonymous_embeds": anonymous_embed_payloads or None,
                 }
+                source_embeds = updated_embed_data_list or [
+                    {**embed, "child_embed_ids": embed.get("embed_ids")}
+                    for embed in anonymous_embed_payloads if embed.get("type") == "app_skill_use"
+                ]
+                results_view_sources = collect_results_view_sources(
+                    source_embeds, app_id=app_id, skill_id=skill_id,
+                )
+                if results_view_sources:
+                    # Use the same registered parent refs in model input and
+                    # finalization authority; never synthesize a second alias.
+                    tool_call_info["source_ref_bindings"] = results_view_sources
+                    source_metadata = (
+                        {"source_ref": next(iter(results_view_sources))}
+                        if len(results_view_sources) == 1
+                        else {"source_refs": list(results_view_sources)}
+                    )
+                    tool_result_content_str = encode(source_metadata) + "\n" + tool_result_content_str
                 tool_calls_info.append(tool_call_info)
                 logger.debug(
                     f"{log_prefix} Tracked tool call info for '{tool_name}': "

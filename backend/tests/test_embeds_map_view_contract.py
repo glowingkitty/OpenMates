@@ -258,6 +258,105 @@ enrichment: travel.flight_details
     assert "enrichment" not in normalized
     assert "embeds: ai-night-111111, founders-breakfast-222222" in normalized
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_wr7tn_copied_example_source_is_repaired_to_real_short_parent() -> None:
+    from backend.apps.ai.utils.embeds_map_view import (
+        collect_results_view_sources, map_view_source_bindings_from_tool_calls,
+        preferred_map_view_source_refs, validate_embeds_map_view_sources,
+    )
+
+    parent_id = "11111111-1111-4111-8111-111111111111"
+    parent_ref = "events-search-111111"
+    sources = collect_results_view_sources([{
+        "embed_id": parent_id, "embed_ref": parent_ref, "status": "finished",
+        "child_embed_ids": [f"child-{i}" for i in range(15)],
+    }], app_id="events", skill_id="search")
+    assert sources == {parent_ref: parent_id}
+    bindings = map_view_source_bindings_from_tool_calls([{
+        "app_id": "events", "skill_id": "search", "embed_id": parent_id,
+        "source_ref_bindings": sources,
+    }])
+    content = "```embeds_results_view\ntitle: Berlin AI events\nsources: events-search-12ab34\n```"
+    repaired, changed = validate_embeds_map_view_sources(
+        content, available_sources=bindings, repair_source_refs=preferred_map_view_source_refs(bindings),
+    )
+    assert changed is True
+    assert f"sources: {parent_ref}" in repaired
+    assert "events-search-12ab34" not in repaired
+    assert parent_id not in repaired
+    assert validate_embeds_map_view_sources(
+        repaired, available_sources=bindings, repair_source_refs=[parent_ref],
+    ) == (repaired, False)
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_source_validation_keeps_history_and_does_not_guess_between_searches() -> None:
+    from backend.apps.ai.utils.embeds_map_view import (
+        extract_results_view_source_refs, validate_embeds_map_view_sources,
+    )
+
+    bindings = {"events-search-old": "old-id", "events-search-new": "new-id"}
+    previous = "```embeds_results_view\ntitle: Earlier results\nsources: events-search-old\n```"
+    assert validate_embeds_map_view_sources(
+        previous, available_sources=bindings, repair_source_refs=["events-search-new"],
+    ) == (previous, False)
+    mixed_case = previous.replace("sources:", "Sources:")
+    assert extract_results_view_source_refs(mixed_case) == ["events-search-old"]
+    normalized, _ = validate_embeds_map_view_sources(
+        mixed_case, available_sources=bindings, repair_source_refs=["events-search-new"],
+    )
+    assert "sources: events-search-old" in normalized
+    assert "events-search-new" not in normalized
+    bad = previous.replace("events-search-old", "events-search-12ab34")
+    repaired, changed = validate_embeds_map_view_sources(
+        bad, available_sources=bindings, repair_source_refs=bindings,
+    )
+    assert changed is True
+    assert "```" not in repaired
+    assert "events-search-new" not in repaired
+    assert "events-search-old" not in repaired
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_source_validation_preserves_selected_children_and_valid_sources() -> None:
+    from backend.apps.ai.utils.embeds_map_view import validate_embeds_map_view_sources
+
+    content = "```embeds_results_view\ntitle: Selected events\nembeds: event-one-abc\nsources: invented-source\n```"
+    repaired, _ = validate_embeds_map_view_sources(
+        content, available_sources={"events-search-real": "parent"}, repair_source_refs=["events-search-real"],
+    )
+    assert "embeds: event-one-abc" in repaired
+    assert "sources:" not in repaired
+    mixed = "```embeds_results_view\ntitle: Events\nsources: events-search-real, invented-source\n```"
+    repaired, _ = validate_embeds_map_view_sources(
+        mixed, available_sources={"events-search-real": "parent"}, repair_source_refs=[],
+    )
+    assert "sources: events-search-real" in repaired
+    assert "invented-source" not in repaired
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_source_provenance_handles_batches_and_rejects_unregistered_aliases() -> None:
+    from backend.apps.ai.utils.embeds_map_view import (
+        collect_results_view_sources, map_view_source_bindings_from_tool_calls, preferred_map_view_source_refs,
+    )
+
+    bindings = map_view_source_bindings_from_tool_calls([{
+        "app_id": "events", "skill_id": "search", "embed_id": "parent-one",
+        "embed_ids": ["parent-one", "parent-two"],
+        "source_ref_bindings": {"events-search-one": "parent-one", "events-search-two": "parent-two",
+                                "invented": "not-authored"},
+    }])
+    assert preferred_map_view_source_refs(bindings) == ["events-search-one", "events-search-two"]
+    assert "invented" not in bindings
+    assert collect_results_view_sources([
+        {"embed_id": "failed", "embed_ref": "failed-ref", "status": "error", "child_embed_ids": ["a"]},
+        {"embed_id": "empty", "embed_ref": "empty-ref", "child_embed_ids": []},
+    ], app_id="events", skill_id="search") == {}
+    assert "events-search-12ab34" not in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "source_ref" in EMBEDS_MAP_VIEW_INSTRUCTION
+    assert "Instruction examples and placeholder text are never usable references" in EMBEDS_MAP_VIEW_INSTRUCTION
+
 
 # contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_normalizer_accepts_source_and_highlight_fields_only() -> None:
