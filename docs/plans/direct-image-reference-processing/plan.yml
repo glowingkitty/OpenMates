@@ -27,6 +27,12 @@ checks:
   - Real Auto inference verifies direct Shopping with three references, actual model and thinking level, result quality and stage timings after scoped dev publication.
   - Real Auto inference retains a genuine visual inspection path and avoids viewer use for unrelated follow-up work.
 verification_notes:
-  - The final twelve-file combined unit run passed all 505 checks; queue and leaderboard fixtures isolate worker startup while retaining real processing assertions.
-  - Independent code review found no remaining actionable issues after mixed inspection-and-search fallbacks were corrected for commands and questions.
-  - Browser E2E and live Auto timing comparison remain pending publication and verification; serializer-boundary and optional-inline fixture assumptions have focused regression coverage.
+  - The final combined backend run passed all 561 checks, including actual Shopping metadata in initial, synthesis and recovery system messages and rejection of missing, altered or user-only policy.
+  - Independent review confirmed direct-reference authorization, mixed inspection-and-search routing, and persistent grounding delivery to the final model.
+  - All seven isolated Shopping browser cases passed on exact source 889104572955e31455f0d4764fc16b86ea0ffcc9; cleanup verified and recordings uploaded.
+  - The final live direct Shopping request evaluated forty products and 107 product photos against three references without a viewer in 19.813 seconds versus the prior 59.300 seconds. Current Auto selected Gemini 3.8 Flash LOW for both main calls.
+  - Genuine image inspection and the unrelated follow-up passed independently in 9.306 and 8.612 seconds. The Shopping-only policy did not change those paths.
+  - Scoped publication and healthy runtime activation were verified; API and AI-worker cache reads contained the exact persistent Shopping instruction.
+  - Quality assessment is partial, not a universal grounding pass. Material uncertainty, score scale, identity caveats, brand roles and filtering counts were correct; one unsupported negative visual description remains. Jev returns aggregate scores rather than observed-feature explanations. The verification report preserves this finding and recommends explicit evidence before richer explanations.
+  - Overall completion remains open for the factual-grounding criterion. Independent conformance review rejected marking the Plan verified from disclosure alone. The proposed per-requirement evidence extension, or acceptance of the score-only limitation, awaits the user's decision.
+  - Safe disposable caches, completed test-build copies and two obsolete owned worktrees were removed; recovery archives, pending work and test evidence were preserved.
