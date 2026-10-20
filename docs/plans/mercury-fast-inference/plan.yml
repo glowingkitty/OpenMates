@@ -17,6 +17,7 @@ scope:
     - Workflow author evaluation through the existing compiler, prefix validation and semantic oracle; no workflow model replacement in this phase.
     - Mercury-first ordinary audio correction with bounded Gemini fallback, actual model attribution and original transcript preservation.
     - Provider privacy disclosure and reproducible private benchmark reports.
+    - Cited public Mercury 3 versus Gemini 3.8 Flash benchmark comparison to inform low- and medium-complexity routing recommendations.
   out:
     - Default chat routing or account model changes.
     - Replacing Jev decisions or enabling workflow transcript correction by default.
@@ -46,6 +47,15 @@ evidence:
   training_opt_out: The account owner explicitly confirmed on 2026-10-20 that Improve the model for everyone is OFF in the Inception API Platform.
   direct_capacity: Subsequent direct requests returned HTTP 429 shared free-tier capacity errors. Product Mercury routing remains direct, and transcript enablement awaits usable direct capacity and verification.
   benchmark_transport: The user explicitly authorized OpenRouter for synthetic benchmarking only on 2026-10-20, to decide whether to upgrade the direct Inception account. Gateway timing and capacity cannot establish direct API performance.
+  gateway_capacity: Initial small forced-tool gateway probe succeeded in 0.604 seconds. The published paired smoke later returned upstream Inception HTTP 429 for both none and low reasoning; one bounded low retry also failed. Full quality/latency matrices were not run after these availability failures.
+  dev_revision: 9cc5ec1d273d7efded6ab2e0b4469bbe3d4a7802
+  reports:
+    - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
+    - docs/plans/mercury-fast-inference/public-benchmarks.md
+  remaining:
+    - Usable Mercury capacity and paired synthetic quality/latency/cost results.
+    - Direct production-helper verification before enabling ordinary transcript correction.
+    - User decision on paid direct access and low- versus medium-complexity default routing after evidence is available.
   sources:
     - https://www.inceptionlabs.ai/blog/introducing-mercury-3
     - https://docs.inceptionlabs.ai/get-started/models
