@@ -234,6 +234,7 @@
         "components/chat-composer-focus.spec.ts",
         "components/chat-presentation-animation.spec.ts",
         "components/composer-send-readiness.spec.ts",
+        "components/message-input-minimized-send.spec.ts",
         "components/composer-ghost-suggestion.spec.ts",
         "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
