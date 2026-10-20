@@ -10,6 +10,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
  * Test reference: run via scripts/run-tests.sh --suite playwright.
  */
 
+// contract-test: tooling
 test('app root loads without console errors', async ({ page }) => {
 	test.setTimeout(120000);
 	test.slow();
@@ -39,6 +40,11 @@ test('app root loads without console errors', async ({ page }) => {
 
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
+	// HTTP 200 also describes an empty shell after a bootstrap exception.
+	// Require actual hydrated controls, then repeat with a fresh navigation.
+	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 30000 });
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 30000 });
 
 	await page.waitForTimeout(3000);
 

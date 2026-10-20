@@ -1,21 +1,7 @@
 import adapterStatic from '@sveltejs/adapter-static';
 import adapterVercel from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import * as child_process from 'node:child_process';
-
-/**
- * Get the current git commit hash for version tracking.
- * This enables SvelteKit's built-in version detection to work properly.
- * Falls back to timestamp if git is not available.
- */
-function getVersionName() {
-	try {
-		return child_process.execSync('git rev-parse HEAD').toString().trim();
-	} catch {
-		// Fallback to timestamp if git is not available (e.g., in some CI environments)
-		return `build-${Date.now()}`;
-	}
-}
+import { getVersionName } from './scripts/build-version.mjs';
 
 /** @type {import('@sveltejs/kit').Config} */
 const isVscodeBuild = process.env.OPENMATES_BUILD_TARGET === 'vscode';
@@ -63,7 +49,7 @@ const config = {
 		 * See: https://kit.svelte.dev/docs/configuration#version
 		 */
 		version: {
-			// Use git commit hash for deterministic version identification
+			// Share one stable identity across HTML, client and prerender workers.
 			name: getVersionName(),
 			// Poll for updates every 2 minutes (120000ms)
 			// This checks if a new version has been deployed
