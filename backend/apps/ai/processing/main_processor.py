@@ -8030,9 +8030,10 @@ async def handle_main_processing(
                 yield phase_state_marker()
             if composer_suggestion_enabled:
                 logger.info(
-                    "%s Composer metadata outcome=%s",
+                    "%s Composer metadata outcome=%s close_style=%s",
                     log_prefix,
                     suggested_followup_stream.outcome.value,
+                    suggested_followup_stream.close_style.value,
                 )
             if composer_suggestion_enabled and suggested_followup_stream.suggestion:
                 yield {

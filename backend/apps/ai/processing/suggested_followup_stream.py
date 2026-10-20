@@ -10,6 +10,7 @@ from enum import Enum
 
 OPEN = "<<suggested_followup_message>>"
 CLOSE = "<</suggested_followup_message>>"
+XML_CLOSE = "</suggested_followup_message>"
 MAX_SUGGESTION_CHARS = 400
 
 
@@ -22,6 +23,20 @@ class SuggestedFollowupOutcome(str, Enum):
     INCOMPLETE = "incomplete"
 
 
+class SuggestedFollowupCloseStyle(str, Enum):
+    """Exact closing delimiter recognized, without model-authored content."""
+
+    NONE = "none"
+    CANONICAL = "canonical"
+    XML = "xml"
+
+
+_CLOSING_MARKERS = {
+    CLOSE: SuggestedFollowupCloseStyle.CANONICAL,
+    XML_CLOSE: SuggestedFollowupCloseStyle.XML,
+}
+
+
 class SuggestedFollowupStream:
     def __init__(self) -> None:
         self._state = "answer"
@@ -32,10 +47,16 @@ class SuggestedFollowupStream:
         self._fenced = False
         self._valid = True
         self._suggestion: str | None = None
+        self._close_style = SuggestedFollowupCloseStyle.NONE
 
     @property
     def suggestion(self) -> str | None:
         return self._suggestion if self._state == "closed" and self._valid else None
+
+    @property
+    def close_style(self) -> SuggestedFollowupCloseStyle:
+        """Report which complete exact closer was recognized, if any."""
+        return self._close_style
 
     @property
     def outcome(self) -> SuggestedFollowupOutcome:
@@ -69,9 +90,10 @@ class SuggestedFollowupStream:
                 continue
             if self._state == "metadata":
                 candidate = self._close_candidate + char
-                if CLOSE.startswith(candidate):
+                if any(closer.startswith(candidate) for closer in _CLOSING_MARKERS):
                     self._close_candidate = candidate
-                    if candidate == CLOSE:
+                    if candidate in _CLOSING_MARKERS:
+                        self._close_style = _CLOSING_MARKERS[candidate]
                         self._state = "closed"
                         self._close_candidate = ""
                         value = self._metadata.strip()

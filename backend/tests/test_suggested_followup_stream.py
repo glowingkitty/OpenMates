@@ -5,6 +5,8 @@ import pytest
 from backend.apps.ai.processing.suggested_followup_stream import (
     CLOSE,
     OPEN,
+    XML_CLOSE,
+    SuggestedFollowupCloseStyle,
     SuggestedFollowupOutcome,
     SuggestedFollowupStream,
 )
@@ -107,3 +109,59 @@ def test_content_free_outcome_survives_every_chunk_boundary(source, outcome):
         parser.feed(char)
     parser.finish()
     assert parser.outcome == outcome
+
+
+@pytest.mark.parametrize("indent", range(4))
+@pytest.mark.parametrize("closer, style", [
+    (CLOSE, SuggestedFollowupCloseStyle.CANONICAL),
+    (XML_CLOSE, SuggestedFollowupCloseStyle.XML),
+])
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+def test_exact_closers_preserve_output_at_every_chunk_boundary(indent, closer, style):
+    prefix = "Answer\n" + " " * indent
+    source = f"{prefix}{OPEN}Could you compare these options?{closer}\n  "
+    for chunks in [[source[:split], source[split:]] for split in range(len(source) + 1)] + [list(source)]:
+        parser = SuggestedFollowupStream()
+        visible = "".join(parser.feed(chunk) for chunk in chunks) + parser.finish()
+        assert visible == prefix
+        assert parser.suggestion == "Could you compare these options?"
+        assert parser.outcome == SuggestedFollowupOutcome.VALID
+        assert parser.close_style == style
+
+
+@pytest.mark.parametrize("closer", [CLOSE[:-1], XML_CLOSE[:-1], "", "<</suggested_followup_message>"])
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+def test_partial_or_mixed_closers_stay_incomplete_at_every_chunk_boundary(closer):
+    source = f"Answer\n{OPEN}Could you compare these options?{closer}"
+    for chunks in [[source[:split], source[split:]] for split in range(len(source) + 1)] + [list(source)]:
+        parser = SuggestedFollowupStream()
+        visible = "".join(parser.feed(chunk) for chunk in chunks) + parser.finish()
+        assert visible == "Answer\n"
+        assert parser.suggestion is None
+        assert parser.outcome == SuggestedFollowupOutcome.INCOMPLETE
+        assert parser.close_style == SuggestedFollowupCloseStyle.NONE
+
+
+@pytest.mark.parametrize("literal", [
+    f"    {OPEN}code{XML_CLOSE}\n",
+    f"> {OPEN}quoted{XML_CLOSE}\n",
+    f"Text {OPEN}inline{XML_CLOSE}\n",
+    f"```text\n {OPEN}fenced{XML_CLOSE}\n```\n",
+])
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+def test_xml_closer_preserves_literal_markers_at_every_chunk_boundary(literal):
+    for chunks in [[literal[:split], literal[split:]] for split in range(len(literal) + 1)] + [list(literal)]:
+        assert parse(chunks) == (literal, None)
+
+
+@pytest.mark.parametrize("suffix", ["extra", ">", f"\n{OPEN}second{XML_CLOSE}"])
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+def test_xml_closer_rejects_nonwhitespace_suffix_at_every_chunk_boundary(suffix):
+    source = f"Answer\n{OPEN}Could you compare these options?{XML_CLOSE}{suffix}"
+    for chunks in [[source[:split], source[split:]] for split in range(len(source) + 1)] + [list(source)]:
+        parser = SuggestedFollowupStream()
+        visible = "".join(parser.feed(chunk) for chunk in chunks) + parser.finish()
+        assert visible == "Answer\n"
+        assert parser.suggestion is None
+        assert parser.outcome == SuggestedFollowupOutcome.INVALID
+        assert parser.close_style == SuggestedFollowupCloseStyle.XML
