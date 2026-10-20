@@ -39,6 +39,10 @@ from backend.shared.python_utils.embed_producer_dispatch import (
 )
 from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
 from backend.shared.python_utils.recent_work_summary_client import mint_response_summary_completion
+from backend.shared.providers.e2b_application_preview import (
+    SVELTE_PREVIEW_DEFAULT_INDEX_HTML as APPLICATION_PREVIEW_DEFAULT_INDEX_HTML,
+    SVELTE_PREVIEW_DEFAULT_MAIN_TS as APPLICATION_PREVIEW_DEFAULT_MAIN_TS,
+)
 
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -4790,16 +4794,6 @@ APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON = json.dumps({
     },
     "devDependencies": {},
 }, indent=2)
-APPLICATION_PREVIEW_DEFAULT_INDEX_HTML = '<div id="app"></div>\n<script type="module" src="/src/main.ts"></script>'
-APPLICATION_PREVIEW_DEFAULT_MAIN_TS = (
-    "import { mount } from 'svelte';\n"
-    "import App from './App.svelte';\n\n"
-    "const target = document.getElementById('app');\n"
-    "if (!target) {\n"
-    "  throw new Error('Application root element #app was not found');\n"
-    "}\n\n"
-    "mount(App, { target });\n"
-)
 APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
     "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
     "import { defineConfig } from 'vite';\n\n"

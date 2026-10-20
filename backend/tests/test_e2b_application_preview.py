@@ -38,13 +38,61 @@ def test_application_preview_fixture_uses_deterministic_svelte5_runtime() -> Non
     by_path = {file["path"]: file for file in files}
 
     package_json = by_path["package.json"]["content"]
-    main_ts = by_path["src/main.ts"]["content"]
+    assert set(by_path) == {"package.json", "src/App.svelte"}
+    plan = plan_application_preview_startup(
+        files=[ApplicationPreviewFile(path=file["path"], content=file["content"]) for file in files],
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+    planned = {file.path: file.content for file in plan.files}
+    main_ts = planned["src/main.ts"]
 
     assert "latest" not in package_json
     assert '"vite":"^5.4.21"' in package_json
     assert '"svelte":"^5.55.7"' in package_json
     assert "import { mount } from 'svelte';" in main_ts
     assert "new App" not in main_ts
+    assert 'src="/src/main.ts"' in planned["index.html"]
+    assert "mount(App, { target });" in main_ts
+    assert plan_application_preview_startup(
+        files=plan.files,
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    ).files == plan.files
+
+
+@pytest.mark.parametrize("main_path", ["src/main.ts", "src/main.js"])
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_minimal_svelte_preview_keeps_supplied_mounting_script(main_path: str) -> None:
+    files = [
+        ApplicationPreviewFile(path="package.json", content=json.dumps({
+            "dependencies": {"svelte": "^5.55.7", "vite": "^5.4.21", "@sveltejs/vite-plugin-svelte": "^4.0.4"},
+        })),
+        ApplicationPreviewFile(path="src/App.svelte", content="<main>Hello</main>", source_embed_id="app-source"),
+        ApplicationPreviewFile(path=main_path, content="// User-owned entrypoint", source_embed_id="main-source"),
+    ]
+    plan = plan_application_preview_startup(
+        files=files,
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+    assert plan.files[:3] == files
+    assert [file.path for file in plan.files] == [file.path for file in files] + ["index.html"]
+    assert f'src="/{main_path}"' in plan.files[-1].content
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_svelte_preview_preserves_custom_index_and_bootstrap() -> None:
+    files = [
+        ApplicationPreviewFile(path="package.json", content=json.dumps({
+            "dependencies": {"svelte": "^5.55.7", "vite": "^5.4.21", "@sveltejs/vite-plugin-svelte": "^4.0.4"},
+        })),
+        ApplicationPreviewFile(path="src/App.svelte", content="<main>Hello</main>"),
+        ApplicationPreviewFile(path="index.html", content='<div id="custom"></div><script type="module" src="/bootstrap.js"></script>'),
+        ApplicationPreviewFile(path="bootstrap.js", content="// Custom application mounting"),
+    ]
+    plan = plan_application_preview_startup(
+        files=files,
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+    assert plan.files == files
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
@@ -58,7 +106,7 @@ def test_preview_planning_normalizes_files_and_frontend_commands() -> None:
     )
 
     assert [file.path for file in plan.files] == ["package.json", "src/App.svelte"]
-    assert plan.install_commands == ["npm install --ignore-scripts --no-audit --no-fund"]
+    assert plan.install_commands == ["npm install --ignore-scripts --no-audit --no-fund --prefer-offline"]
     assert plan.start_commands == [{"name": "frontend", "command": "npm run dev -- --host 0.0.0.0", "port": 5173}]
 
 
@@ -275,7 +323,7 @@ def test_preview_captures_running_local_app_without_optional_hook() -> None:
     sandbox = SimpleNamespace(commands=FakeCommands())
     assert _sandbox_screenshot_bytes(sandbox, 5173) == PNG_BYTES
     assert len(sandbox.commands.calls) == 2
-    assert "/tmp/openmates-application-capture" in sandbox.commands.calls[0][0]
+    assert "/home/user/.cache/openmates-application-capture" in sandbox.commands.calls[0][0]
     assert "playwright install --with-deps chromium" in sandbox.commands.calls[0][0]
     assert "http://127.0.0.1:5173/" in sandbox.commands.calls[1][0]
     assert "https://" not in sandbox.commands.calls[1][0]
@@ -463,17 +511,26 @@ def test_preview_planning_requires_entrypoints_and_ports() -> None:
         )
 
 
+@pytest.mark.parametrize("template", ["", "prepared-preview-v1"])
 # contract-test: supporting surface=gui.web assertions=code-run.execution.stream-status-visible,app-skills.media.application-screenshot
-def test_preview_exposes_ready_runtime_before_screenshot_capture(monkeypatch) -> None:
+def test_preview_exposes_ready_runtime_before_screenshot_capture(monkeypatch, template: str) -> None:
     import sys
     from backend.shared.providers import e2b_application_preview as provider
+    monkeypatch.setenv(provider.APPLICATION_PREVIEW_TEMPLATE_ENV, template)
     events = []
     class Sandbox:
         sandbox_id = "fixture-sandbox"
         files = SimpleNamespace(write_files=lambda _files: None)
         commands = SimpleNamespace(run=lambda *_args, **_kwargs: None)
         @classmethod
-        def create(cls, **_kwargs): return cls()
+        def create(cls, **kwargs):
+            assert kwargs["secure"] is True
+            assert kwargs["template"] == (template or None)
+            assert kwargs["envs"] == (
+                {"PLAYWRIGHT_BROWSERS_PATH": f"{provider.APPLICATION_CAPTURE_DIRECTORY}/browsers"}
+                if template else None
+            )
+            return cls()
         def get_host(self, port): return f"{port}-fixture.e2b.app"
     monkeypatch.setitem(sys.modules, "e2b", SimpleNamespace(Sandbox=Sandbox))
     monkeypatch.setattr(provider, "_wait_for_preview_ready", lambda _url: events.append("healthy"))

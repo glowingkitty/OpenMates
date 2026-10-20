@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+id: application-preview-startup
+title: Repair and measure application preview startup
+status: implementing
+goal: |
+  go ahead and debug
+  and reproduce the issue and confirm startup is happening within seconds
+  (as fast as possible)
+notes: |
+  Complete the supported two-file Svelte bundle at the shared
+  startup-planning boundary, preserving supplied entry pages and source files.
+  Reproduce with a disposable synthetic app and measure HTTP readiness separately
+  from the first rendered screenshot; verify actual browser interaction.
+  A real cold run reached HTTP readiness in 10.742 seconds but installed browser
+  dependencies before returning a screenshot at 47.891 seconds.
+  Publish a secured-access-compatible E2B base template with browser dependencies
+  prepared ahead of time. Select it through E2B_APPLICATION_PREVIEW_TEMPLATE;
+  absence retains the ordinary base-template installation path.
+  Configure only the existing dev runtime under its coordinator lease, then
+  measure a fresh sandbox again. Never turn off secured access or pass provider
+  credentials or OpenMates account data into a sandbox.
+  Update the minimal E2E fixture and assertions. Run focused provider checks
+  locally and backend integration checks in isolated GitHub CI. The full
+  application-preview browser spec is held by existing CI executor/gateway
+  provisioning; report that separately from real E2B provider proof.

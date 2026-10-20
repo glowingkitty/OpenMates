@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import base64
+import json
 import logging
+import os
 import re
 import shlex
 import time
@@ -26,15 +28,26 @@ from backend.shared.providers.e2b_html_renderer import PLAYWRIGHT_INSTALL_COMMAN
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
 VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
+SVELTE_PREVIEW_DEFAULT_INDEX_HTML = '<div id="app"></div>\n<script type="module" src="/src/main.ts"></script>'
+SVELTE_PREVIEW_DEFAULT_MAIN_TS = (
+    "import { mount } from 'svelte';\n"
+    "import App from './App.svelte';\n\n"
+    "const target = document.getElementById('app');\n"
+    "if (!target) {\n"
+    "  throw new Error('Application root element #app was not found');\n"
+    "}\n\n"
+    "mount(App, { target });\n"
+)
 PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
 PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
 PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
 PREVIEW_READINESS_REQUIRED_SUCCESSES = 2
-APPLICATION_CAPTURE_DIRECTORY = "/tmp/openmates-application-capture"
+APPLICATION_CAPTURE_DIRECTORY = "/home/user/.cache/openmates-application-capture"
 APPLICATION_CAPTURE_INSTALL_TIMEOUT_SECONDS = 600
 APPLICATION_CAPTURE_TIMEOUT_SECONDS = 100
 APPLICATION_CAPTURE_BROWSER_TIMEOUT_SECONDS = 90
 APPLICATION_SANDBOX_TIMEOUT_SECONDS = 30 * 60
+APPLICATION_PREVIEW_TEMPLATE_ENV = "E2B_APPLICATION_PREVIEW_TEMPLATE"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 VITE_CONFIG_FILENAMES = {
     "vite.config.js",
@@ -103,12 +116,49 @@ def plan_application_preview_startup(
     normalized_files = [_normalize_file(file) for file in files]
     if not normalized_files:
         raise ApplicationPreviewPlanningError("Application preview requires at least one file")
+    normalized_files = _complete_svelte_preview_scaffold(normalized_files)
 
     return ApplicationPreviewPlan(
         files=normalized_files,
         install_commands=_dependency_commands(normalized_files),
         start_commands=[_start_command(entrypoint) for entrypoint in entrypoints],
     )
+
+
+def _complete_svelte_preview_scaffold(files: list[ApplicationPreviewFile]) -> list[ApplicationPreviewFile]:
+    """Complete the minimal Svelte/Vite bundle accepted by generation instructions.
+
+    The shared planning boundary covers both new artifacts and saved two-file
+    applications. An existing index page owns its bootstrapping.
+    """
+    by_path = {file.path: file for file in files}
+    if "index.html" in by_path or not {"package.json", "src/App.svelte"}.issubset(by_path):
+        return files
+    try:
+        manifest = json.loads(by_path["package.json"].content)
+    except (ValueError, TypeError):
+        return files
+    if not isinstance(manifest, dict):
+        return files
+    dependencies = {
+        name
+        for field in ("dependencies", "devDependencies")
+        if isinstance(manifest.get(field), dict)
+        for name in manifest[field]
+    }
+    if not {"svelte", "vite", "@sveltejs/vite-plugin-svelte"}.issubset(dependencies):
+        return files
+
+    completed = list(files)
+    main_path = next((path for path in ("src/main.ts", "src/main.js") if path in by_path), None)
+    if main_path is None:
+        main_path = "src/main.ts"
+        completed.append(ApplicationPreviewFile(path=main_path, content=SVELTE_PREVIEW_DEFAULT_MAIN_TS))
+    completed.append(ApplicationPreviewFile(
+        path="index.html",
+        content=SVELTE_PREVIEW_DEFAULT_INDEX_HTML.replace("/src/main.ts", f"/{main_path}"),
+    ))
+    return completed
 
 
 def _normalize_file(file: ApplicationPreviewFile) -> ApplicationPreviewFile:
@@ -145,9 +195,9 @@ def _dependency_commands(files: list[ApplicationPreviewFile]) -> list[str]:
         commands.append("python -m pip install -r requirements.txt")
     if "package.json" in names:
         if "package-lock.json" in names:
-            commands.append("npm ci --ignore-scripts --no-audit --no-fund")
+            commands.append("npm ci --ignore-scripts --no-audit --no-fund --prefer-offline")
         else:
-            commands.append("npm install --ignore-scripts --no-audit --no-fund")
+            commands.append("npm install --ignore-scripts --no-audit --no-fund --prefer-offline")
     return commands
 
 
@@ -198,7 +248,10 @@ def start_application_preview_in_e2b(
         raise RuntimeError("E2B API key is not configured")
 
     plan = plan_application_preview_startup(files=files, entrypoints=entrypoints)
+    template = os.getenv(APPLICATION_PREVIEW_TEMPLATE_ENV) or None
     sandbox = Sandbox.create(
+        template=template,
+        envs={"PLAYWRIGHT_BROWSERS_PATH": f"{APPLICATION_CAPTURE_DIRECTORY}/browsers"} if template else None,
         api_key=api_key,
         timeout=APPLICATION_SANDBOX_TIMEOUT_SECONDS,
         secure=True,
@@ -432,7 +485,11 @@ def _sandbox_screenshot_bytes(sandbox: Any, port: int) -> bytes:
 
     install_command = (
         f"mkdir -p {shlex.quote(APPLICATION_CAPTURE_DIRECTORY)} && "
-        f"cd {shlex.quote(APPLICATION_CAPTURE_DIRECTORY)} && {PLAYWRIGHT_INSTALL_COMMAND}"
+        f"cd {shlex.quote(APPLICATION_CAPTURE_DIRECTORY)} && "
+        "if ! node -e \"const fs = require('fs'); const { chromium } = require('playwright'); "
+        "process.exit(fs.existsSync(chromium.executablePath()) ? 0 : 1)\" >/dev/null 2>&1; then\n"
+        f"{PLAYWRIGHT_INSTALL_COMMAND}\n"
+        "fi"
     )
     install = sandbox.commands.run(
         f"bash -lc {shlex.quote(install_command)}",
