@@ -66,8 +66,14 @@ async def test_mercury_primary_has_small_structured_intent_only_prompt(monkeypat
     assert all("German (de)" in properties[field]["description"] for field in ("title", "summary"))
 
 
+def test_natural_spanish_title_is_valid_navigation_metadata():
+    arguments = {"title": "Plan de cuatro días en Lisboa con 300 euros",
+                 "summary": "Planificar cuatro días en Lisboa con presupuesto de 300 euros y comparar opciones."}
+    assert metadata._validated(arguments, metadata.PRIMARY_MODEL).title == arguments["title"]
+
+
 @pytest.mark.parametrize("first", [result(error="unavailable"), result({"title": "x"}),
-    result({**VALID, "summary": 123}), result({**VALID, "title": "word " * 9}),
+    result({**VALID, "summary": 123}), result({**VALID, "title": "word " * 13}),
     result({**VALID, "summary": "word " * 21}), result({**VALID, "extra": "unexpected"})])
 @pytest.mark.asyncio
 async def test_failed_or_malformed_mercury_uses_gemini(monkeypatch, first):

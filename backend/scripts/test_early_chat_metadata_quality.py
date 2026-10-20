@@ -70,6 +70,8 @@ CASES += [Case(f"{language}_greeting", language, prompt, None, greeting=True)
           for language, prompt in (("en", "Hello!"), ("de", "Hallo!"), ("es", "¡Hola!"), ("fr", "Bonjour !"))]
 CASES += [Case(f"{language}_fallback", language, requests[0][1], requests[0][2], fallback=True)
           for language, requests in REQUESTS.items()]
+CASES += [Case(f"{language}_fallback_ui_language", language, REQUESTS["en"][0][1], requests[0][2], fallback=True)
+          for language, requests in REQUESTS.items()]
 
 
 async def run(output: Path) -> int:
