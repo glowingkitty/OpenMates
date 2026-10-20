@@ -15,12 +15,31 @@ Streaming usage requires `stream_options.include_usage: true`. Cached prompt and
 reasoning token detail counts are subsets of prompt and completion totals,
 respectively; do not double count them.
 
-Direct API tests encountered shared free-tier capacity HTTP 429 on 2026-10-20.
-This is a provider capacity limitation; transcript correction enablement remains
-pending direct-API quality verification. Synthetic OpenRouter benchmarks are
+Direct API tests intermittently received free-tier HTTP 429 on 2026-10-20;
+later paired native suites completed 54 fast-task responses and 48 workflow
+results without rate limits. These include Gemini comparison arms and establish
+usable direct capacity during those runs. Synthetic OpenRouter benchmarks are
 authorized only to inform the decision about upgrading the direct Inception
 account. Product requests remain direct; gateway results do not establish
 direct-API latency or capacity.
+
+Rechecking produced successful direct and gateway completions, followed by
+renewed gateway HTTP 429 during its paired run. This is intermittent
+request rejection, not proof that the service is broadly overloaded. The
+[official error documentation](https://docs.inceptionlabs.ai/resources/error-codes)
+distinguishes 429 (rate limit reached) from 503 (engine overloaded). No current
+incident announcement was found in the accessible official blog/LinkedIn posts.
+Both benchmark harnesses now stop on their first HTTP 429 and save a partial
+report, without scoring skipped requests as quality failures. See the
+[completed task-specific evaluation](../plans/mercury-fast-inference/evaluation-2026-10-20.md).
+
+## Manual selection
+
+Mercury 3 is available in the composer: **model selector → More providers →
+Inception → Mercury 3**. Manual selection uses direct Inception. The catalog's
+`allow_auto_select: false` restricts automatic routing; it does not remove the
+manual entry. Normal user-disabled-model/server and provider-health filtering
+still apply. The dev health endpoint reported Inception healthy on 2026-10-20.
 
 Credentials belong in Vault at `kv/data/providers/inception_labs`, key `api_key`.
 The environment convention is `SECRET__INCEPTION_LABS__API_KEY`. Do not commit
@@ -44,9 +63,17 @@ rates above are provider prices; customer charges use the token allowances.
 Mercury can process selected-model text requests. The proposed audio use sends
 only raw transcript text and a language hint for correction/title generation,
 not audio. Raw transcripts are outside typed-message placeholder protection.
-The account owner confirmed the training opt-out on 2026-10-20. The correction
-route is planned for enablement after the quality benchmark. Workflow generation
-remains on Gemini pending the requested benchmark.
+The account owner confirmed the training opt-out on 2026-10-20. Correction uses
+Mercury **low** when `INCEPTION_TRANSCRIPT_CORRECTION_ENABLED=true`, with a
+five-second total deadline, no correction retries and the established Gemini
+fallback. Native completed tool calls can report `stop` or `tool_calls`; truncated,
+blocked, missing-finish and malformed responses are rejected. Workflow generation
+remains on Gemini; Mercury instant's completed benchmark supports a scoped pilot.
+The flag is enabled on dev after live direct-facade verification on 2026-10-20:
+the refined helper passed twelve repeated synthetic cases and the final shared
+runtime passed six more without fallback (median 0.795 seconds). The rollout
+included a generic self-correction instruction refinement after one earlier
+cleanup miss. Production configuration was not changed.
 Synthetic benchmark results do not establish quality for private user transcripts.
 
 Inception's public terms permit training on submitted content with an API Platform

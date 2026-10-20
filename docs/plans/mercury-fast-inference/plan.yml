@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: mercury-fast-inference
 title: Mercury 3 integration and speed-sensitive workload evaluation
-status: implementing
+status: verified
 goal: >-
   Research and implement Inception Labs' new Mercury model, benchmark it against
   Gemini 3.8 Flash for low-complexity tasks, use it for transcript correction after
@@ -45,17 +45,26 @@ verification:
 evidence:
   api_access: Vault-backed mercury-3 replied API_ACCESS_OK in 1.255 seconds on 2026-10-20; the local environment contains the normal IMPORTED_TO_VAULT marker rather than an API credential.
   training_opt_out: The account owner explicitly confirmed on 2026-10-20 that Improve the model for everyone is OFF in the Inception API Platform.
-  direct_capacity: Subsequent direct requests returned HTTP 429 shared free-tier capacity errors. Product Mercury routing remains direct, and transcript enablement awaits usable direct capacity and verification.
+  direct_capacity: Earlier direct requests intermittently returned HTTP 429 shared free-tier capacity errors; later completed native suites produced 54 fast-suite HTTP 200 responses and 48 completed workflow rows with zero 429s. This establishes usable capacity during those runs, not a broad availability guarantee. Product routing remains direct.
   benchmark_transport: The user explicitly authorized OpenRouter for synthetic benchmarking only on 2026-10-20, to decide whether to upgrade the direct Inception account. Gateway timing and capacity cannot establish direct API performance.
-  gateway_capacity: Initial small forced-tool gateway probe succeeded in 0.604 seconds. The published paired smoke later returned upstream Inception HTTP 429 for both none and low reasoning; one bounded low retry also failed. Full quality/latency matrices were not run after these availability failures.
-  dev_revision: 9cc5ec1d273d7efded6ab2e0b4469bbe3d4a7802
+  gateway_capacity: Initial small gateway probe succeeded, followed by intermittent upstream HTTP 429 and an interrupted partial suite. Those gateway results are availability context only; completed native suites now supply the quality and latency evidence.
+  availability_recheck: On October 20 at 11:34 Berlin time, direct and gateway forced-tool probes completed; gateway 429s recurred during a restarted suite. This is intermittent request rejection, not an established broad outage. No accessible official incident announcement was found. Harnesses now stop at their first 429.
+  manual_selection: Mercury 3 is present in the direct-only manual catalog under More providers > Inception; allow_auto_select false restricts automatic routing only. Added focused browser selection/icon/capability coverage.
+  dev_backend_revision: e27304e2c31f76c5b23714c094ca3a7e7f89fbd7
+  native_harness_revision: 7fb52e4ad35cf31190abc80ec30f8345721229e3
+  native_runtime_identity: Disposable child processes loaded published benchmark modules against runtime 0cbcf2c715b49c83424f028659948683b4dbc94e; sidecars verify identical product dependencies and benchmark-only differences, without shared runtime mutation.
+  native_fast: 54 HTTP 200 responses, no skipped rows. Transcript strict and manual passes were Gemini 12/12, Mercury instant 5/12, Mercury low 12/12; median seconds 3.302, 0.507, 0.750. Across transcript and writing, manual passes were 18/18, 9/18, 17/18. Uncached promotional supplier estimates are not actual charges.
+  native_workflow: 48 completed rows, zero 429s. Gemini and Mercury instant had 16/16 full valid intent-matching graphs; Mercury low 15/16 valid and 14/16 intent matching. Median retry-inclusive seconds 4.294, 1.426, 2.571. Manual review found unsupported historic starts_at in four Gemini plans; low repeated a forbidden capability field and added an unrequested Check. Cost subtotals have incomplete usage and caching affects timings.
+  recommendation: Mercury low for ordinary transcript correction with bounded Gemini fallback; Mercury instant for a scoped workflow pilot only; preserve general Gemini defaults and decision provider.
+  correction_enablement: Native stop finish reason supported with strict tool validation. Initial six-case facade proof passed; first shared check retained a retracted date at case five. Refined generic self-correction instructions in e27304e passed twelve repeated actual-facade cases, manually reviewed, median 0.706 seconds. Dev opt-in configured under docker-4baf58cc; coordinated source refresh docker-a2fe2078 passed health checks. Final actual shared-module proof matched published e27304e source bytes and enabled gate with no override, passed all six direct cases without fallback, manually reviewed, median 0.795 seconds. Five-second deadline, zero correction retries and Gemini fallback remain; production is unchanged.
+  picker_verification: Isolated browser CI passed on source 4a71c76d9d7f25979609540dd81ad73429d1926f, run 39405570105, request f79efd519e5dfe7aa7bd403ad2465d969923026617d6e2c7a1b1e49e47a3df28. Verified loaded icons, capability, exact manual draft choice and return to Auto without inference; latest successful recording uploaded through its receipt.
   reports:
     - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
     - docs/plans/mercury-fast-inference/public-benchmarks.md
-  remaining:
-    - Usable Mercury capacity and paired synthetic quality/latency/cost results.
-    - Direct production-helper verification before enabling ordinary transcript correction.
-    - User decision on paid direct access and low- versus medium-complexity default routing after evidence is available.
+  remaining: []
+  follow_up_decisions:
+    - Paid direct access and any scoped workflow pilot; no broad low- or medium-complexity default switch is supported.
+    - Production rollout is outside this dev-only task.
   sources:
     - https://www.inceptionlabs.ai/blog/introducing-mercury-3
     - https://docs.inceptionlabs.ai/get-started/models
