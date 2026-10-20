@@ -12,6 +12,14 @@ from backend.shared.providers.typesafe.client import JevDecisionClient
 from backend.apps.ai.daily_inspiration import config
 
 
+@pytest.fixture(autouse=True)
+def source_only_tests(monkeypatch):
+    # Pixel transport/abstention have separate thumbnail integration coverage.
+    async def visual(rows, _client):
+        return rows
+    monkeypatch.setattr(decisions, "review_thumbnails", visual)
+
+
 class Secrets:
     async def get_secret(self, **_kwargs):
         return "test-key"
@@ -27,6 +35,13 @@ def native_answers(questions, policy=None):
         elif key.endswith("_grounding"):
             answers[key] = {"type": "choice", "choice": "supported",
                             "probabilities": {"supported": 1.0}, "confidence": 1.0}
+        elif key.endswith("_language"):
+            answers[key] = {"type": "choice", "choice": "correct",
+                            "probabilities": {"correct": 1.0}, "confidence": 1.0}
+        elif key.endswith(("_coherence", "_followups")):
+            choice = "coherent" if key.endswith("_coherence") else "relevant"
+            answers[key] = {"type": "choice", "choice": choice,
+                            "probabilities": {choice: 1.0}, "confidence": 1.0}
         elif key.endswith("_category"):
             answers[key] = {"type": "choice", "choice": "science",
                             "probabilities": {"science": 1.0}, "confidence": 1.0}
@@ -192,3 +207,26 @@ async def test_legacy_pool_review_does_not_invent_a_source_identity(content_type
     assert await scope["_review_pool_entries"]([record], Secrets(), "test") == [record]
     assert captured[0]["channel_name"] == expected_channel
     assert captured[0]["content_type"] == content_type
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failed_decision", [None, "coherence", "followups"])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_japanese_paraphrase_and_source_followups_use_separate_semantic_decisions(failed_decision):
+    async def handler(request):
+        body = json.loads(request.content)
+        assert "never require word overlap" in body["questions"]["candidate_000_coherence"]["instructions"]
+        assert "wind" in body["questions"]["candidate_000_followups"]["instructions"]
+        answers = native_answers(body["questions"])
+        if failed_decision:
+            choice = "mismatch" if failed_decision == "coherence" else "drift"
+            answers[f"candidate_000_{failed_decision}"] = {"type": "choice", "choice": choice,
+                "probabilities": {choice: 1.0}, "confidence": 1.0}
+        return httpx.Response(200, json={"model": "jev-1.14.0", "answers": answers})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        rows = await decisions.review_candidates([{"title": "雪の結晶ができる仕組み",
+            "description": "雲の水蒸気が氷になり、六角形の結晶に成長します。",
+            "card_title": "空から届く六角形", "assistant_response": "雲の中で水分が凍ります。",
+            "follow_up_suggestions": ["六角形になる理由は？"]}], Secrets(),
+            client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
+    assert bool(rows) == (failed_decision is None)

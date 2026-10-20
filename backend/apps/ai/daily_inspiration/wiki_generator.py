@@ -170,7 +170,7 @@ async def generate_wiki_inspirations(
     messages.insert(0, {"role": "system", "content": WRITER_INSTRUCTIONS})
     async def accept(arguments):
         return await _assemble_wiki_inspirations(
-            arguments["articles"], selected_by_title, sources, count, secrets_manager, task_id,
+            arguments["articles"], selected_by_title, sources, count, secrets_manager, task_id, language=lang_base,
         )
 
     return await write_reviewed_cards(
@@ -181,7 +181,7 @@ async def generate_wiki_inspirations(
 
 
 async def _assemble_wiki_inspirations(
-    raw_articles, selected_by_title, sources, count, secrets_manager, task_id,
+    raw_articles, selected_by_title, sources, count, secrets_manager, task_id, *, language="en",
 ):
     """Review each copy attempt against the already fetched Wikipedia evidence."""
     now_ts = int(time.time())
@@ -228,7 +228,7 @@ async def _assemble_wiki_inspirations(
             ),
             "video_channel_name": "Wikipedia",
             "category": category,
-            "content_type": "wiki",
+            "content_type": "wiki", "language": language,
             "wiki_metadata": wiki_metadata,
         }
         policy_result = check_daily_inspiration_entry(
@@ -245,6 +245,7 @@ async def _assemble_wiki_inspirations(
             continue
 
         wiki = DailyInspirationWiki(
+            source_language=language,
             title=summary_title,
             wiki_title=valid.wiki_title.replace(" ", "_"),
             description=summary_description,
@@ -255,6 +256,7 @@ async def _assemble_wiki_inspirations(
         used_titles.add(key)
         inspirations.append(
             DailyInspiration(
+                language=language,
                 inspiration_id=str(uuid.uuid4()),
                 phrase=phrase,
                 title=title,
@@ -272,7 +274,7 @@ async def _assemble_wiki_inspirations(
     candidates = [{
         "title": item.wiki.title, "description": item.wiki.description or "",
         "extract": item.wiki.extract or "", "wiki_title": item.wiki.wiki_title,
-        "content_type": "wiki", "card_title": item.title, "phrase": item.phrase,
+        "content_type": "wiki", "language": language, "card_title": item.title, "phrase": item.phrase,
         "assistant_response": item.assistant_response or "",
         "follow_up_suggestions": item.follow_up_suggestions,
         "record": item,

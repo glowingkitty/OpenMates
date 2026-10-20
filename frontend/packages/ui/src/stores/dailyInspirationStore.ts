@@ -40,6 +40,8 @@ export interface DailyInspirationVideo {
 }
 
 export interface DailyInspirationWiki {
+  /** Source Wikipedia edition; card copy can use another language. */
+  source_language?: string;
   /** Language of the inspiration text; persisted inside encrypted media metadata. */
   language?: string;
   title: string;

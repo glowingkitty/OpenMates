@@ -77,6 +77,15 @@ daily_inspiration_defaults:
       type: textfield
       note: "Copied from pool entry: video title"
 
+    video_description:
+      type: textfield
+      note: "Public source evidence bound to scheduled Jev approval"
+
+    editorial_review:
+      type: string
+      length: 100
+      note: "Internal versioned hash of Jev-reviewed video copy and thumbnail identity; never exposed by the public API"
+
     video_thumbnail_url:
       type: textfield
       note: "Copied from pool entry: thumbnail URL"

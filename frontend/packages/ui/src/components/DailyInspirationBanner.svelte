@@ -1201,8 +1201,11 @@
       new CustomEvent('wikifullscreen', {
         detail: {
           wikiTitle,
+          language: current.wiki.source_language || current.language,
           wikidataId: current.wiki.wikidata_id,
-          displayText: current.wiki.title || wikiTitle,
+          // Use canonical source identity for the viewer's redirect check. The
+          // banner title remains translated independently of the source edition.
+          displayText: wikiTitle.replace(/_/g, ' '),
           thumbnailUrl: current.wiki.thumbnail_url,
           description: current.wiki.description,
         },

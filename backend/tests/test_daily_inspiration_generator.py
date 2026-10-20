@@ -27,6 +27,7 @@ fake_llm_utils.resolve_fallback_servers_from_provider_config = lambda _model_id:
 fake_llm_utils.truncate_message_history_to_token_budget = lambda message_history, **_kwargs: message_history
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_age_policy_drops_slot_instead_of_swapping_unrelated_video(monkeypatch):
     """Do not keep neutron-star text if the selected video gets age-rejected."""
     monkeypatch.setitem(sys.modules, "backend.apps.ai.utils.llm_utils", fake_llm_utils)
@@ -96,6 +97,7 @@ def test_age_policy_drops_slot_instead_of_swapping_unrelated_video(monkeypatch):
     assert inspirations == []
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_generation_rejects_text_media_topic_mismatch(monkeypatch):
     """Do not keep space-station copy when the selected video is about Paris."""
     monkeypatch.setitem(sys.modules, "backend.apps.ai.utils.llm_utils", fake_llm_utils)
@@ -141,8 +143,12 @@ def test_generation_rejects_text_media_topic_mismatch(monkeypatch):
             },
         )
 
-    async def fake_validate_inspiration(*_args, **_kwargs):
-        return True
+    async def fake_validate_inspiration(*_args, **kwargs):
+        # Jev owns cross-language semantic coherence; a lexical gate must not
+        # short-circuit this final source-aware decision.
+        assert kwargs["video_title"] == "Paris Explained - YouTube"
+        assert "Station" in kwargs["title"]
+        return False
 
     monkeypatch.setattr(generator, "find_video_candidates", fake_find_video_candidates)
     monkeypatch.setattr(generator, "call_preprocessing_llm", fake_call_preprocessing_llm)

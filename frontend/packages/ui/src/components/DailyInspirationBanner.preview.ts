@@ -30,12 +30,13 @@ import { getAuthenticatedFallbackInspirations } from "../demo_chats/hardcodedIns
 // The preview loader awaits readiness before applying variant props and mounting.
 // Seed German data only after the asynchronous dictionary has become active.
 export const ready = (async () => {
-  if (
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("variant") === "germanPersonalized"
-  ) {
-    await locale.set("de");
-    await waitLocale("de");
+  if (typeof window !== "undefined") {
+    const variant = new URLSearchParams(window.location.search).get("variant");
+    const language = variant === "germanPersonalized" ? "de" : variant === "japaneseWiki" ? "ja" : null;
+    if (language) {
+      await locale.set(language);
+      await waitLocale(language);
+    }
   }
 })();
 
@@ -169,6 +170,14 @@ function makeVariant(
 // ─── Named variants ───────────────────────────────────────────────────────────
 
 export const variants = {
+  japaneseWiki: {
+    get onStartChat() {
+      dailyInspirationStore.reset();
+      const wiki = getAuthenticatedFallbackInspirations("ja").find((item) => item.content_type === "wiki")!;
+      dailyInspirationStore.setInspirations([wiki], { personalized: true });
+      return () => {};
+    },
+  },
   germanPersonalized: {
     get onStartChat() {
       dailyInspirationStore.reset();

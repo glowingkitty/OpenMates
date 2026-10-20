@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v12:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v13:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -43,7 +43,7 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v12:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v13:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_WIKI_COUNT = 3
@@ -272,20 +272,20 @@ async def get_default_inspirations(
                 exc_info=True,
             )
 
-    if lang == "de" and defaults:
-        # Legacy defaults stamped English pool rows as German. Verify provenance
-        # against the German pool instead of trusting that destination label.
+    if lang != "en" and defaults:
+        # Legacy defaults borrowed English pool rows for other languages. Verify
+        # original-language provenance instead of trusting the destination label.
         try:
-            german_pool = await directus_service.inspiration_pool.get_pool_entries_by_language(
-                "de", limit=500,
+            language_pool = await directus_service.inspiration_pool.get_pool_entries_by_language(
+                lang, limit=500,
             )
         except Exception:
-            logger.error("[DefaultInspirations] German provenance lookup failed", exc_info=True)
-            german_pool = []
-        german_ids = {str(item.get("id")) for item in german_pool}
+            logger.error("[DefaultInspirations] Language provenance lookup failed", exc_info=True)
+            language_pool = []
+        language_ids = {str(item.get("id")) for item in language_pool}
         defaults = [
             record for record in defaults
-            if str(record.get("pool_entry_id")) in german_ids
+            if str(record.get("pool_entry_id")) in language_ids
             and record.get("content_type") != "feature"
         ]
 

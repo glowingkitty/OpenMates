@@ -36,6 +36,7 @@ class DailyInspirationVideo(BaseModel):
 class DailyInspirationWiki(BaseModel):
     """Wikipedia article metadata shown in a Daily Inspiration banner."""
 
+    source_language: Optional[str] = Field(None, description="Wikipedia source edition, independent of translated card copy")
     title: str = Field(..., description="Display title for the article")
     wiki_title: str = Field(..., description="Canonical Wikipedia title/slug")
     description: Optional[str] = Field(None, description="Short Wikipedia/Wikidata description")

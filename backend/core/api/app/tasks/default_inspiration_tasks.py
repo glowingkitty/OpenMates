@@ -12,7 +12,7 @@
 # This favors entries that are both popular (high interaction) and recent.
 # New entries with zero interactions still get a score > 0 via the "+1" term.
 #
-# German shortages use localized endpoint fallbacks; other locales retain English fallback.
+# Shortages use localized static endpoint fallbacks in every supported language.
 #
 # After writing, old defaults (date < today) are cleaned up, and the
 # public Redis cache for /v1/default-inspirations is invalidated.
@@ -29,14 +29,14 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
 from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.apps.ai.daily_inspiration.media_coherence import (
-    check_inspiration_media_coherence,
+    editorial_review_digest,
     is_inspiration_media_coherent,
 )
 
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v12:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v13:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
@@ -85,6 +85,8 @@ async def _review_pool_entries(entries, secrets_manager, task_id):
                 "channel_name": ("Wikipedia" if entry.get("content_type") == "wiki"
                                  else entry.get("video_channel_name") or ""),
                 "content_type": entry.get("content_type") or "video",
+                **({"language": entry["language"]} if entry.get("language") else {}),
+                "youtube_id": entry.get("youtube_id") if (entry.get("content_type") or "video") == "video" else None,
                 "description": entry.get("video_description") or wiki.get("description") or "",
                 "extract": wiki.get("extract") or "", "card_title": entry.get("title") or "",
                 "phrase": entry.get("phrase") or "",
@@ -94,7 +96,14 @@ async def _review_pool_entries(entries, secrets_manager, task_id):
         except (TypeError, ValueError, AttributeError):
             continue
     reviewed = await review_candidates(external, secrets_manager, task_id=task_id)
-    return [row["record"] for row in reviewed] + features
+    records = []
+    for row in reviewed:
+        record = dict(row["record"])
+        if row.get("youtube_id"):
+            record["video_thumbnail_url"] = row["thumbnail_url"]
+            record["editorial_review"] = editorial_review_digest(record)
+        records.append(record)
+    return records + features
 
 
 def _entry_id(entry: Dict[str, Any]) -> str:
@@ -265,25 +274,17 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
         f"{', '.join(sorted(pool_languages))}"
     )
 
-    # ── Fetch English pool entries (used as fallback) ─────────────────────
+    # ── Fetch English pool entries once ─────────────────────
     en_entries: List[Dict[str, Any]] = []
     if "en" in pool_languages:
         en_entries = await directus.inspiration_pool.get_pool_entries_by_language("en", limit=50)
         en_entries = await _review_pool_entries(en_entries, task._secrets_manager, task_id)
 
-    # Score and sort English entries
-    en_scored = sorted(
-        en_entries,
-        key=lambda e: _score_pool_entry(e, now_ts),
-        reverse=True,
-    )
-
-    languages_processed = 0
     total_defaults_written = 0
+    languages_processed = 0
 
-    # ── Process each language ─────────────────────────────────────────────
     # Process all supported languages, not just those in pool_languages.
-    # Languages not in the pool will get English fallback entries.
+    # Languages without pool stock receive localized endpoint recovery.
     all_languages = sorted(SUPPORTED_LANGUAGES)
 
     for lang in all_languages:
@@ -320,25 +321,8 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
                 DEFAULT_TOTAL_COUNT,
             )
 
-            if len(selected) < DEFAULT_TOTAL_COUNT and lang not in {"en", "de"}:
-                # Fill remaining slots from English, avoiding duplicate youtube_ids
-                selected_yt_ids = {e.get("youtube_id") for e in selected}
-                selected_ids = {str(e.get("id", "") or "") for e in selected}
-                en_candidates = _pick_top_entries_with_exclusions(
-                    en_scored,
-                    excluded_pool_entry_ids,
-                    len(en_scored),
-                )
-                for en_entry in en_candidates:
-                    if len(selected) >= DEFAULT_TOTAL_COUNT:
-                        break
-                    en_id = str(en_entry.get("id", "") or "")
-                    en_youtube_id = en_entry.get("youtube_id")
-                    if en_id not in selected_ids and (not en_youtube_id or en_youtube_id not in selected_yt_ids):
-                        selected.append(en_entry)
-                        selected_ids.add(en_id)
-                        if en_youtube_id:
-                            selected_yt_ids.add(en_youtube_id)
+            # Missing native-language stock is filled by localized static cards
+            # at delivery; never relabel English pool copy as another language.
 
             random_seed = f"{today_str}:{lang}"
             import random as _random
@@ -500,10 +484,8 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
                     reasons.append(f"age_policy({age_reason})")
                     age_violations += 1
 
-                media_result = check_inspiration_media_coherence(item)
-                if media_result["verdict"] == "REJECT":
-                    reasons.append(f"media_coherence({media_result.get('reason')})")
-                    media_violations += 1
+                # Semantic/thumbnail uncertainty withholds publication in the
+                # selector. It must never trigger destructive legacy-row deletion.
 
                 if not reasons:
                     continue

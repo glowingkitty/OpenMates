@@ -2,12 +2,18 @@ schema_version: 2
 profile: concise
 id: daily-inspiration-jev
 title: Qualify Mercury daily inspirations with bounded retry and Gemini Flash Lite recovery
-status: verified
+status: implementing
 goal: >-
-  test again - with 2nd attempt using mercury 3 if first attempt fails, then fallback to gemini 3.5 flash light.
-  Explain what the LLM generates, Jev decisions and current multilingual daily inspirations;
-  recommend the next benchmark for the final Mercury plus Jev decision.
+  Fix the Japanese coherence issue using Jev instead of word overlap, tighten follow-up
+  relevance, and localize static cards for all 20 languages. Then run the proposed
+  benchmark against Gemini-only. Ensure Jev processes video thumbnails to exclude
+  super clickbaity videos, and deploy the changes.
 scope_notes:
+  - Replace lexical overlap with separate Jev semantic coherence and explicit source-concept follow-up checks.
+  - Review actual bounded YouTube thumbnail pixels through direct Jev, withholding unavailable or uncertain image decisions.
+  - Persist review-bound public-video proof; no paid provider requests from the anonymous endpoint.
+  - Reuse the multilingual fallback source catalog for all backend static cards.
+  - Paired Mercury/retry/Gemini versus Gemini-only qualification across twenty locales, real source snapshots and three-card batches.
   - Jev source eligibility, educational ranking, categories and final editorial review for video and Wikipedia cards.
   - Explicit rejection of conspiracy promotion and misleading clickbait, preserving honest educational curiosity and debunking.
   - Mercury 3 LOW is the only primary writer; retry once after transport, malformed copy or editorial/source rejection, then Gemini 3.5 Flash-Lite once.

@@ -1,14 +1,15 @@
 import { expect, test } from './helpers/cookie-audit';
 
 // playwright-account: not_required
+for (const language of ['de', 'ja']) {
 // contract-test: direct surface=gui.web assertions=language-preferences.content-language,daily-inspiration.public-defaults
-test('German public inspirations remain localized through carousel navigation and reload', async ({ page }) => {
+test(`${language} public inspirations remain localized through carousel navigation and reload`, async ({ page }) => {
   const api = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
-  const response = await page.request.get(`${api}/v1/default-inspirations?lang=de`);
+  const response = await page.request.get(`${api}/v1/default-inspirations?lang=${language}`);
   expect(response.ok()).toBe(true);
   const { inspirations } = await response.json();
   expect(inspirations).toHaveLength(10);
-  expect(inspirations.every((item: { language: string }) => item.language === 'de')).toBe(true);
+  expect(inspirations.every((item: { language: string }) => item.language === language)).toBe(true);
   for (const item of inspirations) {
     expect(item.phrase.trim()).not.toBe('');
     expect(item.assistant_response.trim()).not.toBe('');
@@ -24,12 +25,28 @@ test('German public inspirations remain localized through carousel navigation an
     if (item.content_type === 'wiki') expect(item.wiki.wiki_title.trim()).not.toBe('');
     if (item.content_type === 'video') expect(item.video.youtube_id).toMatch(/^[\w-]{11}$/);
   }
+  if (language === 'ja') {
+    expect(inspirations.some((item: { phrase: string }) => /[ぁ-ゖァ-ヺ一-龯]/.test(item.phrase))).toBe(true);
+  }
+  if (language === 'de') {
+    const locales = ['en', 'de', 'zh', 'es', 'fr', 'pt', 'ru', 'ja', 'ko', 'it', 'tr', 'vi', 'id', 'pl', 'nl', 'ar', 'hi', 'th', 'cs', 'sv'];
+    for (const locale of locales) {
+      const localizedResponse = await page.request.get(`${api}/v1/default-inspirations?lang=${locale}`);
+      expect(localizedResponse.ok()).toBe(true);
+      const localized = (await localizedResponse.json()).inspirations;
+      expect(localized).toHaveLength(10);
+      expect(localized.every((item: { language: string }) => item.language === locale)).toBe(true);
+      if (locale !== 'en') {
+        expect(localized.map((item: { phrase: string }) => item.phrase)).not.toContain('An ancient shipwreck held a machine that predicted the sky.');
+      }
+    }
+  }
   const phrases = inspirations.map((item: { phrase: string }) => item.phrase);
   expect(phrases).not.toContain('Want stronger privacy controls? Add personal details that OpenMates should hide.');
   expect(phrases).not.toContain('An ancient shipwreck held a machine that predicted the sky.');
 
-  await page.goto('/?lang=de');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await page.goto(`/?lang=${language}`);
+  await expect(page.locator('html')).toHaveAttribute('lang', language);
   const phrase = page.getByTestId('daily-inspiration-phrase').first();
   const banner = page.getByTestId('daily-inspiration-banner').first();
   await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(10);
@@ -46,9 +63,11 @@ test('German public inspirations remain localized through carousel navigation an
   }
   expect(visited.size).toBe(10);
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await expect(page.locator('html')).toHaveAttribute('lang', language);
   await expect.poll(async () => phrases.includes((await phrase.innerText()).trim())).toBe(true);
 });
+
+}
 
 // contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
 test('Withheld editorial inventory keeps the ten-card guest fallback usable', async ({ page }) => {

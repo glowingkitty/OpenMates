@@ -36,7 +36,6 @@ from backend.apps.ai.daily_inspiration.content_filter import (
 )
 from backend.apps.ai.daily_inspiration.config import WRITER_INSTRUCTIONS
 from backend.apps.ai.daily_inspiration.writer import write_reviewed_cards
-from backend.apps.ai.daily_inspiration.media_coherence import check_inspiration_media_coherence
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationVideo
 from backend.apps.ai.daily_inspiration.validator import validate_inspiration
 from backend.apps.ai.daily_inspiration.video_processor import find_video_candidates
@@ -536,7 +535,7 @@ async def generate_inspirations(
     async def accept(arguments):
         return await _assemble_inspirations(
             arguments["inspirations"], video_candidates_per_slot, count,
-            secrets_manager, task_id, user_id,
+            secrets_manager, task_id, user_id, language=language,
         )
 
     return await write_reviewed_cards(
@@ -547,7 +546,7 @@ async def generate_inspirations(
 
 
 async def _assemble_inspirations(
-    raw_inspirations, video_candidates_per_slot, count, secrets_manager, task_id, user_id,
+    raw_inspirations, video_candidates_per_slot, count, secrets_manager, task_id, user_id, *, language="en",
 ):
     """Assemble and review copy against the unchanged selected public sources."""
     # Step 4: Assemble DailyInspiration objects
@@ -607,26 +606,6 @@ async def _assemble_inspirations(
 
         category = candidate.get("editorial_category", category)
 
-        coherence_result = check_inspiration_media_coherence({
-            "title": title,
-            "phrase": phrase,
-            "assistant_response": assistant_response or "",
-            "category": category,
-            "content_type": "video",
-            "youtube_id": youtube_id,
-            "video_title": candidate.get("title", ""),
-            "video_channel_name": candidate.get("channel_name"),
-        })
-        if coherence_result["verdict"] == "REJECT":
-            logger.warning(
-                f"[DailyInspiration][{task_id}] Media coherence REJECTED inspiration "
-                f"'{title}' (video: {candidate.get('title', '')[:50]}) — "
-                f"reason={coherence_result.get('reason')}, "
-                f"media_tokens={coherence_result.get('media_tokens', [])[:6]}, "
-                f"copy_tokens={coherence_result.get('copy_tokens', [])[:6]}"
-            )
-            continue
-
         # ── Layer 3 (post-LLM): shared daily-inspiration content policy ───────
         # Reject both obvious keyword violations and company/brand subjects, even
         # when the source is an independent educator rather than a corporate channel.
@@ -681,6 +660,7 @@ async def _assemble_inspirations(
         )
 
         inspiration = DailyInspiration(
+            language=language,
             inspiration_id=str(uuid.uuid4()),
             phrase=phrase,
             title=title,
@@ -712,6 +692,7 @@ async def _assemble_inspirations(
                          for item in slot if item.get("youtube_id") == inspiration.video.youtube_id), ""
                     ),
                     follow_up_suggestions=inspiration.follow_up_suggestions,
+                    language=language,
                 )
                 if is_valid:
                     validated_inspirations.append(inspiration)

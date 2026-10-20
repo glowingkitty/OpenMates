@@ -116,6 +116,8 @@ class DailyInspirationDefaultsMethods:
                 "content_type": entry.get("content_type", "video"),
                 "youtube_id": entry.get("youtube_id", ""),
                 "video_title": entry.get("video_title"),
+                "video_description": entry.get("video_description"),
+                "editorial_review": entry.get("editorial_review"),
                 "video_thumbnail_url": entry.get("video_thumbnail_url"),
                 "video_channel_name": entry.get("video_channel_name"),
                 "video_view_count": entry.get("video_view_count"),

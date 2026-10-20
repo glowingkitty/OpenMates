@@ -531,6 +531,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       content_type: "wiki",
       video: null,
       wiki: {
+        source_language: "en",
         title: copy.antikythera.title,
         wiki_title: "Antikythera_mechanism",
         description: copy.antikythera.description,
@@ -549,6 +550,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       content_type: "wiki",
       video: null,
       wiki: {
+        source_language: "en",
         title: copy.bioluminescence.title,
         wiki_title: "Bioluminescence",
         description: copy.bioluminescence.description,
@@ -567,6 +569,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
       content_type: "wiki",
       video: null,
       wiki: {
+        source_language: "en",
         title: copy.fermi.title,
         wiki_title: "Fermi_paradox",
         description: copy.fermi.description,

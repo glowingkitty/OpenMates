@@ -18,3 +18,21 @@ test('German personalized inspiration carousel preserves opened chat actions', a
   await expect(phrase).toContainText('sechs Frauen');
   await expect(page.getByTestId('daily-inspiration-cta-text')).not.toContainText('Chat öffnen');
 });
+
+// contract-test: direct surface=gui.web assertions=language-preferences.content-language,daily-inspiration.public-defaults
+test('Japanese static wiki card opens its canonical source edition', async ({ page }) => {
+  await page.goto('/dev/preview/DailyInspirationBanner?theme=light&background=%23dbeafe&chrome=0&variant=japaneseWiki&width=1100');
+  await waitForComponentPreview(page);
+  const phrase = page.getByTestId('daily-inspiration-phrase');
+  await expect(phrase).toBeVisible();
+  await expect(phrase).toContainText(/[ぁ-ゖァ-ヺ一-龯]/);
+  await page.evaluate(() => {
+    document.addEventListener('wikifullscreen', (event) => {
+      (window as Window & { openedWiki?: unknown }).openedWiki = (event as CustomEvent).detail;
+    });
+  });
+  await page.locator('.banner-embed-wrapper').click();
+  const opened = await page.evaluate(() => (window as Window & { openedWiki?: { language: string; wikiTitle: string; displayText: string } }).openedWiki);
+  expect(opened).toMatchObject({ language: 'en', wikiTitle: 'Antikythera_mechanism', displayText: 'Antikythera mechanism' });
+  await expect(phrase).toContainText(/[ぁ-ゖァ-ヺ一-龯]/);
+});

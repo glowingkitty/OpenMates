@@ -4,7 +4,7 @@
 # These entries are intentionally deterministic and cheap: no LLM calls, no API
 # calls, and no user content is inspected. The daily generator shuffles them into
 # each user's ordered inspiration list after personalized video/wiki items are
-# prepared. Edit this file to change feature copy or settings destinations.
+# prepared. Copy lives in shared i18n YAML; settings destinations live here.
 
 import os
 import time
@@ -17,6 +17,8 @@ from backend.apps.ai.daily_inspiration.schemas import (
     DailyInspirationDirectVideo,
     DailyInspirationFeature,
 )
+
+from backend.apps.ai.daily_inspiration.static_localization import localized_static_copy
 
 
 PRODUCT_VIDEO_BASE_URL_ENV = "OPENMATES_PRODUCT_VIDEOS_BASE_URL"
@@ -54,20 +56,14 @@ FEATURE_TIPS = [
     {
         "feature_id": "export-data",
         "icon": "download",
-        "title": "Export your OpenMates data",
-        "description": "Back up chats, settings, memories, and more whenever you need them.",
         "settings_path": "account/export",
-        "phrase": "Keep your own backup. Export your OpenMates data whenever you need it.",
         "category": "openmates_official",
         "requires_authentication": True,
     },
     {
         "feature_id": "custom-pii-detection",
         "icon": "shield-check",
-        "title": "Custom PII detection",
-        "description": "Teach OpenMates which personal details should be hidden before model calls.",
         "settings_path": "privacy/hide-personal-data",
-        "phrase": "Want stronger privacy controls? Add personal details that OpenMates should hide.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "custom-pii-detection.mp4",
@@ -75,10 +71,7 @@ FEATURE_TIPS = [
     {
         "feature_id": "events-search",
         "icon": "calendar-search",
-        "title": "Find events",
-        "description": "Search Meetup, Luma, Eventbrite, Resident Advisor, and more.",
         "settings_path": "apps/events/skill/search",
-        "phrase": "Looking for something to do? OpenMates can search events across multiple sources.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "events-search.mp4",
@@ -86,10 +79,7 @@ FEATURE_TIPS = [
     {
         "feature_id": "web-video-skills",
         "icon": "search",
-        "title": "Trusted source quotes",
-        "description": "Ask mates to inspect sources and quote the exact lines that support an answer.",
         "settings_path": "apps/all/skills",
-        "phrase": "Need an answer you can verify? Ask OpenMates to quote the supporting source.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "web-video-skills.mp4",
@@ -97,10 +87,7 @@ FEATURE_TIPS = [
     {
         "feature_id": "image-detection",
         "icon": "image",
-        "title": "AI image detection",
-        "description": "Upload an image and see AI-generation signals directly in the chat.",
         "settings_path": "apps/all/skills",
-        "phrase": "Wondering if an image was AI-generated? Upload it and inspect the signals.",
         "category": "openmates_official",
         "requires_authentication": False,
         "direct_video_filename": "image-detection.mp4",
@@ -108,110 +95,44 @@ FEATURE_TIPS = [
     {
         "feature_id": "focus-modes",
         "icon": "target",
-        "title": "Focus modes",
-        "description": "Temporarily guide a chat toward a specific goal for more useful answers.",
         "settings_path": "apps/all/focus_modes",
-        "phrase": "Need a more focused answer? Give your mate a specific job.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
     {
         "feature_id": "memories",
         "icon": "heart",
-        "title": "Memories",
-        "description": "Save preferences and memories so mates can help without repeated context.",
         "settings_path": "settings_memories",
-        "phrase": "Repeating yourself gets old. Save context your mates should remember.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
     {
         "feature_id": "incognito-mode",
         "icon": "mask",
-        "title": "Incognito chats",
-        "description": "Start temporary chats when you do not want them saved to history.",
         "settings_path": "incognito/info",
-        "phrase": "Need a temporary conversation? Keep it out of your saved chat history.",
         "category": "openmates_official",
         "requires_authentication": True,
     },
     {
         "feature_id": "privacy-dashboard",
         "icon": "lock",
-        "title": "Privacy controls",
-        "description": "Tune personal-data hiding, connected accounts, and automatic deletion in one place.",
         "settings_path": "privacy",
-        "phrase": "Review what OpenMates protects before you urgently need the controls.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
 ]
 
 
-# Static copy deliberately uses no model or translation service.
-FEATURE_TIPS_DE = {
-    "export-data": {
-        "title": "Deine OpenMates-Daten exportieren",
-        "description": "Sichere Chats, Einstellungen, Erinnerungen und mehr, wann "
-        "immer du sie brauchst.",
-        "phrase": "Behalte deine eigene Sicherung. Exportiere deine OpenMates-Daten "
-        "jederzeit.",
-    },
-    "custom-pii-detection": {
-        "title": "Persönliche Daten gezielt schützen",
-        "description": "Lege fest, welche persönlichen Angaben OpenMates "
-        "vor Modellaufrufen verbergen soll.",
-        "phrase": "Du möchtest mehr Datenschutz? Ergänze persönliche "
-        "Angaben, die OpenMates verbergen soll.",
-    },
-    "events-search": {
-        "title": "Veranstaltungen finden",
-        "description": "Durchsuche Meetup, Luma, Eventbrite, Resident Advisor und "
-        "weitere Quellen.",
-        "phrase": "Du möchtest etwas unternehmen? OpenMates findet Veranstaltungen "
-        "aus verschiedenen Quellen.",
-    },
-    "web-video-skills": {
-        "title": "Zitate aus verlässlichen Quellen",
-        "description": "Lass deine Mates Quellen prüfen und die Textstellen "
-        "zitieren, die eine Antwort belegen.",
-        "phrase": "Du möchtest eine Antwort überprüfen? Bitte OpenMates um ein "
-        "Zitat aus der Quelle.",
-    },
-    "image-detection": {
-        "title": "KI-Bilder erkennen",
-        "description": "Lade ein Bild hoch und untersuche Hinweise auf "
-        "KI-Erzeugung direkt im Chat.",
-        "phrase": "Wurde ein Bild mit KI erzeugt? Lade es hoch und prüfe die Hinweise.",
-    },
-    "focus-modes": {
-        "title": "Fokusmodi",
-        "description": "Richte einen Chat vorübergehend auf ein bestimmtes Ziel aus, "
-        "um passendere Antworten zu erhalten.",
-        "phrase": "Du brauchst eine gezieltere Antwort? Gib deinem Mate eine "
-        "konkrete Aufgabe.",
-    },
-    "memories": {
-        "title": "Erinnerungen",
-        "description": "Speichere Vorlieben und Erinnerungen, damit deine Mates den "
-        "Kontext nicht erneut benötigen.",
-        "phrase": "Du möchtest dich nicht wiederholen? Speichere den Kontext, den deine "
-        "Mates kennen sollen.",
-    },
-    "incognito-mode": {
-        "title": "Inkognito-Chats",
-        "description": "Starte vorübergehende Chats, die nicht im Verlauf "
-        "gespeichert werden.",
-        "phrase": "Du brauchst einen vorübergehenden Chat? Halte ihn aus deinem "
-        "gespeicherten Verlauf heraus.",
-    },
-    "privacy-dashboard": {
-        "title": "Datenschutzeinstellungen",
-        "description": "Verwalte das Verbergen persönlicher Daten, verbundene "
-        "Konten und automatisches Löschen an einem Ort.",
-        "phrase": "Prüfe in Ruhe, wie OpenMates deine Daten schützt und welche "
-        "Einstellungen du nutzen kannst.",
-    },
+FEATURE_COPY_KEYS = {
+    "export-data": "export",
+    "custom-pii-detection": "pii",
+    "events-search": "events",
+    "web-video-skills": "quotes",
+    "image-detection": "image_detection",
+    "focus-modes": "focus",
+    "memories": "memories",
+    "incognito-mode": "incognito",
+    "privacy-dashboard": "privacy",
 }
 
 
@@ -260,9 +181,8 @@ def build_feature_inspirations(
         and (include_authenticated_only or not tip.get("requires_authentication", True))
     ]
     for tip in linked_tips[:max(0, count)]:
-        content_language = "de" if language.lower().split("-")[0] == "de" else "en"
-        if content_language == "de":
-            tip = {**tip, **FEATURE_TIPS_DE[tip["feature_id"]]}
+        content_language, copy = localized_static_copy(FEATURE_COPY_KEYS[tip["feature_id"]], language)
+        tip = {**tip, **copy}
         feature = DailyInspirationFeature(
             feature_id=tip["feature_id"],
             icon=tip["icon"],
@@ -277,7 +197,7 @@ def build_feature_inspirations(
                 language=content_language,
                 phrase=tip["phrase"],
                 title=tip["title"],
-                assistant_response=tip["description"],
+                assistant_response=tip["assistant_response"],
                 category=tip["category"],
                 content_type="feature",
                 feature=feature,

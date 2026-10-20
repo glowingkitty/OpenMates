@@ -138,7 +138,7 @@ async def test_german_defaults_remove_english_fill_even_when_stamped_german():
     assert all(item["language"] == "de" for item in items)
     assert not any(item["phrase"] == english["phrase"] for item in items)
     assert any(item["phrase"] == german["phrase"] for item in items)
-    assert redis.set.call_args.args[0] == "public:default_inspirations:v12:de"
+    assert redis.set.call_args.args[0] == "public:default_inspirations:v13:de"
 
 
 @pytest.mark.asyncio
@@ -165,3 +165,21 @@ async def test_german_cache_miss_without_defaults_returns_ten_localized_items():
         for item in items
         if item.get("feature")
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("language", ["en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"])
+# contract-test: supporting surface=rest_api assertions=language-preferences.content-language,daily-inspiration.public-defaults
+async def test_every_public_locale_recovers_ten_localized_cards(language):
+    directus = SimpleNamespace(inspiration_defaults=SimpleNamespace(get_defaults_for_date=AsyncMock(return_value=[])))
+    class Cache:
+        @property
+        async def client(self):
+            return None
+    cards = (await _load_route()(None, language, directus, Cache()))["inspirations"]
+    assert len(cards) == 10
+    assert all(card["language"] == language for card in cards)
+    if language != "en":
+        english_phrases = {card.phrase for card in build_wiki_inspirations(10)}
+        english_phrases.update(card.phrase for card in build_feature_inspirations(20))
+        assert not english_phrases.intersection(card["phrase"] for card in cards)
