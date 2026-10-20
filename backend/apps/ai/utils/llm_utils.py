@@ -1470,6 +1470,14 @@ async def call_preprocessing_llm(
                     # Redact chat_summary (user-generated content)
                     if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
                         sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
+                    if (
+                        observability_purpose == "early_chat_metadata"
+                        and isinstance(sanitized_args.get("summary"), str)
+                    ):
+                        sanitized_args["summary"] = {
+                            "length": len(sanitized_args["summary"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}

@@ -88,17 +88,17 @@ assertions:
       surface: rest_api
     - &id013
       path: backend/tests/test_ai_request_observability.py
-      line: 170
+      line: 171
       name: test_completion_timing_uses_reviewed_terminal_class
       surface: cli
     - &id014
       path: backend/tests/test_ai_request_observability.py
-      line: 191
+      line: 192
       name: test_completion_timing_records_only_first_visible_content_and_final_marker
       surface: rest_api
     - &id015
       path: backend/tests/test_ai_request_observability.py
-      line: 213
+      line: 214
       name: test_reviewed_lifecycle_gap_phases_are_supported
       surface: rest_api
     supporting_tests:
@@ -190,7 +190,7 @@ assertions:
       surface: cli
     - &id021
       path: backend/tests/test_ai_request_observability.py
-      line: 170
+      line: 171
       name: test_completion_timing_uses_reviewed_terminal_class
       surface: cli
     - &id022
@@ -211,8 +211,8 @@ assertions:
     supporting_tests:
     - &id020
       path: backend/tests/test_ai_request_observability.py
-      line: 157
-      name: test_chat_direction_review_provider_purpose_emits_only_reviewed_attributes
+      line: 158
+      name: test_auxiliary_provider_purpose_emits_only_reviewed_attributes
       surface: cli
     tests:
     - *id019
@@ -66476,7 +66476,7 @@ assertions:
     direct_tests:
     - &id8344
       path: frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
-      line: 74
+      line: 87
       name: browser renders recovered initial title and summary before any assistant
         completion, then refines both after reconnect
       surface: gui.web
@@ -67779,7 +67779,7 @@ assertions:
       surface: rest_api
     - &id8793
       path: frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
-      line: 74
+      line: 87
       name: browser renders recovered initial title and summary before any assistant
         completion, then refines both after reconnect
       surface: gui.web
@@ -76450,7 +76450,7 @@ assertions:
       surface: rest_api
     - &id9731
       path: frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts
-      line: 74
+      line: 87
       name: browser renders recovered initial title and summary before any assistant
         completion, then refines both after reconnect
       surface: gui.web

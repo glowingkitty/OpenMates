@@ -23,6 +23,19 @@ const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { openChatAfterContextSync } = require('./helpers/chat-hydration');
+const { scrollChatHistoryToStart } = require('./helpers/chat-scroll');
+
+/** The loaded chat scrolls to its latest message; expose its header as a user does. */
+async function showHeaderForProof(page: any, testInfo: any): Promise<void> {
+  await expect(page.getByTestId('chat-history-container')).toHaveAttribute('data-scroll-state', 'ready');
+  const scrollToTop = page.getByRole('button', { name: 'Scroll to top', exact: true });
+  if (await scrollToTop.isVisible()) await scrollToTop.click();
+  await scrollChatHistoryToStart(page, testInfo);
+  // DOM visibility alone also passes when the header is clipped above the chat
+  // scroller. Both texts must be entirely in view in the recording/checkpoint.
+  await expect(page.getByTestId('chat-header-title')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId('chat-header-summary')).toBeInViewport({ ratio: 1 });
+}
 
 /** A runner-private child owns real backend fixture rows and cleans them on stdin EOF. */
 function startUiFixture(root: string) {
@@ -110,6 +123,7 @@ test('browser renders recovered initial title and summary before any assistant c
       expect(earlyReceipt).toMatchObject({ title: 'Early research outline',
         summary: 'A first outline is ready while the answer is still being prepared.',
         initialState: 'TERMINAL', sealedInitialRemoved: true, assistantCompleted: false, inferenceCalls: 0 });
+      await showHeaderForProof(page, testInfo);
       await testInfo.attach('initial-header-before-assistant', { body: await page.screenshot(), contentType: 'image/png' });
 
       const final = await fixture.command('final');
@@ -127,6 +141,7 @@ test('browser renders recovered initial title and summary before any assistant c
       expect(await fixture.command('inspect')).toMatchObject({ title: 'Completed research findings',
         summary: 'The completed answer refines the outline with verified findings.',
         finalState: 'TERMINAL', sealedFinalRemoved: true, assistantCompleted: true, inferenceCalls: 0 });
+      await showHeaderForProof(page, testInfo);
       await testInfo.attach('refined-header-after-reconnect', { body: await page.screenshot(), contentType: 'image/png' });
     } finally {
       await fixture.stop();
