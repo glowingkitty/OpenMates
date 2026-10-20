@@ -39,6 +39,15 @@ share that spec's disposable stack.
 
 The workflow checks out its trusted harness separately from the immutable subject. For a worktree candidate it checks out the reachable base in detached state, downloads a private 48-hour patch, verifies its SHA-256, reconstructs the deterministic tree and commit, and rejects any identity mismatch. No candidate branch or other Git ref is created. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
 
+Runtime topology changes in `ci_environment.py` must reach the trusted dev
+harness before candidate checks can use them. A candidate's planned Compose
+profile does not change the separately checked-out harness. Camera-call fixtures
+require the guarded AI worker to consume `app_ai`, `app_ai_routing` and
+`app_videos`, alongside the isolated upload service. Startup verifies the
+worker's actual queue configuration and records its queue names in
+`ci-environment.json`; missing or inconsistent queues fail startup instead of
+leaving detached generation jobs waiting indefinitely.
+
 ## Commands
 
 Focused worktree request, once the migration readiness checkpoint is published:

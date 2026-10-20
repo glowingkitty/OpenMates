@@ -437,7 +437,8 @@
         "teams-image-upload.spec.ts",
         "teams-direct-chat.spec.ts",
         "cli-tui-team-direct-chat.spec.ts",
-        "newsletter-flow.spec.ts"
+        "newsletter-flow.spec.ts",
+        "voice-call.spec.ts"
       ]
     },
     "credential_free_domains": {

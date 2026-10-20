@@ -615,6 +615,7 @@ def compose_profile(
     source_hash: str,
     *,
     ai_fixtures: bool = False,
+    voice_camera: bool = False,
     object_storage: bool = False,
     uploads: bool = False,
     public_provider: bool = False,
@@ -640,6 +641,8 @@ def compose_profile(
     storage_capacity = storage_capacity or billing_profile is not None
     ai_fixtures = ai_fixtures or public_provider or storage_capacity
     object_storage = object_storage or uploads or storage_capacity
+    if voice_camera and not (ai_fixtures and uploads):
+        raise ValueError("Voice camera fixture requires isolated AI fixtures and real uploads")
     if storage_accountability and (ai_fixtures or object_storage or uploads or public_provider or workflows or workflow_runtime):
         raise ValueError("Storage accountability requires its standalone zero-provider profile")
     if storage_accountability and (not 1000 <= os.getuid() <= 60000 or not 1 <= os.getgid() <= 60000):
@@ -1004,11 +1007,14 @@ def compose_profile(
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
         ai_worker = deepcopy(worker)
+        # The camera call fixture runs the actual detached H3 storage path on
+        # this guarded worker; other replay specs retain their existing queues.
+        ai_queues = "app_ai,app_ai_routing" + (",app_videos" if voice_camera else "")
         ai_worker["environment"].update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1",
-            CELERY_QUEUES="app_ai,app_ai_routing",
+            CELERY_QUEUES=ai_queues,
         )
-        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai,app_ai_routing") for part in worker["command"]]
+        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={ai_queues}") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
         if storage_capacity:
@@ -1294,6 +1300,51 @@ def start_with_evidence():
         destination.write_text(json.dumps(report, indent=2))
 
 
+def validate_ai_worker_queues(command: list[str], environment_queues: str, *, voice_camera: bool) -> list[str]:
+    """Compare actual worker inputs, retaining only validated queue names."""
+    def parse(value: str) -> set[str]:
+        if not isinstance(value, str) or not value or len(value) > 1024:
+            raise RuntimeError("Isolated AI worker queues are invalid")
+        values = value.split(",")
+        if any(not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", name) for name in values):
+            raise RuntimeError("Isolated AI worker queues are invalid")
+        return set(values)
+
+    if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
+        raise RuntimeError("Isolated AI worker command is invalid")
+    declared = []
+    for index, part in enumerate(command):
+        if part.startswith("--queues="):
+            declared.append(part.partition("=")[2])
+        elif part in {"--queues", "-Q"}:
+            declared.append(command[index + 1] if index + 1 < len(command) else "")
+    if len(declared) != 1:
+        raise RuntimeError("Isolated AI worker must declare one explicit queue list")
+    actual = parse(declared[0])
+    if actual != parse(environment_queues):
+        raise RuntimeError("Isolated AI worker command and CELERY_QUEUES disagree")
+    if voice_camera and not {"app_ai", "app_ai_routing", "app_videos"}.issubset(actual):
+        raise RuntimeError("Voice camera fixture worker lacks required AI and video queues")
+    return sorted(actual)
+
+
+def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]:
+    """Read only the command and named queue variable, never emit environment."""
+    template = ('{{json .Config.Cmd}}\n{{range .Config.Env}}'
+                '{{if eq (index (split . "=") 0) "CELERY_QUEUES"}}{{println .}}{{end}}{{end}}')
+    raw = subprocess.check_output(
+        ["docker", "inspect", "--format", template, container], text=True, timeout=10,
+    )
+    output = [line for line in raw.splitlines() if line]
+    if len(output) != 2 or not output[1].startswith("CELERY_QUEUES="):
+        raise RuntimeError("Isolated AI worker requires one CELERY_QUEUES value")
+    try:
+        command = json.loads(output[0])
+    except ValueError:
+        raise RuntimeError("Isolated AI worker command is invalid") from None
+    return validate_ai_worker_queues(command, output[1].partition("=")[2], voice_camera=voice_camera)
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -1373,7 +1424,7 @@ def main():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -1448,6 +1499,9 @@ def main():
                 raise RuntimeError("Runner-local API is not healthy")
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
+        voice_camera = "voice-call.spec.ts" in json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+        if voice_camera and "ai-worker" not in profile["services"]:
+            raise RuntimeError("Voice camera fixture requires its isolated AI worker")
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
@@ -1524,6 +1578,8 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
+            if service == "ai-worker" or service.startswith("ai-worker-"):
+                identities[service]["queues"] = inspect_ai_worker_queues(container, voice_camera=voice_camera)
             if (evidence.get("target_capacity_admission") or calibration_active) and (
                     service == "ai-worker" or service.startswith("ai-worker-")):
                 configured = profile["services"][service]["command"]
