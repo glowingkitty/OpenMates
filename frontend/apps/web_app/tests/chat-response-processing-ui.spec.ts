@@ -89,10 +89,23 @@ async function seedFixtureChat(page: any, userContent = FIXTURE.seed.user_conten
 	await page.evaluate(async ({ fixture, content }) => {
 		const seedChat = (window as any).__openmatesE2ESeedChat;
 		if (!seedChat) throw new Error('E2E chat seed helper is unavailable');
+		const userId = await new Promise<string>((resolve, reject) => {
+			const request = indexedDB.open('user_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('user_data', 'readonly');
+				const owner = transaction.objectStore('user_data').get('id');
+				owner.onsuccess = () => owner.result ? resolve(owner.result) : reject(new Error('Missing signed-in fixture owner'));
+				owner.onerror = () => reject(owner.error);
+				transaction.oncomplete = () => db.close();
+			};
+		});
 		const now = Math.floor(Date.now() / 1000);
 		await seedChat({
 			chat: {
 				chat_id: fixture.chat_id,
+				user_id: userId,
 				title: fixture.seed.title,
 				messages_v: 1,
 				title_v: 1,
@@ -368,6 +381,49 @@ test('finishes the response before optional metadata and accepts late chips with
     await expect(page.getByTestId('chat-header-title')).toHaveText('Earlier turn arrived during the next turn');
     await expect(page.getByTestId('follow-up-suggestion-item').filter({ hasText: 'Late stale chips' })).toHaveCount(0);
     await expect(editor).toHaveText('Late');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.followups.main-generated-composer,message-input.suggestion.draft-priority,message-input.suggestion.editable-acceptance
+  test('uses current-turn post-processing when main metadata is absent without changing a draft', async ({ page }: { page: any }) => {
+    await openFixtureChat(page);
+    await emitStage(page, 'task-initiated');
+    await emitStage(page, 'preprocessing');
+    await emitStage(page, 'typing');
+    await emitStage(page, 'answer-first');
+    await emitStage(page, 'final');
+    const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+    const ghost = page.getByTestId('composer-ghost-suggestion');
+    const suggestion = 'Could you show a practical example?';
+    await expect(page.getByTestId('message-assistant')).toHaveAttribute('data-status', 'synced');
+    await editor.click();
+    await expect(ghost).toHaveCount(0);
+    await page.evaluate(({ fixture, text }) => {
+      (window as any).__openmatesE2ELifecycle.emit('post_processing_completed', {
+        chat_id: fixture.chat_id, task_id: fixture.task_id, user_message_id: fixture.user_message_id,
+        follow_up_request_suggestions: [text], new_chat_request_suggestions: [],
+        chat_summary: '', chat_tags: [], harmful_response: 0,
+      });
+    }, { fixture: FIXTURE, text: suggestion });
+    await expect(ghost).toHaveText(suggestion);
+    await expect(editor).toHaveText('');
+    await page.getByTestId('input-dismiss-button').click();
+    await expect(ghost).toHaveCount(0);
+    await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'false');
+    await editor.click();
+    await expect(ghost).toHaveText(suggestion);
+    await editor.press('Tab');
+    await expect(editor).toHaveText(suggestion);
+    await expect(ghost).toHaveCount(0);
+    await editor.fill('My independently owned next question');
+    await page.evaluate(({ fixture }) => {
+      (window as any).__openmatesE2ELifecycle.emit('post_processing_completed', {
+        chat_id: fixture.chat_id, task_id: fixture.task_id, user_message_id: fixture.user_message_id,
+        follow_up_request_suggestions: ['A duplicate must not replace this draft'],
+        new_chat_request_suggestions: [], chat_summary: '', chat_tags: [], harmful_response: 0,
+      });
+    }, { fixture: FIXTURE });
+    await expect(editor).toHaveText('My independently owned next question');
+    await expect(ghost).toHaveCount(0);
   });
 
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.accessible-responsive,chat-processing-feedback.response-container-glow

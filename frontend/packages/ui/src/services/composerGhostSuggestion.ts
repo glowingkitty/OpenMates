@@ -1,4 +1,6 @@
-import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
+import { BoundedCache } from "../utils/boundedCache";
+import { registerWorkspaceCacheClear, getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 import { isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
 import { get } from 'svelte/store';
 import type { Chat, AIMessageUpdatePayload } from '../types/chat';
@@ -49,16 +51,102 @@ export async function decryptComposerGhostSuggestion(chat: Chat): Promise<Compos
   return plaintext ? decodeComposerGhostSuggestion(plaintext) : null;
 }
 
+// Only successful final IDs survive until correlated post-processing arrives.
+// No answer text or suggestion plaintext is retained in this bounded cache.
+interface CompletedSource {
+  messageId: string;
+  taskId: string;
+  userMessageId: string;
+  epoch: number;
+  revision: number;
+  main: boolean;
+  fallback: boolean;
+  writes: Promise<void>;
+}
+const completedSources = new BoundedCache<string, CompletedSource>(128 * 1024, 256);
+registerWorkspaceCacheClear(() => completedSources.clear());
+
+export interface ComposerFallbackPayload {
+  chat_id: string;
+  task_id: string;
+  user_message_id?: string;
+  turn_id?: string;
+  follow_up_request_suggestions: unknown;
+  harmful_response: number;
+}
+
+export async function persistPostProcessingComposerFallback(
+  payload: ComposerFallbackPayload,
+  serviceInstance: ChatSynchronizationService,
+  dispatch: (suggestion: ComposerGhostSuggestion) => void,
+): Promise<void> {
+  const source = completedSources.get(payload.chat_id);
+  if (!source || source.epoch !== getWorkspaceCacheEpoch() || source.main || source.fallback ||
+      source.taskId !== payload.task_id || source.userMessageId !== payload.user_message_id ||
+      payload.harmful_response !== 0 || !Array.isArray(payload.follow_up_request_suggestions)) return;
+  const text = payload.follow_up_request_suggestions.find((value: unknown) =>
+    typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 400)?.trim();
+  if (!text) return;
+  source.fallback = true;
+  const final = { chat_id: payload.chat_id, message_id: source.messageId, task_id: source.taskId,
+    user_message_id: source.userMessageId, is_final_chunk: true, suggested_followup_message: text } as AIMessageUpdatePayload;
+  await queueSuggestion(final, serviceInstance, dispatch, source);
+}
+
 export async function persistComposerGhostSuggestion(
   payload: AIMessageUpdatePayload,
   serviceInstance: ChatSynchronizationService,
   dispatch: (suggestion: ComposerGhostSuggestion) => void,
 ): Promise<void> {
+  if (!payload.is_final_chunk || payload.awaiting_async_skill_continuation ||
+      payload.interrupted_by_revocation || payload.interrupted_by_soft_limit || payload.rejection_reason ||
+      !payload.message_id || !payload.task_id || !payload.user_message_id ||
+      !isChatMetadataTurnCurrent(payload.chat_id, payload.task_id, payload.user_message_id) ||
+      (serviceInstance.activeAITasks.get(payload.chat_id) &&
+       serviceInstance.activeAITasks.get(payload.chat_id)?.taskId !== payload.task_id)) return;
+  let source = completedSources.get(payload.chat_id);
+  if (!source || source.epoch !== getWorkspaceCacheEpoch() || source.messageId !== payload.message_id ||
+      source.taskId !== payload.task_id || source.userMessageId !== payload.user_message_id) {
+    source = { messageId: payload.message_id, taskId: payload.task_id, userMessageId: payload.user_message_id,
+      epoch: getWorkspaceCacheEpoch(), revision: 0, main: false, fallback: false, writes: Promise.resolve() };
+    completedSources.set(payload.chat_id, source);
+  }
+  const text = payload.suggested_followup_message?.trim();
+  if (!text || text.length > 400 || source.main) return;
+  source.main = true;
+  source.revision++;
+  await queueSuggestion(payload, serviceInstance, dispatch, source);
+}
+
+async function queueSuggestion(
+  payload: AIMessageUpdatePayload,
+  serviceInstance: ChatSynchronizationService,
+  dispatch: (suggestion: ComposerGhostSuggestion) => void,
+  source: CompletedSource,
+): Promise<void> {
+  const revision = source.revision;
+  const validSource = () => source.epoch === getWorkspaceCacheEpoch()
+    && completedSources.get(payload.chat_id) === source && source.revision === revision;
+  // Serialize writes so an already-started fallback transaction can never finish
+  // after the main suggestion's transaction and replace it.
+  const write = source.writes.catch(() => undefined).then(() =>
+    persistSuggestion(payload, serviceInstance, dispatch, validSource));
+  source.writes = write;
+  await write;
+}
+
+async function persistSuggestion(
+  payload: AIMessageUpdatePayload,
+  serviceInstance: ChatSynchronizationService,
+  dispatch: (suggestion: ComposerGhostSuggestion) => void,
+  validSource: () => boolean,
+): Promise<void> {
   const ownerEpoch = getWorkspaceCacheEpoch();
-  const isCurrent = () => ownerEpoch === getWorkspaceCacheEpoch()
+  const isCurrent = () => validSource() && ownerEpoch === getWorkspaceCacheEpoch()
     && isChatMetadataTurnCurrent(payload.chat_id, payload.task_id, payload.user_message_id)
     && (!serviceInstance.activeAITasks.get(payload.chat_id)
       || serviceInstance.activeAITasks.get(payload.chat_id)?.taskId === payload.task_id);
+  if (!isCurrent()) return;
   const text = payload.suggested_followup_message?.trim();
   if (!text || text.length > 400 || !payload.is_final_chunk ||
       payload.awaiting_async_skill_continuation || payload.interrupted_by_revocation ||
@@ -85,15 +173,17 @@ export async function persistComposerGhostSuggestion(
   // leave a suggestion in the next account's local chat projection.
   const latest = await chatDB.getChat(payload.chat_id);
   if (!isCurrent() || !latest || !latest.encrypted_chat_key || !chatAllowsComposerGhostSuggestion(latest)) return;
-  latest.encrypted_suggested_followup_message = encrypted;
-  await chatDB.updateChat(latest);
+  const persisted = await persistGeneratedChatMetadata(chatDB, latest,
+    { encrypted_suggested_followup_message: encrypted },
+    () => isCurrent() && chatAllowsComposerGhostSuggestion(latest));
+  if (!persisted || !isCurrent() || !chatAllowsComposerGhostSuggestion(persisted)) return;
   const outgoing = {
     chat_id: payload.chat_id,
     source_message_id: payload.message_id,
     source_user_message_id: payload.user_message_id,
     source_task_id: payload.task_id,
-    encrypted_chat_key: latest.encrypted_chat_key,
-    team_id: latest.team_id ?? null,
+    encrypted_chat_key: persisted.encrypted_chat_key,
+    team_id: persisted.team_id ?? null,
     encrypted_suggested_followup_message: encrypted,
   };
   let storageConfirmed = false;

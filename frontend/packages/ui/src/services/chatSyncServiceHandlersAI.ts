@@ -19,7 +19,7 @@ import type { EmbedType } from "../message_parsing/types";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
-import { persistComposerGhostSuggestion } from "./composerGhostSuggestion";
+import { persistComposerGhostSuggestion, persistPostProcessingComposerFallback } from "./composerGhostSuggestion";
 import { normalizeToUnixSeconds } from "./timestampUtils";
 import { persistClientEncryptedEmbedDiffRows } from "./streamedEmbedRevisionHistory";
 import { recordRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
@@ -770,8 +770,8 @@ export function handleAIMessageUpdateImpl(
 
     completeChatMetadataTurn(payload.chat_id, payload.task_id);
 
-    // The suggestion is authored in this successful turn, never as a typing-time
-    // inference. It remains separate from postprocessed request chips.
+    // Remember the successful final source even without a main suggestion, so
+    // this turn's fresh post-processing can supply an encrypted fallback.
     void persistComposerGhostSuggestion(payload, serviceInstance, (suggestion) => {
       serviceInstance.dispatchEvent(new CustomEvent("composerGhostSuggestion", {
         detail: { chat_id: payload.chat_id, ...suggestion },
@@ -2661,6 +2661,13 @@ export async function handlePostProcessingCompletedImpl(
         `[ChatSyncService:AI] Ignoring post-processing results for deleted/missing chat ${payload.chat_id}`,
       );
       return;
+    }
+    if (ownerIsCurrent() && turnIsCurrent()) {
+      void persistPostProcessingComposerFallback(payload, serviceInstance, (suggestion) => {
+        serviceInstance.dispatchEvent(new CustomEvent("composerGhostSuggestion", {
+          detail: { chat_id: payload.chat_id, ...suggestion },
+        }));
+      }).catch((error) => console.warn("[ChatSyncService:AI] Could not save encrypted composer fallback", error));
     }
     const sourceMetadataV =
       typeof payload.source_metadata_v === "number" &&
