@@ -15,6 +15,13 @@ Streaming usage requires `stream_options.include_usage: true`. Cached prompt and
 reasoning token detail counts are subsets of prompt and completion totals,
 respectively; do not double count them.
 
+Direct API tests encountered shared free-tier capacity HTTP 429 on 2026-10-20.
+This is a provider capacity limitation; transcript correction enablement remains
+pending direct-API quality verification. Synthetic OpenRouter benchmarks are
+authorized only to inform the decision about upgrading the direct Inception
+account. Product requests remain direct; gateway results do not establish
+direct-API latency or capacity.
+
 Credentials belong in Vault at `kv/data/providers/inception_labs`, key `api_key`.
 The environment convention is `SECRET__INCEPTION_LABS__API_KEY`. Do not commit
 credentials or print them in diagnostics. Vault access was verified during integration. The local `.env` value is the

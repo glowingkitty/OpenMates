@@ -89,3 +89,52 @@ def test_report_is_private_and_no_usage_never_claims_zero_cost(tmp_path):
     metrics = {}
     author.price(metrics)
     assert metrics == {'usage_complete': False, 'estimated_cost_usd': None}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('effort', ['none', 'low'])
+async def test_gateway_uses_native_schema_and_explicit_inception_route(effort):
+    captured = []
+    schema = {'type': 'object', 'properties': {'workflows': {'type': 'array'}}}
+    def handler(request):
+        captured.append(request)
+        event = {'provider': 'Inception', 'model': 'inception/mercury-3',
+                 'choices': [{'delta': {'content': '{}'}, 'finish_reason': 'stop'}],
+                 'usage': {'prompt_tokens': 10, 'completion_tokens': 20, 'cost': .000006}}
+        return httpx.Response(200, content='data: ' + json.dumps(event) + '\n\n')
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as upstream:
+        author = BenchAuthor(None, upstream, 'mercury-openrouter-' + effort, 'fake')
+        response = await author.client.post('https://parser-envelope.test', json={
+            'generationConfig': {'responseJsonSchema': schema},
+            'systemInstruction': {'parts': [{'text': 'native system'}]},
+            'contents': [{'parts': [{'text': 'native user'}]}]})
+        assert response.status_code == 200
+        metrics = {}
+        author.price(metrics)
+        assert metrics['provider_reported_cost_usd'] == .000006
+        assert metrics['observed_provider'] == 'Inception'
+        assert metrics['observed_model'] == 'inception/mercury-3'
+        assert metrics['transport'] == 'openrouter'
+        await author.close()
+    request = captured[0]
+    body = json.loads(request.content)
+    assert str(request.url) == 'https://openrouter.ai/api/v1/chat/completions'
+    assert body['model'] == 'inception/mercury-3'
+    assert body['reasoning'] == {'effort': effort}
+    assert body['max_tokens'] == 8192
+    assert 'max_completion_tokens' not in body and 'reasoning_effort' not in body
+    assert body['provider'] == {'only': ['inception'], 'allow_fallbacks': False,
+                                'require_parameters': True, 'data_collection': 'deny'}
+    assert body['response_format']['json_schema']['schema'] == schema
+    assert body['messages'][0]['content'] == 'native system'
+    assert body['messages'][1]['content'] == 'native user'
+    assert body['temperature'] == .5
+
+
+@pytest.mark.asyncio
+async def test_gateway_loads_only_selected_transport_credentials():
+    manager = type('Secrets', (), {'get_secret': AsyncMock(return_value='fake')})()
+    assert await selected_provider_keys(manager, ['gemini', 'mercury-openrouter-none',
+                                                 'mercury-openrouter-low']) == {'openrouter': 'fake'}
+    manager.get_secret.assert_awaited_once_with(
+        secret_path='kv/data/providers/openrouter', secret_key='api_key')

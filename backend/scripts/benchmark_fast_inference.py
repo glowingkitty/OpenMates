@@ -26,13 +26,15 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.gemini_transcript_correction import (
     GEMINI_TRANSCRIPT_TOOL_NAME, build_transcript_correction_prompt,
 )
-from backend.scripts.benchmark_workflow_authoring_models import write_report
+from backend.scripts.benchmark_workflow_authoring_models import gateway_payload, write_report
 
 ARMS = {
     'gemini-3.5': ('google_ai_studio', 'gemini-3.5-flash', None, (1.50, 9.00)),
     'gemini-3.8-low': ('google_ai_studio', 'gemini-3.8-flash', 'low', (0.75, 3.75)),
     'mercury-instant': ('inception_labs', 'mercury-3', 'instant', (0.10, 0.35)),
     'mercury-low': ('inception_labs', 'mercury-3', 'low', (0.10, 0.35)),
+    'mercury-openrouter-none': ('openrouter', 'inception/mercury-3', 'none', (0.10, 0.35)),
+    'mercury-openrouter-low': ('openrouter', 'inception/mercury-3', 'low', (0.10, 0.35)),
 }
 MERCURY_REGULAR_PRICES = (0.20, 0.70)
 
@@ -160,6 +162,8 @@ def request_for(case: Case, arm: str) -> tuple[str, dict[str, Any]]:
         body['tools'] = [{'type': 'function', 'function': {'name': GEMINI_TRANSCRIPT_TOOL_NAME,
             'description': 'Return the cleaned transcript and compact display title.', 'parameters': schema}}]
         body['tool_choice'] = {'type': 'function', 'function': {'name': GEMINI_TRANSCRIPT_TOOL_NAME}}
+    if provider == 'openrouter':
+        return 'https://openrouter.ai/api/v1/chat/completions', gateway_payload(body, reasoning)
     return 'https://api.inceptionlabs.ai/v1/chat/completions', body
 
 
@@ -181,7 +185,8 @@ def usage_cost(arm: str, usage: dict[str, Any] | None) -> dict[str, Any]:
         return round((input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000, 8) if complete else None
     return {'usage_complete': complete, 'input_tokens': input_tokens, 'output_tokens': output_tokens,
             'thinking_tokens': thinking, 'estimated_cost_usd': cost(prices),
-            'regular_cost_usd': cost(MERCURY_REGULAR_PRICES) if provider == 'inception_labs' else None}
+            'regular_cost_usd': cost(MERCURY_REGULAR_PRICES) if provider == 'inception_labs' else None,
+            'provider_reported_cost_usd': usage.get('cost') if provider == 'openrouter' else None}
 
 
 async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) -> dict[str, Any]:
@@ -190,7 +195,7 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
     url, body = request_for(case, arm)
     headers = {'x-goog-api-key': key} if provider == 'google_ai_studio' else {'Authorization': 'Bearer ' + key}
     row: dict[str, Any] = {'case': case.id, 'task': case.task, 'arm': arm,
-                            'exact_input': case.text, 'ttft_ms': None, 'first_tool_arguments_ms': None,
+                            'transport': provider, 'exact_input': case.text, 'ttft_ms': None, 'first_tool_arguments_ms': None,
                             'task_pass': False, 'usage': None}
     text, tool_args, tool_name = '', '', ''
     google_args = None
@@ -208,6 +213,9 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
                 if not data or data == '[DONE]':
                     continue
                 event = json.loads(data)
+                for identity in ('provider', 'model'):
+                    if event.get(identity):
+                        row['observed_' + identity] = event[identity]
                 if event.get('error'):
                     raise ValueError('provider_stream_error')
                 fragments, argument_fragment = [], None
@@ -276,7 +284,7 @@ async def run(args: argparse.Namespace) -> None:
         raise ValueError('Unknown or duplicate case')
     report = {'revision': args.revision, 'arms': {arm: ARMS[arm] for arm in args.arms},
               'mercury_regular_prices_usd_per_million': MERCURY_REGULAR_PRICES,
-              'timing_scope': 'Direct streamed provider requests, excluding Vault, auth, ASR, persistence and UI; correction production Gemini transport is nonstreaming.',
+              'timing_scope': 'Streamed provider requests; OpenRouter arms include gateway transit, direct arms do not; excluding Vault, auth, ASR, persistence and UI; correction production Gemini transport is nonstreaming.',
               'oracle_scope': 'Finite synthetic required/forbidden fact patterns and output bounds; no statistical or general quality guarantee.',
               'ttft_definition': 'First nonempty authored text delta, excluding tool arguments and reasoning. Tool-only responses retain null TTFT.',
               'no_product_writes': True, 'results': []}
@@ -310,7 +318,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-paid-dev-inference', action='store_true')
     parser.add_argument('--revision', required=True)
-    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=list(ARMS))
+    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini-3.5', 'gemini-3.8-low', 'mercury-openrouter-none', 'mercury-openrouter-low'])
     parser.add_argument('--cases', nargs='+')
     parser.add_argument('--repeats', type=int, choices=(1, 2), default=2)
     parser.add_argument('--output', type=Path, default=Path('/tmp/fast-inference-comparison.json'))

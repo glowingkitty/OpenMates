@@ -59,7 +59,8 @@ def test_usage_distinguishes_missing_from_reported_and_counts_reasoning_once():
 
 
 @pytest.mark.asyncio
-async def test_tool_only_response_records_arguments_not_text_ttft():
+@pytest.mark.parametrize('arm', ['mercury-instant', 'mercury-openrouter-none'])
+async def test_tool_only_response_records_arguments_not_text_ttft(arm):
     output = {'title': 'Blue boxes for Lea', 'corrected_transcript':
               'Ask Lea to order blue boxes under 47 euros by Friday. Do not include used items.'}
     events = [
@@ -68,18 +69,23 @@ async def test_tool_only_response_records_arguments_not_text_ttft():
             'name': 'finalize_transcript', 'arguments': json.dumps(output)[:15]}}]}}]},
         {'choices': [{'delta': {'tool_calls': [{'index': 0, 'function': {
             'arguments': json.dumps(output)[15:]}}]}, 'finish_reason': 'tool_calls'}]},
-        {'choices': [], 'usage': {'prompt_tokens': 100, 'completion_tokens': 200}},
+        {'provider': 'Inception', 'model': 'inception/mercury-3', 'choices': [],
+         'usage': {'prompt_tokens': 100, 'completion_tokens': 200, 'cost': .000051}},
     ]
     def handler(request):
         assert request.headers['Authorization'] == 'Bearer fake'
         return httpx.Response(200, content=''.join('data: '+json.dumps(event)+'\n\n' for event in events))
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        row = await run_case(client, 'fake', CASES[0], 'mercury-instant')
+        row = await run_case(client, 'fake', CASES[0], arm)
     assert row['task_pass'] is True
     assert row['ttft_ms'] is None
     assert row['first_tool_arguments_ms'] is not None
     assert row['output'] == output
     assert row['usage_complete'] is True
+    if 'openrouter' in arm:
+        assert row['provider_reported_cost_usd'] == .000051
+        assert row['observed_provider'] == 'Inception'
+        assert row['transport'] == 'openrouter'
 
 
 @pytest.mark.asyncio
@@ -121,3 +127,24 @@ def test_cli_denies_ci_even_with_opt_in():
         '--allow-paid-dev-inference', '--revision', 'test'], env={**os.environ, 'CI': 'true'}, capture_output=True, text=True)
     assert result.returncode == 2
     assert 'never run in CI' in result.stderr
+
+
+@pytest.mark.parametrize('effort', ['none', 'low'])
+def test_gateway_correction_preserves_direct_prompt_tools_and_schema(effort):
+    _, direct = request_for(CASES[0], 'mercury-low')
+    url, gateway = request_for(CASES[0], 'mercury-openrouter-' + effort)
+    assert url == 'https://openrouter.ai/api/v1/chat/completions'
+    assert gateway['model'] == 'inception/mercury-3'
+    assert gateway['max_tokens'] == direct['max_completion_tokens'] == 8192
+    assert gateway['reasoning'] == {'effort': effort}
+    assert 'reasoning_effort' not in gateway and 'max_completion_tokens' not in gateway
+    assert gateway['provider'] == {'only': ['inception'], 'allow_fallbacks': False,
+                                   'require_parameters': True, 'data_collection': 'deny'}
+    for field in ('messages', 'tools', 'tool_choice', 'temperature', 'stream', 'stream_options'):
+        assert gateway[field] == direct[field]
+    costs = usage_cost('mercury-openrouter-' + effort,
+                      {'prompt_tokens': 100, 'completion_tokens': 200, 'cost': .000051,
+                       'completion_tokens_details': {'reasoning_tokens': 50}})
+    assert costs['provider_reported_cost_usd'] == .000051
+    assert costs['estimated_cost_usd'] == .00008
+    assert costs['regular_cost_usd'] is None

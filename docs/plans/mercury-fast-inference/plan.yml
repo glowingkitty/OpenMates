@@ -13,6 +13,7 @@ scope:
     - Direct Mercury 3 text, tool-call and streaming adapter with authoritative usage and pricing.
     - Vault-first credentials and explicit provider availability, with current automatic routing preserved.
     - Paired synthetic transcript and bounded generation benchmarks against Gemini 3.8 Flash and the current correction baseline.
+    - Synthetic-only Mercury benchmarks through OpenRouter, explicitly authorized to inform a paid direct-account decision; pin Inception and label gateway timings separately.
     - Workflow author evaluation through the existing compiler, prefix validation and semantic oracle; no workflow model replacement in this phase.
     - Mercury-first ordinary audio correction with bounded Gemini fallback, actual model attribution and original transcript preservation.
     - Provider privacy disclosure and reproducible private benchmark reports.
@@ -20,6 +21,7 @@ scope:
     - Default chat routing or account model changes.
     - Replacing Jev decisions or enabling workflow transcript correction by default.
     - Production deployment or changes to real user workflows.
+    - OpenRouter as a product Mercury route or automatic replacement for direct Inception access.
 contracts:
   api:
     - GET https://api.inceptionlabs.ai/v1/models uses Bearer authentication and provides a nonbilling availability probe; listing alone does not prove generation access.
@@ -42,6 +44,8 @@ verification:
 evidence:
   api_access: Vault-backed mercury-3 replied API_ACCESS_OK in 1.255 seconds on 2026-10-20; the local environment contains the normal IMPORTED_TO_VAULT marker rather than an API credential.
   training_opt_out: The account owner explicitly confirmed on 2026-10-20 that Improve the model for everyone is OFF in the Inception API Platform.
+  direct_capacity: Subsequent direct requests returned HTTP 429 shared free-tier capacity errors. Product Mercury routing remains direct, and transcript enablement awaits usable direct capacity and verification.
+  benchmark_transport: The user explicitly authorized OpenRouter for synthetic benchmarking only on 2026-10-20, to decide whether to upgrade the direct Inception account. Gateway timing and capacity cannot establish direct API performance.
   sources:
     - https://www.inceptionlabs.ai/blog/introducing-mercury-3
     - https://docs.inceptionlabs.ai/get-started/models

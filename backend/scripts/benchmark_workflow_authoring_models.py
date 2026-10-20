@@ -43,13 +43,39 @@ ARMS.update({name + '-full': settings for name, settings in list(ARMS.items()) i
 ARMS.update({
     'mercury-instant': ('inception_labs', 'mercury-3', (0.10, 0.35)),
     'mercury-low': ('inception_labs', 'mercury-3', (0.10, 0.35)),
+    'mercury-openrouter-none': ('openrouter', 'inception/mercury-3', (0.10, 0.35)),
+    'mercury-openrouter-low': ('openrouter', 'inception/mercury-3', (0.10, 0.35)),
 })
 MERCURY_REGULAR_PRICES = (0.20, 0.70)
 ENDPOINTS = {
     'cerebras': 'https://api.cerebras.ai/v1/chat/completions',
     'groq': 'https://api.groq.com/openai/v1/chat/completions',
     'inception_labs': 'https://api.inceptionlabs.ai/v1/chat/completions',
+    'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
 }
+
+
+def gateway_payload(payload: dict, effort: str) -> dict:
+    """Pin benchmark-only gateway requests to Inception; never alter product routing.
+
+    OpenRouter documents effort none/low at:
+    https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
+    Gateway timing includes gateway transit and is not direct API timing.
+    """
+    body = deepcopy(payload)
+    body['model'] = 'inception/mercury-3'
+    body['max_tokens'] = body.pop('max_completion_tokens')
+    body.pop('reasoning_effort', None)
+    body['reasoning'] = {'effort': effort}
+    body['provider'] = {'only': ['inception'], 'allow_fallbacks': False,
+                        'require_parameters': True, 'data_collection': 'deny'}
+    return body
+
+
+def arm_reasoning(arm: str, default: str = 'low') -> str:
+    if arm.startswith('mercury-openrouter-'):
+        return arm.removeprefix('mercury-openrouter-')
+    return arm.removeprefix('mercury-') if arm.startswith('mercury-') else default
 
 
 async def selected_provider_keys(manager, arms):
@@ -173,6 +199,9 @@ class ConvertedStream(httpx.AsyncByteStream):
             if not data or data == '[DONE]':
                 continue
             event = json.loads(data)
+            for identity in ('provider', 'model'):
+                if event.get(identity):
+                    self.stats['observed_' + identity] = event[identity]
             if event.get('error'):
                 yield b'data: {"error":{"status":"provider_stream_error"}}\n\n'
                 continue
@@ -265,7 +294,7 @@ class OpenAITransport(httpx.AsyncBaseTransport):
             fmt = {'type': 'json_schema', 'json_schema': {
                 'name': 'workflow_authoring', 'strict': True, 'schema': strict_full_schema(schema)}}
             system += '\nFor the strict transport, encode unused optional fields as null. The backend removes optional null fields before validation. Preserve header before nodes.'
-        elif self.provider == 'inception_labs':
+        elif self.provider in {'inception_labs', 'openrouter'}:
             fmt = {'type': 'json_schema', 'json_schema': {
                 'name': 'workflow_authoring', 'strict': True, 'schema': schema}}
         elif self.provider == 'cerebras':
@@ -278,12 +307,14 @@ class OpenAITransport(httpx.AsyncBaseTransport):
                    {'role': 'user', 'content': user}], 'stream': not self.full,
                    'response_format': fmt,
                    'max_completion_tokens': 8192,
-                   'temperature': 0.5 if self.provider == 'inception_labs' else 1.0,
+                   'temperature': 0.5 if self.provider in {'inception_labs', 'openrouter'} else 1.0,
                    'reasoning_effort': self.reasoning}
         if self.provider == 'cerebras':
             payload['reasoning_format'] = 'parsed'
         if not self.full:
             payload['stream_options'] = {'include_usage': True}
+        if self.provider == 'openrouter':
+            payload = gateway_payload(payload, self.reasoning)
         endpoint = ENDPOINTS[self.provider]
         started = time.perf_counter()
         stats: dict = {'first_content_ms': None, 'usage': None}
@@ -330,7 +361,7 @@ class OpenAITransport(httpx.AsyncBaseTransport):
 class BenchAuthor:
     def __init__(self, manager, client, arm, key, reasoning='low', profile='native'):
         self.arm, self.provider, self.model, self.prices = arm, *ARMS[arm]
-        self.reasoning = arm.removeprefix('mercury-') if arm.startswith('mercury-') else reasoning
+        self.reasoning = arm_reasoning(arm, reasoning)
         self.bridge = None if arm == 'gemini' else OpenAITransport(client, self.provider, self.model, key, self.reasoning, full=arm.endswith('-full'), profile=profile)
         self.transport = self.bridge or GoogleRecordingTransport(client)
         self.client = httpx.AsyncClient(transport=self.transport, timeout=45)
@@ -353,6 +384,10 @@ class BenchAuthor:
             metrics['estimated_cost_usd'] = None
             return
         details = self.transport.attempts[-1]
+        metrics['transport'] = self.provider
+        metrics['observed_provider'] = details.get('observed_provider')
+        metrics['observed_model'] = details.get('observed_model')
+        metrics['provider_reported_cost_usd'] = (details.get('usage') or {}).get('cost')
         metrics['first_content_ms'] = details.get('first_content_ms')
         if not details.get('usage'):
             metrics['usage_complete'] = False
@@ -399,7 +434,7 @@ async def run(args):
     manager = SecretsManager()
     await manager.initialize()
     report = {'revision': args.revision, 'arms': {k: ARMS[k] for k in args.arms},
-              'reasoning_effort': {arm: arm.removeprefix('mercury-') if arm.startswith('mercury-') else args.reasoning for arm in args.arms},
+              'reasoning_effort': {arm: arm_reasoning(arm, args.reasoning) for arm in args.arms},
               'mercury_prices_usd_per_million': {'promotional': (0.10, 0.35), 'regular': MERCURY_REGULAR_PRICES},
               'profile': args.profile, 'in_memory_only': True, 'selections': [], 'results': []}
     selected_cases = [c for c in cases() if not args.cases or c.id in args.cases]
@@ -485,7 +520,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-paid-dev-inference', action='store_true')
     parser.add_argument('--revision', required=True)
-    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini','mercury-instant','mercury-low'])
+    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini','mercury-openrouter-none','mercury-openrouter-low'])
     parser.add_argument('--cases', nargs='+')
     parser.add_argument('--selection-report', type=Path, help='Reuse measured Jev decisions for an exactly paired author comparison')
     parser.add_argument('--repeats', type=int, default=2, choices=(1,2))
