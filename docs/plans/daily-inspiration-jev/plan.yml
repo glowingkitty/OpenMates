@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: daily-inspiration-jev
 title: Qualify Mercury daily inspirations with bounded retry and Gemini Flash Lite recovery
-status: implementing
+status: verified
 goal: >-
   test again - with 2nd attempt using mercury 3 if first attempt fails, then fallback to gemini 3.5 flash light.
   Explain what the LLM generates, Jev decisions and current multilingual daily inspirations;
@@ -31,7 +31,17 @@ evidence:
     source: 0fe379386057cf4a378c8ba65316b4001ace02ca
     harness: 9bc40b22b2c6246791301798b2bd42382eb819b7
     browser_request: 842059e203ba2c76cfffb49198a99f60d964684818ab30ff197339b6252a36d1
-    live_results: pending
+    corrected_browser_request: 01dcb206ed3f539f09eef8722b0877d7d8fe89ecadc1e1bbbaa63f9d3db9212c
+    browser_source: aa38f372a27827cf97fb392c99829d027166a542
+    browser_harness: 96f2dcf1ccab15a56745d128924c3372bcf48d01
+    browser_result: https://github.com/glowingkitty/OpenMates/actions/runs/39465871355; both cases passed and recordings uploaded.
+    implementation_commit: 6ca5b49de24f5e6a797b17bc1b5447cc7d909634
+    live_results: 11/12 natural cards admitted first pass; 10/10 word-based checks; both forced recoveries admitted; 20 unique Jev controls matched twice.
+    live_limits: Japanese video withheld by existing whole-token coherence filter for both models; one follow-up exceeds strict source-concept scope. Final multilingual sign-off is not claimed.
+    runtime_operation: docker-19af755d; all affected backend consumers running and healthy.
+    continuation_lease: daily-inspiration-recovery-d115-continuation
+    retained_receipts: logs/daily-inspiration-jev/recovery-2026-10-20/{a,b}/receipt.json
+    next_check: Correct Japanese coherence and follow-up scope, then the proposed real-source multilingual batch benchmark; this recommendation is not an execution gate for the bounded retest.
     report: docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
   focused_tests: 39 passed; backend/tests/test_daily_inspiration_{decisions,generator,wiki_generator,video_processor,content_policy,public_defaults,language}.py
   lint: sessions.py lint --session d115 passed, including the touched TypeScript spec.

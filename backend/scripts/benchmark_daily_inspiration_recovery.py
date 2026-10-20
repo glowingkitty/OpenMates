@@ -101,7 +101,8 @@ async def run(options):
                     controls.append({"kind": field, "case": case[0], "expected": case[-1],
                                      "actual": answers[f"candidate_{index:03d}_{field}"]["choice"]})
 
-            cases = [(source, kind, "natural") for source in SOURCES for kind in ("video", "wiki")]
+            selected_sources = [source for source in SOURCES if not options.case or source["id"] in options.case]
+            cases = [(source, kind, "natural") for source in selected_sources for kind in ("video", "wiki")]
             cases += [(SOURCES[0], "video", "force_second_attempt"),
                       (SOURCES[2], "wiki", "force_gemini_fallback")]
             for source, kind, scenario in cases:
@@ -191,6 +192,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--case", action="append", choices=[source["id"] for source in SOURCES],
+                        help="Continue selected unfinished source cases; forced-recovery cases still run.")
     options = parser.parse_args()
     if options.execute:
         logging.basicConfig(level=logging.ERROR)
