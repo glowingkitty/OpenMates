@@ -5,6 +5,7 @@ and synthetic existing graphs are shared across arms; Jev runs once per case.
 No workflow, account, wallet or schedule is changed. Strict Cerebras and streaming
 Groq and Mercury JSON transport reuse the actual Gemini parser, compiler and correction loop.
 Usage includes reasoning and retries; reports are private and mode 0600.
+The first HTTP 429 saves a partial report and stops all remaining arms/cases.
 Usage: python -m backend.scripts.benchmark_workflow_authoring_models --allow-paid-dev-inference
 """
 from __future__ import annotations
@@ -53,6 +54,21 @@ ENDPOINTS = {
     'inception_labs': 'https://api.inceptionlabs.ai/v1/chat/completions',
     'openrouter': 'https://openrouter.ai/api/v1/chat/completions',
 }
+
+
+class BenchmarkAvailabilityStop(RuntimeError):
+    """End this benchmark before the planner retries a rate-limited provider."""
+
+
+def mark_availability_stop(report: dict, row: dict, transport: str) -> None:
+    """Retain the attempted row and count unexecuted work separately from quality."""
+    row.update(availability_status='rate_limited', quality_evaluated=False)
+    report.update(partial=True, stop_reason='http_429', availability_stop={
+        'transport': transport, 'arm': row['arm'], 'case': row['case'],
+        'repeat': row['repeat'], 'http_status': 429,
+    }, skipped_results=report['planned_results'] - len(report['results']))
+    print(json.dumps({'availability_stop': report['availability_stop'], 'partial': True,
+                      'skipped_results': report['skipped_results']}), flush=True)
 
 
 def gateway_payload(payload: dict, effort: str) -> dict:
@@ -267,6 +283,9 @@ class GoogleRecordingTransport(httpx.AsyncBaseTransport):
         self.attempts.append(stats)
         response = await self.client.send(request, stream=True)
         stats['http_status'] = response.status_code
+        if response.status_code == 429:
+            await response.aclose()
+            raise BenchmarkAvailabilityStop('http_429')
         headers = {key: value for key, value in response.headers.items()
                    if key.lower() not in {'content-encoding', 'content-length'}}
         return httpx.Response(response.status_code, headers=headers,
@@ -333,6 +352,8 @@ class OpenAITransport(httpx.AsyncBaseTransport):
             except (ValueError, AttributeError):
                 pass
             await response.aclose()
+            if response.status_code == 429:
+                raise BenchmarkAvailabilityStop('http_429')
             return httpx.Response(response.status_code, content=b'provider_request_rejected')
         if self.full:
             await response.aread()
@@ -440,6 +461,8 @@ async def run(args):
     selected_cases = [c for c in cases() if not args.cases or c.id in args.cases]
     if not selected_cases or args.cases and len(selected_cases) != len(set(args.cases)):
         raise ValueError('Unknown or duplicate case')
+    report.update(partial=True, planned_results=len(selected_cases) * args.repeats * len(args.arms),
+                  skipped_results=0)
     original_selector = planner_module.WorkflowAuthoringPreselector
     frozen_selections = ({item['case']: item for item in json.loads(args.selection_report.read_text())['selections']}
                          if args.selection_report else {})
@@ -498,6 +521,9 @@ async def run(args):
                                 graph_valid=plan.get('action') in {'create_workflow', 'update_workflow', 'batch'},
                                 intent_match=not issues and plan.get('action') != 'partial',
                                 plan=plan, metrics=metrics)
+                        except BenchmarkAvailabilityStop:
+                            row.update(http_status=429, graph_valid=None, intent_match=None,
+                                       semantic_issues=[], error_type='BenchmarkAvailabilityStop')
                         except Exception as exc:
                             row.update(error_type=type(exc).__name__, error=str(exc)[:200])
                         finally:
@@ -508,8 +534,13 @@ async def run(args):
                                 provider_attempts=author.transport.attempts)
                             await author.close()
                         report['results'].append(row)
+                        if any(attempt.get('http_status') == 429 for attempt in row['provider_attempts']):
+                            mark_availability_stop(report, row, provider)
+                            write_report(args.output, report)
+                            return
                         write_report(args.output, report)
                         print(json.dumps({k: row.get(k) for k in ('case','arm','repeat','action','reason','graph_valid','intent_match','semantic_issues','wall_ms','first_header_ms','first_node_ms')}, separators=(',', ':')), flush=True)
+        report['partial'] = False
     finally:
         planner_module.WorkflowAuthoringPreselector = original_selector
         await manager.aclose()

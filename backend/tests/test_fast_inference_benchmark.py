@@ -148,3 +148,55 @@ def test_gateway_correction_preserves_direct_prompt_tools_and_schema(effort):
     assert costs['provider_reported_cost_usd'] == .000051
     assert costs['estimated_cost_usd'] == .00008
     assert costs['regular_cost_usd'] is None
+
+
+@pytest.mark.asyncio
+async def test_run_saves_partial_and_stops_all_arms_after_first_429(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from backend.scripts import benchmark_fast_inference as benchmark
+
+    class Secrets:
+        closed = False
+        async def initialize(self):
+            pass
+        async def get_secret(self, **kwargs):
+            return 'fake'
+        async def aclose(self):
+            self.closed = True
+
+    requests = []
+    output = {'title': 'Blue boxes for Lea', 'corrected_transcript':
+              'Ask Lea to order blue boxes under 47 euros by Friday. Do not include used items.'}
+    def handler(request):
+        requests.append(request)
+        if len(requests) == 1:
+            event = {'candidates': [{'content': {'parts': [{'functionCall': {
+                'name': 'finalize_transcript', 'args': output}}]}, 'finishReason': 'STOP'}]}
+            return httpx.Response(200, content='data: ' + json.dumps(event) + '\n\n')
+        return httpx.Response(429, json={'error': {'message': 'capacity'}})
+    real_client = httpx.AsyncClient
+    secrets = Secrets()
+    monkeypatch.setattr(benchmark, 'SecretsManager', lambda: secrets)
+    monkeypatch.setattr(benchmark.httpx, 'AsyncClient', lambda **kwargs: real_client(
+        **kwargs, transport=httpx.MockTransport(handler)))
+    args = SimpleNamespace(revision='mock', cases=[case.id for case in CASES[:2]], repeats=2,
+        arms=['gemini-3.8-low', 'mercury-openrouter-none', 'mercury-openrouter-low'],
+        output=tmp_path / 'partial.json')
+    await benchmark.run(args)
+    report = json.loads(args.output.read_text())
+    assert len(requests) == 2
+    assert secrets.closed
+    assert report['partial'] is True
+    assert report['stop_reason'] == 'http_429'
+    assert report['planned_results'] == 12
+    assert len(report['results']) == 2
+    assert report['skipped_results'] == 10
+    assert report['results'][0]['task_pass'] is True
+    stopped = report['results'][1]
+    assert stopped['http_status'] == 429
+    assert stopped['task_pass'] is None
+    assert stopped['quality_evaluated'] is False
+    assert stopped['oracle_issues'] == []
+    assert report['availability_stop']['transport'] == 'openrouter'
+    assert report['availability_stop']['arm'] == 'mercury-openrouter-none'
+    assert args.output.stat().st_mode & 0o777 == 0o600

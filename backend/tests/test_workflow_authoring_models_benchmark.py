@@ -138,3 +138,62 @@ async def test_gateway_loads_only_selected_transport_credentials():
                                                  'mercury-openrouter-low']) == {'openrouter': 'fake'}
     manager.get_secret.assert_awaited_once_with(
         secret_path='kv/data/providers/openrouter', secret_key='api_key')
+
+
+@pytest.mark.asyncio
+async def test_workflow_run_stops_before_planner_retry_and_saves_partial(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from backend.scripts import benchmark_workflow_authoring_models as benchmark
+    from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
+    from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+
+    class Secrets:
+        closed = False
+        async def initialize(self):
+            pass
+        async def get_secret(self, **kwargs):
+            return 'fake'
+        async def aclose(self):
+            self.closed = True
+
+    registry = WorkflowCapabilityRegistry()
+    selection = WorkflowPreselection(
+        capabilities=[registry.get_capability('shopping.search_products')], operation='create',
+        check_mode='none', chat_delivery=True, scores={}, metrics={}, workflow_count=1)
+    class Selector:
+        def __init__(self, **kwargs):
+            self.registry = registry
+        async def select(self, *args, **kwargs):
+            return selection
+
+    requests = []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(429, json={'error': {'message': 'capacity'}})
+    real_client = httpx.AsyncClient
+    secrets = Secrets()
+    monkeypatch.setattr(benchmark, 'SecretsManager', lambda: secrets)
+    monkeypatch.setattr(benchmark, 'WorkflowAuthoringPreselector', Selector)
+    monkeypatch.setattr(benchmark.planner_module, 'WorkflowAuthoringPreselector', Selector)
+    monkeypatch.setattr(benchmark.httpx, 'AsyncClient', lambda **kwargs: real_client(
+        **kwargs, **({'transport': httpx.MockTransport(handler)} if 'transport' not in kwargs else {})))
+    args = SimpleNamespace(revision='mock', cases=['headphones_filter', 'corrected_rain'], repeats=2,
+        arms=['mercury-openrouter-none', 'mercury-openrouter-low'], selection_report=None,
+        reasoning='low', profile='native', output=tmp_path / 'partial.json')
+    await benchmark.run(args)
+    report = json.loads(args.output.read_text())
+    assert len(requests) == 1  # No production planner correction redispatch after 429.
+    assert secrets.closed
+    assert benchmark.planner_module.WorkflowAuthoringPreselector is Selector
+    assert report['partial'] is True
+    assert report['stop_reason'] == 'http_429'
+    assert report['planned_results'] == 8
+    assert len(report['results']) == 1
+    assert report['skipped_results'] == 7
+    row = report['results'][0]
+    assert row['graph_valid'] is None and row['intent_match'] is None
+    assert row['quality_evaluated'] is False
+    assert len(row['provider_attempts']) == 1
+    assert row['provider_attempts'][0]['http_status'] == 429
+    assert report['availability_stop']['transport'] == 'openrouter'
+    assert args.output.stat().st_mode & 0o777 == 0o600

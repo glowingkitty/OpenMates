@@ -3,7 +3,8 @@
 Run only in the dev API container with Vault credentials. No account, workflow,
 wallet, schedule or chat writes. Reports contain synthetic prompts/results only,
 are mode 0600, and include raw token counts, known costs and explicit missing
-usage. Deterministic oracles check named facts/constraints, not general quality;
+usage. First HTTP 429 saves a partial report and stops every remaining arm/case.
+Deterministic oracles check named facts/constraints, not general quality;
 review the retained outputs before adopting any model. Transcript calls stream
 for measurement; the production Gemini 3.5 call currently does not stream.
 """
@@ -26,7 +27,9 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.gemini_transcript_correction import (
     GEMINI_TRANSCRIPT_TOOL_NAME, build_transcript_correction_prompt,
 )
-from backend.scripts.benchmark_workflow_authoring_models import gateway_payload, write_report
+from backend.scripts.benchmark_workflow_authoring_models import (
+    BenchmarkAvailabilityStop, gateway_payload, mark_availability_stop, write_report,
+)
 
 ARMS = {
     'gemini-3.5': ('google_ai_studio', 'gemini-3.5-flash', None, (1.50, 9.00)),
@@ -204,6 +207,8 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
     try:
         async with client.stream('POST', url, headers=headers, json=body) as response:
             row['http_status'] = response.status_code
+            if response.status_code == 429:
+                raise BenchmarkAvailabilityStop('http_429')
             if response.status_code != 200:
                 raise ValueError('provider_http_' + str(response.status_code))
             async for line in response.aiter_lines():
@@ -268,6 +273,9 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
         row['output'] = output
         row['oracle_issues'] = assess(case, output)
         row['task_pass'] = not row['oracle_issues']
+    except BenchmarkAvailabilityStop:
+        row.update(task_pass=None, oracle_issues=[], availability_status='rate_limited',
+                   quality_evaluated=False, error_type='BenchmarkAvailabilityStop')
     except Exception as exc:
         # Provider bodies/exception strings can contain user content or auth material.
         row['error_type'] = type(exc).__name__
@@ -287,7 +295,8 @@ async def run(args: argparse.Namespace) -> None:
               'timing_scope': 'Streamed provider requests; OpenRouter arms include gateway transit, direct arms do not; excluding Vault, auth, ASR, persistence and UI; correction production Gemini transport is nonstreaming.',
               'oracle_scope': 'Finite synthetic required/forbidden fact patterns and output bounds; no statistical or general quality guarantee.',
               'ttft_definition': 'First nonempty authored text delta, excluding tool arguments and reasoning. Tool-only responses retain null TTFT.',
-              'no_product_writes': True, 'results': []}
+              'no_product_writes': True, 'results': [], 'partial': True,
+              'planned_results': len(selected) * args.repeats * len(args.arms), 'skipped_results': 0}
     manager = SecretsManager()
     await manager.initialize()
     try:
@@ -305,10 +314,15 @@ async def run(args: argparse.Namespace) -> None:
                         row = await run_case(client, keys[ARMS[arm][0]], case, arm)
                         row['repeat'] = repeat
                         report['results'].append(row)
+                        if row.get('http_status') == 429:
+                            mark_availability_stop(report, row, ARMS[arm][0])
+                            write_report(args.output, report)
+                            return
                         write_report(args.output, report)
                         print(json.dumps({field: row.get(field) for field in (
                             'case', 'arm', 'repeat', 'task_pass', 'ttft_ms', 'first_tool_arguments_ms',
                             'total_ms', 'oracle_issues', 'usage_complete', 'estimated_cost_usd')}), flush=True)
+        report['partial'] = False
     finally:
         await manager.aclose()
         write_report(args.output, report)
