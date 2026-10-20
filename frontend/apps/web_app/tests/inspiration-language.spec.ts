@@ -11,6 +11,12 @@ test('German public inspirations remain localized through carousel navigation an
   expect(inspirations.every((item: { language: string }) => item.language === 'de')).toBe(true);
   for (const item of inspirations) {
     expect(item.phrase.trim()).not.toBe('');
+    expect(item.assistant_response.trim()).not.toBe('');
+    // Static wiki/feature recovery intentionally has no generated follow-ups.
+    // The writer's exact-three admission contract is tested at generation.
+    expect(Array.isArray(item.follow_up_suggestions)).toBe(true);
+    expect(item.follow_up_suggestions.length).toBeLessThanOrEqual(3);
+    for (const suggestion of item.follow_up_suggestions) expect(suggestion.trim()).not.toBe('');
     expect(['video', 'wiki', 'feature']).toContain(item.content_type);
     // Editorial decisions stay internal; the public feed retains its source-backed shape.
     expect(item).not.toHaveProperty('editorial_score');

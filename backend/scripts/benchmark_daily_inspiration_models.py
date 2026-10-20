@@ -7,11 +7,9 @@ written. Raw synthetic outputs stay in the requested private receipt directory.
 from __future__ import annotations
 
 import argparse
-import asyncio
 from contextlib import ExitStack
 import hashlib
 import json
-import logging
 import math
 from pathlib import Path
 import re
@@ -319,5 +317,4 @@ if __name__ == "__main__":
     if not options.execute:
         print("Dry run: 12 policy cases per repeat; 6 bilingual sources x 2 content types x 2 writers x repeats. Direct providers only; $1/15-minute guard.")
     else:
-        logging.basicConfig(level=logging.ERROR)
-        asyncio.run(run(options))
+        raise SystemExit("Historical Mistral comparison archived. Use benchmark_daily_inspiration_recovery.py for the current Mercury/Gemini chain.")

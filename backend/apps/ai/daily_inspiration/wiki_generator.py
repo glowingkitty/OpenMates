@@ -18,7 +18,8 @@ from backend.apps.ai.daily_inspiration.content_filter import (
     is_blocked_topic,
 )
 from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES
-from backend.apps.ai.daily_inspiration.config import WRITER_INSTRUCTIONS, writer_model
+from backend.apps.ai.daily_inspiration.config import WRITER_INSTRUCTIONS
+from backend.apps.ai.daily_inspiration.writer import write_reviewed_cards
 from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationWiki
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
@@ -167,26 +168,22 @@ async def generate_wiki_inspirations(
     )}]
 
     messages.insert(0, {"role": "system", "content": WRITER_INSTRUCTIONS})
-    result = await call_preprocessing_llm(
-        observability_purpose="inspiration",
-        task_id=task_id,
-        model_id=writer_model(),
-        message_history=messages,
-        tool_definition=_build_wiki_tool_definition(language),
-        secrets_manager=secrets_manager,
-        fallback_models=[],
-        allow_retries=False,
-        temperature=0.5,
-        max_output_tokens=4096,
+    async def accept(arguments):
+        return await _assemble_wiki_inspirations(
+            arguments["articles"], selected_by_title, sources, count, secrets_manager, task_id,
+        )
+
+    return await write_reviewed_cards(
+        writer_call=call_preprocessing_llm, accept=accept, count=len(selected),
+        collection="articles", task_id=task_id, message_history=messages,
+        tool_definition=_build_wiki_tool_definition(language), secrets_manager=secrets_manager,
     )
-    if result.error_message or not result.arguments:
-        logger.warning("[DailyInspiration][%s] Wiki LLM failed: %s", task_id, result.error_message)
-        return []
 
-    raw_articles = result.arguments.get("articles", [])
-    if not isinstance(raw_articles, list):
-        return []
 
+async def _assemble_wiki_inspirations(
+    raw_articles, selected_by_title, sources, count, secrets_manager, task_id,
+):
+    """Review each copy attempt against the already fetched Wikipedia evidence."""
     now_ts = int(time.time())
     inspirations: List[DailyInspiration] = []
     used_titles = set()

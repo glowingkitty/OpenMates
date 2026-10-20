@@ -1,16 +1,18 @@
 schema_version: 2
 profile: concise
 id: daily-inspiration-jev
-title: Jev daily inspirations with Mistral Small or Mercury 3
-status: verified
+title: Qualify Mercury daily inspirations with bounded retry and Gemini Flash Lite recovery
+status: implementing
 goal: >-
-  implement, test out, benchmark and then decide for deploying one of the setups:
-  jev 1.14 for everything where decision model is enough + mistral small for llm stuff.
-  or jev 1.14 + mercury 3
+  test again - with 2nd attempt using mercury 3 if first attempt fails, then fallback to gemini 3.5 flash light.
+  Explain what the LLM generates, Jev decisions and current multilingual daily inspirations;
+  recommend the next benchmark for the final Mercury plus Jev decision.
 scope_notes:
   - Jev source eligibility, educational ranking, categories and final editorial review for video and Wikipedia cards.
   - Explicit rejection of conspiracy promotion and misleading clickbait, preserving honest educational curiosity and debunking.
-  - Compare the same production writing prompts with direct Mistral Small and Mercury 3, without inference fallbacks.
+  - Mercury 3 LOW is the only primary writer; retry once after transport, malformed copy or editorial/source rejection, then Gemini 3.5 Flash-Lite once.
+  - Keep retrieval fixed and independently review every attempt; distinguish natural fallback from injected-failure coverage.
+  - Preserve provider usage and public outputs in persistent receipts; assess copy quality before price or speed.
   - Preserve ten-card delivery, static recovery, encryption and ordinary chat routing.
 checks:
   - Focused unit/integration regressions for complete decisions, outages, evidence grounding and both content types.
@@ -18,10 +20,19 @@ checks:
   - Bounded real-provider benchmark with model identity, raw public outputs, usage, latency and human review.
   - Select the deployment setup using content safety and usable-card quality before latency and cost.
 decision_notes:
+  - User rejected Mistral on 2026-10-20 because its output was less reliable; availability alone must not outweigh copy quality.
   - User explicitly authorized implementation, comparison and the resulting scoped dev deployment on 2026-10-20.
   - Existing daily-inspiration public-safe feed and language assertions remain applicable; provider/ranking internals are outside that Specification's scope.
   - Gemini Batch and a general shared-pool redesign are outside this two-setup comparison.
 evidence:
+  recovery_qualification:
+    focused_tests: 57 passed across writer, decisions, generators and existing delivery/language regressions.
+    isolated_pytest: https://github.com/glowingkitty/OpenMates/actions/runs/39462228307
+    source: 0fe379386057cf4a378c8ba65316b4001ace02ca
+    harness: 9bc40b22b2c6246791301798b2bd42382eb819b7
+    browser_request: 842059e203ba2c76cfffb49198a99f60d964684818ab30ff197339b6252a36d1
+    live_results: pending
+    report: docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
   focused_tests: 39 passed; backend/tests/test_daily_inspiration_{decisions,generator,wiki_generator,video_processor,content_policy,public_defaults,language}.py
   lint: sessions.py lint --session d115 passed, including the touched TypeScript spec.
   browser:
@@ -32,7 +43,8 @@ evidence:
     result: 2 passed, no skipped or flaky cases; isolated cleanup complete.
     recordings: Both successful recordings uploaded; selected links are delivered in the final chat.
   actual_source_generation: 3 reviewed videos, 3 reviewed wiki cards and 4 static feature tips; source hashes match the published implementation.
-  selected_setup: Jev 1.14 plus Mistral Small; Mercury low had better paired copy but returned HTTP 429 on fresh-topic qualification.
+  prior_setup: Mistral deployment superseded by user correction; its weaker copy quality is disqualifying.
+  candidate_setup: Jev 1.14 plus Mercury LOW, one Mercury retry, then Gemini 3.5 Flash-Lite; qualification pending.
   benchmark_report: docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
   implementation_commit: a0def9059fa52494fca903a5732c35bf19e17902
   final_pool_regression:

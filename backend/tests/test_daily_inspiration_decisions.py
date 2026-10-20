@@ -163,12 +163,12 @@ async def test_oversized_evidence_never_reaches_inference():
     assert await decisions.review_candidates([{"title": "x" * 6001}], Secrets(), client=NoInference()) == []
 
 
-@pytest.mark.parametrize("model", [config.MISTRAL_WRITER, config.MERCURY_WRITER])
+@pytest.mark.parametrize("model", [config.MERCURY_WRITER])
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_writer_selection_is_scoped_and_allowlisted(monkeypatch, model):
     monkeypatch.setenv("DAILY_INSPIRATION_WRITER_MODEL", model)
     assert config.writer_model() == model
-    monkeypatch.setenv("DAILY_INSPIRATION_WRITER_MODEL", "unreviewed/arbitrary-model")
+    monkeypatch.setenv("DAILY_INSPIRATION_WRITER_MODEL", config.MISTRAL_WRITER)
     with pytest.raises(ValueError):
         config.writer_model()
 

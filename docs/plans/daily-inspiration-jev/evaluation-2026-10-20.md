@@ -1,5 +1,7 @@
 # Daily Inspiration setup decision, 2026-10-20
 
+> Superseded by the user’s output-quality correction. Mistral is no longer an allowed primary. See [Mercury recovery qualification](recovery-qualification-2026-10-20.md). The measurements below remain historical.
+
 Deploy **Jev 1.14 + Mistral Small 4** to dev. Mercury 3 low produced more
 consistent copy in the completed paired comparison, but the subsequent fresh-topic
 run received HTTP 429 from direct Inception. Its remaining holdouts were stopped,

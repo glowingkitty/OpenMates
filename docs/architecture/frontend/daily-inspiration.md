@@ -69,14 +69,14 @@ Runs in `app-ai-worker` Celery container:
 2. **Brave Video Search** -- localized YouTube discovery, strict SafeSearch, up to 20 candidates per video slot.
 3. **Source enrichment** -- retain descriptions, publication dates and audience metadata; reject made-for-kids and over-age videos.
 4. **Jev editorial decisions** -- pinned Jev 1.14 screens eligibility, ranks educational relevance and assigns categories. Conspiracy promotion, misleading clickbait and instruction injection are prohibited. Evidence-based debunking and honest curiosity are allowed. Uncertain or failed decisions withhold new candidates.
-5. **Video writing** -- one allowlisted Mistral Small or Mercury 3 call writes the three exact preselected sources. Only public source evidence reaches the writer, with no cross-provider fallback.
+5. **Video writing** -- Mercury 3 LOW writes the exact preselected sources. Failed, malformed or editorially rejected drafts get one second Mercury attempt, then one Gemini 3.5 Flash-Lite attempt. Every attempt is assembled and reviewed against the same public evidence; accepted HTTP alone is insufficient.
 6. **Wikipedia discovery and writing** -- search real localized article titles, validate them and fetch summaries/Wikidata before Jev selection. The writer paraphrases only the selected public summaries; it cannot invent article targets.
 7. **Final review** -- Jev separately checks editorial policy and material factual grounding for both content types, including follow-ups. Missing/failed/uncertain reviews withhold the card. A material grounding check targets invented specific claims while allowing ordinary explanatory paraphrases.
 8. **Feature tips** -- four static feature cards, no inference.
 9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
 10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
 
-The writer is selected only for this pipeline through `DAILY_INSPIRATION_WRITER_MODEL`, restricted to `mistral/mistral-small-latest` and `inception/mercury-3`. It does not change account settings or ordinary assistant routing. See `docs/plans/daily-inspiration-jev/` for the paired benchmark and selected default.
+The primary writer is restricted to `inception/mercury-3`; Mistral is no longer an allowed primary. Recovery uses `google/gemini-3.5-flash-lite`. The chain has at most three logical writing attempts, a 30-second writer timeout per attempt, and no facade fallback or Mercury SDK retries. It does not change account settings or ordinary assistant routing. See `docs/plans/daily-inspiration-jev/` for the paired benchmark and selected default.
 
 ### Generation Triggers
 

@@ -10,7 +10,7 @@
 # 3. Return a list of DailyInspiration objects
 #
 # The LLM call uses call_preprocessing_llm() (same as post-processing) with
-# mistral/mistral-small-latest for cost efficiency.
+# Mercury 3 with a bounded second attempt, then Gemini 3.5 Flash-Lite.
 #
 # Architecture note:
 # - Each inspiration gets its own video search to avoid re-using the same video.
@@ -34,7 +34,8 @@ from backend.apps.ai.daily_inspiration.content_filter import (
     check_daily_inspiration_entry,
     is_blocked_topic,
 )
-from backend.apps.ai.daily_inspiration.config import WRITER_INSTRUCTIONS, writer_model
+from backend.apps.ai.daily_inspiration.config import WRITER_INSTRUCTIONS
+from backend.apps.ai.daily_inspiration.writer import write_reviewed_cards
 from backend.apps.ai.daily_inspiration.media_coherence import check_inspiration_media_coherence
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationVideo
 from backend.apps.ai.daily_inspiration.validator import validate_inspiration
@@ -521,6 +522,9 @@ async def generate_inspirations(
         return []
 
     # Step 3: Single LLM call to generate all inspiration items.
+    video_candidates_per_slot = [slot for slot in video_candidates_per_slot if slot]
+    count = len(video_candidates_per_slot)
+
     # Filter blocked topics from the context passed to the LLM, so the model
     # never sees them as inspiration seeds even indirectly.
     messages = _build_generation_prompt(
@@ -529,32 +533,23 @@ async def generate_inspirations(
     messages.insert(0, {"role": "system", "content": WRITER_INSTRUCTIONS})
     tool_def = _build_tool_definition(language)
 
-    result = await call_preprocessing_llm(
-        observability_purpose="inspiration",
-        task_id=task_id,
-        model_id=writer_model(),
-        message_history=messages,
-        tool_definition=tool_def,
-        secrets_manager=secrets_manager,
-        fallback_models=[],
-        allow_retries=False,
-        temperature=0.5,
-        max_output_tokens=4096,
+    async def accept(arguments):
+        return await _assemble_inspirations(
+            arguments["inspirations"], video_candidates_per_slot, count,
+            secrets_manager, task_id, user_id,
+        )
+
+    return await write_reviewed_cards(
+        writer_call=call_preprocessing_llm, accept=accept, count=count,
+        collection="inspirations", task_id=task_id, message_history=messages,
+        tool_definition=tool_def, secrets_manager=secrets_manager,
     )
 
-    if result.error_message or not result.arguments:
-        logger.error(
-            f"[DailyInspiration][{task_id}] LLM call failed: {result.error_message}"
-        )
-        return []
 
-    raw_inspirations = result.arguments.get("inspirations", [])
-    if not raw_inspirations:
-        logger.error(
-            f"[DailyInspiration][{task_id}] LLM returned no inspirations in tool arguments"
-        )
-        return []
-
+async def _assemble_inspirations(
+    raw_inspirations, video_candidates_per_slot, count, secrets_manager, task_id, user_id,
+):
+    """Assemble and review copy against the unchanged selected public sources."""
     # Step 4: Assemble DailyInspiration objects
     now_ts = int(time.time())
     inspirations: List[DailyInspiration] = []
