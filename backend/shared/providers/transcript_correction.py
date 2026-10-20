@@ -66,7 +66,9 @@ async def correct_transcript_with_mercury(
         result = await InceptionClient(
             api_key, timeout=MERCURY_CORRECTION_TIMEOUT_SECONDS, max_retries=0,
         ).complete(request)
-    if len(result.choices) != 1 or result.choices[0].get("finish_reason") != "tool_calls":
+    # Native nonstream Mercury may report "stop" for a completed forced function call.
+    # Still reject truncated/blocked results before validating the sole tool and its fields.
+    if len(result.choices) != 1 or result.choices[0].get("finish_reason") not in {"stop", "tool_calls"}:
         raise RuntimeError("Mercury correction did not finish with a transcript tool call")
     calls = result.choices[0].get("message", {}).get("tool_calls") or []
     if len(calls) != 1 or calls[0].get("function", {}).get("name") != GEMINI_TRANSCRIPT_TOOL_NAME:

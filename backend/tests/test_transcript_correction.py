@@ -12,9 +12,10 @@ from backend.shared.providers import transcript_correction as correction
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 @pytest.mark.asyncio
-async def test_mercury_correction_preserves_forced_function_contract(monkeypatch):
+@pytest.mark.parametrize("finish_reason", ["stop", "tool_calls"])
+async def test_mercury_correction_preserves_forced_function_contract(monkeypatch, finish_reason):
     complete = AsyncMock(return_value=SimpleNamespace(choices=[{
-        "finish_reason": "tool_calls", "message": {"tool_calls": [{"function": {
+        "finish_reason": finish_reason, "message": {"tool_calls": [{"function": {
             "name": "finalize_transcript", "arguments": json.dumps({
                 "title": '  "Grüne Boxen" ', "corrected_transcript": "Suche grüne Boxen unter 50 Euro.",
             }),
@@ -29,6 +30,42 @@ async def test_mercury_correction_preserves_forced_function_contract(monkeypatch
     assert request.tool_choice["function"]["name"] == "finalize_transcript"
     assert "de" in request.messages[0]["content"]
     assert request.messages[1]["content"] == 'Raw Transcript:\n"ähm grüne boxen unter 50 euro"'
+
+
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
+@pytest.mark.asyncio
+@pytest.mark.parametrize("finish", [
+    {"finish_reason": "length"}, {"finish_reason": "content_filter"},
+    {"finish_reason": None}, {"finish_reason": "unknown"}, {},
+], ids=["truncated", "blocked", "null", "unknown", "missing"])
+async def test_incomplete_mercury_finish_is_rejected_even_with_valid_tool(monkeypatch, finish):
+    complete = AsyncMock(return_value=SimpleNamespace(choices=[{
+        **finish, "message": {"tool_calls": [{"function": {
+            "name": "finalize_transcript", "arguments": json.dumps({
+                "title": "Boxes", "corrected_transcript": "Green boxes.",
+            }),
+        }}]},
+    }]))
+    monkeypatch.setattr(correction, "InceptionClient", lambda *_args, **kwargs: SimpleNamespace(complete=complete))
+    with pytest.raises(RuntimeError, match="did not finish"):
+        await correction.correct_transcript_with_mercury("green boxes", "key")
+
+
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
+@pytest.mark.asyncio
+@pytest.mark.parametrize("finish_reason", ["stop", "tool_calls"])
+@pytest.mark.parametrize("names", [[], ["finalize_transcript", "finalize_transcript"], ["unexpected_function"]],
+                         ids=["no-tool", "multiple-tools", "wrong-function"])
+async def test_successful_finish_requires_exactly_one_transcript_function(monkeypatch, finish_reason, names):
+    calls = [{"function": {"name": name, "arguments": json.dumps({
+        "title": "Boxes", "corrected_transcript": "Green boxes.",
+    })}} for name in names]
+    complete = AsyncMock(return_value=SimpleNamespace(choices=[{
+        "finish_reason": finish_reason, "message": {"tool_calls": calls},
+    }]))
+    monkeypatch.setattr(correction, "InceptionClient", lambda *_args, **kwargs: SimpleNamespace(complete=complete))
+    with pytest.raises(RuntimeError, match="unexpected tool call"):
+        await correction.correct_transcript_with_mercury("green boxes", "key")
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
