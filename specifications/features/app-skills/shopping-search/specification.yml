@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.app-skill.shopping-search
-version: 1
+version: 2
 status: draft
 title: Shopping Product Search and Reference Images
 summary: Shopping returns purchasable products with supplied photos and compares their appearance and stated facts with up to three reference images.
@@ -29,7 +29,7 @@ assertions:
     depends_on: [examples.comparison]
   - id: shopping-search.relevance.bounded
     type: invariant
-    must: Visual comparison uses at most twenty retrieved candidates and three supplied photos per candidate, in at most four batches with three concurrent Jev calls. Downloads, decoded pixels and optional comparison time are bounded so comparison failure preserves a successful search. All supplied gallery photos remain in the result.
+    must: Relevance-enabled searches request up to forty candidates before filtering, subject to provider availability, while preserving the caller's final result limit. Visual comparison uses at most forty retrieved candidates and three supplied photos per candidate, in at most eight batches with three concurrent Jev calls. Downloads, decoded pixels and optional comparison time are bounded so comparison failure preserves a successful search. All supplied gallery photos remain in the result. Ordinary searches without relevance requirements or references keep their requested retrieval limit.
     depends_on: [examples.comparison]
   - id: shopping-search.relevance.truthful-fallback
     type: behavior

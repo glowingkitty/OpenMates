@@ -171,15 +171,19 @@ function scoreResponse(text: string) {
 	};
 }
 
-async function attachImage(page: any, log: (message: string, metadata?: Record<string, unknown>) => void) {
+async function attachImage(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+	fixture?: { name: string; buffer: Buffer }
+) {
 	const fileInput = page.locator('input[type="file"][multiple]');
 	await expect(fileInput).toBeAttached({ timeout: 10000 });
 	// Avoid reusing stale duplicate upload rows for this shared fixture hash.
 	const uniqueSuffix = `\nopenmates-e2e-${Date.now()}-${Math.random()}`;
-	const imageBuffer = Buffer.concat([fs.readFileSync(IMAGE_FIXTURE), Buffer.from(uniqueSuffix)]);
+	const imageBuffer = Buffer.concat([fixture?.buffer ?? fs.readFileSync(IMAGE_FIXTURE), Buffer.from(uniqueSuffix)]);
 	await fileInput.setInputFiles({
-		name: 'large_message_e2e.jpg',
-		mimeType: 'image/jpeg',
+		name: fixture?.name ?? 'large_message_e2e.jpg',
+		mimeType: fixture ? 'image/png' : 'image/jpeg',
 		buffer: imageBuffer
 	});
 	log('Attached image fixture.', { image: IMAGE_FIXTURE });
@@ -325,4 +329,95 @@ for (const model of activeModels) {
 			await deleteActiveChat(page, log, screenshot, `cleanup-${model.label}-${trial}`);
 		});
 	}
+}
+
+// Additional paid inference runs only when explicitly selected on dev.
+if (process.env.IMAGE_MODEL_AUTO_QUALITY === '1') {
+	// contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles
+	test('real Auto image objective counts and text-only history', async ({
+		page
+	}: { page: any }, testInfo: any) => {
+		test.setTimeout(600000);
+		const { email, password, otpKey } = getTestAccount();
+		skipWithoutCredentials(test, email, password, otpKey);
+		const log = createSignupLogger('IMAGE_AUTO_OBJECTIVE');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'image-auto-objective' });
+		await page.goto(getE2EDebugUrl('/'));
+		await loginToTestAccount(page, log, screenshot);
+		await startNewChat(page, log);
+		await waitForChatReady(page, log, 90000);
+		// A deterministic canvas supplies objective visual ground truth.
+		const png = await page.evaluate(() => {
+			const canvas = document.createElement('canvas');
+			canvas.width = 900;
+			canvas.height = 650;
+			const context = canvas.getContext('2d')!;
+			context.fillStyle = 'white';
+			context.fillRect(0, 0, 900, 650);
+			const circles: [number, number, string][] = [
+				[150, 170, '#d02020'],
+				[450, 170, '#174dce'],
+				[750, 170, '#d02020'],
+				[300, 460, '#174dce'],
+				[600, 460, '#218b31']
+			];
+			for (const [x, y, color] of circles) {
+				context.fillStyle = color;
+				context.beginPath();
+				context.arc(x, y, 70, 0, Math.PI * 2);
+				context.fill();
+			}
+			return canvas.toDataURL('image/png').split(',')[1];
+		});
+		await attachImage(page, log, {
+			name: 'five-colored-circles.png',
+			buffer: Buffer.from(png, 'base64')
+		});
+		const prompt =
+			'How many circles are shown, and how many are red, blue, and green? Reply only as "Total: N; red: N; blue: N; green: N".';
+		await typePromptAndSendAfterAttachment(page, prompt, log, screenshot, 'count');
+		await expect(page.locator('[data-app-id="images"][data-skill-id="view"]').last()).toBeVisible({
+			timeout: IMAGE_VIEW_TIMEOUT_MS
+		});
+		let response = await waitForAssistantMessage(page, {
+			which: 'last',
+			contains: /total/i,
+			timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
+			logCheckpoint: log
+		});
+		const firstText = (await response.textContent()) || '';
+		await expect(response.getByTestId('generated-by')).toHaveText(
+			/Gemini 3\.8 Flash|gemini-3\.8-flash/i
+		);
+		expect(firstText).toMatch(/Total:\s*5;\s*red:\s*2;\s*blue:\s*2;\s*green:\s*1/i);
+		expect(scoreResponse(firstText).rawDumpSuspected).toBe(false);
+		await typePromptAndSendAfterAttachment(
+			page,
+			'From the image we just discussed, how many circles are not blue? Reply only "Not blue: N".',
+			log,
+			screenshot,
+			'history'
+		);
+		response = await waitForAssistantMessage(page, {
+			which: 'last',
+			contains: /not blue/i,
+			timeout: ASSISTANT_COMPLETION_TIMEOUT_MS,
+			logCheckpoint: log
+		});
+		const historyText = (await response.textContent()) || '';
+		await expect(response.getByTestId('generated-by')).toHaveText(
+			/Gemini 3\.8 Flash|gemini-3\.8-flash/i
+		);
+		expect(historyText).toMatch(/Not blue:\s*3\b/i);
+		expect(scoreResponse(historyText).rawDumpSuspected).toBe(false);
+		await testInfo.attach('auto-image-objective-and-history.json', {
+			body: JSON.stringify(
+				{ expected: { total: 5, red: 2, blue: 2, green: 1, notBlue: 3 }, firstText, historyText },
+				null,
+				2
+			),
+			contentType: 'application/json'
+		});
+		await deleteActiveChat(page, log, screenshot, 'cleanup-auto-objective');
+	});
 }

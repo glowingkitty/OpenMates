@@ -32,6 +32,30 @@ logger = logging.getLogger(__name__)
 # Reduced from 30s to 20s to fail faster and allow retry with different proxy IP
 DEFAULT_SKILL_TIMEOUT = 20.0
 
+
+def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> float:
+    """Select the assistant's default envelope without overriding explicit timeouts.
+
+    Shopping comparison has a 25-second optional-work ceiling across discovery
+    and ranking. Leave five seconds for normalization and result delivery. Each
+    request in a bulk call shares this selection; other skills keep their default.
+    Callers passing an explicit timeout to the executor retain that exact value.
+    """
+    if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
+        return DEFAULT_SKILL_TIMEOUT
+    requests = arguments.get("requests", [arguments])
+    if not isinstance(requests, list):
+        return DEFAULT_SKILL_TIMEOUT
+    for request in requests:
+        if not isinstance(request, dict):
+            continue
+        criteria, references = request.get("relevance_criteria"), request.get("reference_images")
+        if ((isinstance(criteria, str) and criteria.strip())
+                or (isinstance(references, list) and any(isinstance(value, str) and value.strip() for value in references))):
+            return 30.0
+    return DEFAULT_SKILL_TIMEOUT
+
+
 # Default number of retry attempts for skill execution
 # 1 retry = 2 total attempts (initial + 1 retry)
 DEFAULT_SKILL_MAX_RETRIES = 1
@@ -86,6 +110,7 @@ __all__ = [
     "SkillCancelledException",
     # Timeout and retry configuration
     "DEFAULT_SKILL_TIMEOUT",
+    "get_skill_timeout",
     "DEFAULT_SKILL_MAX_RETRIES"
 ]
 

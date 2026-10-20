@@ -40,6 +40,35 @@ def test_group_summaries_keep_request_identity_and_exclude_unrelated_metadata():
     assert len(shopping_result_parent_metadata(groups[:1])["visual_evaluations"]) == 1
 
 
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.truthful-fallback
+@pytest.mark.parametrize("wire_format", ["toon", "json"])
+def test_forty_candidate_counts_survive_history_projection(wire_format):
+    import json
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+
+    evidence = {**summary(count=40), "filtered_count": 39}
+    metadata = shopping_result_parent_metadata([{"id": "forty", "results": [], "visual_evaluation": evidence}])
+    payload = {"results": [], "count": 0, **metadata}
+    content = encode(_flatten_for_toon_tabular(payload)) if wire_format == "toon" else json.dumps(payload)
+    transformed = _transform_message_history_for_llm([{
+        "role": "tool", "name": "shopping-search_products", "tool_call_id": "forty",
+        "content": content, "ignore_fields_for_inference": ["image_urls"],
+    }])
+    decoded = decode(transformed[0]["content"])
+    retained = decoded["visual_evaluations"][0]["visual_evaluation"]
+    assert (retained["evaluated_count"], retained["filtered_count"]) == (40, 39)
+    assert (retained["score_min"], retained["score_max"]) == (0, 4)
+    assert decoded["grounding_notice"] == SHOPPING_GROUNDING_NOTICE
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.privacy.minimized
+def test_out_of_bound_candidate_counts_are_not_copied_to_history():
+    evidence = {**summary(count=41), "filtered_count": True, "unavailable_count": -1}
+    retained = shopping_result_parent_metadata([{"id": "invalid", "visual_evaluation": evidence}])
+    value = retained["visual_evaluations"][0]["visual_evaluation"]
+    assert not {"evaluated_count", "filtered_count", "unavailable_count"}.intersection(value)
+
+
 # contract-test: supporting surface=rest_api assertions=shopping-search.relevance.truthful-fallback
 def test_empty_comparison_tool_and_preview_wrappers_preserve_evidence_without_product_rows():
     metadata = shopping_result_parent_metadata([{"id": "all-filtered", "results": [], "visual_evaluation": summary()}])

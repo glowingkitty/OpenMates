@@ -3,7 +3,7 @@ status: active
 doc_type: guide
 audience:
   - end-users
-last_verified: 2026-10-19
+last_verified: 2026-10-20
 claims:
   - id: user-guide-apps-shopping-source
     type: unit
@@ -55,7 +55,8 @@ explain that they have not been visually verified.
 Shopping keeps all gallery URLs supplied by the store in `image_urls`, with
 `image_url` as the primary photo. Open a product to browse its supplied photos
 using the thumbnails or keyboard arrow keys. To bound comparison time and cost, it evaluates
-up to twenty products and the first three supplied photos per product. It does not
+up to forty products and the first three supplied photos per product, then keeps
+your requested final result limit. Stores may supply fewer candidates. It does not
 fetch extra paid Amazon product details for more photos; Amazon search often
 supplies only one thumbnail. It does not use a separate image search to create
 shopping results.

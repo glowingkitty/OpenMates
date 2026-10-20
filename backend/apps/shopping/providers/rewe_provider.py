@@ -366,7 +366,7 @@ async def search_products(
 
     Args:
         query:          Search term, e.g. "bio joghurt" or "pasta barilla".
-        max_results:    Maximum products to return (1–20).
+        max_results:    Maximum discovery candidates to return (1–40).
         sort:           Sort order: "relevance" | "price_asc" | "price_desc" | "new".
         service_type:   "DELIVERY" or "CLICK_AND_COLLECT".
         secrets_manager: SecretsManager for loading the cookie pool from Vault.
@@ -384,7 +384,7 @@ async def search_products(
     if not query:
         raise ValueError("Search query must not be empty.")
 
-    max_results = max(1, min(20, max_results))
+    max_results = max(1, min(40, max_results))
     sort_param = SORT_OPTIONS.get(sort)
     if not sort_param:
         raise ValueError(f"Invalid sort '{sort}'. Choose from: {list(SORT_OPTIONS)}")
@@ -503,5 +503,5 @@ async def search_products(
         pagination["totalPages"],
     )
 
-    products = [_parse_product(raw, i + 1) for i, raw in enumerate(raw_products)]
+    products = [_parse_product(raw, i + 1) for i, raw in enumerate(raw_products[:max_results])]
     return products, pagination

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 SEARCH_API_URL = "https://www.stoffe.de/rest/io/item/search"
 PRODUCT_PAGE_BASE = "https://www.stoffe.de"
 
-MAX_RESULTS_LIMIT = 20
+MAX_RESULTS_LIMIT = 40
 
 SORT_OPTIONS: dict[str, str] = {
     "relevance": "item.score",

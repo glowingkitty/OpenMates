@@ -25,7 +25,12 @@ GROUNDING_PROMPT = "Compare cotton fabric to my reference image. SHOPPING_IMAGES
 GROUNDING_RESPONSE = "The similarity score is 3.24 out of 4. All 2 candidate products were evaluated; none were unavailable. One evaluated product was filtered below the minimum score of 2. Exact composition was not supplied; a cotton title does not establish a fibre percentage."
 MISSING_GROUNDING_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its score scale, evaluation counts or factual grounding notice."
 MISSING_ERROR_METADATA_RESPONSE = "REGRESSION: the shopping tool lost its reference failure metadata."
-_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT)
+FORTY_QUERY = "synthetic forty candidate shopping test"
+FORTY_PROMPT = "Find the late matching grocery product on REWE. SHOPPING_IMAGES_E2E:forty"
+FORTY_CRITERIA = "synthetic late candidate 39"
+FORTY_RESPONSE = "The late matching product from forty candidates is first; the shopping card contains three products."
+MISSING_FORTY_RESPONSE = "REGRESSION: forty-candidate discovery did not preserve the late match and final limit."
+_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT, FORTY_PROMPT)
 
 
 def active() -> bool:
@@ -45,6 +50,19 @@ def _matches(messages: Any) -> bool:
 def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: str) -> DecisionResponse | None:
     if not active() or not isinstance(state, Mapping) or not questions:
         return None
+    if (state.get("task") == "rank_search_candidates" and state.get("profile") == "shopping"
+            and state.get("relevance_criteria") == FORTY_CRITERIA
+            and state.get("search_parameters", {}).get("query") == FORTY_QUERY):
+        candidates = {row["candidate_id"]: row for row in state.get("candidates", [])}
+        answers = {}
+        for key in questions:
+            row = candidates.get(key)
+            if not isinstance(row, Mapping):
+                return None
+            value = 4.0 if row.get("data", {}).get("title") == "Synthetic candidate 39" else 3.0
+            answers[key] = {"type": "score", "score": value, "legend": {"0": "conflict", "3": "plausible", "4": "fit"},
+                            "confidence": 1.0, "probabilities": {key: float(key == str(int(value))) for key in ("0", "3", "4")}}
+        return DecisionResponse(model=model, answers=answers)
     if not (_matches(state.get("messages")) or any(prompt in str(state.get("user_message") or "") for prompt in _PROMPTS)):
         return None
     answers = {}
@@ -180,6 +198,24 @@ def _has_grounded_comparison_metadata(tail: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _has_forty_results(tail: list[dict[str, Any]]) -> bool:
+    for message in tail:
+        if not isinstance(message, dict) or message.get("role") != "tool":
+            continue
+        try:
+            payload = json.loads(message.get("content"))
+        except (ValueError, TypeError):
+            try:
+                payload = decode(message.get("content"))
+            except (ValueError, TypeError):
+                continue
+        rows = payload.get("results") if isinstance(payload, dict) else None
+        if (isinstance(rows, list) and len(rows) == 3 and isinstance(rows[0], dict)
+                and rows[0].get("title") == "Synthetic candidate 39"):
+            return True
+    return False
+
+
 def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     if not active() or not _matches(kwargs.get("messages")):
         return None
@@ -207,8 +243,11 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     tail = messages[last_user + 1:]
     reference_error = REFERENCE_ERROR_PROMPT in str(messages[last_user].get("content") or "")
     grounding = GROUNDING_PROMPT in str(messages[last_user].get("content") or "")
+    forty = FORTY_PROMPT in str(messages[last_user].get("content") or "")
     if not tail and "shopping-search_products" in names:
         request = {"query": "bio joghurt", "provider": "REWE", "max_results": 1}
+        if forty:
+            request.update({"query": FORTY_QUERY, "max_results": 3, "relevance_criteria": FORTY_CRITERIA})
         if reference_error:
             request.update({"id": REFERENCE_ERROR_ID,
                             "reference_images": ["00000000-0000-4000-8000-000000000001"]})
@@ -216,7 +255,9 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
             _call("shopping-search_products", {"requests": [request]}, model)]}}
     if any(isinstance(message, dict) and message.get("role") == "tool" for message in tail):
         answer = GALLERY_RESPONSE if _has_gallery_grounding_metadata(tail) else MISSING_GALLERY_GROUNDING_RESPONSE
-        if grounding:
+        if forty:
+            answer = FORTY_RESPONSE if _has_forty_results(tail) else MISSING_FORTY_RESPONSE
+        elif grounding:
             answer = GROUNDING_RESPONSE if _has_grounded_comparison_metadata(tail) else MISSING_GROUNDING_METADATA_RESPONSE
         elif reference_error:
             answer = REFERENCE_ERROR_RESPONSE if _has_reference_failure_metadata(tail) else MISSING_ERROR_METADATA_RESPONSE

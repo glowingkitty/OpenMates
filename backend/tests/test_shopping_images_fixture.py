@@ -68,7 +68,7 @@ async def test_gallery_replay_emits_a_tool_call_without_replacing_its_result(sho
     assert calls[0].function_arguments_parsed == {
         "requests": [{"query": "bio joghurt", "provider": "REWE", "max_results": 1}]}
     fixture_root = Path(__file__).parents[1] / "apps/ai/testing/api_cache" / GROUP / "rewe"
-    [fixture_path] = fixture_root.glob("*.json")
+    fixture_path = fixture_root / "d3b67e02aea54956.json"
     fixture = json.loads(fixture_path.read_text())
     assert fixture["fingerprint"] == ApiResponseCache().fingerprint_http_request("GET", fixture["request"]["url"])
     raw = fixture["response"]["body"]["_embedded"]["products"][0]
@@ -275,7 +275,7 @@ def test_gallery_answer_requires_real_parser_facts_and_server_grounding_notice(s
     from backend.core.api.app.services.embed_service import _flatten_for_toon_tabular
 
     fixture_root = Path(__file__).parents[1] / "apps/ai/testing/api_cache" / GROUP / "rewe"
-    [fixture_path] = fixture_root.glob("*.json")
+    fixture_path = fixture_root / "d3b67e02aea54956.json"
     raw = json.loads(fixture_path.read_text())["response"]["body"]["_embedded"]["products"][0]
     product = _parse_product(raw, 1).to_result_dict()
     metadata = shopping_result_parent_metadata([{"id": 1, "results": [product]}])
@@ -293,3 +293,29 @@ def test_gallery_answer_requires_real_parser_facts_and_server_grounding_notice(s
     arguments["messages"] = [history[0], {**history[-1], "content": encoding(decoded)}]
     result = llm_fixture("llm/gemini-3.8-flash", arguments)
     assert result["response"]["chunks"][0]["value"] == MISSING_GALLERY_GROUNDING_RESPONSE
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,app-skills.search-relevance.safe-finalization
+@pytest.mark.asyncio
+async def test_forty_replay_runs_real_provider_ranking_and_final_limit(shopping_replay):
+    from backend.apps.ai.testing.shopping_images_fixture import FORTY_PROMPT, FORTY_RESPONSE
+    from backend.apps.shopping.skills.search_products import SearchProductsSkill
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+    response = llm_fixture("llm/gemini-fixture", {
+        "model": "gemini-fixture", "stream": True,
+        "messages": [{"role": "user", "content": FORTY_PROMPT}],
+        "tools": [{"function": {"name": "shopping-search_products"}}],
+    })
+    [request] = response["response"]["chunks"][0]["value"]["function_arguments_parsed"]["requests"]
+    # The signed replay's cached HTTP transport returns forty raw products and
+    # the real Jev ranking fixture scores the late candidate through real batching.
+    _, rows, error = await object.__new__(SearchProductsSkill)._process_single_request(
+        request, "forty", secrets_manager=None)
+    assert error is None and len(rows) == 3
+    assert rows[0]["product_id"] == "forty-039"
+    payload = shopping_result_payload(rows, shopping_result_parent_metadata([{"id": 1, "results": rows}]))
+    answer = llm_fixture("llm/gemini-fixture", {
+        "model": "gemini-fixture", "stream": True,
+        "messages": [{"role": "user", "content": FORTY_PROMPT}, {"role": "tool", "content": encode(payload)}],
+    })
+    assert answer["response"]["chunks"][0]["value"] == FORTY_RESPONSE

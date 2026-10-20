@@ -894,7 +894,7 @@ async def test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback(
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
 @pytest.mark.anyio
-async def test_shopping_relevance_uses_twenty_candidates_without_extra_page(monkeypatch) -> None:
+async def test_shopping_relevance_uses_forty_candidates_without_extra_page(monkeypatch) -> None:
     from backend.apps.shopping.skills import search_products as shopping_search
 
     provider_sizes = []
@@ -945,7 +945,7 @@ async def test_shopping_relevance_uses_twenty_candidates_without_extra_page(monk
         secrets_manager=object(),
     )
     assert error is None
-    assert provider_sizes == [20]
+    assert provider_sizes == [40]
     assert len(fallback) == 4 and fallback[0]["title"] == "Product 0"
 
     _, plain, error = await skill._process_single_request(
@@ -954,8 +954,8 @@ async def test_shopping_relevance_uses_twenty_candidates_without_extra_page(monk
         secrets_manager=object(),
     )
     assert error is None and len(plain) == 3
-    assert provider_sizes == [20, 3]
-    assert rank_calls == [20]
+    assert provider_sizes == [40, 3]
+    assert rank_calls == [40]
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization

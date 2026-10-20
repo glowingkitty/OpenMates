@@ -45,6 +45,7 @@ from backend.apps.shopping.providers.amazon_provider import infer_country_from_l
 from backend.apps.shopping.providers.rewe_provider import search_products as rewe_search
 from backend.apps.shopping.providers.stoffe_provider import search_products as stoffe_search
 from backend.apps.shopping.visual_ranking import (
+    OPTIONAL_VISUAL_SECONDS,
     ReferenceImageAccessDenied,
     rank_products_visually,
     resolve_reference_images,
@@ -474,10 +475,10 @@ class SearchProductsSkill(BaseSkill):
             Tuple of (request_id, results_list, error_string_or_none)
         """
         secrets_manager = kwargs.get("secrets_manager")
-        # Leave three seconds for response normalization within the assistant's
-        # existing twenty-second skill deadline. Optional image work must never
-        # discard a successful provider search by exhausting that deadline.
-        visual_deadline = time.monotonic() + 17.0
+        # Bound optional reference and visual work across provider retrieval.
+        # The assistant executor must leave time beyond this ceiling to normalize
+        # and return a successful provider search, including truthful fallbacks.
+        visual_deadline = time.monotonic() + OPTIONAL_VISUAL_SECONDS
         try:
             reference_images = validate_reference_images(req.get("reference_images"))
         except ValueError as exc:
@@ -636,6 +637,10 @@ class SearchProductsSkill(BaseSkill):
                     or str(item.get("title") or item.get("name") or "").casefold()
                 ),
             )
+
+        logger.info("SHOPPING_DISCOVERY task_id=%s provider=%s requested_candidates=%d provider_returned=%d unique_candidates=%d final_limit=%d",
+                    kwargs.get("telemetry_task_id"), provider, max_results, len(products),
+                    len(results), requested_max_results)
 
         visual_applied = False
         if reference_images:

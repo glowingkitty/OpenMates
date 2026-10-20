@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MAX_RESULTS_LIMIT = 20
+MAX_RESULTS_LIMIT = 40
 DEFAULT_COUNTRY = "us"
 DEFAULT_LANGUAGE = "en_US"
 DEFAULT_SORT = "relevance"

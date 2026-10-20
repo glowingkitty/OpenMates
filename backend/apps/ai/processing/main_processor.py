@@ -211,7 +211,7 @@ from backend.apps.ai.processing.skill_executor import (
     execute_skill_with_multiple_requests,
     SkillCancelledException,
     generate_skill_task_id,
-    DEFAULT_SKILL_TIMEOUT
+    get_skill_timeout
 )
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 # Import billing utilities
@@ -8317,7 +8317,7 @@ async def handle_main_processing(
                                 app_id=candidate["app_id"],
                                 skill_id=candidate["skill_id"],
                                 arguments=candidate["arguments"],
-                                timeout=DEFAULT_SKILL_TIMEOUT,
+                                timeout=get_skill_timeout(candidate["app_id"], candidate["skill_id"], candidate["arguments"]),
                                 chat_id=request_data.chat_id,
                                 message_id=request_data.message_id,
                                 user_id=request_data.user_id,
@@ -9821,7 +9821,7 @@ async def handle_main_processing(
                                 log_prefix=log_prefix,
                             )
 
-                    # Execute skill with retry logic (20s timeout, 1 retry by default)
+                    # Execute with a bounded skill-specific timeout and one retry by default.
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
                     try:
@@ -9838,7 +9838,7 @@ async def handle_main_processing(
                                     app_id=app_id,
                                     skill_id=skill_id,
                                     arguments=skill_arguments,
-                                    timeout=90.0 if natural_workflow_authoring else DEFAULT_SKILL_TIMEOUT,
+                                    timeout=90.0 if natural_workflow_authoring else get_skill_timeout(app_id, skill_id, skill_arguments),
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,

@@ -32,12 +32,15 @@ from backend.shared.python_utils.search_relevance import _bounded_candidate_proj
 logger = logging.getLogger(__name__)
 MAX_REFERENCE_IMAGES = 3
 MAX_PRODUCT_IMAGES = 3
-MAX_CANDIDATES = 20
+MAX_CANDIDATES = 40
 CANDIDATES_PER_BATCH = 5
 MAX_SOURCE_BYTES = 4 * 1024 * 1024
 MAX_SOURCE_PIXELS = 16_000_000
-IMAGE_PREPARATION_SECONDS = 6.0
-VISUAL_EVALUATION_SECONDS = 8.0
+# Fixed stage ceilings: 40 candidates share six image loaders and three decision
+# slots. Eight batches need at most three waves; do not scale with provider totals.
+IMAGE_PREPARATION_SECONDS = 8.0
+VISUAL_EVALUATION_SECONDS = 12.0
+OPTIONAL_VISUAL_SECONDS = 25.0
 VISUAL_SCORE_MIN = 0
 VISUAL_SCORE_MAX = 4
 VISUAL_MINIMUM_SCORE = 2
@@ -356,7 +359,7 @@ async def rank_products_visually(
             logger.warning("Shopping visual comparison unavailable error_type=%s", type(exc).__name__)
             return {}
 
-    # At most four batches. Deadline includes all calls; each batch is atomic.
+    # At most eight batches. Deadline includes all calls; each batch is atomic.
     decisions_started = time.monotonic()
     decision_tasks = [asyncio.create_task(evaluate(batch, index)) for index, batch in enumerate(batches)]
     try:

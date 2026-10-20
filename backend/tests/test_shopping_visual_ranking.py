@@ -140,18 +140,18 @@ async def test_candidate_photo_and_batch_cost_budgets_are_bounded(monkeypatch, c
 
     monkeypatch.setattr(visual, "download_public_product_image", download)
     monkeypatch.setattr(visual, "JevDecisionClient", FakeClient)
-    candidates = [{"title": str(i), "image_urls": [f"https://cdn.example/{i}/{j}.jpg" for j in range(8)]} for i in range(20)]
+    candidates = [{"title": str(i), "image_urls": [f"https://cdn.example/{i}/{j}.jpg" for j in range(8)]} for i in range(40)]
     result = await visual.rank_products_visually(candidates=candidates, reference_images=[prepared] * 3,
                                                  relevance_criteria=None, query="fabric", secrets_manager=None,
                                                  telemetry_task_id="test-visual-cost-correlation")
-    assert calls == [(5, 18)] * 4 and peak <= 3 and len(downloads) == 60
-    assert len(result.candidates) == 20 and result.summary["status"] == "evaluated"
+    assert calls == [(5, 18)] * 8 and peak <= 3 and len(downloads) == 120
+    assert len(result.candidates) == 40 and result.summary["status"] == "evaluated"
     assert len(result.candidates[0]["image_urls"]) == 8
     batches = [record.message for record in caplog.records if record.message.startswith("SHOPPING_VISUAL_BATCH")]
-    assert len(batches) == 4
+    assert len(batches) == 8
     assert all("images=18" in message and "client_wall_ms=" in message for message in batches)
     stages = [record.message for record in caplog.records if record.message.startswith("SHOPPING_VISUAL_STAGES")]
-    assert len(stages) == 1 and "product_images=60" in stages[0] and "evaluated=20" in stages[0]
+    assert len(stages) == 1 and "product_images=120" in stages[0] and "evaluated=40" in stages[0]
     assert "https://" not in " ".join(batches + stages)
     assert "preparation_wall_ms" not in result.summary
 
@@ -429,7 +429,7 @@ async def test_slow_search_preserves_results_when_optional_visual_deadline_is_sp
     monkeypatch.setattr(shopping, "rank_products_visually", visual_call)
     monkeypatch.setattr(shopping, "rank_search_candidates", text_call)
     # Reference-image telemetry adds two clock reads before the provider search.
-    ticks = iter([0, 0, 0, 18, 18])
+    ticks = iter([0, 0, 0, 26, 26])
     monkeypatch.setattr(shopping, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
     summaries = {}
     _id, items, error = await skill._process_single_request(
@@ -571,3 +571,76 @@ async def test_all_evaluated_fractional_match_has_explicit_scale_and_no_unavaila
     assert (result.summary["evaluated_count"], result.summary["filtered_count"], result.summary["unavailable_count"]) == (20, 19, 0)
     assert (result.summary["score_min"], result.summary["score_max"], result.summary["minimum_score"]) == (0, 4, 2)
     assert all(row["data"]["attributes"] == product["attributes"] for row in captured)
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.visual-and-text
+@pytest.mark.parametrize("mode", ["visual", "text"])
+@pytest.mark.asyncio
+async def test_forty_discovered_candidates_include_late_match_and_preserve_final_limit(monkeypatch, mode, caplog):
+    caplog.set_level("INFO", logger=shopping.__name__)
+    rows = [{"product_id": str(i), "title": f"Fabric {i}", "image_url": f"https://cdn.example/{i}.jpg"}
+            for i in range(40)]
+    provider = AsyncMock(return_value=([SimpleNamespace(to_result_dict=lambda row=row: dict(row)) for row in rows], {}))
+    monkeypatch.setattr(shopping, "rewe_search", provider)
+    async def sanitize(*, payload, **kwargs):
+        return payload
+    monkeypatch.setattr(shopping, "sanitize_long_text_fields_in_payload", sanitize)
+    monkeypatch.setattr(shopping, "resolve_reference_images", AsyncMock(return_value=[b"prepared"]))
+    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=b"prepared"))
+
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+        async def evaluate_with_images(self, *, state, questions, images):
+            return DecisionResponse(model="jev-1.14.0", answers={
+                key: score(4 if key == "candidate_039" else 3) for key in questions
+            })
+    monkeypatch.setattr(visual, "JevDecisionClient", Client)
+    async def text_rank(**kwargs):
+        assert len(kwargs["candidates"]) == 40
+        return SimpleNamespace(candidates=list(reversed(kwargs["candidates"])), applied=True)
+    text = AsyncMock(side_effect=text_rank)
+    monkeypatch.setattr(shopping, "rank_search_candidates", text)
+    request = {"query": "fabric", "provider": "REWE", "max_results": 4}
+    request.update({"reference_images": ["photo.png"]} if mode == "visual" else {"relevance_criteria": "blue floral"})
+    summaries = {}
+    _, results, error = await object.__new__(shopping.SearchProductsSkill)._process_single_request(
+        request, "forty", secrets_manager=object(), visual_evaluation_summaries=summaries)
+    assert error is None and len(results) == 4
+    assert results[0]["product_id"] == "39"
+    assert provider.await_args.kwargs["max_results"] == 40
+    if mode == "visual":
+        assert summaries["forty"]["evaluated_count"] == 40
+        text.assert_not_awaited()
+    else:
+        assert text.await_count == 1
+    assert any("requested_candidates=40 provider_returned=40 unique_candidates=40 final_limit=4" in record.message
+               for record in caplog.records)
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.relevance.bounded,shopping-search.relevance.truthful-fallback
+@pytest.mark.asyncio
+async def test_forty_candidate_deadline_retains_completed_batches_and_unverified_tail(monkeypatch):
+    monkeypatch.setattr(visual, "download_public_product_image", AsyncMock(return_value=b"prepared"))
+    monkeypatch.setattr(visual, "VISUAL_EVALUATION_SECONDS", .02)
+    cancelled = []
+    class Client:
+        def __init__(self, **kwargs):
+            pass
+        async def evaluate_with_images(self, *, state, questions, images):
+            if "candidate_000" in questions:
+                return DecisionResponse(model="jev-1.14.0", answers={key: score(3) for key in questions})
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.append(True)
+    monkeypatch.setattr(visual, "JevDecisionClient", Client)
+    result = await visual.rank_products_visually(
+        candidates=[{"product_id": str(i), "image_url": f"https://cdn.example/{i}.jpg"} for i in range(40)],
+        reference_images=[b"reference"], relevance_criteria=None, query="fabric", secrets_manager=None)
+    assert result.applied and len(result.candidates) == 40
+    assert result.summary["status"] == "partial"
+    assert result.summary["evaluated_count"] == 5 and result.summary["unavailable_count"] == 35
+    assert result.summary["filtered_count"] == 0 and cancelled
+    assert result.candidates[-1]["product_id"] == "39"
+    assert result.candidates[-1]["visual_match"] == {"status": "unavailable"}

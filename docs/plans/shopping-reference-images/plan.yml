@@ -15,11 +15,13 @@ scope:
   - Expose evaluated versus unavailable visual comparisons; do not claim exact identity from appearance alone.
   - Make every supplied product photo accessible in the shopping product gallery.
   - Keep assistant explanations grounded in stated product facts and the explicit zero-to-four score scale.
+  - Retrieve up to forty candidates before relevance filtering and retain the caller's final result limit.
 decisions:
   - User chose no additional paid Amazon product-details requests for gallery enrichment.
   - Keep shopping results separate from images.search; no additional search provider integration.
   - Keep the existing Jev model route; no global version change or SubQ fallback.
   - Filter only on a usable evaluation; preserve deterministic fallback when image evaluation is unavailable.
+  - User explicitly confirmed forty candidates on 2026-10-20; use at most eight visual batches and three concurrent calls, without paid Amazon pagination or gallery enrichment.
   - Limit and validate image downloads and owner-check private reference embeds before decryption.
 checks:
   - Focused parser tests cover image order, duplicate/malformed entries, prices and primary compatibility.
@@ -28,7 +30,9 @@ checks:
   - Relevant local lint, TypeSafe provider tests and schema checks pass before scoped dev publication.
   - Isolated component proof covers product-gallery selection, keyboard navigation and primary-image fallback.
   - Grounding regressions preserve score scale and composition limits through assistant tool history.
-  - Real-inference validation explicitly selects and verifies Gemini 3.8 Flash.
+  - Real-inference validation uses automatic routing without overrides and verifies the actual Gemini 3.8 Flash model and applicable thinking level.
+  - Objective image tests cover OCR, object counts, ambiguous evidence, multiple references and a text follow-up after images.view, with no unsolicited coordinate or label dumps.
+  - Forty-candidate coverage proves a matching candidate beyond rank twenty survives filtering and final result limits remain unchanged.
 related_tasks:
   shopping: d7038041-a992-4b13-a66e-962836eeedf0
   privacy: 2aca2bef-0daf-41e0-9310-8bcdc9829fa7

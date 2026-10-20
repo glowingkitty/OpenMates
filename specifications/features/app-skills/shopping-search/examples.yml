@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-skill.shopping-search@1
+specification: feature.app-skill.shopping-search@2
 
 galleries:
   - id: preserve-supplied-photos
@@ -15,9 +15,13 @@ references:
 
 comparison:
   - id: match-fabric-appearance-and-facts
-    given: Alice wants cotton fabric resembling three dark blue floral reference photos; a store supplies twenty candidates with prices, descriptions and multiple photos.
+    given: Alice wants cotton fabric resembling three dark blue floral reference photos; a store supplies forty candidates with prices, descriptions and multiple photos.
     when: Shopping compares at most three supplied photos per candidate using bounded Jev batches, even if Alice did not separately provide relevance_criteria.
     then: Visually conflicting or weak matches scoring below two are removed, stronger matches come first, complete galleries remain available, and no result claims exact identity or unstated composition.
+  - id: relevant-late-candidate-and-final-limit
+    given: Alice asks for three matching products; the best match is the thirty-ninth of forty products available from the store, while another store supplies fewer products.
+    when: Shopping retrieves candidates and ranks them against her stated requirements or reference images.
+    then: It considers the late match before returning at most three products, compares no more than forty candidates in eight bounded batches, and reports the actual comparison count when fewer products are available.
 
 fallback:
   - id: unavailable-comparison-and-neutral-search

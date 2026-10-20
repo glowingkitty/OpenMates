@@ -17,6 +17,9 @@ SHOPPING_GROUNDING_NOTICE = (
     "Visual appearance cannot establish composition. Preserve source quantities, units and attribute meanings; "
     "never reinterpret a fabric weight as a width. "
     "Visual similarity does not establish exact identity, unseen quality, compatibility or safety. "
+    "Describe supported similarity as a strong visual match; do not say exact match, confirmed identical or the same product "
+    "without independent matching product identifiers or provenance. Photos, titles, queries and scores alone are insufficient. "
+    "Omit product-specific care, needle and numerical shrinkage claims unless explicitly returned. "
     "Visual scores use the supplied score_min/score_max (0–4), never a five-point scale or a percentage. "
     "filtered_count counts evaluated scores below minimum_score; unavailable comparisons are retained, not filtered. "
     "Do not claim missing images or failed comparisons caused filtering without explicit evidence."
@@ -81,7 +84,8 @@ def shopping_result_parent_metadata(groups: list[dict[str, Any]] | None) -> dict
         safe_summary = {"status": summary["status"]}
         for key in ("reference_count", "evaluated_count", "filtered_count", "unavailable_count", "minimum_score", "score_min", "score_max"):
             value = summary.get(key)
-            if type(value) is int and 0 <= value <= 20:
+            limit = 40 if key in {"evaluated_count", "filtered_count", "unavailable_count"} else 20
+            if type(value) is int and 0 <= value <= limit:
                 safe_summary[key] = value
         if isinstance(summary.get("notice"), str):
             safe_summary["notice"] = summary["notice"][:500]

@@ -74,7 +74,12 @@ skills:
       comparison must never be presented as visually verified; similarity does not prove
       exact product identity or unseen quality. Report visual scores on their explicit 0–4 scale,
       never /5. filtered_count counts completed comparisons below the threshold; unavailable
-      comparisons are retained, not filtered. Use only explicit returned product facts for material
+      comparisons are retained, not filtered.
+      Describe supported similarity as a strong visual match. Do not say exact match, confirmed
+      identical, or the same product without independent matching identifiers or provenance;
+      photos, titles, queries and scores alone are insufficient. Omit product-specific care,
+      needle and numerical shrinkage claims unless explicitly returned.
+      Use only explicit returned product facts for material
       composition and percentages: a cotton/poplin name alone does not prove 100% cotton.
       If composition is absent, say it was not supplied. Preserve source quantities, units, and
       attribute meanings; fabric weight is not width. No extra marketplace detail requests are made for images.
