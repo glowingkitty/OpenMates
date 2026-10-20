@@ -46,6 +46,11 @@ passes the exact image references to Shopping and compares product photos togeth
 with the available product text and attributes. Results keep their prices and purchase
 links; clearly conflicting or weak matches are filtered out.
 
+When your description already supplies the search query, your mate can send the
+references directly to Shopping. It does not need to view the photos first.
+Viewing is useful when you ask your mate to describe an image or identify a
+photo-only subject before searching.
+
 Similarity is an estimate. It does not prove that a product is identical to your
 reference or establish a fabric's composition, dimensions or quality when the store
 does not state those facts. If an image cannot be read or comparison is unavailable,

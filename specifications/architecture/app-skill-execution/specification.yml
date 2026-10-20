@@ -19,6 +19,7 @@ scope:
     - Owner-authorized asynchronous result polling without changing existing authentication, rate limits, budgets, or encryption boundaries.
     - Same-turn completion of assistant-requested skills, including long-running social collection and media generation.
     - Generated-media parent and child embeds, visible assistant results, and selected visual search results.
+    - Image references forwarded directly to consuming skills without first exposing pixels to assistant inference.
   excludes:
     - Provider-specific request and result fields outside the declared shared relevance-ranking profiles
     - Client-specific visual layout
@@ -190,6 +191,14 @@ models:
       constraints: {successful_ranking: score_then_existing_tie_break, ranking_failure: existing_order, final_results: at_most_requested_limit, output_safety_after_selection: required}
 
 assertions:
+  - id: app-skills.images.reference-handoff
+    type: privacy
+    must: An image-consuming app skill may receive an exact authorized uploaded or generated image reference without a preceding images.view call. Main inference initially receives references and necessary metadata only; image bytes enter its context only through an explicit viewing operation. Known-query Shopping, image editing and reverse image search use direct references when inspection is unnecessary. Actual visual questions and photo-only requests needing visual identification retain images.view; unrelated historical uploads alone never promote inspection.
+    depends_on: [examples.image_reference_handoff]
+  - id: app-skills.images.authorized-resolution
+    type: security
+    must: Image-consuming skills resolve exact references within the caller's authorized context before decryption, provider access or billing. Cache loss may recover owner-verified authoritative records or existing unexpired fresh-upload metadata without broadening access or extending expiry. Existing legacy and version-two encrypted image formats remain supported when authorized server-decryptable metadata is available. Foreign, expired, missing or client-only undecryptable references fail visibly without guessed URLs, exposed plaintext, key recovery or automatic viewing.
+    depends_on: [examples.image_reference_resolution]
   - id: app-skills.assistant.same-turn-completion
     type: behavior
     must: In text chats, an assistant turn remains in progress while skills needed for its answer are running. Completion resumes the same turn with its selected model, mate, authorized context, original tool calls and completed results, without a synthetic user follow-up, a new conversation turn, or repeated routing. Live progress remains visible and the assistant does not present dispatch as completed work. Waiting releases scarce inference execution capacity rather than occupying it for the provider's full duration.
@@ -295,4 +304,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling, assistant_completion, completion_barrier, completion_recovery, completion_failure, generated_media_graph, visible_media, application_screenshots]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling, assistant_completion, completion_barrier, completion_recovery, completion_failure, generated_media_graph, visible_media, application_screenshots, image_reference_handoff, image_reference_resolution]

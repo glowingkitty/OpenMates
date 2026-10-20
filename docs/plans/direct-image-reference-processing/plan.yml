@@ -1,0 +1,32 @@
+schema_version: 2
+profile: concise
+id: direct-image-reference-processing
+title: Direct image references and efficient assistant orchestration
+status: implementing
+goal: >-
+  The image should be usable still by app skills like shopping search or image
+  search. The separate image view skill should be used only when the image shall
+  be viewed for inference. The 60 sec processing is absurdly slow and not acceptable.
+scope:
+  - Forward exact authorized image references to consuming skills without automatic main-model pixels or a viewer prerequisite.
+  - Retain explicit visual inspection and photo-only identification while removing unrelated historical-upload promotion.
+  - Share owner-bound resolution and supported decryption for Shopping and direct reverse image search.
+  - Classify the assistant's actual reasoning work while retaining automatic model profiles and explicit preferences.
+  - Compare a natural Auto Shopping request against the prior 59.3-second trace, with a measured latency breakdown.
+decisions:
+  - User explicitly approved this implementation plan on 2026-10-20; existing Task TASK-7471 owns status.
+  - No eager image hydration into main inference; reference forwarding and inspection remain separate operations.
+  - Preserve forty Shopping candidates, up to three references, final result caps, factual grounding and existing Jev budgets.
+  - Authorization and expiry checks precede external provider access or billing; no key recovery or extended upload lifetime.
+  - Fifteen to twenty seconds is an investigation target, not an unverified service guarantee.
+  - User confirmed both exact shared-image and model-routing contract hashes on 2026-10-20; approval receipts are recorded for session d8e6.
+checks:
+  - Focused routing tests cover direct Shopping/edit/search, real inspection, photo-only requests, explicit tools and unrelated historical images.
+  - Resolver tests cover ownership, exact references, cache loss, fresh uploads, generated images, v2 and legacy formats, expiry and unavailable ciphertext.
+  - Isolated GitHub E2E proves direct image-reference dispatch without a preceding viewer and preserves existing forty-candidate grounding cases.
+  - Real Auto inference verifies direct Shopping with three references, actual model and thinking level, result quality and stage timings after scoped dev publication.
+  - Real Auto inference retains a genuine visual inspection path and avoids viewer use for unrelated follow-up work.
+verification_notes:
+  - The final twelve-file combined unit run passed all 505 checks; queue and leaderboard fixtures isolate worker startup while retaining real processing assertions.
+  - Independent code review found no remaining actionable issues after mixed inspection-and-search fallbacks were corrected for commands and questions.
+  - Browser E2E and live Auto timing comparison remain pending publication and verification; serializer-boundary and optional-inline fixture assumptions have focused regression coverage.

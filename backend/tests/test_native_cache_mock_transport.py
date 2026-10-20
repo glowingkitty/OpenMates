@@ -107,7 +107,7 @@ async def test_signed_mock_allows_only_isolated_internal_transport(
     {"SERVER_ENVIRONMENT": "production"},
     {"CMS_URL": "http://other:8055"},
     {"VAULT_URL": "http://other:8200"},
-    {"S3_ENDPOINT_URL": "http://storage.ci.test:9000"},
+    {"S3_ENDPOINT_URL": "http://other-storage.ci.test:9000"},
     {"OPENMATES_STORAGE_CAPACITY_FIXTURES": "true"},
     {"HTTPS_PROXY": "http://proxy.example"},
 ])
@@ -123,6 +123,19 @@ def test_signed_mock_rejects_nonmarker_profiles(
         assert not mock_context._allow_isolated_capacity_internal(
             "http://api:8000/internal/billing/charge", "POST",
         )
+    finally:
+        deactivate_mock_mode()
+
+
+@pytest.mark.parametrize("group", ["native_cache_tools_v1", "diagram_html_web", "shopping_images_web"])
+def test_only_shopping_upload_replay_accepts_exact_isolated_storage_endpoint(monkeypatch, group):
+    _native_fixture_environment(monkeypatch)
+    monkeypatch.setenv("S3_ENDPOINT_URL", "http://storage.ci.test:9000")
+    activate_mock_mode("mock", group, task_id="signed-fixture-task")
+    try:
+        expected = group == "shopping_images_web"
+        assert mock_context._allow_isolated_capacity_internal("http://cms:8055/items/chats", "GET") is expected
+        assert mock_context._allow_isolated_capacity_internal("http://api:8000/internal/s3/upload-temp-image", "POST") is expected
     finally:
         deactivate_mock_mode()
 

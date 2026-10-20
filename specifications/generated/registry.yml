@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: 41ef03c3bd9116635cfdae21d53480d0a36692e99fe943078a18d72dafc5ad7f
+    fingerprint: c4cbfa7e5cb51ff0aad6e1aeecacc3a8be79949c8ee6715acf8bd68d414aa75f
     required_applies_to:
     - rest_api
     - cli
@@ -117,7 +117,7 @@ specifications:
     version: 7
     status: draft
     path: features/ai-model-routing
-    fingerprint: f3e3e6061a2480b959d503227867af0d51de35c5142ca23fe7b176129a5e5a42
+    fingerprint: 25224b7f7cb0d94480247ec751a9922bf8aef67b0032f3f8cf450cfee42cadfa
     required_applies_to:
     - rest_api
     - cli
@@ -855,6 +855,30 @@ assertions:
     fingerprint: a33d7d281463428c45a24dc6eeee2c83a66120e8954628eeb10129ba70c6d437
     required_applies_to:
     - cli
+  app-skills.images.reference-handoff:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: privacy
+    fingerprint: 3fffafa239698aea39d1bb4da82e9fbe7f5a5d92b5d05f798bc9b56977aada1b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.images.authorized-resolution:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: security
+    fingerprint: 2f18f0346ec8805f0cc1e89bb842ace6cb6acaf4efe374b1d474fb74f83810d6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   app-skills.assistant.same-turn-completion:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
@@ -2168,7 +2192,7 @@ assertions:
     specification: feature.ai-model-routing@7
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: 97d5c97f3368f0e8b3159978147243f8a8780b618ff3a97364dde77f386d04c5
+    fingerprint: 34bf6b8f5b909832a6dae1eb2f51ab1829c6ceda0c08ed34a88053769217d1dd
     required_applies_to:
     - rest_api
     - cli
@@ -2312,7 +2336,7 @@ assertions:
     specification: feature.ai-model-routing@7
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: 3d05abcf2137e23f6a62ef81e3aa97ba440f638eb5f4c4d6b41fad6dc849d726
+    fingerprint: 255420e6c23d760d6d00495b11d34a7c5ef36eacb85003819f18ccf06ca3af8f
     required_applies_to:
     - rest_api
     - cli

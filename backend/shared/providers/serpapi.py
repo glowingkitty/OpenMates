@@ -112,7 +112,12 @@ async def google_lens_reverse_search(
     """
     import httpx as _httpx
 
-    api_key = await get_serpapi_key_async(secrets_manager)
+    from backend.apps.ai.testing.shopping_images_fixture import LENS_FIXTURE_KEY, lens_request_matches
+
+    # Keep fixture credentials local to this exact isolated Lens request. Never
+    # populate or consult the shared credential cache for the signed replay.
+    api_key = (LENS_FIXTURE_KEY if lens_request_matches(image_url, query, max_results)
+               else await get_serpapi_key_async(secrets_manager))
     if not api_key:
         raise ValueError(
             "SerpAPI key not available. "

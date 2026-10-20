@@ -39,9 +39,10 @@ contextual_compact_assembly:
 
 tier_classification:
   - id: minimum-reasoning-depth
-    given: Alice asks for today's Berlin weather, a comparison of two short proposals, a proof involving several interacting constraints, and a zero-downtime encrypted-data migration across incompatible clients.
+    assertion_ids: [ai-model-routing.tiers.conservative-three-way]
+    given: Alice asks for today's Berlin weather, a comparison of two short proposals, a proof involving several interacting constraints, and a zero-downtime encrypted-data migration across incompatible clients. Separately she asks for beige striped lemon fabric matching three photos, with Shopping performing the forty-candidate visual comparison.
     when: Automatic routing evaluates the reasoning each request needs.
-    then: It selects low, medium, high and max respectively; the migration qualifies for max because of sustained cross-system reasoning and exceptional correctness constraints.
+    then: It selects low, medium, high and max respectively; the migration qualifies for max because of sustained cross-system reasoning and exceptional correctness constraints. The delegated known-query Shopping request qualifies for low because the assistant forwards references and summarizes grounded results; substantive cross-product synthesis can qualify for medium. Exact chat and saved tier preferences retain precedence.
   - id: avoid-unnecessary-max
     given: Alice says a short summary is extremely important, or asks a difficult debugging question for which the classifier is uncertain between high and max.
     when: Automatic routing classifies her request, or receives a malformed classification.

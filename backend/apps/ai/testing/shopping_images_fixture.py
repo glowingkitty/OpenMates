@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from urllib.parse import parse_qs, urlsplit
 from typing import Any, Mapping
 from toon_format import decode
 
@@ -30,13 +32,54 @@ FORTY_PROMPT = "Find the late matching grocery product on REWE; return at most f
 FORTY_CRITERIA = "synthetic late candidate 39"
 FORTY_RESPONSE = "The late matching product from forty candidates is first; the shopping card contains five products."
 MISSING_FORTY_RESPONSE = "REGRESSION: forty-candidate discovery did not preserve the late match and final limit."
-_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT, FORTY_PROMPT)
+DIRECT_REFERENCE_PROMPT = "Find bio joghurt on REWE using this uploaded image without inspecting it. SHOPPING_IMAGES_E2E:direct-reference"
+DIRECT_REFERENCE_QUERY = "synthetic direct reference shopping test"
+DIRECT_REFERENCE_IMAGE = "https://img.rewe-static.de/synthetic-direct-reference/product.jpg"
+DIRECT_REFERENCE_RESPONSE = "The uploaded reference was passed directly to Shopping without images.view. The shopping skill resolved it and evaluated one product; composition was not supplied."
+DIRECT_SEARCH_PROMPT = "Reverse-search this uploaded image directly without inspecting it. SHOPPING_IMAGES_E2E:direct-image-search"
+DIRECT_SEARCH_RESPONSE = "The uploaded image was reverse-searched directly without images.view. Google Lens returned the synthetic reference match."
+LENS_FIXTURE_KEY = "signed-replay-unused-key"
+_PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT, FORTY_PROMPT, DIRECT_REFERENCE_PROMPT, DIRECT_SEARCH_PROMPT)
 
 
 def active() -> bool:
     return (mock_mode_var.get() == "mock" and get_mock_group() == GROUP
             and os.getenv("MOCK_EXTERNAL_APIS") == "true"
             and os.getenv("SERVER_ENVIRONMENT", "production").lower() not in {"production", "prod"})
+
+
+def lens_request_matches(image_url: str, query: Any, max_results: int) -> bool:
+    """Only the isolated private-temp-upload shape may use the Lens replay."""
+    if (not active() or os.getenv("CI") != "true" or os.getenv("OPENMATES_CI_AI_FIXTURES") != "1"
+            or os.getenv("S3_ENDPOINT_URL") != "http://storage.ci.test:9000"
+            or query is not None or max_results != 3):
+        return False
+    parsed = urlsplit(image_url)
+    return (parsed.scheme == "http" and parsed.netloc == "storage.ci.test:9000"
+            and not parsed.fragment and bool(re.fullmatch(
+                r"/dev-openmates-temp-images/reverse_search/[0-9a-f]{16}_[0-9a-f]{16}\.(?:png|jpg|webp)", parsed.path))
+            and bool(parse_qs(parsed.query).get("X-Amz-Signature")))
+
+
+def synthetic_http_response(request: Any) -> Any:
+    """Replay raw Lens HTTP data; the real provider parser still executes."""
+    if not active() or str(request.method).upper() != "GET":
+        return None
+    parsed = urlsplit(str(request.url))
+    params = parse_qs(parsed.query)
+    if (parsed.scheme != "https" or parsed.netloc != "serpapi.com" or parsed.path != "/search"
+            or parsed.fragment or set(params) != {"engine", "url", "api_key", "num"}
+            or params.get("engine") != ["google_lens"] or params.get("num") != ["3"]
+            or params.get("api_key") != [LENS_FIXTURE_KEY] or len(params.get("url", [])) != 1
+            or not lens_request_matches(params["url"][0], None, 3)):
+        return None
+    import httpx
+    return httpx.Response(200, request=request, json={"visual_matches": [{
+        "title": "Synthetic direct uploaded reference match", "source": "Synthetic Lens fixture",
+        "link": "https://example.invalid/direct-reference-match",
+        "image": "https://app.dev.openmates.org/store-examples/generate-1.webp",
+        "thumbnail": "https://app.dev.openmates.org/store-examples/generate-1.webp",
+    }]})
 
 
 def _matches(messages: Any) -> bool:
@@ -47,9 +90,60 @@ def _matches(messages: Any) -> bool:
                  if isinstance(message, dict) and message.get("role") == "user"), False)
 
 
+def _direct_image_references(content: Any) -> list[str]:
+    """Read exact upload references from raw or EmbedService-expanded messages.
+
+    This only selects the fixture's dispatch argument. The real skill still
+    authorizes the selected reference before decrypting or contacting providers.
+    """
+    if not isinstance(content, str):
+        return []
+    references = []
+    pattern = re.compile(
+        # EmbedService replaces the image token in place: captions can precede
+        # the opening fence and the user prompt can follow its closing fence.
+        r"(?P<fence>(?<!`)```(?!`)(?P<language>[^\r\n`]*)\r?\n(?P<body>.*?)\r?\n```(?!`))"
+        r"|(?P<unterminated>(?<!`)```(?!`)[^\r\n`]*\r?\n.*\Z)"
+        r"|\[!\]\(embed:(?P<markdown>[^\s)]+)\)", re.DOTALL,
+    )
+    for match in pattern.finditer(content):
+        if match.group("unterminated"):
+            continue
+        reference = match.group("markdown")
+        if match.group("fence"):
+            # Consume every code block so examples inside other fenced formats
+            # cannot be mistaken for live markdown references.
+            if match.group("language") != "toon":
+                continue
+            try:
+                metadata = decode(match.group("body"))
+            except (ValueError, TypeError):
+                continue
+            if (not isinstance(metadata, dict) or metadata.get("type") != "image"
+                    or metadata.get("app_id") != "images" or metadata.get("skill_id") != "upload"):
+                continue
+            reference = metadata.get("embed_ref")
+        if (not isinstance(reference, str) or not reference or len(reference) > 512
+                or reference != reference.strip() or any(ord(char) < 32 for char in reference)
+                or reference.startswith("//") or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", reference)):
+            continue
+        if reference not in references:
+            references.append(reference)
+    return references
+
+
 def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: str) -> DecisionResponse | None:
     if not active() or not isinstance(state, Mapping) or not questions:
         return None
+    if state.get("task") == "shopping_visual_relevance" and state.get("query") == DIRECT_REFERENCE_QUERY:
+        rows = state.get("candidates")
+        if not isinstance(rows, list) or len(rows) != 1 or set(questions) != {rows[0].get("candidate_id")}:
+            return None
+        if rows[0].get("data", {}).get("title") != "Synthetic direct reference product" or len(state.get("reference_photos", [])) != 1:
+            return None
+        return DecisionResponse(model=model, answers={key: {"type": "score", "score": 3.0,
+            "legend": {"0": "conflict", "3": "fit"}, "probabilities": {"0": 0.0, "3": 1.0},
+            "confidence": 1.0} for key in questions})
     if (state.get("task") == "rank_search_candidates" and state.get("profile") == "shopping"
             and state.get("relevance_criteria") == FORTY_CRITERIA
             and state.get("search_parameters", {}).get("query") == FORTY_QUERY):
@@ -69,13 +163,16 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
     preferred = {"complexity": "simple", "task_area": "general", "topic_shift": "noticeable_shift",
                  "temperature": "balanced", "preview": "none", "language": "en", "icon": "shopping-cart",
                  "project_target": "none", "topic_area": "general_misc"}
+    image_search = (DIRECT_SEARCH_PROMPT in str(state.get("user_message") or "")
+                    or any(DIRECT_SEARCH_PROMPT in str(message.get("content") or "")
+                           for message in state.get("messages", []) if isinstance(message, Mapping)))
     for question_id, question in questions.items():
         kind = question.get("type")
         if kind == "noul":
             instructions = question.get("instructions")
             candidate = instructions.get("candidate_id") if isinstance(instructions, Mapping) else None
-            selected = (question_id.startswith("app_") and candidate == "shopping"
-                        or question_id.startswith("skill_") and candidate == "shopping-search_products")
+            selected = (question_id.startswith("app_") and candidate == ("images" if image_search else "shopping")
+                        or question_id.startswith("skill_") and candidate == ("images-search" if image_search else "shopping-search_products"))
             answers[question_id] = {"type": kind, "noul": float(selected)}
         elif kind == "choice" and isinstance(criteria := question.get("criteria"), Mapping) and criteria:
             chosen = preferred.get(question_id)
@@ -216,6 +313,49 @@ def _has_forty_results(tail: list[dict[str, Any]]) -> bool:
     return False
 
 
+def _has_direct_reference_result(tail: list[dict[str, Any]]) -> bool:
+    from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
+
+    for message in tail:
+        if message.get("role") != "tool":
+            continue
+        try:
+            payload = json.loads(message.get("content"))
+        except (ValueError, TypeError):
+            try:
+                payload = decode(message.get("content"))
+            except (ValueError, TypeError):
+                continue
+        if not isinstance(payload, dict):
+            continue
+        rows = payload.get("results", [])
+        raw_evaluations = payload.get("visual_evaluations")
+        if not isinstance(raw_evaluations, list) or len(raw_evaluations) != 1:
+            continue
+        evaluations = sanitize_shopping_visual_evaluations(raw_evaluations)
+        if (not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict)
+                or len(evaluations) != 1):
+            continue
+        summary = evaluations[0].get("visual_evaluation", {})
+        # Current tool messages flatten product fields before TOON encoding;
+        # restored history can also contain the original nested representation.
+        if "visual_match" in rows[0]:
+            if not isinstance(rows[0]["visual_match"], dict):
+                continue
+            match_status = rows[0]["visual_match"].get("status")
+            if "visual_match_status" in rows[0] and rows[0]["visual_match_status"] != match_status:
+                continue
+        else:
+            match_status = rows[0].get("visual_match_status")
+        if (rows[0].get("title") == "Synthetic direct reference product"
+                and match_status == "evaluated"
+                and summary.get("status") == "evaluated"
+                and summary.get("reference_count") == 1 and summary.get("evaluated_count") == 1
+                and summary.get("unavailable_count") == 0):
+            return True
+    return False
+
+
 def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     if not active() or not _matches(kwargs.get("messages")):
         return None
@@ -244,10 +384,23 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     reference_error = REFERENCE_ERROR_PROMPT in str(messages[last_user].get("content") or "")
     grounding = GROUNDING_PROMPT in str(messages[last_user].get("content") or "")
     forty = FORTY_PROMPT in str(messages[last_user].get("content") or "")
+    direct_reference = DIRECT_REFERENCE_PROMPT in str(messages[last_user].get("content") or "")
+    direct_search = DIRECT_SEARCH_PROMPT in str(messages[last_user].get("content") or "")
+    if not tail and direct_search and "images-search" in names:
+        references = _direct_image_references(messages[last_user].get("content"))
+        if len(references) != 1:
+            return {"response": {"type": "mixed_stream", "chunks": [{"kind": "text", "value": "REGRESSION: expected one uploaded image reference."}]}}
+        return {"response": {"type": "mixed_stream", "chunks": [
+            _call("images-search", {"requests": [{"file_path": references[0], "count": 3}]}, model)]}}
     if not tail and "shopping-search_products" in names:
         request = {"query": "bio joghurt", "provider": "REWE", "max_results": 1}
         if forty:
             request.update({"query": FORTY_QUERY, "max_results": 5, "relevance_criteria": FORTY_CRITERIA})
+        if direct_reference:
+            references = _direct_image_references(messages[last_user].get("content"))
+            if len(references) != 1:
+                return {"response": {"type": "mixed_stream", "chunks": [{"kind": "text", "value": "REGRESSION: expected one uploaded image reference."}]}}
+            request.update({"query": DIRECT_REFERENCE_QUERY, "reference_images": references})
         if reference_error:
             request.update({"id": REFERENCE_ERROR_ID,
                             "reference_images": ["00000000-0000-4000-8000-000000000001"]})
@@ -261,6 +414,13 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
             answer = GROUNDING_RESPONSE if _has_grounded_comparison_metadata(tail) else MISSING_GROUNDING_METADATA_RESPONSE
         elif reference_error:
             answer = REFERENCE_ERROR_RESPONSE if _has_reference_failure_metadata(tail) else MISSING_ERROR_METADATA_RESPONSE
+        elif direct_reference:
+            answer = DIRECT_REFERENCE_RESPONSE if _has_direct_reference_result(tail) else "REGRESSION: direct reference resolution or comparison failed."
+        elif direct_search:
+            # This exact title is emitted only by the raw synthetic Lens HTTP
+            # response after decrypt/upload; the real provider parser returns it.
+            answer = DIRECT_SEARCH_RESPONSE if any("Synthetic direct uploaded reference match" in str(message.get("content") or "")
+                for message in tail if message.get("role") == "tool") else "REGRESSION: direct image search failed."
         return {"response": {"type": "mixed_stream", "chunks": [
             {"kind": "text", "value": answer}]}}
     return None

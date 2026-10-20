@@ -29,7 +29,7 @@ class _FakeDirectus:
     class _EmbedMethods:
         async def get_embed_by_id(self, embed_id):
             assert embed_id == "embed-1"
-            return {"embed_id": embed_id, "encrypted_content": "embed-ciphertext"}
+            return {"embed_id": embed_id, "encrypted_content": "vault:v1:embed-ciphertext"}
 
     def __init__(self):
         self.embed = self._EmbedMethods()
@@ -85,12 +85,12 @@ async def test_cache_read_error_falls_back_to_directus_embed_methods() -> None:
 class _LegacyFakeDirectus:
     async def get_embed_by_id(self, embed_id):
         assert embed_id == "embed-1"
-        return {"embed_id": embed_id, "encrypted_content": "embed-ciphertext"}
+        return {"embed_id": embed_id, "encrypted_content": "vault:v1:embed-ciphertext"}
 
 
 class _FakeEncryption:
     async def decrypt_with_user_key(self, ciphertext, _vault_key_id):
-        if ciphertext == "embed-ciphertext":
+        if ciphertext == "vault:v1:embed-ciphertext":
             return "decoded-toon"
         if ciphertext == "wrapped-aes-key":
             return base64.b64encode(b"\x11" * 32).decode()

@@ -150,16 +150,34 @@ export async function fillMessageEditor(page: any, messageEditor: any, message: 
 }
 
 export async function focusMessageEditor(messageEditor: any): Promise<void> {
-	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
-	await expect.poll(
-		async () => messageEditor.evaluate((editor: HTMLElement) => {
-			const activeElement = document.activeElement;
-			return activeElement instanceof HTMLElement
-				&& activeElement.isContentEditable
-				&& editor.contains(activeElement);
-		}),
-		{ timeout: 5000, intervals: [100, 250, 500] }
-	).toBe(true);
+	try {
+		// Tiptap mounts a role=textbox editable inside the message-editor wrapper.
+		// Native focus preserves its selection without activating an attached image.
+		await messageEditor.getByRole('textbox').focus();
+		await expect.poll(
+			async () => messageEditor.evaluate((editor: HTMLElement) => {
+				const activeElement = document.activeElement;
+				return activeElement instanceof HTMLElement
+					&& activeElement.isContentEditable
+					&& editor.contains(activeElement);
+			}),
+			{ timeout: 5000, intervals: [100, 250, 500] }
+		).toBe(true);
+	} catch (error) {
+		const diagnostics = await messageEditor.evaluate((editor: HTMLElement) => {
+			const active = document.activeElement;
+			const selection = document.getSelection();
+			return {
+				editorConnected: editor.isConnected,
+				activeTag: active?.tagName ?? null,
+				activeRole: active?.getAttribute('role') ?? null,
+				activeEditable: active instanceof HTMLElement && active.isContentEditable,
+				activeInsideEditor: active !== null && editor.contains(active),
+				selectionInsideEditor: !!selection?.anchorNode && editor.contains(selection.anchorNode)
+			};
+		}).catch(() => ({ editorUnavailable: true }));
+		throw new Error(`Message editor focus failed; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+	}
 }
 
 async function userMessagePersisted(

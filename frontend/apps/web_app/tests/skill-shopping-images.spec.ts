@@ -24,12 +24,22 @@ const {
 } = require('./helpers/workflow-cli-e2e-helpers');
 const { getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
+const { parseMessageSegments } = require('../../../packages/openmates-cli/src/messageSegments');
 const fs = require('node:fs');
+const path = require('node:path');
 
 const PROMPT =
-	'@ai-model:gemini-3.8-flash:google Find bio joghurt on REWE. SHOPPING_IMAGES_E2E:gallery <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+	'Find bio joghurt on REWE. SHOPPING_IMAGES_E2E:gallery <<<TEST_LIVE_MOCK:shopping_images_web>>>';
 const REFERENCE_ERROR_PROMPT =
-	'@ai-model:gemini-3.8-flash:google Find bio joghurt on REWE using my reference image. SHOPPING_IMAGES_E2E:reference-error <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+	'Find bio joghurt on REWE using my reference image. SHOPPING_IMAGES_E2E:reference-error <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const DIRECT_REFERENCE_PROMPT =
+	'Find bio joghurt on REWE using this uploaded image without inspecting it. SHOPPING_IMAGES_E2E:direct-reference <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const DIRECT_REFERENCE_RESPONSE =
+	'The uploaded reference was passed directly to Shopping without images.view. The shopping skill resolved it and evaluated one product; composition was not supplied.';
+const DIRECT_SEARCH_PROMPT =
+	'Reverse-search this uploaded image directly without inspecting it. SHOPPING_IMAGES_E2E:direct-image-search <<<TEST_LIVE_MOCK:shopping_images_web>>>';
+const DIRECT_SEARCH_RESPONSE =
+	'The uploaded image was reverse-searched directly without images.view. Google Lens returned the synthetic reference match.';
 const REFERENCE_ERROR_MESSAGE =
 	'A reference image could not be accessed. Use its exact reference from this chat or upload it again.';
 const REFERENCE_ERROR_RESPONSE =
@@ -42,6 +52,72 @@ const GALLERY = [
 
 function resolveSchema(openapi: any, schema: any): any {
 	return schema?.$ref ? openapi.components.schemas[schema.$ref.split('/').pop()] : schema;
+}
+
+async function verifyAutoModelAttribution(
+	assistants: any[],
+	browserAttribution: string,
+	testInfo: any
+): Promise<void> {
+	// These gallery/reference checks leave routing on Auto. Assert that the
+	// selected model is named consistently in the UI and persisted owner read,
+	// rather than fixing the current Auto profile to one provider or model.
+	const actualModels = assistants.map((assistant: any) => ({
+		messageId: assistant.id,
+		modelName: assistant.modelName
+	}));
+	for (const { modelName } of actualModels) {
+		expect(typeof modelName, 'The persisted assistant names the model that answered').toBe(
+			'string'
+		);
+		expect(modelName.trim()).not.toMatch(/^(?:auto|unknown)?$/i);
+		expect(browserAttribution).toContain(modelName);
+	}
+	await testInfo.attach('actual-auto-model-attribution', {
+		body: JSON.stringify({ browserAttribution, actualModels }, null, 2),
+		contentType: 'application/json'
+	});
+}
+
+async function readUploadedImageReference(
+	apiUrl: string, chatId: string, messages: any[], options: any
+): Promise<string> {
+	// Web sends the upload UUID in a canonical JSON reference block. The skill
+	// receives the filename alias from the owner-encrypted upload, not that UUID.
+	const uploads = messages
+		.filter((message: any) => message.role === 'user')
+		.flatMap((message: any) => parseMessageSegments(message.content))
+		.filter((segment: any) => segment.type === 'embed' && segment.meta?.type === 'image');
+	expect(uploads, 'Exactly one image upload persists in the user message').toHaveLength(1);
+	const uploadId = uploads[0].value;
+	expect(uploadId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+	const read = await runCli(
+		apiUrl, ['embeds', 'show', uploadId, '--chat', chatId, '--json'], 45_000, options
+	);
+	expectCliSuccess(read, 'Read the exact persisted image upload through the owner client');
+	const upload = parseCliJson(read);
+	expect(upload.embedId).toBe(uploadId);
+	expect(upload.content).toMatchObject({
+		type: 'image', app_id: 'images', skill_id: 'upload', status: 'finished',
+		filename: 'sample.png', embed_ref: 'sample.png'
+	});
+	return upload.content.embed_ref;
+}
+
+async function attachReadyReference(page: any): Promise<void> {
+	const editor = page.getByTestId('message-editor');
+	// Use the existing type-before-attach pattern from file-attachment-code-flow.
+	// The shared send helper focuses the editor's upper-left text area; an image
+	// as the first node makes that click hit its non-editable preview instead.
+	await editor.press('End');
+	await page.keyboard.insertText('Reference attachment: ');
+	await page
+		.locator('input[type="file"][multiple]')
+		.setInputFiles(path.join(__dirname, 'fixtures', 'sample.png'));
+	const preview = editor.getByTestId('embed-preview').first();
+	await expect(preview).toBeVisible({ timeout: 30_000 });
+	// A mounted local preview does not mean encrypted upload metadata is ready.
+	await expect(preview).toHaveAttribute('data-status', 'finished', { timeout: 60_000 });
 }
 
 test.describe('Shopping product galleries and reference images', () => {
@@ -74,6 +150,160 @@ test.describe('Shopping product galleries and reference images', () => {
 			item.properties.max_results.maximum,
 			'Forty discovery candidates preserve the public final cap'
 		).toBe(20);
+	});
+
+	// contract-test: direct surface=gui.web assertions=app-skills.images.reference-handoff,app-skills.images.authorized-resolution,shopping-search.references.authorized
+	test('an uploaded image reaches Shopping directly without an images.view prerequisite', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.skip(!getTestAccount().email, 'Disposable CI account required.');
+		const home = createWorkflowCliHome('shopping-direct-reference');
+		const options = { useApiKey: false, record: false, env: workflowCliEnv(apiUrl, home) };
+		let chatId: string | undefined;
+		try {
+			await installE2EServerContentOverrideGate(page, 'shopping-direct-reference');
+			await loginToTestAccount(page);
+			await startNewChat(page);
+			await attachReadyReference(page);
+			await sendMessage(page, DIRECT_REFERENCE_PROMPT, undefined, undefined, 'direct-reference', {
+				preserveExistingContent: true
+			});
+			chatId =
+				page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ||
+				(await page
+					.locator('[data-action="message-input"]')
+					.last()
+					.getAttribute('data-current-chat-id'));
+			expect(chatId).toBeTruthy();
+			const assistant = page.getByTestId('message-assistant').last();
+			// The scripted assistant only emits this after inspecting real tool
+			// metadata: one owner-resolved reference and one completed comparison.
+			await expect(assistant).toContainText(DIRECT_REFERENCE_RESPONSE, { timeout: 60_000 });
+			await expect(assistant).not.toContainText('REGRESSION:');
+			// The signed answer is prose-only; the activity button exposes app use.
+			// The owner read below proves the persisted search finished successfully.
+			const usedShopping = assistant.getByRole('button', { name: 'Used the Shopping app', exact: true });
+			await expect(usedShopping).toHaveCount(1);
+			await expect(usedShopping).toBeVisible();
+			await expect(
+				assistant.locator(
+					'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]'
+				)
+			).toHaveCount(0);
+			await pairDirectChatCli(page, apiUrl, home, CLI_DIST);
+			const saved = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 45_000, options);
+			expectCliSuccess(saved, 'Read direct-reference chat through the owner client');
+			const messages = parseCliJson(saved).messages;
+			const reference = await readUploadedImageReference(apiUrl, chatId!, messages, options);
+			const assistants = messages.filter((message: any) => message.role === 'assistant');
+			expect(assistants.length).toBeGreaterThan(0);
+			const calls = assistants
+				.flatMap((message: any) =>
+					[...String(message.content).matchAll(/```json\s*({[\s\S]*?})\s*```/g)].map((match: any) =>
+						JSON.parse(match[1])
+					)
+				)
+				.filter((call: any) => call.type === 'app_skill_use');
+			expect(calls.map((call: any) => `${call.app_id}.${call.skill_id}`)).toEqual([
+				'shopping.search_products'
+			]);
+			const read = await runCli(
+				apiUrl,
+				['embeds', 'show', calls[0].embed_id, '--chat', chatId!, '--json'],
+				45_000,
+				options
+			);
+			expectCliSuccess(read, 'Read persisted direct-reference Shopping dispatch');
+			const embed = parseCliJson(read);
+			const content = typeof embed.content === 'string' ? JSON.parse(embed.content) : embed.content;
+			const references = Array.isArray(content.reference_images)
+				? content.reference_images
+				: String(content.reference_images).split('|');
+			expect(references).toEqual([reference]);
+			expect(content.result_count).toBe(1);
+			expect(content.status).toBe('finished');
+			const evaluation = content.visual_evaluations[0];
+			expect(evaluation.visual_evaluation_reference_count).toBe(1);
+			expect(evaluation.visual_evaluation_evaluated_count).toBe(1);
+			expect(evaluation.visual_evaluation_unavailable_count).toBe(0);
+		} finally {
+			if (chatId) await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000, options);
+			removeWorkflowCliHome(home);
+		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=app-skills.images.reference-handoff,app-skills.images.authorized-resolution
+	test('an uploaded image reaches reverse image search without images.view', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.skip(!getTestAccount().email, 'Disposable CI account required.');
+		const home = createWorkflowCliHome('images-direct-reference');
+		const options = { useApiKey: false, record: false, env: workflowCliEnv(apiUrl, home) };
+		let chatId: string | undefined;
+		try {
+			await installE2EServerContentOverrideGate(page, 'images-direct-reference');
+			await loginToTestAccount(page);
+			await startNewChat(page);
+			await attachReadyReference(page);
+			await sendMessage(page, DIRECT_SEARCH_PROMPT, undefined, undefined, 'direct-image-search', {
+				preserveExistingContent: true
+			});
+			chatId =
+				page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ||
+				(await page
+					.locator('[data-action="message-input"]')
+					.last()
+					.getAttribute('data-current-chat-id'));
+			expect(chatId).toBeTruthy();
+			const assistant = page.getByTestId('message-assistant').last();
+			await expect(assistant).toContainText(DIRECT_SEARCH_RESPONSE, { timeout: 60_000 });
+			await expect(assistant).not.toContainText('REGRESSION:');
+			// The signed answer has no inline embed reference. Prove visible app use
+			// here, then verify the finished search and exact upload via owner CLI.
+			const usedImages = assistant.getByRole('button', { name: 'Used the Images app', exact: true });
+			await expect(usedImages).toHaveCount(1);
+			await expect(usedImages).toBeVisible();
+			await expect(
+				assistant.locator(
+					'[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]'
+				)
+			).toHaveCount(0);
+			await pairDirectChatCli(page, apiUrl, home, CLI_DIST);
+			const saved = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 45_000, options);
+			expectCliSuccess(saved, 'Read persisted direct reverse-search dispatch');
+			const messages = parseCliJson(saved).messages;
+			const reference = await readUploadedImageReference(apiUrl, chatId!, messages, options);
+			const calls = messages
+				.filter((message: any) => message.role === 'assistant')
+				.flatMap((message: any) =>
+					[...String(message.content).matchAll(/```json\s*({[\s\S]*?})\s*```/g)].map((match: any) =>
+						JSON.parse(match[1])
+					)
+				)
+				.filter((call: any) => call.type === 'app_skill_use');
+			expect(calls.map((call: any) => `${call.app_id}.${call.skill_id}`)).toEqual([
+				'images.search'
+			]);
+			const read = await runCli(
+				apiUrl,
+				['embeds', 'show', calls[0].embed_id, '--chat', chatId!, '--json'],
+				45_000,
+				options
+			);
+			expectCliSuccess(read, 'Read owner-decrypted reverse image search result');
+			const embed = parseCliJson(read);
+			const content = typeof embed.content === 'string' ? JSON.parse(embed.content) : embed.content;
+			expect(content.file_path).toBe(reference);
+			expect(content.result_count).toBe(1);
+			expect(content.status).toBe('finished');
+		} finally {
+			if (chatId) await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 20_000, options);
+			removeWorkflowCliHome(home);
+		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=shopping-search.relevance.bounded,app-skills.search-relevance.safe-finalization
@@ -166,13 +396,16 @@ test.describe('Shopping product galleries and reference images', () => {
 					.getAttribute('data-current-chat-id'));
 			expect(chatId, 'Signed shopping web chat has a persisted identity').toBeTruthy();
 			await pairDirectChatCli(page, apiUrl, home, CLI_DIST);
+			const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
+			await expect(generatedBy).toBeVisible();
+			const browserAttribution = await generatedBy.innerText();
 			await page.close();
 			const shown = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 45_000, options);
 			expectCliSuccess(shown, 'Read persisted shopping chat');
 			const messages = parseCliJson(shown).messages;
 			const assistants = messages.filter((message: any) => message.role === 'assistant');
 			expect(assistants.length).toBeGreaterThan(0);
-			for (const assistant of assistants) expect(assistant.modelName).toBe('Gemini 3.8 Flash');
+			await verifyAutoModelAttribution(assistants, browserAttribution, testInfo);
 			const pending: string[] = [
 				...new Set<string>(
 					messages.flatMap((message: any) => message.embedIds || message.embed_ids || [])
@@ -406,6 +639,9 @@ test.describe('Shopping product galleries and reference images', () => {
 					.getAttribute('data-current-chat-id'));
 			expect(chatId).toBeTruthy();
 			await pairDirectChatCli(page, apiUrl, home, CLI_DIST);
+			const generatedBy = assistant.getByTestId('generated-by');
+			await expect(generatedBy).toBeVisible();
+			const browserAttribution = await generatedBy.innerText();
 			await page.close();
 			const saved = await runCli(apiUrl, ['chats', 'show', chatId!, '--json'], 45_000, {
 				...options,
@@ -427,7 +663,7 @@ test.describe('Shopping product galleries and reference images', () => {
 			const messages = parseCliJson(saved).messages;
 			const assistants = messages.filter((message: any) => message.role === 'assistant');
 			expect(assistants.length).toBeGreaterThan(0);
-			for (const assistant of assistants) expect(assistant.modelName).toBe('Gemini 3.8 Flash');
+			await verifyAutoModelAttribution(assistants, browserAttribution, testInfo);
 			const answers = assistants.map((message: any) => message.content).join('\n');
 			expect(answers).toContain(REFERENCE_ERROR_RESPONSE);
 			expect(answers).not.toMatch(/no matching products|no products found|REGRESSION:/i);

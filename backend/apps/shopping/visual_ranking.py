@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 from dataclasses import dataclass
-import hashlib
 from io import BytesIO
 import ipaddress
 import logging
@@ -18,7 +17,7 @@ import socket
 import time
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit
-from uuid import UUID, uuid4
+from uuid import uuid4
 import warnings
 
 import httpx
@@ -27,7 +26,10 @@ from PIL import Image, ImageOps
 from backend.shared.providers.typesafe.client import JevDecisionClient
 from backend.shared.providers.typesafe.models import ScoreAnswer
 from backend.shared.python_utils.encrypted_embed_images import resolve_encrypted_image_embed
-from backend.shared.python_utils.fresh_upload_images import FreshUploadImageUnavailable, recover_fresh_upload_image
+from backend.shared.python_utils.image_reference_resolver import (
+    ImageReferenceUnavailable, image_reference_id, load_owned_image_record,
+)
+from backend.shared.python_utils.fresh_upload_images import FreshUploadImageUnavailable
 from backend.shared.python_utils.search_relevance import _bounded_candidate_projection
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,13 @@ async def download_public_product_image(url: str) -> bytes:
     Pinning the connection (with the original TLS SNI/Host) prevents DNS rebinding.
     No environment proxy, cookies, authorization, or provider credentials are sent.
     """
+    from backend.apps.ai.testing.shopping_images_fixture import active as fixture_active, DIRECT_REFERENCE_IMAGE
+    if fixture_active():
+        if url != DIRECT_REFERENCE_IMAGE:
+            raise ValueError("Signed shopping replay has no product image fixture")
+        output = BytesIO()
+        Image.new("RGB", (336, 336), "yellow").save(output, format="JPEG")
+        return output.getvalue()
     parsed = urlsplit(url)
     if (len(url) > 4096 or parsed.scheme != "https" or not parsed.hostname
             or parsed.username or parsed.password or parsed.port not in (None, 443)):
@@ -158,15 +167,10 @@ async def resolve_reference_images(references: list[str], context: Mapping[str, 
     if not isinstance(user_id, str) or not user_id:
         raise ReferenceImageAccessDenied("Reference images require an authenticated owner")
     file_index = context.get("file_path_index") or {}
-    embed_ids = []
-    for reference in references:
-        embed_id = file_index.get(reference)
-        if not embed_id:
-            try:
-                embed_id = str(UUID(reference))
-            except ValueError as exc:
-                raise ReferenceImageAccessDenied("Reference image is unavailable to this caller") from exc
-        embed_ids.append(embed_id)
+    try:
+        embed_ids = [image_reference_id(reference, file_index) for reference in references]
+    except ImageReferenceUnavailable as exc:
+        raise ReferenceImageAccessDenied(str(exc)) from exc
 
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.directus import DirectusService
@@ -177,47 +181,14 @@ async def resolve_reference_images(references: list[str], context: Mapping[str, 
     cache = context.get("cache_service") or CacheService()
     encryption = context.get("encryption_service") or EncryptionService(cache_service=cache)
     directus = context.get("directus_service") or DirectusService(cache_service=cache, encryption_service=encryption)
-    owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
     records = {}
     for embed_id in embed_ids:
         try:
-            record = await cache.get_embed_from_cache(embed_id)
-        except Exception:
-            record = None
-        # A foreign cache record is denied even if an owner record exists elsewhere.
-        if isinstance(record, dict) and (
-            (record.get("user_id") and record["user_id"] != user_id)
-            or (record.get("hashed_user_id") and record["hashed_user_id"] != owner_hash)
-        ):
-            raise ReferenceImageAccessDenied("Reference image is unavailable to this caller")
-        if not isinstance(record, dict) or not (
-            record.get("user_id") == user_id or record.get("hashed_user_id") == owner_hash
-        ):
-            record = await directus.embed.get_embed_by_id(embed_id)
-        if record is None:
-            try:
-                record = await recover_fresh_upload_image(
-                    embed_id=embed_id, user_id=user_id,
-                    request_internal=context.get("internal_api_request"),
-                )
-            except FreshUploadImageUnavailable as exc:
-                raise ReferenceImageAccessDenied(str(exc)) from exc
-            # Best effort metadata-only warming; retain the original expiry.
-            try:
-                await cache.set(f"embed:{embed_id}", record, ttl=max(1, record["expires_at"] - int(time.time())))
-            except Exception:
-                logger.warning("Recovered shopping reference cache write unavailable")
-        if not isinstance(record, dict) or not (
-            record.get("user_id") == user_id or record.get("hashed_user_id") == owner_hash
-        ):
-            raise ReferenceImageAccessDenied("Reference image is unavailable to this caller")
-        if ((record.get("user_id") and record["user_id"] != user_id)
-                or (record.get("hashed_user_id") and record["hashed_user_id"] != owner_hash)):
-            raise ReferenceImageAccessDenied("Reference image is unavailable to this caller")
-        expiry = record.get("expires_at")
-        if expiry is not None and (type(expiry) is not int or expiry <= time.time()):
-            raise ReferenceImageAccessDenied("Reference image is no longer available")
-        records[embed_id] = record
+            records[embed_id] = await load_owned_image_record(
+                embed_id=embed_id, user_id=user_id, cache_client=cache,
+                directus_service=directus, request_internal=context.get("internal_api_request"))
+        except (ImageReferenceUnavailable, FreshUploadImageUnavailable) as exc:
+            raise ReferenceImageAccessDenied(str(exc)) from exc
 
     vault_key_id = context.get("user_vault_key_id")
     if not vault_key_id:

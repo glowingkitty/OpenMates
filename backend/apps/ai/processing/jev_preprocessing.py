@@ -198,11 +198,14 @@ async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions:
 def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) -> dict[str, dict[str, Any]]:
     questions: dict[str, dict[str, Any]] = {
         "complexity": {"type": "choice", "instructions": (
-            "Select the minimum reasoning depth needed for a high-quality answer. Most requests are low. "
+            "Select the minimum reasoning depth the main assistant needs for a high-quality answer, "
+            "excluding reasoning delegated to app skills. Most requests are low. "
+            "Forwarding a known Shopping query and reference images for skill-owned visual comparison "
+            "is low; forty candidates or three photos alone do not raise the assistant tier. "
             "Length, importance, tools, attachments, or dissatisfaction alone do not justify max. "
             "If uncertain between high and max, choose high."
         ), "criteria": {
-            "low": "Ordinary Q&A, retrieval, direct transformation, or straightforward app skill use.",
+            "low": "Ordinary Q&A, retrieval, direct transformation, or straightforward app skill use, including known-query image-reference searches evaluated within the skill.",
             "medium": "Bounded multi-step reasoning, comparisons, synthesis, or moderately nuanced writing and debugging.",
             "high": "Intricate debugging, proofs, difficult judgment, or sustained reasoning across several interacting constraints.",
             "max": "Sustained multi-system or deeply interdependent reasoning with exceptional correctness constraints beyond ordinary high-complexity work.",
@@ -611,7 +614,11 @@ async def decide_preprocessing_with_jev(
 
     skill_map = _add_multi_select_questions(
         questions, "skill", available_skills,
-        "Would this app skill materially help answer or execute the latest user request?",
+        "Would this app skill materially help answer or execute the latest user request? "
+        "Pass exact image references directly to consuming skills (Shopping, reverse image search, editing) "
+        "when the request supplies enough information. Select images-view only when the main assistant "
+        "needs pixels to answer a visual question or identify a photo-only subject before forming a query. "
+        "An unrelated historical upload alone does not justify viewing.",
     )
     focus_map = _add_multi_select_questions(
         questions, "focus", available_focus_modes,

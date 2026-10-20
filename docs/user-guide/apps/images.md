@@ -43,6 +43,11 @@ The Images app is a complete toolkit for working with images. You can create new
 - Vectorise: Upload a logo and ask "Convert this to SVG"
 - Describe an image: Upload a photo and ask "What is in this picture?"
 
+Reverse image search and image editing can use your uploaded image directly.
+Your mate does not need to view it first unless answering your request requires
+visual inspection. An image attached to an older message does not by itself
+require viewing again.
+
 ## Memories
 
 - **Preferred Styles** -- Save your preferred image styles (for example, "minimalist", "watercolour", "cyberpunk") so your mate knows your taste.

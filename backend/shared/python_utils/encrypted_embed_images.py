@@ -87,6 +87,28 @@ async def _load_embed_record(
     return record
 
 
+async def decode_image_record_content(*, record: Mapping[str, Any], user_vault_key_id: str,
+                                      encryption_service: Any, decode_toon: Callable[[str], Any] | None = None) -> dict[str, Any]:
+    """Decode server-readable metadata; durable client ciphertext fails closed."""
+    encrypted_content = record.get("encrypted_content")
+    if isinstance(encrypted_content, str) and encrypted_content:
+        if not encrypted_content.startswith("vault:v"):
+            raise EncryptedEmbedImageError("Reference image is unavailable in the current processing window")
+        if decode_toon is None:
+            from toon_format import decode as decode_toon
+        decrypted_toon = await encryption_service.decrypt_with_user_key(encrypted_content, user_vault_key_id)
+        if not decrypted_toon:
+            raise EncryptedEmbedImageError("Referenced image content could not be decrypted")
+        content = decode_toon(decrypted_toon)
+        if not isinstance(content, dict):
+            raise EncryptedEmbedImageError("Referenced image content is invalid")
+    else:
+        # Fresh uploads are cached before their optional chat embed is persisted.
+        content = record
+
+    return dict(content)
+
+
 async def resolve_encrypted_image_embed(
     *,
     embed_id: str,
@@ -108,19 +130,8 @@ async def resolve_encrypted_image_embed(
         directus_service=directus_service,
         preloaded_records=preloaded_records,
     )
-    encrypted_content = record.get("encrypted_content")
-    if isinstance(encrypted_content, str) and encrypted_content:
-        if decode_toon is None:
-            from toon_format import decode as decode_toon
-        decrypted_toon = await encryption_service.decrypt_with_user_key(encrypted_content, user_vault_key_id)
-        if not decrypted_toon:
-            raise EncryptedEmbedImageError("Referenced image content could not be decrypted")
-        content = decode_toon(decrypted_toon)
-        if not isinstance(content, dict):
-            raise EncryptedEmbedImageError("Referenced image content is invalid")
-    else:
-        # Fresh uploads are cached before their optional chat embed is persisted.
-        content = record
+    content = await decode_image_record_content(record=record, user_vault_key_id=user_vault_key_id,
+                                                encryption_service=encryption_service, decode_toon=decode_toon)
 
     files = content.get("files")
     wrapped_key = content.get("vault_wrapped_aes_key")

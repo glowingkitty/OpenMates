@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from io import BytesIO
 import json
+import hashlib
 import socket
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -244,8 +245,9 @@ async def test_references_require_auth_and_owner_even_when_file_index_contains_f
 async def test_direct_upload_uuid_checks_owner_after_cache_miss_and_uses_bounded_storage(monkeypatch):
     embed_id = str(uuid4())
     cache = SimpleNamespace(get_embed_from_cache=AsyncMock(return_value=None))
-    record = {"embed_id": embed_id, "hashed_user_id": visual.hashlib.sha256(b"alice").hexdigest()}
-    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value=record)))
+    record = {"embed_id": embed_id, "hashed_user_id": hashlib.sha256(b"alice").hexdigest(),
+              "files": {"original": {"s3_key": "private"}}, "vault_wrapped_aes_key": "vault:v1:key"}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[record]))
     storage = SimpleNamespace(environment="development", get_file=AsyncMock(return_value=b"encrypted"))
     captured = {}
 
@@ -262,7 +264,7 @@ async def test_direct_upload_uuid_checks_owner_after_cache_miss_and_uses_bounded
     assert len(result) == 1 and captured["embed_id"] == embed_id
     assert captured["preloaded_records"] == {embed_id: record}
     assert storage.get_file.await_args.kwargs["max_bytes"] == visual.MAX_SOURCE_BYTES + 32
-    directus.embed.get_embed_by_id.assert_awaited_once_with(embed_id)
+    directus.get_items.assert_awaited_once()
 
 
 # contract-test: supporting surface=rest_api assertions=shopping-search.references.authorized
@@ -377,9 +379,9 @@ async def test_image_client_rejects_foreign_transport_without_disclosure(setting
 async def test_directus_conflicting_owner_fields_are_denied_before_decryption():
     embed_id = str(uuid4())
     cache = SimpleNamespace(get_embed_from_cache=AsyncMock(return_value=None))
-    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value={
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{
         "user_id": "alice", "hashed_user_id": "foreign-owner-hash",
-    })))
+    }]))
     with pytest.raises(visual.ReferenceImageAccessDenied):
         await visual.resolve_reference_images([embed_id], {
             "user_id": "alice", "cache_service": cache, "directus_service": directus,
@@ -479,7 +481,7 @@ async def test_owned_fresh_upload_recovers_after_cache_and_chat_embed_miss_witho
               "files": {"original": {"s3_key": "encrypted-file"}}, "vault_wrapped_aes_key": "vault:v1:ciphertext"}
     request_internal = AsyncMock(return_value={"status": "success", "content": record})
     cache = SimpleNamespace(get_embed_from_cache=AsyncMock(return_value=None), set=AsyncMock(return_value=True))
-    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value=None)))
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[]))
     decrypt = AsyncMock(return_value=SimpleNamespace(content=image_bytes()))
     monkeypatch.setattr(visual, "resolve_encrypted_image_embed", decrypt)
     images = await visual.resolve_reference_images([embed_id], {
@@ -524,7 +526,7 @@ async def test_fresh_upload_recovery_rejects_foreign_expired_or_invalid_records_
     if fault == "not-found":
         request_internal.side_effect = HTTPException(status_code=404, detail="not found")
     cache = SimpleNamespace(get_embed_from_cache=AsyncMock(return_value=None), set=AsyncMock())
-    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value=None)))
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[]))
     decrypt = AsyncMock()
     monkeypatch.setattr(visual, "resolve_encrypted_image_embed", decrypt)
     with pytest.raises(visual.ReferenceImageAccessDenied):

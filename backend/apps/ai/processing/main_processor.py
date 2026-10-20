@@ -28,7 +28,10 @@ from backend.shared.python_utils.calendar_action_journal import calendar_undo_pa
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.apps.ai.processing.preprocessor import (
+    PreprocessingResult, _history_has_loaded_image_blocks,
+    _image_reference_consumer_skills, _request_has_image_upload_embed,
+)
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -4401,13 +4404,14 @@ async def handle_main_processing(
     elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
-        # An app chosen by stage one may keep its configured helper skills.
-        # Uploaded images still need their viewer even when no app was chosen.
+        # Keep app helpers, but inspection is selected semantically or by the
+        # preprocessor's image-question fallback, never by always-include policy.
         scoped_always_include = {
             skill for skill in always_include_skills
-            if selected_app_ids is None
-            or any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
-            or (skill == "images-view" and getattr(request_data, "has_image_upload_embed", False))
+            if skill != "images-view" and (
+                selected_app_ids is None
+                or any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
+            )
         }
         skills_to_add = scoped_always_include - preselected_skills
         if skills_to_add:
@@ -4784,16 +4788,25 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} [APP_INSTRUCTIONS] No discovered apps - app-specific instructions unavailable")
     
-    # === IMAGE CONTENT SAFETY INSTRUCTION ===
-    # Conditionally inject prompt-injection defence for image uploads.
-    # Only included when the images-view skill is preselected by the preprocessor,
-    # so conversations without images pay zero extra tokens for this instruction.
-    if preselected_skills and "images-view" in preselected_skills:
-        image_safety_instruction = base_instructions.get("base_image_content_safety_instruction", "")
-        if image_safety_instruction:
-            prompt_parts.append(image_safety_instruction)
-            logger.info(f"{log_prefix} [IMAGE_SAFETY] Injected image content safety instruction (images-view is preselected)")
-    
+    # Reference handoff does not load pixels into the answer model. Skills
+    # resolve the original refs through their authorized server-side context.
+    image_consumers = _image_reference_consumer_skills(preselected_skills, discovered_apps_metadata)
+    if image_consumers and _request_has_image_upload_embed(request_data):
+        handoff = base_instructions.get("base_image_reference_handoff_instruction", "")
+        if handoff:
+            prompt_parts.append(handoff)
+            research_only_prompt_parts.add(handoff)
+
+    # Inspection selection or already loaded pixels need image-content safety;
+    # a historical attachment/ref-only handoff does not imply visual inspection.
+    image_safety_instruction = base_instructions.get("base_image_content_safety_instruction", "")
+    if image_safety_instruction and (
+        (preselected_skills and "images-view" in preselected_skills)
+        or _history_has_loaded_image_blocks(request_data.message_history)
+    ):
+        prompt_parts.append(image_safety_instruction)
+        logger.info("%s [IMAGE_SAFETY] Injected safety for image inspection", log_prefix)
+
     # === TOOL-CALLING THINKING DISCIPLINE ===
     # Prevents reasoning models (e.g., Gemini Flash) from hallucinating about tool
     # output in their thinking phase before the tool returns. Only injected when
@@ -5612,7 +5625,7 @@ async def handle_main_processing(
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
     # Strict allow-list: the main LLM may ONLY call tools that the preprocessor
     # explicitly forwarded into available_tools_for_llm (including rule-based
-    # auto-adds like images-view on upload and always_include_skills). Any
+    # image-question fallback and always_include_skills). Any
     # other tool name is a hallucination (e.g. invented "mail|get_apps_settings")
     # and must be rejected before it reaches skill execution. See OPE-399.
     #
@@ -10312,6 +10325,9 @@ async def handle_main_processing(
                     # preview_data["results_toon"] is set later when is_multimodal_result is False;
                     # for multimodal results we skip both TOON encoding blocks below.
                     tool_result_content_str = results[0]
+                    if image_safety_instruction and image_safety_instruction not in full_system_prompt:
+                        full_system_prompt += "\n\n" + image_safety_instruction
+                        answer_recovery_system_prompt += "\n\n" + image_safety_instruction
                     logger.info(
                         f"{log_prefix} Detected multimodal content block result from '{tool_name}' "
                         f"({len(results[0])} blocks). Bypassing TOON encoding — passing raw list to LLM."

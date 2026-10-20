@@ -38,18 +38,20 @@
 # Tests: backend/tests/apps/images/test_search_skill.py (TODO)
 
 import base64
-import json as json_lib
 import logging
 import os
 import uuid
 from typing import Any, Dict, List, Optional
 
 import httpx
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.encrypted_embed_images import (
+    MAX_IMAGE_INPUT_BYTES, ResolvedEncryptedImage, decode_image_record_content, resolve_encrypted_image_embed,
+)
+from backend.shared.python_utils.image_reference_resolver import image_reference_id, load_owned_image_record
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
@@ -62,8 +64,6 @@ MAX_IMAGE_RESULTS = 20
 DEFAULT_IMAGE_RESULTS = 10
 # Maximum number of parallel search requests in a single skill call
 MAX_PARALLEL_REQUESTS = 5
-# Image content type returned by S3 decrypt (WEBP from our storage pipeline)
-DECRYPTED_IMAGE_CONTENT_TYPE = "image/webp"
 # Timeout for internal API calls (temp upload + delete)
 INTERNAL_API_TIMEOUT_SECONDS = 30
 E2E_IMAGE_FIXTURE_QUERY_TOKEN = "openmates_e2e_image_fixture_sunset"
@@ -120,8 +120,8 @@ class ImageSearchRequestItem(BaseModel):
     )
     file_path: Optional[str] = Field(
         default=None,
-        description="The original filename (embed_ref) of an image in the conversation to "
-        "reverse-search. Mutually exclusive with query.",
+        description="One exact image embed_ref from the conversation, or an authenticated caller's "
+        "upload UUID, to reverse-search directly without images.view. Mutually exclusive with query.",
     )
     count: int = Field(default=6, description="Number of image results to return (default 6, max 20).")
     country: str = Field(default="us", description="Country code for localised results (default 'us').")
@@ -200,161 +200,50 @@ class SearchSkill(BaseSkill):
 
     # ── Shared infrastructure helpers ────────────────────────────────────────
 
-    VAULT_TOKEN_PATH: str = "/vault-data/api.token"
+    async def _resolve_image_input(self, file_path: str, context: Dict[str, Any]) -> tuple[Optional[str], Optional[ResolvedEncryptedImage]]:
+        """Resolve owned metadata directly, without an images.view prerequisite."""
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.services.directus import DirectusService
+        from backend.core.api.app.utils.encryption import EncryptionService
+        from backend.core.api.app.services.s3.service import S3UploadService
+        from backend.core.api.app.services.s3.config import get_bucket_name
 
-    def _load_vault_token(self) -> str:
-        """Load the Vault service token from the mounted token file."""
-        with open(self.VAULT_TOKEN_PATH, "r") as f:
-            token = f.read().strip()
-        if not token:
-            raise RuntimeError("Vault token file is empty")
-        return token
+        cache = context.get("cache_service") or CacheService()
+        encryption = context.get("encryption_service") or EncryptionService(cache_service=cache)
+        directus = context.get("directus_service") or DirectusService(cache_service=cache, encryption_service=encryption)
+        embed_id = image_reference_id(file_path, context.get("file_path_index") or {})
+        user_id = context.get("user_id")
+        record = await load_owned_image_record(
+            embed_id=embed_id, user_id=user_id, cache_client=cache, directus_service=directus,
+            request_internal=context.get("internal_api_request"))
+        vault_key = context.get("user_vault_key_id") or await cache.get_user_vault_key_id(user_id)
+        if not vault_key:
+            profile_result = await directus.users.get_user_profile(user_id)
+            profile = profile_result[1] if profile_result else None
+            vault_key = profile.get("vault_key_id") if isinstance(profile, dict) else None
+        if not vault_key:
+            raise ValueError("Reference image key is unavailable to this caller")
+        content = await decode_image_record_content(
+            record=record, user_vault_key_id=vault_key, encryption_service=encryption)
+        public_url = content.get("image_url")
+        if isinstance(public_url, str) and public_url:
+            return public_url, None
+        storage = context.get("s3_service") or S3UploadService(
+            secrets_manager=context.get("secrets_manager"), directus_service=directus)
+        if not context.get("s3_service"):
+            await storage.initialize(configure_buckets=False)
 
-    async def _resolve_embed_content(
-        self, embed_id: str, user_vault_key_id: str
-    ) -> Dict[str, Any]:
-        """
-        Look up and decrypt an embed's content from the Redis cache.
+        class BoundedStorage:
+            async def get_file(self, *, bucket_name: str, object_key: str):
+                return await storage.get_file(bucket_name=bucket_name, object_key=object_key,
+                                              max_bytes=MAX_IMAGE_INPUT_BYTES + 32)
 
-        Identical flow to view_skill._lookup_embed_content — decrypt via Vault Transit,
-        TOON-decode, return the content dict.
-        """
-        import redis.asyncio as aioredis
-        from toon_format import decode as toon_decode
-        from urllib.parse import quote as url_quote
-
-        redis_password = os.environ.get("DRAGONFLY_PASSWORD", "")
-        redis_url = f"redis://default:{url_quote(redis_password, safe='')}@cache:6379/0"
-        redis_client = aioredis.from_url(redis_url, decode_responses=True)
-
-        try:
-            cache_key = f"embed:{embed_id}"
-            embed_json = await redis_client.get(cache_key)
-            if not embed_json:
-                raise RuntimeError(
-                    f"Embed {embed_id} not found in cache. "
-                    "Please re-upload the image or perform a new image search."
-                )
-
-            embed_data = json_lib.loads(embed_json)
-            encrypted_content = embed_data.get("encrypted_content")
-            if not encrypted_content:
-                raise RuntimeError(f"Embed {embed_id} has no encrypted_content in cache")
-
-            vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-            token = self._load_vault_token()
-            decrypt_url = f"{vault_url}/v1/transit/decrypt/{user_vault_key_id}"
-            context = base64.b64encode(user_vault_key_id.encode()).decode("utf-8")
-            payload = {"ciphertext": encrypted_content, "context": context}
-
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.post(
-                    decrypt_url,
-                    json=payload,
-                    headers={"X-Vault-Token": token},
-                )
-
-            if resp.status_code != 200:
-                raise RuntimeError(
-                    f"Vault transit decrypt failed: HTTP {resp.status_code} — {resp.text[:200]}"
-                )
-
-            plaintext_b64 = resp.json()["data"]["plaintext"]
-            plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
-            decoded = toon_decode(plaintext_toon)
-            if not isinstance(decoded, dict):
-                raise RuntimeError(
-                    f"Embed content decoded to {type(decoded).__name__}, expected dict"
-                )
-            return decoded
-
-        finally:
-            await redis_client.aclose()
-
-    async def _unwrap_aes_key(self, vault_wrapped_aes_key: str, vault_key_id: str) -> bytes:
-        """Unwrap a Vault Transit-wrapped AES key to recover the raw key bytes."""
-        vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
-        token = self._load_vault_token()
-        decrypt_url = f"{vault_url}/v1/transit/decrypt/{vault_key_id}"
-        context = base64.b64encode(vault_key_id.encode()).decode("utf-8")
-        payload = {"ciphertext": vault_wrapped_aes_key, "context": context}
-
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(
-                decrypt_url, json=payload, headers={"X-Vault-Token": token}
-            )
-
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Vault transit decrypt failed for key {vault_key_id}: "
-                f"HTTP {resp.status_code} — {resp.text[:200]}"
-            )
-
-        aes_key_b64 = base64.b64decode(resp.json()["data"]["plaintext"]).decode("utf-8")
-        return base64.b64decode(aes_key_b64)
-
-    async def _download_from_s3(self, s3_base_url: str, s3_key: str) -> bytes:
-        """Download an encrypted file from S3 via the internal API."""
-        download_url = (
-            f"{os.environ.get('INTERNAL_API_BASE_URL', 'http://api:8000')}"
-            "/internal/s3/download"
-        )
-        shared_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.get(
-                download_url,
-                params={"bucket_key": "chatfiles", "s3_key": s3_key},
-                headers={"X-Internal-Service-Token": shared_token},
-            )
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"S3 download failed for {s3_key}: HTTP {resp.status_code} — {resp.text[:200]}"
-            )
-        return resp.content
-
-    async def _decrypt_image_bytes(
-        self,
-        embed_content: Dict[str, Any],
-        user_vault_key_id: str,
-    ) -> bytes:
-        """
-        Decrypt an uploaded image from S3 and return the plaintext bytes.
-
-        Uses the vault_wrapped_aes_key in embed_content to unwrap the AES key,
-        downloads the encrypted blob from S3, and decrypts with AES-256-GCM.
-        Prefers 'full' variant (highest quality without being the raw original).
-        """
-        vault_wrapped_aes_key = embed_content.get("vault_wrapped_aes_key")
-        s3_base_url = embed_content.get("s3_base_url")
-        aes_nonce = embed_content.get("aes_nonce")
-        files = embed_content.get("files", {})
-
-        if not vault_wrapped_aes_key:
-            raise RuntimeError("Embed content missing vault_wrapped_aes_key")
-        if not s3_base_url:
-            raise RuntimeError("Embed content missing s3_base_url")
-        if not aes_nonce:
-            raise RuntimeError("Embed content missing aes_nonce")
-
-        s3_key = None
-        for variant_name in ("full", "original", "preview"):
-            variant = files.get(variant_name)
-            if variant and variant.get("s3_key"):
-                s3_key = variant["s3_key"]
-                logger.info("[images.search] Using '%s' variant: %s", variant_name, s3_key)
-                break
-
-        if not s3_key:
-            raise RuntimeError(
-                f"Embed content has no file variants with s3_key "
-                f"(available: {list(files.keys())})"
-            )
-
-        aes_key_bytes = await self._unwrap_aes_key(vault_wrapped_aes_key, user_vault_key_id)
-        encrypted_bytes = await self._download_from_s3(s3_base_url, s3_key)
-        nonce_bytes = base64.b64decode(aes_nonce)
-        aesgcm = AESGCM(aes_key_bytes)
-        return aesgcm.decrypt(nonce_bytes, encrypted_bytes, None)
+        image = await resolve_encrypted_image_embed(
+            embed_id=embed_id, user_vault_key_id=vault_key, cache_client=cache,
+            directus_service=directus, encryption_service=encryption,
+            s3_service=BoundedStorage(), bucket_name=get_bucket_name("chatfiles", storage.environment),
+            preloaded_records={embed_id: content})
+        return None, image
 
     async def _upload_temp_image(
         self, image_bytes: bytes, content_type: str
@@ -511,6 +400,7 @@ class SearchSkill(BaseSkill):
         file_path_index: Dict[str, str],
         user_vault_key_id: Optional[str],
         cache_service: Optional[Any] = None,
+        reference_context: Optional[Dict[str, Any]] = None,
     ) -> tuple[Any, List[Dict[str, Any]], str, Optional[str]]:
         """
         Process one search request and return (request_id, results, provider, error_msg).
@@ -531,33 +421,11 @@ class SearchSkill(BaseSkill):
         try:
             if file_path:
                 # ── Reverse image search ──────────────────────────────────────
-                if not user_vault_key_id:
-                    raise RuntimeError(
-                        "user_vault_key_id not available — cannot resolve image embed for reverse search"
-                    )
-
-                embed_id = file_path_index.get(file_path)
-                if not embed_id:
-                    raise RuntimeError(
-                        f"file_path '{file_path}' not found in file_path_index "
-                        f"(available: {list(file_path_index.keys())})"
-                    )
-
-                logger.info(
-                    "%s Resolving embed %s for reverse image search", log_prefix, embed_id[:8]
-                )
-                embed_content = await self._resolve_embed_content(embed_id, user_vault_key_id)
-
-                # Determine if this embed is a search-result child (has image_url field)
-                # or an uploaded/generated image (has S3 files + AES keys).
-                image_url_field = embed_content.get("image_url")
-
+                context = {**(reference_context or {}), "file_path_index": file_path_index,
+                           "user_vault_key_id": user_vault_key_id, "cache_service": cache_service,
+                           "secrets_manager": secrets_manager}
+                image_url_field, resolved_image = await self._resolve_image_input(file_path, context)
                 if image_url_field:
-                    # Search result child embed — image_url is already a public URL
-                    logger.info(
-                        "%s Using public image_url from search result embed: %s",
-                        log_prefix, str(image_url_field)[:80],
-                    )
                     results, provider = await self._reverse_image_search(
                         image_url=str(image_url_field),
                         secrets_manager=secrets_manager,
@@ -571,19 +439,8 @@ class SearchSkill(BaseSkill):
                     logger.info(
                         "%s Decrypting uploaded image for reverse search", log_prefix
                     )
-                    image_bytes = await self._decrypt_image_bytes(
-                        embed_content, user_vault_key_id
-                    )
-                    logger.info(
-                        "%s Uploading %d bytes to temp bucket", log_prefix, len(image_bytes)
-                    )
                     image_url, temp_s3_key = await self._upload_temp_image(
-                        image_bytes, DECRYPTED_IMAGE_CONTENT_TYPE
-                    )
-                    logger.info(
-                        "%s Calling Google Lens with presigned temp URL (key=%s)",
-                        log_prefix, temp_s3_key,
-                    )
+                        resolved_image.content, resolved_image.mime_type)
                     try:
                         results, provider = await self._reverse_image_search(
                             image_url=image_url,
@@ -689,6 +546,9 @@ class SearchSkill(BaseSkill):
         file_path_index: Dict[str, str] = kwargs.get("file_path_index") or {}
         user_vault_key_id: Optional[str] = kwargs.get("user_vault_key_id")
         cache_service = kwargs.get("cache_service")
+        reference_context = dict(kwargs)
+        if not reference_context.get("internal_api_request"):
+            reference_context["internal_api_request"] = getattr(getattr(self, "app", None), "_make_internal_api_request", None)
 
         # Normalise request IDs (use provided id or index+1)
         normalised: List[tuple[Any, Dict[str, Any]]] = []
@@ -706,6 +566,7 @@ class SearchSkill(BaseSkill):
                 file_path_index=file_path_index,
                 user_vault_key_id=user_vault_key_id,
                 cache_service=cache_service,
+                reference_context=reference_context,
             )
             for req_id, req in normalised
         ]

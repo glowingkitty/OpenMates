@@ -1,6 +1,30 @@
 schema_version: 1
 specification: architecture.app-skill-execution@1
 
+image_reference_handoff:
+  - id: known-query-shopping-with-reference-photos
+    assertion_ids: [app-skills.images.reference-handoff]
+    given: Alice uploads three fabric photos and asks for beige striped lemon fabric matching those references, with at most five product results.
+    when: The assistant can express that search query without inspecting the photos itself.
+    then: Shopping receives the exact three references directly, compares forty available candidates with Jev and returns at most five grounded results; images.view is not called and the main model receives no photo pixels.
+  - id: inspection-and-unrelated-history
+    assertion_ids: [app-skills.images.reference-handoff]
+    given: Alice previously uploaded a fabric photo.
+    when: She asks what pattern appears in that photo, then later asks an unrelated factual question.
+    then: The visual question can use images.view and its returned pixels; the unrelated question does not gain or invoke the viewer merely because an old upload exists.
+
+image_reference_resolution:
+  - id: owned-upload-after-cache-loss
+    assertion_ids: [app-skills.images.authorized-resolution]
+    given: Alice's newly uploaded image has valid owner-bound metadata but its normal embed cache entry is missing.
+    when: She passes its exact reference directly to Shopping or reverse image search.
+    then: The skill resolves the authorized unexpired upload and reads its supported encrypted format without calling images.view or extending the upload's expiry.
+  - id: unauthorized-or-unrecoverable-reference
+    assertion_ids: [app-skills.images.authorized-resolution]
+    given: A reference belongs to another person, has expired or has only durable client-encrypted content that the server cannot decrypt.
+    when: Alice passes it to an image-consuming skill.
+    then: The skill returns an explicit unavailable or authorization failure before a paid search or image disclosure, without guessing access or recovering private keys.
+
 dispatch:
   - id: registered-skill
     invocation: {app_id: events, skill_id: search, input: {requests: [{query: technology, location: Berlin}]}}

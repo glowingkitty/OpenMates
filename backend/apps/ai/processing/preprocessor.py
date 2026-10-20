@@ -273,6 +273,120 @@ def _request_has_image_upload_embed(request_data: AskSkillRequest) -> bool:
     return False
 
 
+def _image_reference_consumer_skills(
+    skills: Any, discovered_apps_metadata: Optional[Dict[str, AppYAML]],
+) -> set[str]:
+    """Find selected tools whose published schema accepts an image reference."""
+    selected = set(skills or [])
+
+    def accepts_reference(schema: Any, *, image_app: bool) -> bool:
+        if not isinstance(schema, dict):
+            return False
+        properties = schema.get("properties", {})
+        if isinstance(properties, dict) and (
+            {"reference_images", "source_image"} & properties.keys()
+            or (image_app and "file_path" in properties)
+        ):
+            return True
+        return any(
+            accepts_reference(child, image_app=image_app)
+            for value in schema.values()
+            for child in (value if isinstance(value, list) else [value])
+        )
+
+    return {
+        f"{app_id}-{skill.id}"
+        for app_id, app in (discovered_apps_metadata or {}).items()
+        for skill in (getattr(app, "skills", None) or [])
+        if f"{app_id}-{skill.id}" in selected
+        and f"{app_id}-{skill.id}" != "images-view"
+        and accepts_reference(getattr(skill, "tool_schema", None), image_app=app_id == "images")
+    }
+
+
+def _image_inspection_fallback_skills(
+    request_data: AskSkillRequest,
+    selected_skills: List[str],
+    available_skill_ids: List[str],
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]],
+) -> List[str]:
+    """Offer inspection for an image question, never for image history alone.
+
+    Existing semantic viewer selection remains authoritative in every language.
+    The deterministic fallback covers a photo-only turn and common explicit
+    inspection wording; it does not remove semantically selected tools.
+    """
+    selected = list(selected_skills)
+    if "images-view" in selected or "images-view" not in available_skill_ids:
+        return selected
+    if not _request_has_image_upload_embed(request_data):
+        return selected
+    latest = getattr(request_data, "current_user_content", None)
+    if not isinstance(latest, str):
+        latest = _latest_user_text_from_history(request_data.message_history)
+    current_image = bool(getattr(request_data, "has_image_upload_embed", False)) or _content_has_image_upload_embed(latest)
+    # Resolved attachment captions/metadata are data, not user inspection intent.
+    prose = re.sub(
+        r"```(?:toon|json|json_embed)\s*\n[\s\S]*?```",
+        lambda match: "" if _content_has_image_upload_embed(match.group()) else match.group(),
+        latest,
+    ).strip()
+    if _content_has_image_upload_embed(prose) and prose.startswith(("app_id:", "type:", "{")):
+        prose = ""
+    consumers = _image_reference_consumer_skills(selected, discovered_apps_metadata)
+    photo_only = current_image and not prose and not consumers
+    def targets_image(text: str) -> bool:
+        return bool(
+            re.search(r"\b(?:image|photo|picture|screenshot|chart|diagram|label)\b", text, re.IGNORECASE)
+            or any(
+                _embed_ref_is_image_upload(ref) and ref.casefold() in text.casefold()
+                for ref in (getattr(request_data, "embed_file_path_index", None) or {})
+            )
+        )
+
+    action = re.search(
+        r"\b(?:describe|inspect|analy[sz]e|read|identify|explain|count|recognize|recognise|look at)\b",
+        prose, re.IGNORECASE,
+    )
+    # Start a genuine question clause; a relative clause such as 'find fabrics
+    # which match this photo' is still a reference handoff, not inspection.
+    question = re.search(
+        r"(?:^|[.!?;\n]|\b(?:and|then)\b)\s*(?:please\s+)?"
+        r"(?:what|which|how many)\b[^?!;\n]*",
+        prose, re.IGNORECASE,
+    )
+    targeted_inspection = bool(
+        (action and targets_image(prose[action.end():]))
+        or (question and targets_image(question.group()))
+    )
+    # New image + 'describe it'/'what is this?' is a useful inspection fallback
+    # when no reference-consuming task was selected. Mixed requests retain a
+    # viewer when either a command or a question positively targets the image.
+    deictic_inspection = bool(current_image and not consumers and (action or question))
+    inspection = targeted_inspection or deictic_inspection
+    if photo_only or inspection:
+        return ["images-view", *selected]
+    return selected
+
+
+def _history_has_loaded_image_blocks(value: Any) -> bool:
+    """Detect actual canonical image inputs, without treating embed refs as pixels."""
+    if isinstance(value, list):
+        return any(_history_has_loaded_image_blocks(child) for child in value)
+    if not isinstance(value, dict):
+        content = getattr(value, "content", None)
+        return content is not None and _history_has_loaded_image_blocks(content)
+    if value.get("type") in {"image_url", "input_image"}:
+        image = value.get("image_url")
+        url = image.get("url") if isinstance(image, dict) else image
+        if isinstance(url, str) and url.startswith("data:image/"):
+            return True
+    if value.get("type") == "image" and isinstance(value.get("source"), dict):
+        if value["source"].get("type") == "base64" and value["source"].get("data"):
+            return True
+    return any(_history_has_loaded_image_blocks(child) for child in value.values())
+
+
 TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
     "openmates_platform": "Questions about OpenMates itself, its features, mates, apps, skills, account, pricing, or onboarding.",
     "general_misc": "True fallback only: miscellaneous requests that do not fit any specialized topic area.",
@@ -4058,20 +4172,11 @@ async def handle_preprocessing(
             if has_image_upload_embed and has_pdf_embed and has_video_embed and has_website_embed:
                 break  # No need to scan further
 
-        # --- images-view ---
-        if has_image_upload_embed and "images-view" in available_skill_ids:
-            if "images-view" not in validated_relevant_skills:
-                # Prepend so images-view is first (highest priority for image questions)
-                validated_relevant_skills = ["images-view"] + validated_relevant_skills
-                logger.info(
-                    f"{log_prefix} [RULE_BASED] Forced 'images-view' into preselected skills: "
-                    f"detected images/upload toon block in message history. "
-                    f"(Prevents hallucination when preprocessing LLM misses image skill.)"
-                )
-            else:
-                logger.debug(
-                    f"{log_prefix} [RULE_BASED] 'images-view' already preselected by LLM — no override needed."
-                )
+        # A selected image-consuming skill can resolve refs itself. Keep the
+        # semantic viewer decision, adding a viewer only for actual inspection.
+        validated_relevant_skills = _image_inspection_fallback_skills(
+            request_data, validated_relevant_skills, available_skill_ids, discovered_apps_metadata,
+        )
 
         # --- code-image_to_html ---
         # Screenshot/mockup-to-HTML requests contain image terms and can be

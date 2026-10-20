@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -52,10 +53,9 @@ async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypat
         response, ["general_misc: General"], False, False,
     )
     assert decisions is not None
-    monkeypatch.setattr(
-        "backend.core.api.app.tasks.leaderboard_tasks.get_leaderboard_data",
-        AsyncMock(return_value=None),
-    )
+    leaderboard_tasks = ModuleType("backend.core.api.app.tasks.leaderboard_tasks")
+    leaderboard_tasks.get_leaderboard_data = AsyncMock(return_value=None)
+    monkeypatch.setitem(sys.modules, leaderboard_tasks.__name__, leaderboard_tasks)
     request = AskSkillRequest(
         chat_id="routing-test", message_id="routing-message", user_id="routing-user",
         user_id_hash="routing-user-hash", message_history=[

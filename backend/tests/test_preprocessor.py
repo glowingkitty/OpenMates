@@ -7,8 +7,9 @@
 # Architecture: docs/architecture/preprocessing.md
 # Run: python -m pytest backend/tests/test_preprocessor.py -v
 
+import sys
 import pytest
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 try:
     from backend.apps.ai.processing.preprocessor import (
@@ -254,13 +255,14 @@ async def test_uploaded_image_auto_keeps_google_tier_profile(
     image_routing_config, monkeypatch, tier, model_id, thinking_level, image_source,
 ):
     from unittest.mock import AsyncMock
-    from backend.core.api.app.tasks import leaderboard_tasks
+    leaderboard_tasks = ModuleType("backend.core.api.app.tasks.leaderboard_tasks")
+    monkeypatch.setitem(sys.modules, leaderboard_tasks.__name__, leaderboard_tasks)
 
     # A ranked Qwen candidate reproduced the old provider exclusion selecting it
     # ahead of the configured Google default. Use the real selector here.
-    monkeypatch.setattr(leaderboard_tasks, "get_leaderboard_data", AsyncMock(return_value={
+    leaderboard_tasks.get_leaderboard_data = AsyncMock(return_value={
         "rankings": [{"rank": 1, "provider_id": "alibaba", "model_id": "qwen3-235b-a22b-2507"}],
-    }))
+    })
     request = SimpleNamespace(
         has_image_upload_embed=image_source == "current_upload", user_preferences={},
         message_history=[_user_msg("app_id: images\nskill_id: upload\nembed_ref: photo.jpg")]

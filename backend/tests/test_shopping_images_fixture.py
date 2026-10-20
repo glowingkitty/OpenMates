@@ -12,6 +12,10 @@ from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.testing.shopping_images_fixture import (
     GROUP, PROMPT, active, llm_fixture, REFERENCE_ERROR_PROMPT, REFERENCE_ERROR_ID,
     REFERENCE_ERROR_MESSAGE, REFERENCE_ERROR_RESPONSE, MISSING_ERROR_METADATA_RESPONSE,
+    DIRECT_REFERENCE_PROMPT, DIRECT_REFERENCE_QUERY, DIRECT_REFERENCE_IMAGE,
+    DIRECT_REFERENCE_RESPONSE,
+    DIRECT_SEARCH_PROMPT, LENS_FIXTURE_KEY, synthetic_http_response,
+    _direct_image_references,
 )
 from toon_format import decode, encode
 from backend.shared.providers.typesafe import budget as jev_budget
@@ -31,6 +35,324 @@ def shopping_replay(monkeypatch):
     finally:
         mock_group_var.reset(group)
         mock_mode_var.reset(mode)
+
+
+@pytest.mark.parametrize("representation", ["markdown", "toon", "both", "duplicate-toon"])
+def test_direct_reference_dispatch_preserves_exact_upload_without_view(shopping_replay, representation):
+    reference = "sample-png-6e2a8e6e-85cf-4327-bcb1-47ca30b4d23b"
+    markdown = f"[!](embed:{reference})"
+    structured = "```toon\n" + encode({"type": "image", "app_id": "images",
+        "skill_id": "upload", "embed_ref": reference, "filename": "sample.png"}) + "\n```"
+    attachment = {"markdown": markdown, "toon": structured, "both": markdown + "\n" + structured,
+                  "duplicate-toon": structured + "\n" + structured}[representation]
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": f"{DIRECT_REFERENCE_PROMPT}\n{attachment}"}],
+        "tools": [{"function": {"name": "shopping-search_products"}},
+                  {"function": {"name": "images-view"}}],
+    })
+    chunks = result["response"]["chunks"]
+    assert len(chunks) == 1
+    assert chunks[0]["value"]["function_name"] == "shopping-search_products"
+    request = chunks[0]["value"]["function_arguments_parsed"]["requests"][0]
+    assert request["reference_images"] == [reference]
+    assert request["query"] == DIRECT_REFERENCE_QUERY
+
+
+@pytest.mark.parametrize("inline", [False, True])
+@pytest.mark.parametrize("metadata", [
+    {"type": "app_skill_use", "app_id": "images", "skill_id": "view", "embed_ref": "image.png"},
+    {"type": "image", "app_id": "images", "skill_id": "upload", "embed_ref": 17},
+    {"type": "image", "app_id": "images", "skill_id": "upload", "embed_ref": ["image.png"]},
+    {"type": "image", "app_id": "images", "skill_id": "upload", "embed_ref": "https://example.invalid/image.png"},
+    {"type": "image", "app_id": "images", "skill_id": "upload"},
+    [{"type": "image", "embed_ref": "image.png"}],
+])
+def test_direct_reference_extraction_rejects_wrong_metadata_shapes(metadata, inline):
+    content = "```toon\n" + encode(metadata) + "\n```"
+    if inline:
+        content = "Reference attachment: " + content + "Use this uploaded image."
+    assert _direct_image_references(content) == []
+
+
+@pytest.mark.parametrize("content", [
+    "Please use image.png; embed_ref: image.png",
+    "https://example.invalid/image.png",
+    "[!](embed:https://example.invalid/image.png)",
+    "```json\n[!](embed:image.png)\n```",
+    "Reference attachment: ```json\n[!](embed:image.png)\n```Use this image.",
+    "Reference attachment: ```toon\n[!](embed:image.png)",
+    "```toon\ntype: image\napp_id: images\nskill_id: upload\nembed_ref[2]: first.png\n```",
+    {"type": "image", "embed_ref": "image.png"},
+])
+def test_direct_reference_extraction_does_not_guess_references(content):
+    assert _direct_image_references(content) == []
+
+
+def test_direct_reference_extraction_preserves_canonical_filename_and_reference_order():
+    metadata = {"type": "image", "app_id": "images", "skill_id": "upload", "embed_ref": "photo (2).png"}
+    content = "```toon\n" + encode(metadata) + "\n```\n[!](embed:second.png)"
+    assert _direct_image_references(content) == ["photo (2).png", "second.png"]
+
+
+@pytest.mark.parametrize("prompt,tool", [(DIRECT_REFERENCE_PROMPT, "shopping-search_products"),
+                                        (DIRECT_SEARCH_PROMPT, "images-search")])
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_direct_dispatch_accepts_embed_service_inline_upload_metadata(shopping_replay, prompt, tool, duplicate):
+    reference = "sample.png"
+    metadata = {"type": "image", "app_id": "images", "skill_id": "upload", "status": "finished",
+                "filename": "sample.png", "embed_ref": reference}
+    # Match EmbedService's literal in-place replacement, without inventing
+    # newlines between the caption/fence or the closing fence/user prompt.
+    content = "Reference attachment: ```toon\n" + encode(metadata) + "\n```" + prompt
+    if duplicate:
+        content += f"\n[!](embed:{reference})"
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": content}],
+        "tools": [{"function": {"name": tool}}],
+    })
+    [chunk] = result["response"]["chunks"]
+    assert chunk["value"]["function_name"] == tool
+    [request] = chunk["value"]["function_arguments_parsed"]["requests"]
+    assert (request.get("reference_images") if tool == "shopping-search_products"
+            else [request.get("file_path")]) == [reference]
+
+
+@pytest.mark.parametrize("prompt,tool", [(DIRECT_REFERENCE_PROMPT, "shopping-search_products"),
+                                        (DIRECT_SEARCH_PROMPT, "images-search")])
+def test_direct_reference_dispatch_still_requires_one_distinct_image(shopping_replay, prompt, tool):
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": f"{prompt}\n[!](embed:first.png)\n[!](embed:second.png)"}],
+        "tools": [{"function": {"name": tool}}],
+    })
+    [chunk] = result["response"]["chunks"]
+    assert chunk == {"kind": "text", "value": "REGRESSION: expected one uploaded image reference."}
+
+
+@pytest.mark.parametrize("valid", [True, False])
+@pytest.mark.parametrize("flattened", [False, True])
+def test_direct_reference_answer_depends_on_actual_comparison_metadata(shopping_replay, valid, flattened):
+    payload = {"results": [{"title": "Synthetic direct reference product",
+                            "visual_match": {"status": "evaluated"}}],
+               "visual_evaluations": [{"visual_evaluation": {
+                   "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}]}
+    if not valid:
+        payload["visual_evaluations"][0]["visual_evaluation"]["unavailable_count"] = 1
+    if flattened:
+        from backend.core.api.app.services.embed_service import _flatten_for_toon_tabular
+        payload = _flatten_for_toon_tabular(payload)
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
+                     {"role": "tool", "content": json.dumps(payload)}], "tools": [],
+    })
+    answer = result["response"]["chunks"][0]["value"]
+    assert (answer == DIRECT_REFERENCE_RESPONSE) is valid
+
+
+@pytest.mark.parametrize("match", [
+    {"visual_match_status": "unavailable"},
+    {"visual_match": "evaluated", "visual_match_status": "evaluated"},
+    {"visual_match": {"status": "unavailable"}, "visual_match_status": "evaluated"},
+    {"visual_match": {"status": "evaluated"}, "visual_match_status": "unavailable"},
+])
+def test_direct_reference_answer_rejects_unavailable_or_conflicting_match_metadata(shopping_replay, match):
+    payload = {"results": [{"title": "Synthetic direct reference product", **match}],
+               "visual_evaluations": [{"visual_evaluation": {
+                   "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}]}
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
+                     {"role": "tool", "content": encode(payload)}], "tools": [],
+    })
+    assert result["response"]["chunks"][0]["value"].startswith("REGRESSION:")
+
+
+@pytest.mark.parametrize("extra", [None, {"visual_evaluation": {"status": "invalid"}}])
+def test_direct_reference_answer_rejects_extra_malformed_evaluations(shopping_replay, extra):
+    payload = {"results": [{"title": "Synthetic direct reference product", "visual_match_status": "evaluated"}],
+               "visual_evaluations": [{"visual_evaluation": {
+                   "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}, extra]}
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
+                     {"role": "tool", "content": encode(payload)}], "tools": [],
+    })
+    assert result["response"]["chunks"][0]["value"].startswith("REGRESSION:")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("transform_history", [False, True], ids=["current-tool-message", "restored-history"])
+async def test_direct_reference_answer_reads_real_flattened_visual_result(shopping_replay, transform_history):
+    from backend.apps.shopping.visual_ranking import download_public_product_image, rank_products_visually
+    from backend.apps.shopping.providers.rewe_provider import _parse_product
+    from backend.apps.shopping.skills.search_products import SearchProductsResponse
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+    from backend.apps.ai.utils.llm_utils import _transform_message_history_for_llm
+    from backend.core.api.app.services.embed_service import _flatten_for_toon_tabular
+
+    fixture_path = Path(__file__).parents[1] / "apps/ai/testing/api_cache" / GROUP / "rewe/4f3f2917b9cf25e8.json"
+    raw = json.loads(fixture_path.read_text())["response"]["body"]["_embedded"]["products"][0]
+    product = _parse_product(raw, 1).to_result_dict()
+    reference = await download_public_product_image(DIRECT_REFERENCE_IMAGE)
+    ranked = await rank_products_visually(
+        candidates=[product], reference_images=[reference], relevance_criteria=None,
+        query=DIRECT_REFERENCE_QUERY, secrets_manager=None,
+    )
+    assert ranked.summary["evaluated_count"] == 1
+    metadata = shopping_result_parent_metadata([{
+        "id": 1, "results": ranked.candidates, "visual_evaluation": ranked.summary}])
+    # Match main_processor's current tool-message boundary: product rows as
+    # well as the parent metadata are flattened before TOON encoding.
+    payload = shopping_result_payload(
+        [_flatten_for_toon_tabular(row) for row in ranked.candidates],
+        _flatten_for_toon_tabular(metadata),
+    )
+    assert payload["results"][0]["visual_match_status"] == "evaluated"
+    history = [{"role": "user", "content": DIRECT_REFERENCE_PROMPT}, {
+        "role": "tool", "name": "shopping-search_products", "tool_call_id": "shopping-gallery-fixture",
+        "content": encode(payload), "ignore_fields_for_inference": SearchProductsResponse().ignore_fields_for_inference,
+    }]
+    if transform_history:
+        history = _transform_message_history_for_llm(history)
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True, "messages": history,
+    })
+    assert result["response"]["chunks"][0]["value"] == DIRECT_REFERENCE_RESPONSE
+
+
+@pytest.mark.asyncio
+async def test_signed_direct_reference_images_and_visual_decisions_never_call_providers(shopping_replay, monkeypatch):
+    from backend.apps.shopping.visual_ranking import download_public_product_image, rank_products_visually
+    from backend.shared.providers.typesafe.client import JevDecisionClient
+    import httpx
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Signed replay must not initialize external HTTP")
+
+    monkeypatch.setattr(httpx, "AsyncClient", forbidden)
+    monkeypatch.setattr(JevDecisionClient, "_evaluate_provider", forbidden)
+    reference = await download_public_product_image(DIRECT_REFERENCE_IMAGE)
+    result = await rank_products_visually(
+        candidates=[{"title": "Synthetic direct reference product", "image_url": DIRECT_REFERENCE_IMAGE}],
+        reference_images=[reference], relevance_criteria=None, query=DIRECT_REFERENCE_QUERY,
+        secrets_manager=None,
+    )
+    assert result.summary["evaluated_count"] == 1
+    assert result.candidates[0]["visual_match"]["score"] == 3.0
+    with pytest.raises(ValueError, match="no product image fixture"):
+        await download_public_product_image("https://unlisted.invalid/image.jpg")
+
+
+LENS_TEMP_URL = "http://storage.ci.test:9000/dev-openmates-temp-images/reverse_search/0123456789abcdef_0123456789abcdef.png?X-Amz-Signature=synthetic"
+
+
+@pytest.fixture
+def uploaded_search_replay(shopping_replay, monkeypatch):
+    from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("OPENMATES_CI_AI_FIXTURES", "1")
+    monkeypatch.setenv("S3_ENDPOINT_URL", "http://storage.ci.test:9000")
+    monkeypatch.setenv("VAULT_URL", "http://vault:8200")
+    monkeypatch.setenv("CMS_URL", "http://cms:8055")
+    monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("OPENMATES_STORAGE_CAPACITY_FIXTURES", raising=False)
+    activate_mock_mode("mock", GROUP, task_id="signed-direct-image-reference-fixture")
+    try:
+        yield
+    finally:
+        deactivate_mock_mode()
+
+
+@pytest.mark.parametrize("variant", ["valid", "unsigned", "wrong-engine", "unexpected-query", "wrong-host", "public-image", "wrong-storage-endpoint"])
+def test_lens_http_replay_is_strictly_scoped(uploaded_search_replay, variant, monkeypatch):
+    import httpx
+    params = {"engine": "google_lens", "url": LENS_TEMP_URL, "num": "3", "api_key": LENS_FIXTURE_KEY}
+    host = "serpapi.com"
+    if variant == "wrong-engine":
+        params["engine"] = "google"
+    elif variant == "unexpected-query":
+        params["q"] = "another query"
+    elif variant == "wrong-host":
+        host = "elsewhere.invalid"
+    elif variant == "public-image":
+        params["url"] = "https://example.invalid/image.jpg"
+    elif variant == "wrong-storage-endpoint":
+        monkeypatch.setenv("S3_ENDPOINT_URL", "http://another-storage.invalid:9000")
+    token = mock_group_var.set("unsigned") if variant == "unsigned" else None
+    try:
+        response = synthetic_http_response(httpx.Request("GET", f"https://{host}/search", params=params))
+        assert (response is not None) is (variant == "valid")
+    finally:
+        if token is not None:
+            mock_group_var.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_real_lens_parser_consumes_signed_transport_replay_without_secrets(uploaded_search_replay):
+    from backend.shared.providers.serpapi import google_lens_reverse_search
+    from backend.shared.testing.mock_context import _install_httpx_transport_guard
+    _install_httpx_transport_guard()
+    result = await google_lens_reverse_search(LENS_TEMP_URL, secrets_manager=None, max_results=3)
+    assert result["error"] is None
+    assert result["results"][0]["title"] == "Synthetic direct uploaded reference match"
+    assert result["results"][0]["source_page_url"] == "https://example.invalid/direct-reference-match"
+
+
+@pytest.mark.parametrize("representation", ["markdown", "toon"])
+def test_direct_reverse_search_dispatch_uses_exact_reference_without_query_or_view(uploaded_search_replay, representation):
+    reference = "uploaded-reference-01234567"
+    attachment = f"[!](embed:{reference})" if representation == "markdown" else "```toon\n" + encode({
+        "type": "image", "app_id": "images", "skill_id": "upload", "embed_ref": reference}) + "\n```"
+    result = llm_fixture("llm/synthetic-auto-model", {
+        "model": "synthetic-auto-model", "stream": True,
+        "messages": [{"role": "user", "content": f"{DIRECT_SEARCH_PROMPT}\n{attachment}"}],
+        "tools": [{"function": {"name": "images-search"}}, {"function": {"name": "images-view"}}],
+    })
+    [call] = result["response"]["chunks"]
+    assert call["value"]["function_name"] == "images-search"
+    assert call["value"]["function_arguments_parsed"] == {"requests": [{"file_path": reference, "count": 3}]}
+
+
+@pytest.mark.asyncio
+async def test_direct_reverse_search_routes_only_search_not_view(uploaded_search_replay):
+    history = [{"role": "user", "content": DIRECT_SEARCH_PROMPT}]
+    routing = await decide_app_and_project_routing_with_jev(
+        model_id="typesafe/jev-1.13", secrets_manager=None, message_history=history,
+        available_apps=["shopping", "images"], available_skills=[], available_focus_modes=[],
+        topic_areas=["general_misc"], is_first_message=True,
+    )
+    assert routing["selected_app_ids"] == ["images"]
+    result = await decide_preprocessing_with_jev(
+        model_id="typesafe/jev-1.13", secrets_manager=None, message_history=history,
+        topic_areas=["general_misc"], available_skills=["images-search", "images-view"],
+        available_focus_modes=[], available_settings_and_memories={}, recent_skill_activity=[],
+        conversation_summary=None, previous_category=None, is_first_message=True,
+        available_apps=["shopping", "images"], selected_app_ids=routing["selected_app_ids"],
+        early_decisions=routing["early_decisions"],
+    )
+    assert result["relevant_app_skills"] == ["images-search"]
+
+
+def test_reverse_search_internal_upload_permission_is_signed_and_path_bounded(uploaded_search_replay, monkeypatch):
+    from backend.shared.testing.mock_context import _allow_isolated_capacity_internal as allowed
+    assert allowed("http://api:8000/internal/s3/upload-temp-image", "POST")
+    assert allowed("http://api:8000/internal/s3/temp-image?s3_key=reverse_search/0123456789abcdef_0123456789abcdef.png", "DELETE")
+    assert not allowed("http://api:8000/internal/s3/upload-temp-image", "GET")
+    assert not allowed("http://api:8000/internal/s3/temp-image?s3_key=another/path.png", "DELETE")
+    assert not allowed("http://elsewhere:8000/internal/s3/upload-temp-image", "POST")
+    token = mock_group_var.set("unsigned")
+    try:
+        assert not allowed("http://api:8000/internal/s3/upload-temp-image", "POST")
+    finally:
+        mock_group_var.reset(token)
+    monkeypatch.setenv("S3_ENDPOINT_URL", "http://another-storage.invalid:9000")
+    assert not allowed("http://api:8000/internal/s3/upload-temp-image", "POST")
+    monkeypatch.delenv("S3_ENDPOINT_URL")
+    assert not allowed("http://api:8000/internal/s3/upload-temp-image", "POST")
 
 
 @pytest.mark.asyncio
