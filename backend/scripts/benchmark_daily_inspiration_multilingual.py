@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import re
+import random
 from pathlib import Path
 import time
 from types import SimpleNamespace
@@ -190,7 +191,7 @@ async def video_snapshot(query, language, manager, used, gate_receipts):
         gate_receipts[-1]['eligible'] = category_allowed
         if not category_allowed:
             continue
-        return {'candidate': item, 'retrieval_response': response,
+        return {'candidate': selected[0], 'retrieval_response': response,
                 'source_language': 'undetermined', 'retrieval_language': language}, image
     return None, None
 
@@ -221,7 +222,7 @@ async def wiki_snapshot(query, language, manager, used, gate_receipts):
             selected = await source_gate(metadata, manager, gate_receipts, query=query, language=language)
             if not selected:
                 continue
-            return {'valid': item.model_dump(), 'summary': summary, 'entity': entity,
+            return {'valid': item.model_dump(), 'summary': summary, 'entity': entity, 'approved': selected[0],
                     'source_language': language, 'retrieval_language': language,
                     'retrieval_response': [item.model_dump() for item in results]}
     return None
@@ -247,7 +248,9 @@ async def collect(options, root, manager):
                 snapshot = image = None
                 retrievals = [(language, query)]
                 if language != 'en':
-                    retrievals.append(('en', TOPICS['en'].split('|')[index]))
+                    # A Wikipedia snapshot must retain the target edition: try the
+                    # English search term on that edition rather than relabel an EN article.
+                    retrievals.append((language if kind == 'wiki' else 'en', TOPICS['en'].split('|')[index]))
                 for retrieval_language, retrieval_query in retrievals:
                     try:
                         if kind == 'video':
@@ -315,8 +318,18 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
 
     async def frozen_video(query, *_args, **kwargs):
         source = next(item for item in sources if item['query'] == query)
-        return await decisions.review_candidates([copy.deepcopy(source['candidate'])], manager,
-                                                 topic=query, rank=True, task_id=kwargs.get('task_id', 'benchmark'))
+        # Source/thumbnail approval was obtained live once during snapshot
+        # collection. Reuse it for both writers; do not resample eligibility.
+        return [copy.deepcopy(source['candidate'])]
+
+    async def source_or_copy_review(candidates, *_args, **kwargs):
+        if all(not candidate.get('assistant_response') for candidate in candidates):
+            keys = {wiki_generator._canonical_title_key(candidate['wiki_title']) for candidate in candidates}
+            return [copy.deepcopy(source['approved']) for source in sources
+                    if wiki_generator._canonical_title_key(source['valid']['wiki_title']) in keys]
+        # Every actual draft still gets native Jev policy, grounding, coherence,
+        # source-specific follow-up and language decisions.
+        return await decisions.review_candidates(candidates, manager, **kwargs)
 
     async def frozen_search(*_args, **_kwargs):
         return [SimpleNamespace(key=item['valid']['wiki_title'], disambiguation=False) for item in sources]
@@ -347,6 +360,7 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
                         (generator, 'write_reviewed_cards', reviewed_write),
                         (wiki_generator, 'write_reviewed_cards', reviewed_write),
                         (wiki_generator, 'search_wikipedia_titles', frozen_search),
+                        (wiki_generator, 'review_candidates', source_or_copy_review),
                         (wiki_generator, 'batch_validate_topics', frozen_validate),
                         (wiki_generator, 'fetch_page_summary', frozen_summary),
                         (wiki_generator, 'fetch_wikidata_entity', frozen_entity),
@@ -440,7 +454,8 @@ def summarize(root, options):
 async def run(options):
     root = Path(options.output_dir).resolve()
     root.mkdir(parents=True, exist_ok=True)
-    manifest = {'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
+    manifest = {'comparison': 'writer_and_fresh_final_review_on_shared_live_approved_sources',
+                'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
                                   for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
@@ -522,7 +537,12 @@ async def run(options):
                             token = ACTIVE.set((row, path))
                             stamp = time.monotonic()
                             try:
-                                cards = await asyncio.wait_for(qualify_batch(sources, kind, language, arm, row, manager, root), timeout=min(300, max(.01, options.phase_minutes * 60 - (time.monotonic() - started))))
+                                saved_random = random.getstate()
+                                random.seed(':'.join([language, kind, *row['source_ids']]))
+                                try:
+                                    cards = await asyncio.wait_for(qualify_batch(sources, kind, language, arm, row, manager, root), timeout=min(300, max(.01, options.phase_minutes * 60 - (time.monotonic() - started))))
+                                finally:
+                                    random.setstate(saved_random)
                                 row['items'] = [card.model_dump(mode='json') for card in cards]
                                 row['format_issues'] = [copy_format_issues(card, language) for card in cards]
                                 row['structure_issues'] = [index for index, card in enumerate(cards) if

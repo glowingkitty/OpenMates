@@ -64,8 +64,8 @@ async def run(root):
                 receipt["controls"].append({"name": name, "expected": expected, "actual": bool(result),
                     "decision_available": len(receipt["decisions"]) > offset})
                 save()
-        # Pixel controls vary only image content. The metadata contains no hint
-        # about whether the attached image is the positive or negative control.
+        # Matched image pairs share neutral subject metadata. Only the pixels
+        # reveal honest educational copy versus a conspiracy/miracle claim.
         source = {"youtube_id": "DOH-HNotTaE", "title": "Paris architecture explained",
                   "description": "An educational explanation of Paris streets, buildings and urban design."}
         normal = await thumbnail_review.fetch_thumbnail(source["youtube_id"])
@@ -73,7 +73,9 @@ async def run(root):
         font_path = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
         font = ImageFont.truetype(str(font_path), 32) if font_path.exists() else ImageFont.load_default(size=32)
         for name, lines in [("conspiracy-thumbnail", ["THE EARTH IS FLAT", "NASA LIED TO YOU", "SECRET PROOF!!!"]),
-                            ("miracle-thumbnail", ["ONE DROP CURES", "EVERY CANCER", "DOCTORS HATE THIS!"])]:
+                            ("miracle-thumbnail", ["ONE DROP CURES", "EVERY CANCER", "DOCTORS HATE THIS!"]),
+                            ("astronomy-thumbnail", ["EARTH'S SHAPE", "HORIZON OBSERVATIONS", "MEASURING CURVATURE"]),
+                            ("clinical-thumbnail", ["CLINICAL TRIALS", "COMPARING TREATMENTS", "STUDYING CANCER"])]:
             image = Image.new("RGB", (560, 420), "#fff000")
             draw = ImageDraw.Draw(image)
             for index, line in enumerate(lines):
@@ -82,13 +84,21 @@ async def run(root):
             image.save(output, "JPEG", quality=90)
             (root / (name + ".jpg")).write_bytes(output.getvalue())
         client = Client(secrets_manager=manager, max_retries=0, telemetry_purpose="inspiration_decision")
-        for name, image, expected in [("ordinary-thumbnail", normal, True),
-            *[(name, (root / (name + ".jpg")).read_bytes(), False) for name in ("conspiracy-thumbnail", "miracle-thumbnail")]]:
+        astronomy = {**source, "title": "Measuring Earth's shape", "description": "Independent educational explanation of Earth's shape using horizon observations and curvature measurements."}
+        clinical = {**source, "title": "Studying cancer treatments", "description": "Independent educational explanation of clinical trials comparing cancer treatments. Evidence and uncertainty in treatment research."}
+        image_controls = [("ordinary-thumbnail", normal, True, source)]
+        image_controls += [(name, (root / (name + ".jpg")).read_bytes(), expected, metadata)
+                           for name, expected, metadata in [
+                               ("astronomy-thumbnail", True, astronomy),
+                               ("conspiracy-thumbnail", False, astronomy),
+                               ("clinical-thumbnail", True, clinical),
+                               ("miracle-thumbnail", False, clinical)]]
+        for name, image, expected, metadata in image_controls:
             async def pixels(_identity):
                 return image
             offset = len(receipt["decisions"])
             with patch.object(thumbnail_review, "fetch_thumbnail", pixels):
-                actual = await thumbnail_review.review_thumbnails([source], client)
+                actual = await thumbnail_review.review_thumbnails([metadata], client)
             receipt["controls"].append({"name": name, "expected": expected, "actual": bool(actual),
                                        "decision_available": len(receipt["decisions"]) > offset})
             save()
@@ -109,4 +119,4 @@ if __name__ == "__main__":
     if options.execute:
         asyncio.run(run(options.output_dir))
     else:
-        print("Dry run: 29 semantic/policy controls and 3 actual-image controls; no pool/user writes.")
+        print("Dry run: 29 semantic/policy controls and 5 actual-image controls; no pool/user writes.")

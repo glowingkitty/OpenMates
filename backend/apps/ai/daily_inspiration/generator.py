@@ -81,20 +81,20 @@ _LANGUAGE_TO_SEARCH_PARAMS: Dict[str, Dict[str, str]] = {
     "es": {"country": "es", "search_lang": "es"},
     "fr": {"country": "fr", "search_lang": "fr"},
     "it": {"country": "it", "search_lang": "it"},
-    "pt": {"country": "br", "search_lang": "pt"},
+    "pt": {"country": "br", "search_lang": "pt-br"},
     "nl": {"country": "nl", "search_lang": "nl"},
     "pl": {"country": "pl", "search_lang": "pl"},
     "ru": {"country": "ru", "search_lang": "ru"},
     "ja": {"country": "jp", "search_lang": "ja"},
     "ko": {"country": "kr", "search_lang": "ko"},
-    "zh": {"country": "cn", "search_lang": "zh"},
+    "zh": {"country": "cn", "search_lang": "zh-hans"},
     "ar": {"country": "sa", "search_lang": "ar"},
     "hi": {"country": "in", "search_lang": "hi"},
     "tr": {"country": "tr", "search_lang": "tr"},
     "sv": {"country": "se", "search_lang": "sv"},
     "da": {"country": "dk", "search_lang": "da"},
     "fi": {"country": "fi", "search_lang": "fi"},
-    "no": {"country": "no", "search_lang": "no"},
+    "no": {"country": "no", "search_lang": "nb"},
     "uk": {"country": "ua", "search_lang": "uk"},
     "cs": {"country": "cz", "search_lang": "cs"},
     "ro": {"country": "ro", "search_lang": "ro"},
@@ -103,7 +103,9 @@ _LANGUAGE_TO_SEARCH_PARAMS: Dict[str, Dict[str, str]] = {
     "he": {"country": "il", "search_lang": "he"},
     "th": {"country": "th", "search_lang": "th"},
     "vi": {"country": "vn", "search_lang": "vi"},
-    "id": {"country": "id", "search_lang": "id"},
+    # Brave has no Indonesian search-language enum; keep the localized query
+    # and country while using its supported default language filter.
+    "id": {"country": "id", "search_lang": "en"},
 }
 
 
