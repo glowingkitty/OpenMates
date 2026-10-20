@@ -1,0 +1,2297 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-19'
+generated_at: '2026-10-20T00:20:34+00:00'
+range:
+  since: '2026-10-19T00:00:00+00:00'
+  until: '2026-10-20T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 13
+  section_counts:
+    features: 3
+    bug_fixes: 9
+    improvements: 0
+    docs: 1
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 12
+  dev_only_items: 13
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: generate voice-call chat titles and summaries'
+    section: features
+    commits:
+    - 8e32f5d83
+    authored_at: '2026-10-19T17:23:14+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/voice_call_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/voice_metadata_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_utils/voice_chat_metadata.py
+    - backend/shared/testing/voice_broker_fixture.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_voice_chat_metadata.py
+    - docs/plans/voice-call-chat-metadata/plan.yml
+    - docs/user-guide/voice-calls.md
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/generatedChatMetadataPersistence.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMetadata.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/generatedChatMetadataPersistence.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMetadata.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: match shopping products against reference images'
+    section: features
+    commits:
+    - acae39f9a
+    authored_at: '2026-10-19T13:21:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/testing/api_cache/shopping_images_web/rewe/d3b67e02aea54956.json
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/providers/amazon_provider.py
+    - backend/apps/shopping/providers/product_images.py
+    - backend/apps/shopping/providers/rewe_provider.py
+    - backend/apps/shopping/providers/stoffe_provider.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/scripts/verify_shopping_visual_relevance.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_utils/fresh_upload_images.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_shopping_amazon_provider.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_product_images.py
+    - backend/tests/test_shopping_stoffe_provider.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/apis/typesafe-subq-data-handling-assessment.md
+    - docs/plans/shopping-reference-images/plan.yml
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/public-site/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/typeSafePrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/features/app-skills/shopping-search/examples.yml
+    - specifications/features/app-skills/shopping-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:shopping, embed:shopping:search_products, skill:shopping:search_products'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add free anonymous AI decisions and SDK access'
+    section: features
+    commits:
+    - a9afdd194
+    authored_at: '2026-10-19T11:36:39+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/apps/ai/processing/learning_followups.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/skills/decide_skill.py
+    - backend/core/api/app/middleware/ai_decide_body.py
+    - backend/core/api/app/middleware/logging_middleware.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_authoring_billing.py
+    - backend/core/api/app/services/workflow_nl_planner.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/main.py
+    - backend/providers/typesafe.yml
+    - backend/scripts/test_learning_followups_real.py
+    - backend/scripts/test_related_work_chat_direction.py
+    - backend/shared/providers/typesafe/assets.py
+    - backend/shared/providers/typesafe/budget.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_utils/ai_decide.py
+    - backend/tests/test_ai_decide.py
+    - backend/tests/test_ai_decide_images.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_terminal_command_risk.py
+    - backend/tests/test_typesafe_decisions.py
+    - backend/tests/test_workflow_ai_check_and_ask.py
+    - backend/tests/test_workflow_authoring_billing.py
+    - docs/apis/typesafe-jev.md
+    - docs/architecture/apps/rest-api.md
+    - docs/plans/anonymous-decisions-sdk/plan.yml
+    - docs/plans/anonymous-decisions-sdk/verification.md
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/src/lib/publications/README.md
+    - frontend/apps/web_app/src/lib/server/publicationManifest.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationManifest.ts
+    - frontend/apps/web_app/src/lib/server/publications.test.ts
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/publications/publicationManifest.ts
+    - frontend/packages/public-site/src/publications/publicationManifest.v1.json
+    - frontend/packages/public-site/src/publications/publications.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/ai.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/typeSafePrivacyCopy.test.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/openmates/__init__.py
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_anonymous.py
+    - shared/docs/privacy_policy.yml
+    - specifications/features/app-skills/ai-decide/examples.yml
+    - specifications/features/app-skills/ai-decide/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    - specifications/surfaces/sdk/examples.yml
+    - specifications/surfaces/sdk/specification.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:decide
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows, skill:ai:ask, skill:ai:decide'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: load the preferred language before first paint'
+    section: bug_fixes
+    commits:
+    - b40eeb6d7
+    authored_at: '2026-10-19T18:57:13+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - docs/plans/automatic-language-loading/plan.yml
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/components/landing-header.spec.ts
+    - frontend/apps/web_app/tests/components/language-settings.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/helpers/language-readiness.ts
+    - frontend/apps/web_app/tests/helpers/settings-readiness.ts
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/legal-website-navigation.spec.ts
+    - frontend/apps/web_app/tests/website-language.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/app.d.ts
+    - frontend/apps/website/src/app.html
+    - frontend/apps/website/src/hooks.server.ts
+    - frontend/apps/website/src/lib/components/PublicationRoute.svelte
+    - frontend/apps/website/src/routes/+page.server.ts
+    - frontend/apps/website/src/routes/+page.svelte
+    - frontend/apps/website/src/routes/[[locale=publicationLocale]]/[section=publicationSection]/[[slug]]/+page.server.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.server.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - frontend/apps/website/src/routes/newsletter/confirm/[token]/+page.server.ts
+    - frontend/apps/website/src/routes/newsletter/confirm/[token]/+page.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/PublicSiteHeader.svelte
+    - frontend/packages/public-site/src/data/events.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/languagePreference.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.preview.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingPage.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAccount.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/components/settings/interface/SettingsLanguage.preview.ts
+    - frontend/packages/ui/src/components/settings/interface/SettingsLanguage.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/__tests__/languageCoordinator.test.ts
+    - frontend/packages/ui/src/i18n/__tests__/languagePreference.test.ts
+    - frontend/packages/ui/src/i18n/cachedAccountLanguage.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/setup.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/legal/terms.yml
+    - frontend/packages/ui/src/i18n/sources/settings/language.yml
+    - frontend/packages/ui/src/legal/__tests__/germanLegalCopy.test.ts
+    - frontend/packages/ui/src/services/__tests__/dailyInspirationDB.language.test.ts
+    - frontend/packages/ui/src/services/dailyInspirationDB.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/language-preferences/examples.yml
+    - specifications/features/language-preferences/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Project commits and ordered offline draft acknowledgements'
+    section: bug_fixes
+    commits:
+    - a89554e58
+    authored_at: '2026-10-19T18:26:27+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_capacity_version_privacy_fixture.py
+    - backend/tests/test_offline_sync_handler.py
+    - docs/plans/production-metadata-recovery-followups/plan.yml
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/apps/web_app/tests/helpers/cross-client-draft-sync.ts
+    - frontend/apps/web_app/tests/offline-draft-replay.spec.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/offlineChangeOrder.test.ts
+    - frontend/packages/ui/src/services/__tests__/offlineSyncBatch.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/offlineChangeCommit.test.ts
+    - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+    - frontend/packages/ui/src/services/drafts/draftContext.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/offlineChangeOrder.ts
+    - frontend/packages/ui/src/services/offlineSyncBatch.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/prod-ssh.sh
+    - scripts/storage_capacity_version_adapter.mjs
+    - scripts/tests/test_prod_ssh.py
+    - scripts/tests/test_storage_capacity_version_diagnostics.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Gemini cloud defaults for image chats'
+    section: bug_fixes
+    commits:
+    - c41977dbc
+    authored_at: '2026-10-19T17:54:34+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:shopping, embed:shopping:search_products, skill:shopping:search_products'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show shopping galleries and ground visual match explanations'
+    section: bug_fixes
+    commits:
+    - fe4657b87
+    authored_at: '2026-10-19T17:05:13+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/visual_ranking.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/plans/shopping-reference-images/plan.yml
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/components/shopping-product-gallery.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.test.ts
+    - frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:shopping, embed:shopping:search_products'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse shopping image references across turns'
+    section: bug_fixes
+    commits:
+    - 2fdce4410
+    authored_at: '2026-10-19T14:41:07+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_artifact_ledger.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: coalesce chat admissions and repair completion recovery'
+    section: bug_fixes
+    commits:
+    - 51d45817f
+    authored_at: '2026-10-19T13:14:34+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_capabilities_instruction.md
+    - backend/apps/ai/instructions/base_tool_dispatch_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/testing/capacity_fixtures.py
+    - backend/apps/web/app.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_storage_recovery_fixture.py
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/outboundMessageSends.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/outboundMessageSends.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - pnpm-lock.yaml
+    - scripts/storage_capacity_client.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: simplify guest requests and color developer examples'
+    section: bug_fixes
+    commits:
+    - 1bfac98b8
+    authored_at: '2026-10-19T12:55:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_ai_decide_images.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/apps/rest-api.md
+    - docs/plans/anonymous-decisions-sdk/plan.yml
+    - docs/plans/anonymous-decisions-sdk/verification.md
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.ts
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - frontend/apps/web_app/tests/components/publication-code-highlighting.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/public-site/package.json
+    - frontend/packages/public-site/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/public-site/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/public-site/src/components/newsroom/codeFixture.ts
+    - frontend/packages/public-site/src/publications/publicationManifest.v1.json
+    - frontend/packages/public-site/src/publications/publicationMarkdown.ts
+    - frontend/packages/public-site/src/styles/publication-code.css
+    - frontend/packages/ui/src/components/newsroom/PublicNewsroomPreview.preview.ts
+    - frontend/packages/ui/src/components/newsroom/PublicNewsroomPreview.svelte
+    - packages/openmates-python/README.md
+    - pnpm-lock.yaml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(website): repair example links and missing-page redirects'
+    section: bug_fixes
+    commits:
+    - 02f835674
+    authored_at: '2026-10-19T12:33:08+00:00'
+    changed_paths:
+    - README.md
+    - frontend/apps/web_app/tests/helpers/website-preview.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/web_app/tests/website-redirects.spec.ts
+    - frontend/apps/website/README.md
+    - frontend/apps/website/src/hooks.server.ts
+    - frontend/apps/website/src/routes/[...path]/+server.ts
+    - frontend/apps/website/src/routes/example/[...path]/+server.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore queued chat and workflow processing after release'
+    section: bug_fixes
+    commits:
+    - 722b34c2d
+    authored_at: '2026-10-19T10:47:50+00:00'
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_workflow_ai_authority.py
+    - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/visibleMessageReceipts.test.ts
+    - frontend/packages/ui/src/services/visibleMessageReceipts.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: align the Jev default with version 1.14'
+    section: docs
+    commits:
+    - 7afcd038e
+    authored_at: '2026-10-19T11:39:30+00:00'
+    changed_paths:
+    - docs/architecture/ai/ai-model-selection.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: load the preferred language before first paint'
+    commits:
+    - b40eeb6d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore Project commits and ordered offline draft acknowledgements'
+    commits:
+    - a89554e58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve Gemini cloud defaults for image chats'
+    commits:
+    - c41977dbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'feat: generate voice-call chat titles and summaries'
+    commits:
+    - 8e32f5d83
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: show shopping galleries and ground visual match explanations'
+    commits:
+    - fe4657b87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: reuse shopping image references across turns'
+    commits:
+    - 2fdce4410
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: match shopping products against reference images'
+    commits:
+    - acae39f9a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: coalesce chat admissions and repair completion recovery'
+    commits:
+    - 51d45817f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix: simplify guest requests and color developer examples'
+    commits:
+    - 1bfac98b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(website): repair example links and missing-page redirects'
+    commits:
+    - 02f835674
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: align the Jev default with version 1.14'
+    commits:
+    - 7afcd038e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add free anonymous AI decisions and SDK access'
+    commits:
+    - a9afdd194
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:decide
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: restore queued chat and workflow processing after release'
+    commits:
+    - 722b34c2d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: generate voice-call chat titles and summaries'
+    commits:
+    - 8e32f5d83
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: show shopping galleries and ground visual match explanations'
+    commits:
+    - fe4657b87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: reuse shopping image references across turns'
+    commits:
+    - 2fdce4410
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: match shopping products against reference images'
+    commits:
+    - acae39f9a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+  - title: 'fix: coalesce chat admissions and repair completion recovery'
+    commits:
+    - 51d45817f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'feat: add free anonymous AI decisions and SDK access'
+    commits:
+    - a9afdd194
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:decide
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: load the preferred language before first paint'
+    commits:
+    - b40eeb6d7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore Project commits and ordered offline draft acknowledgements'
+    commits:
+    - a89554e58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve Gemini cloud defaults for image chats'
+    commits:
+    - c41977dbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'feat: generate voice-call chat titles and summaries'
+    commits:
+    - 8e32f5d83
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: show shopping galleries and ground visual match explanations'
+    commits:
+    - fe4657b87
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'fix: reuse shopping image references across turns'
+    commits:
+    - 2fdce4410
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: match shopping products against reference images'
+    commits:
+    - acae39f9a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:shopping:search_products
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    - id: skill:shopping:search_products
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:shopping
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'fix: coalesce chat admissions and repair completion recovery'
+    commits:
+    - 51d45817f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: simplify guest requests and color developer examples'
+    commits:
+    - 1bfac98b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(website): repair example links and missing-page redirects'
+    commits:
+    - 02f835674
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add free anonymous AI decisions and SDK access'
+    commits:
+    - a9afdd194
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:decide
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore queued chat and workflow processing after release'
+    commits:
+    - 722b34c2d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: b40eeb6d798049d61879f188238df226358d30fa
+    short_sha: b40eeb6d7
+    authored_at: '2026-10-19T18:57:13+00:00'
+    subject: 'fix: load the preferred language before first paint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/daily_inspiration/schemas.py
+    - backend/apps/ai/daily_inspiration/wiki_suggestions.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - docs/plans/automatic-language-loading/plan.yml
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/components/landing-header.spec.ts
+    - frontend/apps/web_app/tests/components/language-settings.spec.ts
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/helpers/language-readiness.ts
+    - frontend/apps/web_app/tests/helpers/settings-readiness.ts
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/legal-website-navigation.spec.ts
+    - frontend/apps/web_app/tests/website-language.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/src/app.d.ts
+    - frontend/apps/website/src/app.html
+    - frontend/apps/website/src/hooks.server.ts
+    - frontend/apps/website/src/lib/components/PublicationRoute.svelte
+    - frontend/apps/website/src/routes/+page.server.ts
+    - frontend/apps/website/src/routes/+page.svelte
+    - frontend/apps/website/src/routes/[[locale=publicationLocale]]/[section=publicationSection]/[[slug]]/+page.server.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.server.ts
+    - frontend/apps/website/src/routes/legal/[slug]/+page.svelte
+    - frontend/apps/website/src/routes/newsletter/confirm/[token]/+page.server.ts
+    - frontend/apps/website/src/routes/newsletter/confirm/[token]/+page.svelte
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/PublicSiteHeader.svelte
+    - frontend/packages/public-site/src/data/events.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/generated/publicLocales.generated.json
+    - frontend/packages/public-site/src/languagePreference.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.preview.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/landing/LandingPage.preview.ts
+    - frontend/packages/ui/src/components/landing/LandingPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAccount.preview.ts
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/components/settings/interface/SettingsLanguage.preview.ts
+    - frontend/packages/ui/src/components/settings/interface/SettingsLanguage.svelte
+    - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+    - frontend/packages/ui/src/i18n/__tests__/languageCoordinator.test.ts
+    - frontend/packages/ui/src/i18n/__tests__/languagePreference.test.ts
+    - frontend/packages/ui/src/i18n/cachedAccountLanguage.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/setup.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/legal/terms.yml
+    - frontend/packages/ui/src/i18n/sources/settings/language.yml
+    - frontend/packages/ui/src/legal/__tests__/germanLegalCopy.test.ts
+    - frontend/packages/ui/src/services/__tests__/dailyInspirationDB.language.test.ts
+    - frontend/packages/ui/src/services/dailyInspirationDB.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/language-preferences/examples.yml
+    - specifications/features/language-preferences/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: a89554e5888907dd06c31318de7b8221a7d5fe86
+    short_sha: a89554e58
+    authored_at: '2026-10-19T18:26:27+00:00'
+    subject: 'fix: restore Project commits and ordered offline draft acknowledgements'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_capacity_version_privacy_fixture.py
+    - backend/tests/test_offline_sync_handler.py
+    - docs/plans/production-metadata-recovery-followups/plan.yml
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/apps/web_app/tests/helpers/cross-client-draft-sync.ts
+    - frontend/apps/web_app/tests/offline-draft-replay.spec.ts
+    - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+    - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/offlineChangeOrder.test.ts
+    - frontend/packages/ui/src/services/__tests__/offlineSyncBatch.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersDrafts.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/offlineChangeCommit.test.ts
+    - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
+    - frontend/packages/ui/src/services/drafts/draftContext.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/offlineChangeOrder.ts
+    - frontend/packages/ui/src/services/offlineSyncBatch.ts
+    - frontend/packages/ui/src/services/sendersDrafts.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/prod-ssh.sh
+    - scripts/storage_capacity_version_adapter.mjs
+    - scripts/tests/test_prod_ssh.py
+    - scripts/tests/test_storage_capacity_version_diagnostics.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: c41977dbcbc23c0e0c9941f58591a4ab68298773
+    short_sha: c41977dbc
+    authored_at: '2026-10-19T17:54:34+00:00'
+    subject: 'fix: preserve Gemini cloud defaults for image chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:shopping
+    - embed:shopping:search_products
+    - skill:shopping:search_products
+  - sha: 8e32f5d831776ced4bf9f26b08a4c2edf29f4cc7
+    short_sha: 8e32f5d83
+    authored_at: '2026-10-19T17:23:14+00:00'
+    subject: 'feat: generate voice-call chat titles and summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/voice_call_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/voice_metadata_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_utils/voice_chat_metadata.py
+    - backend/shared/testing/voice_broker_fixture.py
+    - backend/tests/test_postprocessor.py
+    - backend/tests/test_voice_chat_metadata.py
+    - docs/plans/voice-call-chat-metadata/plan.yml
+    - docs/user-guide/voice-calls.md
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/generatedChatMetadataPersistence.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallMetadata.test.ts
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/generatedChatMetadataPersistence.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallMetadata.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: fe4657b8716dfd98c4e6222b55b49cc0ef725fe2
+    short_sha: fe4657b87
+    authored_at: '2026-10-19T17:05:13+00:00'
+    subject: 'fix: show shopping galleries and ground visual match explanations'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/visual_ranking.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/plans/shopping-reference-images/plan.yml
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/components/shopping-product-gallery.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.test.ts
+    - frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:shopping
+    - embed:shopping:search_products
+  - sha: 2fdce4410f2ab7276ef65e1c6c682a1702ce9f54
+    short_sha: 2fdce4410
+    authored_at: '2026-10-19T14:41:07+00:00'
+    subject: 'fix: reuse shopping image references across turns'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/artifact_ledger.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_artifact_ledger.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: acae39f9adb0940857d059df20c0d7bb7617aed0
+    short_sha: acae39f9a
+    authored_at: '2026-10-19T13:21:47+00:00'
+    subject: 'feat: match shopping products against reference images'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/testing/api_cache/shopping_images_web/rewe/d3b67e02aea54956.json
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/apps/ai/testing/shopping_images_fixture.py
+    - backend/apps/ai/utils/app_skill_result_groups.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/shopping/providers/amazon_provider.py
+    - backend/apps/shopping/providers/product_images.py
+    - backend/apps/shopping/providers/rewe_provider.py
+    - backend/apps/shopping/providers/stoffe_provider.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/scripts/verify_shopping_visual_relevance.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_utils/fresh_upload_images.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_native_cache_mock_transport.py
+    - backend/tests/test_shopping_amazon_provider.py
+    - backend/tests/test_shopping_images_fixture.py
+    - backend/tests/test_shopping_product_images.py
+    - backend/tests/test_shopping_stoffe_provider.py
+    - backend/tests/test_shopping_visual_metadata.py
+    - backend/tests/test_shopping_visual_ranking.py
+    - docs/apis/typesafe-subq-data-handling-assessment.md
+    - docs/plans/shopping-reference-images/plan.yml
+    - docs/user-guide/apps/shopping.md
+    - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/public-site/src/legal/trainingPolicies.generated.ts
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/typeSafePrivacyCopy.test.ts
+    - frontend/packages/ui/src/legal/trainingPolicies.generated.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - shared/docs/provider_training_policies.yml
+    - specifications/features/app-skills/shopping-search/examples.yml
+    - specifications/features/app-skills/shopping-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:shopping
+    - embed:shopping:search_products
+    - skill:shopping:search_products
+  - sha: 51d45817f3ee0dd87245b8449701e77ac894e452
+    short_sha: 51d45817f
+    authored_at: '2026-10-19T13:14:34+00:00'
+    subject: 'fix: coalesce chat admissions and repair completion recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_capabilities_instruction.md
+    - backend/apps/ai/instructions/base_tool_dispatch_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/testing/capacity_fixtures.py
+    - backend/apps/web/app.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_storage_recovery_fixture.py
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/recoveryOutputClient.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
+    - frontend/packages/ui/src/services/__tests__/outboundMessageSends.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/outboundMessageSends.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - pnpm-lock.yaml
+    - scripts/storage_capacity_client.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+  - sha: 1bfac98b8de557a384b68cab5d023c3be114f341
+    short_sha: 1bfac98b8
+    authored_at: '2026-10-19T12:55:21+00:00'
+    subject: 'fix: simplify guest requests and color developer examples'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_ai_decide_images.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/apps/rest-api.md
+    - docs/plans/anonymous-decisions-sdk/plan.yml
+    - docs/plans/anonymous-decisions-sdk/verification.md
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationMarkdown.ts
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - frontend/apps/web_app/tests/components/publication-code-highlighting.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/public-site/package.json
+    - frontend/packages/public-site/src/components/newsroom/NewsroomSurface.preview.ts
+    - frontend/packages/public-site/src/components/newsroom/NewsroomSurface.svelte
+    - frontend/packages/public-site/src/components/newsroom/codeFixture.ts
+    - frontend/packages/public-site/src/publications/publicationManifest.v1.json
+    - frontend/packages/public-site/src/publications/publicationMarkdown.ts
+    - frontend/packages/public-site/src/styles/publication-code.css
+    - frontend/packages/ui/src/components/newsroom/PublicNewsroomPreview.preview.ts
+    - frontend/packages/ui/src/components/newsroom/PublicNewsroomPreview.svelte
+    - packages/openmates-python/README.md
+    - pnpm-lock.yaml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 02f835674358f624024a7c8bd73cfc48b22b004f
+    short_sha: 02f835674
+    authored_at: '2026-10-19T12:33:08+00:00'
+    subject: 'fix(website): repair example links and missing-page redirects'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - README.md
+    - frontend/apps/web_app/tests/helpers/website-preview.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/web_app/tests/website-redirects.spec.ts
+    - frontend/apps/website/README.md
+    - frontend/apps/website/src/hooks.server.ts
+    - frontend/apps/website/src/routes/[...path]/+server.ts
+    - frontend/apps/website/src/routes/example/[...path]/+server.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7afcd038e3e46f8df58bdc123cfd1fcf1351277b
+    short_sha: 7afcd038e
+    authored_at: '2026-10-19T11:39:30+00:00'
+    subject: 'docs: align the Jev default with version 1.14'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/ai/ai-model-selection.md
+    related_feature_ids: []
+  - sha: a9afdd19422862aed0fdce36453f5ae581a5c0a1
+    short_sha: a9afdd194
+    authored_at: '2026-10-19T11:36:39+00:00'
+    subject: 'feat: add free anonymous AI decisions and SDK access'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/focus_phases.py
+    - backend/apps/ai/processing/learning_followups.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/skills/decide_skill.py
+    - backend/core/api/app/middleware/ai_decide_body.py
+    - backend/core/api/app/middleware/logging_middleware.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_authoring_billing.py
+    - backend/core/api/app/services/workflow_nl_planner.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/main.py
+    - backend/providers/typesafe.yml
+    - backend/scripts/test_learning_followups_real.py
+    - backend/scripts/test_related_work_chat_direction.py
+    - backend/shared/providers/typesafe/assets.py
+    - backend/shared/providers/typesafe/budget.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/python_utils/ai_decide.py
+    - backend/tests/test_ai_decide.py
+    - backend/tests/test_ai_decide_images.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_terminal_command_risk.py
+    - backend/tests/test_typesafe_decisions.py
+    - backend/tests/test_workflow_ai_check_and_ask.py
+    - backend/tests/test_workflow_authoring_billing.py
+    - docs/apis/typesafe-jev.md
+    - docs/architecture/apps/rest-api.md
+    - docs/plans/anonymous-decisions-sdk/plan.yml
+    - docs/plans/anonymous-decisions-sdk/verification.md
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/apps/web_app/src/lib/publications/README.md
+    - frontend/apps/web_app/src/lib/server/publicationManifest.test.ts
+    - frontend/apps/web_app/src/lib/server/publicationManifest.ts
+    - frontend/apps/web_app/src/lib/server/publications.test.ts
+    - frontend/apps/web_app/src/lib/server/publications.ts
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-anonymous.test.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/publications/publicationManifest.ts
+    - frontend/packages/public-site/src/publications/publicationManifest.v1.json
+    - frontend/packages/public-site/src/publications/publications.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/ai.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/__tests__/typeSafePrivacyCopy.test.ts
+    - packages/openmates-python/README.md
+    - packages/openmates-python/openmates/__init__.py
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_anonymous.py
+    - shared/docs/privacy_policy.yml
+    - specifications/features/app-skills/ai-decide/examples.yml
+    - specifications/features/app-skills/ai-decide/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    - specifications/surfaces/sdk/examples.yml
+    - specifications/surfaces/sdk/specification.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+    - skill:ai:ask
+    - skill:ai:decide
+  - sha: 722b34c2d780939f58df919c5fc5e11b4a24d4f0
+    short_sha: 722b34c2d
+    authored_at: '2026-10-19T10:47:50+00:00'
+    subject: 'fix: restore queued chat and workflow processing after release'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_legacy_queued_handoff.py
+    - backend/tests/test_workflow_ai_authority.py
+    - frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/visibleMessageReceipts.test.ts
+    - frontend/packages/ui/src/services/visibleMessageReceipts.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+    - skill:ai:ask
+llm_summary:
+  overview: OpenMates focused on advancing AI-driven shopping capabilities, expanding developer SDK access, and improving
+    core chat reliability. Significant unreleased work includes visual product matching against reference images, anonymous
+    AI decision-making via the SDK, and automated metadata generation for voice calls.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Shopping enhancements include matching products against reference images, displaying product galleries, and providing
+      grounded visual match explanations.
+    evidence:
+      commits:
+      - acae39f9a
+      - fe4657b87
+      - 2fdce4410
+      - c41977dbc
+    release_status: dev_only
+  - text: Developer tools now support free anonymous AI decisions and SDK access, with improved code highlighting for documentation
+      examples.
+    evidence:
+      commits:
+      - a9afdd194
+      - 1bfac98b8
+    release_status: dev_only
+  - text: Voice call functionality was expanded to include automated generation of chat titles and summaries.
+    evidence:
+      commits:
+      - 8e32f5d83
+    release_status: dev_only
+  - text: Core stability updates addressed language loading performance, offline draft synchronization, and the recovery of
+      queued workflows.
+    evidence:
+      commits:
+      - b40eeb6d7
+      - a89554e58
+      - 51d45817f
+      - 722b34c2d
+    release_status: dev_only
+  - text: Public website maintenance included repairing broken example links and missing-page redirects.
+    evidence:
+      commits:
+      - 02f835674
+    release_status: dev_only
+  internal_progress:
+  - text: AI model selection documentation was updated to align with version 1.14.
+    evidence:
+      commits:
+      - 7afcd038e
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Visual shopping search and reference image matching.
+      evidence:
+        commits:
+        - acae39f9a
+        - fe4657b87
+      reason: This feature is currently in development and not yet available in the main release.
+    - text: Anonymous AI decisions and SDK access.
+      evidence:
+        commits:
+        - a9afdd194
+      reason: Anonymous SDK access is restricted to development environments.
+    - text: Automated voice-call titles and summaries.
+      evidence:
+        commits:
+        - 8e32f5d83
+      reason: Voice call metadata generation is unreleased.
+    rationale: All updates from this period are currently in development (dev_only) and do not meet the criteria for public
+      communication or main branch release.
+  social_video_recommendations:
+  - idea: Demonstrate the new visual shopping search by matching a real-world reference image to specific store products with
+      AI-grounded explanations.
+    priority: medium
+    reason: Visual search provides a clear, high-impact product story for social media.
+    evidence:
+      commits:
+      - acae39f9a
+      - fe4657b87
+  quality_notes:
+  - The project is transitioning toward more robust offline synchronization and introducing anonymous usage tiers for developers.
+  - Performance improvements were made to language detection to ensure the interface is localized before the initial page
+    render.
+  validation_warnings: []
