@@ -5,14 +5,14 @@ wallet, schedule or chat writes. Reports contain synthetic prompts/results only,
 are mode 0600, and include raw token counts, known costs and explicit missing
 usage. First HTTP 429 saves a partial report and stops every remaining arm/case.
 Deterministic oracles check named facts/constraints, not general quality;
-review the retained outputs before adopting any model. Transcript calls stream
-for measurement; the production Gemini 3.5 call currently does not stream.
+review the retained outputs before adopting any model. Correction calls stream
+for measurement; the production Mercury/Gemini correction helpers do not stream.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import json
 import logging
 import os
@@ -27,6 +27,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.gemini_transcript_correction import (
     GEMINI_TRANSCRIPT_TOOL_NAME, build_transcript_correction_prompt,
 )
+from backend.scripts.mercury_transcript_quality_cases import EXPANDED_CASES, assess_expanded
 from backend.scripts.benchmark_workflow_authoring_models import (
     BenchmarkAvailabilityStop, gateway_payload, mark_availability_stop, write_report,
 )
@@ -131,6 +132,8 @@ def assess(case: Case, output: Any) -> list[str]:
             issues.append('forbidden:' + pattern)
     if len(text.split()) > case.max_words:
         issues.append('word_limit')
+    if getattr(case, 'independent_new_case', False):
+        issues.extend(assess_expanded(case, output))
     return issues
 
 
@@ -178,16 +181,25 @@ def usage_cost(arm: str, usage: dict[str, Any] | None) -> dict[str, Any]:
         input_tokens = usage.get('promptTokenCount')
         authored = usage.get('candidatesTokenCount')
         thinking = usage.get('thoughtsTokenCount', 0)
-        output_tokens = authored + thinking if isinstance(authored, int) and isinstance(thinking, int) else None
+        cached = usage.get('cachedContentTokenCount')
+        output_tokens = authored + thinking if all(
+            isinstance(value, int) and not isinstance(value, bool) and value >= 0
+            for value in (authored, thinking)) else None
     else:
         input_tokens, output_tokens = usage.get('prompt_tokens'), usage.get('completion_tokens')
         thinking = (usage.get('completion_tokens_details') or {}).get('reasoning_tokens')
+        cached = (usage.get('prompt_tokens_details') or {}).get('cached_tokens')
     complete = all(isinstance(value, int) and not isinstance(value, bool) and value >= 0
                    for value in (input_tokens, output_tokens))
+    counters_valid = complete and all(value is None or (
+        isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= ceiling
+    ) for value, ceiling in ((cached, input_tokens), (thinking, output_tokens)))
+    complete = complete and counters_valid
     def cost(rates):
         return round((input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000, 8) if complete else None
     return {'usage_complete': complete, 'input_tokens': input_tokens, 'output_tokens': output_tokens,
-            'thinking_tokens': thinking, 'estimated_cost_usd': cost(prices),
+            'thinking_tokens': thinking, 'cached_input_tokens': cached,
+            'usage_counters_valid': counters_valid, 'estimated_cost_usd': cost(prices),
             'regular_cost_usd': cost(MERCURY_REGULAR_PRICES) if provider == 'inception_labs' else None,
             'provider_reported_cost_usd': usage.get('cost') if provider == 'openrouter' else None}
 
@@ -200,6 +212,10 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
     row: dict[str, Any] = {'case': case.id, 'task': case.task, 'arm': arm,
                             'transport': provider, 'exact_input': case.text, 'ttft_ms': None, 'first_tool_arguments_ms': None,
                             'task_pass': False, 'usage': None}
+    expanded = getattr(case, 'require_observed_model', False)
+    if expanded:
+        row.update(raw_native_events=[], requested_model=ARMS[arm][1], identity_verified=False,
+                   quality_evaluated=False, manual_review_required=True)
     text, tool_args, tool_name = '', '', ''
     google_args = None
     finish = None
@@ -218,9 +234,13 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
                 if not data or data == '[DONE]':
                     continue
                 event = json.loads(data)
+                if expanded:
+                    row['raw_native_events'].append(event)
                 for identity in ('provider', 'model'):
                     if event.get(identity):
                         row['observed_' + identity] = event[identity]
+                if event.get('modelVersion'):
+                    row['observed_model'] = event['modelVersion']
                 if event.get('error'):
                     raise ValueError('provider_stream_error')
                 fragments, argument_fragment = [], None
@@ -262,6 +282,14 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
                 text += content
                 if len(text.encode()) + len(tool_args.encode()) > 128 * 1024:
                     raise ValueError('response_limit')
+        if expanded:
+            observed = row.get('observed_model')
+            requested = ARMS[arm][1]
+            row['identity_verified'] = isinstance(observed, str) and (
+                observed == requested or (provider == 'google_ai_studio' and bool(
+                    re.fullmatch(re.escape(requested) + r'-(?:preview-)?\d[\d.-]*', observed))))
+            if not row['identity_verified']:
+                raise ValueError('unverified_native_model_identity')
         if finish not in {'STOP', 'stop', 'tool_calls'}:
             raise ValueError('incomplete_response')
         if case.task == 'transcript':
@@ -273,6 +301,8 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
         row['output'] = output
         row['oracle_issues'] = assess(case, output)
         row['task_pass'] = not row['oracle_issues']
+        if expanded:
+            row.update(quality_evaluated=True, availability_status='available', functional_status='completed')
     except BenchmarkAvailabilityStop:
         row.update(task_pass=None, oracle_issues=[], availability_status='rate_limited',
                    quality_evaluated=False, error_type='BenchmarkAvailabilityStop')
@@ -280,23 +310,50 @@ async def run_case(client: httpx.AsyncClient, key: str, case: Case, arm: str) ->
         # Provider bodies/exception strings can contain user content or auth material.
         row['error_type'] = type(exc).__name__
         row['oracle_issues'] = ['provider_or_transport_failure']
+        if expanded:
+            if row.get('http_status') == 200 and row['identity_verified']:
+                # Truncation/wrong tools/malformed JSON are functional model failures,
+                # not provider unavailability; keep them in the strict denominator.
+                row.update(task_pass=False, quality_evaluated=True, availability_status='available',
+                           functional_status='invalid_or_incomplete_model_output',
+                           oracle_issues=['invalid_or_incomplete_model_output'])
+            else:
+                row.update(task_pass=None, quality_evaluated=False,
+                           functional_status='identity_or_transport_failure',
+                           availability_status='unavailable_or_unverified_identity')
     row['total_ms'] = round((time.perf_counter() - started) * 1000, 1)
+    row['finish_reason'] = finish
+    if expanded and arm == 'mercury-low':
+        row['exceeds_mercury_correction_5s_deadline'] = row['total_ms'] > 5000
+        row['strict_pass_within_streamed_5s'] = row['task_pass'] is True and row['total_ms'] <= 5000
     row.update(usage_cost(arm, row['usage']))
     return row
 
 
 async def run(args: argparse.Namespace) -> None:
     logging.disable(logging.CRITICAL)
-    selected = [case for case in CASES if not args.cases or case.id in args.cases]
+    suite = getattr(args, 'suite', 'original')
+    bank = EXPANDED_CASES if suite == 'expanded' else CASES
+    if suite == 'expanded' and any(arm not in {'gemini-3.8-low', 'mercury-low'} for arm in args.arms):
+        raise ValueError('Expanded correction suite permits only the two native LOW arms')
+    selected = [case for case in bank if not args.cases or case.id in args.cases]
     if not selected or args.cases and (len(selected) != len(args.cases)):
         raise ValueError('Unknown or duplicate case')
     report = {'revision': args.revision, 'arms': {arm: ARMS[arm] for arm in args.arms},
+              'suite': suite,
               'mercury_regular_prices_usd_per_million': MERCURY_REGULAR_PRICES,
-              'timing_scope': 'Streamed provider requests; OpenRouter arms include gateway transit, direct arms do not; excluding Vault, auth, ASR, persistence and UI; correction production Gemini transport is nonstreaming.',
+              'timing_scope': 'Streamed provider requests; direct transport excludes Vault/auth/ASR/persistence/UI. Production Mercury and Gemini correction helpers are nonstreaming, so streamed completion latency is not production-helper proof. Mercury results over5s cannot qualify as production primary successes.',
               'oracle_scope': 'Finite synthetic required/forbidden fact patterns and output bounds; no statistical or general quality guarantee.',
               'ttft_definition': 'First nonempty authored text delta, excluding tool arguments and reasoning. Tool-only responses retain null TTFT.',
+              'first_tool_arguments_definition': 'First nonempty tool-argument delta; Google usually emits an entire JSON tool object while Mercury can emit fragments. This is not authored-text TTFT or a completed correction.',
               'no_product_writes': True, 'results': [], 'partial': True,
               'planned_results': len(selected) * args.repeats * len(args.arms), 'skipped_results': 0}
+    if suite == 'expanded':
+        report.update(case_bank=[asdict(case) for case in selected], independent_new_cases=True,
+                      manual_review_required=True,
+                      manual_review_dimensions=['critical_fidelity', 'functional_or_timeout', 'minor_language_title_style'],
+                      critical_manual_gates='No changed meaning, negation, number, currency, name, date, owner, uncertainty or action/completion status. Correction must retain speech content, not paraphrase into a summary.',
+                      cache_caveat='Repeated source context and provider prefix caches confound warm latency. Native cached-token counts are retained; no cold-cache claim.')
     manager = SecretsManager()
     await manager.initialize()
     try:
@@ -332,11 +389,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-paid-dev-inference', action='store_true')
     parser.add_argument('--revision', required=True)
-    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini-3.5', 'gemini-3.8-low', 'mercury-openrouter-none', 'mercury-openrouter-low'])
+    parser.add_argument('--suite', choices=('original', 'expanded'), default='original')
+    parser.add_argument('--arms', nargs='+', choices=list(ARMS))
     parser.add_argument('--cases', nargs='+')
     parser.add_argument('--repeats', type=int, choices=(1, 2), default=2)
     parser.add_argument('--output', type=Path, default=Path('/tmp/fast-inference-comparison.json'))
     args = parser.parse_args()
+    if args.arms is None:
+        args.arms = (['gemini-3.8-low', 'mercury-low'] if args.suite == 'expanded' else
+                     ['gemini-3.5', 'gemini-3.8-low', 'mercury-openrouter-none', 'mercury-openrouter-low'])
     if not args.allow_paid_dev_inference or os.getenv('CI'):
         parser.error('Explicit paid dev inference opt-in required; never run in CI')
     if len(args.arms) != len(set(args.arms)):
