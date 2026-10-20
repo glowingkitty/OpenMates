@@ -15,7 +15,9 @@ import asyncio
 from copy import deepcopy
 import json
 import logging
+import math
 import os
+import re
 from pathlib import Path
 import time
 from typing import Any
@@ -30,7 +32,7 @@ from backend.core.api.app.services.workflow_gemini_authoring import (
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.typesafe.client import JevDecisionClient
-from backend.scripts.workflow_authoring_model_cases import cases, evaluate
+from backend.scripts.workflow_authoring_model_cases import CORPUS_VERSION, cases, evaluate
 
 ARMS = {
     'gemini': ('google', 'gemini-3.8-flash', (0.75, 3.75)),
@@ -202,6 +204,40 @@ A schedule-only edit uses the exact owned workflow_id copied verbatim and nodes:
 Every weekday means a weekly schedule with monday,tuesday,wednesday,thursday,friday.\n'''
 
 
+def validated_usage(provider: str, usage: Any) -> dict:
+    """Keep exact provider integers; missing/invalid counters never become zeros."""
+    if not isinstance(usage, dict):
+        return {'usage_complete': False, 'usage_counters_valid': False,
+                'input_tokens': None, 'output_tokens': None,
+                'thinking_tokens': None, 'cached_input_tokens': None}
+    def counter(value):
+        return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+    if provider == 'google':
+        input_tokens = usage.get('promptTokenCount')
+        authored = usage.get('candidatesTokenCount')
+        reasoning = usage.get('thoughtsTokenCount', 0)
+        output_tokens = authored + reasoning if counter(authored) and counter(reasoning) else None
+        cached = usage.get('cachedContentTokenCount')
+        total = usage.get('totalTokenCount')
+    else:
+        input_tokens, output_tokens = usage.get('prompt_tokens'), usage.get('completion_tokens')
+        reasoning_details, cache_details = usage.get('completion_tokens_details'), usage.get('prompt_tokens_details')
+        if reasoning_details is not None and not isinstance(reasoning_details, dict):
+            return validated_usage(provider, None)
+        if cache_details is not None and not isinstance(cache_details, dict):
+            return validated_usage(provider, None)
+        reasoning = (reasoning_details or {}).get('reasoning_tokens')
+        cached = (cache_details or {}).get('cached_tokens')
+        total = usage.get('total_tokens')
+    valid = counter(input_tokens) and counter(output_tokens)
+    valid = valid and all(value is None or (counter(value) and value <= ceiling)
+                          for value, ceiling in ((reasoning, output_tokens), (cached, input_tokens)))
+    valid = valid and (total is None or (counter(total) and total == input_tokens + output_tokens))
+    return {'usage_complete': valid, 'usage_counters_valid': valid,
+            'input_tokens': input_tokens, 'output_tokens': output_tokens,
+            'thinking_tokens': reasoning, 'cached_input_tokens': cached}
+
+
 class ConvertedStream(httpx.AsyncByteStream):
     """Map SSE envelopes only; preserve content fragments and parser behavior."""
     def __init__(self, response: httpx.Response, started: float, stats: dict):
@@ -212,9 +248,13 @@ class ConvertedStream(httpx.AsyncByteStream):
             if not line.startswith('data:'):
                 continue
             data = line[5:].strip()
-            if not data or data == '[DONE]':
+            if data == '[DONE]':
+                self.stats['done_seen'] = True
+                continue
+            if not data:
                 continue
             event = json.loads(data)
+            self.stats.setdefault('raw_native_events', []).append(event)
             for identity in ('provider', 'model'):
                 if event.get(identity):
                     self.stats['observed_' + identity] = event[identity]
@@ -225,11 +265,13 @@ class ConvertedStream(httpx.AsyncByteStream):
             usage = event.get('usage') or (event.get('x_groq') or {}).get('usage')
             if usage:
                 self.stats['usage'] = usage
-                reasoning = int((usage.get('completion_tokens_details') or {}).get('reasoning_tokens') or 0)
-                total = int(usage.get('completion_tokens') or 0)
-                mapped['usageMetadata'] = {'promptTokenCount': int(usage.get('prompt_tokens') or 0),
-                                          'candidatesTokenCount': max(0, total - reasoning),
-                                          'thoughtsTokenCount': reasoning}
+                counters = validated_usage('openai', usage)
+                self.stats['usage_counters_valid'] = counters['usage_counters_valid']
+                if counters['usage_complete']:
+                    reasoning = counters['thinking_tokens'] or 0
+                    mapped['usageMetadata'] = {'promptTokenCount': counters['input_tokens'],
+                                              'candidatesTokenCount': counters['output_tokens'] - reasoning,
+                                              'thoughtsTokenCount': reasoning}
             candidates = []
             for choice in event.get('choices') or []:
                 content = (choice.get('delta') or {}).get('content')
@@ -239,6 +281,7 @@ class ConvertedStream(httpx.AsyncByteStream):
                     self.stats['first_content_ms'] = round((time.perf_counter() - self.started) * 1000, 1)
                 candidate = {'content': {'parts': [{'text': content}]} if content else {'parts': []}}
                 if choice.get('finish_reason'):
+                    self.stats['finish_reason'] = choice['finish_reason']
                     candidate['finishReason'] = 'STOP' if choice['finish_reason'] == 'stop' else 'MAX_TOKENS'
                 candidates.append(candidate)
             if candidates:
@@ -259,6 +302,12 @@ class GoogleRecordingStream(httpx.AsyncByteStream):
         async for line in self.response.aiter_lines():
             if line.startswith('data:'):
                 event = json.loads(line[5:].strip())
+                self.stats.setdefault('raw_native_events', []).append(event)
+                for candidate in event.get('candidates') or []:
+                    if candidate.get('finishReason'):
+                        self.stats['finish_reason'] = candidate['finishReason']
+                if event.get('modelVersion') or event.get('model'):
+                    self.stats['observed_model'] = event.get('modelVersion') or event.get('model')
                 if event.get('usageMetadata'):
                     self.stats['usage'] = event['usageMetadata']
                 text = ''.join(part.get('text', '') for candidate in event.get('candidates', [])
@@ -365,14 +414,19 @@ class OpenAITransport(httpx.AsyncBaseTransport):
             stats['first_content_ms'] = round((time.perf_counter() - started) * 1000, 1)
             usage = result.get('usage') or {}
             stats['usage'] = usage or None
-            total = int(usage.get('completion_tokens') or 0)
-            reasoning = int((usage.get('completion_tokens_details') or {}).get('reasoning_tokens') or 0)
+            counters = validated_usage(self.provider, usage)
             clean = json.dumps(omit_null_optionals(json.loads(answer)), ensure_ascii=False)
             finish = (result.get('choices') or [{}])[0].get('finish_reason')
-            mapped = {'usageMetadata': {'promptTokenCount': int(usage.get('prompt_tokens') or 0),
-                'candidatesTokenCount': max(0, total - reasoning), 'thoughtsTokenCount': reasoning},
-                'candidates': [{'content': {'parts': [{'text': clean}]},
-                                'finishReason': 'STOP' if finish == 'stop' else 'MAX_TOKENS'}]}
+            stats['finish_reason'] = finish
+            stats['observed_model'] = result.get('model')
+            stats['observed_provider'] = result.get('provider')
+            stats['raw_native_events'] = [result]
+            mapped = {'candidates': [{'content': {'parts': [{'text': clean}]},
+                                     'finishReason': 'STOP' if finish == 'stop' else 'MAX_TOKENS'}]}
+            if counters['usage_complete']:
+                reasoning = counters['thinking_tokens'] or 0
+                mapped['usageMetadata'] = {'promptTokenCount': counters['input_tokens'],
+                    'candidatesTokenCount': counters['output_tokens'] - reasoning, 'thoughtsTokenCount': reasoning}
             return httpx.Response(200, headers={'content-type': 'text/event-stream'},
                 content=('data: ' + json.dumps(mapped) + '\n\n').encode())
         return httpx.Response(200, headers={'content-type': 'text/event-stream'},
@@ -405,33 +459,23 @@ class BenchAuthor:
             metrics['estimated_cost_usd'] = None
             return
         details = self.transport.attempts[-1]
-        metrics['transport'] = self.provider
-        metrics['observed_provider'] = details.get('observed_provider')
-        metrics['observed_model'] = details.get('observed_model')
-        metrics['provider_reported_cost_usd'] = (details.get('usage') or {}).get('cost')
-        metrics['first_content_ms'] = details.get('first_content_ms')
-        if not details.get('usage'):
-            metrics['usage_complete'] = False
-            metrics['estimated_cost_usd'] = None
-            return
-        if self.bridge:
-            details = self.bridge.attempts[-1]
-            metrics['first_content_ms'] = details.get('first_content_ms')
-            metrics['provider_http_status'] = details.get('http_status')
-            if details.get('usage') is None:
-                metrics['estimated_cost_usd'] = None
-                metrics['usage_complete'] = False
-                return
-            usage = details['usage']
-            metrics['input_tokens'] = int(usage.get('prompt_tokens') or 0)
-            metrics['output_tokens'] = int(usage.get('completion_tokens') or 0)
-            metrics['thinking_tokens'] = int((usage.get('completion_tokens_details') or {}).get('reasoning_tokens') or 0)
-        metrics['usage_complete'] = bool(metrics['input_tokens'] + metrics['output_tokens'])
+        metrics.update(validated_usage(self.provider, details.get('usage')))
+        metrics.update(transport=self.provider, observed_provider=details.get('observed_provider'),
+                       observed_model=details.get('observed_model'), first_content_ms=details.get('first_content_ms'),
+                       provider_http_status=details.get('http_status'))
+        reported = (details.get('usage') or {}).get('cost')
+        metrics['provider_reported_cost_usd'] = (reported if isinstance(reported, (int, float))
+            and not isinstance(reported, bool) and math.isfinite(reported) and reported >= 0 else None)
+        metrics['estimated_cost_usd'] = None
         if self.provider == 'inception_labs':
-            metrics['regular_cost_usd'] = round((metrics['input_tokens'] * MERCURY_REGULAR_PRICES[0]
-                + metrics['output_tokens'] * MERCURY_REGULAR_PRICES[1]) / 1_000_000, 8)
-        metrics['estimated_cost_usd'] = round((metrics['input_tokens'] * self.prices[0]
-                                               + metrics['output_tokens'] * self.prices[1]) / 1_000_000, 8)
+            metrics['regular_cost_usd'] = None
+        if not metrics['usage_complete']:
+            return
+        def cost(prices):
+            return round((metrics['input_tokens'] * prices[0] + metrics['output_tokens'] * prices[1]) / 1_000_000, 8)
+        metrics['estimated_cost_usd'] = cost(self.prices)
+        if self.provider == 'inception_labs':
+            metrics['regular_cost_usd'] = cost(MERCURY_REGULAR_PRICES)
 
     async def close(self):
         await self.client.aclose()
@@ -450,6 +494,23 @@ def write_report(path, report):
         json.dump(report, out, indent=2, default=str)
 
 
+def provider_identity(arm: str, attempts: list[dict]) -> dict:
+    """Check supplied response identities; never invent missing provider metadata."""
+    provider, expected, _ = ARMS[arm]
+    observed = [item['observed_model'] for item in attempts if item.get('observed_model')]
+    def matches(model):
+        return isinstance(model, str) and (model == expected or (provider == 'google'
+            and re.fullmatch(re.escape(expected) + r'-(?:preview-)?\d[\d.-]*', model) is not None))
+    wrong_model = any(not matches(model) for model in observed)
+    providers = [str(item['observed_provider']) for item in attempts if item.get('observed_provider')]
+    wrong_provider = provider == 'openrouter' and any(name.casefold() != 'inception' for name in providers)
+    status = 'mismatch' if wrong_model or wrong_provider else 'matched' if observed else 'unreported'
+    return {'expected_model': expected, 'transport': provider,
+            'endpoint': ('https://generativelanguage.googleapis.com' if provider == 'google' else ENDPOINTS[provider]),
+            'observed_models': observed, 'observed_providers': providers,
+            'response_status': status, 'comparison_eligible': status != 'mismatch'}
+
+
 async def run(args):
     logging.disable(logging.CRITICAL)
     manager = SecretsManager()
@@ -458,9 +519,14 @@ async def run(args):
               'reasoning_effort': {arm: arm_reasoning(arm, args.reasoning) for arm in args.arms},
               'mercury_prices_usd_per_million': {'promotional': (0.10, 0.35), 'regular': MERCURY_REGULAR_PRICES},
               'profile': args.profile, 'in_memory_only': True, 'selections': [], 'results': []}
-    selected_cases = [c for c in cases() if not args.cases or c.id in args.cases]
+    selected_cases = [c for c in cases(getattr(args, 'suite', 'baseline')) if not args.cases or c.id in args.cases]
     if not selected_cases or args.cases and len(selected_cases) != len(set(args.cases)):
         raise ValueError('Unknown or duplicate case')
+    report['suite'] = getattr(args, 'suite', 'baseline')
+    report['corpus_version'] = CORPUS_VERSION
+    report['case_bank'] = [{'id': case.id, 'language': case.language, 'text': case.text,
+        'expected_summary': case.expected_summary, 'expected_capabilities': case.expected_capability_ids,
+        'expanded_contract': case.expectations} for case in selected_cases]
     report.update(partial=True, planned_results=len(selected_cases) * args.repeats * len(args.arms),
                   skipped_results=0)
     original_selector = planner_module.WorkflowAuthoringPreselector
@@ -531,7 +597,8 @@ async def run(args):
                                 first_header_ms=header_times[0] if header_times else None,
                                 first_node_ms=node_times[0] if node_times else None,
                                 validated_node_events=len(node_times), corrections=corrections,
-                                provider_attempts=author.transport.attempts)
+                                provider_attempts=author.transport.attempts,
+                                provider_identity=provider_identity(arm, author.transport.attempts))
                             await author.close()
                         report['results'].append(row)
                         if any(attempt.get('http_status') == 429 for attempt in row['provider_attempts']):
@@ -553,6 +620,8 @@ def main():
     parser.add_argument('--revision', required=True)
     parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini','mercury-openrouter-none','mercury-openrouter-low'])
     parser.add_argument('--cases', nargs='+')
+    parser.add_argument('--suite', choices=('baseline', 'expanded'), default='baseline',
+                        help='Original eight cases, or all24 predeclared quality cases')
     parser.add_argument('--selection-report', type=Path, help='Reuse measured Jev decisions for an exactly paired author comparison')
     parser.add_argument('--repeats', type=int, default=2, choices=(1,2))
     parser.add_argument('--reasoning', choices=('none','low','medium'), default='low')
