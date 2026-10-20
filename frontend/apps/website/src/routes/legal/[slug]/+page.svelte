@@ -38,4 +38,12 @@
   .legal-document :global(h1) { font-size:clamp(1.75rem,4vw,3rem); hyphens:auto; }
   .legal-document :global(h2) { margin-top:2.5rem; }
   .legal-document :global(a) { color:var(--color-primary); overflow-wrap:anywhere; }
+  @media (max-width:730px) {
+    .legal-document :global(table) { width:100%; table-layout:fixed; border-collapse:collapse; font-size:var(--font-size-small); line-height:1.5; hyphens:auto; }
+    .legal-document :global(th) { font-size:var(--font-size-xs); overflow-wrap:normal; hyphens:none; }
+    .legal-document :global(th:first-child), .legal-document :global(th:last-child) { width:24%; }
+    .legal-document :global(th:nth-child(2)) { width:25%; }
+    .legal-document :global(th:nth-child(3)) { width:27%; }
+    .legal-document :global(td:last-child) { overflow-wrap:normal; word-break:normal; hyphens:none; }
+  }
 </style>

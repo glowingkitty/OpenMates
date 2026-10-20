@@ -92679,7 +92679,7 @@ assertions:
       surface: gui.web
     - &id11817
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 375
+      line: 400
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -92856,7 +92856,7 @@ assertions:
       surface: gui.web
     - &id11850
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 375
+      line: 400
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     - &id11851
@@ -93055,7 +93055,7 @@ assertions:
       surface: gui.web
     - &id11863
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 375
+      line: 400
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -93442,7 +93442,7 @@ assertions:
       surface: gui.web
     - &id11912
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 444
+      line: 469
       name: saved dark theme applies in the document head before hydration
       surface: gui.web
     supporting_tests: []
@@ -93502,7 +93502,7 @@ assertions:
       surface: gui.web
     - &id11917
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 375
+      line: 400
       name: standalone global styles preserve the landing viewport and media at ${width}px
       surface: gui.web
     supporting_tests: []
@@ -99534,7 +99534,7 @@ assertions:
       surface: rest_api
     - &id12715
       path: frontend/apps/web_app/tests/website-public-routes.spec.ts
-      line: 469
+      line: 494
       name: confirmation token waits for an explicit click and reveals Signal only
         after a successful response
       surface: gui.web

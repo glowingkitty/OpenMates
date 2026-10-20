@@ -284,7 +284,7 @@ test('news subscriptions open the standalone public form in the publication lang
 });
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.public-content
-test('privacy, terms, and imprint are full styled public documents', async ({ page, request }) => {
+test('privacy, terms, and imprint are full styled public documents', async ({ page, request }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const noPrivateStartup = watchPrivateStartup(page);
   for (const slug of ['privacy', 'terms', 'imprint']) {
@@ -317,7 +317,7 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       await page.evaluate(() => document.fonts.ready);
       await expect(article.locator('h1')).toBeVisible();
-      for (const width of [320, 390]) {
+      for (const width of slug === 'privacy' ? [320, 390, 1440] : [320, 390]) {
         await page.setViewportSize({ width, height: 844 });
         const layout = await article.evaluate(element => {
           const title = element.querySelector('h1')!;
@@ -334,14 +334,39 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
           };
         });
         // The shared public header has a separate pre-existing 320px minimum;
-        // verify the entire page at 390px and legal content/footer at both widths.
-        if (width === 390) expect(layout.pageOverflow, `${route} must fit the mobile viewport`).toBeLessThanOrEqual(1);
+        // verify the entire page at larger widths and legal content/footer at all widths.
+        if (width >= 390) expect(layout.pageOverflow, `${route} must fit the viewport at ${width}px`).toBeLessThanOrEqual(1);
         expect(layout.articleOverflow, `${route} must wrap rather than clip legal text at ${width}px`).toBeLessThanOrEqual(1);
         expect(layout.footerOverflow, `${route} footer links must wrap at ${width}px`).toBeLessThanOrEqual(1);
         for (const overflow of layout.headingOverflow) expect(overflow).toBeLessThanOrEqual(1);
         for (const tableWidth of layout.tableWidths) expect(tableWidth).toBeLessThanOrEqual(layout.articleWidth + 1);
         if (width === 390 && locale === 'de' && slug === 'privacy') {
           expect(layout.titleHeight, 'the German privacy title must not strand its ending on a second line').toBeLessThanOrEqual(layout.titleLineHeight + 1);
+        }
+        if (slug === 'privacy') {
+          const providers = article.getByRole('table');
+          const fragmentedWords = await providers.evaluate(table => {
+            const split: string[] = [];
+            for (const cell of table.querySelectorAll('th, td:last-child')) {
+              const bounds = cell.getBoundingClientRect();
+              const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+              for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                for (const match of (node.textContent ?? '').matchAll(/\S+/g)) {
+                  const range = document.createRange();
+                  range.setStart(node, match.index);
+                  range.setEnd(node, match.index + match[0].length);
+                  const fragments = [...range.getClientRects()];
+                  if (fragments.length > 1 || fragments.some(fragment => fragment.left < bounds.left - 1 || fragment.right > bounds.right + 1)) split.push(match[0]);
+                }
+              }
+            }
+            return split;
+          });
+          expect(fragmentedWords, `provider headings and date words must remain whole inside their columns at ${width}px`).toEqual([]);
+          await providers.getByRole('columnheader').first().scrollIntoViewIfNeeded();
+          await expect(providers.getByRole('columnheader').last()).toBeInViewport();
+          await expect(providers.locator('tbody tr').first().getByRole('cell').last()).toBeInViewport();
+          await testInfo.attach(`legal-privacy-${locale}-${width}px-table`, { body: await page.screenshot(), contentType: 'image/png' });
         }
       }
       const body = await article.innerText();
