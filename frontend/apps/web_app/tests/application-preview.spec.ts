@@ -112,10 +112,12 @@ test('generated application embed starts explicit isolated live preview', async 
 	const fullscreenOverlay = await openFullscreen(page, applicationEmbed);
 	await expect(fullscreenOverlay.getByTestId('application-preview-panel')).toBeVisible({ timeout: 10_000 });
 	await expect(fullscreenOverlay.getByTestId('application-preview-files')).toBeVisible({ timeout: 10_000 });
-	// The fixture supplies only package.json and App.svelte.
-	// Artifact preparation must persist both generated browser entry files.
-	for (const path of ['package.json', 'src/App.svelte', 'src/main.ts', 'index.html']) {
+	// The saved fixture has two files; live interaction below proves startup supplies its bootstrap.
+	for (const path of ['package.json', 'src/App.svelte']) {
 		await expect(fullscreenOverlay.getByTestId('application-preview-files').getByText(path, { exact: true })).toBeVisible();
+	}
+	for (const path of ['src/main.ts', 'index.html']) {
+		await expect(fullscreenOverlay.getByTestId('application-preview-files').getByText(path, { exact: true })).toHaveCount(0);
 	}
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
