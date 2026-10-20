@@ -86,11 +86,16 @@ async def run(output: Path) -> int:
         for case in CASES:
             usage = []
             attempts = []
+            attempt_results = []
             async def call(**kwargs):
                 attempts.append(kwargs["model_id"])
                 if case.fallback and kwargs["model_id"] == PRIMARY_MODEL:
                     raise ConnectionError("Synthetic primary outage for fallback verification")
-                return await real_call(**kwargs)
+                result = await real_call(**kwargs)
+                attempt_results.append({"model_id": kwargs["model_id"],
+                                        "arguments": result.arguments,
+                                        "provider_error": bool(result.error_message)})
+                return result
             started = time.monotonic()
             with patch.object(llm_utils, "call_preprocessing_llm", call):
                 generated = await generate_early_chat_metadata(task_id=f"metadata-quality-{case.id}",
@@ -109,13 +114,18 @@ async def run(output: Path) -> int:
                     issues.append("missing_substantive_metadata")
                 if case.topic and not re.search(case.topic, f"{generated.title} {generated.summary}", re.I):
                     issues.append("missing_central_topic")
-                if generated.title == "BANANA42" or generated.summary == "BANANA42":
-                    issues.append("followed_quoted_instruction")
+                fields = f"{generated.title} {generated.summary}"
+                if "BANANA42" in fields:
+                    issues.append("followed_or_repeated_quoted_instruction")
+                if re.search(r"existing (ingredients|supplies)|vorhandene[nr]? Zutaten|Vorräten|ingredientes existentes|stocks existants", fields, re.I):
+                    issues.append("invented_existing_supplies")
+                if case.language != "en" and re.search(r"five vegetarian|dinners for|using existing", generated.summary or "", re.I):
+                    issues.append("english_summary_despite_ui_language")
                 if case.fallback and generated.model_id != FALLBACK_MODEL:
                     issues.append("fallback_not_observed")
             row = {"case": asdict(case), "metadata": asdict(generated) if generated else None,
                    "attempted_models": attempts, "elapsed_ms": elapsed, "issues": issues,
-                   "usage": usage}
+                   "usage": usage, "attempt_results": attempt_results}
             rows.append(row)
             report = {"status": "in_progress", "results": rows, "human_review_required": True}
             output.write_text(json.dumps(report, ensure_ascii=False, indent=2))

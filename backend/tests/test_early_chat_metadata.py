@@ -59,9 +59,11 @@ async def test_mercury_primary_has_small_structured_intent_only_prompt(monkeypat
     assert generated == metadata.EarlyChatMetadata(**VALID, model_id=metadata.PRIMARY_MODEL)
     kwargs = call.call_args.kwargs
     assert call.await_count == 1 and kwargs["model_id"] == "inception/mercury-3"
-    assert kwargs["max_output_tokens"] == 256 and kwargs["reasoning_effort"] == "low"
+    assert kwargs["max_output_tokens"] == 384 and kwargs["reasoning_effort"] == "low"
     assert kwargs["fallback_models"] == [] and not kwargs["allow_retries"]
     assert "NOT been produced" in kwargs["message_history"][0]["content"]
+    properties = kwargs["tool_definition"]["function"]["parameters"]["properties"]
+    assert all("German (de)" in properties[field]["description"] for field in ("title", "summary"))
 
 
 @pytest.mark.parametrize("first", [result(error="unavailable"), result({"title": "x"}),
