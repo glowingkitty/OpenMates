@@ -180,10 +180,31 @@ async def test_realtime_audio_billing_rounds_started_minutes_once(
     }
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("deltas", "final_text", "expected_transcript"),
+    [
+        (["Hello ", "world."], "Hello world.", "Hello world."),
+        (["Hello "], "Hello world.", "Hello world."),
+        (
+            ["First keep the budget. ", "Then invite the team. ", "Finally book the room."],
+            "Finally book the room.",
+            "First keep the budget. Then invite the team. Finally book the room.",
+        ),
+        (["Earlier speech. ", "Later speech."], "", "Earlier speech. Later speech."),
+        (["Earlier speech. ", "Later speech."], None, "Earlier speech. Later speech."),
+        (["Repeat this. ", "Repeat this."], "Repeat this.", "Repeat this. Repeat this."),
+        ([], "Hello world.", "Hello world."),
+        ([" \n"], "Hello world.", "Hello world."),
+    ],
+    ids=["full-final", "extended-final", "suffix-final", "empty-final", "missing-final", "repeated-speech", "no-deltas", "blank-deltas"],
+)
+# contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,message-input.embeds.gated-send
 async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     monkeypatch: pytest.MonkeyPatch,
+    deltas: list[str],
+    final_text: str | None,
+    expected_transcript: str,
 ) -> None:
     provider_messages: list[dict[str, object]] = []
     browser_messages: list[dict[str, object]] = []
@@ -197,10 +218,10 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
                 {"type": "session.updated"},
             ]
             self.events = [
-                {"type": "transcription.text.delta", "text": "Hello "},
+                *[{"type": "transcription.text.delta", "text": delta} for delta in deltas],
                 {
                     "type": "transcription.done",
-                    "text": "Hello world.",
+                    **({"text": final_text} if final_text is not None else {}),
                     "language": "en",
                     "usage": {"prompt_audio_seconds": 1.25},
                 },
@@ -282,11 +303,11 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
         language: str | None,
         context: str | None = None,
     ) -> None:
-        assert raw == "Hello world."
+        assert raw == expected_transcript
         assert language == "en"
         assert context is None
         await websocket.send_json(
-            {"type": "correction.done", "transcript": "Hello world."}
+            {"type": "correction.done", "transcript": raw}
         )
 
     async def fake_billing(_websocket: BrowserSocket, **kwargs: object) -> None:
@@ -319,10 +340,13 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     ]
     assert [message["type"] for message in browser_messages] == [
         "session.ready",
-        "transcription.text.delta",
+        *["transcription.text.delta"] * len(deltas),
         "transcription.done",
         "correction.done",
     ]
+    assert browser_messages[-2]["transcript"] == expected_transcript
+    assert browser_messages[-1]["transcript"] == expected_transcript
+    assert [message["text"] for message in browser_messages if message["type"] == "transcription.text.delta"] == deltas
     assert billed["request_id"] == "provider-1"
     assert billed["audio_seconds"] == 1.25
     assert released == [(None, "lock", "token")]

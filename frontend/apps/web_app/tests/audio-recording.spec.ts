@@ -662,6 +662,55 @@ test('Mercury corrected recording inserts editable text at the original caret wi
 });
 
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('long streamed recording preserves beginning middle and end in the editable draft', async ({ page }) => {
+	test.setTimeout(120000);
+	const sections = [
+		'First reserve the library and keep the opening budget below five hundred euros. ',
+		...Array.from({ length: 12 }, (_, index) =>
+			`For workshop ${index + 1}, invite the team and prepare the agenda, printed notes, and travel arrangements. `),
+		'Finally send the room confirmation to Marta before Thursday.'
+	];
+	const transcript = sections.join('');
+	let streamed = false;
+	let endedRecordings = 0;
+	let audioUploadRequests = 0;
+	page.on('request', (request) => {
+		if (request.method() === 'POST' && request.url().includes('/v1/upload/file')) audioUploadRequests++;
+	});
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload) => {
+			const type = JSON.parse(String(payload)).type;
+			if (type === 'input_audio.append' && !streamed) {
+				streamed = true;
+				for (const text of sections) socket.send(JSON.stringify({ type: 'transcription.text.delta', text }));
+			}
+			if (type !== 'input_audio.end') return;
+			endedRecordings++;
+			// The API must finalize the complete stream, including earlier windows.
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript, model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	await enableAudioDiagnosticMarker(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Existing notes. ');
+	await editor.press('End');
+	const userMessages = await page.getByTestId('user-message-content').count();
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true);
+	await expect(editor).toHaveText(`Existing notes. ${transcript}`);
+	await expect(editor).toBeFocused();
+	await page.keyboard.type(' Reviewed.');
+	await expect(editor).toHaveText(`Existing notes. ${transcript} Reviewed.`);
+	await expect(page.getByTestId('user-message-content')).toHaveCount(userMessages);
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+	expect(streamed).toBe(true);
+	expect(endedRecordings).toBe(1);
+	expect(audioUploadRequests).toBe(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
 test('pending Mercury correction falls back to Gemini 3.8 Flash and inserts one editable result at the original caret', async ({ page }) => {
 	test.setTimeout(120000);
 	let audioUploadRequests = 0;

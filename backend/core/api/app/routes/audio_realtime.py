@@ -337,6 +337,7 @@ async def realtime_transcription(
     await websocket.accept()
     bytes_received = 0
     peak_pcm = 0
+    transcript_deltas: list[str] = []
     provider_request_id = uuid.uuid4().hex
     provider_done = False
     billing_task: Optional[asyncio.Task[None]] = None
@@ -454,13 +455,23 @@ async def realtime_transcription(
                                     log_prefix="[AudioRealtime][Mistral delta] ",
                                 )
                                 if delta:
+                                    transcript_deltas.append(delta)
                                     await websocket.send_json(
                                         {"type": event_type, "text": delta}
                                     )
                             elif event_type == "transcription.done":
-                                raw_transcript = sanitize_text_simple(
+                                provider_final_text = sanitize_text_simple(
                                     str(event.get("text") or "").strip(),
                                     log_prefix="[AudioRealtime][Mistral] ",
+                                )
+                                # Realtime text is delivered through deltas. The
+                                # done payload can contain only the final window;
+                                # never let it replace earlier streamed speech.
+                                streamed_transcript = "".join(transcript_deltas).strip()
+                                raw_transcript = (
+                                    provider_final_text
+                                    if provider_final_text.startswith(streamed_transcript)
+                                    else streamed_transcript
                                 )
                                 language = event.get("language")
                                 usage = (
@@ -474,8 +485,10 @@ async def realtime_transcription(
                                 )
                                 logger.info(
                                     "Realtime transcription completed: audio_bytes=%d peak_pcm=%d "
-                                    "provider_seconds=%.3f transcript_chars=%d",
+                                    "provider_seconds=%.3f transcript_chars=%d "
+                                    "streamed_chars=%d provider_final_chars=%d",
                                     bytes_received, peak_pcm, audio_seconds, len(raw_transcript),
+                                    len(streamed_transcript), len(provider_final_text),
                                 )
                                 await websocket.send_json(
                                     {
