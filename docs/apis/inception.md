@@ -37,8 +37,9 @@ report, without scoring skipped requests as quality failures. See the
 
 Mercury 3 is available in the composer: **model selector → More providers →
 Inception → Mercury 3**. Manual selection uses direct Inception. The catalog's
-`allow_auto_select: false` restricts automatic routing; it does not remove the
-manual entry. Normal user-disabled-model/server and provider-health filtering
+historical `allow_auto_select: false` configuration restricted automatic routing
+without removing the manual entry. A new user-approved low-complexity routing
+phase is implementing; its final deployment/configuration receipt is pending. Normal user-disabled-model/server and provider-health filtering
 still apply. The dev health endpoint reported Inception healthy on 2026-10-20.
 
 Credentials belong in Vault at `kv/data/providers/inception_labs`, key `api_key`.
@@ -58,23 +59,102 @@ credit during the launch, compared with regular allowances of 1,650 input and
 475 output. Retiring the promotional entry restores the regular rates. Dollar
 rates above are provider prices; customer charges use the token allowances.
 
+## Automatic prefix caching
+
+Checked against the direct Inception [FAQ](https://docs.inceptionlabs.ai/resources/faq)
+and [model price table](https://docs.inceptionlabs.ai/get-started/models) on
+2026-10-20. Prefix caching is automatic: no activation request parameter is
+required. The reviewed official documentation does not state a minimum eligible
+prefix length or cache TTL, and documents no API to pin, invalidate or inspect
+entries. Do not assume another provider's minimum or retention behavior.
+
+`usage.prompt_tokens_details.cached_tokens` reports cached input as a subset of
+inclusive `prompt_tokens`. Streaming requests set
+`stream_options.include_usage: true`; cached tokens must not be added to the
+prompt total again. Supplier cache reads cost **$0.01/M during launch**, versus
+ordinary input **$0.10/M** (regular **$0.02/M** versus **$0.20/M**). This is a 90%
+supplier discount on reported cache hits, not a guarantee that any request hits.
+
+The pure client retains prompt-token details; the OpenMates adapter maps the
+reported count to `cache_read_input_tokens`. Normalized usage preserves that
+counter, and the shared supplier-cost estimator subtracts reported cache reads
+from ordinary input before pricing them at the configured cached-input rate.
+Missing cache counters remain unknown rather than proving zero hits. Native
+benchmark receipts reported actual cached input; their uncached cost estimates
+were deliberately conservative and do not represent supplier invoices.
+
+**Customer cache savings are implemented in the pending rollout.** Native
+Inception chat and workflow settlement use the shared category-credit calculator
+with `write_billing: included_in_input`. Ordinary fills incur no extra cache-write
+fee. Reported cached input uses **33,000 tokens/credit during launch**, versus
+ordinary input **3,300**; regular allowances are **16,500 cached / 1,650 ordinary**.
+Output remains **950 tokens/credit promotional / 475 regular**. This passes the
+90% cached-input discount to customers in addition to the 50% launch promotion,
+only for the provider-reported cached subset. Missing cache counters charge
+inclusive input at the ordinary allowance; invalid subsets fail closed.
+
+The native-Inception-only cache policy's `expires_on: 2026-11-20` is an **internal
+evidence-review deadline**, not an Inception cache TTL or promotion end date.
+Minimum-credit rules and final rounding mean cached-input savings do not imply
+90% off the entire charge. Workflow `estimated_cost_usd` remains a conservative
+supplier estimate pricing all input at the ordinary supplier rate; cache-aware
+customer settlement does not make that estimate a cache-adjusted invoice.
+
+Existing native postprocessing receipts already demonstrate cache hits without
+additional calls: the twenty Mercury requests reported **80,018 of 94,356 input
+tokens cached (84.8%)**, all twenty with positive hits and eighteen above 1,000
+cached tokens. This is observed reuse, not a minimum-prefix or TTL experiment.
+The [postprocessing comparison](../plans/mercury-fast-inference/postprocessing-2026-10-20.md)
+retains Gemini 3.5 Flash-Lite for that specific task: Mercury LOW's median was
+1.590 s versus Lite's 1.603 s, with additional language and task-contract defects.
+
+
 ## Use and privacy
 
-Mercury can process selected-model text requests. The proposed audio use sends
+Mercury can process selected-model text requests. Ordinary audio correction sends
 only raw transcript text and a language hint for correction/title generation,
 not audio. Raw transcripts are outside typed-message placeholder protection.
 The account owner confirmed the training opt-out on 2026-10-20. Correction uses
 Mercury **low** when `INCEPTION_TRANSCRIPT_CORRECTION_ENABLED=true`, with a
 five-second total deadline, no correction retries and the established Gemini
-fallback. Native completed tool calls can report `stop` or `tool_calls`; truncated,
-blocked, missing-finish and malformed responses are rejected. Workflow generation
-remains on Gemini; Mercury instant's completed benchmark supports a scoped pilot.
+fallback. The newly approved phase upgrades that fallback to native Gemini 3.8
+Flash LOW; verification and publication of this phase are pending. Native completed tool calls can report `stop` or `tool_calls`; truncated,
+blocked, missing-finish and malformed responses are rejected.
 The flag is enabled on dev after live direct-facade verification on 2026-10-20:
 the refined helper passed twelve repeated synthetic cases and the final shared
 runtime passed six more without fallback (median 0.795 seconds). The rollout
 included a generic self-correction instruction refinement after one earlier
 cleanup miss. Production configuration was not changed.
-Synthetic benchmark results do not establish quality for private user transcripts.
+The user now explicitly authorizes implementation, tests and scoped dev deployment
+after reviewing the expanded results; final publication and verification receipts
+remain pending. Workflow generation uses a request-wide maximum of three actual
+author calls: **Mercury INSTANT → Mercury LOW repair → Gemini 3.8 Flash LOW repair**.
+Outage recovery can skip an unavailable Mercury route and allow one Gemini repair
+when budget remains; it never exceeds three calls or advances on Stop. Accepted
+prefixes and actual-attempt billing survive recovery. A semantically wrong
+accepted prefix may require a disabled partial and manual editing; the chain
+does not guarantee recovery of every defect.
+Mercury **LOW** is the approved eligible low-complexity text default, with native
+Gemini 3.8 Flash **LOW** fallback after five seconds without substantive output.
+Unsupported vision and other ineligible Mercury
+requests use Gemini; global account settings and exact model preferences stay
+unchanged. Jev remains the primary preprocessing/routing decision provider.
+Only where generative recovery is already allowed, the approved recovery order
+is Mercury 3 first, then Gemini 3.5 Flash-Lite; preserve Jev's Unsure/decision
+contracts. This Lite secondary recovery is distinct from the Gemini 3.8 Flash
+LOW fallbacks for correction, workflows and low-complexity chat. Healthy Jev
+should not trigger generative recovery. Medium-complexity defaults remain Gemini: bounded writing exposed
+unsupported claims, and no matched public general-quality benchmark established
+Mercury parity. See the [rollout addendum](../plans/mercury-fast-inference/rollout-addendum.md)
+for pending verification and receipts.
+
+The [expanded correction evaluation](../plans/mercury-fast-inference/expanded-correction-2026-10-20.md)
+and [expanded workflow evaluation with LOW diagnosis](../plans/mercury-fast-inference/expanded-workflow-2026-10-20.md#later-diagnostic-mercury-low-same-frozen-selections)
+are complete and retain critical defects. Independent-arm results do not prove
+the new recovery chain; verify it before rollout. User/model/server/key
+restrictions must be enforced, including transport of disabled-model/server
+settings. Preserve Gemini 3.5 Flash-Lite generative postprocessing. Synthetic
+benchmark results do not establish quality for private user transcripts.
 
 Inception's public terms permit training on submitted content with an API Platform
 account opt-out. The account owner confirmed on 2026-10-20 that

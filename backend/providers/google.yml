@@ -482,7 +482,7 @@ models:
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-05-19" # Model release date (Gemini 3.5 Flash GA release)
     capability_level: "medium"
-    allow_auto_select: true
+    allow_auto_select: false # Legacy model remains manual-only; current defaults use newer models.
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3.5-flash"
       openrouter: "google/gemini-3.5-flash"

@@ -2,9 +2,21 @@
 # This file contains Pydantic models for AI skill requests and responses
 # that might be shared between the core API and the AI app services.
 
-from typing import List, Dict, Any, Optional, Literal
-from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
+from typing import List, Dict, Any, Optional, Literal, Annotated
+from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer, ConfigDict, StringConstraints
 from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+RoutingModelId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$")]
+RoutingServerId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
+RoutingServerList = Annotated[List[RoutingServerId], Field(max_length=16)]
+
+
+class ModelRoutingRestrictions(BaseModel):
+    """First-party authenticated per-turn metadata, never an account-settings write."""
+    model_config = ConfigDict(extra="forbid")
+    disabled_ai_models: List[RoutingModelId] = Field(default_factory=list, max_length=256)
+    disabled_ai_servers: Dict[RoutingModelId, RoutingServerList] = Field(default_factory=dict, max_length=256)
+
 
 class AskSkillRequest(BaseModel):
     @field_validator("message_history", mode="before")

@@ -36,7 +36,11 @@ from backend.apps.ai.processing.search_skill_reliability import (
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
 )
-from backend.apps.ai.processing.model_routing import LOW_TIER, normalize_request_tier
+from backend.apps.ai.processing.model_routing import (
+    LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS,
+    automatic_attempt_thinking_level, automatic_low_allowed_servers, history_requires_non_text,
+    normalize_request_tier,
+)
 from backend.apps.ai.utils.instruction_loader import (
     REQUIRED_ANSWER_INSTRUCTIONS, validate_required_answer_instructions,
 )
@@ -6569,6 +6573,29 @@ async def handle_main_processing(
         while current_model_index < len(models_to_try):
             try:
                 current_model_id = models_to_try[current_model_index]
+                automatic_low_attempt = automatic_attempt_thinking_level(
+                    preprocessing_results.complexity, current_model_id,
+                    getattr(preprocessing_results, "selected_main_llm_thinking_level", None),
+                )
+                permitted_low_servers = None
+                if automatic_low_attempt:
+                    permitted_low_servers = automatic_low_allowed_servers(
+                        current_model_id, request_data.user_preferences,
+                        config_manager.get_provider_config(current_model_id.split("/", 1)[0]),
+                    )
+                    incompatible_mercury = current_model_id == MERCURY_MODEL and history_requires_non_text(current_message_history)
+                    if not permitted_low_servers or incompatible_mercury:
+                        # Later tool images and changed restrictions cannot admit
+                        # a forbidden fallback or strip visual evidence.
+                        fallback_servers = automatic_low_allowed_servers(
+                            LOW_FALLBACK_MODEL, request_data.user_preferences,
+                            config_manager.get_provider_config("google"),
+                        )
+                        if (current_model_id == MERCURY_MODEL and fallback_servers
+                                and LOW_FALLBACK_MODEL not in models_to_try[current_model_index + 1:]):
+                            models_to_try.append(LOW_FALLBACK_MODEL)
+                        current_model_index += 1
+                        continue
                 model_fallback_attempts += 1
                 # Tool results and prompt additions grow between iterations, and a
                 # fallback model can have a different context window. Re-fit before
@@ -6876,9 +6903,15 @@ async def handle_main_processing(
                     model_id=current_model_id,  # Use current_model_id from fallback list
                     temperature=preprocessing_results.llm_response_temp,
                     thinking_level=(
-                        getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
-                        if current_model_id == preprocessing_results.selected_main_llm_model_id
-                        else None
+                        automatic_low_attempt or (
+                            getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                            if current_model_id == preprocessing_results.selected_main_llm_model_id else None
+                        )
+                    ),
+                    allowed_server_ids=permitted_low_servers,
+                    first_substantive_timeout_seconds=(
+                        MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS
+                        if automatic_low_attempt and current_model_id == MERCURY_MODEL else None
                     ),
                     secrets_manager=secrets_manager,
                     tools=iteration_tools,

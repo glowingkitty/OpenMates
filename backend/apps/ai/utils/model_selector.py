@@ -15,13 +15,16 @@ from dataclasses import dataclass
 
 import yaml
 
-from backend.apps.ai.processing.model_routing import default_profile_for_tier, normalize_request_tier
+from backend.apps.ai.processing.model_routing import (
+    LOW_FALLBACK_MODEL, MERCURY_MODEL, default_profile_for_tier, normalize_request_tier,
+)
 
 logger = logging.getLogger(__name__)
 
 # Provider YAML files containing model configs with allow_auto_select settings
 PROVIDERS_DIR = Path("/app/backend/providers")
 LLM_PROVIDER_FILES = [
+    "inception.yml",
     "anthropic.yml",
     "openai.yml",
     "google.yml",
@@ -87,7 +90,6 @@ PREMIUM_MODELS = {
     "claude-opus-5-5",                # Latest Opus
     "claude-sonnet-5-5",              # Latest Sonnet
     "gemini-3.7-flash",              # Top Gemini Flash
-    "gemini-3.5-flash",              # Mid-tier Gemini alternative to Pro
 }
 
 # Cache for allow_auto_select settings (loaded once per process)
@@ -362,6 +364,7 @@ class ModelSelector:
         available_set = set(available_model_ids or [])
         configured_default_is_eligible = (
             configured_provider not in (excluded_provider_ids or set())
+            and not (configured_model == MERCURY_MODEL and required_input_type not in {None, "text"})
             and (
                 not available_set
                 or configured_model in available_set
@@ -416,6 +419,21 @@ class ModelSelector:
         if fallback_full_id == primary_full_id:
             # Use a different fallback if primary is already the default
             fallback_full_id = DEFAULT_FALLBACK_MODEL_ALT
+
+        if complexity == "low":
+            fallback_provider, fallback_model = LOW_FALLBACK_MODEL.split("/", 1)
+            fallback_eligible = (fallback_provider not in (excluded_provider_ids or set())
+                                 and (not available_set or LOW_FALLBACK_MODEL in available_set
+                                      or fallback_model in available_set))
+            if configured_default_is_eligible and primary_full_id == MERCURY_MODEL:
+                secondary_full_id = LOW_FALLBACK_MODEL if fallback_eligible else None
+                fallback_full_id = LOW_FALLBACK_MODEL if fallback_eligible else None
+            elif not configured_default_is_eligible:
+                if not fallback_eligible:
+                    raise ValueError("No permitted automatic low model is available")
+                primary_full_id = LOW_FALLBACK_MODEL
+                secondary_full_id = None
+                fallback_full_id = LOW_FALLBACK_MODEL
 
         # Log the selection
         selection_reason = "; ".join(reasons)

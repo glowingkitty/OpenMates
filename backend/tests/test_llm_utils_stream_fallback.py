@@ -819,3 +819,161 @@ def test_non_chat_scope_retains_resolved_temporary_tariff_identity():
     assert frozen["pricing_version"] == "resolved-introductory-price"
     assert frozen["active_temporary_price"] == pricing["active_temporary_price"]
     assert pricing["cache_pricing"]["enabled"] is True
+
+
+@pytest.mark.parametrize("phase", ["credentials", "metadata"])
+def test_mercury_first_output_deadline_includes_setup_and_ignores_metadata(phase):
+    closed = []
+    async def provider(**_):
+        if phase == "credentials":
+            try:
+                await asyncio.sleep(1)
+            finally:
+                closed.append("credentials")
+        async def stream():
+            try:
+                while True:
+                    yield UnifiedStreamChunk(type=StreamChunkType.THINKING, content="reasoning")
+                    await asyncio.sleep(.005)
+            finally:
+                closed.append("stream")
+        return stream()
+    async def run():
+        with pytest.raises(TimeoutError):
+            _ = [chunk async for chunk in llm_utils._dispatch_with_substantive_deadline(provider, {}, .025)]
+    asyncio.run(run())
+    assert closed == ["credentials" if phase == "credentials" else "stream"]
+
+
+def test_mercury_deadline_stops_after_substantive_output_and_closes_on_cancel():
+    closed = []
+    async def provider(**_):
+        async def stream():
+            try:
+                yield "first"
+                await asyncio.sleep(.03)
+                yield "later"
+            finally:
+                closed.append(True)
+        return stream()
+    async def run():
+        return [chunk async for chunk in llm_utils._dispatch_with_substantive_deadline(provider, {}, .01)]
+    assert asyncio.run(run()) == ["first", "later"]
+    assert closed == [True]
+    closed.clear()
+    async def cancel():
+        stream = llm_utils._dispatch_with_substantive_deadline(provider, {}, .01)
+        assert await anext(stream) == "first"
+        await stream.aclose()
+    asyncio.run(cancel())
+    assert closed == [True]
+
+
+def test_mercury_timeout_preserves_usage_and_enables_gemini_low_fallback(monkeypatch):
+    from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
+    closed, calls, chunks = [], [], []
+    async def provider(**arguments):
+        calls.append(arguments)
+        async def stream():
+            try:
+                yield OpenAIUsageMetadata(input_tokens=7, output_tokens=0, total_tokens=7)
+                await asyncio.sleep(1)
+            finally:
+                closed.append(True)
+        return stream()
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    async def run():
+        with pytest.raises(AllServersFailedError):
+            async for chunk in llm_utils.call_main_llm_stream(
+                task_id="task", model_id="inception/mercury-3", system_prompt="system",
+                message_history=[{"role": "user", "content": "hello"}], temperature=.7,
+                first_substantive_timeout_seconds=.025,
+            ):
+                chunks.append(chunk)
+    asyncio.run(run())
+    assert calls[0]["reasoning_effort"] == "low"
+    assert closed == [True]
+    assert len(chunks) == 1 and chunks[0].input_tokens == 7
+    assert chunks[0]._normalized_llm_usage.model_id == "inception/mercury-3"
+    assert llm_utils._google_profile_thinking_level("google/gemini-3.8-flash", "google_ai_studio/gemini-3.8-flash", "LOW") == "LOW"
+
+
+def test_mercury_failure_after_text_does_not_trigger_clean_model_restart(monkeypatch):
+    calls = []
+    async def provider(**arguments):
+        calls.append(arguments)
+        async def stream():
+            yield "published prefix"
+            raise IOError("transport failure")
+        return stream()
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="inception/mercury-3", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=.7,
+            first_substantive_timeout_seconds=.025,
+        )]
+    chunks = asyncio.run(run())
+    assert chunks[0] == "published prefix"
+    assert chunks[1] == llm_utils.STANDARDIZED_USER_ERROR_MESSAGE
+    assert len(calls) == 1
+
+
+def test_automatic_low_dispatch_never_uses_disabled_google_server(monkeypatch):
+    calls = []
+    async def provider(**arguments):
+        async def stream():
+            yield "allowed answer"
+        return stream()
+    def get_provider(prefix):
+        async def selected(**arguments):
+            calls.append((prefix, arguments))
+            return await provider(**arguments)
+        return selected
+    monkeypatch.setattr(llm_utils, "_get_provider_client", get_provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("google_ai_studio", "google_ai_studio/gemini-3.8-flash"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: ["google/gemini-3.8-flash"])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    async def run(allowed):
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="test", model_id="google/gemini-3.8-flash", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=.7,
+            thinking_level="LOW", allowed_server_ids=allowed,
+        )]
+    assert asyncio.run(run({"google"})) == ["allowed answer"]
+    assert len(calls) == 1 and calls[0][0] == "google"
+    calls.clear()
+    with pytest.raises(AllServersFailedError, match="No permitted"):
+        asyncio.run(run(set()))
+    assert calls == []
+
+
+def test_automatic_mercury_missing_key_returns_clean_model_fallback_signal(monkeypatch):
+    from backend.apps.ai.llm_providers.inception_client import invoke_inception_chat_completions
+    from unittest.mock import AsyncMock
+    monkeypatch.delenv("SECRET__INCEPTION_LABS__API_KEY", raising=False)
+    class NoHealthCache:
+        @property
+        async def client(self):
+            return None
+    monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: invoke_inception_chat_completions)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    secrets = SimpleNamespace(get_secret=AsyncMock(return_value=None))
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="test", model_id="inception/mercury-3", system_prompt="system",
+            message_history=[{"role": "user", "content": "Hello"}], temperature=.7,
+            secrets_manager=secrets, first_substantive_timeout_seconds=5,
+        )]
+    with pytest.raises(AllServersFailedError):
+        asyncio.run(run())
+    secrets.get_secret.assert_awaited_once_with(secret_path="kv/data/providers/inception_labs", secret_key="api_key")

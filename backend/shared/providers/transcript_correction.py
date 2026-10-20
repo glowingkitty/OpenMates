@@ -103,8 +103,11 @@ async def correct_transcript(
         raise ValueError("Cannot correct an empty transcript")
     if mercury_correction_enabled():
         try:
-            key = await resolve_api_key(secrets_manager)
-            result = await correct_transcript_with_mercury(raw_transcript, key, detected_language)
+            # Credential lookup shares the provider budget; an unavailable Vault
+            # must not delay the established Gemini recovery indefinitely.
+            async with asyncio.timeout(MERCURY_CORRECTION_TIMEOUT_SECONDS):
+                key = await resolve_api_key(secrets_manager)
+                result = await correct_transcript_with_mercury(raw_transcript, key, detected_language)
             return {**result, "model": MERCURY_CORRECTION_MODEL}
         except Exception as exc:
             logger.warning("Mercury transcript correction failed (%s); trying Gemini", type(exc).__name__)

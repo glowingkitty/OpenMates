@@ -109,7 +109,8 @@ async def invoke_inception_chat_completions(
 ) -> Any:
     try:
         api_key = await resolve_api_key(secrets_manager)
-        client = InceptionClient(api_key)
+        # Logical-model fallback owns recovery; do not spend its fast-path budget on retries.
+        client = InceptionClient(api_key, max_retries=0)
         request = InceptionRequest(
             model=model_id, messages=_text_messages(messages), temperature=temperature,
             max_completion_tokens=min(max_tokens, 131072) if max_tokens is not None else None,
@@ -143,10 +144,24 @@ async def invoke_inception_chat_completions(
                 text=message.get("content"), tool_calls=calls or None, usage_metadata=usage,
             ),
         )
-    except (InceptionError, ValueError, TypeError):
+    except (InceptionError, ValueError, TypeError) as exc:
         if stream:
-            raise InceptionError("Inception request could not be completed") from None
+            raise InceptionError(
+                "Inception request could not be completed",
+                kind=exc.kind if isinstance(exc, InceptionError) else "invalid_response",
+                status_code=exc.status_code if isinstance(exc, InceptionError) else None,
+            ) from None
+        error_message = "Inception request could not be completed"
+        if isinstance(exc, InceptionError):
+            if exc.kind == "http" and exc.status_code is not None:
+                error_message = f"Inception API HTTP {exc.status_code}"
+            elif exc.kind == "timeout":
+                error_message = "Inception API timeout"
+            elif exc.kind == "transport":
+                error_message = "Inception API transport failure"
+            elif exc.kind == "invalid_response":
+                error_message = "Inception API returned an invalid response"
         return UnifiedOpenAIResponse(
             task_id=task_id, model_id=model_id, success=False,
-            error_message="Inception request could not be completed",
+            error_message=error_message,
         )

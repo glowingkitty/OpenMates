@@ -19,7 +19,7 @@ models:
     country_origin: US
     release_date: "2026-10-19"
     capability_level: medium
-    allow_auto_select: false
+    allow_auto_select: true
     reasoning: true
     input_types: [text]
     output_types: [text]
@@ -33,8 +33,18 @@ models:
       tokens:
         input:
           per_credit_unit: 1650
+        cache_read:
+          per_credit_unit: 16500
         output:
           per_credit_unit: 475
+    cache_pricing:
+      enabled: true
+      write_billing: included_in_input
+      eligible_hosts: [inception]
+      source_url: https://docs.inceptionlabs.ai/resources/faq
+      reviewed_on: "2026-10-20"
+      status: verified_for_activation
+      expires_on: "2026-11-20" # Evidence review deadline; not a supplier cache expiry.
     costs:
       input_per_million_token:
         price: 0.20
@@ -58,6 +68,8 @@ models:
           tokens:
             input:
               per_credit_unit: 3300
+            cache_read:
+              per_credit_unit: 33000
             output:
               per_credit_unit: 950
         costs:

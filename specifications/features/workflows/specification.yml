@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows
-version: 11
+version: 12
 status: draft
 title: Workflows
 summary: >
@@ -405,7 +405,7 @@ assertions:
     depends_on: [examples.authoring_compact_plan]
   - id: workflows.authoring.provisional-validation
     type: invariant
-    must: Natural-language authoring streams complete Gemini-authored nodes one at a time. Before a node reaches the client, the backend deterministically validates its supported capability, typed inputs and references, dependencies and graph placement against the accepted prefix. An invalid node gets one correction attempt; if it still fails, generation stops, the valid prefix is saved disabled with no automatic execution, and the user sees the specific problem and can request a concrete update or edit manually. A user Stop also retains the valid prefix disabled with no automatic execution. No invalid node is shown as accepted or saved. A fully completed request still requires whole-graph semantic, readiness, ownership and batch validation before its atomic commit.
+    must: Natural-language authoring uses at most three actual author calls per request across generation, validation repair and provider recovery. Normal order is direct Mercury 3 INSTANT, Mercury 3 LOW for the first repair, then Gemini 3.8 Flash LOW for the second repair. An unavailable Mercury route is not retried; recovery may skip to Gemini LOW and, if fewer than three calls have run, allow one Gemini LOW repair. Before showing a complete node as accepted, deterministically validate its supported capability, typed inputs and references, dependencies and placement against the authoritative accepted prefix. Recovery preserves accepted nodes without duplication or silent replacement; it cannot erase an already accepted but semantically wrong schedule or header to claim full success. Each actual attempt retains its own model, observed usage and prices; charge observed work once and leave missing usage unknown. Jev retains decision selection and validation. Each Mercury call bounds credential acquisition and first useful output to five seconds, idle progress to five seconds and total author time to fifteen seconds. If the three-call budget is exhausted or a remaining semantic defect cannot safely be repaired from the accepted prefix, stop and retain only a deterministically valid prefix as a disabled partial result, with a visible concrete problem and manual-edit or specific-update guidance. Stop or cancellation never advances the recovery chain. Invalid nodes are never shown or saved as accepted. A completed request still requires whole-graph semantic, readiness, ownership and batch validation before atomic commit; recovery does not promise to fix every model mistake.
     depends_on: [examples.authoring_provisional_validation]
   - id: workflows.authoring.atomic-update
     type: invariant

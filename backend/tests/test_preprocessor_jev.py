@@ -23,12 +23,23 @@ from backend.shared.providers.typesafe.models import DecisionResponse
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.asyncio
 @pytest.mark.parametrize("tier,model,level", [
-    ("low", "google/gemini-3.8-flash", "LOW"),
+    ("low", "inception/mercury-3", "LOW"),
     ("medium", "google/gemini-3.8-flash", "MEDIUM"),
     ("high", "google/gemini-3.8-flash", "HIGH"),
     ("max", "google/gemini-4-argon", "HIGH"),
 ])
 async def test_jev_stage_one_routes_real_selector_and_thinking_profile(monkeypatch, tier, model, level):
+    import yaml
+    providers = Path(__file__).resolve().parents[1] / "providers"
+    catalog = {provider: yaml.safe_load((providers / f"{provider}.yml").read_text()) for provider in ("inception", "google")}
+    def model_config(provider, model_id):
+        return next((entry for entry in catalog[provider]["models"] if entry["id"] == model_id), None)
+    monkeypatch.setattr(preprocessor, "config_manager", SimpleNamespace(
+        get_provider_config=lambda provider: catalog.get(provider),
+        get_model_pricing=model_config,
+        get_model_display_name=lambda model, _: model,
+    ))
+    monkeypatch.setattr(preprocessor, "is_provider_healthy", AsyncMock(return_value=True))
     questions = jev_preprocessing._early_routing_questions(["general_misc: General"], False)
     questions.update(jev_preprocessing._public_decision_questions(False))
     assert set(questions["complexity"]["criteria"]) == {"low", "medium", "high", "max"}
@@ -677,3 +688,82 @@ async def test_reserved_stage_one_stops_before_project_specialist_and_reuses_sna
         **{**kwargs, "project_candidates": [{"project_id": "p2", "name": "Other"}]},
         precomputed_stage_one=snapshot)
     assert "pending_project_focus_id" not in revoked
+
+
+@pytest.mark.asyncio
+async def test_healthy_jev_result_skips_all_generative_recovery(monkeypatch):
+    result = preprocessor.LLMPreprocessingCallResult(arguments={"complexity": "medium", "task_area": "general"})
+    forbidden = AsyncMock(side_effect=AssertionError("Healthy Jev must not start inference"))
+    monkeypatch.setattr(preprocessor, "call_preprocessing_llm", forbidden)
+    assert await preprocessor._recover_jev_preprocessing(result, task_id="healthy-jev") is result
+    forbidden.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mercury_failure", ["outage", "missing_tool", "timeout"])
+async def test_jev_generative_recovery_uses_only_mercury_then_configured_lite(monkeypatch, mercury_failure):
+    import asyncio
+    from backend.apps.ai.utils import llm_utils
+    from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, UnifiedOpenAIResponse
+    calls = []
+    class NoHealthCache:
+        @property
+        async def client(self):
+            return None
+    monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TIMEOUT_SECONDS", .025)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TOTAL_TIMEOUT_SECONDS", .1)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda model:
+        ("inception", "inception/mercury-3") if model == "inception/mercury-3"
+        else ("google_ai_studio", "google_ai_studio/gemini-3.5-flash-lite"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    async def mercury(**arguments):
+        calls.append(("inception", arguments))
+        assert arguments["reasoning_effort"] == "low"
+        assert arguments["tool_choice"] == "required"
+        if mercury_failure == "timeout":
+            await asyncio.sleep(1)
+        return UnifiedOpenAIResponse(task_id="recovery", model_id="mercury-3",
+            success=mercury_failure == "missing_tool",
+            error_message="503 Service Unavailable" if mercury_failure == "outage" else None)
+    async def lite(**arguments):
+        calls.append(("google_ai_studio", arguments))
+        assert "reasoning_effort" not in arguments
+        return UnifiedOpenAIResponse(task_id="recovery", model_id="gemini-3.5-flash-lite", success=True,
+            tool_calls_made=[ParsedOpenAIToolCall(tool_call_id="decision", function_name="analyze_request_properties",
+                function_arguments_raw='{"complexity":"medium"}', function_arguments_parsed={"complexity": "medium"})])
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda prefix: {"inception": mercury, "google_ai_studio": lite}[prefix])
+    # Registry membership must not make a logical Google fallback bypass its configured host.
+    monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, "google", lite)
+    result = await preprocessor._recover_jev_preprocessing(None, task_id="recovery",
+        message_history=[{"role": "user", "content": "Classify this request"}],
+        tool_definition={"type": "function", "function": {"name": "analyze_request_properties", "description": "Classify",
+            "parameters": {"type": "object", "properties": {"complexity": {"type": "string"}}}}})
+    assert result.arguments == {"complexity": "medium"} and result.error_message is None
+    assert [provider for provider, _ in calls] == ["inception", "google_ai_studio"]
+    assert [arguments["model_id"] for _, arguments in calls] == ["mercury-3", "gemini-3.5-flash-lite"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("allow_retries", [True, False])
+async def test_exhausted_jev_generative_recovery_never_fabricates_routing(monkeypatch, allow_retries):
+    from backend.apps.ai.utils import llm_utils
+    from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse
+    calls = []
+    class NoHealthCache:
+        @property
+        async def client(self):
+            return None
+    monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda model:
+        ("inception", "inception/mercury-3") if model == "inception/mercury-3"
+        else ("google_ai_studio", "google_ai_studio/gemini-3.5-flash-lite"))
+    async def missing_tool(**arguments):
+        calls.append(arguments["model_id"])
+        return UnifiedOpenAIResponse(task_id="recovery", model_id=arguments["model_id"], success=True)
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: missing_tool)
+    result = await preprocessor._recover_jev_preprocessing(None, task_id="recovery", allow_retries=allow_retries,
+        message_history=[{"role": "user", "content": "Classify"}],
+        tool_definition={"type": "function", "function": {"name": "analyze_request_properties", "description": "Classify", "parameters": {"type": "object", "properties": {}}}})
+    assert calls == (["mercury-3", "gemini-3.5-flash-lite"] if allow_retries else ["mercury-3"])
+    assert result.arguments is None and result.error_message

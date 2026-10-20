@@ -34,7 +34,7 @@ from backend.apps.ai.llm_providers.openai_shared import (
     UnifiedOpenAIResponse,
     _sanitize_schema_for_llm_providers,
 )
-from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES
+from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES, LOW_FALLBACK_MODEL, MERCURY_MODEL
 from backend.apps.ai.llm_providers.native_cache_context import (
     NativeCacheProviderOutput,
     NativeCacheSchemaChanged,
@@ -83,7 +83,8 @@ def _google_profile_thinking_level(
         logical_model_id == "google/gemini-4-argon"
         and requested_level in {"LOW", "MEDIUM", "HIGH"}
     )
-    if not is_argon_level and not any(
+    is_low_fallback = logical_model_id == LOW_FALLBACK_MODEL and requested_level == "LOW"
+    if not is_argon_level and not is_low_fallback and not any(
         profile["model"] == logical_model_id and profile["thinking_level"] == requested_level
         for profile in DEFAULT_TIER_MODEL_PROFILES.values()
     ):
@@ -349,6 +350,35 @@ def _chunk_has_substantive_output(chunk: Any) -> bool:
 def _is_provider_error_marker(chunk: Any) -> bool:
     """Return True when a provider encoded a stream failure as text."""
     return isinstance(chunk, str) and chunk.strip().startswith(PROVIDER_STREAM_ERROR_PREFIX)
+
+
+async def _dispatch_with_substantive_deadline(provider_client, arguments, timeout_seconds):
+    """Bound credential/dispatch work and metadata-only streams until real output."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout_seconds
+    stream = None
+    substantive = False
+    try:
+        stream = await asyncio.wait_for(provider_client(**arguments), timeout_seconds)
+        if not hasattr(stream, "__aiter__"):
+            raise ValueError("Provider did not return a stream")
+        iterator = stream.__aiter__()
+        while True:
+            try:
+                if substantive:
+                    chunk = await anext(iterator)
+                else:
+                    remaining = deadline - loop.time()
+                    if remaining <= 0:
+                        raise TimeoutError("Provider did not produce substantive output before deadline")
+                    chunk = await asyncio.wait_for(anext(iterator), remaining)
+            except StopAsyncIteration:
+                return
+            substantive = substantive or _chunk_has_substantive_output(chunk)
+            yield chunk
+    finally:
+        if stream is not None and hasattr(stream, "aclose"):
+            await stream.aclose()
 
 
 def _discover_server_providers_from_modules() -> Dict[str, Any]:
@@ -1282,6 +1312,7 @@ async def call_preprocessing_llm(
     observability_purpose: str = "preprocess",
     usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     max_output_tokens: Optional[int] = None,
+    resolve_logical_fallbacks: bool = False,
 ) -> LLMPreprocessingCallResult:
     if reasoning_effort not in {None, "low", "medium", "high"}:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
@@ -1601,7 +1632,8 @@ async def call_preprocessing_llm(
             # Cross-provider logical fallbacks such as deepseek/* still need
             # resolution because they have no direct registered client.
             should_resolve_default = (
-                is_primary_model or temp_provider_prefix not in PROVIDER_CLIENT_REGISTRY
+                is_primary_model or resolve_logical_fallbacks
+                or temp_provider_prefix not in PROVIDER_CLIENT_REGISTRY
             )
             default_server_id, transformed_model_id = (
                 resolve_default_server_from_provider_config(provider_model_id)
@@ -1674,7 +1706,7 @@ async def call_preprocessing_llm(
                     # cannot multiply RPM or silently consume the fallback budget.
                     if provider_prefix == "groq":
                         provider_request_kwargs["max_retries"] = 0
-                    if provider_prefix == "groq" and reasoning_effort:
+                    if provider_prefix in {"groq", "inception"} and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
                     if provider_prefix == "mistral":
                         provider_request_kwargs["catalog_model_id"] = requested_model_id
@@ -1972,6 +2004,8 @@ async def call_main_llm_stream(
     native_cache_context: Optional[Dict[str, Any]] = None,
     failed_servers_in_turn: Optional[set[str]] = None,
     private_logging: bool = False,
+    first_substantive_timeout_seconds: Optional[float] = None,
+    allowed_server_ids: Optional[set[str]] = None,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2075,6 +2109,10 @@ async def call_main_llm_stream(
     if fallback_servers:
         servers_to_try.extend(fallback_servers)
         logger.info(f"{log_prefix} Will try {len(servers_to_try)} server(s): primary='{servers_to_try[0]}', fallbacks={servers_to_try[1:]}")
+    if allowed_server_ids is not None:
+        servers_to_try = [server for server in servers_to_try if server.split("/", 1)[0] in allowed_server_ids]
+        if not servers_to_try:
+            raise AllServersFailedError(original_model_id, [], "No permitted hosting route is available")
     if failed_servers_in_turn:
         skipped = [server for server in servers_to_try if server in failed_servers_in_turn]
         servers_to_try = [server for server in servers_to_try if server not in failed_servers_in_turn]
@@ -2449,6 +2487,9 @@ async def call_main_llm_stream(
         
         # Check health status from cache before attempting
         is_unhealthy = await _is_provider_unhealthy(server_provider_prefix)
+        if is_unhealthy and original_model_id == MERCURY_MODEL and first_substantive_timeout_seconds is not None:
+            _mark_failed_server(server_model_id)
+            raise AllServersFailedError(original_model_id, attempted_servers, "Automatic Mercury route is unhealthy")
         if is_unhealthy:
             # Skip unhealthy providers unless all servers are unhealthy
             if len(attempted_servers) < len(servers_to_try):
@@ -2585,7 +2626,15 @@ async def call_main_llm_stream(
 
         try:
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
-            raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
+            if (original_model_id == MERCURY_MODEL and server_provider_prefix == "inception"
+                    and first_substantive_timeout_seconds is not None):
+                server_llm_input_details["reasoning_effort"] = "low"
+                raw_chunk_stream = _dispatch_with_substantive_deadline(
+                    provider_client, {"secrets_manager": secrets_manager, **server_llm_input_details},
+                    first_substantive_timeout_seconds,
+                )
+            else:
+                raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
             
             if hasattr(raw_chunk_stream, '__aiter__'):
                 # Success! Wrap stream with timeout for first chunk AND inter-chunk timeout
@@ -2723,6 +2772,9 @@ async def call_main_llm_stream(
                         else:
                             raise AllServersFailedError(original_model_id, attempted_servers, last_error)
                         return
+                finally:
+                    if hasattr(raw_chunk_stream, "aclose"):
+                        await raw_chunk_stream.aclose()
             else:
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
                 logger.error(f"{attempt_log_prefix} {error_msg}")

@@ -245,8 +245,14 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         get_user_profile=AsyncMock(),
         get_user_fields_direct=AsyncMock(return_value={}),
     )
-    encryption_service = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)))
+    encryption_service = SimpleNamespace(
+        encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)),
+        encrypt_many_with_user_key=AsyncMock(side_effect=lambda contents, _: [(f"vault:v1:history-{index}", 1) for index, _ in enumerate(contents)]),
+    )
+    routing_restrictions = {"disabled_ai_models": ["mercury-3"],
+                            "disabled_ai_servers": {"gemini-3.8-flash": ["google_ai_studio"]}}
     payload = {
+        "model_routing_restrictions": routing_restrictions,
         "chat_id": "chat-123",
         "project_focus_candidates": [{"project_id": "11111111-1111-4111-8111-111111111111", "name": "Garden notes"}],
         "message": {
@@ -310,6 +316,13 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
 
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    assert manager.request_payload["user_preferences"]["disabled_ai_models"] == ["mercury-3"]
+    assert manager.request_payload["user_preferences"]["disabled_ai_servers"] == {"gemini-3.8-flash": ["google_ai_studio"]}
+    # These local encrypted preferences are not copied into the account cache.
+    for call in cache_service.update_user.call_args_list:
+        assert "disabled_ai_models" not in call.args[1]
+        assert "disabled_ai_servers" not in call.args[1]
+    assert routing_restrictions == payload["model_routing_restrictions"]
     expected_title = bool(chat_metadata and chat_metadata.get("encrypted_title") and chat_metadata.get("title_v") is None)
     assert manager.request_payload["chat_has_title"] is expected_title
     assert manager.request_payload["project_focus_candidates"] == payload["project_focus_candidates"]
@@ -651,6 +664,7 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
     )
     encryption_service = SimpleNamespace(
         encrypt_with_user_key=AsyncMock(return_value=("encrypted-current", 1)),
+        encrypt_many_with_user_key=AsyncMock(side_effect=lambda contents, _: [(f"vault:v1:history-{index}", 1) for index, _ in enumerate(contents)]),
         decrypt_with_user_key=AsyncMock(side_effect=["@openmates summarize this", "Earlier owner note"]),
     )
     enqueue = AsyncMock(

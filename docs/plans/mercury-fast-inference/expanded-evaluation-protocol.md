@@ -52,6 +52,23 @@ guarantee that future requests are regression-free.
 
 ## Execution state
 
-Case banks and harness checks are being prepared. Product rollout changes remain
-an unpublished candidate. The two presented Specification fingerprints have not
-received explicit approval; this evaluation does not record or imply approval.
+The primary comparison completed 96 correction results and 96 workflow results.
+Product rollout changes remain an unpublished candidate. The two presented
+Specification fingerprints have not received explicit approval; this evaluation
+does not record or imply approval.
+
+## Diagnostic workflow reasoning arm
+
+The primary workflow run returned complete valid graphs for Mercury INSTANT in
+42/48 results and Gemini LOW in 46/48. Before making a model-level recommendation,
+run Mercury LOW over the entire unchanged 24-case bank twice: 48 additional
+results. This is a diagnostic follow-up chosen after the initial results, not an
+arm of the original predeclared comparison.
+
+Reuse the original measured Jev selections, production prompts, validators and
+correction allowance. Verify the frozen selection report identity. Do not modify
+cases or scoring, rerun successful baseline arms, or merge the new outputs into
+the original INSTANT score. Preserve separate raw receipts and source identity.
+Review all 48 outputs under the same rubric. Later execution and cache state
+limit latency comparisons with the earlier arms; a favorable result would still
+need a supported rollout decision and does not approve any default change.

@@ -43,6 +43,7 @@ import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 import { get } from "svelte/store";
 import { authStore } from "../stores/authStore";
+import { modelRoutingRestrictionsForTurn, type ModelRoutingRestrictions } from "./modelRoutingRestrictions";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { assertNoConnectedAccountSecretLeak, prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
@@ -1301,7 +1302,9 @@ async function dispatchFastPersonalTurn(input: {
 	);
 	const encryptedFields = await chatDB.getEncryptedFields(message, message.chat_id);
 	if (!encryptedFields.encrypted_content) throw new Error("Durable turn admission requires encrypted user content.");
+	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	const inferenceRequest: Record<string, unknown> = {
+		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		chat_id: message.chat_id,
 		turn_id: turnId,
 		recovery_public_key: recoveryKeypair.publicKey,
@@ -2341,6 +2344,7 @@ export async function sendNewMessageImpl(
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
+		model_routing_restrictions?: ModelRoutingRestrictions;
 		preserve_draft?: boolean;
 		protocol_version?: number;
 		preflight_id?: string;
@@ -2400,7 +2404,9 @@ export async function sendNewMessageImpl(
 		};
 		test_mock_marker?: string;
 	}
+	const { userProfile: routingProfileStore } = await import("../stores/userProfile");
 	let payload: SendMessagePayload = {
+		model_routing_restrictions: modelRoutingRestrictionsForTurn(get(routingProfileStore)),
 		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
@@ -3102,6 +3108,7 @@ export async function sendNewMessageImpl(
 			delete payload.connected_account_directory;
 			delete payload.connected_account_token_refs;
 			if (!shouldInvokeTeamAI) {
+				delete payload.model_routing_restrictions;
 				delete payload.embeds;
 				delete payload.active_focus_id;
 			}

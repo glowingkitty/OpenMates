@@ -2,25 +2,31 @@ schema_version: 2
 profile: concise
 id: mercury-fast-inference
 title: Mercury 3 integration and speed-sensitive workload evaluation
-status: verified
+status: implementing
 goal: >-
-  Research and implement Inception Labs' new Mercury model, benchmark it against
-  Gemini 3.8 Flash for low-complexity tasks, use it for transcript correction after
-  confirming API access, and evaluate its suitability for AI workflow creation
-  and other generative tasks where maximum speed matters.
+  Implement, test and publish the user-approved native Mercury 3 rollout: LOW for ordinary transcript
+  correction and default low-complexity text requests, INSTANT for workflow
+  generation, LOW for its first repair and Gemini 3.8 Flash LOW for its second
+  repair. Workflow recovery is bounded to three actual request-level author calls,
+  INSTANT then LOW then Gemini LOW, with safe partial retention. Preserve medium-complexity
+  routing, exact model preferences, Jev and Flash-Lite postprocessing.
 scope:
   in:
     - Direct Mercury 3 text, tool-call and streaming adapter with authoritative usage and pricing.
-    - Vault-first credentials and explicit provider availability, with current automatic routing preserved.
+    - Vault-first credentials and explicit provider availability, preserving account defaults and exact model preferences.
     - Paired synthetic transcript and bounded generation benchmarks against Gemini 3.8 Flash and the current correction baseline.
     - Synthetic-only Mercury benchmarks through OpenRouter, explicitly authorized to inform a paid direct-account decision; pin Inception and label gateway timings separately.
-    - Workflow author evaluation through the existing compiler, prefix validation and semantic oracle; no workflow model replacement in this phase.
-    - Mercury-first ordinary audio correction with bounded Gemini fallback, actual model attribution and original transcript preservation.
+    - Mercury workflow request-level three-attempt chain INSTANT then LOW repair then Gemini 3.8 Flash LOW repair; outage may skip unavailable Mercury and allow one Gemini repair within three calls, Stop never advances, accepted prefixes and actual-attempt billing persist.
+    - Native Mercury 3 LOW primary ordinary audio correction with five-second deadline and Gemini 3.8 Flash LOW fallback, actual model attribution and original transcript preservation.
+    - User-approved native Mercury 3 LOW as the default for eligible low-complexity text requests, with Gemini 3.8 Flash LOW fallback after five seconds without a substantive answer; unsupported vision and other ineligible Mercury requests use Gemini.
+    - Preserve Jev primary decisions; only existing eligible generative preprocessing/routing recovery uses Mercury 3 first then Gemini 3.5 Flash-Lite, preserving Unsure contracts and avoiding recovery on healthy Jev.
+    - Completed expanded correction/workflow quality assessment and LOW workflow diagnostic, preserving critical defects and verifying the approved bounded recovery chain before automatic rollout.
+    - Preserve Gemini 3.5 Flash-Lite generative postprocessing after its native comparison.
     - Provider privacy disclosure and reproducible private benchmark reports.
     - Cited public Mercury 3 versus Gemini 3.8 Flash benchmark comparison to inform low- and medium-complexity routing recommendations.
   out:
-    - Default chat routing or account model changes.
-    - Replacing Jev decisions or enabling workflow transcript correction by default.
+    - Medium-complexity default routing changes, global account model changes or overriding exact model preferences.
+    - Replacing Jev decisions or changing specialized workflow transcript-correction semantics.
     - Production deployment or changes to real user workflows.
     - OpenRouter as a product Mercury route or automatic replacement for direct Inception access.
 contracts:
@@ -35,15 +41,21 @@ contracts:
   preserved:
     - Existing audio correction result, title cleanup, language and meaning preservation, sanitization and failure behavior.
     - Original transcript remains the timestamp source; unsuccessful correction never marks raw text corrected.
-    - Workflow generation remains Gemini and retains existing billing, validation, accepted-prefix and no-auto-execution contracts.
+    - Workflow generation and repair retain validation, accepted-prefix, no-auto-execution and actual-attempt billing contracts across Mercury and Gemini attempts.
+    - Medium-complexity routing and explicit model preferences remain unchanged; unsupported modalities do not reach text-only Mercury.
+    - Jev remains primary and healthy Jev does not invoke generative recovery; Mercury then Gemini 3.5 Flash-Lite recovery is limited to existing eligible fallback paths and preserves Unsure decision semantics.
 verification:
   required:
     - Focused local adapter, audio correction, benchmark protocol and metadata checks.
     - Live Vault-backed model generation and paired synthetic provider benchmarks outside CI, recording exact source identity and validation outcomes.
-    - Relevant audio product E2E coverage updated and verified in isolated GitHub CI.
+    - Relevant audio, workflow authoring/fallback and low-complexity routing E2E coverage updated and verified in isolated GitHub CI.
+    - Verify five-second first-substantive fallback, explicit preferences, unsupported modalities, accepted-prefix preservation and actual-attempt attribution/billing.
     - Scoped dev publication through sessions.py with required repository checks.
 evidence:
   api_access: Vault-backed mercury-3 replied API_ACCESS_OK in 1.255 seconds on 2026-10-20; the local environment contains the normal IMPORTED_TO_VAULT marker rather than an API credential.
+  caching_verified: Official direct FAQ on 2026-10-20 confirms automatic prefix caching with no activation parameter and cached_tokens within inclusive prompt_tokens; no documented minimum prefix length or TTL established. Adapter forwards cache counters; supplier estimator prices reported cache reads at promotional USD 0.01/M versus ordinary 0.10/M. Pending-rollout customer cache tariff uses native-Inception-only included-input policy with shared chat/workflow category settlement; cache_read allowances are 33000 promotional and 16500 regular, ordinary input 3300 and 1650, output 950 and 475. Missing counters bill ordinary inclusive input; invalid subsets fail closed. Minimum charges/rounding prevent a blanket 90 percent whole-bill claim. Internal review expiry 2026-11-20 is not provider TTL or promotion expiry. Workflow supplier USD estimates still conservatively price ordinary input.
+  observed_cache_hits: Existing native postprocessing receipts report 80018 of 94356 Mercury input tokens cached (84.8 percent), 20/20 calls positive and 18 above 1000 cached tokens; no extra calls or provider-minimum/TTL proof.
+  postprocessing_recommendation: Retain Gemini 3.5 Flash-Lite for generative postprocessing; native median 1.603 seconds versus Mercury LOW 1.590, with Mercury language and task-contract defects. Jev remains primary for decisions.
   training_opt_out: The account owner explicitly confirmed on 2026-10-20 that Improve the model for everyone is OFF in the Inception API Platform.
   direct_capacity: Earlier direct requests intermittently returned HTTP 429 shared free-tier capacity errors; later completed native suites produced 54 fast-suite HTTP 200 responses and 48 completed workflow rows with zero 429s. This establishes usable capacity during those runs, not a broad availability guarantee. Product routing remains direct.
   benchmark_transport: The user explicitly authorized OpenRouter for synthetic benchmarking only on 2026-10-20, to decide whether to upgrade the direct Inception account. Gateway timing and capacity cannot establish direct API performance.
@@ -55,15 +67,30 @@ evidence:
   native_runtime_identity: Disposable child processes loaded published benchmark modules against runtime 0cbcf2c715b49c83424f028659948683b4dbc94e; sidecars verify identical product dependencies and benchmark-only differences, without shared runtime mutation.
   native_fast: 54 HTTP 200 responses, no skipped rows. Transcript strict and manual passes were Gemini 12/12, Mercury instant 5/12, Mercury low 12/12; median seconds 3.302, 0.507, 0.750. Across transcript and writing, manual passes were 18/18, 9/18, 17/18. Uncached promotional supplier estimates are not actual charges.
   native_workflow: 48 completed rows, zero 429s. Gemini and Mercury instant had 16/16 full valid intent-matching graphs; Mercury low 15/16 valid and 14/16 intent matching. Median retry-inclusive seconds 4.294, 1.426, 2.571. Manual review found unsupported historic starts_at in four Gemini plans; low repeated a forbidden capability field and added an unrequested Check. Cost subtotals have incomplete usage and caching affects timings.
-  recommendation: Mercury low for ordinary transcript correction with bounded Gemini fallback; Mercury instant for a scoped workflow pilot only; preserve general Gemini defaults and decision provider.
+  approved_rollout: User explicitly approved on 2026-10-20 native Mercury LOW ordinary correction and eligible default low-complexity text, Mercury INSTANT active workflow generation, Mercury LOW first repair and Gemini 3.8 Flash LOW second repair, medium unchanged, exact preferences preserved and direct product routing only.
+  rollout_state: User explicitly authorized implementation, testing and scoped dev deployment after expanded quality review. Earlier readiness hold is superseded; defects remain disclosed. Final exact workflow contract review/approval, source publication, CI and runtime receipts remain pending parent update.
   correction_enablement: Native stop finish reason supported with strict tool validation. Initial six-case facade proof passed; first shared check retained a retracted date at case five. Refined generic self-correction instructions in e27304e passed twelve repeated actual-facade cases, manually reviewed, median 0.706 seconds. Dev opt-in configured under docker-4baf58cc; coordinated source refresh docker-a2fe2078 passed health checks. Final actual shared-module proof matched published e27304e source bytes and enabled gate with no override, passed all six direct cases without fallback, manually reviewed, median 0.795 seconds. Five-second deadline, zero correction retries and Gemini fallback remain; production is unchanged.
   picker_verification: Isolated browser CI passed on source 4a71c76d9d7f25979609540dd81ad73429d1926f, run 39405570105, request f79efd519e5dfe7aa7bd403ad2465d969923026617d6e2c7a1b1e49e47a3df28. Verified loaded icons, capability, exact manual draft choice and return to Auto without inference; latest successful recording uploaded through its receipt.
   reports:
     - docs/plans/mercury-fast-inference/evaluation-2026-10-20.md
     - docs/plans/mercury-fast-inference/public-benchmarks.md
-  remaining: []
+    - docs/plans/mercury-fast-inference/rollout-addendum.md
+    - docs/plans/mercury-fast-inference/postprocessing-2026-10-20.md
+    - docs/plans/mercury-fast-inference/expanded-correction-2026-10-20.md
+    - docs/plans/mercury-fast-inference/expanded-workflow-2026-10-20.md
+  expanded_run_progress: Expanded correction and workflow comparisons completed 96 rows each. Correction manual fidelity passed 46/48 Mercury versus 45/48 Gemini. Workflow INSTANT had six critical/incomplete rows and two unresolved relevance gaps; later LOW diagnostic had one critical/incomplete row and one unresolved gap across 48 rows. Independent arms do not prove chained recovery.
+  restriction_transport_gate: Disabled models/servers are processing restrictions per userProfile.ts lines 53-57, but message_received_handler.py from line 2555 does not forward them. Candidate backend guards require supplied settings. This predates Mercury, but the user now explicitly requires restriction preservation, so implement and verify the narrow transport fix before automatic rollout. Parent owns source and contract approval receipts.
+  expanded_readiness_plan: 24 new transcript correction cases (12 German and 12 English), two native model arms and two repeats yield 96 planned completions; 24 workflow cases (original eight plus sixteen new), two native arms and two repeats yield 96 planned results. Correction only; no new summarization scope.
+  remaining:
+    - Implement and verify disabled-model/server restriction transport and enforcement, including user/model/key eligibility, before automatic rollout.
+    - Record exact updated workflow contract presentation/approval and verify bounded recovery against retained critical expanded-suite defects without claiming universal repair.
+    - Implement and verify native Mercury LOW ordinary correction with five-second Gemini 3.8 Flash LOW fallback, replacing the older Gemini fallback version.
+    - Implement and verify request-global max-three workflow author calls INSTANT then LOW then Gemini LOW, outage skips/one Gemini repair within budget, Stop/cancel termination, immutable accepted prefixes, disabled partial information and per-attempt billing.
+    - Implement and verify eligible low-complexity text default routing, five-second first-substantive Gemini fallback, exact preferences and unsupported-modality eligibility.
+    - Verify healthy Jev never invokes generative recovery; permitted recovery uses Mercury then Gemini 3.5 Flash-Lite without changing Unsure contracts.
+    - Record final cache-composition, routing restriction and isolated CI evidence, scoped dev publication and runtime verification receipts; implementation remains pending rollout.
   follow_up_decisions:
-    - Paid direct access and any scoped workflow pilot; no broad low- or medium-complexity default switch is supported.
+    - Further paid-capacity changes or medium-complexity default routing are outside this approved rollout.
     - Production rollout is outside this dev-only task.
   sources:
     - https://www.inceptionlabs.ai/blog/introducing-mercury-3
@@ -71,3 +98,4 @@ evidence:
     - https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion
     - https://docs.inceptionlabs.ai/capabilities/reasoning-efforts
     - https://www.inceptionlabs.ai/docs/privacy-policy
+    - https://docs.inceptionlabs.ai/resources/faq

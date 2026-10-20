@@ -1,7 +1,8 @@
 """Owner-scoped, registry-derived natural language workflow authoring.
 
-Jev selects candidate skills/controls and existing targets. Gemini streams
-validated semantic nodes, with one correction for each failing node. The
+Jev selects candidate skills/controls and existing targets. Mercury streams
+validated semantic nodes, then Mercury LOW and Gemini LOW request-level recovery
+from the authoritative accepted prefix. The
 compiler owns graph wiring and saveable partial drafts. This module never
 persists or executes a model response.
 """
@@ -26,6 +27,7 @@ from backend.core.api.app.services.workflow_authoring_billing import (
 from backend.core.api.app.services.workflow_authoring_preselection import (
     JEV_INPUT_PRICE, WorkflowAuthoringPreselector, WorkflowPreselection,
 )
+from backend.core.api.app.services.workflow_mercury_authoring import MERCURY_MODEL, WorkflowMercuryAuthor
 from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
 from backend.core.api.app.services.workflow_gemini_authoring import (
     GOOGLE_SECRET_PATH, WorkflowAuthoringProviderError, WorkflowAuthoringStopped, WorkflowGeminiAuthor,
@@ -40,10 +42,11 @@ from backend.shared.providers.typesafe.batching import candidate_batches, evalua
 
 MAX_WORKFLOWS = 8
 CLARIFICATION = "I could not build a valid workflow for every part of this request. Let's clarify the details in chat."
-PARTIAL_FAILURE = "The AI could not finish this workflow after a correction attempt. Your validated changes were saved and the workflow is disabled. Ask for a specific update or edit it manually."
+PARTIAL_FAILURE = "Some parts could not be created after the AI's correction attempts. Your validated changes were saved and the workflow is disabled. Ask for a specific update or edit it manually."
 PARTIAL_STOPPED = "Generation stopped. Your validated changes were saved and the workflow is disabled."
 _PROVIDER_CACHE_KEYS = (
     f"{GOOGLE_SECRET_PATH}/api_key",
+    "kv/data/providers/inception_labs/api_key",
     f"{TYPESAFE_SECRET_PATH}/{TYPESAFE_SECRET_KEY}",
     f"{OPENROUTER_SECRET_PATH}/{OPENROUTER_SECRET_KEY}",
 )
@@ -82,7 +85,8 @@ class WorkflowRegistryPlanner:
     atomic_authoring = True
 
     def __init__(self, *, secrets_manager: Any, workflow_service: Any = None,
-                 jev_client: Any = None, author: Any = None,
+                 jev_client: Any = None, author: Any = None, fallback_author: Any = None,
+                 recovery_author: Any = None,
                  registry: WorkflowCapabilityRegistry | None = None,
                  preselection_mode: str = "direct") -> None:
         self.secrets_manager = secrets_manager
@@ -90,6 +94,8 @@ class WorkflowRegistryPlanner:
         self.registry = registry or WorkflowCapabilityRegistry()
         self.jev_client = jev_client
         self.author = author
+        self.fallback_author = fallback_author
+        self.recovery_author = recovery_author
         self.preselection_mode = preselection_mode
 
     def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
@@ -113,7 +119,7 @@ class WorkflowRegistryPlanner:
             async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=5.0)) as client:
                 jev = self.jev_client or JevDecisionClient(secrets_manager=manager, http_client=client,
                                                           timeout_seconds=3.0, max_retries=0)
-                author = self.author or WorkflowGeminiAuthor(manager, client)
+                author = self.author or WorkflowMercuryAuthor(manager, client)
                 return await self._plan(text, context, jev, author)
         finally:
             if owns_manager:
@@ -410,6 +416,10 @@ class WorkflowRegistryPlanner:
                 return detail
 
             correction = None
+            active_author = author
+            used_provider_fallback = False
+            mercury_recovery_chain = getattr(author, "model_id", None) == MERCURY_MODEL
+            used_mercury_correction = False
             failures: dict[tuple, int] = {}
             while True:
                 if self._stopped(context):
@@ -440,7 +450,7 @@ class WorkflowRegistryPlanner:
                     if kind == "header":
                         header = component.get("header")
                         if not isinstance(header, dict) or header.get("operation") not in {"create", "update"}:
-                            raise ValueError("Gemini must author an actionable workflow; only Jev may request clarification")
+                            raise ValueError("The model must author an actionable workflow; only Jev may request clarification")
                         if selection.operation in {"create", "update"} and header["operation"] != selection.operation:
                             raise ValueError("Authored operation does not match requested routing")
                         target = targets.get(header.get("workflow_id"))
@@ -511,8 +521,11 @@ class WorkflowRegistryPlanner:
                     for node in self._flat_nodes(raw.get("steps") or []):
                         await accept({"type": "node", "workflow_index": index, "node": node}, replay=replay)
 
+                attempt_model = getattr(active_author, "model_id", GEMINI_MODEL)
+                attempt_profile = getattr(active_author, "reasoning_effort",
+                                          "instant" if attempt_model == MERCURY_MODEL else "low")
                 if billing is not None:
-                    await billing.precheck(model=GEMINI_MODEL)
+                    await billing.precheck(model=attempt_model)
                 metrics["gemini_calls"] += 1
                 attempt = metrics["gemini_calls"] - 1
                 completion_started = False
@@ -521,10 +534,11 @@ class WorkflowRegistryPlanner:
                               "selected_workflow": existing, "on_plan_component": accept,
                               "resolve_update_target": resolve_update_target,
                               "should_stop": lambda: self._stopped(context)}
+                    if frozen or correction is not None:
+                        kwargs["accepted_prefixes"] = [frozen[index] for index in sorted(frozen)]
                     if correction is not None:
-                        kwargs.update(correction=correction,
-                                      accepted_prefixes=[frozen[index] for index in sorted(frozen)])
-                    raw, usage = await author.generate(**kwargs)
+                        kwargs["correction"] = correction
+                    raw, usage = await active_author.generate(**kwargs)
                     # Transport adapters retain the compact return contract for
                     # CLI benchmarks and callers without a streaming callback.
                     if not isinstance(raw, dict):
@@ -552,6 +566,12 @@ class WorkflowRegistryPlanner:
                     await self._emit(context, {"type": "progress", "phase": "validating"})
                     completion_started = True
                     plan = self._finalize(accumulators, selection, targets)
+                except asyncio.CancelledError as exc:
+                    # Task cancellation propagates, but any already observed
+                    # provider usage still belongs to this exact invocation.
+                    usage = getattr(exc, "metrics", None)
+                    metrics["cost_estimate_complete"] = False
+                    raise
                 except _AuthoringCancelled as exc:
                     usage = getattr(exc, "metrics", None)
                     metrics["cost_estimate_complete"] = False
@@ -564,6 +584,28 @@ class WorkflowRegistryPlanner:
                         metrics["cost_estimate_complete"] = False
                     if isinstance(exc, WorkflowAuthoringStopped) or self._stopped(context):
                         return finish(self._partial(accumulators, "stopped"))
+                    http_status = getattr(exc, "http_status", None)
+                    if isinstance(http_status, int):
+                        usage["provider_http_status"] = http_status
+                    if (attempt_model == MERCURY_MODEL and not used_provider_fallback
+                            and getattr(exc, "is_availability_failure", False)):
+                        # The next loop snapshots only the authoritative planner
+                        # prefix. Provider-local snapshots may include a node the
+                        # planner rejected. An outage consumes no validation repair.
+                        active_author = self.fallback_author or WorkflowGeminiAuthor(
+                            getattr(author, "secrets_manager", self.secrets_manager),
+                            getattr(author, "client", None))
+                        used_provider_fallback = True
+                        usage["failure_reason_code"] = getattr(exc, "code", "provider_unavailable")
+                        metrics["provider_fallback"] = {"from": MERCURY_MODEL, "to": GEMINI_MODEL,
+                                                        "reason": getattr(exc, "code", "provider_unavailable")}
+                        metrics.setdefault("author_recovery", []).append({
+                            "from_model": attempt_model, "from_profile": attempt_profile,
+                            "to_model": GEMINI_MODEL, "to_profile": "low", "reason": "availability"})
+                        # Outages do not consume the failing node's repair, but
+                        # the request still has at most three invoked authors.
+                        if not mercury_recovery_chain or attempt < 2:
+                            continue
                     if completion_started:
                         exc.completion_failure = True
                     repair_key = self._repair_key(exc, accumulators)
@@ -581,9 +623,6 @@ class WorkflowRegistryPlanner:
                                    or _PLAN_FAILURE_CODES.get(str(exc), "plan_validation"))
                     usage["failure_reason_code"] = reason_code
                     metrics["last_failure_reason_code"] = reason_code
-                    http_status = getattr(exc, "http_status", None)
-                    if isinstance(http_status, int):
-                        usage["provider_http_status"] = http_status
                     validation_code = getattr(exc, "validation_code", None)
                     if validation_code:
                         usage["validation_code"] = validation_code
@@ -598,9 +637,33 @@ class WorkflowRegistryPlanner:
                         metrics["last_validation_keyword"] = validation_keyword
                     # An invalid provider request/authentication is not a node
                     # error and sending the same schema again cannot repair it.
-                    if failures[repair_key] == 1 and http_status not in {400, 401, 403, 404, 413, 422}:
+                    can_correct = failures[repair_key] == 1
+                    correction_number = 1
+                    if mercury_recovery_chain:
+                        # A request-level chain, not a fresh budget per node.
+                        # Every continuation uses planner-owned immutable prefixes.
+                        can_correct = attempt < 2
+                        correction_number = attempt + 1
+                    if can_correct and http_status not in {400, 401, 403, 404, 413, 422}:
+                        if mercury_recovery_chain and not used_provider_fallback:
+                            if not used_mercury_correction:
+                                active_author = self.recovery_author or WorkflowMercuryAuthor(
+                                    getattr(author, "secrets_manager", self.secrets_manager),
+                                    getattr(author, "client", None), reasoning_effort="low")
+                                used_mercury_correction = True
+                            else:
+                                active_author = self.fallback_author or WorkflowGeminiAuthor(
+                                    getattr(author, "secrets_manager", self.secrets_manager),
+                                    getattr(author, "client", None))
+                                used_provider_fallback = True
+                        if mercury_recovery_chain:
+                            metrics.setdefault("author_recovery", []).append({
+                                "from_model": attempt_model, "from_profile": attempt_profile,
+                                "to_model": getattr(active_author, "model_id", GEMINI_MODEL),
+                                "to_profile": getattr(active_author, "reasoning_effort", "low"),
+                                "reason": "validation"})
                         progress = {"type": "progress", "phase": "retrying_node",
-                                    "attempt": attempt + 2, "correction_attempt": 1}
+                                    "attempt": attempt + 2, "correction_attempt": correction_number}
                         if isinstance(location, dict):
                             progress.update({key: location[key] for key in ("workflow_index", "node_index")
                                              if key in location})
@@ -608,23 +671,28 @@ class WorkflowRegistryPlanner:
                         continue
                     plan = self._partial(accumulators, "provider_error")
                 finally:
+                    usage = dict(usage or {})
+                    usage["reasoning_effort"] = attempt_profile
                     if billing is not None:
-                        await billing.settle(model=GEMINI_MODEL,
-                                             provider_step=f"gemini:{attempt}", usage=usage)
+                        await billing.settle(model=attempt_model,
+                                             provider_step=f"{'mercury' if attempt_model == MERCURY_MODEL else 'gemini'}:{attempt}", usage=usage)
                         if not billing.usage_complete:
                             metrics["cost_estimate_complete"] = False
                         if "billing" in metrics:
                             metrics["billing"]["credits_charged"] = sum(
                                 item["credits_charged"] for item in billing.entries)
                             metrics["billing"]["usage_complete"] = billing.usage_complete
-                    if usage is not None:
-                        metrics["generation_attempts"].append(usage)
-                        metrics["generation"] = usage
-                        cost = usage.get("estimated_cost_usd")
-                        if isinstance(cost, (int, float)):
-                            metrics["estimated_cost_usd"] = round(metrics["estimated_cost_usd"] + cost, 8)
-                        else:
-                            metrics["cost_estimate_complete"] = False
+                    # Even an unmetered invocation retains truthful model/profile
+                    # identity; absent usage remains absent rather than zero.
+                    attempt_metrics = dict(usage or {})
+                    attempt_metrics.update(model_used=attempt_model, reasoning_effort=attempt_profile)
+                    metrics["generation_attempts"].append(attempt_metrics)
+                    metrics["generation"] = attempt_metrics
+                    cost = attempt_metrics.get("estimated_cost_usd")
+                    if isinstance(cost, (int, float)):
+                        metrics["estimated_cost_usd"] = round(metrics["estimated_cost_usd"] + cost, 8)
+                    else:
+                        metrics["cost_estimate_complete"] = False
                 return finish(plan)
         except _UnclearWorkflowRequest:
             return finish({"action": "needs_clarification", "message": CLARIFICATION})

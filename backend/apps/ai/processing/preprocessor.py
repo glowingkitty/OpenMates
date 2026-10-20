@@ -54,6 +54,11 @@ from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_wi
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
+    LOW_FALLBACK_MODEL,
+    MERCURY_MODEL,
+    history_requires_non_text,
+    mercury_allowed_by_preferences,
+    automatic_low_allowed_servers,
     LOW_TIER,
     MAX_TIER,
     MEDIUM_TIER,
@@ -68,7 +73,7 @@ from backend.apps.ai.processing.routing_ledger import (
     build_preprocessing_history_projection,
     load_skill_ledger,
 )
-from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL, utility_model_fallbacks
+from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -1702,6 +1707,26 @@ async def check_preprocessing_credits(
     return None
 
 
+JEV_GENERATIVE_RECOVERY_MODEL = MERCURY_MODEL
+JEV_GENERATIVE_RECOVERY_SECONDARY = "google/gemini-3.5-flash-lite"
+
+
+async def _recover_jev_preprocessing(
+    result: Optional[LLMPreprocessingCallResult], **request_arguments: Any,
+) -> LLMPreprocessingCallResult:
+    """Keep valid Jev output; use the approved two-model recovery only if absent."""
+    if result is not None:
+        return result
+    logger.info("Jev unavailable; starting bounded Mercury LOW / Gemini Flash Lite recovery")
+    return await call_preprocessing_llm(
+        model_id=JEV_GENERATIVE_RECOVERY_MODEL,
+        fallback_models=[JEV_GENERATIVE_RECOVERY_SECONDARY],
+        reasoning_effort="low",
+        resolve_logical_fallbacks=True,
+        **request_arguments,
+    )
+
+
 async def _select_main_model(
     llm_analysis_args: Dict[str, Any], request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig, user_overrides: Optional[UserOverrides],
@@ -1999,8 +2024,9 @@ async def _select_main_model(
                     selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                     selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
                 else:
-                    selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
-                    selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
+                    selected_llm_for_main_id = default_profile_for_tier(LOW_TIER)["model"]
+                    provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                    selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
                 model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
                 logger.info(
@@ -2022,10 +2048,39 @@ async def _select_main_model(
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
             else:
-                selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
-                selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
+                selected_llm_for_main_id = default_profile_for_tier(LOW_TIER)["model"]
+                provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
             model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
+
+    # Change only the approved automatic low route; explicit choices keep precedence.
+    if not model_override_applied and complexity_val == LOW_TIER:
+        def allowed_low_model(model_id):
+            provider = model_id.split("/", 1)[0]
+            return bool(_usable_chat_model_reference(model_id, config_manager)) and bool(
+                automatic_low_allowed_servers(model_id, request_data.user_preferences,
+                                              config_manager.get_provider_config(provider)))
+        fallback_allowed = allowed_low_model(LOW_FALLBACK_MODEL)
+        if selected_llm_for_main_id == MERCURY_MODEL:
+            mercury_eligible = (
+                allowed_low_model(MERCURY_MODEL)
+                and not has_image_upload_embed
+                and not history_requires_non_text(request_data.message_history)
+                and mercury_allowed_by_preferences(request_data.user_preferences)
+            )
+            if mercury_eligible:
+                mercury_eligible = await is_provider_healthy("inception", CacheService())
+            if not mercury_eligible:
+                selected_llm_for_main_id = LOW_FALLBACK_MODEL if fallback_allowed else None
+                selected_llm_for_main_name = (
+                    config_manager.get_model_display_name("gemini-3.8-flash", "google") or "Gemini 3.8 Flash"
+                ) if fallback_allowed else None
+                model_selection_reason = f"{model_selection_reason}; Automatic low route uses configured permitted fallback or stops: Mercury unavailable or incompatible"
+        elif selected_llm_for_main_id == LOW_FALLBACK_MODEL and not fallback_allowed:
+            selected_llm_for_main_id = selected_llm_for_main_name = None
+        selected_secondary_model_id = LOW_FALLBACK_MODEL if selected_llm_for_main_id == MERCURY_MODEL and fallback_allowed else None
+        selected_fallback_model_id = LOW_FALLBACK_MODEL if fallback_allowed else None
 
     selected_llm_thinking_level = (
         automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
@@ -2046,6 +2101,7 @@ async def _select_main_model(
         "model_selection_reason": model_selection_reason,
         "filtered_cn_models": filtered_cn_models,
         "model_override_applied": model_override_applied,
+        "model_selection_unavailable": not bool(selected_llm_for_main_id),
         "selected_llm_thinking_level": selected_llm_thinking_level,
     }
 
@@ -2890,19 +2946,8 @@ async def handle_preprocessing(
     logger.debug(f"{log_prefix} Focus modes with hints: {available_focus_modes_list}")
     logger.debug(f"{log_prefix} App settings/memories metadata: {user_app_settings_and_memories_metadata}")
 
-    preprocessing_model = skill_config.default_llms.preprocessing_model
-
-    # Resolve fallback servers from provider config instead of hardcoded list in app.yml
-    # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
-    from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
-    preprocessing_fallbacks = utility_model_fallbacks(
-        preprocessing_model,
-        resolve_fallback_servers_from_provider_config(preprocessing_model),
-    )
-
-    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.")
-    if preprocessing_fallbacks:
-        logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
+    # This is recovery after unavailable Jev, independent of other utility chains.
+    preprocessing_model = JEV_GENERATIVE_RECOVERY_MODEL
 
     # Build dynamic context with categories and available app skills (with descriptions).
     # Include current date/time so preprocessing LLMs know temporal context.
@@ -3283,18 +3328,15 @@ async def handle_preprocessing(
                 f"using independent preprocessing fallback ({type(exc).__name__})."
             )
 
-    if llm_call_result is None:
-        logger.info(f"{log_prefix} Firing generative preprocessing fallback (routing + safety + language).")
-        llm_call_result = await call_preprocessing_llm(
-            task_id=f"{request_data.chat_id}_{request_data.message_id}",
-            model_id=preprocessing_model,
-            fallback_models=preprocessing_fallbacks,
-            message_history=sanitized_message_history,
-            tool_definition=tool_definition_for_llm,
-            secrets_manager=secrets_manager,
-            user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-            dynamic_context=dynamic_context,
-        )
+    llm_call_result = await _recover_jev_preprocessing(
+        llm_call_result,
+        task_id=f"{request_data.chat_id}_{request_data.message_id}",
+        message_history=sanitized_message_history,
+        tool_definition=tool_definition_for_llm,
+        secrets_manager=secrets_manager,
+        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+        dynamic_context=dynamic_context,
+    )
 
     if llm_call_result.error_message or not llm_call_result.arguments:
         default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
@@ -3442,6 +3484,11 @@ async def handle_preprocessing(
     model_selection = early_model_selection or await _select_main_model(
         llm_analysis_args, request_data, skill_config, user_overrides, log_prefix,
     )
+    if model_selection.get("model_selection_unavailable"):
+        return PreprocessingResult(
+            can_proceed=False, rejection_reason="no_available_ai_model",
+            error_message="No permitted AI model is available for this request. Review your model settings and try again.",
+        )
     complexity_val = model_selection["complexity_val"]
     task_area_val = model_selection["task_area_val"]
     # The validated decision is separate from model routing in either pass.

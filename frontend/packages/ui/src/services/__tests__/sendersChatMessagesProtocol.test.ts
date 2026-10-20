@@ -63,6 +63,7 @@ import {
 	isSendContextCurrent,
 } from "../sendersChatMessages";
 import { shouldUpdateMessage } from "../db/messageOperations";
+import { modelRoutingRestrictionsForTurn } from "../modelRoutingRestrictions";
 
 beforeAll(async () => {
   // Complete the eager real database/key bootstrap while the test environment
@@ -240,13 +241,15 @@ describe("sendersChatMessages protocol fences", () => {
 			pending_encrypted_turn_preflight_v1: "sealed-turn" });
 	});
 
-	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted
-	it("replays the exact sealed turn, user ciphertext, and commitment after a lost ACK", async () => {
+	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted,ai-model-routing.defaults.google-tier-profiles
+	it("replays the exact sealed turn, routing restrictions, user ciphertext, and commitment after a lost ACK", async () => {
 		const identity = {
 			accountId: "owner", chatId: "chat", messageId: "message", createdAt: 12,
 			finalContent: "sealed ref", chatKey: new Uint8Array(32).fill(9),
 			encryptedChatKey: "wrapped-chat-key", recoveryPublicKey: "recovery-public-key",
 		};
+		const routingProfile = { disabled_ai_models: ["mercury-3"],
+			disabled_ai_servers: { "mercury-3": ["inception"] } };
 		const original = {
 			chat_id: "chat", message_id: "message", turn_id: "original-turn",
 			expected_messages_v: 6,
@@ -255,6 +258,7 @@ describe("sendersChatMessages protocol fences", () => {
 			encrypted_user_message: { chat_id: "chat", client_message_id: "message", role: "user",
 				encrypted_content: "original-user-cipher" },
 			inference_request: { chat_id: "chat", turn_id: "original-turn",
+				model_routing_restrictions: modelRoutingRestrictionsForTurn(routingProfile),
 				message: { message_id: "message", content: "sealed ref" } },
 		};
 		let raw: string | null = null;
@@ -266,13 +270,20 @@ describe("sendersChatMessages protocol fences", () => {
 		expect(first.payload).toEqual(original);
 		expect(raw).not.toContain("sealed ref");
 		expect(raw).not.toContain("original-user-cipher");
+		expect(raw).not.toContain("mercury-3");
+		routingProfile.disabled_ai_models.length = 0;
+		routingProfile.disabled_ai_servers["mercury-3"].length = 0;
 		const retryCandidate = { ...original, turn_id: "fresh-turn",
 			inference_commitment: "fresh-commitment",
+			inference_request: { ...original.inference_request,
+				model_routing_restrictions: modelRoutingRestrictionsForTurn(routingProfile) },
 			encrypted_user_message: { ...original.encrypted_user_message,
 				encrypted_content: "fresh-user-cipher" } };
 		const retry = await retainOrReuseDurableTurnPreflight(identity, retryCandidate, storage);
 		expect(retry.sealed).toBe(first.sealed);
 		expect(retry.payload).toEqual(original);
+		expect((retry.payload.inference_request as typeof original.inference_request).model_routing_restrictions)
+			.toEqual({ disabled_ai_models: ["mercury-3"], disabled_ai_servers: { "mercury-3": ["inception"] } });
 		await expect(retainOrReuseDurableTurnPreflight({ ...identity, finalContent: "changed ref" }, retryCandidate, storage))
 			.rejects.toThrow("changed account, key, scope, content, or ciphertext");
 		await expect(retainOrReuseDurableTurnPreflight({ ...identity, accountId: "another-owner" }, retryCandidate, storage))

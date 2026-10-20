@@ -2,8 +2,8 @@
 export {};
 
 const { test, expect } = require('./console-monitor');
-const { createSignupLogger, createStepScreenshotter, getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { createSignupLogger, createStepScreenshotter, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email, password, otpKey } = getTestAccount();
@@ -69,4 +69,89 @@ test('Mercury 3 is manually selectable through Inception with medium capability'
 	await menu.getByTestId('composer-model-auto').click();
 	await expect(selector.getByTestId('composer-model-selector-label')).toHaveText('Auto select');
 	await expect(menu).not.toBeVisible();
+});
+
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto
+test('Auto routes low requests to Mercury and respects outages and disabled models', async ({ page }: { page: any }) => {
+	test.setTimeout(240000);
+	test.skip(process.env.CI !== 'true' || process.env.CI_TEST_MODE !== 'e2e'
+		|| process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the isolated provider-free product stack.');
+	skipWithoutCredentials(test, email, password, otpKey);
+	const log = createSignupLogger('MERCURY3_AUTO_ROUTING');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'mercury3-auto-routing' });
+	const admissions: any[] = [];
+	page.on('websocket', (socket: any) => socket.on('framesent', (frame: { payload: string | Buffer }) => {
+		try {
+			const event = JSON.parse(String(frame.payload));
+			if (['chat_turn_admit', 'chat_turn_preflight'].includes(event.type)) {
+				admissions.push(event.payload.inference_request);
+			}
+		} catch { /* Ignore non-JSON control frames. */ }
+	}));
+	await installE2EServerContentOverrideGate(page, 'mercury-auto-routing');
+	await loginToTestAccount(page, log, screenshot);
+	async function setMercuryEnabled(enabled: boolean) {
+		const url = new URL(page.url());
+		url.hash = 'settings/ai/model/mercury-3';
+		await page.goto(url.href, { waitUntil: 'domcontentloaded' });
+		const toggle = page.getByTestId('ai-model-details').getByTestId('ai-model-enabled-toggle');
+		const checkbox = toggle.locator('input[type="checkbox"]');
+		await expect(toggle).toBeVisible({ timeout: 20000 });
+		if (await checkbox.isChecked() !== enabled) await toggle.click();
+		if (enabled) await expect(checkbox).toBeChecked();
+		else await expect(checkbox).not.toBeChecked();
+		await screenshot(page, enabled ? 'mercury-enabled' : 'mercury-disabled');
+		await page.getByTestId('icon-button-close').click();
+		await expect(page.getByTestId('ai-model-details')).not.toBeVisible();
+	}
+
+	for (const scenario of [
+		{ id: 'success', question: 'What is 2 + 2?', answer: 'The answer is 4. Automatic routing completed successfully.', model: 'Mercury 3' },
+		{ id: 'fallback', question: 'What is 3 + 3?', answer: 'The answer is 6. Automatic routing recovered successfully.', model: 'Gemini 3.8 Flash' },
+		{ id: 'disabled', question: 'What is 4 + 4?', answer: 'The answer is 8. Your disabled model was respected.', model: 'Gemini 3.8 Flash' }
+	]) {
+		if (scenario.id === 'disabled') await setMercuryEnabled(false);
+		await startNewChat(page, log);
+		const sidebar = page.getByTestId('activity-history-wrapper');
+		if (await sidebar.isVisible()) await sidebar.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(sidebar).not.toBeVisible();
+		const composer = page.getByTestId('active-chat-container').getByTestId('message-field').last();
+		const editor = composer.getByTestId('message-editor');
+		await expect(editor).toBeVisible({ timeout: 20000 });
+		await editor.click();
+		await page.keyboard.type(' ');
+		await page.keyboard.press('Backspace');
+		await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('Auto select');
+		try {
+			// The signed LIVE marker only replaces Jev/provider boundaries. Real model
+			// selection, fallback, persistence, and WebSocket delivery still execute.
+			await sendMessage(page,
+				`${scenario.question} MERCURY_ROUTING_E2E:${scenario.id} <<<TEST_LIVE_MOCK:mercury_auto_low>>>`,
+				log, screenshot, `auto-${scenario.id}`);
+			await expect.poll(() => admissions.find(request =>
+				request?.message?.content?.includes(`MERCURY_ROUTING_E2E:${scenario.id}`)))
+				.toBeTruthy();
+			const request = admissions.find(request => request?.message?.content?.includes(`MERCURY_ROUTING_E2E:${scenario.id}`));
+			expect(request.test_mock_marker).toBe('<<<TEST_LIVE_MOCK:mercury_auto_low>>>');
+			expect(Object.keys(request.model_routing_restrictions).sort()).toEqual(['disabled_ai_models', 'disabled_ai_servers']);
+			if (scenario.id === 'disabled') expect(request.model_routing_restrictions.disabled_ai_models).toContain('mercury-3');
+			else expect(request.model_routing_restrictions.disabled_ai_models).not.toContain('mercury-3');
+			const assistant = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+			await expect(assistant).toContainText(scenario.answer, { timeout: 60000 });
+			await expect(assistant.getByTestId('generated-by')).toContainText(scenario.model, { timeout: 60000 });
+			await expect(page.getByTestId('active-chat-container').getByTestId('message-assistant')).toHaveCount(1);
+			const answerOccurrences = (await assistant.textContent()).split(scenario.answer).length - 1;
+			expect(answerOccurrences).toBe(1);
+			// Focus Tiptap itself; the empty wrapper's center can be outside its text box.
+			await editor.locator('[contenteditable="true"]').click();
+			await page.keyboard.type(' ');
+			await page.keyboard.press('Backspace');
+			await expect(composer).toHaveAttribute('data-focused', 'true');
+			await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('Auto select');
+			await screenshot(page, `auto-${scenario.id}-completed`);
+		} finally {
+			if (/chat-id=/.test(page.url())) await deleteActiveChat(page, log, screenshot, `cleanup-${scenario.id}`);
+			if (scenario.id === 'disabled') await setMercuryEnabled(true);
+		}
+	}
 });

@@ -1,12 +1,15 @@
 """Audio provider selection, conservative failure and Mercury contract checks."""
 # contract-test-file: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
+from backend.shared.providers import gemini_transcript_correction as gemini_correction
 from backend.shared.providers import transcript_correction as correction
 
 
@@ -108,6 +111,71 @@ async def test_mercury_failure_falls_back_and_reports_gemini(monkeypatch, caplog
     assert result["model"] == correction.GEMINI_CORRECTION_MODEL
     assert "PRIVATE TRANSCRIPT" not in caplog.text
     google.assert_awaited_once_with("um green boxes", "google-key", "en")
+
+
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
+@pytest.mark.asyncio
+async def test_mercury_credential_lookup_shares_total_deadline_and_is_cancelled(monkeypatch):
+    monkeypatch.setenv("INCEPTION_TRANSCRIPT_CORRECTION_ENABLED", "true")
+    monkeypatch.setattr(correction, "MERCURY_CORRECTION_TIMEOUT_SECONDS", 0.01)
+    cancelled = asyncio.Event()
+
+    async def unavailable_credentials(_manager):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(correction, "resolve_api_key", unavailable_credentials)
+    mercury = AsyncMock()
+    google = AsyncMock(return_value={"title": "Boxes", "corrected_transcript": "Green boxes."})
+    monkeypatch.setattr(correction, "correct_transcript_with_mercury", mercury)
+    monkeypatch.setattr(correction, "correct_transcript_with_gemini", google)
+    secrets = SimpleNamespace(get_secret=AsyncMock(return_value="google-key"))
+    result = await asyncio.wait_for(correction.correct_transcript("um green boxes", secrets, "en"), 1)
+    assert cancelled.is_set()
+    mercury.assert_not_awaited()
+    google.assert_awaited_once_with("um green boxes", "google-key", "en")
+    assert result["model"] == "gemini-3.8-flash"
+
+
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [TimeoutError("PRIVATE TRANSCRIPT"), httpx.ConnectError("PRIVATE TRANSCRIPT")],
+                         ids=["mercury-timeout", "mercury-outage"])
+async def test_mercury_network_failure_uses_actual_gemini38_low_request(monkeypatch, caplog, failure):
+    monkeypatch.setenv("INCEPTION_TRANSCRIPT_CORRECTION_ENABLED", "true")
+    monkeypatch.setattr(correction, "resolve_api_key", AsyncMock(return_value="mercury-key"))
+    mercury_complete = AsyncMock(side_effect=failure)
+    monkeypatch.setattr(correction, "InceptionClient", lambda *_args, **kwargs: SimpleNamespace(complete=mercury_complete))
+    response = httpx.Response(200, json={"candidates": [{"content": {"parts": [{
+        "functionCall": {"name": "finalize_transcript", "args": {
+            "title": '  "Green boxes" ', "corrected_transcript": "  Search for green boxes.  ",
+        }},
+    }]}}]})
+    google_post = AsyncMock(return_value=response)
+    monkeypatch.setattr(gemini_correction.httpx.AsyncClient, "post", google_post)
+    secrets = SimpleNamespace(get_secret=AsyncMock(return_value="google-key"))
+
+    result = await correction.correct_transcript("um green boxes", secrets, "en")
+
+    assert result == {"model": "gemini-3.8-flash", "title": "Green boxes",
+                      "corrected_transcript": "Search for green boxes."}
+    mercury_complete.assert_awaited_once()
+    google_post.assert_awaited_once()
+    secrets.get_secret.assert_awaited_once_with("kv/data/providers/google_ai_studio", "api_key")
+    assert google_post.call_args.args == (
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+    )
+    assert google_post.call_args.kwargs["params"] == {"key": "google-key"}
+    body = google_post.call_args.kwargs["json"]
+    assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low", "includeThoughts": False}
+    assert body["toolConfig"]["functionCallingConfig"] == {
+        "mode": "ANY", "allowedFunctionNames": ["finalize_transcript"],
+    }
+    assert body["contents"][0]["parts"][1]["text"] == 'Raw Transcript:\n"um green boxes"'
+    assert "Detected or requested transcript language: en" in body["contents"][0]["parts"][0]["text"]
+    assert "PRIVATE TRANSCRIPT" not in caplog.text
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction

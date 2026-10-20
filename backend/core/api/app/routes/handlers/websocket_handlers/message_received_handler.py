@@ -25,7 +25,7 @@ from backend.core.api.app.services.directus.directus import DirectusService # Ke
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
-from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
+from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema, ModelRoutingRestrictions
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
@@ -662,6 +662,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
     try:
         chat_id = payload.get("chat_id")
+        # Authenticated first-party WS only: client-decrypted restrictions apply
+        # to this inference turn, never to durable account settings or overrides.
+        try:
+            model_routing_restrictions = ModelRoutingRestrictions.model_validate(
+                payload.get("model_routing_restrictions", {})
+            ).model_dump()
+        except ValueError:
+            raise ValueError("Invalid model routing restrictions") from None
         # The client sends the message details within a "message" sub-dictionary in the payload
         message_payload_from_client = payload.get("message")
         # Get encrypted chat key for server storage (zero-knowledge architecture)
@@ -2552,7 +2560,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 if cached_user_data_for_prefs is not None:
                     await cache_service.update_user(user_id, directus_preference_data)
                 logger.debug(f"Loaded AI user preferences from Directus for user {user_id}")
-        user_preferences_dict = {}
+        user_preferences_dict = dict(model_routing_restrictions)
         if user_data_for_prefs and isinstance(user_data_for_prefs, dict):
             user_timezone = user_data_for_prefs.get("timezone")
             if user_timezone:

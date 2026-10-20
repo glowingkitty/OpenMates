@@ -27,6 +27,19 @@ def retry_delay(response: httpx.Response, attempt: int) -> float:
 class InceptionError(RuntimeError):
     """Sanitized upstream failure, safe for application telemetry."""
 
+    def __init__(self, message: str, *, status_code: int | None = None, kind: str = "provider"):
+        super().__init__(message)
+        self.status_code = status_code
+        self.kind = kind
+
+    @property
+    def is_availability_failure(self) -> bool:
+        """Only transport faults and retryable HTTP failures warrant outage recovery."""
+        return self.kind in {"timeout", "transport"} or (
+            self.kind == "http" and self.status_code is not None
+            and (self.status_code == 429 or 500 <= self.status_code < 600)
+        )
+
 
 class InceptionRequest(BaseModel):
     model: str = "mercury-3"
@@ -130,7 +143,8 @@ class InceptionClient:
     @staticmethod
     def _check(response: httpx.Response) -> None:
         if response.status_code >= 400:
-            raise InceptionError(f"Inception API HTTP {response.status_code}")
+            raise InceptionError(f"Inception API HTTP {response.status_code}",
+                                 status_code=response.status_code, kind="http")
 
     async def complete(self, request: InceptionRequest) -> InceptionResult:
         async with self._client() as client:
@@ -144,10 +158,12 @@ class InceptionClient:
                     return InceptionResult.model_validate(response.json())
                 except InceptionError:
                     raise
+                except httpx.TimeoutException:
+                    raise InceptionError("Inception API request timed out", kind="timeout") from None
                 except httpx.HTTPError:
-                    raise InceptionError("Inception API transport failure") from None
+                    raise InceptionError("Inception API transport failure", kind="transport") from None
                 except (ValueError, TypeError):
-                    raise InceptionError("Inception API returned an invalid completion") from None
+                    raise InceptionError("Inception API returned an invalid completion", kind="invalid_response") from None
         raise InceptionError("Inception API retry limit reached")
 
     async def stream(self, request: InceptionRequest) -> AsyncIterator[InceptionResult]:
@@ -172,12 +188,14 @@ class InceptionClient:
                             try:
                                 yield InceptionResult.model_validate(json.loads(data))
                             except (ValueError, TypeError):
-                                raise InceptionError("Inception API returned an invalid stream event") from None
-                        raise InceptionError("Inception API stream ended before completion")
+                                raise InceptionError("Inception API returned an invalid stream event", kind="invalid_response") from None
+                        raise InceptionError("Inception API stream ended before completion", kind="transport")
                 except InceptionError:
                     raise
+                except httpx.TimeoutException:
+                    raise InceptionError("Inception API request timed out", kind="timeout") from None
                 except httpx.HTTPError:
-                    raise InceptionError("Inception API transport failure") from None
+                    raise InceptionError("Inception API transport failure", kind="transport") from None
         raise InceptionError("Inception API retry limit reached")
 
     async def models(self) -> list[dict[str, Any]]:

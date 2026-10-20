@@ -7,7 +7,7 @@ from typing import Optional
 
 import httpx
 
-GEMINI_CORRECTION_MODEL = "gemini-3.5-flash"
+GEMINI_CORRECTION_MODEL = "gemini-3.8-flash"
 GEMINI_TRANSCRIPT_TOOL_NAME = "finalize_transcript"
 TRANSCRIPT_TITLE_MAX_LENGTH = 80
 
@@ -94,7 +94,10 @@ async def correct_transcript_with_gemini(
                 "allowedFunctionNames": [GEMINI_TRANSCRIPT_TOOL_NAME],
             }
         },
-        "generationConfig": {"temperature": 0.1},
+        "generationConfig": {
+            "temperature": 0.1,
+            "thinkingConfig": {"thinkingLevel": "low", "includeThoughts": False},
+        },
     }
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"

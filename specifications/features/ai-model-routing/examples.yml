@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@6
+specification: feature.ai-model-routing@7
 
 required_instructions:
   - id: incomplete-cache-does-not-start-inference
@@ -63,7 +63,12 @@ default_profiles:
       - ai-model-routing.defaults.google-tier-profiles
     given: An authenticated user leaves all three saved model preference buckets on Auto and has not selected an exact model for this chat.
     when: The preprocessor classifies requests as low, medium, high and max.
-    then: Low, medium and high use Gemini 3.8 Flash with LOW, MEDIUM and HIGH thinking respectively; max uses Gemini 4 Argon with HIGH thinking. An exact chat or matching bucket choice overrides the default without receiving its automatic thinking level.
+    then: Low text requests use direct Mercury 3 with low reasoning; medium and high use Gemini 3.8 Flash with MEDIUM and HIGH thinking, and max uses Gemini 4 Argon HIGH. An exact chat or matching bucket choice overrides the default without receiving its automatic reasoning level.
+  - id: mercury-low-unavailable-or-ineligible
+    assertion_ids: [ai-model-routing.defaults.google-tier-profiles]
+    given: Alice leaves Simple requests on Auto, and a low-complexity request either contains an image or encounters an unavailable Mercury service.
+    when: Routing checks the actual input and model restrictions, or Mercury provides no substantive answer or tool output within five seconds.
+    then: An eligible Gemini 3.8 Flash LOW route serves the request with its actual model attribution. Metadata-only events do not keep Mercury waiting, and a response already shown to Alice is never silently restarted with duplicate text.
 
 catalog:
   - id: public-read-only-model-discovery
@@ -166,6 +171,18 @@ composer_layout:
     given: {composer_focused: true}
     when: {open_attachment_menu: true}
     expect: {options: [Drawing, Location, Files], keyboard_operable: true, camera_still_direct: true, audio_still_direct: true}
+
+preprocessing_recovery_policy:
+  - id: jev-unavailable-mercury-output-recovery
+    assertion_ids: [ai-model-routing.preprocessing.missing-output-recovery]
+    given: Alice sends a request whose answer model is already selected, but Jev cannot complete the preprocessing decisions.
+    when: Direct Mercury 3 low returns no required tool output, and Gemini 3.5 Flash-Lite returns valid routing properties within the remaining deadline.
+    then: Preprocessing succeeds through Flash-Lite without retrying Mercury, inventing properties or changing Alice's selected answer model. A healthy Jev result would have skipped both generative providers.
+  - id: recovery-disabled-does-not-call-lite
+    assertion_ids: [ai-model-routing.preprocessing.missing-output-recovery]
+    given: An output-safety scan explicitly disables retries and its Mercury attempt cannot produce the required result.
+    when: The attempt fails or its deadline expires.
+    then: The operation fails without calling Flash-Lite or fabricating a successful classification.
 
 preprocessing_recovery:
   - id: missing-required-output-uses-configured-fallback

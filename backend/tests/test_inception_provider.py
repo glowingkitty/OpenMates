@@ -62,6 +62,61 @@ def test_bounded_rate_limit_retry(monkeypatch):
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("status,recoverable", [(400, False), (401, False), (403, False),
+                                               (404, False), (429, True), (500, True),
+                                               (502, True), (503, True), (504, True)])
+@pytest.mark.parametrize("stream", [False, True])
+def test_native_failures_retain_safe_outage_classification(status, recoverable, stream):
+    client = InceptionClient("secret-key", max_retries=0,
+        transport=httpx.MockTransport(lambda _: httpx.Response(status, text="private response secret-key")))
+
+    async def request():
+        if stream:
+            return [chunk async for chunk in client.stream(InceptionRequest(messages=[]))]
+        return await client.complete(InceptionRequest(messages=[]))
+
+    with pytest.raises(InceptionError) as error:
+        run(request())
+    assert error.value.status_code == status
+    assert error.value.kind == "http"
+    assert error.value.is_availability_failure is recoverable
+    assert "private" not in str(error.value) and "secret-key" not in str(error.value)
+
+
+@pytest.mark.parametrize("failure,kind", [(httpx.ReadTimeout, "timeout"),
+                                        (httpx.ConnectError, "transport")])
+@pytest.mark.parametrize("stream", [False, True])
+def test_network_failures_are_recoverable_without_leaking_details(failure, kind, stream):
+    def handler(request):
+        raise failure("private request secret-key", request=request)
+    client = InceptionClient("secret-key", transport=httpx.MockTransport(handler), max_retries=0)
+
+    async def request():
+        if stream:
+            return [chunk async for chunk in client.stream(InceptionRequest(messages=[]))]
+        return await client.complete(InceptionRequest(messages=[]))
+
+    with pytest.raises(InceptionError) as error:
+        run(request())
+    assert error.value.kind == kind and error.value.is_availability_failure
+    assert error.value.status_code is None
+    assert "private" not in str(error.value) and "secret-key" not in str(error.value)
+
+
+@pytest.mark.parametrize("status,signal", [(429, "HTTP 429"), (503, "HTTP 503")])
+def test_nonstream_adapter_preserves_sanitized_retry_signal(monkeypatch, status, signal):
+    calls = []
+    async def complete(self, request):
+        calls.append(self._max_retries)
+        raise InceptionError("private response", status_code=status, kind="http")
+    monkeypatch.setattr(InceptionClient, "complete", complete)
+    result = run(invoke_inception_chat_completions("test", "mercury-3", [],
+        SimpleNamespace(get_secret=AsyncMock(return_value="key"))))
+    assert not result.success and signal in result.error_message
+    assert "private" not in result.error_message
+    assert calls == [0]
+
+
 @pytest.mark.parametrize("header,delay", [("7", 7), ("3600", 10), ("-1", .5), ("nan", .5), ("invalid", .5)])
 def test_retry_after_is_respected_and_bounded(header, delay):
     from backend.shared.providers.inception.client import retry_delay
@@ -187,8 +242,8 @@ def test_launch_tariff_discounts_customer_and_supplier_and_freezes_attempt():
     validate_temporary_prices(model)
     before = resolve_model_tariff(model, on_date=date(2026, 10, 18), inference_host="inception")
     launch = resolve_model_tariff(model, on_date=date(2026, 10, 20), inference_host="inception")
-    assert before["pricing"]["tokens"] == {"input": {"per_credit_unit": 1650}, "output": {"per_credit_unit": 475}}
-    assert launch["pricing"]["tokens"] == {"input": {"per_credit_unit": 3300}, "output": {"per_credit_unit": 950}}
+    assert before["pricing"]["tokens"] == {"input": {"per_credit_unit": 1650}, "cache_read": {"per_credit_unit": 16500}, "output": {"per_credit_unit": 475}}
+    assert launch["pricing"]["tokens"] == {"input": {"per_credit_unit": 3300}, "cache_read": {"per_credit_unit": 33000}, "output": {"per_credit_unit": 950}}
     assert model == original
     assert before["costs"]["input_per_million_token"]["price"] == .2
     assert launch["costs"]["input_per_million_token"]["price"] == .1
@@ -200,3 +255,42 @@ def test_launch_tariff_discounts_customer_and_supplier_and_freezes_attempt():
     assert frozen["costs"]["input_per_million_token"]["price"] == .1
     assert frozen["active_temporary_price"]["id"] == "mercury-3-launch-2026"
     assert model == original
+
+
+@pytest.mark.parametrize("promotional,input_unit", [(False, 1650), (True, 3300)])
+def test_mercury_cache_read_and_launch_discounts_compose_without_double_counting(promotional, input_unit):
+    from datetime import date
+    from pathlib import Path
+    from fractions import Fraction
+    import yaml
+    from backend.shared.python_utils.model_pricing import resolve_model_tariff
+    from backend.shared.python_utils.billing_utils import snapshot_model_tariff
+    from backend.shared.python_schemas.llm_usage import normalize_provider_usage
+    from backend.apps.ai.processing.model_usage_tracker import build_model_usage_breakdown
+
+    model = yaml.safe_load((Path(__file__).resolve().parents[1] / "providers/inception.yml").read_text())["models"][0]
+    if not promotional:
+        model["temporary_prices"] = []
+    tariff = snapshot_model_tariff(resolve_model_tariff(model, on_date=date(2026, 10, 20), inference_host="inception"))
+    assert tariff["pricing"]["tokens"]["cache_read"]["per_credit_unit"] == input_unit * 10
+    result = normalize_provider_usage(
+        {"input_tokens": 33000, "output_tokens": 950, "cache_read_input_tokens": 29700},
+        model_id="inception/mercury-3", provider_kind="openai", inference_host="inception",
+        tariff_snapshot=tariff,
+    )
+    receipt = build_model_usage_breakdown([result.to_bucket()], lambda *_: None)
+    assert receipt["input_tokens"] == 33000
+    assert receipt["uncached_input_tokens"] == 3300
+    assert receipt["cache_read_input_tokens"] == 29700
+    expected = (Fraction(3300, input_unit) + Fraction(29700, input_unit * 10)
+                + Fraction(950, tariff["pricing"]["tokens"]["output"]["per_credit_unit"]))
+    assert receipt["credits_charged"] == int(expected)
+    assert receipt["entries"][0]["billing_mode"] == "cache_aware"
+    ordinary = normalize_provider_usage(
+        {"input_tokens": 33000, "output_tokens": 950}, model_id="inception/mercury-3",
+        provider_kind="openai", inference_host="inception", tariff_snapshot=tariff,
+    )
+    missing = build_model_usage_breakdown([ordinary.to_bucket()], lambda *_: None)
+    assert missing["cache_read_input_tokens"] is None
+    assert missing["entries"][0]["billing_mode"] == "ordinary_input"
+    assert missing["credits_charged"] > receipt["credits_charged"]

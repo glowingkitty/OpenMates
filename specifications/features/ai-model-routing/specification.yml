@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 6
+version: 7
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -72,7 +72,7 @@ models:
       type: provider_specific_defaults
       required: true
       constraints:
-        low: {model: google/gemini-3.8-flash, thinking_level: LOW}
+        low: {model: inception/mercury-3, reasoning_effort: low, fallback_model: google/gemini-3.8-flash, fallback_thinking_level: LOW}
         medium: {model: google/gemini-3.8-flash, thinking_level: MEDIUM}
         high: {model: google/gemini-3.8-flash, thinking_level: HIGH}
         max: {model: google/gemini-4-argon, thinking_level: HIGH}
@@ -273,7 +273,7 @@ assertions:
     depends_on: [models.PublicModelCatalog, examples.catalog]
   - id: ai-model-routing.defaults.google-tier-profiles
     type: behavior
-    must: Automatic defaults use Gemini 3.8 Flash with Google LOW, MEDIUM and HIGH thinking for low, medium and high requests respectively, and Gemini 4 Argon with HIGH thinking for max. These levels remain provider-specific configuration; exact chat selections and saved preference-bucket choices take precedence without receiving an automatic thinking override.
+    must: Automatic low-complexity text requests use direct Inception Mercury 3 with low reasoning, with Gemini 3.8 Flash LOW recovery for unavailable or ineligible Mercury and a five-second deadline through the first substantive output. Usage or reasoning metadata alone does not satisfy that deadline. Published answer content is never silently replayed from another model. Unsupported modalities use an eligible Gemini route. Medium and high remain Gemini 3.8 Flash MEDIUM and HIGH; max remains Gemini 4 Argon HIGH. Exact chat selections, saved preference-bucket choices and model/provider restrictions retain precedence; reasoning settings remain provider-specific.
     depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.default_profiles]
   - id: ai-model-routing.chat-selection.encrypted-user-chat-scope
     type: privacy
@@ -285,8 +285,8 @@ assertions:
     depends_on: [models.RoutingDecision, models.TierModelPreference, examples.routing]
   - id: ai-model-routing.preprocessing.missing-output-recovery
     type: failure
-    must: When a preprocessing provider reports success but returns no required tool call, ordinary retry-enabled preprocessing treats the result as a provider-output failure and tries the next configured preprocessing provider within the existing total deadline; it never fabricates routing properties or changes the selected answer model. Explicit retry-disable controls, including output-safety scans, forbid fallback. Exhausted providers or deadline return a failure rather than a successful classification.
-    depends_on: [examples.preprocessing_recovery]
+    must: Jev remains the primary preprocessing decision model. When its decision path is unavailable, generative recovery tries direct Mercury 3 low and then Gemini 3.5 Flash-Lite within the existing bounded deadline. When a generative provider reports success without the required tool output, ordinary retry-enabled preprocessing tries the next configured provider; it never fabricates routing properties or changes the selected answer model. Explicit retry-disable controls, including output-safety scans, forbid fallback. Exhausted providers or deadline return a failure rather than a successful classification.
+    depends_on: [examples.preprocessing_recovery_policy]
   - id: ai-model-routing.composer.mention-to-exact-selection
     type: behavior
     must: Selecting or typing an exact model, @best, or @fast resolves to one concrete routable model before send, updates and visibly identifies the chat-scoped selector, removes the redundant model mention from editable message text, and persists the exact model rather than a symbolic alias.
@@ -336,4 +336,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]
+  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]

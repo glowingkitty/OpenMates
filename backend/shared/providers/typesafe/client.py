@@ -239,6 +239,18 @@ class JevDecisionClient:
             providers = ("typesafe",)
             validated_assets = {key: asset.model_dump() for key, asset in parsed_assets.items()}
         estimated_tokens = self._validate_request(state, questions)
+        from backend.apps.ai.testing.mercury_routing_fixture import active as mercury_fixture_active
+
+        if mercury_fixture_active():
+            from backend.apps.ai.testing.mercury_routing_fixture import jev_response
+            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
+
+            fixture = jev_response(state, questions, self._model)
+            if fixture is None:
+                record_blocked_provider_call()
+                raise DecisionProviderUnavailable("Mercury routing replay has no decision fixture for this request")
+            record_cache_hit()
+            return fixture
         from backend.apps.ai.testing.diagram_html_fixture import active as diagram_fixture_active
 
         if diagram_fixture_active():

@@ -9,18 +9,22 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from fractions import Fraction
 from typing import Any
 
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.shared.python_utils.billing_utils import (
     BillingError, calculate_total_credits, ensure_credit_headroom,
+    calculate_token_category_credits, floor_raw_credits, snapshot_model_tariff,
 )
+from backend.shared.python_schemas.llm_usage import normalize_provider_usage
 
 
 APP_ID = "workflows"
 SKILL_ID = "create-or-modify"
 JEV_MODEL = "typesafe/jev-1.14"
 GEMINI_MODEL = "google/gemini-3.8-flash"
+MERCURY_MODEL = "inception/mercury-3"
 
 
 class WorkflowAuthoringBillingError(RuntimeError):
@@ -45,10 +49,12 @@ class WorkflowAuthoringBilling:
         self.team_id, self.team_precheck = team_id, team_precheck
         self.entries: list[dict[str, Any]] = []
         self.usage_complete = True
+        self._mercury_tariff: dict[str, Any] | None = None
 
     def _pricing(self, model: str) -> dict[str, Any]:
         provider, model_id = model.split("/", 1)
-        details = self.config_manager.get_model_pricing(provider, model_id)
+        details = self.config_manager.get_model_pricing(
+            provider, model_id, **({"inference_host": "inception"} if model == MERCURY_MODEL else {}))
         pricing = details.get("pricing") if isinstance(details, dict) else None
         if not isinstance(pricing, dict) or not isinstance(pricing.get("tokens"), dict):
             raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_PRICING_UNAVAILABLE")
@@ -64,6 +70,8 @@ class WorkflowAuthoringBilling:
         # Validate the current catalog before starting paid inference. The
         # balance endpoint is cache-backed and does not read Directus.
         self._pricing(model)
+        if model == MERCURY_MODEL:
+            self._mercury_tariff = self._snapshot_mercury_tariff()
         if self.team_id:
             if not callable(self.team_precheck):
                 raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_UNAVAILABLE")
@@ -93,19 +101,43 @@ class WorkflowAuthoringBilling:
             }
         input_tokens = usage.get("input_tokens")
         output_tokens = usage.get("output_tokens")
+        profile = usage.get("reasoning_effort")
+        profile_details = ({"reasoning_effort": profile}
+                           if model in {MERCURY_MODEL, GEMINI_MODEL} and isinstance(profile, str)
+                           and profile in {"instant", "low"} else {})
         if (not isinstance(input_tokens, int) or isinstance(input_tokens, bool)
                 or not isinstance(output_tokens, int) or isinstance(output_tokens, bool)
                 or input_tokens < 0 or output_tokens < 0
                 or input_tokens + output_tokens == 0):
             self.usage_complete = False
             self.entries.append({"provider_step": provider_step, "model_used": model,
-                                 "metered": False, "credits_charged": 0})
+                                 "metered": False, "credits_charged": 0, **profile_details})
             return 0
 
-        credits = calculate_total_credits(
-            pricing_config=self._pricing(model),
-            input_tokens=input_tokens, output_tokens=output_tokens,
-        )
+        cache_details: dict[str, Any] = {}
+        if model == MERCURY_MODEL:
+            tariff = self._mercury_tariff or self._snapshot_mercury_tariff()
+            try:
+                normalized = normalize_provider_usage(
+                    usage, model_id=model, provider_kind="openai", inference_host="inception")
+                categories, cache_active = calculate_token_category_credits(
+                    input_total=normalized.input_total, uncached_input=normalized.input_uncached,
+                    cache_read=normalized.cache_read_input_tokens, cache_write=None, cache_write_1h=None,
+                    output_tokens=normalized.output_billable, legacy_billable_input=None,
+                    model_pricing_details=tariff, usage_source=normalized.usage_source, inference_host="inception",
+                )
+                credits = floor_raw_credits(sum(categories.values(), Fraction(0)))
+            except (ValueError, BillingError) as exc:
+                raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_UNAVAILABLE") from exc
+            cache_details = {"cache_read_input_tokens": normalized.cache_read_input_tokens,
+                             "uncached_input_tokens": normalized.input_uncached,
+                             "billing_mode": "cache_aware" if cache_active else "ordinary_input",
+                             "pricing_version": tariff["pricing_version"]}
+        else:
+            credits = calculate_total_credits(
+                pricing_config=self._pricing(model),
+                input_tokens=input_tokens, output_tokens=output_tokens,
+            )
         if credits <= 0:
             raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_PRICING_UNAVAILABLE")
         operation_id = self.operation_id(provider_step=provider_step)
@@ -119,7 +151,8 @@ class WorkflowAuthoringBilling:
                       ("OpenRouter", "global") if provider is None else
                       ("Unknown", "unknown"))
         server_provider, server_region = (
-            jev_server if model == JEV_MODEL else ("Google AI Studio", "US")
+            jev_server if model == JEV_MODEL else
+            ("Inception", "US") if model == MERCURY_MODEL else ("Google AI Studio", "US")
         )
         details = {
             "source": "direct",
@@ -130,6 +163,8 @@ class WorkflowAuthoringBilling:
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "provider_step": provider_step,
+            **cache_details,
+            **profile_details,
         }
         try:
             from backend.core.api.app.routes import apps_api
@@ -154,8 +189,15 @@ class WorkflowAuthoringBilling:
             raise WorkflowAuthoringBillingError(code) from exc
         self.entries.append({"provider_step": provider_step, "model_used": model,
                              "metered": True, "credits_charged": charged,
-                             "operation_id": operation_id})
+                             "operation_id": operation_id, **profile_details})
         return charged
+
+    def _snapshot_mercury_tariff(self) -> dict[str, Any]:
+        details = self.config_manager.get_model_pricing("inception", "mercury-3", inference_host="inception")
+        try:
+            return snapshot_model_tariff(details)
+        except (BillingError, AttributeError, TypeError) as exc:
+            raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_PRICING_UNAVAILABLE") from exc
 
 
 class MeteredJevClient:

@@ -581,7 +581,8 @@
         "skill-reminder-set.spec.ts",
         "skill-shopping-images.spec.ts",
         "skill-web-read.spec.ts",
-        "skill-web-search.spec.ts"
+        "skill-web-search.spec.ts",
+        "mercury3-model-picker.spec.ts"
       ]
     },
     "local_email_signup": {
@@ -710,7 +711,6 @@
         "long-chat-history.spec.ts",
         "logout-blocked-userdb-relogin.spec.ts",
         "model-toggle-settings.spec.ts",
-        "mercury3-model-picker.spec.ts",
         "mistral-large4-model-picker.spec.ts",
         "newsletter-categories.spec.ts",
         "passkey-login-alternatives.spec.ts",

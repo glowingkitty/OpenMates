@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import sys
 from copy import deepcopy
@@ -30,10 +31,13 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class Catalog:
-    def get_model_pricing(self, provider: str, model_id: str):
+    def get_model_pricing(self, provider: str, model_id: str, **kwargs):
         path = ROOT / "backend" / "providers" / f"{provider}.yml"
         catalog = yaml.safe_load(path.read_text())
-        return next((model for model in catalog["models"] if model["id"] == model_id), None)
+        from datetime import date
+        from backend.shared.python_utils.model_pricing import resolve_model_tariff
+        model = next((model for model in catalog["models"] if model["id"] == model_id), None)
+        return resolve_model_tariff(model, on_date=date(2026, 10, 20), **kwargs) if model else None
 
 
 @pytest.fixture
@@ -390,3 +394,162 @@ def test_billing_failure_after_preview_fails_session_without_saving_draft():
     assert result.status == "failed"
     assert result.error_code == "WORKFLOW_AUTHORING_BILLING_UNAVAILABLE"
     assert workflows.list_workflows("owner") == []
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_mercury_primary_and_gemini_fallback_settle_actual_models_once(monkeypatch, ledger):
+    from backend.core.api.app.services.workflow_gemini_authoring import WorkflowAuthoringProviderError
+    calls, charged, _ = ledger
+    configure(monkeypatch)
+
+    class Mercury:
+        model_id = billing_module.MERCURY_MODEL
+        async def generate(self, **kwargs):
+            raise WorkflowAuthoringProviderError('Workflow provider transport failed',
+                {'input_tokens': 100, 'output_tokens': 20}, is_availability_failure=True)
+
+    class Gemini(Author):
+        model_id = billing_module.GEMINI_MODEL
+        async def generate(self, **kwargs):
+            raw, _ = await super().generate(**kwargs)
+            return raw, {'input_tokens': 450, 'output_tokens': 90}
+
+    for _ in range(2):
+        result = await planner_module.WorkflowRegistryPlanner(secrets_manager=None,
+            fallback_author=Gemini(forecast_plan()))._plan('Forecast', {
+                'timezone': 'UTC', '_billing_user_id': 'owner', '_billing_session_id': 'stable-session',
+            }, object(), Mercury())
+        assert result['action'] == 'create_workflow'
+    assert len(charged) == 2  # Stable identities across replay of the same session.
+    assert [call['credits'] for call in calls] == [1, 2, 1, 2]
+    assert [call['usage_details']['provider_step'] for call in calls] == [
+        'mercury:0', 'gemini:1', 'mercury:0', 'gemini:1']
+    assert [call['usage_details']['server_provider'] for call in calls[:2]] == ['Inception', 'Google AI Studio']
+    assert [call['usage_details']['model_used'] for call in calls[:2]] == [
+        billing_module.MERCURY_MODEL, billing_module.GEMINI_MODEL]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_three_profile_recovery_bills_actual_attempts_once_and_retains_profiles(monkeypatch, ledger):
+    from backend.tests.test_workflow_mercury_authoring import flat_forecast, invalid_delivery
+    calls, charged, prechecks = ledger
+    configure(monkeypatch)
+
+    class MeteredAuthor(FlatAuthor):
+        def __init__(self, response, model, profile):
+            super().__init__([response])
+            self.model_id, self.reasoning_effort = model, profile
+
+        async def generate(self, **kwargs):
+            measured = {'input_tokens': 100, 'output_tokens': 20,
+                        'cache_read_input_tokens': 50, 'usage_source': 'provider_reported'}
+            try:
+                raw, _ = await super().generate(**kwargs)
+            except ValueError as exc:
+                exc.metrics = measured
+                raise
+            return raw, measured
+
+    for _ in range(2):
+        primary = MeteredAuthor(invalid_delivery(), billing_module.MERCURY_MODEL, 'instant')
+        recovery = MeteredAuthor(invalid_delivery(), billing_module.MERCURY_MODEL, 'low')
+        fallback = MeteredAuthor(flat_forecast(), billing_module.GEMINI_MODEL, 'low')
+        result = await planner_module.WorkflowRegistryPlanner(secrets_manager=None,
+            recovery_author=recovery, fallback_author=fallback)._plan('Forecast', {
+                'timezone': 'UTC', '_billing_user_id': 'owner', '_billing_session_id': 'three-profiles',
+            }, object(), primary)
+        assert result['action'] == 'create_workflow'
+    assert len(calls) == len(prechecks) == 6 and len(charged) == 3
+    assert [c['usage_details']['provider_step'] for c in calls[:3]] == ['mercury:0', 'mercury:1', 'gemini:2']
+    assert [c['usage_details']['model_used'] for c in calls[:3]] == [
+        billing_module.MERCURY_MODEL, billing_module.MERCURY_MODEL, billing_module.GEMINI_MODEL]
+    assert [c['usage_details']['reasoning_effort'] for c in calls[:3]] == ['instant', 'low', 'low']
+    assert [c['usage_details']['server_provider'] for c in calls[:3]] == ['Inception', 'Inception', 'Google AI Studio']
+    assert all(c['usage_details']['input_tokens'] == 100 and c['usage_details']['output_tokens'] == 20 for c in calls)
+    assert calls[0]['usage_details']['cache_read_input_tokens'] == 50
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_cancelled_mercury_attempt_settles_observed_usage_without_recovery(monkeypatch, ledger):
+    from backend.tests.test_workflow_mercury_authoring import ProfileAuthor, flat_forecast
+    calls, charged, _ = ledger
+    configure(monkeypatch)
+    cancelled = asyncio.CancelledError()
+    cancelled.metrics = {'input_tokens': 100, 'output_tokens': 20}
+    primary = ProfileAuthor(cancelled)
+    recovery = ProfileAuthor(flat_forecast(), 'low')
+    fallback = ProfileAuthor(flat_forecast(), 'low', billing_module.GEMINI_MODEL)
+    with pytest.raises(asyncio.CancelledError):
+        await planner_module.WorkflowRegistryPlanner(secrets_manager=None, recovery_author=recovery,
+            fallback_author=fallback)._plan('Forecast', {
+                'timezone': 'UTC', '_billing_user_id': 'owner', '_billing_session_id': 'cancelled',
+            }, object(), primary)
+    assert len(calls) == len(charged) == 1
+    assert calls[0]['usage_details']['model_used'] == billing_module.MERCURY_MODEL
+    assert calls[0]['usage_details']['reasoning_effort'] == 'instant'
+    assert not recovery.requests and not fallback.requests
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_mercury_uses_host_scoped_launch_tariff_and_preserves_missing_usage(ledger):
+    calls, _, _ = ledger
+    billing = billing_module.WorkflowAuthoringBilling(user_id='owner', session_id='session')
+    prices = billing._pricing(billing_module.MERCURY_MODEL)['tokens']
+    assert prices['input']['per_credit_unit'] == 3300
+    assert prices['output']['per_credit_unit'] == 950
+    await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:0', usage=None)
+    assert calls == [] and billing.usage_complete is False
+    assert billing.entries[0]['metered'] is False
+    await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:1',
+                         usage={'input_tokens': 3300, 'output_tokens': 950})
+    assert calls[0]['credits'] == 2
+    assert calls[0]['usage_details']['server_provider'] == 'Inception'
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_mercury_workflow_cache_discount_is_subset_of_inclusive_input(ledger):
+    calls, _, _ = ledger
+    billing = billing_module.WorkflowAuthoringBilling(user_id='owner', session_id='cached-session')
+    await billing.precheck(model=billing_module.MERCURY_MODEL)
+    await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:0',
+                         usage={'input_tokens': 33000, 'output_tokens': 950, 'cache_read_input_tokens': 29700})
+    assert calls[0]['credits'] == 2  # floor(3300/3300 + 29700/33000 + 950/950)
+    details = calls[0]['usage_details']
+    assert details['input_tokens'] == 33000
+    assert details['uncached_input_tokens'] == 3300
+    assert details['cache_read_input_tokens'] == 29700
+    assert details['billing_mode'] == 'cache_aware'
+    assert details['pricing_version']
+
+    await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:1',
+                         usage={'input_tokens': 33000, 'output_tokens': 950})
+    assert calls[1]['credits'] == 11
+    assert calls[1]['usage_details']['cache_read_input_tokens'] is None
+    assert calls[1]['usage_details']['billing_mode'] == 'ordinary_input'
+    for invalid in (33001, -1, True):
+        with pytest.raises(billing_module.WorkflowAuthoringBillingError):
+            await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:2',
+                                 usage={'input_tokens': 33000, 'output_tokens': 950, 'cache_read_input_tokens': invalid})
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.compact-plan
+async def test_mercury_workflow_attempt_retains_its_admitted_cache_tariff(ledger):
+    calls, _, _ = ledger
+    billing = billing_module.WorkflowAuthoringBilling(user_id='owner', session_id='snapshot-session')
+    await billing.precheck(model=billing_module.MERCURY_MODEL)
+
+    class RepricedCatalog:
+        def get_model_pricing(self, *args, **kwargs):
+            raise AssertionError('Settlement must use the already admitted tariff')
+
+    billing.config_manager = RepricedCatalog()
+    await billing.settle(model=billing_module.MERCURY_MODEL, provider_step='mercury:0',
+                         usage={'input_tokens': 33000, 'output_tokens': 950, 'cache_read_input_tokens': 29700})
+    assert calls[0]['credits'] == 2
