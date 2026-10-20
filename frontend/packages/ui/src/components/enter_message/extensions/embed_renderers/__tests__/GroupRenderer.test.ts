@@ -12,6 +12,7 @@ import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.
 import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
 import EmbedsMapView from '../../../../embeds/EmbedsMapView.svelte';
 import { GroupRenderer } from '../GroupRenderer';
+import { AppSkillUseRenderer } from '../AppSkillUseRenderer';
 import { disposeEmbedTree } from '../mountedEmbedLifecycle';
 
 type MountCall = [unknown, { props: Record<string, unknown> }];
@@ -24,12 +25,18 @@ const svelteMountMocks = vi.hoisted(() => ({
 const embedResolverMocks = vi.hoisted(() => ({
   resolveEmbed: vi.fn(),
   decodeToonContent: vi.fn(),
+  isEmbedKnownError: vi.fn(() => false),
 }));
 
 const fullscreenControllerMocks = vi.hoisted(() => ({
   dispatchEmbedFullscreen: vi.fn(),
   resolveEmbedFullscreenTarget: vi.fn(),
 }));
+
+vi.mock('@repo/ui', async () => {
+  const { readable } = await import('svelte/store');
+  return { text: readable((key: string) => key) };
+});
 
 vi.mock('svelte', async (importOriginal) => {
   const actual = await importOriginal<typeof import('svelte')>();
@@ -42,6 +49,10 @@ vi.mock('svelte', async (importOriginal) => {
 });
 
 vi.mock('../../../../../services/embedResolver', () => embedResolverMocks);
+vi.mock('../../../../../services/chatSyncService', () => ({ chatSyncService: { addEventListener: vi.fn(), removeEventListener: vi.fn() } }));
+vi.mock('../../../../../services/chatSyncServiceHandlersAI', () => ({ unmarkEmbedAsProcessed: vi.fn() }));
+vi.mock('../../../../../services/db', () => ({ chatDB: { getChat: vi.fn(async () => null) } }));
+vi.mock('../../../../../services/directChatService', () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 
 vi.mock('../../../../../services/embedFullscreenController', () => fullscreenControllerMocks);
 
@@ -51,6 +62,53 @@ vi.mock('../../../../../services/embedFullscreenResolver', () => ({
 }));
 
 describe('GroupRenderer', () => {
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+  it('keeps a single failed execution visible when encrypted content has no children', async () => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ embed_id: 'failed-skill', type: 'app_skill_use', status: 'finished', content: 'failed-content' });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({ app_id: 'code', skill_id: 'unknown_action', status: 'error', error: 'Request timed out', embed_ids: [], result_count: 0 });
+    const renderer = new AppSkillUseRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    await renderer.render({
+      attrs: { id: 'failed-skill', contentRef: 'embed:failed-skill', type: 'app-skill-use', status: 'finished', app_id: 'code', skill_id: 'unknown_action' },
+      container, content,
+      embedData: { embed_id: 'failed-skill', type: 'app_skill_use', status: 'finished' },
+      decodedContent: { app_id: 'code', skill_id: 'unknown_action', status: 'error', error: 'Request timed out', embed_ids: [], result_count: 0 },
+    });
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(GenericAppSkillEmbedPreview, expect.objectContaining({
+      props: expect.objectContaining({ status: 'error', resultCount: undefined, provider: '' }),
+    }));
+    expect(svelteMountMocks.mount).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+  it('keeps failed grouped items and their successful siblings in stable display order', async () => {
+    embedResolverMocks.resolveEmbed.mockImplementation(async (id: string) => ({
+      embed_id: id, type: 'app_skill_use', status: 'finished', content: id,
+    }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async (id: string) => ({
+      app_id: 'code', skill_id: 'unknown_action', status: id === 'failed' ? 'error' : 'finished', embed_ids: [], result_count: 0,
+    }));
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    await renderer.render({
+      attrs: { id: 'stable-group', type: 'app-skill-use-group', status: 'finished', groupCount: 2,
+        groupedItems: ['failed', 'successful'].map(id => ({
+          id, type: 'app-skill-use', contentRef: `embed:${id}`, status: 'finished', app_id: 'code', skill_id: 'unknown_action',
+        })),
+      }, container, content,
+    });
+    const calls = (svelteMountMocks.mount.mock.calls as unknown as MountCall[])
+      .filter(([component]) => component === GenericAppSkillEmbedPreview);
+    expect(calls.map(([, { props }]) => [props.id, props.status])).toEqual([
+      ['successful', 'finished'], ['failed', 'error'],
+    ]);
+    expect(content.querySelectorAll('.embed-group-item')).toHaveLength(2);
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it('routes a saved results-view code embed through eligibility instead of a code card', async () => {
     const renderer = new GroupRenderer();
@@ -76,6 +134,7 @@ describe('GroupRenderer', () => {
     fullscreenControllerMocks.resolveEmbedFullscreenTarget.mockClear();
     embedResolverMocks.resolveEmbed.mockReset();
     embedResolverMocks.decodeToonContent.mockReset();
+    embedResolverMocks.isEmbedKnownError.mockReset().mockReturnValue(false);
     embedResolverMocks.resolveEmbed.mockResolvedValue(null);
     embedResolverMocks.decodeToonContent.mockResolvedValue(null);
 

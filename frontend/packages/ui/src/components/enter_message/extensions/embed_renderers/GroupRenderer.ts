@@ -9,6 +9,7 @@ import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers"
 import {
   resolveEmbed,
   decodeToonContent,
+  isEmbedKnownError,
   isLocalCodeDocPreviewRef,
   type EmbedData,
 } from "../../../../services/embedResolver";
@@ -1687,9 +1688,11 @@ export class GroupRenderer implements EmbedRenderer {
     const hasFinishedDecodedContent =
       decodedStatus === "finished" ||
       (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
-      Boolean(decodedContent?.embed_ids);
-    const status = ((hasFinishedDecodedContent ? "finished" : decodedStatus) ||
+      normalizeEmbedIdList(decodedContent?.embed_ids).length > 0;
+    const status = ((decodedStatus === "error" || decodedStatus === "cancelled"
+        ? decodedStatus : hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
+      (embedId && isEmbedKnownError(embedId) ? "error" : null) ||
       item.status ||
       "processing") as "processing" | "finished" | "error";
     const taskId = decodedContent?.task_id;
@@ -2978,8 +2981,8 @@ export class GroupRenderer implements EmbedRenderer {
         appId: appId || "app",
         skillId: skillId || "skill",
         status,
-        provider,
-        resultCount,
+        provider: status === "error" ? "" : provider,
+        resultCount: status === "error" ? undefined : resultCount,
         previewImageUrl,
         taskId,
         isMobile: false,

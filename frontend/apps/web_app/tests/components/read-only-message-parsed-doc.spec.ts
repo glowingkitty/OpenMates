@@ -135,3 +135,30 @@ test('renders stored user line breaks and each blank line with Markdown emphasis
   await expect(quote.locator(':scope > p')).toHaveCount(2);
   await expect(quote.locator('strong')).toHaveText('Quote first');
 });
+
+// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+test('keeps failed app-skill executions visible alone and beside successful siblings', async ({ page }) => {
+  await page.goto(preview('failedSkillExecution'));
+  await waitForComponentPreview(page);
+  const message = page.getByTestId('message-content');
+  await expect(message).toContainText('The class search could not complete.');
+  await expect(message.getByTestId('fitness-search-preview')).toHaveCount(1);
+  await expect(message.getByTestId('fitness-search-preview')).toContainText('Search failed.');
+  await page.reload();
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('message-content').getByTestId('fitness-search-preview')).toContainText('Search failed.');
+
+  await page.goto(preview('groupedFailedSkillExecution'));
+  await waitForComponentPreview(page);
+  const grouped = page.getByTestId('message-content');
+  await expect(grouped.locator('.embed-group-item')).toHaveCount(2);
+  const cards = grouped.getByTestId('fitness-search-preview');
+  await expect(cards).toHaveCount(2);
+  const failed = grouped.locator('[data-embed-item-id="failed-fitness"]');
+  const successful = grouped.locator('[data-embed-item-id="successful-fitness"]');
+  await expect(failed).toContainText('Search failed.');
+  await expect(failed).toContainText('Evening classes');
+  await expect(successful).toContainText('Morning classes');
+  await expect(successful).not.toContainText('Search failed.');
+  await expect(grouped).toContainText('One search failed; the other completed.');
+});

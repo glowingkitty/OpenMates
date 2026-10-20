@@ -3326,9 +3326,10 @@ async def _charge_skill_credits(
         # Note: the REST API flow (apps_api.py) already handles this via
         # is_skill_execution_successful() — this mirrors that logic for the
         # AI chat flow.
+        failure_candidates = grouped_results or provider_result_data or results
         if all(
-            isinstance(r, dict) and r.get("status") in ("error", "cancelled")
-            for r in results
+            isinstance(r, dict) and (r.get("error") or r.get("status") in ("error", "cancelled"))
+            for r in failure_candidates
         ):
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' failed — all {len(results)} result(s) have error/cancelled status, skipping billing.")
             return
@@ -3365,6 +3366,7 @@ async def _charge_skill_credits(
                 1 for group in grouped_results
                 if isinstance(group, dict)
                 and not group.get("error")  # No error field
+                and group.get("status") not in ("error", "cancelled")
                 and group.get("results")    # Has non-empty results
             )
             units_processed = successful_requests
@@ -10042,7 +10044,11 @@ async def handle_main_processing(
                     # 3. Continue processing - don't crash the entire AI response
                     # This allows the LLM to interpret results from successful skills
                     # and provide a meaningful response even when some skills fail.
-                    error_message = str(skill_error)
+                    error_message = str(skill_error).strip() or (
+                        "The skill request timed out. Please try again."
+                        if isinstance(skill_error, (TimeoutError, asyncio.TimeoutError))
+                        else "Skill execution failed. Please try again."
+                    )
                     if getattr(request_data, "is_anonymous", False) and provider_dispatch_attempted:
                         try:
                             await _settle_anonymous_skill_quote(
@@ -10071,35 +10077,9 @@ async def handle_main_processing(
                         "skill_id": skill_id
                     }]
                     
-                    # Update embed status to "error" so frontend shows failure state
-                    if cache_service and placeholder_embed_data:
-                        try:
-                            embed_id = placeholder_embed_data.get("embed_id")
-                            if embed_id:
-                                # Use embed_service to properly update the embed status
-                                from backend.core.api.app.services.embed_service import EmbedService
-                                embed_service = EmbedService(
-                                    cache_service=cache_service,
-                                    directus_service=directus_service,
-                                    encryption_service=encryption_service
-                                )
-                                await embed_service.update_embed_status_to_error(
-                                    embed_id=embed_id,
-                                    app_id=app_id,
-                                    skill_id=skill_id,
-                                    error_message=error_message,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix
-                                )
-                                logger.info(f"{log_prefix} Updated embed {embed_id} status to 'error'")
-                                failed_embed_ids.add(embed_id)
-                        except Exception as status_error:
-                            logger.error(f"{log_prefix} Error updating embed status to error: {status_error}")
+                    # Finalize all placeholders in the common terminal path below.
+                    # Falling through to ordinary success finalization would create
+                    # result children from this error dict and overwrite the failure.
 
                 # =====================================================================
                 # ASYNC SKILL DETECTION
@@ -10347,7 +10327,7 @@ async def handle_main_processing(
                     # Check if response_results_array contains the grouped structure (each item has "id" and "results")
                     if (isinstance(response_results_array, list) and 
                         len(response_results_array) > 0 and 
-                        all(isinstance(r, dict) and "id" in r and "results" in r for r in response_results_array)):
+                        all(isinstance(r, dict) and "id" in r and ("results" in r or r.get("error") or r.get("status") == "error") for r in response_results_array)):
                         # This is the grouped structure: [{"id": 1, "results": [...]}, {"id": 2, "results": [...]}, ...]
                         grouped_results = response_results_array
                         logger.debug(f"{log_prefix} Detected grouped results structure with {len(grouped_results)} request groups")
@@ -10362,7 +10342,7 @@ async def handle_main_processing(
                         response_results = response.get("results")
                         if isinstance(response_results, list):
                             # Check if response_results is grouped structure or flat list
-                            if response_results and isinstance(response_results[0], dict) and "id" in response_results[0] and "results" in response_results[0]:
+                            if response_results and all(isinstance(group, dict) and "id" in group and ("results" in group or group.get("error") or group.get("status") == "error") for group in response_results):
                                 # Grouped structure: extract results from each group
                                 for group in response_results:
                                     group_results = group.get("results", [])
@@ -10373,6 +10353,26 @@ async def handle_main_processing(
                                 flattened_results.extend(response_results)
                     results = flattened_results  # Use flattened for LLM inference
                 
+                # An error payload is terminal output, never a successful result
+                # child. Preserve successful zero-hit wrappers and partial groups.
+                single_execution_error = None
+                if grouped_results and len(grouped_results) == 1:
+                    group = grouped_results[0]
+                    if group.get("status") == "error" or is_request_group_failure(app_id, skill_id, group):
+                        single_execution_error = str(group.get("error") or "Request failed. Please try again.")
+                elif not grouped_results and provider_result_data and all(
+                    isinstance(result, dict) and (result.get("error") or result.get("status") == "error")
+                    for result in provider_result_data
+                ):
+                    single_execution_error = str(provider_result_data[0].get("error") or "Skill execution failed. Please try again.")
+                terminal_skill_error = single_execution_error or (
+                    "Skill requests failed. Please try again."
+                    if grouped_results and all(
+                        group.get("status") == "error" or is_request_group_failure(app_id, skill_id, group)
+                        for group in grouped_results
+                    ) else None
+                )
+
                 shopping_visual_metadata = (
                     shopping_result_parent_metadata(grouped_results)
                     if (app_id, skill_id) == ("shopping", "search_products") else {}
@@ -10798,7 +10798,7 @@ async def handle_main_processing(
                         is_multiple_requests = (
                             grouped_results is not None and 
                             len(grouped_results) > 1 and
-                            all(isinstance(r, dict) and "id" in r and "results" in r for r in grouped_results)
+                            all(isinstance(r, dict) and "id" in r for r in grouped_results)
                         )
                         
                         if is_multiple_requests:
@@ -10960,7 +10960,7 @@ async def handle_main_processing(
                                 # embed_service.update_embed_with_results(results=[]) — that
                                 # function already handles the empty case via
                                 # _finalize_embed_no_results() (status="finished", no error).
-                                request_is_real_failure = is_request_group_failure(app_id, skill_id, grouped_result)
+                                request_is_real_failure = grouped_result.get("status") == "error" or is_request_group_failure(app_id, skill_id, grouped_result)
 
                                 if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed
@@ -11017,6 +11017,8 @@ async def handle_main_processing(
                                                     f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id_log}"
                                                 )
                                                 failed_embed_ids.add(placeholder_embed_id)
+                                        except RequiredRecoveryOutputError:
+                                            raise
                                         except Exception as error_update_error:
                                             logger.warning(
                                                 f"{log_prefix} Failed to update placeholder to error status: "
@@ -11044,6 +11046,8 @@ async def handle_main_processing(
                                         
                                         if error_embed_data:
                                             error_embed_id = error_embed_data.get("embed_id")
+                                            if error_embed_data.get("embed_reference"):
+                                                yield f"```json\n{error_embed_data['embed_reference']}\n```\n\n"
                                             updated_error_embed = await embed_service.update_embed_status_to_error(
                                                 embed_id=error_embed_id,
                                                 app_id=app_id,
@@ -11191,26 +11195,43 @@ async def handle_main_processing(
                                 and grouped_results and len(grouped_results) == 1
                                 else None
                             )
-                            if single_shopping_errors:
-                                # A failed reference lookup/search is not a successful
-                                # empty product result. Keep the tool error and existing
-                                # error-banner behavior aligned for single requests too.
+                            if single_execution_error or single_shopping_errors:
+                                failure_message = (
+                                    single_shopping_errors[0]["message"] if single_shopping_errors
+                                    else single_execution_error
+                                )
                                 failed_placeholders = (
                                     placeholder_embed_data.get("placeholders", [])
                                     if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple")
                                     else [placeholder_embed_data] if placeholder_embed_data else []
                                 )
+                                if not failed_placeholders:
+                                    created_placeholder = await embed_service.create_processing_embed_placeholder(
+                                        app_id=app_id, skill_id=skill_id,
+                                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id, task_id=task_id,
+                                        metadata=preview_data, log_prefix=log_prefix,
+                                    )
+                                    if created_placeholder:
+                                        failed_placeholders = [created_placeholder]
+                                        if created_placeholder.get("embed_reference"):
+                                            yield f"```json\n{created_placeholder['embed_reference']}\n```\n\n"
                                 for failed_placeholder in failed_placeholders:
-                                    if failed_placeholder.get("embed_id"):
-                                        await embed_service.update_embed_status_to_error(
-                                            embed_id=failed_placeholder["embed_id"],
+                                    failed_embed_id = failed_placeholder.get("embed_id")
+                                    if failed_embed_id:
+                                        updated_error = await embed_service.update_embed_status_to_error(
+                                            embed_id=failed_embed_id,
                                             app_id=app_id, skill_id=skill_id,
-                                            error_message=single_shopping_errors[0]["message"],
+                                            error_message=failure_message,
                                             chat_id=request_data.chat_id, message_id=request_data.message_id,
                                             user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
                                             user_vault_key_id=user_vault_key_id, task_id=task_id,
                                             log_prefix=log_prefix,
                                         )
+                                        failed_embed_ids.add(failed_embed_id)
+                                        if updated_error:
+                                            updated_embed_data_list.append(updated_error)
                             elif placeholder_embed_data:
                                 # CRITICAL: Check if placeholder_embed_data has "multiple" structure but we fell here
                                 # because is_multiple_requests was False (e.g., skill returned non-grouped results)
@@ -11397,6 +11418,8 @@ async def handle_main_processing(
                                     if embed_reference:
                                         embed_code_block = f"```json\n{embed_reference}\n```\n\n"
                                         yield embed_code_block
+                    except RequiredRecoveryOutputError:
+                        raise
                     except Exception as e:
                         logger.error(f"{log_prefix} Error creating/updating embeds for '{tool_name}': {e}", exc_info=True)
                         # Continue without embed update - don't fail the entire skill execution
@@ -11482,7 +11505,8 @@ async def handle_main_processing(
                         request_data=request_data,
                         app_id=app_id,
                         skill_id=skill_id,
-                        status="finished",
+                        status="error" if terminal_skill_error else "finished",
+                        error=terminal_skill_error,
                         preview_data=preview_data if preview_data else None
                     )
 
@@ -11523,7 +11547,7 @@ async def handle_main_processing(
                                     "message_id": request_data.message_id,
                                     "user_id_uuid": request_data.user_id,
                                     "user_id_hash": request_data.user_id_hash,
-                                    "status": "finished",
+                                    "status": embed_data.get("status", "finished"),
                                     "child_embed_ids": embed_data.get("child_embed_ids", [])
                                 }
 
@@ -11657,22 +11681,29 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        error_eid = placeholder_embed_data.get('embed_id')
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=error_eid,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message="Invalid JSON in function arguments",
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        error_placeholders = (
+                            placeholder_embed_data.get("placeholders", [])
+                            if placeholder_embed_data.get("multiple") else [placeholder_embed_data]
                         )
-                        if error_eid:
-                            failed_embed_ids.add(error_eid)
+                        for error_placeholder in error_placeholders:
+                            error_eid = error_placeholder.get('embed_id')
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=error_eid,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message="Invalid JSON in function arguments",
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                            if error_eid:
+                                failed_embed_ids.add(error_eid)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -11731,22 +11762,29 @@ async def handle_main_processing(
                         except ValueError:
                             app_id = "unknown"
                             skill_id = "unknown"
-                        error_eid2 = placeholder_embed_data.get('embed_id')
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=error_eid2,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message="Invalid tool name format",
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        error_placeholders = (
+                            placeholder_embed_data.get("placeholders", [])
+                            if placeholder_embed_data.get("multiple") else [placeholder_embed_data]
                         )
-                        if error_eid2:
-                            failed_embed_ids.add(error_eid2)
+                        for error_placeholder in error_placeholders:
+                            error_eid2 = error_placeholder.get('embed_id')
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=error_eid2,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message="Invalid tool name format",
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                            if error_eid2:
+                                failed_embed_ids.add(error_eid2)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -11808,22 +11846,29 @@ async def handle_main_processing(
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        error_eid3 = placeholder_embed_data.get('embed_id')
-                        await embed_service.update_embed_status_to_error(
-                            embed_id=error_eid3,
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            error_message=str(e),
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        error_placeholders = (
+                            placeholder_embed_data.get("placeholders", [])
+                            if placeholder_embed_data.get("multiple") else [placeholder_embed_data]
                         )
-                        if error_eid3:
-                            failed_embed_ids.add(error_eid3)
+                        for error_placeholder in error_placeholders:
+                            error_eid3 = error_placeholder.get('embed_id')
+                            await embed_service.update_embed_status_to_error(
+                                embed_id=error_eid3,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                error_message=str(e).strip() or "Skill execution failed. Please try again.",
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                log_prefix=log_prefix
+                            )
+                            if error_eid3:
+                                failed_embed_ids.add(error_eid3)
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as embed_error:
                     logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
@@ -12032,7 +12077,7 @@ async def handle_main_processing(
     if failed_embed_ids:
         yield {"__failed_embed_ids__": failed_embed_ids}
         logger.info(
-            f"{log_prefix} Yielding {len(failed_embed_ids)} failed embed ID(s) for content cleanup: "
+            f"{log_prefix} Yielding {len(failed_embed_ids)} failed embed ID(s) for terminal status tracking: "
             f"{failed_embed_ids}"
         )
 

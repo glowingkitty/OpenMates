@@ -4118,10 +4118,10 @@ export async function handleSendEmbedDataImpl(
             type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
+            task_id: embedData.task_id,
             status: embedData.status,
             content: embedData.content, // Plaintext TOON for in-memory rendering
             text_preview: embedData.text_preview,
-            task_id: embedData.task_id,
             embed_ids: embedData.embed_ids,
             parent_embed_id: embedData.parent_embed_id,
             // Include all fields UI might need for rendering
@@ -4129,70 +4129,13 @@ export async function handleSendEmbedDataImpl(
           },
         }),
       );
-    } else if (
-      embedData.status === "error" ||
-      embedData.status === "cancelled"
-    ) {
-      // ============================================================
-      // ERROR/CANCELLED STATUS: Clean up only, no persistence
-      // ============================================================
-      // Failed/cancelled embeds are NOT stored in IndexedDB or Directus.
-      // The backend has already removed the processing placeholder from its cache.
-      // We just need to:
-      // 1. Mark embed as error in the embedResolver's knownErrorEmbeds set
-      //    (CRITICAL: prevents infinite loop where resolveEmbed() re-requests
-      //    error embeds from the server on every render cycle)
-      // 2. Remove the in-memory processing placeholder
-      // 3. Dispatch embedUpdated so ActiveChat tracks it in _embedErrors
-      // 4. The UI will hide the embed and show the error banner
-      console.info(
-        `[ChatSyncService:AI] Embed ${embedData.embed_id} has status="${embedData.status}" — ` +
-          `cleaning up without persisting (failed embeds are not stored)`,
-      );
-
-      // Mark as known error FIRST so resolveEmbed() won't re-request it
-      markEmbedAsError(embedData.embed_id, embedData.status);
-
-      try {
-        const { embedStore } = await import("./embedStore");
-        const embedRef = `embed:${embedData.embed_id}`;
-        // Remove the "processing" placeholder from memory cache
-        embedStore.removeFromMemoryCache(embedRef);
-        console.debug(
-          `[ChatSyncService:AI] Removed processing placeholder for ${embedData.status} embed ${embedData.embed_id} from memory cache`,
-        );
-      } catch (err) {
-        console.warn(
-          `[ChatSyncService:AI] Failed to remove ${embedData.status} embed from memory cache:`,
-          err,
-        );
-      }
-
-      // For cancelled embeds (e.g., budget-suppressed placeholders), skip the UI
-      // event entirely — the placeholder was already removed from memory cache above,
-      // so dispatching embedUpdated would only trigger a pointless re-render.
-      // For error embeds, dispatch so ActiveChat can track it in _embedErrors and
-      // show the error banner.
-      if (embedData.status === "error") {
-        serviceInstance.dispatchEvent(
-          new CustomEvent("embedUpdated", {
-            detail: {
-              embed_id: embedData.embed_id,
-              type: embedData.type,
-              chat_id: embedData.chat_id,
-              message_id: embedData.message_id,
-              status: embedData.status,
-              version_number: embedData.version_number,
-              child_embed_ids: embedData.embed_ids,
-              isProcessing: false,
-            },
-          }),
-        );
-      } else {
-        console.debug(
-          `[ChatSyncService:AI] Skipping embedUpdated dispatch for cancelled embed ${embedData.embed_id} — silently removed`,
-        );
-      }
+    } else if (embedData.status === "cancelled") {
+      // Budget-suppressed/cancelled placeholders retain their cleanup-only behavior.
+      // Execution errors use the finalized encryption/persistence path below so
+      // their failure cards remain resolvable after reload and recovery.
+      markEmbedAsError(embedData.embed_id, "cancelled");
+      const { embedStore } = await import("./embedStore");
+      embedStore.removeFromMemoryCache(`embed:${embedData.embed_id}`);
     } else {
       // ============================================================
       // FINALIZED STATUS (completed/etc): Full encryption and persistence
@@ -4292,6 +4235,7 @@ export async function handleSendEmbedDataImpl(
               type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status,
               version_number: embedData.version_number,
               child_embed_ids: embedData.embed_ids,
@@ -4409,6 +4353,7 @@ export async function handleSendEmbedDataImpl(
               type: embedData.type,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
@@ -4454,6 +4399,7 @@ export async function handleSendEmbedDataImpl(
               embed_id: embedData.embed_id,
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
@@ -4729,6 +4675,7 @@ export async function handleSendEmbedDataImpl(
           serviceInstance.dispatchEvent(new CustomEvent("embedUpdated", {
             detail: { embed_id: embedData.embed_id, type: embedData.type,
               chat_id: embedData.chat_id, message_id: embedData.message_id,
+              task_id: embedData.task_id,
               status: embedData.status, version_number: embedData.version_number,
               child_embed_ids: embedData.embed_ids, isProcessing: false },
           }));
@@ -5099,6 +5046,7 @@ export async function handleSendEmbedDataImpl(
             type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
+            task_id: embedData.task_id,
             status: embedData.status,
             version_number: embedData.version_number,
             child_embed_ids: embedData.embed_ids,
@@ -5140,6 +5088,7 @@ export async function handleSendEmbedDataImpl(
             type: embedData.type,
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
+            task_id: embedData.task_id,
             status: embedData.status,
             child_embed_ids: embedData.embed_ids,
             isProcessing: false,

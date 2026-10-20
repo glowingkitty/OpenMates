@@ -3213,9 +3213,9 @@ async def _async_persist_embed_fallback(
         await cache_service.close()
         return
 
-    # Step 3: Verify the embed is in "finished" status (don't re-send processing/error embeds)
+    # Re-send terminal output; failed app skills use the same encrypted client storage path.
     cached_status = embed_data.get("status")
-    if cached_status != "finished":
+    if cached_status != "finished" and not (cached_status == "error" and embed_data.get("type") == "app_skill_use"):
         logger.info(
             f"[EMBED_FALLBACK] Embed {embed_id} status is '{cached_status}', not 'finished'. "
             f"Skipping fallback re-send. (task_id: {task_id})"
@@ -3302,7 +3302,7 @@ async def _async_persist_embed_fallback(
             "embed_id": embed_id,
             "type": embed_data.get("type", "app_skill_use"),  # PLAINTEXT
             "content": plaintext_toon,  # PLAINTEXT TOON (client will encrypt)
-            "status": "finished",
+            "status": cached_status,
             "chat_id": embed_data.get("chat_id", ""),  # PLAINTEXT (client will hash)
             "message_id": embed_data.get("message_id", ""),  # PLAINTEXT (client will hash)
             "user_id": user_id,
@@ -3542,7 +3542,7 @@ async def _async_process_pending_embeds(task_id: str):
                         embed_data = json.loads(
                             embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json
                         )
-                        if embed_data.get("status") != "finished":
+                        if embed_data.get("status") != "finished" and not (embed_data.get("status") == "error" and embed_data.get("type") == "app_skill_use"):
                             continue
 
                         vault_key_id = embed_data.get("vault_key_id")
@@ -3566,7 +3566,7 @@ async def _async_process_pending_embeds(task_id: str):
                                 "embed_id": embed_id,
                                 "type": embed_data.get("type", "app_skill_use"),
                                 "content": plaintext_toon,
-                                "status": "finished",
+                                "status": embed_data["status"],
                                 "chat_id": embed_data.get("chat_id", ""),
                                 "message_id": embed_data.get("message_id", ""),
                                 "user_id": user_id,

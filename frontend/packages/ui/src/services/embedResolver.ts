@@ -131,7 +131,15 @@ async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamI
   const page = await response.json();
   const embed = page?.embed;
   if (!embed || embed.embed_id !== embedId) throw new Error("Embed read returned a different ID");
-  if (embed.status === "processing" || embed.status === "error" || embed.status === "cancelled"
+  // Persisted execution errors are valid client-encrypted output. Their type
+  // may itself be encrypted, so require the encrypted envelope before loading;
+  // transport/decryption errors without that envelope retain their fetch guard.
+  const encryptedExecutionError = embed.status === "error" &&
+    embed.encryption_mode === "client" &&
+    typeof embed.encrypted_content === "string" && embed.encrypted_content.length > 0 &&
+    (embed.type === "app_skill_use" ||
+      (typeof embed.encrypted_type === "string" && embed.encrypted_type.length > 0));
+  if (embed.status === "processing" || (embed.status === "error" && !encryptedExecutionError) || embed.status === "cancelled"
       || embed.encryption_mode === "vault") return false;
 
   assertCurrent();

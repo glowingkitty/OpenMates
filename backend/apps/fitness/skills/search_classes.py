@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any
 from pydantic import BaseModel, Field
 
@@ -19,6 +21,10 @@ from backend.shared.python_utils.search_relevance import (
     relevance_candidate_target,
     stable_deduplicate_candidates,
 )
+
+
+logger = logging.getLogger(__name__)
+MAX_CONCURRENT_GROUPS = 3
 
 
 class FitnessClassSearchRequestItem(BaseModel):
@@ -102,8 +108,13 @@ class SearchClassesSkill(BaseSkill):
         # which otherwise unwraps the first item for flat-signature skills.
         payload = input_data if input_data is not None else ({"requests": requests} if requests is not None else kwargs)
         request = FitnessClassSearchRequest.model_validate(_normalize_request_payload(payload))
-        groups = []
-        for index, item in enumerate(request.requests):
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_GROUPS)
+
+        async def search_group(index: int, item: FitnessClassSearchRequestItem) -> dict[str, Any]:
+            async with semaphore:
+                return await execute_group(index, item)
+
+        async def execute_group(index: int, item: FitnessClassSearchRequestItem) -> dict[str, Any]:
             req = item.model_dump(exclude_none=True)
             request_id = req.pop("id", index)
             requested_limit = int(req.pop("limit", 10))
@@ -150,28 +161,34 @@ class SearchClassesSkill(BaseSkill):
                     )
                     results = ranking.candidates
                 results = results[:requested_limit]
-                groups.append(
-                    {
-                        "id": request_id,
-                        "provider": "Urban Sports Club",
-                        "result_count": len(results),
-                        "filters": filters,
-                        "summary": _summary(len(results), plan=plan, attendance_mode=req["attendance_mode"]),
-                        "results": results,
-                    }
-                )
+                return {
+                    "id": request_id,
+                    "provider": "Urban Sports Club",
+                    "result_count": len(results),
+                    "filters": filters,
+                    "summary": _summary(len(results), plan=plan, attendance_mode=req["attendance_mode"]),
+                    "results": results,
+                }
             except Exception as exc:
-                groups.append(
-                    {
-                        "id": request_id,
-                        "provider": "Urban Sports Club",
-                        "result_count": 0,
-                        "filters": filters,
-                        "summary": "Urban Sports Club class search failed.",
-                        "results": [],
-                        "error": f"Urban Sports Club search failed: {exc}",
-                    }
-                )
+                logger.exception("Urban Sports Club class search failed for group index %s", index)
+                return {
+                    "id": request_id,
+                    "provider": "Urban Sports Club",
+                    "result_count": 0,
+                    "filters": filters,
+                    "summary": "Urban Sports Club class search failed.",
+                    "results": [],
+                    "error": f"Urban Sports Club search failed: {exc}",
+                }
+
+        tasks = [asyncio.create_task(search_group(index, item)) for index, item in enumerate(request.requests)]
+        try:
+            groups = await asyncio.gather(*tasks)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
         return {
             "provider": "Urban Sports Club",
             "results": groups,
@@ -180,9 +197,19 @@ class SearchClassesSkill(BaseSkill):
 
 
 def _normalize_request_payload(input_data: dict[str, Any]) -> dict[str, Any]:
-    if "requests" in input_data:
-        return input_data
-    return {"requests": [{key: value for key, value in input_data.items() if not key.startswith("_")}]}
+    payload = input_data if "requests" in input_data else {
+        "requests": [{key: value for key, value in input_data.items() if not key.startswith("_")}]
+    }
+    groups = payload.get("requests")
+    if not isinstance(groups, list):
+        return payload  # Preserve malformed input for Pydantic validation.
+    # API-generated optional fields can arrive as null. Treat those as omitted
+    # so model defaults apply, while preserving explicit zero and invalid values.
+    return {**payload, "requests": [
+        {key: value for key, value in group.items() if value is not None}
+        if isinstance(group, dict) else group
+        for group in groups
+    ]}
 
 
 def _default_attendance_mode(req: dict[str, Any]) -> str:

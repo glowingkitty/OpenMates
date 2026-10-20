@@ -8,8 +8,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
-from typing import Any
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any, TypeVar
 from urllib.parse import urlencode
 
 import httpx
@@ -35,6 +38,28 @@ DEFAULT_LANGUAGE = "en"
 DEFAULT_CITY_ID = "1"
 DEFAULT_BUSINESS_TYPE = "b2c"
 DEFAULT_TIMEOUT_SECONDS = 20.0
+MAX_CONCURRENT_REQUESTS = 8
+T = TypeVar("T")
+
+
+@dataclass
+class _SharedLoad:
+    task: asyncio.Task[Any]
+    waiters: int = 0
+
+
+async def _gather_owned(*operations: Awaitable[T]) -> list[T]:
+    """Keep input order and drain all owned work on failure or cancellation."""
+    tasks = [asyncio.ensure_future(operation) for operation in operations]
+    try:
+        return await asyncio.gather(*tasks)
+    finally:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 DEFAULT_USER_AGENT = "OpenMates/1.0 (https://openmates.org)"
 PLAN_TYPE_IDS = {
     "essential": "1",
@@ -51,6 +76,9 @@ class UrbanSportsClient:
         self.timeout = timeout
         self._venue_detail_cache: dict[str, dict[str, Any]] = {}
         self._category_id_cache: dict[tuple[str, str], str] = {}
+        self._io_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+        self._venue_loads: dict[Any, _SharedLoad] = {}
+        self._category_loads: dict[Any, _SharedLoad] = {}
 
     async def search_locations(
         self,
@@ -105,8 +133,8 @@ class UrbanSportsClient:
     ) -> list[dict[str, Any]]:
         center = await self._resolve_center(address=address, city=city, lat=lat, lon=lon)
         search_dates = _date_window(start_date=start_date, end_date=end_date, days=days)
-        classes: list[UrbanSportsClassCard] = []
-        for search_date in search_dates:
+
+        async def load_date(search_date: str) -> list[UrbanSportsClassCard]:
             html = await self._fetch_search_page(
                 "activities",
                 language=language,
@@ -118,7 +146,10 @@ class UrbanSportsClient:
                 date=search_date,
                 page=1,
             )
-            classes.extend(parse_activity_cards(html, date=search_date))
+            return parse_activity_cards(html, date=search_date)
+
+        pages = await _gather_owned(*(load_date(date) for date in search_dates))
+        classes = [item for page in pages for item in page]
 
         classes = dedupe_classes(classes)
         classes = [item for item in filter_by_plan(classes, plan) if class_has_min_spots(item, max(int(min_spots), 0))]
@@ -126,7 +157,7 @@ class UrbanSportsClient:
             classes = [item for item in classes if item.attendance_mode == attendance_mode]
         classes = [item for item in classes if matches_query(item.to_dict(), query)]
 
-        enriched = [await self._class_to_result(item, center=center) for item in classes]
+        enriched = await _gather_owned(*(self._class_to_result(item, center=center) for item in classes))
         filtered = _filter_radius(enriched, radius_km)
         filtered.sort(key=lambda item: (item.get("date") or "9999", item.get("time_range") or "", item.get("distance_km") or 9999))
         return filtered[: max(1, min(int(limit or 10), 50))]
@@ -195,10 +226,32 @@ class UrbanSportsClient:
             return {}
         if url in self._venue_detail_cache:
             return self._venue_detail_cache[url]
-        html = await self._fetch_url(url)
-        detail = parse_venue_detail(html, url=url).to_dict()
-        self._venue_detail_cache[url] = detail
-        return detail
+
+        async def load() -> dict[str, Any]:
+            html = await self._fetch_url(url)
+            detail = parse_venue_detail(html, url=url).to_dict()
+            self._venue_detail_cache[url] = detail
+            return detail
+
+        return await self._load_once(self._venue_loads, url, load)
+
+    async def _load_once(self, loads: dict[Any, _SharedLoad], key: Any, loader: Callable[[], Awaitable[T]]) -> T:
+        """Share in-flight I/O; cancel it only when its last consumer leaves."""
+        shared = loads.get(key)
+        if shared is None:
+            shared = _SharedLoad(asyncio.create_task(loader()))
+            loads[key] = shared
+        shared.waiters += 1
+        try:
+            return await asyncio.shield(shared.task)
+        finally:
+            shared.waiters -= 1
+            if shared.waiters == 0:
+                loads.pop(key, None)
+                if not shared.task.done():
+                    shared.task.cancel()
+                # Retrieve failures and finish cancellation before releasing ownership.
+                await asyncio.gather(shared.task, return_exceptions=True)
 
     async def _resolve_center(
         self,
@@ -221,13 +274,17 @@ class UrbanSportsClient:
             cache_key = (language, category.casefold())
             category_id = self._category_id_cache.get(cache_key)
             if category_id is None:
-                discovery_params = {key: value for key, value in params.items() if key != "category"}
-                discovery_url = self._build_search_url(endpoint, language=language, params=discovery_params)
-                categories = parse_activity_categories(await self._fetch_url(discovery_url))
-                category_id = categories.get(category.casefold())
-                if category_id is None:
-                    raise ValueError(f"Unknown Urban Sports activity category: {category}")
-                self._category_id_cache[cache_key] = category_id
+                async def load_category() -> str:
+                    discovery_params = {key: value for key, value in params.items() if key != "category"}
+                    discovery_url = self._build_search_url(endpoint, language=language, params=discovery_params)
+                    categories = parse_activity_categories(await self._fetch_url(discovery_url))
+                    resolved = categories.get(category.casefold())
+                    if resolved is None:
+                        raise ValueError(f"Unknown Urban Sports activity category: {category}")
+                    self._category_id_cache[cache_key] = resolved
+                    return resolved
+
+                category_id = await self._load_once(self._category_loads, cache_key, load_category)
             params["category"] = category_id
         url = self._build_search_url(endpoint, language=language, params=params)
         return await self._fetch_url(url)
@@ -238,10 +295,11 @@ class UrbanSportsClient:
             "Accept-Language": "en-US,en;q=0.9",
             "User-Agent": DEFAULT_USER_AGENT,
         }
-        async with httpx.AsyncClient(timeout=self.timeout, headers=headers, follow_redirects=True) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            return response.text
+        async with self._io_semaphore:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=headers, follow_redirects=True) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.text
 
     def _build_search_url(self, endpoint: str, *, language: str, params: dict[str, Any]) -> str:
         query: list[tuple[str, str]] = []

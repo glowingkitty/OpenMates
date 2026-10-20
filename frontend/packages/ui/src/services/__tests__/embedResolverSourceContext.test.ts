@@ -62,6 +62,35 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("embed reads use caller source context", () => {
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+  it('loads a persisted failed execution from a fresh encrypted read and then uses local storage', async () => {
+    const id = embedId();
+    state.fetch.mockResolvedValue(new Response(JSON.stringify({
+      embed: { embed_id: id, status: 'error', encryption_mode: 'client', encrypted_type: 'cipher-type', encrypted_content: 'cipher-error-content' },
+      embed_keys: [],
+    }), { status: 200 }));
+    expect(await requestEmbedFromServerOnce(id, 'restored-error', { chatId: 'source' })).toBe(true);
+    expect(state.put).toHaveBeenCalledTimes(1);
+    expect(await resolveEmbed(id, { chatId: 'source' })).toMatchObject({ embed_id: id, status: 'error', type: 'app_skill_use' });
+    expect(await resolveEmbed(id, { chatId: 'source' })).toMatchObject({ status: 'error' });
+    expect(state.fetch).toHaveBeenCalledTimes(1);
+    expect(isEmbedKnownError(id)).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.persistence.client-encrypted
+  it.each([
+    { status: 'error' },
+    { status: 'error', encryption_mode: 'vault', encrypted_type: 'cipher-type', encrypted_content: 'vault-content' },
+    { status: 'error', encryption_mode: 'client', encrypted_type: 'cipher-type' },
+  ])('keeps transport and undecryptable error responses outside durable embed storage: %j', async error => {
+    const id = embedId();
+    state.fetch.mockResolvedValue(new Response(JSON.stringify({ embed: { embed_id: id, ...error }, embed_keys: [] }), { status: 200 }));
+    await requestEmbedFromServerOnce(id, 'failed-read', { chatId: 'source' });
+    await requestEmbedFromServerOnce(id, 'duplicate-failed-read', { chatId: 'source' });
+    expect(state.put).not.toHaveBeenCalled();
+    expect(state.fetch).toHaveBeenCalledTimes(1);
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
   it("loads a valid second source after a first-source404 without inheriting its cooldown", async () => {
     const id = embedId();

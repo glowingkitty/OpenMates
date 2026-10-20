@@ -6137,9 +6137,9 @@ class EmbedService:
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "status": "error",
-                "error": error_message,
+                "error": str(error_message or "").strip() or "Skill execution failed. Please try again.",
                 "result_count": 0,
-                "embed_ids": None,  # No child embeds for error case
+                "embed_ids": [],  # Failed execution has no result children
                 **original_metadata  # Preserve query, provider, etc. from placeholder
             }
             
@@ -6152,19 +6152,32 @@ class EmbedService:
             
             updated_at = int(datetime.now().timestamp())
             
-            # CLEANUP: Remove the "processing" placeholder from cache instead of
-            # storing an error embed. Failed embeds are wasted storage — the error
-            # is already logged and the client will hide the embed from the UI.
-            try:
-                await self.cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
-                logger.debug(f"{log_prefix} Removed processing placeholder for failed embed {embed_id} from cache")
-            except Exception as cache_err:
-                logger.warning(f"{log_prefix} Failed to remove embed {embed_id} from cache: {cache_err}")
-            
-            # SEND PLAINTEXT TOON TO CLIENT via WebSocket so the client can:
-            # 1. Remove the in-memory processing placeholder
-            # 2. Track the error in _embedErrors for UI cleanup (hide embed, show error banner)
-            # 3. Skip persisting to IndexedDB (no store_embed sent back to server)
+            # Keep a vault-encrypted working copy and seal recovery output before
+            # delivery, just as for successful app skills. The client encrypts the
+            # terminal payload for durable IndexedDB/Directus storage.
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                error_content_toon, user_vault_key_id
+            )
+            error_embed_data = {
+                "embed_id": embed_id,
+                "type": "app_skill_use",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashlib.sha256(chat_id.encode()).hexdigest(),
+                "hashed_message_id": hashlib.sha256(message_id.encode()).hexdigest(),
+                "hashed_task_id": hashlib.sha256(task_id.encode()).hexdigest() if task_id else None,
+                "task_id": task_id,
+                "hashed_user_id": user_id_hash,
+                "status": "error",
+                "encryption_mode": "client",
+                "is_private": False,
+                "is_shared": False,
+                "embed_ids": [],
+                "encrypted_content": encrypted_content,
+                "text_length_chars": error_text_length_chars,
+                "created_at": updated_at,
+                "updated_at": updated_at,
+            }
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="app_skill_use",
@@ -6178,15 +6191,24 @@ class EmbedService:
                 text_length_chars=error_text_length_chars,
                 created_at=updated_at,
                 updated_at=updated_at,
-                log_prefix=log_prefix
+                log_prefix=log_prefix,
+                app_id=app_id,
+                skill_id=skill_id,
+                embed_ids=[],
+                producer_final_children=[],
+                finished_cache_data=error_embed_data,
+                finished_cache_vault_key_id=user_vault_key_id,
             )
             
+            self._schedule_embed_persistence_fallback(embed_id)
+
             logger.info(f"{log_prefix} Updated embed {embed_id} to error status: {error_message}")
             
             return {
                 "embed_id": embed_id,
                 "child_embed_ids": [],
-                "status": "error"
+                "status": "error",
+                "from_placeholder": True,
             }
             
         except RequiredRecoveryOutputError:
@@ -6552,9 +6574,11 @@ class EmbedService:
         data = payload["payload"]
         embed_id, chat_id, message_id = data["embed_id"], data["chat_id"], data["message_id"]
         user_id, status, embed_type = data["user_id"], data["status"], data["type"]
-        if status == "finished" and finished_cache_data is not None:
+        if finished_cache_data is not None and (
+            status == "finished" or (status == "error" and embed_type == "app_skill_use")
+        ):
             if (finished_cache_data.get("embed_id") != embed_id
-                    or finished_cache_data.get("status") != "finished"
+                    or finished_cache_data.get("status") != status
                     or finished_cache_data.get("chat_id", chat_id) != chat_id
                     or finished_cache_data.get("message_id", message_id) != message_id):
                 raise RequiredRecoveryOutputError("Finished embed cache identity mismatch")
@@ -6576,7 +6600,7 @@ class EmbedService:
             )
 
             # Track finished embeds as pending client encryption
-            if status == "finished" and chat_id and message_id and not self._volatile_incognito_publication_required():
+            if (status == "finished" or (status == "error" and embed_type == "app_skill_use")) and chat_id and message_id and not self._volatile_incognito_publication_required():
                 await self._track_pending_embed(user_id, embed_id, log_prefix)
 
             return True
@@ -6829,7 +6853,8 @@ class EmbedService:
                         or message_id != voice.binding["assistant_message_id"] or embed_id not in allowed_ids):
                     raise RequiredRecoveryOutputError("Voice embed output identity mismatch")
             required_delivery = (
-                status == "finished" and encryption_mode == "client" and self._finished_recovery_required()
+                (status == "finished" or (status == "error" and embed_type == "app_skill_use"))
+                and encryption_mode == "client" and self._finished_recovery_required()
             ) or self._volatile_incognito_publication_required()
             await self._require_finished_publication_authority(user_id_hash)
             if embed_type == "app_skill_use":
@@ -6859,7 +6884,7 @@ class EmbedService:
                                     f"'{current_status}' → '{status}' for embed {embed_id}. "
                                     f"This prevents duplicate or out-of-order status events."
                                 )
-                                if required_delivery and current_status != "finished":
+                                if required_delivery and current_status != status:
                                     raise RequiredRecoveryOutputError("Required embed has an invalid cached state transition")
                                 if not required_delivery:
                                     return False
@@ -6939,7 +6964,9 @@ class EmbedService:
                 # or continue dependent work until its explicit durable flush.
                 return True
 
-            if status == "finished" and encryption_mode == "client":
+            if encryption_mode == "client" and (
+                status == "finished" or (status == "error" and embed_type == "app_skill_use")
+            ):
                 await self._save_completed_embed_recovery(
                     payload, producer_child_index=producer_child_index,
                     producer_final_children=producer_final_children,
@@ -7555,13 +7582,10 @@ class EmbedService:
             check_cache_status=True,
             app_id=app_id,
             skill_id=skill_id,
-            producer_final_children=[] if final_status == "finished" else None,
-            finished_cache_data=updated_embed_data if final_status == "finished" else None,
+            producer_final_children=[],
+            finished_cache_data=updated_embed_data,
             finished_cache_vault_key_id=user_vault_key_id,
         )
-
-        if final_status != "finished":
-            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
         # Schedule fallback persistence
         self._schedule_embed_persistence_fallback(embed_id)
@@ -7629,7 +7653,7 @@ class EmbedService:
             logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
             # A caller must not publish or depend on an embed with no retained
             # working copy. The surrounding task can pause or retry safely.
-            if embed_data.get("status") == "finished" and self._finished_recovery_required():
+            if embed_data.get("status") in {"finished", "error"} and self._finished_recovery_required():
                 raise RequiredRecoveryOutputError("Required finished embed cache write failed") from e
             raise
 

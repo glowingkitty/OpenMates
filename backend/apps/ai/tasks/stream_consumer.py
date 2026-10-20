@@ -82,7 +82,6 @@ from backend.apps.ai.utils.code_embed_policy import (
 )
 from backend.apps.ai.utils.app_skill_json_cleanup import (
     canonicalize_app_skill_json_blocks,
-    strip_failed_app_skill_json_blocks,
 )
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
@@ -10538,25 +10537,9 @@ async def _consume_main_processing_stream(
             f"Tool results are handled via Embeds."
         )
     
-    # --- Strip Failed Embed References from Message Content ---
-    # When skill execution fails, the embed reference JSON block (```json\n{"type":"app_skill_use","embed_id":"..."}\n```)
-    # is already in the streamed content. If not removed, the client will try to resolve these
-    # embeds on every page load, hitting the server repeatedly for embeds that no longer exist.
-    # We strip them here before the content is persisted.
-    if failed_embed_ids and aggregated_response:
-        stripped_response, stripped_count = strip_failed_app_skill_json_blocks(
-            aggregated_response,
-            failed_embed_ids,
-            log_prefix,
-        )
-        if stripped_count > 0:
-            aggregated_response = stripped_response
-            # Update final_response_chunks to reflect the cleanup
-            final_response_chunks = [aggregated_response]
-            logger.info(
-                f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
-                f"Failed embed IDs: {failed_embed_ids}"
-            )
+    # Failed execution references remain canonical document members. Their
+    # encrypted error payloads resolve through the same persistence/recovery
+    # pipeline as successful skills, preserving group membership after reload.
 
     # --- Promoted Embed Reference Type Fix ---
     # Streaming placeholders can start as code and later promote to notebook once

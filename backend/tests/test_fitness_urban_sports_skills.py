@@ -153,3 +153,131 @@ async def test_provider_failures_are_visible_errors() -> None:
     group = response["results"][0]
     assert group["result_count"] == 0
     assert group["error"] == "Urban Sports Club search failed: provider unavailable"
+
+
+# contract-test: supporting surface=cli assertions=app-skills.assistant.bounded-private-failure
+@pytest.mark.asyncio
+async def test_class_groups_overlap_preserve_order_and_isolate_failure(monkeypatch):
+    import asyncio
+
+    skill = SearchClassesSkill(None, 'fitness', 'search_classes', 'Search classes', 'Search classes')
+    from unittest.mock import Mock
+    from backend.apps.fitness.skills import search_classes
+    failure_log = Mock()
+    monkeypatch.setattr(search_classes.logger, "exception", failure_log)
+    all_started = asyncio.Event()
+    active = 0
+    peak = 0
+    completed = []
+
+    class Client:
+        async def search_classes(self, **kwargs):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            if active == 3:
+                all_started.set()
+            try:
+                await all_started.wait()
+                assert kwargs['days'] == 3
+                if kwargs['query'] == 'bad':
+                    raise RuntimeError('provider unavailable')
+                completed.append(kwargs['query'])
+                return [{'id': kwargs['query']}]
+            finally:
+                active -= 1
+
+    skill.client = Client()
+    result = await asyncio.wait_for(skill.execute(requests=[
+        {'id': value, 'query': value, 'days': 3} for value in ['first', 'bad', 'last', 'fourth']
+    ]), timeout=2)
+    assert peak == 3
+    assert [group['id'] for group in result['results']] == ['first', 'bad', 'last', 'fourth']
+    assert result['results'][1]['result_count'] == 0
+    assert 'provider unavailable' in result['results'][1]['error']
+    assert [group['results'][0]['id'] for group in result['results'] if not group.get('error')] == ['first', 'last', 'fourth']
+    assert sorted(completed) == ['first', 'fourth', 'last']
+    failure_log.assert_called_once_with('Urban Sports Club class search failed for group index %s', 1)
+    assert active == 0
+
+
+# contract-test: supporting surface=cli assertions=app-skills.assistant.bounded-private-failure
+@pytest.mark.asyncio
+async def test_class_group_cancellation_drains_running_and_queued_groups():
+    import asyncio
+
+    skill = SearchClassesSkill(None, 'fitness', 'search_classes', 'Search classes', 'Search classes')
+    started = asyncio.Event()
+    active = 0
+    calls = 0
+
+    class Client:
+        async def search_classes(self, **kwargs):
+            nonlocal active, calls
+            active += 1
+            calls += 1
+            if active == 3:
+                started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                active -= 1
+
+    skill.client = Client()
+    work = asyncio.create_task(skill.execute(requests=[{'query': str(i)} for i in range(5)]))
+    await asyncio.wait_for(started.wait(), 2)
+    work.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await work
+    assert active == 0
+    assert calls == 3
+
+
+# contract-test: supporting surface=cli assertions=app-skills.execution.registered-validated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("grouped", [False, True])
+@pytest.mark.parametrize("explicit_null", [False, True])
+async def test_class_optional_nulls_use_defaults_without_mutating_input(grouped, explicit_null):
+    from copy import deepcopy
+    from unittest.mock import AsyncMock
+
+    skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
+    skill.client.search_classes = AsyncMock(return_value=[])
+    item = {"query": "Yoga"}
+    if explicit_null:
+        item.update({key: None for key in ("min_spots", "limit", "days", "city", "language")})
+    before = deepcopy(item)
+    response = await skill.execute(requests=[item]) if grouped else await skill.execute(**item)
+    sent = skill.client.search_classes.call_args.kwargs
+    assert {key: sent[key] for key in ("min_spots", "limit", "days", "city", "language")} == {
+        "min_spots": 1, "limit": 10, "days": 1, "city": "Berlin", "language": "en",
+    }
+    assert response["results"][0]["filters"]["min_spots"] == 1
+    assert item == before
+
+
+# contract-test: supporting surface=cli assertions=app-skills.execution.registered-validated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("min_spots", [0, 3])
+async def test_class_spot_filter_preserves_explicit_zero_and_positive_values(min_spots):
+    from unittest.mock import AsyncMock
+
+    skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
+    skill.client.search_classes = AsyncMock(return_value=[])
+    response = await skill.execute(requests=[{"min_spots": min_spots}])
+    assert skill.client.search_classes.call_args.kwargs["min_spots"] == min_spots
+    assert response["results"][0]["filters"]["min_spots"] == min_spots
+
+
+# contract-test: supporting surface=cli assertions=app-skills.execution.registered-validated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", [{"min_spots": -1}, {"min_spots": "bad"}, {"limit": 0}, {"days": 15}])
+async def test_class_optional_default_normalization_keeps_validation_bounds(invalid):
+    from unittest.mock import AsyncMock
+    from pydantic import ValidationError
+
+    skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
+    skill.client.search_classes = AsyncMock()
+    with pytest.raises(ValidationError):
+        await skill.execute(requests=[invalid])
+    skill.client.search_classes.assert_not_called()

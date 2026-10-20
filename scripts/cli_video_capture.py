@@ -618,7 +618,10 @@ def capture_cli_video(
         time.sleep(0.4)
         if xvfb.poll() is not None:
             raise CliCaptureError(f"Xvfb exited before capture: {(xvfb.stderr.read() if xvfb.stderr else '').strip()}")
-        subprocess.run(["xsetroot", "-display", plan.display, "-solid", "#111827"], env=process_env, check=False, capture_output=True)
+        # A solid desktop background is cosmetic; the real Xvfb/terminal/FFmpeg
+        # capture remains available on minimal runners without X11 utilities.
+        if xsetroot := shutil.which("xsetroot"):
+            subprocess.run([xsetroot, "-display", plan.display, "-solid", "#111827"], env=process_env, check=False, capture_output=True)
         ffmpeg = subprocess.Popen(plan.ffmpeg_argv, env=process_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         started_at = time.monotonic()
         time.sleep(0.25)

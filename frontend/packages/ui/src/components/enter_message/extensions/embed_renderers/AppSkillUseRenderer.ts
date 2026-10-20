@@ -286,29 +286,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
 
       if (embedData) {
-        // CRITICAL FIX: Filter out error embeds with "superseded" message
-        // These are placeholder embeds that were replaced by multiple request-specific embeds
-        // They should not be rendered to avoid showing confusing error messages
-        if (embedData.status === "error") {
-          const errorContent = await decodeToonContent(embedData.content);
-          if (errorContent && errorContent.error) {
-            const errorMessage = errorContent.error;
-            if (
-              typeof errorMessage === "string" &&
-              errorMessage.includes("superseded")
-            ) {
-              console.debug(
-                "[AppSkillUseRenderer] Skipping superseded error embed:",
-                embedId,
-              );
-              // Don't render this embed - it was replaced by multiple specific embeds
-              disposeEmbedTree(content, false);
-              content.innerHTML = "";
-              return;
-            }
-          }
-        }
-
         // Decode TOON content (may be minimal for processing state)
         // Even in processing state, the content should have app_id and skill_id
         try {
@@ -415,14 +392,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       }
     }
 
-    // Determine status. Decrypted content is authoritative when present: stored embed rows can
-    // retain a stale top-level error/processing status even after encrypted content finished.
-    // Then check knownErrorEmbeds (for error embeds that are intentionally never persisted to
-    // IndexedDB), then attrs.status, then 'processing'.
-    // Without the knownErrorEmbeds check, error embeds show as "Completed" because:
-    // 1. embedData is null (error embeds are never stored by design)
-    // 2. attrs.status is 'finished' (set by the AI stream before the error signal arrived)
-    // 3. The error guard below never fires, and the card renders with 0 results as "Completed"
+    // Decrypted terminal status is authoritative; a failed execution remains a
+    // visible card. Resolver errors still provide a fallback for unavailable data.
     const statusEmbedId = attrs.contentRef?.replace("embed:", "") || "";
     const isKnownError = statusEmbedId
       ? isEmbedKnownError(statusEmbedId)
@@ -437,25 +408,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const hasFinishedDecodedContent =
       decodedStatus === "finished" ||
       (Array.isArray(decodedContent?.results) && decodedContent.results.length > 0) ||
-      Boolean(decodedContent?.embed_ids);
+      normalizeEmbedIdList(decodedContent?.embed_ids).length > 0;
     const status =
-      (hasFinishedDecodedContent ? "finished" : decodedStatus) ||
+      (decodedStatus === "error" || decodedStatus === "cancelled"
+        ? decodedStatus : hasFinishedDecodedContent ? "finished" : decodedStatus) ||
       embedData?.status ||
       (isKnownError ? "error" : null) ||
       attrs.status ||
       "processing";
-
-    // CRITICAL: Skip rendering error embeds - they should be hidden from users
-    // Failed skill executions should not be shown in the user experience
-    if (status === "error") {
-      console.debug(
-        `[AppSkillUseRenderer] Hiding error embed from user:`,
-        attrs.contentRef || attrs.id,
-      );
-      disposeEmbedTree(content, false);
-      content.innerHTML = "";
-      return;
-    }
 
     // CRITICAL: Merge query from multiple sources to ensure it's available for display
     // Priority: decodedContent > embedData > attrs
@@ -5828,8 +5788,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         appId,
         skillId,
         status: status as "processing" | "finished" | "error" | "cancelled",
-        provider: decodedContent?.provider || embedData?.provider || "",
-        resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
+        provider: status === "error" ? "" : decodedContent?.provider || embedData?.provider || "",
+        resultCount: status !== "error" && typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
         previewImageUrl,
         taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
         isMobile: false,

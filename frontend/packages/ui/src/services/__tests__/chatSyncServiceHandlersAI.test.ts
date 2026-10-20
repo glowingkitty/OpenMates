@@ -1447,6 +1447,52 @@ describe("handleSendEmbedDataImpl", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
+  it('encrypts and persists failed execution payloads instead of removing their cards', async () => {
+    const chatKey = new Uint8Array([1, 2, 3]);
+    mockChatDB.getChat.mockResolvedValue({ chat_id: 'chat-1', encrypted_chat_key: 'encrypted-chat-key' });
+    mockChatKeyManager.getKeySync.mockReturnValue(chatKey);
+    mockChatKeyManager.getKey.mockResolvedValue(chatKey);
+    mockDeriveEmbedKeyFromChatKey.mockResolvedValue(new Uint8Array([4, 5, 6]));
+    mockWrapEmbedKeyWithMasterKey.mockResolvedValue('wrapped-master-key');
+    mockWrapEmbedKeyWithChatKey.mockResolvedValue('wrapped-chat-key');
+    mockEncryptWithEmbedKey.mockImplementation(async value => `encrypted:${value}`);
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const content = JSON.stringify({ app_id: 'fitness', skill_id: 'search_classes', status: 'error', error: 'Request timed out', query: 'Evening classes', embed_ids: [] });
+    await handleSendEmbedDataImpl(service, { type: 'send_embed_data', payload: {
+      embed_id: 'failed-execution', type: 'app_skill_use', content, status: 'error',
+      chat_id: 'chat-1', message_id: 'message-1', user_id: 'user-1', task_id: 'task-1',
+    } } as unknown as Parameters<typeof handleSendEmbedDataImpl>[1]);
+    expect(mockEmbedStore.removeFromMemoryCache).not.toHaveBeenCalled();
+    expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+      'embed:failed-execution', expect.objectContaining({ status: 'error', encrypted_content: `encrypted:${content}` }),
+      'app_skill_use', expect.any(String), expect.objectContaining({ app_id: 'fitness', skill_id: 'search_classes' }), expect.any(Object),
+    );
+    expect(mockSendStoreEmbed).toHaveBeenCalledWith(service,
+      expect.objectContaining({ status: 'error', encrypted_content: `encrypted:${content}` }),
+      expect.objectContaining({ keys: expect.arrayContaining([
+        expect.objectContaining({ key_type: 'master', encrypted_embed_key: 'wrapped-master-key' }),
+        expect.objectContaining({ key_type: 'chat', encrypted_embed_key: 'wrapped-chat-key' }),
+      ]) }), expect.objectContaining({ embedId: 'failed-execution' }),
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'embedUpdated', detail: expect.objectContaining({ embed_id: 'failed-execution', task_id: 'task-1', status: 'error', isProcessing: false }),
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+  it('still removes cancelled budget placeholders without persisting them', async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    await handleSendEmbedDataImpl(service, { type: 'send_embed_data', payload: {
+      embed_id: 'cancelled-execution', type: 'app_skill_use', status: 'cancelled',
+      chat_id: 'chat-1', message_id: 'message-1', user_id: 'user-1', content: '',
+    } } as unknown as Parameters<typeof handleSendEmbedDataImpl>[1]);
+    expect(mockEmbedStore.removeFromMemoryCache).toHaveBeenCalledWith('embed:cancelled-execution');
+    expect(mockEmbedStore.putEncrypted).not.toHaveBeenCalled();
+    expect(mockSendStoreEmbed).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot,chats.persistence.client-encrypted
   it.each([["application", false], ["app_skill_use", true]] as const)("keeps referenced application files independent while %s composites preserve inheritance", async (type, inherited) => {
     const parentKey = new Uint8Array([4, 5, 6]);

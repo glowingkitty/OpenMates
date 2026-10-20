@@ -677,7 +677,8 @@ def test_main_does_not_fail_cli_capture_when_response_media_upload_fails(tmp_pat
     assert payload["manifest"]["response_media_error"].startswith("response_media:")
 
 
-def test_timeout_finalizes_video_and_keeps_failure_verdict(tmp_path, monkeypatch):
+@pytest.mark.parametrize("background_available", [True, False])
+def test_timeout_finalizes_video_and_keeps_failure_verdict(tmp_path, monkeypatch, background_available):
     import io
     from types import SimpleNamespace
 
@@ -730,13 +731,16 @@ def test_timeout_finalizes_video_and_keeps_failure_verdict(tmp_path, monkeypatch
 
     monkeypatch.setattr(module, "build_capture_plan", lambda **k: plan)
     monkeypatch.setattr(module.subprocess, "Popen", Process)
-    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: None)
+    background_calls = []
+    monkeypatch.setattr(module.shutil, "which", lambda name: "/usr/bin/xsetroot" if background_available else None)
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: background_calls.append(a[0]))
     monkeypatch.setattr(module.time, "sleep", lambda *a: None)
     result = module.capture_cli_video(
         argv=["openmates", "chats", "list"],
         output_dir=tmp_path,
         target_environment="isolated-test",
     )
+    assert bool(background_calls) is background_available
     assert result["exit_status"] == 124 and "ffmpeg" in finalized
     assert paths["manifest"].is_file() and result["video_sha256"]
 

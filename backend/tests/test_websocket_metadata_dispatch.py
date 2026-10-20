@@ -364,8 +364,14 @@ def test_sync_metadata_chats_is_scheduled_without_awaiting(monkeypatch):
 
 
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,assistant-speech.failure.nonblocking-visible-resumable
+@pytest.mark.parametrize("embed_type,status,delivered", [
+    ("app_skill_use", "finished", True),
+    ("app_skill_use", "error", True),
+    ("app_skill_use", "cancelled", False),
+    ("application", "error", False),
+])
 @pytest.mark.asyncio
-async def test_pending_embed_replay_is_capped_per_connection(monkeypatch):
+async def test_pending_embed_replay_is_capped_per_connection(monkeypatch, embed_type, status, delivered):
     websockets = _load_websockets_module(monkeypatch)
     sent = []
 
@@ -377,7 +383,8 @@ async def test_pending_embed_replay_is_capped_per_connection(monkeypatch):
             embed_id = key.removeprefix("embed:")
             return json.dumps(
                 {
-                    "status": "finished",
+                    "status": status,
+                    "type": embed_type,
                     "vault_key_id": "vault-1",
                     "encrypted_content": f"ciphertext-{embed_id}",
                     "chat_id": "chat-1",
@@ -419,7 +426,8 @@ async def test_pending_embed_replay_is_capped_per_connection(monkeypatch):
         "device-1",
     )
 
-    assert [event[0]["payload"]["embed_id"] for event in sent] == ["embed-0", "embed-1"]
+    assert [event[0]["payload"]["embed_id"] for event in sent] == (["embed-0", "embed-1"] if delivered else [])
+    assert all(event[0]["payload"]["status"] == status for event in sent)
     assert all(event[0]["type"] == "send_embed_data" for event in sent)
 
 

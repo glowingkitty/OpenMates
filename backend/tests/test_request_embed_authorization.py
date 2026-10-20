@@ -22,7 +22,8 @@ def _source_lookup(directus: SimpleNamespace, metadata: dict | None) -> None:
 
 # contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
-async def test_foreign_embed_id_is_denied_before_cache_read() -> None:
+@pytest.mark.parametrize("status", ["finished", "error"])
+async def test_foreign_embed_id_is_denied_before_cache_read(status) -> None:
     cache = SimpleNamespace(get=AsyncMock(return_value={"chat_id": "owned-chat"}))
     directus = SimpleNamespace(
         chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value={
@@ -30,6 +31,8 @@ async def test_foreign_embed_id_is_denied_before_cache_read() -> None:
         })),
         embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value={
             "embed_id": "foreign-embed", "hashed_chat_id": "foreign-chat-hash",
+            "status": status, "encryption_mode": "client",
+            "encrypted_type": "type-cipher", "encrypted_content": "content-cipher",
         })),
     )
     _source_lookup(directus, {"hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
@@ -354,3 +357,136 @@ async def test_legacy_personal_author_reads_only_verified_personal_source() -> N
         "include_master_keys": True,
     }
     assert manager.send_personal_message.await_args.args[0]["payload"]["content"] == "personal-ciphertext"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+@pytest.mark.parametrize('catalog', [False, True])
+async def test_owner_reloads_terminal_error_ciphertext_without_cache_or_decryption(catalog):
+    owner_hash = hashlib.sha256(b'owner').hexdigest()
+    row = {'embed_id': 'failed-skill', 'hashed_user_id': owner_hash,
+           'hashed_chat_id': hashlib.sha256(b'chat').hexdigest(),
+           'status': 'error', 'encryption_mode': 'client',
+           'encrypted_type': 'type-ciphertext', 'encrypted_content': 'content-ciphertext'}
+    if catalog:
+        row.update(app_id='fitness', skill_id='search_classes')
+    directus = SimpleNamespace(embed=SimpleNamespace(
+        get_embed_by_id=AsyncMock(return_value=row),
+        get_sync_embed_key_window_for_page=AsyncMock(return_value={
+            'embed_keys': [{'key_type': 'master', 'encrypted_embed_key': 'wrapper'}],
+            'has_more_after': False, 'end_cursor': None, 'oversized_key_id': None,
+        }),
+    ))
+    _source_lookup(directus, {'hashed_user_id': owner_hash, 'hashed_team_id': None})
+    cache = SimpleNamespace(get=AsyncMock())
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock())
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id='owner', device_fingerprint_hash='device',
+        payload={'embed_id': 'failed-skill', 'chat_id': 'chat'},
+    )
+    cache.get.assert_not_awaited()
+    encryption.decrypt_with_user_key.assert_not_awaited()
+    payload = manager.send_personal_message.await_args.args[0]['payload']
+    assert payload['status'] == 'error'
+    assert payload['type'] == 'type-ciphertext'
+    assert payload['content'] == 'content-ciphertext'
+    assert payload['already_encrypted'] is True
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+@pytest.mark.parametrize('kind', ['valid', 'cancelled', 'raw', 'vault', 'missing-mode', 'non-app', 'incomplete', 'invalid-content', 'decrypt-error'])
+async def test_cache_only_terminal_execution_error_is_decrypted_and_retained(kind):
+    from toon_format import encode
+
+    owner_hash = hashlib.sha256(b'owner').hexdigest()
+    cache_row = {'chat_id': 'chat', 'hashed_user_id': owner_hash, 'type': 'app_skill_use',
+                 'status': 'error', 'encryption_mode': 'client', 'encrypted_content': 'vault-cipher'}
+    if kind == 'cancelled':
+        cache_row['status'] = 'cancelled'
+    if kind == 'raw':
+        cache_row.pop('encrypted_content')
+        cache_row['error'] = 'raw provider details'
+    if kind == 'vault':
+        cache_row['encryption_mode'] = 'vault'
+        cache_row['encrypted_content'] = 'vault:v1:9Obx8WYnN6o=:Fv0Ds6QmEQk=:r41Zfb1S7HjHIMHn'
+    elif kind == 'missing-mode':
+        cache_row.pop('encryption_mode')
+    elif kind == 'non-app':
+        cache_row['type'] = 'document'
+    elif kind == 'incomplete':
+        cache_row['encrypted_content'] = {'malformed': 'ciphertext'}
+    content = {'app_id': 'fitness', 'skill_id': 'search_classes', 'status': 'error',
+               'error': 'Search failed. Please try again.', 'result_count': 0, 'embed_ids': []}
+    if kind == 'invalid-content':
+        content = {'status': 'error', 'reason': 'budget placeholder'}
+    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=AsyncMock(return_value=None)))
+    _source_lookup(directus, {'hashed_user_id': owner_hash, 'hashed_team_id': None})
+    redis = SimpleNamespace(delete=AsyncMock())
+
+    async def redis_client():
+        return redis
+
+    cache = SimpleNamespace(get=AsyncMock(return_value=cache_row), client=redis_client(),
+                            get_user_vault_key_id=AsyncMock(return_value='vault-key'))
+    # Suppression paths alone access the Redis client property.
+    if kind not in ('cancelled', 'raw', 'vault', 'missing-mode', 'non-app', 'incomplete'):
+        cache.client.close()
+        cache.client = None
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock(
+        return_value=encode(content), side_effect=RuntimeError('decrypt failed') if kind == 'decrypt-error' else None))
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id='owner', device_fingerprint_hash='device',
+        payload={'embed_id': 'failed-skill', 'chat_id': 'chat'},
+    )
+    if kind == 'valid':
+        payload = manager.send_personal_message.await_args.args[0]['payload']
+        assert payload['status'] == 'error'
+        assert payload['type'] == 'app_skill_use'
+        assert payload['content'] == encode(content)
+        redis.delete.assert_not_awaited()
+    elif kind in ('cancelled', 'raw', 'vault', 'missing-mode', 'non-app', 'incomplete'):
+        encryption.decrypt_with_user_key.assert_not_awaited()
+        payload = manager.send_personal_message.await_args.args[0]['payload']
+        if kind == 'cancelled':
+            assert payload['status'] == 'cancelled'
+        else:
+            assert manager.send_personal_message.await_args.args[0]['type'] == 'error'
+            assert 'content' not in payload
+            assert all(call.args[0]['type'] != 'send_embed_data' for call in manager.send_personal_message.await_args_list)
+        assert 'raw provider details' not in str(payload)
+        redis.delete.assert_awaited_once()
+    else:
+        manager.send_personal_message.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+@pytest.mark.parametrize('change', [
+    {'encryption_mode': 'vault'}, {'encryption_mode': None}, {'encrypted_content': ''},
+    {'encrypted_type': ''}, {'status': 'cancelled'}, {'status': 'processing'},
+])
+async def test_non_client_terminal_envelopes_are_not_served_as_readable_execution_errors(change):
+    owner_hash = hashlib.sha256(b'owner').hexdigest()
+    row = {'embed_id': 'failed-skill', 'hashed_user_id': owner_hash,
+           'hashed_chat_id': hashlib.sha256(b'chat').hexdigest(),
+           'status': 'error', 'encryption_mode': 'client',
+           'encrypted_type': 'type-cipher', 'encrypted_content': 'content-cipher', **change}
+    directus = SimpleNamespace(embed=SimpleNamespace(
+        get_embed_by_id=AsyncMock(return_value=row), get_sync_embed_key_window_for_page=AsyncMock()))
+    _source_lookup(directus, {'hashed_user_id': owner_hash, 'hashed_team_id': None})
+    cache = SimpleNamespace(get=AsyncMock(return_value=None))
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    await handle_request_embed(
+        websocket=None, manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=None, user_id='owner', device_fingerprint_hash='device',
+        payload={'embed_id': 'failed-skill', 'chat_id': 'chat'},
+    )
+    directus.embed.get_sync_embed_key_window_for_page.assert_not_awaited()
+    assert manager.send_personal_message.await_args.args[0] == {
+        'type': 'error', 'payload': {'message': 'Embed not found', 'status': 404},
+    }

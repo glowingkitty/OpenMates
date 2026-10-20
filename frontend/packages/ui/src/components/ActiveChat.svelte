@@ -163,6 +163,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { get } from 'svelte/store'; // Import get to read store values
     import { searchTextHighlightStore, codeLineHighlightStore } from '../stores/messageHighlightStore'; // For source quote text + code line highlighting in embed fullscreen
     import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
+    import { embedUpdateTargetIds } from '../utils/embedUpdateTargets';
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
@@ -2271,19 +2272,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Collect embed refs with their types so we can detect app-skill-use runs.
         const embedRefs: Array<{ type: string; embed_id: string }> = [];
         
-        // Collect all embed IDs that are known to have errored.
-        // _embedErrors is populated by the embedUpdated event handler when
-        // an embed's status transitions to 'error' (see ~line 4998).
-        const errorEmbedIds = new Set<string>();
-        for (const msg of messages) {
-            const errors = (msg as MessageWithEmbedMeta)._embedErrors;
-            if (errors) {
-                for (const id of errors) {
-                    errorEmbedIds.add(id);
-                }
-            }
-        }
-        
         const seenIds = new Set<string>();
         
         for (const message of messages) {
@@ -2299,11 +2287,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Extract embed references from markdown content
             const refs = extractEmbedReferences(markdownContent);
             for (const ref of refs) {
-                // Skip error embeds — they are hidden from the UI and should
-                // not appear in fullscreen prev/next navigation.
-                if (errorEmbedIds.has(ref.embed_id)) {
-                    continue;
-                }
                 // Avoid duplicates
                 if (!seenIds.has(ref.embed_id)) {
                     seenIds.add(ref.embed_id);
@@ -13578,7 +13561,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // actual embed data arrives. When `send_embed_data` stores the embed and dispatches
         // `embedUpdated`, we need to force a re-render so the embed content is displayed.
         const embedUpdatedHandler = ((event: CustomEvent) => {
-            const { chat_id, message_id, embed_id, type, status, isProcessing } = event.detail;
+            const { chat_id, message_id, task_id, embed_id, type, status, isProcessing } = event.detail;
             if (typeof chat_id === 'string') invalidateRecentChatWindow(chat_id);
             
             // Only process if this embed is for the current chat
@@ -13597,39 +13580,31 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // This will cause Tiptap to re-render embed NodeViews, which will now find
             // the embed data in the store and display the actual content instead of "Processing..."
             if (chatHistoryRef && currentMessages.length > 0) {
+                const targetIds = embedUpdateTargetIds(currentMessages, { message_id, task_id, embed_id });
+                if (targetIds.size === 0) return;
                 // CRITICAL: For error/cancelled embeds, check if the error is already tracked.
                 // If so, skip the re-render to prevent an infinite loop where:
                 //   error embed -> re-render -> resolveEmbed() -> request_embed -> send_embed_data(error)
                 //   -> embedUpdated(error) -> re-render -> ...
                 if (status === 'error' || status === 'cancelled') {
-                    const targetMsg = currentMessages.find(
-                        msg => msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant'
-                    );
-                    if (targetMsg) {
-                        const existingErrors: Set<string> = (targetMsg as MessageWithEmbedMeta)._embedErrors ?? new Set();
-                        if (existingErrors.has(embed_id)) {
-                            console.debug(`[ActiveChat] Error already tracked for embed ${embed_id}, skipping re-render to prevent loop`);
-                            return;
-                        }
-                    }
+                    if (currentMessages.filter(msg => targetIds.has(msg.message_id)).every(msg =>
+                        (msg as MessageWithEmbedMeta)._embedErrors?.has(embed_id))) return;
                 }
                 
                 // Create new message array references to force Svelte reactivity
                 // CRITICAL: We need to create NEW content objects to break reference equality
                 // so that ChatHistory detects the change and re-renders ReadOnlyMessage components
                 currentMessages = currentMessages.map(msg => {
-                    // Only update the specific message that contains this embed
-                    // For now, update all streaming/assistant messages to be safe
-                    if (msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant') {
+                    // Keep unrelated rendered documents and header images stable.
+                    if (targetIds.has(msg.message_id)) {
                         const updated: MessageWithEmbedMeta = {
                             ...(msg as MessageWithEmbedMeta),
                             // Add a timestamp to force content re-processing
                             _embedUpdateTimestamp: Date.now()
                         };
-                        // Track embed errors on the message so ChatMessage can show an error banner
-                        // instead of rendering the broken embed card
+                        // Track terminal errors without dropping their execution cards.
                         if (status === 'error') {
-                            const existingErrors: Set<string> = (msg as MessageWithEmbedMeta)._embedErrors ?? new Set();
+                            const existingErrors = new Set((msg as MessageWithEmbedMeta)._embedErrors ?? []);
                             existingErrors.add(embed_id);
                             (updated as MessageWithEmbedMeta)._embedErrors = existingErrors;
                             console.info(`[ActiveChat] Tracked embed error on message ${message_id}: embed ${embed_id}`);

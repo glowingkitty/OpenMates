@@ -95,6 +95,19 @@ DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 
+def _skill_routing_candidate(app_id: str, skill: Any) -> str:
+    """Carry public provider brands into both stages of skill selection."""
+    identifier = f"{app_id}-{skill.id}"
+    providers = list(dict.fromkeys(
+        provider.display_name or provider.name
+        for provider in (getattr(skill, "providers", None) or [])
+    ))
+    hint = (getattr(skill, "preprocessor_hint", None) or "").strip()
+    if providers:
+        hint = f"Providers: {', '.join(providers)}; {hint or skill.id}"
+    return f"{identifier}: {hint}" if hint else identifier
+
+
 def _resolve_override_model_provider(model_id: str, override_provider: Optional[str], config_manager_obj: Any) -> Optional[str]:
     """Return the canonical provider for a model override.
 
@@ -2607,7 +2620,7 @@ async def handle_preprocessing(
                     user_id=request_data.user_id, team_id=request_data.team_id,
                 )
             public_skills = [
-                f"{app_id}-{skill.id}: {skill.preprocessor_hint or skill.id}"
+                _skill_routing_candidate(app_id, skill)
                 for app_id, metadata in (discovered_apps_metadata or {}).items()
                 for skill in (getattr(metadata, "skills", None) or [])
                 if (app_id, skill.id) not in {("ai", "ask"), ("projects", "search")}
@@ -2998,11 +3011,7 @@ async def handle_preprocessing(
                     # Use hyphen format for skill identifiers (consistent with tool names)
                     skill_identifier = f"{app_id}-{skill.id}"
                     available_skill_ids.append(skill_identifier)
-                    # Include preprocessor_hint if available so the LLM can make informed skill selection decisions
-                    if skill.preprocessor_hint:
-                        available_skills_list.append(f"{skill_identifier}: {skill.preprocessor_hint.strip()}")
-                    else:
-                        available_skills_list.append(skill_identifier)
+                    available_skills_list.append(_skill_routing_candidate(app_id, skill))
 
     # Build list of available focus modes from discovered apps
     # Focus modes help the AI specialize for specific tasks (e.g., research, code writing)

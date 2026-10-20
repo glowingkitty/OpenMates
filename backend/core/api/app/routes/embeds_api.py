@@ -282,6 +282,18 @@ async def _reference_target_scope(
     return _hash_value(chat_id), actor_hash, bool(team_id), bool(rows)
 
 
+def _readable_embed_status_filter() -> dict[str, Any]:
+    """Classify terminal encrypted execution errors without reading private content.
+
+    Current owner/Team scope and wrappers remain the read authority. Catalog
+    metadata can arrive later than ciphertext; encrypted type stays opaque.
+    """
+    return {"_or": [
+        {"status": {"_eq": "finished"}},
+        {"status": {"_eq": "error"}, "encryption_mode": {"_eq": "client"}},
+    ]}
+
+
 async def _reference_availability(
     embed_ids: list[str], chat_hash: str, actor_hash: str, is_team: bool,
     directus_service: DirectusService, *, team_target_live: bool = True,
@@ -299,7 +311,7 @@ async def _reference_availability(
         ready_heads = await directus_service.get_items(
             "embeds", params={"filter": {**embed_filter,
                 "encrypted_content": {"_nempty": True},
-                "encrypted_type": {"_nempty": True}, "status": {"_eq": "finished"}},
+                "encrypted_type": {"_nempty": True}, **_readable_embed_status_filter()},
                 "fields": "embed_id", "limit": _REFERENCE_PROBE_LIMIT + 1},
             no_cache=True, admin_required=True, raise_on_error=True,
         )
@@ -323,7 +335,7 @@ async def _reference_availability(
             parent_rows = await directus_service.get_items(
                 "embeds", params={"filter": {"embed_id": {"_in": parent_ids},
                     "encrypted_content": {"_nempty": True},
-                    "encrypted_type": {"_nempty": True}, "status": {"_eq": "finished"}},
+                    "encrypted_type": {"_nempty": True}, **_readable_embed_status_filter()},
                     "fields": "embed_id,hashed_embed_id,hashed_user_id,hashed_chat_id,parent_embed_id",
                     "limit": _REFERENCE_PROBE_LIMIT + 1},
                 no_cache=True, admin_required=True, raise_on_error=True,
@@ -408,7 +420,7 @@ async def _reference_recovery_ack_proofs(
     try:
         heads = await directus_service.get_items("embeds", params={
             "filter": {"embed_id": {"_in": ready}},
-            "fields": "embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,parent_embed_id,root_embed_id,version_number,status",
+            "fields": "embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,parent_embed_id,root_embed_id,version_number,status,encryption_mode",
             "limit": _REFERENCE_PROBE_LIMIT + 1,
         }, no_cache=True, admin_required=True, raise_on_error=True)
         records = await directus_service.get_items("chat_recovery_outputs", params={
@@ -437,7 +449,9 @@ async def _reference_recovery_ack_proofs(
                     or (head.get("hashed_team_id") or None) != team_hash
                     or head.get("parent_embed_id") is not None
                     or head.get("root_embed_id") not in (None, embed_id)
-                    or head.get("status") != "finished"
+                    or not (head.get("status") == "finished" or (
+                        head.get("status") == "error" and head.get("encryption_mode") == "client"
+                    ))
                     or type(head.get("version_number")) is not int or head["version_number"] != version):
                 continue
             matching = [row for row in records if row.get("subject_id") == embed_id

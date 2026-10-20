@@ -2840,3 +2840,79 @@ async def test_ineligible_provider_prompt_omits_composer_output_reminder(monkeyp
     assert len(calls) == 1
     assert main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER not in calls[0]["system_prompt"]
     assert actual["follow_up_instruction"] not in calls[0]["system_prompt"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+@pytest.mark.parametrize("outcome,request_count,expected_errors,expected_successes", [
+    (TimeoutError(), 1, 1, 0),
+    (TimeoutError(), 2, 2, 0),
+    ([{"error": "Provider unavailable"}], 1, 1, 0),
+    ([{"results": [{"id": 1, "error": "Provider unavailable"}]}], 1, 1, 0),
+    ([{"results": [{"id": 1, "error": "Provider unavailable"}, {"id": 2, "results": []}]}], 2, 1, 1),
+    ([{"results": [{"id": 1, "results": []}]}], 1, 0, 1),
+    ([{"results": [{"id": "resource-1", "title": "Preserved flat result"}]}], 1, 0, 1),
+    ([{"results": [{"id": 1, "results": [], "status": "error"}, {"id": 2, "error": "Provider unavailable"}]}], 2, 2, 0),
+])
+async def test_skill_failure_finalization_preserves_all_placeholders_and_zero_hit_success(
+    monkeypatch, outcome, request_count, expected_errors, expected_successes,
+) -> None:
+    from backend.core.api.app.services import embed_service as embed_module
+
+    created = []
+    async def create_placeholder(**kwargs):
+        embed_id = f"execution-{len(created) + 1}"
+        result = {"embed_id": embed_id, "embed_reference": json.dumps({
+            "type": "app_skill_use", "embed_id": embed_id, "app_id": "web", "skill_id": "search",
+        })}
+        created.append(result)
+        return result
+
+    async def finalize_error(**kwargs):
+        return {"embed_id": kwargs["embed_id"], "status": "error", "child_embed_ids": [], "from_placeholder": True}
+    async def finalize_success(**kwargs):
+        return {"embed_id": kwargs["embed_id"], "status": "finished", "child_embed_ids": [], "from_placeholder": True}
+
+    errors = AsyncMock(side_effect=finalize_error)
+    successes = AsyncMock(side_effect=finalize_success)
+    fake_service = SimpleNamespace(create_processing_embed_placeholder=create_placeholder,
+                                   update_embed_status_to_error=errors, update_embed_with_results=successes)
+    monkeypatch.setattr(embed_module, "EmbedService", lambda **_kwargs: fake_service)
+    dispatched = AsyncMock(side_effect=outcome) if isinstance(outcome, Exception) else AsyncMock(return_value=outcome)
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_resolve_skill_preview_metadata", AsyncMock(return_value={}))
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    monkeypatch.setattr(main_processor, "_charge_skill_credits", AsyncMock())
+    published = AsyncMock()
+    monkeypatch.setattr(main_processor, "_publish_skill_status", published)
+    loop = asyncio.get_running_loop()
+    client = loop.create_future()
+    client.set_result(None)
+    cache = SimpleNamespace(client=client, get=AsyncMock(return_value=None), set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True))
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    requests = [{"query": f"query {index + 1}"} for index in range(request_count)]
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search", "arguments": {"requests": requests}, "tool_call_id": "search-call"}], ["Search complete."]],
+        cache_service=cache, directus_service=Mock(), user_vault_key_id="vault-key",
+        generated_tools=[tool], discovered_apps_metadata={"web": SimpleNamespace(skills=[SimpleNamespace(
+            id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
+            tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+        )], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"], "complexity": "simple"},
+    )
+    assert len(calls) == 2
+    assert len(created) == request_count
+    assert errors.await_count == expected_errors
+    assert successes.await_count == expected_successes
+    for call in errors.await_args_list:
+        assert call.kwargs["error_message"].strip()
+    for call in successes.await_args_list:
+        if isinstance(outcome, list) and outcome[0].get("results", [{}])[0].get("id") == "resource-1":
+            assert call.kwargs["results"][0]["id"] == "resource-1"
+            assert call.kwargs["results"][0]["title"] == "Preserved flat result"
+        else:
+            assert call.kwargs["results"] == []
+    terminal = [call.kwargs["status"] for call in published.await_args_list if call.kwargs["status"] != "processing"]
+    assert terminal == ["error" if expected_errors and not expected_successes else "finished"]
+    markdown = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert markdown.count('"type": "app_skill_use"') == request_count

@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Collection
 
 
 logger = logging.getLogger(__name__)
@@ -111,48 +110,3 @@ def canonicalize_app_skill_json_blocks(text: str, log_prefix: str = "") -> str:
         canonicalized_count,
     )
     return cleaned
-
-
-def strip_failed_app_skill_json_blocks(
-    text: str,
-    failed_embed_ids: Collection[str],
-    log_prefix: str = "",
-) -> tuple[str, int]:
-    """Remove app-skill protocol fences for embeds that failed during execution."""
-    if not text or not failed_embed_ids:
-        return text, 0
-
-    failed_ids = {
-        embed_id.strip() for embed_id in failed_embed_ids if embed_id.strip()
-    }
-    if not failed_ids:
-        return text, 0
-
-    stripped_count = 0
-
-    def replace_match(match: re.Match[str]) -> str:
-        nonlocal stripped_count
-        payload = _load_protocol_json_payload(match.group(1))
-        if payload is None:
-            return match.group(0)
-        if payload.get("type") != "app_skill_use":
-            return match.group(0)
-
-        embed_id = payload.get("embed_id")
-        if not isinstance(embed_id, str) or embed_id.strip() not in failed_ids:
-            return match.group(0)
-
-        stripped_count += 1
-        return ""
-
-    cleaned = APP_SKILL_EMBED_REFERENCE_FENCE_PATTERN.sub(replace_match, text)
-    if stripped_count == 0:
-        return text, 0
-
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
-    logger.info(
-        "%s [APP_SKILL_JSON_CLEANUP] Stripped %s failed app_skill_use JSON fence(s)",
-        log_prefix,
-        stripped_count,
-    )
-    return cleaned, stripped_count

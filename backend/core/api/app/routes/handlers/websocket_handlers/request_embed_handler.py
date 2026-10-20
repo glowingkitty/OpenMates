@@ -163,7 +163,13 @@ async def handle_request_embed(
         # A completed chat embed is the canonical client-encrypted record. Upload
         # cache entries are operational metadata and have no chat binding; reading
         # them first rejects another Team member (or risks returning Vault data).
-        if (directus_embed and directus_embed.get("status") == "finished"
+        terminal_execution_error = bool(
+            directus_embed and directus_embed.get("status") == "error"
+            and directus_embed.get("encryption_mode") == "client"
+            and isinstance(directus_embed.get("encrypted_content"), str) and directus_embed["encrypted_content"].strip()
+            and isinstance(directus_embed.get("encrypted_type"), str) and directus_embed["encrypted_type"].strip()
+        )
+        if (directus_embed and (directus_embed.get("status") == "finished" or terminal_execution_error)
                 and directus_embed.get("encryption_mode") in (None, "client")
                 and directus_embed.get("encrypted_content")
                 and directus_embed.get("encrypted_type")):
@@ -188,7 +194,7 @@ async def handle_request_embed(
                     "embed_id": embed_id,
                     "type": directus_embed["encrypted_type"],
                     "content": directus_embed["encrypted_content"],
-                    "status": "finished",
+                    "status": directus_embed["status"],
                     "chat_id": chat_id or directus_embed.get("hashed_chat_id"),
                     "message_id": directus_embed.get("hashed_message_id"),
                     "user_id": user_id,
@@ -317,30 +323,41 @@ async def handle_request_embed(
             # without full vault decryption, and remove from cache to prevent repeated lookups.
             # The client's embedResolver will mark this embed as a known error
             # to prevent re-requesting it on every render cycle.
-            if cached and cached.get("status") in ("error", "cancelled"):
+            cached_execution_error = bool(
+                cached and cached.get("status") == "error" and cached.get("type") == "app_skill_use"
+                and cached.get("encryption_mode") == "client"
+                and isinstance(cached.get("encrypted_content"), str) and cached["encrypted_content"].strip()
+            )
+            if cached and cached.get("status") in ("error", "cancelled") and not cached_execution_error:
                 logger.info(
                     f"{log_prefix}Embed has status='{cached.get('status')}' in cache, "
                     f"sending error status to client and removing from cache"
                 )
-                error_payload = {
-                    "event": "send_embed_data",
-                    "type": "send_embed_data",
-                    "event_for_client": "send_embed_data",
-                    "payload": {
-                        "embed_id": embed_id,
-                        "type": cached.get("type") or "app_skill_use",
-                        "content": cached.get("encrypted_content", ""),
-                        "status": cached.get("status"),
-                        "chat_id": cached.get("chat_id") or cached.get("hashed_chat_id"),
-                        "message_id": cached.get("message_id") or cached.get("hashed_message_id"),
-                        "user_id": user_id,
-                        "embed_ids": cached.get("embed_ids"),
-                        "parent_embed_id": cached.get("parent_embed_id"),
-                        "is_private": cached.get("is_private", False),
-                        "is_shared": cached.get("is_shared", False),
+                if cached.get("status") == "error":
+                    # Rejected operational failures are not execution results.
+                    # Never expose Vault ciphertext as plaintext TOON: clients
+                    # persist legitimate terminal error deliveries.
+                    await not_found()
+                else:
+                    error_payload = {
+                        "event": "send_embed_data",
+                        "type": "send_embed_data",
+                        "event_for_client": "send_embed_data",
+                        "payload": {
+                            "embed_id": embed_id,
+                            "type": cached.get("type") or "app_skill_use",
+                            "content": cached.get("encrypted_content", ""),
+                            "status": cached.get("status"),
+                            "chat_id": cached.get("chat_id") or cached.get("hashed_chat_id"),
+                            "message_id": cached.get("message_id") or cached.get("hashed_message_id"),
+                            "user_id": user_id,
+                            "embed_ids": cached.get("embed_ids"),
+                            "parent_embed_id": cached.get("parent_embed_id"),
+                            "is_private": cached.get("is_private", False),
+                            "is_shared": cached.get("is_shared", False),
+                        }
                     }
-                }
-                await manager.send_personal_message(error_payload, user_id, device_fingerprint_hash)
+                    await manager.send_personal_message(error_payload, user_id, device_fingerprint_hash)
 
                 # Remove the error embed from cache so we don't keep sending it
                 # on repeated requests. The client-side knownErrorEmbeds set will
@@ -429,6 +446,24 @@ async def handle_request_embed(
             if not plaintext_content:
                 logger.warning(f"{log_prefix}Could not decrypt embed content")
                 return
+
+            if cached_execution_error:
+                # Operational cache ciphertext is Vault-encrypted, unlike the
+                # permanent client envelope. Admit only an actual terminal
+                # execution result after the existing principal check/decrypt.
+                from toon_format import decode
+                try:
+                    error_content = decode(plaintext_content)
+                except Exception:
+                    logger.warning("%sInvalid cached execution error content", log_prefix)
+                    return
+                if (not isinstance(error_content, dict) or error_content.get("status") != "error"
+                        or not isinstance(error_content.get("error"), str) or not error_content["error"].strip()
+                        or not isinstance(error_content.get("app_id"), str) or not error_content["app_id"].strip()
+                        or not isinstance(error_content.get("skill_id"), str) or not error_content["skill_id"].strip()
+                        or error_content.get("result_count") != 0 or error_content.get("embed_ids") != []):
+                    logger.warning("%sCached error is not a terminal app-skill result", log_prefix)
+                    return
 
             embed_type = cached.get("type") or "app_skill_use"
 

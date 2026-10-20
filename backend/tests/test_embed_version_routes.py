@@ -944,8 +944,21 @@ class ReferenceDirectus:
             ids = params["filter"]["embed_id"]["_in"]
             rows = [self.heads[value] for value in ids if value in self.heads]
             if "encrypted_content" in params["filter"]:
-                rows = [row for row in rows if row.get("encrypted_content")
-                        and row.get("encrypted_type") and row.get("status") == "finished"]
+                def matches(row, filters):
+                    for field, condition in filters.items():
+                        if field == "_or":
+                            if not any(matches(row, option) for option in condition):
+                                return False
+                        elif "_eq" in condition and row.get(field) != condition["_eq"]:
+                            return False
+                        elif "_nempty" in condition and not row.get(field):
+                            return False
+                        elif "_null" in condition and row.get(field) is not None:
+                            return False
+                        elif "_in" in condition and row.get(field) not in condition["_in"]:
+                            return False
+                    return True
+                rows = [row for row in rows if matches(row, params["filter"])]
         elif collection == "embed_keys":
             key_filter = params["filter"]
             hashes = set(key_filter["hashed_embed_id"]["_in"])
@@ -1277,12 +1290,14 @@ async def probe_ack(directus):
 
 # contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,storage.cold.discoverable-bounded
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["finished", "error"])
 async def test_reference_ack_proof_uses_existing_fresh_canonical_status_and_preserves_old_wire(
-    monkeypatch,
+    monkeypatch, status,
 ):
     from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 
     directus = RecoveryAckReferenceDirectus()
+    directus.heads["owned-1"].update(status=status, encryption_mode="client")
     calls = []
 
     async def execute(_self, operation, body):
@@ -1635,3 +1650,64 @@ async def test_mounted_exact_embed_route_retains_readiness_and_child_access_deni
     assert response.status_code == 404, response.text
     assert "encrypted_content" not in response.text
     assert "encrypted_embed_key" not in response.text
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_terminal_execution_error_is_readable_only_with_existing_owner_wrapper():
+    directus = ReferenceDirectus()
+    directus.heads['owned-1'].update(status='error', encryption_mode='client',
+                                    app_id='fitness', skill_id='search_classes')
+    options = dict(chat_id=PERSONAL_CHAT, request=SimpleNamespace(),
+                   current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    state = await reference_probe(payload={'embed_ids': ['owned-1']}, **options)
+    assert state == {'results': [{'embed_id': 'owned-1', 'state': 'ready'}]}
+    assert 'cipher' not in json.dumps(state)
+    result = await get_chat_embed_by_id(embed_id='owned-1', **options)
+    assert result['embed']['status'] == 'error'
+    assert result['embed']['encrypted_type'] == 'type-cipher'
+    assert result['embed']['encrypted_content'] == 'content-cipher'
+    directus.heads['owned-1'].pop('app_id')
+    directus.heads['owned-1'].pop('skill_id')
+    without_catalog = await get_chat_embed_by_id(embed_id='owned-1', **options)
+    assert without_catalog['embed']['status'] == 'error'
+    directus.keys.clear()
+    with pytest.raises(HTTPException) as denied:
+        await get_chat_embed_by_id(embed_id='owned-1', **options)
+    assert denied.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', [
+    {'status': 'cancelled'}, {'status': 'processing'}, {'encryption_mode': 'vault'},
+    {'encryption_mode': None}, {'encrypted_content': ''}, {'encrypted_type': ''},
+])
+async def test_reference_error_read_rejects_incomplete_or_non_execution_envelopes(change):
+    directus = ReferenceDirectus()
+    directus.heads['owned-1'].update(status='error', encryption_mode='client',
+                                    app_id='fitness', skill_id='search_classes')
+    directus.heads['owned-1'].update(change)
+    result = await reference_probe(
+        chat_id=PERSONAL_CHAT, request=SimpleNamespace(), payload={'embed_ids': ['owned-1']},
+        current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus,
+    )
+    assert result == {'results': [{'embed_id': 'owned-1', 'state': 'unusable'}]}
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure,storage.cold.shared-team-authorized
+@pytest.mark.asyncio
+async def test_reference_execution_error_still_masks_foreign_owner_and_removed_team_member():
+    directus = ReferenceDirectus()
+    directus.heads['foreign-1'].update(status='error', encryption_mode='client',
+                                      app_id='fitness', skill_id='search_classes')
+    options = dict(request=SimpleNamespace(), payload={'embed_ids': ['foreign-1']},
+                   current_user=SimpleNamespace(id=OWNER_ID), directus_service=directus)
+    result = await reference_probe(chat_id=PERSONAL_CHAT, **options)
+    assert result == {'results': [{'embed_id': 'foreign-1', 'state': 'missing'}]}
+    result = await reference_probe(chat_id=TEAM_CHAT, team_id='team-1', **options)
+    assert result == {'results': [{'embed_id': 'foreign-1', 'state': 'ready'}]}
+    directus.team_role = None
+    with pytest.raises(HTTPException) as denied:
+        await reference_probe(chat_id=TEAM_CHAT, team_id='team-1', **options)
+    assert denied.value.status_code == 404

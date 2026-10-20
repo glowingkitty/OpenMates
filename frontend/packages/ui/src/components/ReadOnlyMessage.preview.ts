@@ -1,4 +1,6 @@
 /** Focused parsed-message states for the read-only renderer. */
+import { encode } from '@toon-format/toon';
+import { embedStore } from '../services/embedStore';
 const defaultProps = {
   role: 'user' as const,
   content: 'A saved message.',
@@ -21,9 +23,47 @@ const codeEmbed = {
   },
 };
 
+const skillExecution = (id: string, status: 'error' | 'finished') => {
+  // Static records model decrypted persisted output, including a stale finished
+  // transport status. The TOON execution status must win after initial load/reload.
+  embedStore.registerStaticEmbed({
+    embedId: id, type: 'app-skill-use', appId: 'fitness', skillId: 'search_classes',
+    content: encode({ app_id: 'fitness', skill_id: 'search_classes', status,
+      error: status === 'error' ? 'The request timed out. Please try again.' : null,
+      query: id === 'failed-fitness' ? 'Evening classes' : 'Morning classes',
+      provider: 'Urban Sports Club', result_count: 0, embed_ids: [],
+    }),
+  });
+  return { type: 'embed', attrs: {
+    id, type: 'app-skill-use', status: 'finished', contentRef: `embed:${id}`,
+    app_id: 'fitness', skill_id: 'search_classes',
+  } };
+};
+const failedFitness = skillExecution('failed-fitness', 'error');
+const successfulFitness = skillExecution('successful-fitness', 'finished');
+
 export default defaultProps;
 
 export const variants = {
+  failedSkillExecution: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'The class search could not complete.' }] },
+      { type: 'paragraph', content: [failedFitness] },
+    ] },
+  },
+  groupedFailedSkillExecution: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'One search failed; the other completed.' }] },
+      { type: 'paragraph', content: [{ type: 'embed', attrs: {
+        id: 'fitness-execution-group', type: 'app-skill-use-group', status: 'finished', contentRef: '',
+        groupedItems: [failedFitness.attrs, successfulFitness.attrs], groupCount: 2,
+      } }] },
+    ] },
+  },
   multilineUser: {
     ...defaultProps,
     content: 'Find **social posts** about rainy-day cafes.\nKeep the source link on its own line.\n\n\nInclude a short summary after the gap.',

@@ -2751,8 +2751,8 @@ async def _deliver_pending_embeds(
                     embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json
                 )
 
-                # Only re-send finished embeds
-                if embed_data.get("status") != "finished":
+                # Re-send completed output and visible failed app-skill executions.
+                if embed_data.get("status") != "finished" and not (embed_data.get("status") == "error" and embed_data.get("type") == "app_skill_use"):
                     continue
 
                 # Decrypt vault-encrypted content
@@ -2778,7 +2778,7 @@ async def _deliver_pending_embeds(
                     "embed_id": embed_id,
                     "type": embed_data.get("type", "app_skill_use"),
                     "content": plaintext_toon,
-                    "status": "finished",
+                    "status": embed_data["status"],
                     "chat_id": embed_data.get("chat_id", ""),
                     "message_id": embed_data.get("message_id", ""),
                     "user_id": user_id,

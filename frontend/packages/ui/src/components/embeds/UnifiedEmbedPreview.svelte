@@ -213,11 +213,10 @@
       }
     }
     
-    // CRITICAL: Do NOT refetch for error/cancelled embeds.
-    // Error embeds are never persisted to IndexedDB, so refetchFromStore() would
-    // call resolveEmbed() which would find nothing and re-request from server,
-    // creating an infinite loop. The status update above is sufficient for the UI.
-    if (newStatus === 'error' || newStatus === 'cancelled') {
+    // Cancelled placeholders are cleanup-only. Failed executions now persist,
+    // so refetch them to settle child details as well as the card status.
+    // The resolver retains suppression for actual fetch/decryption failures.
+    if (newStatus === 'cancelled') {
       return;
     }
     
@@ -285,10 +284,17 @@
             needsContentRecovery = false; // Content delivered — cancel pending retries
             storedInputEmbedIds = Array.isArray(decodedContent.input_embed_ids)
               ? decodedContent.input_embed_ids.filter((id): id is string => typeof id === 'string') : [];
-            onEmbedDataUpdated?.({
-              status: typeof embedData.status === 'string' ? embedData.status : status,
-              decodedContent
-            });
+            // Recovery can retain stale outer status metadata. The decrypted
+            // execution's terminal status is authoritative for both this card
+            // and its child details, including failed zero-child executions.
+            const contentStatus = decodedContent.status;
+            const resolvedStatus = contentStatus === 'finished' || contentStatus === 'error' || contentStatus === 'cancelled'
+              ? contentStatus : typeof embedData.status === 'string' ? embedData.status : status;
+            if (resolvedStatus === 'finished' || resolvedStatus === 'error' || resolvedStatus === 'cancelled') {
+              localStatus = resolvedStatus;
+              storeResolved = true;
+            }
+            onEmbedDataUpdated?.({ status: resolvedStatus, decodedContent });
           }
         } else if (onEmbedDataUpdated && embedData.status === 'finished' && !embedData.content) {
           // TOON plaintext content missing for a finished embed — request from server.

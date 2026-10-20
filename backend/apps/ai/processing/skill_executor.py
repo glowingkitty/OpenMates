@@ -38,9 +38,14 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
 
     Shopping comparison has a 25-second optional-work ceiling across discovery
     and ranking. Leave five seconds for normalization and result delivery. Each
-    request in a bulk call shares this selection; other skills keep their default.
+    request in a bulk call shares this selection. Fitness class searches need
+    sixty seconds for bounded date discovery and venue enrichment; other skills
+    keep their default.
     Callers passing an explicit timeout to the executor retain that exact value.
     """
+    # Public class search spans up to fourteen dates plus venue enrichment.
+    if (app_id, skill_id) == ("fitness", "search_classes"):
+        return 60.0
     if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
         return DEFAULT_SKILL_TIMEOUT
     requests = arguments.get("requests", [arguments])
