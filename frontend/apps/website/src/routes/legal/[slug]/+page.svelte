@@ -33,9 +33,9 @@
 </main>
 <footer class="site-footer"><a href={`/legal/privacy?lang=${data.locale}`}>{copy.privacy}</a><a href={`/legal/terms?lang=${data.locale}`}>{copy.terms}</a><a href={`/legal/imprint?lang=${data.locale}`}>{copy.imprint}</a></footer>
 <style>
-  .site-footer { display:flex; justify-content:space-between; gap:1.5rem; padding:1.5rem max(1.5rem, calc((100vw - 900px)/2)); }
-  .legal-document { max-width:900px; margin:auto; padding:2rem 1.5rem 5rem; line-height:1.7; }
-  .legal-document :global(h1) { font-size:clamp(2rem,4vw,3rem); }
+  .site-footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:1.5rem; padding:1.5rem max(1.5rem, calc((100vw - 900px)/2)); }
+  .legal-document { max-width:900px; margin:auto; padding:2rem 1.5rem 5rem; line-height:1.7; overflow-wrap:anywhere; }
+  .legal-document :global(h1) { font-size:clamp(1.75rem,4vw,3rem); hyphens:auto; }
   .legal-document :global(h2) { margin-top:2.5rem; }
   .legal-document :global(a) { color:var(--color-primary); overflow-wrap:anywhere; }
 </style>

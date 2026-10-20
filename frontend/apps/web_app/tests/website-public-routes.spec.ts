@@ -285,6 +285,7 @@ test('news subscriptions open the standalone public form in the publication lang
 
 // contract-test: direct surface=gui.web assertions=marketing-landing.public-content
 test('privacy, terms, and imprint are full styled public documents', async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const noPrivateStartup = watchPrivateStartup(page);
   for (const slug of ['privacy', 'terms', 'imprint']) {
     let english = '';
@@ -314,10 +315,44 @@ test('privacy, terms, and imprint are full styled public documents', async ({ pa
       await expect(page).toHaveURL(site(`/legal/${slug}?lang=${locale === 'de' ? 'en' : 'de'}`));
       await page.goto(site(route), { waitUntil: 'domcontentloaded' });
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      await page.evaluate(() => document.fonts.ready);
       await expect(article.locator('h1')).toBeVisible();
+      for (const width of [320, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        const layout = await article.evaluate(element => {
+          const title = element.querySelector('h1')!;
+          const footer = document.querySelector('.site-footer')!;
+          return {
+            pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            articleOverflow: element.scrollWidth - element.clientWidth,
+            headingOverflow: [...element.querySelectorAll('h1, h2, h3')].map(heading => heading.scrollWidth - heading.clientWidth),
+            tableWidths: [...element.querySelectorAll('table')].map(table => table.getBoundingClientRect().width),
+            articleWidth: element.getBoundingClientRect().width,
+            titleHeight: title.getBoundingClientRect().height,
+            titleLineHeight: Number.parseFloat(getComputedStyle(title).lineHeight),
+            footerOverflow: footer.scrollWidth - footer.clientWidth,
+          };
+        });
+        // The shared public header has a separate pre-existing 320px minimum;
+        // verify the entire page at 390px and legal content/footer at both widths.
+        if (width === 390) expect(layout.pageOverflow, `${route} must fit the mobile viewport`).toBeLessThanOrEqual(1);
+        expect(layout.articleOverflow, `${route} must wrap rather than clip legal text at ${width}px`).toBeLessThanOrEqual(1);
+        expect(layout.footerOverflow, `${route} footer links must wrap at ${width}px`).toBeLessThanOrEqual(1);
+        for (const overflow of layout.headingOverflow) expect(overflow).toBeLessThanOrEqual(1);
+        for (const tableWidth of layout.tableWidths) expect(tableWidth).toBeLessThanOrEqual(layout.articleWidth + 1);
+        if (width === 390 && locale === 'de' && slug === 'privacy') {
+          expect(layout.titleHeight, 'the German privacy title must not strand its ending on a second line').toBeLessThanOrEqual(layout.titleLineHeight + 1);
+        }
+      }
       const body = await article.innerText();
       expect(body.length, `${route} must contain the complete legal document`).toBeGreaterThan(slug === 'imprint' ? 50 : 1_000);
       await expect(article.locator('h2')).not.toHaveCount(0);
+      if (slug === 'privacy') {
+        const providers = article.getByRole('table');
+        await expect(providers.getByRole('columnheader')).toHaveCount(4);
+        await expect(providers.locator('tbody tr > td:first-child').filter({ hasText: /^AWS Bedrock(?:\s|$)/ })).toHaveCount(1);
+        expect(await providers.getByRole('row').count(), 'the complete provider disclosure stays in its accessible table').toBeGreaterThan(10);
+      }
       if (slug === 'imprint') {
         await expect(article).toContainText('contact@openmates.org');
         await expect(article.locator('img')).toHaveCount(4);
