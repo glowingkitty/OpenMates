@@ -2605,6 +2605,51 @@ async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_s
     assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.images.reference-handoff,shopping-search.relevance.truthful-fallback
+@pytest.mark.parametrize("flow", ["initial-answer", "tool-synthesis", "answer-recovery"])
+async def test_real_shopping_answer_policy_survives_every_model_dispatch(monkeypatch, flow):
+    import yaml
+    from backend.shared.python_schemas.app_metadata_schemas import AppInstructionDefinition
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/shopping/app.yml").read_text())
+    instructions = [AppInstructionDefinition.model_validate(row) for row in app["instructions"]]
+    [policy] = instructions
+    assert policy.tool_phase_only is False
+    assert policy.categories is None and policy.for_embed_types is None
+    answer = "The catalogue names a striped beige fabric; its similarity score is 3.1/4."
+    tool = {"type": "function", "function": {"name": "shopping-search_products", "description": "Search."}}
+    schema = {"type": "object", "properties": {"query": {"type": "string"}}}
+    if flow == "tool-synthesis":
+        monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", AsyncMock(
+            return_value=[{"id": 1, "results": [{"title": "Striped beige fabric"}]}]))
+        streams = [[{"fake_google_tool_call": "shopping-search_products", "arguments": {"query": "fabric"}}], [answer]]
+    elif flow == "answer-recovery":
+        streams = [["```toon\napp_id: shopping\nskill_id: search_products\nstatus: finished\n```"], [answer]]
+    else:
+        streams = [[answer]]
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams, generated_tools=[tool] if flow == "tool-synthesis" else [],
+        discovered_apps_metadata={"shopping": SimpleNamespace(
+            skills=[SimpleNamespace(id="search_products", parallel_safe=False, pricing=None,
+                                    exclude_fields_for_llm=None, tool_schema=schema)],
+            instructions=instructions, focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": ["shopping"], "relevant_app_skills": ["shopping-search_products"]},
+        request_overrides={"has_image_upload_embed": True,
+                           "embed_file_path_index": {"fabric.jpg": "private-image-id"},
+                           "current_user_content": "Find fabric using fabric.jpg without inspecting it."},
+    )
+    assert len(calls) == (1 if flow == "initial-answer" else 2)
+    for call in calls:
+        assert policy.instruction in call["system_prompt"]
+        assert "data:image/" not in json.dumps(call["message_history"])
+    if flow == "tool-synthesis":
+        assert any(message.get("role") == "tool" for message in calls[-1]["message_history"])
+    elif flow == "answer-recovery":
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]
+        assert calls[-1]["tools"] is None
+
+
 # contract-test: direct surface=rest_api assertions=app-skills.images.reference-handoff
 @pytest.mark.parametrize("skill,field", [
     ("shopping-search_products", "reference_images"),

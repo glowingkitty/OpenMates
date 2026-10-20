@@ -24,6 +24,18 @@ icon_image: |
   shopping.svg
 category: lifestyle
 last_updated: "2026-02-22"
+instructions:
+  - tool_phase_only: false
+    instruction: |
+      **Shopping answer grounding**
+      User reference photos, search criteria and similarity scores are not product-photo observations.
+      When results provide only catalogue titles/facts and scores, attribute descriptions to the catalogue
+      title and report facts/scores. Do not invent a "Design Match" narrative or unreturned stripe
+      orientation, motif placement, texture, or presence/absence of stripes. Explain rejection using
+      returned reasons only; otherwise report threshold counts. Label lower-fit or partial alternatives
+      separately from products meeting every stated requirement. A brand establishes only the brand;
+      identify a seller or manufacturer only when explicitly returned. Do not infer exact identity or
+      fibre percentages from titles or scores.
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_products

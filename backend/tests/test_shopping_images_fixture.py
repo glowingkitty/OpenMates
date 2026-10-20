@@ -15,13 +15,56 @@ from backend.apps.ai.testing.shopping_images_fixture import (
     DIRECT_REFERENCE_PROMPT, DIRECT_REFERENCE_QUERY, DIRECT_REFERENCE_IMAGE,
     DIRECT_REFERENCE_RESPONSE,
     DIRECT_SEARCH_PROMPT, LENS_FIXTURE_KEY, synthetic_http_response,
-    _direct_image_references,
+    _direct_image_references, _shopping_answer_policy,
 )
 from toon_format import decode, encode
 from backend.shared.providers.typesafe import budget as jev_budget
 from backend.shared.testing.api_response_cache import ApiResponseCache
 from backend.shared.testing.mock_context import mock_group_var, mock_mode_var
 from backend.apps.ai.utils.app_skill_result_groups import SHOPPING_GROUNDING_NOTICE
+
+
+def _with_shopping_policy(messages):
+    policy = _shopping_answer_policy()
+    assert policy
+    return [{"role": "system", "content": policy}, *messages]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["initial", "post-tool", "recovery"])
+@pytest.mark.parametrize("placement", ["system", "missing", "altered-system", "user-only"])
+async def test_direct_shopping_provider_wire_requires_real_system_policy(shopping_replay, tmp_path, phase, placement):
+    from backend.apps.ai.utils.app_skill_result_groups import shopping_result_parent_metadata, shopping_result_payload
+
+    async def forbidden(**_kwargs):
+        raise AssertionError("Signed fixture must not contact a model provider")
+
+    policy = _shopping_answer_policy()
+    user = f"{DIRECT_REFERENCE_PROMPT}\n[!](embed:sample.png)"
+    messages = [{"role": "user", "content": user}]
+    if placement == "system":
+        messages.insert(0, {"role": "system", "content": policy})
+    elif placement == "altered-system":
+        messages.insert(0, {"role": "system", "content": policy.replace("brand", "seller", 1)})
+    elif placement == "user-only":
+        messages[0]["content"] += "\n" + policy
+    if phase != "initial":
+        row = {"title": "Synthetic direct reference product", "visual_match_status": "evaluated"}
+        metadata = shopping_result_parent_metadata([{"id": 1, "results": [row], "visual_evaluation": {
+            "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}])
+        messages.append({"role": "tool", "content": encode(shopping_result_payload([row], metadata))})
+        if phase == "recovery":
+            messages.append({"role": "assistant", "content": "```toon\nstatus: finished\n```"})
+    wrapped = wrap_provider_with_cache(forbidden, ApiResponseCache(root=tmp_path))
+    stream = await wrapped(model="gemini-fixture", stream=True, messages=messages,
+                           tools=[{"function": {"name": "shopping-search_products"}}])
+    chunks = [chunk async for chunk in stream]
+    if placement != "system":
+        assert chunks == ["REGRESSION: Shopping answer policy is missing from the system message."]
+    elif phase == "initial":
+        assert len(chunks) == 1 and chunks[0].function_name == "shopping-search_products"
+    else:
+        assert chunks == [DIRECT_REFERENCE_RESPONSE]
 
 
 @pytest.fixture
@@ -48,7 +91,7 @@ def test_direct_reference_dispatch_preserves_exact_upload_without_view(shopping_
                   "duplicate-toon": structured + "\n" + structured}[representation]
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True,
-        "messages": [{"role": "user", "content": f"{DIRECT_REFERENCE_PROMPT}\n{attachment}"}],
+        "messages": _with_shopping_policy([{"role": "user", "content": f"{DIRECT_REFERENCE_PROMPT}\n{attachment}"}]),
         "tools": [{"function": {"name": "shopping-search_products"}},
                   {"function": {"name": "images-view"}}],
     })
@@ -110,7 +153,7 @@ def test_direct_dispatch_accepts_embed_service_inline_upload_metadata(shopping_r
         content += f"\n[!](embed:{reference})"
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True,
-        "messages": [{"role": "user", "content": content}],
+        "messages": _with_shopping_policy([{"role": "user", "content": content}]),
         "tools": [{"function": {"name": tool}}],
     })
     [chunk] = result["response"]["chunks"]
@@ -125,7 +168,7 @@ def test_direct_dispatch_accepts_embed_service_inline_upload_metadata(shopping_r
 def test_direct_reference_dispatch_still_requires_one_distinct_image(shopping_replay, prompt, tool):
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True,
-        "messages": [{"role": "user", "content": f"{prompt}\n[!](embed:first.png)\n[!](embed:second.png)"}],
+        "messages": _with_shopping_policy([{"role": "user", "content": f"{prompt}\n[!](embed:first.png)\n[!](embed:second.png)"}]),
         "tools": [{"function": {"name": tool}}],
     })
     [chunk] = result["response"]["chunks"]
@@ -147,8 +190,8 @@ def test_direct_reference_answer_depends_on_actual_comparison_metadata(shopping_
         payload = _flatten_for_toon_tabular(payload)
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True,
-        "messages": [{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
-                     {"role": "tool", "content": json.dumps(payload)}], "tools": [],
+        "messages": _with_shopping_policy([{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
+                     {"role": "tool", "content": json.dumps(payload)}]), "tools": [],
     })
     answer = result["response"]["chunks"][0]["value"]
     assert (answer == DIRECT_REFERENCE_RESPONSE) is valid
@@ -167,8 +210,8 @@ def test_direct_reference_answer_rejects_unavailable_or_conflicting_match_metada
                    "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}]}
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True,
-        "messages": [{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
-                     {"role": "tool", "content": encode(payload)}], "tools": [],
+        "messages": _with_shopping_policy([{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
+                     {"role": "tool", "content": encode(payload)}]), "tools": [],
     })
     assert result["response"]["chunks"][0]["value"].startswith("REGRESSION:")
 
@@ -181,8 +224,8 @@ def test_direct_reference_answer_rejects_extra_malformed_evaluations(shopping_re
                    "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}, extra]}
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True,
-        "messages": [{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
-                     {"role": "tool", "content": encode(payload)}], "tools": [],
+        "messages": _with_shopping_policy([{"role": "user", "content": DIRECT_REFERENCE_PROMPT},
+                     {"role": "tool", "content": encode(payload)}]), "tools": [],
     })
     assert result["response"]["chunks"][0]["value"].startswith("REGRESSION:")
 
@@ -216,10 +259,10 @@ async def test_direct_reference_answer_reads_real_flattened_visual_result(shoppi
         _flatten_for_toon_tabular(metadata),
     )
     assert payload["results"][0]["visual_match_status"] == "evaluated"
-    history = [{"role": "user", "content": DIRECT_REFERENCE_PROMPT}, {
+    history = _with_shopping_policy([{"role": "user", "content": DIRECT_REFERENCE_PROMPT}, {
         "role": "tool", "name": "shopping-search_products", "tool_call_id": "shopping-gallery-fixture",
         "content": encode(payload), "ignore_fields_for_inference": SearchProductsResponse().ignore_fields_for_inference,
-    }]
+    }])
     if transform_history:
         history = _transform_message_history_for_llm(history)
     actual_dispatch_payload = decode(history[-1]["content"])

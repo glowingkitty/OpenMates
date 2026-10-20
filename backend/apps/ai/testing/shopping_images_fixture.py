@@ -8,9 +8,11 @@ from __future__ import annotations
 import json
 import os
 import re
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from typing import Any, Mapping
 from toon_format import decode
+import yaml
 
 from backend.shared.providers.typesafe.models import DecisionResponse
 from backend.shared.testing.mock_context import get_mock_group, mock_mode_var
@@ -40,6 +42,18 @@ DIRECT_SEARCH_PROMPT = "Reverse-search this uploaded image directly without insp
 DIRECT_SEARCH_RESPONSE = "The uploaded image was reverse-searched directly without images.view. Google Lens returned the synthetic reference match."
 LENS_FIXTURE_KEY = "signed-replay-unused-key"
 _PROMPTS = (PROMPT, REFERENCE_ERROR_PROMPT, GROUNDING_PROMPT, FORTY_PROMPT, DIRECT_REFERENCE_PROMPT, DIRECT_SEARCH_PROMPT)
+
+
+def _shopping_answer_policy() -> str:
+    """Read the real persistent app instruction, not a parallel fixture policy."""
+    app = yaml.safe_load((Path(__file__).resolve().parents[2] / "shopping/app.yml").read_text())
+    policies = [row for row in app.get("instructions", []) if isinstance(row, dict)
+                and isinstance(row.get("instruction"), str)
+                and row["instruction"].startswith("**Shopping answer grounding**")]
+    if (len(policies) != 1 or policies[0].get("tool_phase_only") is not False
+            or policies[0].get("categories") or policies[0].get("for_embed_types")):
+        return ""
+    return policies[0]["instruction"].strip()
 
 
 def active() -> bool:
@@ -390,6 +404,13 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
     forty = FORTY_PROMPT in str(messages[last_user].get("content") or "")
     direct_reference = DIRECT_REFERENCE_PROMPT in str(messages[last_user].get("content") or "")
     direct_search = DIRECT_SEARCH_PROMPT in str(messages[last_user].get("content") or "")
+    if direct_reference:
+        policy = _shopping_answer_policy()
+        if not policy or not any(message.get("role") == "system"
+                and isinstance(message.get("content"), str) and policy in message["content"]
+                for message in messages if isinstance(message, dict)):
+            return {"response": {"type": "mixed_stream", "chunks": [{"kind": "text",
+                "value": "REGRESSION: Shopping answer policy is missing from the system message."}]}}
     if not tail and direct_search and "images-search" in names:
         references = _direct_image_references(messages[last_user].get("content"))
         if len(references) != 1:
