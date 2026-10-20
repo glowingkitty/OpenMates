@@ -1096,6 +1096,16 @@ Acknowledge their choice, explain if it's correct/incorrect, or use their submit
 - When a choice option or swipe card is about a code/document/sheet/image/content embed, include its embed_id in that option/card's embed_ids. Do not rely on standalone embeds above the question as the only visual reference.
 """
 
+COMPOSER_FOLLOWUP_OUTPUT_REMINDER = (
+    "Final output requirement: after every completed answer, append exactly one useful next message "
+    "in the user's voice, at most 400 characters, in the final metadata block below. "
+    "Put the markers on their own lines, outside quotes and code fences, with no prose after the closing marker. "
+    "Keep the answer self-contained; do not substitute a visible follow-up offer for this metadata. "
+    "Omit only for an explicit user decline, safety, or no useful grounded continuation; never add generic filler. "
+    "A tool-call-only iteration needs no block. Replace the placeholder with the useful next message:\n"
+    "<<suggested_followup_message>>\nThe user's possible next message\n<</suggested_followup_message>>"
+)
+
 FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
     "The user has turned off follow-up suggestions. Answer the request directly and avoid ending "
     "with optional next-step questions, suggested prompts, or phrases like 'Would you like me to...' "
@@ -6561,6 +6571,11 @@ async def handle_main_processing(
             iteration_system_prompt = iteration_system_prompt + image_embed_instruction
             logger.info(f"{log_prefix} [IMAGE_SEARCH] Injected embed preview instruction into system prompt")
 
+        # Include the output contract in every history/output budget and
+        # reservation, then keep it last if direction correction adds context.
+        if composer_suggestion_enabled:
+            iteration_system_prompt += "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
+
         # === MODEL FALLBACK RETRY LOGIC ===
         # Try models in sequence until one succeeds or all fail
         # This handles transient API errors, rate limits, and model availability issues
@@ -6688,7 +6703,11 @@ async def handle_main_processing(
                         section = "\n\n--- Internal direction instruction ---\n" + instruction
                         full_system_prompt += section
                         answer_recovery_system_prompt += section
-                        iteration_system_prompt += section
+                        iteration_system_prompt = iteration_system_prompt.removesuffix(
+                            "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
+                        ) + section
+                        if composer_suggestion_enabled:
+                            iteration_system_prompt += "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
                     event = await chat_direction_correction_coordinator.review_and_deliver(
                         context=context, assessment=assessment,
                         review=lambda c, a: _review_chat_direction(c, a, task_id=task_id,
@@ -6717,6 +6736,13 @@ async def handle_main_processing(
                     if receipt:
                         yield {"__chat_context_applied__": True,
                                "receipt": agentic_context.receipt_event(request_data, receipt)}
+                # Keep the output contract last, including after dynamic context,
+                # direction correction and answer-only recovery instructions.
+                if (
+                    composer_suggestion_enabled
+                    and not iteration_system_prompt.endswith(COMPOSER_FOLLOWUP_OUTPUT_REMINDER)
+                ):
+                    iteration_system_prompt += "\n\n" + COMPOSER_FOLLOWUP_OUTPUT_REMINDER
                 native_prepared_context = None
                 reservation_system_prompt = iteration_system_prompt
                 reservation_history = current_message_history

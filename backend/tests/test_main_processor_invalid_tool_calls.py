@@ -2541,3 +2541,62 @@ async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_s
     assert main_processor.ANSWER_RECOVERY_INSTRUCTION in recovery["system_prompt"]
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
     assert not any(isinstance(chunk, dict) and chunk.get("__tool_calls_info__") for chunk in output)
+
+
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+@pytest.mark.parametrize("flow", ["first-answer", "tool-synthesis", "answer-recovery"])
+async def test_composer_output_contract_ends_actual_provider_prompt(monkeypatch, flow):
+    budget_prompts = []
+    original_fit = main_processor._fit_orchestrated_output_token_limit
+
+    async def capture_budget(**kwargs):
+        budget_prompts.append(kwargs["system_prompt"])
+        return await original_fit(**kwargs)
+
+    monkeypatch.setattr(main_processor, "_fit_orchestrated_output_token_limit", capture_budget)
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    answer = "A complete answer."
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    if flow == "tool-synthesis":
+        monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", AsyncMock(
+            return_value=[{"results": [{"title": "Grounded result"}]}]))
+        streams = [[{"fake_google_tool_call": "web-search", "arguments": {"query": "options"}}], [answer]]
+    elif flow == "answer-recovery":
+        streams = [["```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"], [answer]]
+    else:
+        streams = [[answer]]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams, generated_tools=[tool] if flow == "tool-synthesis" else [],
+        preprocessing_overrides={"complexity": "low"},
+    )
+    assert len(calls) == (1 if flow == "first-answer" else 2)
+    assert budget_prompts == [call["system_prompt"] for call in calls]
+    for call in calls:
+        prompt = call["system_prompt"]
+        assert actual["follow_up_instruction"] in prompt
+        assert prompt.endswith(main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER)
+        assert prompt.count(main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER) == 1
+    if flow == "answer-recovery":
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]
+    if flow == "tool-synthesis":
+        assert any(message.get("role") == "tool" for message in calls[-1]["message_history"])
+
+
+# contract-test: supporting surface=rest_api assertions=chats.followups.main-generated-composer
+@pytest.mark.parametrize("overrides", [
+    {"user_preferences": {"follow_up_suggestions_enabled": False}},
+    {"is_incognito": True},
+    {"is_sub_chat": True},
+    {"is_external": True},
+])
+async def test_ineligible_provider_prompt_omits_composer_output_reminder(monkeypatch, overrides):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["A complete answer."]], request_overrides=overrides,
+        preprocessing_overrides={"complexity": "low"},
+    )
+    assert len(calls) == 1
+    assert main_processor.COMPOSER_FOLLOWUP_OUTPUT_REMINDER not in calls[0]["system_prompt"]
+    assert actual["follow_up_instruction"] not in calls[0]["system_prompt"]
