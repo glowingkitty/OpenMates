@@ -82,7 +82,9 @@ async def _review_pool_entries(entries, secrets_manager, task_id):
             suggestions = json.loads(suggestions) if isinstance(suggestions, str) else suggestions
             external.append({
                 "title": entry.get("video_title") or wiki.get("title") or entry.get("title", ""),
-                "channel_name": entry.get("video_channel_name") or "Wikipedia",
+                "channel_name": ("Wikipedia" if entry.get("content_type") == "wiki"
+                                 else entry.get("video_channel_name") or ""),
+                "content_type": entry.get("content_type") or "video",
                 "description": entry.get("video_description") or wiki.get("description") or "",
                 "extract": wiki.get("extract") or "", "card_title": entry.get("title") or "",
                 "phrase": entry.get("phrase") or "",

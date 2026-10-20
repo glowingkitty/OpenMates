@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: daily-inspiration-jev
 title: Jev daily inspirations with Mistral Small or Mercury 3
-status: implementing
+status: verified
 goal: >-
   implement, test out, benchmark and then decide for deploying one of the setups:
   jev 1.14 for everything where decision model is enough + mistral small for llm stuff.
@@ -21,3 +21,31 @@ decision_notes:
   - User explicitly authorized implementation, comparison and the resulting scoped dev deployment on 2026-10-20.
   - Existing daily-inspiration public-safe feed and language assertions remain applicable; provider/ranking internals are outside that Specification's scope.
   - Gemini Batch and a general shared-pool redesign are outside this two-setup comparison.
+evidence:
+  focused_tests: 39 passed; backend/tests/test_daily_inspiration_{decisions,generator,wiki_generator,video_processor,content_policy,public_defaults,language}.py
+  lint: sessions.py lint --session d115 passed, including the touched TypeScript spec.
+  browser:
+    source: 74878459347333ad0c20d555aac6c1bdb7121176
+    harness: 05e65b3be97619d57c6629c6ed642c484b1b4224
+    request: 145940dce28b45f5421e9430ffe7c34930ce0c56a0d00829ce85a29235caf13e
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/39427339752
+    result: 2 passed, no skipped or flaky cases; isolated cleanup complete.
+    recordings: Both successful recordings uploaded; selected links are delivered in the final chat.
+  actual_source_generation: 3 reviewed videos, 3 reviewed wiki cards and 4 static feature tips; source hashes match the published implementation.
+  selected_setup: Jev 1.14 plus Mistral Small; Mercury low had better paired copy but returned HTTP 429 on fresh-topic qualification.
+  benchmark_report: docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+  implementation_commit: a0def9059fa52494fca903a5732c35bf19e17902
+  final_pool_regression:
+    source: f4a1a9290bc0968e0582032785d371b92b106ef1
+    harness: b09abc8d53bac58f383a406de49b91ad93d6aa21
+    request: 625af8751c7a34ed36899b485996495e21f24488b898cafbd4ad0c5cb1abe9dd
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/39431748500
+    result: Isolated pytest passed for the complete decision regression file, including missing video source identity.
+  runtime:
+    operation: docker-6f9ff71e
+    result: Schema applied before all affected backend consumers were recreated; API and Directus healthy.
+    active_writer: mistral/mistral-small-latest
+    policy: daily-editorial-v4
+    schema_field: daily_inspiration_pool.video_description verified through Directus.
+    public_refresh: One successful selector job wrote 190 defaults for 19 languages on 2026-10-20.
+  retention_limit: Original paired raw receipts were removed by a shared API recreation; captured summaries/manual review and the later persistent selected-setup receipts are distinguished in the report.

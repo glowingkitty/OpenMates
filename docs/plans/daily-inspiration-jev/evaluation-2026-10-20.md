@@ -119,3 +119,18 @@ also explicitly preserves the prior exclusion of company/brand-owned channels.
 Focused unit checks, isolated browser CI and deployment receipts are recorded with
 TASK-1531 and the session evidence. Rates were checked against [Mistral pricing](https://docs.mistral.ai/inference/pricing),
 [TypeSafe models](https://docs.typesafe.ai/models) and [Inception models](https://docs.inceptionlabs.ai/get-started/models).
+
+The implementation is published to dev in `a0def9059fa52494fca903a5732c35bf19e17902`.
+All 39 focused unit checks and scoped lint passed. [Isolated browser CI](https://github.com/glowingkitty/OpenMates/actions/runs/39427339752)
+passed both public-feed language/navigation and withheld-inventory fallback cases,
+with no skips or flakes and complete isolated cleanup. Both selected recordings
+were uploaded through the receipt's evidence command; their signed links are
+delivered in the final chat. Runtime activation is recorded in the final Plan evidence.
+
+The coordinated schema and backend refresh completed successfully. The active
+writer and policy were verified as `mistral/mistral-small-latest` and
+`daily-editorial-v4`, and Directus exposes the new source-description field.
+The reviewed public selector then successfully wrote 190 defaults for 19
+languages. A final regression also ensures that an unknown video channel stays
+unknown instead of being labeled Wikipedia during legacy pool review.
+The complete decision regression file also passed in [isolated pytest CI](https://github.com/glowingkitty/OpenMates/actions/runs/39431748500).

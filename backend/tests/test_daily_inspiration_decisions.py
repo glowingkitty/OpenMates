@@ -1,6 +1,8 @@
 """Editorial admission and ranking contracts at the native decision boundary."""
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 import json
+import ast
+from pathlib import Path
 
 import httpx
 import pytest
@@ -169,3 +171,24 @@ def test_writer_selection_is_scoped_and_allowlisted(monkeypatch, model):
     monkeypatch.setenv("DAILY_INSPIRATION_WRITER_MODEL", "unreviewed/arbitrary-model")
     with pytest.raises(ValueError):
         config.writer_model()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content_type,expected_channel", [("video", ""), ("wiki", "Wikipedia")])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_legacy_pool_review_does_not_invent_a_source_identity(content_type, expected_channel):
+    source = Path(__file__).resolve().parents[1] / "core/api/app/tasks/default_inspiration_tasks.py"
+    tree = ast.parse(source.read_text())
+    function = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+                    and node.name == "_review_pool_entries")
+    captured = []
+    async def review(rows, *_args, **_kwargs):
+        captured.extend(rows)
+        return rows
+    scope = {"json": json, "review_candidates": review}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), "exec"), scope)
+    record = {"id": "legacy", "content_type": content_type, "title": "Cloud formation",
+              "phrase": "How do clouds form?", "assistant_response": "Vapor condenses into droplets."}
+    assert await scope["_review_pool_entries"]([record], Secrets(), "test") == [record]
+    assert captured[0]["channel_name"] == expected_channel
+    assert captured[0]["content_type"] == content_type
