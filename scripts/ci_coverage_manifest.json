@@ -756,6 +756,7 @@
         "workflows-website-changes.spec.ts",
         "workflows-input.spec.ts",
         "workflows-input-stream.spec.ts",
+        "workflows-load-failure.spec.ts",
         "workflows-reorder-inputs.spec.ts",
         "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts",

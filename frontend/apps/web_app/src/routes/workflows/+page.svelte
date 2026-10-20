@@ -109,7 +109,6 @@
 	let completionChatStatus = $state<'idle' | 'checking' | 'waiting' | 'unavailable'>('idle');
 	let completionRetry = $state(0);
 	let authoringReminder = $state<string | null>(null);
-	let error = $derived(routeError ?? $workflowWorkspaceStore.error);
 	let runContentRetention = $state<'last_5' | 'none'>('last_5');
 	let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
 	let editorTitle = $state('');
@@ -1579,8 +1578,9 @@
 				data-testid="workflows-page"
 				data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
 			>
-				{#if error}
-					<div class="error-banner" data-testid="workflows-error">{error}</div>
+				<!-- Background loading failures use the header connection indicator. -->
+				{#if routeError}
+					<div class="error-banner" data-testid="workflows-error">{routeError}</div>
 				{/if}
 				{#if completionChatStatus !== 'idle'}
 					<WorkflowCompletionStatus status={completionChatStatus} onRetry={() => completionRetry += 1} />
