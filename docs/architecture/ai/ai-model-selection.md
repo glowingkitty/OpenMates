@@ -97,14 +97,28 @@ Model selection is configured in [`backend/apps/ai/app.yml`](../../backend/apps/
 
 - **`enable_auto_model_selection`**: When `true` (current default), uses intelligent leaderboard-based selection. When `false`, falls back to hardcoded `default_llms`.
 - **`default_llms`**: Hardcoded model IDs for preprocessing, simple requests, complex requests, and content sanitization.
-- **Current defaults**: Jev (`typesafe/jev-1.14`) for bounded decisions and Gemini 3.5 Flash Lite (`google/gemini-3.5-flash-lite`) for generative preprocessing fallback. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
+- **Current defaults**: Jev (`typesafe/jev-1.14`) handles bounded decisions. Only decision paths that already permit generative recovery use native Mercury 3 LOW, then Gemini 3.5 Flash-Lite (`google/gemini-3.5-flash-lite`); healthy Jev and its Unsure contracts are unchanged. Generative postprocessing retains Flash-Lite. Automatic answer profiles live in `backend/apps/ai/processing/model_routing.py`:
 
-| Request complexity | Automatic model | Google thinking | Saved preference bucket |
+| Request complexity | Automatic model | Thinking | Saved preference bucket |
 | --- | --- | --- | --- |
-| low | Gemini 3.8 Flash | LOW | Simple |
+| low | Mercury 3 (direct Inception) | LOW | Simple |
 | medium | Gemini 3.8 Flash | MEDIUM | Complex |
 | high | Gemini 3.8 Flash | HIGH | Complex |
 | max | Gemini 4 Argon | HIGH | Most demanding |
+
+Eligible low-complexity text uses native Mercury 3 LOW. Gemini 3.8 Flash LOW
+handles unavailable credentials/models, disabled model/server restrictions,
+unsupported modalities and provider outages, or a five-second deadline before
+the first substantive output. A stream that has already published useful output
+is not silently replayed through another model. Exact chat choices and saved
+preferences retain precedence over this automatic default.
+
+Ordinary transcript correction separately uses Mercury LOW with a five-second
+deadline including credential lookup, then Gemini 3.8 Flash LOW. Workflow
+authoring allows at most three actual calls: Mercury INSTANT, Mercury LOW repair,
+then Gemini 3.8 Flash LOW repair. Accepted steps remain immutable; exhausted
+recovery retains a validated disabled partial with an explanation. Jev remains
+the workflow decision model. See the [rollout record](../../plans/mercury-fast-inference/rollout-addendum.md).
 
 Low covers ordinary Q&A, retrieval and transformations; medium covers bounded
 multi-step reasoning and synthesis; high covers intricate debugging, proofs and

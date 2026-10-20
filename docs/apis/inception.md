@@ -38,8 +38,9 @@ report, without scoring skipped requests as quality failures. See the
 Mercury 3 is available in the composer: **model selector → More providers →
 Inception → Mercury 3**. Manual selection uses direct Inception. The catalog's
 historical `allow_auto_select: false` configuration restricted automatic routing
-without removing the manual entry. A new user-approved low-complexity routing
-phase is implementing; its final deployment/configuration receipt is pending. Normal user-disabled-model/server and provider-health filtering
+without removing the manual entry. The low-complexity default is deployed to dev
+in `7ff9714f24c62a0b8bc5d07e164b7b719be055b7`, with `allow_auto_select: true`.
+Normal user-disabled-model/server and provider-health filtering
 still apply. The dev health endpoint reported Inception healthy on 2026-10-20.
 
 Credentials belong in Vault at `kv/data/providers/inception_labs`, key `api_key`.
@@ -83,7 +84,7 @@ Missing cache counters remain unknown rather than proving zero hits. Native
 benchmark receipts reported actual cached input; their uncached cost estimates
 were deliberately conservative and do not represent supplier invoices.
 
-**Customer cache savings are implemented in the pending rollout.** Native
+**Customer cache savings are deployed to dev.** Native
 Inception chat and workflow settlement use the shared category-credit calculator
 with `write_billing: included_in_input`. Ordinary fills incur no extra cache-write
 fee. Reported cached input uses **33,000 tokens/credit during launch**, versus
@@ -116,18 +117,20 @@ only raw transcript text and a language hint for correction/title generation,
 not audio. Raw transcripts are outside typed-message placeholder protection.
 The account owner confirmed the training opt-out on 2026-10-20. Correction uses
 Mercury **low** when `INCEPTION_TRANSCRIPT_CORRECTION_ENABLED=true`, with a
-five-second total deadline, no correction retries and the established Gemini
-fallback. The newly approved phase upgrades that fallback to native Gemini 3.8
-Flash LOW; verification and publication of this phase are pending. Native completed tool calls can report `stop` or `tool_calls`; truncated,
+five-second total deadline including credential lookup, no correction retries
+and native Gemini 3.8 Flash LOW fallback. This is deployed to dev in `7ff9714`.
+Native completed tool calls can report `stop` or `tool_calls`; truncated,
 blocked, missing-finish and malformed responses are rejected.
 The flag is enabled on dev after live direct-facade verification on 2026-10-20:
 the refined helper passed twelve repeated synthetic cases and the final shared
-runtime passed six more without fallback (median 0.795 seconds). The rollout
+runtime passed six more without fallback (median 0.795 seconds). The new deployed
+facade passed all six original synthetic cases again, including German and mixed
+language, without fallback: median 1.135 seconds, range 0.541–2.693 seconds.
+The rollout
 included a generic self-correction instruction refinement after one earlier
 cleanup miss. Production configuration was not changed.
-The user now explicitly authorizes implementation, tests and scoped dev deployment
-after reviewing the expanded results; final publication and verification receipts
-remain pending. Workflow generation uses a request-wide maximum of three actual
+The authorized implementation is deployed to dev with isolated browser/database
+coverage and verified runtime source identity. Workflow generation uses a request-wide maximum of three actual
 author calls: **Mercury INSTANT → Mercury LOW repair → Gemini 3.8 Flash LOW repair**.
 Outage recovery can skip an unavailable Mercury route and allow one Gemini repair
 when budget remains; it never exceeds three calls or advances on Stop. Accepted
@@ -146,14 +149,20 @@ LOW fallbacks for correction, workflows and low-complexity chat. Healthy Jev
 should not trigger generative recovery. Medium-complexity defaults remain Gemini: bounded writing exposed
 unsupported claims, and no matched public general-quality benchmark established
 Mercury parity. See the [rollout addendum](../plans/mercury-fast-inference/rollout-addendum.md)
-for pending verification and receipts.
+for verification, source identities and receipts.
 
 The [expanded correction evaluation](../plans/mercury-fast-inference/expanded-correction-2026-10-20.md)
 and [expanded workflow evaluation with LOW diagnosis](../plans/mercury-fast-inference/expanded-workflow-2026-10-20.md#later-diagnostic-mercury-low-same-frozen-selections)
-are complete and retain critical defects. Independent-arm results do not prove
-the new recovery chain; verify it before rollout. User/model/server/key
-restrictions must be enforced, including transport of disabled-model/server
-settings. Preserve Gemini 3.5 Flash-Lite generative postprocessing. Synthetic
+are complete and retain critical defects. Successful chained repairs and safe
+exhaustion passed deterministic unit, real-database and browser checks. A later
+native controlled-error test did not fully recover: Mercury LOW repeated a
+forbidden Ask AI field, then Gemini produced the comparison but omitted the final
+Send. The three-attempt chain retained the validated disabled partial and notice;
+its strict complete-workflow oracle remains failed. This is a disclosed quality
+limit, not evidence of universal recovery. User/model/server/key restrictions are
+enforced, including a bounded per-turn transport of disabled-model/server settings.
+The disabled-model browser case recorded zero Mercury provider attempts.
+Preserve Gemini 3.5 Flash-Lite generative postprocessing. Synthetic
 benchmark results do not establish quality for private user transcripts.
 
 Inception's public terms permit training on submitted content with an API Platform
