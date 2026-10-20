@@ -68,7 +68,7 @@ for (const width of [390, 1440]) {
           await expect(composite.locator('.device-frame.laptop')).toHaveCount(1);
           if (width >= 760) await expect(composite.locator('.device-frame.laptop')).toBeVisible();
         } else {
-          const destination = id === 'workflows' ? `${APP}/#workflows` : `${APP}/#chat-id=${landingSectionExamples[id]}`;
+          const destination = id === 'workflows' ? `${APP}/#workflows` : `${APP}/?lang=en#chat-id=${landingSectionExamples[id]}`;
           const link = media.locator('a.device-screenshots');
           await expect(link).toHaveAttribute('href', destination);
           await expect(link).toHaveAttribute('target', '_blank');
@@ -143,11 +143,11 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: testInfo.outputPath(`landing-linked-devices-${width}.png`) });
     // Follow the actual image anchor with the destination isolated from the owner app.
     // Context routing also intercepts the popup's first request; page routing cannot.
-    await page.context().route(`${APP}/`, route => route.fulfill({ contentType: 'text/html', body: '<h1>Example destination</h1>' }));
+    await page.context().route(`${APP}/?lang=en`, route => route.fulfill({ contentType: 'text/html', body: '<h1>Example destination</h1>' }));
     const popup = page.waitForEvent('popup');
     await actionable.locator('a.device-screenshots').click({ position: { x: 40, y: 50 } });
     const exampleTab = await popup;
-    await expect(exampleTab).toHaveURL(`${APP}/#chat-id=${landingSectionExamples.actionable}`);
+    await expect(exampleTab).toHaveURL(`${APP}/?lang=en#chat-id=${landingSectionExamples.actionable}`);
     await exampleTab.close();
     await reach(page, 'open-source');
     await expect(page.getByTestId('landing-feature-open-source')).toHaveAttribute('data-story-state', 'complete');

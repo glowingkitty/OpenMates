@@ -37,7 +37,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const travel = rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]');
     await travel.evaluate((button: HTMLButtonElement) => button.click());
     await expect(prompt).toHaveAttribute('data-active-app', 'travel');
-    const expectedPopupUrl = `${APP}/#chat-id=${encodeURIComponent(landingAppExamples.travel)}`;
+    const expectedPopupUrl = `${APP}/?lang=en#chat-id=${encodeURIComponent(landingAppExamples.travel)}`;
     await expect(prompt).toHaveAttribute('href', expectedPopupUrl);
     await expect(prompt).toHaveAttribute('target', '_blank');
     // Reproduce the missed-observation condition caused by background-tab throttling.

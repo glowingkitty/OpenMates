@@ -1,6 +1,7 @@
 import { expect, test } from './helpers/cookie-audit';
 import { app, site, useWebsitePreview, watchPrivateStartup, website } from './helpers/website-preview';
 import publicationManifest from '../../../packages/public-site/src/publications/publicationManifest.v1.json';
+import { landingAppExamples } from '../../../packages/public-site/src/components/landing/landingPageContent';
 
 // playwright-account: not_required reason=isolated_runner_local_public_website
 useWebsitePreview();
@@ -132,7 +133,7 @@ test('German public links preserve document language and Automatic mode when ent
   await expect(page.getByTestId('landing-news').locator('a.text-link')).toHaveAttribute('href', site('/de/news?lang=de'));
   await expect(page.getByTestId('landing-blog').locator('a.text-link')).toHaveAttribute('href', site('/de/blog?lang=de'));
   const prompt = new URL((await page.getByTestId('landing-prompt').getAttribute('href'))!);
-  expect(prompt.searchParams.has('lang')).toBe(false);
+  expect(prompt.searchParams.get('lang')).toBe('de');
   expect(prompt.hash).toMatch(/^#chat-id=/);
   await page.locator('.site-footer a[href*="/legal/privacy"]').click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
@@ -164,4 +165,46 @@ test('a fresh browser keeps Automatic mode while a manual English choice survive
   await expect(page.getByTestId('profile-container')).toBeVisible();
   expect(decodeURIComponent((await context.cookies()).find(cookie => cookie.name === 'om_language')?.value ?? '')).toBe('manual:en');
   expect(await page.evaluate(() => localStorage.getItem('preferredLanguage'))).toBe('en');
+});
+
+// contract-test: direct surface=gui.web assertions=language-preferences.manual-choice,language-preferences.resolution,marketing-landing.destinations
+test('example deep links open translated chat content despite a different saved app language', async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await context.addInitScript(({ appOrigin }) => {
+    if (window.location.origin === appOrigin) localStorage.setItem('preferredLanguage', 'en');
+  }, { appOrigin: app });
+  await page.goto(site('/'), { waitUntil: 'networkidle' });
+  await expect(page.getByTestId('public-site-header')).toHaveAttribute('data-language-mode', 'auto');
+
+  for (const language of ['de', 'en'] as const) {
+    if (language === 'en') {
+      await page.getByTestId('landing-language-button').click();
+      await page.getByTestId('landing-language-panel').getByRole('button', { name: 'English', exact: true }).click();
+    }
+    await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', language);
+    await page.getByTestId('landing-app-rail').locator('.rail-group:nth-child(2) [data-app-id="travel"]').evaluate((button: HTMLButtonElement) => button.click());
+    const prompt = page.getByTestId('landing-prompt');
+    const destination = `${app}/?lang=${language}#chat-id=${encodeURIComponent(landingAppExamples.travel)}`;
+    await expect(prompt).toHaveText(language === 'de' ? 'Finde Zugverbindungen' : 'Find train connections');
+    await expect(prompt).toHaveAttribute('href', destination);
+    const landingUrl = page.url();
+    const [popup] = await Promise.all([page.waitForEvent('popup'), prompt.click()]);
+    await expect(popup).toHaveURL(destination);
+    await expect(popup.locator('html')).toHaveAttribute('lang', language);
+    const history = popup.getByTestId('chat-history-content');
+    await expect(history).toBeVisible({ timeout: 30_000 });
+    await expect(history).toHaveAttribute('data-source-message-count', /^[1-9]\d*$/);
+    await expect(history).toContainText(language === 'de'
+      ? 'Suche Zugverbindungen von Bonn nach München'
+      : 'Search for train connections from Bonn to Munich');
+    await expect(popup.getByTestId('active-chat-history-loading')).toHaveCount(0);
+    const recording = popup.video();
+    await popup.close();
+    if (recording) await testInfo.attach(`example-chat-${language}`, { path: await recording.path(), contentType: 'video/webm' });
+    await page.bringToFront();
+    expect(page.url()).toBe(landingUrl);
+    await expect(page.getByTestId('landing-page')).toBeVisible();
+  }
 });

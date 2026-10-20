@@ -29,9 +29,9 @@
   let { appBaseUrl, websiteBaseUrl, apiBaseUrl, initialLanguage = 'en', initialLanguageMode = 'auto', navigateOnLanguageChange = false, serverStatusUrl, events = [], news = [], posts = [] }: Props = $props();
   const appUrl = (path: string) => {
     const url = new URL(path, appBaseUrl);
-    // The app treats an explicit language query as a manual choice. Automatic
-    // and account modes travel through the shared preference cookie instead.
-    if (languageMode === 'manual') url.searchParams.set('lang', chosenLanguage);
+    // Examples must open in the displayed language even if the app has a
+    // different saved preference. General app entry preserves Automatic mode.
+    if (languageMode === 'manual' || url.hash.startsWith('#chat-id=')) url.searchParams.set('lang', chosenLanguage);
     return url.href;
   };
   const siteUrl = (path: string) => {

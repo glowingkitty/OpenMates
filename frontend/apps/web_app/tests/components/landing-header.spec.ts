@@ -68,3 +68,33 @@ test('Automatic language uses the browser and clears a previous manual selection
   await header.getByTestId('landing-language-button').click();
   await expect(header.getByTestId('landing-language-auto')).toHaveAttribute('aria-pressed', 'true');
 });
+
+// contract-test: direct surface=gui.web assertions=language-preferences.manual-choice,language-preferences.resolution,marketing-landing.destinations
+test('all example links carry the displayed language in Automatic and manual modes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.route('**/v1/settings/server-status', route => route.fulfill({ json: {} }));
+  const query = new URLSearchParams({ theme: 'light', width: '390', chrome: '0', props: JSON.stringify({ initialLanguage: 'de', initialLanguageMode: 'auto' }) });
+  await page.goto(`/dev/preview/landing/LandingPage?${query}`);
+  await waitForComponentPreview(page, 30_000);
+  const header = page.getByTestId('public-site-header');
+  const prompt = page.getByTestId('landing-prompt');
+  const assertExampleLanguages = async (language: string) => {
+    await expect(page.getByTestId('landing-page')).toHaveAttribute('lang', language);
+    await expect(page.getByTestId('landing-open-example-actionable')).toBeAttached();
+    const links = await page.locator('a[href*="#chat-id="]').evaluateAll(elements => elements.map(element => (element as HTMLAnchorElement).href));
+    expect(links.length, 'cover the hero, section links, and linked device screenshots').toBeGreaterThan(3);
+    for (const link of links) expect(new URL(link).searchParams.get('lang'), link).toBe(language);
+    await expect(prompt).toHaveAttribute('target', '_blank');
+  };
+
+  await expect(header).toHaveAttribute('data-language-mode', 'auto');
+  await assertExampleLanguages('de');
+  await expect(header.getByTestId('landing-open-web-app')).toHaveAttribute('href', 'https://app.dev.openmates.org/');
+  for (const [name, language] of [['English', 'en'], ['Deutsch', 'de']] as const) {
+    await header.getByTestId('landing-language-button').click();
+    await header.getByTestId('landing-language-panel').getByRole('button', { name, exact: true }).click();
+    await expect(header).toHaveAttribute('data-language-mode', 'manual');
+    await assertExampleLanguages(language);
+  }
+});

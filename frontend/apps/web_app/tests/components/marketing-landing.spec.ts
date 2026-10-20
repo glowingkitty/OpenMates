@@ -129,7 +129,7 @@ for (const { width, height } of [{ width: 390, height: 844 }, { width: 1440, hei
     const initialPrompt = await prompt.evaluate((element) => ({ id: (element as HTMLElement).dataset.activeApp, href: element.getAttribute('href'), target: element.getAttribute('target') }));
     const initialApp = initialPrompt.id;
     if (initialApp && landingAppExamples[initialApp]) {
-      expect(initialPrompt.href).toBe(`${APP}/#chat-id=${landingAppExamples[initialApp]}`);
+      expect(initialPrompt.href).toBe(`${APP}/?lang=en#chat-id=${landingAppExamples[initialApp]}`);
       expect(initialPrompt.target).toBe('_blank');
     }
     await expect.poll(() => page.getByTestId('landing-prompt').getAttribute('data-active-app'), { timeout: 7_000 }).not.toBe(initialApp);
@@ -270,7 +270,7 @@ test('320px reduced-motion landing offers language-only settings and all event/s
   await expect(page.getByTestId('landing-open-web-app')).toHaveText('Open Web App');
   await expect(page.getByTestId('landing-prompt')).toHaveCSS('opacity', '1');
   await expect(page.getByTestId('landing-prompt')).toHaveAttribute('data-active-app', 'events');
-  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/#chat-id=${landingAppExamples.events}`);
+  await expect(page.getByTestId('landing-prompt')).toHaveAttribute('href', `${APP}/?lang=en#chat-id=${landingAppExamples.events}`);
   await expect(page.getByTestId('landing-prompt')).toHaveAttribute('target', '_blank');
   const rail = root.locator('.rail-track');
   await expect(rail).toHaveCSS('animation-name', 'none');

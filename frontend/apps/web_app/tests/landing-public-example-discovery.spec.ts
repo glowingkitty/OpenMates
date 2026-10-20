@@ -22,7 +22,7 @@ test('guest header exposes public examples and excludes internal fixtures', asyn
     observedApps.add(appId!);
     const chatId = landingAppExamples[appId!];
     expect(internalIds.has(chatId), `${appId} must use a public example`).toBe(false);
-    await expect(prompt).toHaveAttribute('href', `${origin}/#chat-id=${encodeURIComponent(chatId)}`);
+    await expect(prompt).toHaveAttribute('href', `${origin}/?lang=en#chat-id=${encodeURIComponent(chatId)}`);
     for (const internalId of internalIds) {
       await expect(page.locator(`a[href*="chat-id=${encodeURIComponent(internalId)}"]`)).toHaveCount(0);
     }

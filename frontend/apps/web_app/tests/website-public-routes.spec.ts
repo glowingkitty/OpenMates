@@ -54,7 +54,7 @@ test('standalone hero uses built app defaults and selects icons without app star
   await rail.locator('.rail-group:nth-child(2) [data-app-id="travel"]').click();
   const prompt = page.getByTestId('landing-prompt');
   await expect(prompt).toHaveText('Find train connections');
-  await expect(prompt).toHaveAttribute('href', `${app}/#chat-id=${encodeURIComponent(travel.exampleChatId)}`);
+  await expect(prompt).toHaveAttribute('href', `${app}/?lang=en#chat-id=${encodeURIComponent(travel.exampleChatId)}`);
   await expect(prompt).toHaveAttribute('target', '_blank');
   await expect(prompt).toHaveCSS('opacity', '1');
   await expect(rail).toHaveAttribute('data-active-app', 'travel');
