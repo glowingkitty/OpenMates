@@ -1,3 +1,4 @@
+import { registerChatMetadataRecovery, filterMetadataReceiptForCurrentVersions, type MetadataReceipt } from "./chatMetadataRecovery.js";
 import { runRecoveryBatch } from "./recoveryBatch.js";
 import type { BuyerAddress } from "./billingAddress.js";
 import { prepareCliMessagePrivacy, type CompiledCliPrivacy } from "./privacyScan.js";
@@ -3405,6 +3406,9 @@ interface RecoveryReplayDependencies {
 }
 
 export class OpenMatesClient {
+  private readonly metadataRecoveryBySocket = new WeakMap<OpenMatesWsClient, ReturnType<typeof registerChatMetadataRecovery>>();
+  private readonly metadataRecoveryCaches = new WeakMap<OpenMatesWsClient, SyncCache>();
+  private readonly metadataRecoveryCallbacks = new WeakMap<OpenMatesWsClient, (receipt: MetadataReceipt) => Promise<void>>();
   private readonly ownedMetadataSubscriptions = new Set<() => void>();
   private readonly activeSubmittedChatTurns = new Map<string, string>();
   private recoveryFailureRetry?: RecoveryFailureRetry;
@@ -10035,6 +10039,15 @@ export class OpenMatesClient {
       traceSendTiming("key_ready");
     }
 
+    if (!params.incognito && !teamId && chatKeyBytes && encryptedChatKey) {
+      const metadataCache = loadSyncCache() ?? { syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+        chats: [], embeds: [], embedKeys: [], chatKeyWrappers: [] };
+      if (!metadataCache.chats.some(chat => chat.details.id === chatId)) metadataCache.chats.push({
+        details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] });
+      this.metadataRecoveryCaches.set(ws, metadataCache);
+      this.metadataRecoveryBySocket.get(ws)?.setLiveChat(chatId, { key: chatKeyBytes, wrappedKey: encryptedChatKey });
+    }
+
     // Persist authoritative live focus activation with the chat key, as the web
     // client does. The next request restores this field; history is not authority.
     let focusPersistence = Promise.resolve();
@@ -10505,6 +10518,27 @@ export class OpenMatesClient {
       this.activeSubmittedChatTurns.set(chatId, ownedTurnId);
       const owner = this.preparedChatOwner(this.requireSession(), teamId);
       const stopOwned = () => optionalMetadata?.stop();
+      if (!teamId) this.metadataRecoveryCallbacks.set(ws, async receipt => {
+        if (receipt.chat_id !== chatId || !this.preparedChatOwnerCurrent(owner, teamId)) return;
+        const accepted = receipt.encrypted_metadata;
+        const [title, summary] = await Promise.all([
+          accepted.encrypted_title ? decryptWithAesGcmCombined(accepted.encrypted_title, key) : null,
+          accepted.encrypted_chat_summary ? decryptWithAesGcmCombined(accepted.encrypted_chat_summary, key) : null,
+        ]);
+        if (!this.preparedChatOwnerCurrent(owner, teamId)) return;
+        // Decryption yielded; a manual edit or another device may have advanced
+        // the encrypted cache while this callback was preparing its UI event.
+        const currentReceipt = filterMetadataReceiptForCurrentVersions(receipt,
+          [this.metadataRecoveryCaches.get(ws), loadSyncCache()].map(cache =>
+            cache?.chats.find(row => row.details.id === chatId)?.details));
+        if (!currentReceipt) return;
+        params.onMetadata?.({ chatId, turnId: ownedTurnId, userMessageId: messageId,
+          updatedChatTitle: currentReceipt.encrypted_metadata.encrypted_title ? title : null,
+          chatSummary: currentReceipt.encrypted_metadata.encrypted_chat_summary ? summary : null,
+          sourceTitleVersion: currentReceipt.versions.title_v ?? null,
+          sourceMetadataVersion: receipt.versions.metadata_v ?? null, followUpSuggestions: [],
+          newChatSuggestions: [], suggestedFollowupMessage: null, chatTags: [] });
+      });
       optionalMetadata = observeOwnedTurnMetadata({ ws, chatId, turnId: savedTurnId, userMessageId: messageId, closeAfterMetadata: true,
         ownerCurrent: () => this.preparedChatOwnerCurrent(owner, teamId),
         persist: async metadata => {
@@ -10515,7 +10549,7 @@ export class OpenMatesClient {
         onReleased: () => {
           this.ownedMetadataSubscriptions.delete(stopOwned);
           if (this.activeSubmittedChatTurns.get(chatId) === ownedTurnId) this.activeSubmittedChatTurns.delete(chatId);
-          if (metadataTransportOwned) ws.close();
+          if (metadataTransportOwned) void (this.metadataRecoveryBySocket.get(ws)?.flush() ?? Promise.resolve()).finally(() => ws.close());
         },
       });
       // A long-lived SDK process retains at most eight postprocessor transports.
@@ -17328,7 +17362,7 @@ export class OpenMatesClient {
 
   private makeWsClient(
     session: OpenMatesSession,
-    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean } = {},
+    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean; metadataOwnerId?: string | null } = {},
   ): OpenMatesWsClient {
     const ws = new OpenMatesWsClient({
       apiUrl: session.apiUrl,
@@ -17343,6 +17377,7 @@ export class OpenMatesClient {
       projectFileJobs: options.projectFileJobs,
       remoteCommandJobs: options.remoteCommandJobs,
       interactiveHuman: options.interactiveHuman,
+      chatMetadataRecovery: !!options.metadataOwnerId,
       onForceLogout: () => {
         this.invalidatePreparedPrivacy();
         for (const stop of [...this.ownedMetadataSubscriptions]) stop();
@@ -17351,6 +17386,38 @@ export class OpenMatesClient {
         this.session = null;
       },
     });
+    if (options.metadataOwnerId) {
+      const current = () => this.hasSession() && this.requireSession().hashedEmail === session.hashedEmail
+        && this.requireSession().masterKeyExportedB64 === session.masterKeyExportedB64;
+      this.metadataRecoveryBySocket.set(ws, registerChatMetadataRecovery({ ws, ownerId: options.metadataOwnerId,
+        ownerCurrent: current,
+        resolveKey: async chatId => {
+          const cache = this.metadataRecoveryCaches.get(ws) ?? loadSyncCache();
+          const chat = cache?.chats.find(row => row.details.id === chatId);
+          if (!chat || chat.details.hashed_team_id) return null;
+          const key = await this.resolveChatKey(cache, chat, this.getMasterKeyBytes());
+          const wrappedKey = this.getContextWrapperEncryptedChatKey(cache, chatId, null) ?? chat.details.encrypted_chat_key;
+          return key && typeof wrappedKey === "string" ? { key, wrappedKey } : null;
+        },
+        apply: async receipt => {
+          if (!current()) return;
+          const caches = [this.metadataRecoveryCaches.get(ws), loadSyncCache()];
+          const liveChat = caches[0]?.chats.find(row => row.details.id === receipt.chat_id);
+          if (caches[1] && liveChat && !caches[1].chats.some(row => row.details.id === receipt.chat_id))
+            caches[1].chats.push(liveChat);
+          const acceptedReceipt = filterMetadataReceiptForCurrentVersions(receipt, caches.map(cache =>
+            cache?.chats.find(row => row.details.id === receipt.chat_id)?.details));
+          if (!acceptedReceipt) return;
+          for (const cache of caches) {
+            const chat = cache?.chats.find(row => row.details.id === receipt.chat_id);
+            if (chat) Object.assign(chat.details, acceptedReceipt.encrypted_metadata, acceptedReceipt.versions);
+          }
+          const latest = caches[1] ?? caches[0];
+          if (latest) saveSyncCache(latest);
+          await this.metadataRecoveryCallbacks.get(ws)?.(acceptedReceipt);
+        },
+      }));
+    }
     // Register before open() so the initial reconnect discovery cannot race sync.
     const deliveries = new Map<string, WorkflowDeliveryDiscovery>();
     this.workflowDeliveriesBySocket.set(ws, deliveries);
@@ -17382,7 +17449,7 @@ export class OpenMatesClient {
       : await this.refreshWsToken());
     if (options.signal?.aborted) throw new Error("WebSocket open cancelled");
     const session = this.requireSession();
-    const ws = this.makeWsClient(session, options);
+    const ws = this.makeWsClient(session, { ...options, metadataOwnerId: ownerId });
     await ws.open(10_000, options.signal);
     if (options.signal?.aborted) {
       ws.close();
@@ -17875,6 +17942,11 @@ export class OpenMatesClient {
     let recoveredOutputCount = 0;
     let pendingRecoveryOutputs = 0;
     try {
+      if (!teamId) {
+        this.metadataRecoveryCaches.set(ws, { syncedAt: Date.now(), totalChatCount, loadedChatCount: chats.length,
+          chats, embeds, embedKeys, chatKeyWrappers });
+        await this.metadataRecoveryBySocket.get(ws)?.flush();
+      }
       // Browsing can publish verified canonical metadata while output recovery continues.
       await onSyncedCache?.({ syncedAt: 0, totalChatCount, loadedChatCount: chats.length,
         chats, embeds, embedKeys, chatKeyWrappers, newChatSuggestions });

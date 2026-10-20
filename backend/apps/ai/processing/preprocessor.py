@@ -2209,6 +2209,7 @@ async def handle_preprocessing(
     precomputed_stage_one: Optional[Dict[str, Any]] = None,
     routing_scope_validated: bool = False,
     before_related_summary_read: Optional[Callable[[], Awaitable[None]]] = None,
+    on_metadata_context_ready: Optional[Callable[[List[Dict[str, Any]], str], None]] = None,
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -2392,6 +2393,11 @@ async def handle_preprocessing(
             rejection_reason="preprocessing_context_limit_exceeded",
             error_message="The latest message is too large to route safely. Please shorten it or attach the content as a file.",
         )
+
+    # The caller owns optional metadata inference. It overlaps routing and main
+    # processing, and must never become a routing/first-answer barrier.
+    if on_metadata_context_ready:
+        on_metadata_context_ready(sanitized_message_history, user_system_language)
 
     if "preprocess_request_tool" not in base_instructions:
         logger.error(f"{log_prefix} Missing 'preprocess_request_tool' in base_instructions.")

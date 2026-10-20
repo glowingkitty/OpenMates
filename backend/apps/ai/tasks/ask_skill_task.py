@@ -2381,6 +2381,21 @@ async def _settle_optional_debug_cache(task, started_at, *, wait_for_budget, wri
 
 
 _owned_summary_tasks: ContextVar[list | None] = ContextVar("owned_summary_tasks", default=None)
+_owned_metadata_tasks: ContextVar[list | None] = ContextVar("owned_metadata_tasks", default=None)
+
+
+def _owns_optional_metadata(function):
+    """Metadata cannot retain transports on rejection, cancellation or failure."""
+    @wraps(function)
+    async def owned(*args, **kwargs):
+        tasks = []
+        token = _owned_metadata_tasks.set(tasks)
+        try:
+            return await function(*args, **kwargs)
+        finally:
+            await _drain_preparation_tasks(*tasks)
+            _owned_metadata_tasks.reset(token)
+    return owned
 
 
 def _owns_deferred_summary(function):
@@ -2611,6 +2626,7 @@ async def _consume_sub_chat_recovery_children(
 
 
 @_owns_deferred_summary
+@_owns_optional_metadata
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -3286,6 +3302,8 @@ async def _async_process_ai_skill_ask_task(
                     f"group='{live_group}' — full pipeline with cached API responses"
                 )
 
+    early_chat_metadata: Dict[str, Optional[str]] = {}
+
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
     # directly to postprocessing. All variables that postprocessing depends on are set
@@ -3394,6 +3412,21 @@ async def _async_process_ai_skill_ask_task(
         debug_cache_started_at = None
         debug_cache_write_cancelled = None
         initial_metadata_task = None
+        initial_metadata_notice_task = None
+        early_metadata_task = None
+
+        def start_early_metadata(history, language):
+            nonlocal early_metadata_task
+            from backend.apps.ai.processing.early_chat_metadata import (
+                eligible_for_early_metadata, generate_early_chat_metadata,
+            )
+            if early_metadata_task is None and eligible_for_early_metadata(request_data):
+                early_metadata_task = asyncio.create_task(generate_early_chat_metadata(
+                    task_id=task_id, message_history=history,
+                    user_system_language=language, secrets_manager=secrets_manager,
+                ))
+                _owned_metadata_tasks.get().append(early_metadata_task)
+
         preprocessing_ready_for_main = False
         try:
             if not cache_service_instance:
@@ -3528,6 +3561,7 @@ async def _async_process_ai_skill_ask_task(
                             on_early_routing=publish_early_typing,
                             precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
                             before_related_summary_read=before_related_summary_read if summary_task else None,
+                            on_metadata_context_ready=start_early_metadata,
                         )
                         if summary_task:
                             if _can_defer_summary_join(
@@ -4008,15 +4042,28 @@ async def _async_process_ai_skill_ask_task(
                     # CRITICAL: Skip WebSocket events for external requests (REST API)
                     # This prevents typing indicators from popping up in the web app when a user makes an API call.
                     if not request_data.is_external:
-                        initial_metadata_operation = time_pre_main("metadata_job", persist_generated_metadata(
-                            request=request_data, task_id=task_id, stage="initial",
-                            metadata={"title": preprocessing_result.title,
-                                      "category": typing_category if not request_data.chat_has_title else None,
-                                      "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
-                        ))
+                        async def seal_initial_metadata():
+                            if early_metadata_task and preprocessing_result.can_proceed:
+                                try:
+                                    generated = await early_metadata_task
+                                    if generated:
+                                        early_chat_metadata.update(title=generated.title, summary=generated.summary)
+                                except Exception as exc:
+                                    logger.info("Early metadata unavailable (%s)", type(exc).__name__)
+                            if await cache_service_instance.get_active_ai_task(request_data.chat_id) != task_id:
+                                return None
+                            return await persist_generated_metadata(
+                                request=request_data, task_id=task_id, stage="initial",
+                                metadata={"title": early_chat_metadata.get("title") or preprocessing_result.title,
+                                          "summary": early_chat_metadata.get("summary"),
+                                          "category": typing_category if not request_data.chat_has_title else None,
+                                          "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
+                            )
+
+                        initial_metadata_operation = time_pre_main("metadata_job", seal_initial_metadata())
                         # StageOne already published the selected Mate. Its later
                         # sealed metadata notice can join at first visible output.
-                        if typing_lifecycle.started and preprocessing_result.can_proceed:
+                        if (typing_lifecycle.started or early_metadata_task) and preprocessing_result.can_proceed:
                             initial_metadata_task = asyncio.create_task(initial_metadata_operation)
                             initial_metadata_job = None
                         else:
@@ -4065,7 +4112,7 @@ async def _async_process_ai_skill_ask_task(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=False,
                     write_cancelled=debug_cache_write_cancelled,
                 )
-                await _drain_preparation_tasks(initial_metadata_task)
+                await _drain_preparation_tasks(initial_metadata_task, early_metadata_task)
 
         # --- Step 2: Main Processing (with streaming) ---
         # Sync wrapper handles Celery state update for progress
@@ -4098,6 +4145,11 @@ async def _async_process_ai_skill_ask_task(
                     logger.warning("[Task ID: %s] Sealed metadata notice unavailable (%s)",
                                    task_id, type(exc).__name__)
 
+        if early_metadata_task and initial_metadata_task:
+            # New metadata generation is wholly independent of first visible
+            # output. Its sealed notification may arrive while main is streaming.
+            initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())
+
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
             from backend.apps.ai.processing.main_processor import (
@@ -4128,7 +4180,8 @@ async def _async_process_ai_skill_ask_task(
                         user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
                         skill_config_dict=skill_config_dict,
                         completion_timing=completion_timing,
-                        before_first_chunk_publish=publish_initial_metadata_after_seal if initial_metadata_task else None,
+                        before_first_chunk_publish=(publish_initial_metadata_after_seal
+                            if initial_metadata_task and not early_metadata_task else None),
                     )
                 if not revoked_in_consumer and not soft_limited_in_consumer:
                     budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
@@ -4314,7 +4367,7 @@ async def _async_process_ai_skill_ask_task(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=False,
                     write_cancelled=debug_cache_write_cancelled,
                 )
-            await _drain_preparation_tasks(initial_metadata_task)
+            await _drain_preparation_tasks(initial_metadata_notice_task, initial_metadata_task, early_metadata_task)
 
     if legacy_batch_proof is not None:
         if cache_service_instance is None:
@@ -4851,7 +4904,9 @@ async def _async_process_ai_skill_ask_task(
             # OPE-265: Determine current chat title for post-processing title update evaluation.
             # For new chats, use the preprocessing title. For follow-ups, use the client-provided title.
             current_title_for_postproc = None
-            if preprocessing_result and preprocessing_result.title:
+            if early_chat_metadata.get("title"):
+                current_title_for_postproc = early_chat_metadata["title"]
+            elif preprocessing_result and preprocessing_result.title:
                 current_title_for_postproc = preprocessing_result.title
             elif getattr(request_data, 'current_chat_title', None):
                 current_title_for_postproc = request_data.current_chat_title
@@ -4959,17 +5014,20 @@ async def _async_process_ai_skill_ask_task(
                 "source_metadata_v": source_metadata_v,
             }
 
-            # OPE-265: Include updated title only when the postprocessor determined a title change is needed
-            if postprocessing_result.updated_chat_title and not typed_child_metadata:
-                postprocessing_payload["updated_chat_title"] = postprocessing_result.updated_chat_title
-                logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
+            # Older clients receive their first title at completion. The early
+            # title was delivered only through the capability-gated sealed path.
+            final_generated_title = postprocessing_result.updated_chat_title or (
+                early_chat_metadata.get("title") if not request_data.chat_has_title else None
+            )
+            if final_generated_title and not typed_child_metadata:
+                postprocessing_payload["updated_chat_title"] = final_generated_title
 
             # The final delivery consolidates every generated field so a lost
             # typing event cannot strand the title/category/icon independently.
             final_metadata_job = await persist_generated_metadata(
                 request=request_data, task_id=task_id, stage="postprocessing",
                 source_metadata_v=source_metadata_v,
-                metadata={"title": postprocessing_result.updated_chat_title or preprocessing_result.title,
+                metadata={"title": postprocessing_result.updated_chat_title or early_chat_metadata.get("title") or preprocessing_result.title,
                           "summary": postprocessing_result.chat_summary if request_data.is_sub_chat else final_chat_summary,
                           "category": (preprocessing_result.category or "general_knowledge") if not request_data.chat_has_title else None,
                           "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},

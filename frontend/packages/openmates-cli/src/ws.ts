@@ -521,6 +521,7 @@ export class OpenMatesWsClient {
     projectFileJobs?: boolean;
     remoteCommandJobs?: boolean;
     interactiveHuman?: boolean;
+    chatMetadataRecovery?: boolean;
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     this.interactiveHuman = options.interactiveHuman === true;
@@ -536,6 +537,7 @@ export class OpenMatesWsClient {
       "canonical_embed_receipts_v1",
       "typed_recovery_outputs_v2",
       "agentic-storage-v2",
+      ...(options.chatMetadataRecovery ? ["chat_metadata_recovery"] : []),
       ...(options.taskUpdateJobs !== false ? ["task_update_jobs"] : []),
       ...(options.projectFileJobs === true ? ["project_file_jobs"] : []),
       ...(options.remoteCommandJobs === true ? ["remote_command_jobs"] : []),

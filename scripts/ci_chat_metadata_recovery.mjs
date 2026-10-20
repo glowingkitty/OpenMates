@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID, createPrivateKey, createPublicKey, diffieHellman,
   hkdfSync, createCipheriv, createDecipheriv } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { platform, release } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 const source = path.resolve(process.argv[2]);
+const uiFixture = process.argv.includes('--ui-fixture');
 if (process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
   || process.env.CI_TEST_MODE !== 'e2e') throw new Error('Metadata endpoint proof requires isolated GitHub E2E');
 const profile = JSON.parse(readFileSync(path.join(source, 'test-results/ci-private/compose.json'), 'utf8'));
@@ -15,7 +17,7 @@ const runtime = profile.services.api.environment;
 const require = createRequire(path.join(source, 'frontend/packages/openmates-cli/package.json'));
 const WebSocket = require('ws');
 const { OpenMatesClient } = await import(pathToFileURL(path.join(source, 'frontend/packages/openmates-cli/dist/index.js')));
-const { encryptBytesWithAesGcm, encryptWithAesGcmCombined } = await import(pathToFileURL(path.join(source, 'frontend/packages/openmates-cli/src/crypto.ts')));
+const { encryptBytesWithAesGcm, encryptWithAesGcmCombined, decryptWithAesGcmCombined } = await import(pathToFileURL(path.join(source, 'frontend/packages/openmates-cli/src/crypto.ts')));
 const client = new OpenMatesClient({ apiUrl: 'http://localhost:8000' });
 const user = await client.whoAmI();
 const session = client.getSession();
@@ -134,7 +136,7 @@ async function recover(job, editTitle) {
 }
 try {
   await admin('chats', { method: 'POST', body: { id: chatId, hashed_user_id: ownerHash,
-    encrypted_chat_key: wrapped, encrypted_title: '', title_v: 0, metadata_v: 0, messages_v: 2,
+    encrypted_chat_key: wrapped, encrypted_title: '', title_v: 0, metadata_v: 0, messages_v: uiFixture ? 1 : 2,
     created_at: now, updated_at: now, last_edited_overall_timestamp: now, is_private: true } });
   await admin('chat_turn_preflights', { method: 'POST', body: { id: preflightId, hashed_user_id: ownerHash,
     chat_id: chatId, turn_id: turnId, user_message_id: userMessageId, device_hash: 'isolated-fixture', chat_key_version: 1,
@@ -145,9 +147,47 @@ try {
   await admin('messages', { method: 'POST', body: [
     { id: userMessageId, client_message_id: userMessageId, chat_id: chatId, hashed_user_id: ownerHash,
       role: 'user', encrypted_content: await encryptWithAesGcmCombined('Synthetic user question', chatKey), created_at: now, updated_at: now },
-    { id: assistantMessageId, client_message_id: assistantMessageId, chat_id: chatId,
-      role: 'assistant', encrypted_content: await encryptWithAesGcmCombined('Synthetic completed assistant answer', chatKey), created_at: now, updated_at: now },
+    ...(!uiFixture ? [{ id: assistantMessageId, client_message_id: assistantMessageId, chat_id: chatId,
+      role: 'assistant', encrypted_content: await encryptWithAesGcmCombined('Synthetic completed assistant answer', chatKey), created_at: now, updated_at: now }] : []),
   ] });
+  if (uiFixture) {
+    // Keep the real backend and its WebSocket adapter in charge of delivery.
+    // The initial fixture deliberately contains no completed assistant message.
+    const initial = seal('initial', { title: 'Early research outline',
+      summary: 'A first outline is ready while the answer is still being prepared.', category: 'technology', icon: 'cpu' });
+    await operation('create_metadata_job', initial);
+    const output = value => process.stdout.write(`${JSON.stringify(value)}\n`);
+    output({ event: 'ready', chatId, taskId, jobId: initial.job_id });
+    let final;
+    const commands = createInterface({ input: process.stdin, crlfDelay: Infinity });
+    for await (const command of commands) {
+      if (command === 'cleanup') { output({ event: 'cleanup' }); break; }
+      if (command === 'final') {
+        assert.equal(final, undefined, 'Final fixture can only be generated once');
+        // Generated final metadata retains the authenticated turn's source base.
+        final = seal('postprocessing', { title: 'Completed research findings',
+          summary: 'The completed answer refines the outline with verified findings.', category: 'technology', icon: 'cpu' });
+        await operation('create_metadata_job', final);
+        await admin('messages', { method: 'POST', body: { id: assistantMessageId, client_message_id: assistantMessageId,
+          chat_id: chatId, role: 'assistant', encrypted_content: await encryptWithAesGcmCombined('Synthetic completed assistant answer', chatKey),
+          created_at: now + 1, updated_at: now + 1 } });
+        await admin(`chats/${chatId}`, { method: 'PATCH', body: { messages_v: 2, updated_at: now + 1,
+          last_edited_overall_timestamp: now + 1 } });
+        output({ event: 'final', chatId, taskId, jobId: final.job_id });
+      } else if (command === 'inspect') {
+        const chat = await admin(`chats/${chatId}`);
+        const initialRow = await admin(`chat_metadata_recovery_jobs/${initial.job_id}`);
+        const finalRow = final ? await admin(`chat_metadata_recovery_jobs/${final.job_id}`) : null;
+        output({ event: 'inspect', title: chat.encrypted_title ? await decryptWithAesGcmCombined(chat.encrypted_title, chatKey) : null,
+          summary: chat.encrypted_chat_summary ? await decryptWithAesGcmCombined(chat.encrypted_chat_summary, chatKey) : null,
+          initialState: initialRow.state, finalState: finalRow?.state ?? null,
+          sealedInitialRemoved: initialRow.sealed_payload === null,
+          sealedFinalRemoved: finalRow ? finalRow.sealed_payload === null : null,
+          assistantCompleted: final !== undefined, inferenceCalls: 0 });
+      } else throw new Error('Unknown metadata fixture command');
+    }
+    commands.close();
+  } else {
   // No pubsub events are sent: the origin disconnects before metadata exists.
   const origin = await connect(false); origin.ws.close();
   const initial = seal('initial', { title: 'Synthetic initial title', category: 'technology', icon: 'cpu' });
@@ -173,9 +213,11 @@ try {
   process.stdout.write(JSON.stringify({ discovery_after_disconnect: true, encrypted_commit: true,
     repeated_replay_idempotent: true, owner_edit_preserved: true, sealed_payload_removed: true,
     older_client_capability_guard: true, inference_calls: 0 }));
+  }
 } finally {
   sockets.forEach(socket => socket.ws.close());
   await operation('invalidate_deletion', { protocol_version: 1, hashed_user_id: ownerHash, scope: 'chat', chat_id: chatId }).catch(() => {});
-  await admin('messages', { method: 'DELETE', body: [userMessageId, assistantMessageId] }).catch(() => {});
+  await admin('messages', { method: 'DELETE', body: [userMessageId] }).catch(() => {});
+  await admin('messages', { method: 'DELETE', body: [assistantMessageId] }).catch(() => {});
   await admin(`chats/${chatId}`, { method: 'DELETE' }).catch(() => {});
 }

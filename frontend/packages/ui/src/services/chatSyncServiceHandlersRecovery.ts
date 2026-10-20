@@ -12,10 +12,15 @@ import {
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
   openRecoveryOutputEnvelope,
+  openChatMetadataRecoveryEnvelope,
   type RecoveryOutputKind,
   type ChatCompletionRecoveryEnvelope,
 } from "../utils/chatCompletionRecovery";
 import { chatDB } from "./db";
+import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { chatMetadataCache } from "./chatMetadataCache";
 import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { userDB } from "./userDB";
 import { chatKeyManager, computeKeyFingerprint } from "./encryption/ChatKeyManager";
@@ -54,6 +59,9 @@ const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
+const metadataJobsInProgress = new Set<string>();
+const metadataChatQueues = new Map<string, Promise<void>>();
+let metadataRecoveryObserved = false;
 const recoveryOutputsInProgress = new Set<string>();
 // Discovery pages can be queued before a durable ACK and consumed afterward.
 // Keep recent, session-scoped identities so an older page cannot re-read an ACKed row.
@@ -210,6 +218,9 @@ export function resetRecoveryLifecycleImpl(): void {
   for (const waiter of pendingForegroundWaiters) waiter.reject(ended);
   pendingForegroundWaiters.clear();
   recoveryJobsInProgress.clear();
+  metadataJobsInProgress.clear();
+  metadataChatQueues.clear();
+  metadataRecoveryObserved = false;
   recoveryOutputsInProgress.clear();
   acknowledgedRecoveryOutputs.clear();
   recoveryOutputPageQueue = Promise.resolve();
@@ -293,6 +304,8 @@ export function prepareRecoveryLifecycleImpl(serviceInstance: ChatSynchronizatio
       if (generation !== recoveryLifecycleGeneration || !serviceInstance || !canRunRecovery()) return;
       void handleRecoveryJobsAvailableImpl(serviceInstance, { jobs });
       void handleRecoveryOutputsAvailableImpl(serviceInstance, { outputs });
+      // Metadata jobs remain durable while backgrounded; rediscover their current state.
+      if (metadataRecoveryObserved) void webSocketService.sendMessage("metadata_jobs_request", {}).catch(() => {});
     }, 0);
   };
   webSocketService.on("native_client_lifecycle_ack", handleForegroundAck);
@@ -757,7 +770,7 @@ async function waitForInitialSync(serviceInstance: ChatSynchronizationService): 
   }
 }
 
-async function waitForRecoveryPrerequisites(job: AvailableRecoveryJob): Promise<RecoveryPrerequisites | null> {
+async function waitForRecoveryPrerequisites(job: Pick<AvailableRecoveryJob, "chat_id">): Promise<RecoveryPrerequisites | null> {
   const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
   while (Date.now() < deadline) {
     const chat = await chatDB.getChat(job.chat_id);
@@ -1597,4 +1610,126 @@ async function processRecoveryOutputsAvailable(
     }
     })();
   }
+}
+
+
+interface AvailableMetadataJob {
+  job_id: string;
+  chat_id: string;
+  task_id: string;
+  stage: "initial" | "postprocessing";
+  chat_key_version: number;
+}
+
+const METADATA_ENCRYPTED_FIELDS = {
+  title: "encrypted_title", summary: "encrypted_chat_summary",
+  category: "encrypted_category", icon: "encrypted_icon",
+} as const;
+
+/** Only server-accepted ciphertext becomes a generated navigation update. */
+export async function handleMetadataJobsAvailableImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { jobs?: AvailableMetadataJob[] },
+): Promise<void> {
+  metadataRecoveryObserved = true;
+  prepareRecoveryLifecycleImpl(serviceInstance);
+  const generation = recoveryLifecycleGeneration;
+  const workspace = getWorkspaceCacheIdentity();
+  const epoch = getWorkspaceCacheEpoch();
+  const current = () => generation === recoveryLifecycleGeneration
+    && workspace === getWorkspaceCacheIdentity() && epoch === getWorkspaceCacheEpoch();
+  // Durable jobs are rediscovered on reconnect and after foreground discovery.
+  if (!canRunRecovery() || !Array.isArray(payload.jobs)) return;
+  await waitForInitialSync(serviceInstance);
+  if (!current()) return;
+  await Promise.allSettled(payload.jobs.slice(0, 100).map(async job => {
+    if (!job || typeof job.job_id !== "string" || typeof job.chat_id !== "string"
+      || typeof job.task_id !== "string" || !["initial", "postprocessing"].includes(job.stage)
+      || !Number.isSafeInteger(job.chat_key_version) || job.chat_key_version < 1
+      || metadataJobsInProgress.has(job.job_id)) return;
+    metadataJobsInProgress.add(job.job_id);
+    // Capture the local CAS baseline only after earlier metadata receipts for
+    // this chat have been applied, including work from another discovery page.
+    const previous = metadataChatQueues.get(job.chat_id) ?? Promise.resolve();
+    const queued = previous.catch(() => {}).then(async () => {
+      try {
+        if (!current()) return;
+        await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
+        if (!current()) return;
+        const prerequisites = await waitForRecoveryPrerequisites(job);
+        if (!current() || !prerequisites) return;
+        const { chat, chatKey } = prerequisites;
+        if (chat.team_id || !chat.encrypted_chat_key) return;
+        const profile = await userDB.getUserProfile();
+        if (!current() || profile?.user_id !== chat.user_id) return;
+        const fingerprint = computeKeyFingerprint(chatKey);
+        const keyIsCurrent = async () => {
+          const [latest, key] = await Promise.all([chatDB.getChat(job.chat_id), chatKeyManager.getKey(job.chat_id)]);
+          return current() && latest?.user_id === chat.user_id && !latest?.team_id
+            && latest?.encrypted_chat_key === chat.encrypted_chat_key
+            && !!key && computeKeyFingerprint(key) === fingerprint;
+        };
+        if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "metadata recovery", { reportFailure: false }))
+          || !(await keyIsCurrent())) return;
+        const claim = await requestRecoveryEvent("metadata_job_claimed", "metadata_job_claim", job.job_id,
+          { protocol_version: 1, job_id: job.job_id });
+        const matches = (value: Record<string, unknown>) => value.job_id === job.job_id
+          && value.chat_id === job.chat_id && value.task_id === job.task_id
+          && value.stage === job.stage && value.chat_key_version === job.chat_key_version;
+        if (!current() || !matches(claim)) return;
+        if (claim.state !== "AVAILABLE") {
+          if (claim.state === "TERMINAL") await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
+          return;
+        }
+        if (typeof claim.sealed_payload !== "string" || !Array.isArray(claim.encrypted_fields)) return;
+        const keypair = await deriveChatCompletionRecoveryKeypair(encodeRecoveryChatKey(chatKey), job.chat_id, job.chat_key_version);
+        const metadata = await openChatMetadataRecoveryEnvelope(JSON.parse(claim.sealed_payload), {
+          recoveryPrivateKey: keypair.privateKey, ownerId: chat.user_id, chatId: job.chat_id,
+          taskId: job.task_id, jobId: job.job_id, stage: job.stage, keyVersion: job.chat_key_version,
+        });
+        const fields = Object.entries(metadata).map(([field, value]) =>
+          [METADATA_ENCRYPTED_FIELDS[field as keyof typeof METADATA_ENCRYPTED_FIELDS], value] as const);
+        if (claim.encrypted_fields.length !== fields.length
+          || fields.some(([field]) => !(claim.encrypted_fields as unknown[]).includes(field))) return;
+        const encrypted = Object.fromEntries(await Promise.all(fields.map(async ([field, value]) => {
+          const ciphertext = await encryptWithChatKey(value, chatKey);
+          if (!ciphertext) throw new Error("Metadata encryption failed");
+          return [field, ciphertext];
+        })));
+        if (!(await keyIsCurrent())) return;
+        const receipt = await requestRecoveryEvent("metadata_job_persisted", "metadata_job_persist", job.job_id, {
+          protocol_version: 1, job_id: job.job_id, chat_key_version: job.chat_key_version,
+          wrapped_chat_key: chat.encrypted_chat_key, encrypted_metadata: encrypted,
+        });
+        if (!matches(receipt) || !(await keyIsCurrent()) || receipt.state !== "TERMINAL") return;
+        const accepted = receipt.encrypted_metadata;
+        const versions = receipt.versions as Record<string, unknown> | undefined;
+        if (!accepted || typeof accepted !== "object" || Array.isArray(accepted)
+          || !versions || !Number.isSafeInteger(versions.metadata_v) || Number(versions.metadata_v) < 0
+          || !Number.isSafeInteger(versions.title_v) || Number(versions.title_v) < 0
+          || Object.entries(accepted).some(([field, value]) =>
+            !Object.values(METADATA_ENCRYPTED_FIELDS).includes(field as typeof METADATA_ENCRYPTED_FIELDS.title)
+            || typeof value !== "string" || !value)) return;
+        const saved = await persistGeneratedChatMetadata(chatDB, chat, {
+          ...accepted, metadata_v: Number(versions.metadata_v), title_v: Number(versions.title_v),
+        }, current);
+        if (!saved || !current()) return;
+        chatMetadataCache.invalidateChat(job.chat_id);
+        serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {
+          detail: { chat_id: job.chat_id, type: "post_processing_metadata", chat: saved },
+        }));
+      } catch {
+        // Optional navigation metadata remains recoverable; paid reply delivery proceeds.
+        console.warn("[ChatSyncService:Recovery] Metadata job remains pending.");
+      } finally {
+        if (generation === recoveryLifecycleGeneration) metadataJobsInProgress.delete(job.job_id);
+      }
+    });
+    metadataChatQueues.set(job.chat_id, queued);
+    try {
+      await queued;
+    } finally {
+      if (metadataChatQueues.get(job.chat_id) === queued) metadataChatQueues.delete(job.chat_id);
+    }
+  }));
 }

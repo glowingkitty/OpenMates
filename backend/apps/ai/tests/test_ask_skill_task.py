@@ -224,7 +224,8 @@ def test_artifact_preparation_reads_ledger_for_empty_unknown_and_existing_contex
 
 
 # contract: summary activation cannot outrun the authority/cache fences, and
-# metadata publication consumes the persisted sealed job before visible output.
+# metadata publication consumes sealed jobs, while optional generation does not
+# delay first visible output.
 def test_preparation_and_metadata_join_boundaries():
     source = (Path(__file__).resolve().parents[1] / "tasks" / "ask_skill_task.py").read_text()
     body = source.split("async def _async_process_ai_skill_ask_task(", 1)[1]
@@ -241,7 +242,10 @@ def test_preparation_and_metadata_join_boundaries():
             "wait_for_budget=True")
     assert body.index('initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)') < body.index(
         "metadata_recovery_job=initial_metadata_job", body.index("async def publish_initial_metadata_after_seal"))
-    assert body.index("before_first_chunk_publish=publish_initial_metadata_after_seal") < body.index(
+    assert "if initial_metadata_task and not early_metadata_task else None" in body
+    assert body.index("initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())") < body.index(
+        "_consume_main_processing_stream(")
+    assert body.index("before_first_chunk_publish=(publish_initial_metadata_after_seal") < body.index(
         "wait_for_budget=True")
     assert "if not request_data.is_external:" in body
     assert "if not typing_lifecycle.started:" in body

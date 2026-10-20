@@ -81,7 +81,7 @@ import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import {
-  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl, handleMetadataJobsAvailableImpl,
   prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
 } from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
@@ -101,6 +101,7 @@ import { chatMetadataCache } from "./chatMetadataCache";
 import { getTeam } from "./teamService";
 import {
   setProjectFileJobsCapabilityEnabled,
+  setChatMetadataRecoveryCapabilityEnabled,
   setRemoteCommandJobsCapabilityEnabled,
 } from "../config/api";
 
@@ -671,6 +672,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.addEventListener("handlers_cleared", () => {
       chatSyncActivity.clear();
       resetRecoveryLifecycleImpl();
+      setChatMetadataRecoveryCapabilityEnabled(false);
       console.warn(
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
@@ -2086,6 +2088,10 @@ export class ChatSynchronizationService extends EventTarget {
     // Recovery availability can arrive immediately after connection establishment.
     // Register its already-loaded handler before any dynamic handler imports so an
     // available sealed completion is never dropped.
+    webSocketService.on("metadata_jobs_available", (payload) =>
+      handleMetadataJobsAvailableImpl(this, payload as Parameters<typeof handleMetadataJobsAvailableImpl>[1]),
+    );
+    setChatMetadataRecoveryCapabilityEnabled(true);
     webSocketService.on("recovery_jobs_available", (payload) =>
       handleRecoveryJobsAvailableImpl(
         this,
