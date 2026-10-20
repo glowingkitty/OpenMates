@@ -91,53 +91,48 @@ async def test_sdk_wire_nests_and_associates_every_tool_image(
         await runner.cleanup()
 
     assert len(captured) == 1
-    # The pinned SDK leaves nested function-response fields in proto snake_case.
-    # ProtoJSON accepts those names as well as lowerCamelCase. Normalize names
-    # only, preserving the captured HTTP values for all payload assertions.
-    aliases = {"function_call": "functionCall", "function_response": "functionResponse",
-               "inline_data": "inlineData", "thought_signature": "thoughtSignature",
-               "mime_type": "mimeType", "display_name": "displayName"}
-
-    def normalize_names(value):
-        if isinstance(value, list):
-            return [normalize_names(item) for item in value]
-        if isinstance(value, dict):
-            return {aliases.get(key, key): normalize_names(item) for key, item in value.items()}
-        return value
-
-    wire = normalize_names(captured[0]["contents"])
+    # Inspect the exact HTTP JSON. Normalizing aliases here previously hid the
+    # AI Studio $ref/display_name resolver failure seen in a real tool turn.
+    wire = captured[0]["contents"]
+    call_key = "functionCall" if provider == "studio" else "function_call"
+    response_key = "functionResponse" if provider == "studio" else "function_response"
+    signature_key = "thoughtSignature" if provider == "studio" else "thought_signature"
     calls = wire[1]["parts"]
     responses = wire[2]["parts"]
     assert len(responses) == len(image_counts)
     assert wire[2]["role"] == "user"
-    assert calls[0]["thoughtSignature"] == base64.b64encode(SIGNATURE).decode()
-    assert all("thoughtSignature" not in part for part in calls[1:])
-    assert "private-thought-signature" not in json.dumps(responses)
+    assert calls[0][signature_key] == base64.b64encode(SIGNATURE).decode()
+    assert all(signature_key not in part for part in calls[1:])
+    raw_responses = json.dumps(responses)
+    assert "private-thought-signature" not in raw_responses
+    assert "$ref" not in raw_responses
+    assert "display_name" not in raw_responses and "displayName" not in raw_responses
     for call_index, image_count in enumerate(image_counts):
-        call = calls[call_index]["functionCall"]
+        call = calls[call_index][call_key]
         assert call["id"] == f"opaque_call_{call_index}"
         assert call["name"] == name
-        assert set(responses[call_index]) == {"functionResponse"}
-        result = responses[call_index]["functionResponse"]
+        assert set(responses[call_index]) == {response_key}
+        result = responses[call_index][response_key]
         assert result["id"] == call["id"]
         assert result["name"] == call["name"]
         assert len(result["parts"]) == image_count
         content = result["response"]["content"]
         assert content[0] == {"type": "text", "text": json.dumps({"image_count": image_count})}
-        display_names = []
+        assert result["response"]["image_order"] == (
+            "Nested images follow the image entries in content; image_index starts at 1."
+        )
         for image_index, part in enumerate(result["parts"]):
-            assert set(part) == {"inlineData"}
-            blob = part["inlineData"]
-            assert blob["mimeType"] == "image/webp"
+            assert set(part) == {"inline_data"}
+            blob = part["inline_data"]
+            assert set(blob) == {"mime_type", "data"}
+            assert blob["mime_type"] == "image/webp"
             assert base64.b64decode(blob["data"]) == f"image bytes {call_index}:{image_index}".encode()
             assert content[image_index * 2 + 1]["text"] == (
                 f"Image {image_index + 1}: embed {call_index}:{image_index}"
             )
             assert content[image_index * 2 + 2] == {
-                "type": "image", "image": {"$ref": blob["displayName"]},
+                "type": "image", "image_index": image_index + 1,
             }
-            display_names.append(blob["displayName"])
-        assert len(set(display_names)) == image_count
 
 
 @pytest.mark.parametrize("model_id", ["gemini-2.5-flash", "qwen/qwen3-235b-maas"])

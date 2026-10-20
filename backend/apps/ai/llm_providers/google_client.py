@@ -687,10 +687,11 @@ def _multimodal_function_response(
     call_id: Optional[str],
     content: List[Dict[str, Any]],
 ) -> types.Part:
-    """Keep ordered tool text and image references inside their function result.
+    """Keep ordered tool text and image bytes inside their function result.
 
-    Gemini 3+ expects binary assets in FunctionResponse.parts, rather than
-    sibling user parts. Each reference identifies exactly one nested image.
+    Gemini 3+ expects assets in FunctionResponse.parts. Use positional image
+    metadata rather than optional $ref/displayName indirection to avoid the
+    reference-name mismatch observed with SDK 1.58 on AI Studio.
     """
     response_content = []
     response_parts = []
@@ -698,19 +699,20 @@ def _multimodal_function_response(
         if part.text:
             response_content.append({"type": "text", "text": part.text})
         elif part.inline_data:
-            display_name = f"tool_image_{len(response_parts) + 1}"
             response_parts.append(types.FunctionResponsePart(
                 inline_data=types.FunctionResponseBlob(
                     mime_type=part.inline_data.mime_type,
                     data=part.inline_data.data,
-                    display_name=display_name,
                 ),
             ))
-            response_content.append({"type": "image", "image": {"$ref": display_name}})
+            response_content.append({"type": "image", "image_index": len(response_parts)})
     return types.Part(function_response=types.FunctionResponse(
         id=call_id,
         name=name,
-        response={"status": "ok", "type": "multimodal", "content": response_content},
+        response={
+            "status": "ok", "type": "multimodal", "content": response_content,
+            "image_order": "Nested images follow the image entries in content; image_index starts at 1.",
+        },
         parts=response_parts or None,
     ))
 
