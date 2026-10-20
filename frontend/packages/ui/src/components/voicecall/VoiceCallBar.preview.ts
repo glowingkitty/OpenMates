@@ -6,7 +6,7 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
   subscribe;
   private state: VoiceCallState;
   constructor(state: Partial<VoiceCallState>) {
-    this.state = { ...initialVoiceCallState, activeElapsedSeconds:state.status==='live'?15:0, chatId: 'preview-chat', ...state };
+    this.state = { ...initialVoiceCallState, cameraAvailable: true, activeElapsedSeconds:state.status==='live'?15:0, chatId: 'preview-chat', ...state };
     this.store = writable(this.state);
     this.subscribe = this.store.subscribe;
   }
@@ -16,6 +16,11 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
     this.publish({ muted, inputIdle: false, userSpeaking: false, billingActivity: { inputListening: !muted, processing: this.state.billingActivity?.processing ?? false } });
   }
   setMinimized(minimized: boolean) { this.publish({ minimized }); }
+  async setCameraEnabled(cameraEnabled: boolean) { this.publish({ cameraEnabled, mediaExpanded: cameraEnabled }); }
+  async flipCamera() { this.publish({ cameraFacing: this.state.cameraFacing === 'environment' ? 'user' : 'environment' }); }
+  setMediaExpanded(mediaExpanded: boolean) { this.publish({ mediaExpanded }); }
+  showCamera() { this.publish({ displayedMedia: null, mediaExpanded: true }); }
+  selectMedia(mediaIndex: number) { this.publish({ mediaIndex, displayedMedia: this.state.mediaItems[mediaIndex] ?? null }); }
   hangup() { this.publish({ status: 'ended' }); }
   private publish(patch: Partial<VoiceCallState>) {
     this.state = { ...this.state, ...patch };

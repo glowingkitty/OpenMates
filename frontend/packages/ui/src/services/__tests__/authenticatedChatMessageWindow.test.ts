@@ -17,6 +17,29 @@ beforeEach(() => {
 });
 
 describe('canonical call history hydration', () => {
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.lifecycle.recovery-and-billing,chats.persistence.client-encrypted
+  it.each([0, 3, Number.MAX_SAFE_INTEGER])('preserves canonical revision %i for monotonic sync writes', async (revision) => {
+    const row = { client_message_id: 'server', chat_id: 'chat', role: 'user',
+      encrypted_content: 'ciphertext', created_at: 20, queue_revision: revision };
+    mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ messages: [row, JSON.stringify({ ...row, client_message_id: 'encoded' })] }) });
+    await fetchAuthenticatedChatMessageWindow('chat', { direction: 'latest' });
+    expect(mocks.db.batchSaveMessages).toHaveBeenCalledWith([
+      expect.objectContaining({ message_id: 'server', encrypted_content: 'ciphertext', queue_revision: revision }),
+      expect.objectContaining({ message_id: 'encoded', encrypted_content: 'ciphertext', queue_revision: revision }),
+    ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,chats.persistence.client-encrypted
+  it.each([undefined, null, true, '3', -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])('does not fabricate a revision from invalid or unknown value %s', async (revision) => {
+    mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ messages: [
+      { message_id: 'server', chat_id: 'chat', role: 'user', encrypted_content: 'ciphertext', queue_revision: revision },
+    ] }) });
+    await fetchAuthenticatedChatMessageWindow('chat', { direction: 'latest' });
+    const saved = mocks.db.batchSaveMessages.mock.calls[0][0][0];
+    expect(saved.queue_revision).toBeUndefined();
+    expect(saved.encrypted_content).toBe('ciphertext');
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
   it('uses server continuation and cursor even when the local cache claims to be complete', async () => {
     mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ messages: [

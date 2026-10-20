@@ -64,7 +64,7 @@ async def consume_voice_ack_fixture_write_failure(cache: Any, user_id: str) -> b
 
 class IsolatedGeminiVoiceFixture:
     model = "gemini-3.8-live"
-    capabilities = LiveVoiceCapabilities(audio_input=True, text_input=True, audio_output=True, transcripts=True, tools=True)
+    capabilities = LiveVoiceCapabilities(audio_input=True, text_input=True, audio_output=True, transcripts=True, tools=True, video_input=True)
 
     def __init__(self) -> None:
         if not isolated_voice_fixture_enabled():
@@ -74,6 +74,7 @@ class IsolatedGeminiVoiceFixture:
         self._activity_reply_pending = False
         self._mic_answered = False
         self._tool_counter = 0
+        self._camera_received = False
         self._answers: set[asyncio.Task[None]] = set()
 
     async def open(self, *, summary: str, messages: list[dict[str, str]],
@@ -116,11 +117,18 @@ class IsolatedGeminiVoiceFixture:
             self._mic_answered = True
             await self._answer("How do I make ramen?", "For ramen, simmer the broth and cook the noodles.")
 
+    async def send_video(self, encoded_jpeg: str) -> None:
+        # The route validates exact bytes and source admission; retain only state.
+        self._camera_received = True
+
     async def send_text(self, text: str) -> None:
         if text == "Hold this voice activity reply until I speak again.":
             self._activity_reply_pending = True
             return
-        if text in ("Voice stage two fixture: apply memory and search the web",
+        if text.startswith("Voice camera fixture:") and not self._camera_received:
+            raise ValueError("Camera fixture requires a real accepted frame")
+        if text in ("Voice camera fixture: search current frame", "Voice camera fixture: animate current frame",
+                    "Voice stage two fixture: apply memory and search the web",
                     "Voice stage two fixture: fail one tool operation"):
             self._tool_counter += 1
             await self._events.put({"toolCall": {"functionCalls": [{

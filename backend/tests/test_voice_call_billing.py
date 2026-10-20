@@ -45,3 +45,14 @@ def test_interim_duplicates_commit_once_but_equal_reports_on_distinct_turns_are_
     assert ledger.commit_gemini_turn()
     assert ledger.gemini_cost == Decimal("0.0036")
     assert ledger.prompt_tokens == 400 and ledger.response_tokens == 200
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.usage.provider-metering,video-call.video.source-frame-provenance
+def test_camera_provider_image_video_modalities_use_actual_tokens_once():
+    ledger = UsageLedger()
+    ledger.stage_gemini({"totalTokenCount": 1000, "promptTokenCount": 1000, "responseTokenCount": 0,
+        "promptTokensDetails": [{"modality": "IMAGE", "tokenCount": 700}, {"modality": "VIDEO", "tokenCount": 300}]})
+    assert ledger.commit_gemini_turn()
+    assert not ledger.commit_gemini_turn()
+    assert ledger.gemini_cost == Decimal("0.001")
+    assert _credits_for(ledger.gemini_cost) == 2

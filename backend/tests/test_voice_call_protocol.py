@@ -1483,14 +1483,19 @@ async def test_failed_tool_response_keeps_call_connected_for_next_successful_tur
 # contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.privacy
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure", [PermissionError("authority revoked"), RuntimeError("unknown fatal error"), TimeoutError("unknown worker outcome")])
-async def test_unclassified_and_authority_tool_failures_still_end_call(monkeypatch, failure):
+async def test_unclassified_and_authority_tool_failures_still_end_call(monkeypatch, failure, caplog):
     async def process(*args, **kwargs):
         raise failure
     socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
     provider.events.put_nowait(_request())
     await asyncio.wait_for(task, 2)
     assert provider.responses == []
-    assert any(event.get("type") == "error" and event.get("code") == "call_unavailable" for event in socket.sent)
+    terminal = next(event for event in socket.sent if event.get("type") == "error" and event.get("code") == "call_unavailable")
+    assert terminal["stage"] == "active"
+    assert terminal["error_origin"]["category"] == type(failure).__name__
+    assert terminal["error_origin"]["function"] == "process"
+    assert terminal["error_origin"]["line"] > 0
+    assert str(failure) not in json.dumps(socket.sent) + caplog.text
 # contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.provider.boundary
 @pytest.mark.asyncio
 @pytest.mark.parametrize("category,voice,name", [("medical_health", "Charon", "Melvin"), ("software_development", "Erinome", "Sophia")])
@@ -1523,3 +1528,204 @@ async def test_voice_mate_rejects_unknown_category_and_preserves_learning_prompt
     for category in ({"prompt": "override"}, "../medical_health", 12):
         with pytest.raises(ValueError, match="mate category"):
             route._context_options({"mate_category": category})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance,video-call.chat.skill-integration,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ack_timeout", [False, True])
+async def test_camera_tool_waits_for_exact_owned_upload_ack_and_off_keeps_audio_connected(monkeypatch, ack_timeout):
+    from io import BytesIO
+    from PIL import Image
+    from unittest.mock import AsyncMock
+    from backend.shared.providers.live_voice import LiveVoiceCapabilities
+    started = asyncio.Event()
+    source_expired, source_waiting = asyncio.Event(), asyncio.Event()
+    db_started, release_db = asyncio.Event(), asyncio.Event()
+    received = []
+    from backend.shared.python_utils import voice_call_visuals as visuals_module
+    if ack_timeout:
+        monkeypatch.setattr(visuals_module, "SOURCE_SAVE_TIMEOUT", 0.001)
+    original_source = visuals_module.VoiceCallVisuals.source
+    async def observed_source(self, user_message_id):
+        source_waiting.set()
+        if ack_timeout:
+            await db_started.wait()
+        value = await original_source(self, user_message_id)
+        if value is None:
+            source_expired.set()
+        return value
+    monkeypatch.setattr(visuals_module.VoiceCallVisuals, "source", observed_source)
+    async def process(broker, *args, **kwargs):
+        received.append(kwargs["visual_source"])
+        started.set()
+        return {"response": {"status": "completed"}, "events": []}
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
+    try:
+        provider.capabilities = LiveVoiceCapabilities(True, True, True, True, tools=True, video_input=True)
+        provider.send_video = AsyncMock()
+        call_id = next(event["call_id"] for event in socket.sent if event["type"] == "ready")
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": True})
+        await _until(socket, lambda events: any(e["type"] == "camera_state" and e["enabled"] for e in events))
+        output = BytesIO()
+        Image.new("RGB", (64, 32), "blue").save(output, format="JPEG")
+        encoded = base64.b64encode(output.getvalue()).decode()
+        socket.push({"type": "camera_frame", "call_id": call_id, "frame_id": "source-frame",
+                     "captured_at": route.time.time() * 1000, "data": encoded})
+        await _until(socket, lambda _: provider.send_video.await_count == 1)
+        user_id, _ = _ordered_message_id()
+        socket.push({"type": "text_input", "message_id": user_id, "text": "Find this object",
+                     "created_at": route._timestamp()})
+        await _until(socket, lambda events: any(e["type"] == "voice_source_frame" for e in events))
+        source = next(e for e in socket.sent if e["type"] == "voice_source_frame")
+        assert source["data"] == encoded and source["user_message_id"] == user_id
+        transcript_index = next(i for i, e in enumerate(socket.sent) if e.get("message_id") == user_id)
+        assert transcript_index < socket.sent.index(source)
+        provider.events.put_nowait(_request())
+        await _until(socket, lambda events: any(e["type"] == "billing_activity" and e["processing"] for e in events))
+        await asyncio.wait_for(source_waiting.wait(), 2)
+        assert not started.is_set()
+        async def source_upload(*args, **kwargs):
+            db_started.set()
+            if ack_timeout:
+                await release_db.wait()
+            return [{"embed_id": "saved-source", "user_id": "owner",
+                "content_hash": hashlib.sha256(output.getvalue()).hexdigest(), "content_type": "image/jpeg"}]
+        socket.app.state.directus_service.get_items = source_upload
+        socket.push({"type": "source_frame_saved", "call_id": call_id, "user_message_id": user_id,
+            "frame_id": "source-frame", "embed_reference": {"type": "image", "embed_id": "saved-source"}})
+        if ack_timeout:
+            await asyncio.wait_for(db_started.wait(), 2)
+            await asyncio.wait_for(source_expired.wait(), 2)
+            release_db.set()
+            await asyncio.wait_for(provider.response_ready.wait(), 2)
+            assert not started.is_set() and not received
+            assert provider.responses[-1][1]["error"] == "tool_operation_failed"
+            assert not task.done() and not any(e["type"] == "error" for e in socket.sent)
+        else:
+            await asyncio.wait_for(started.wait(), 2)
+            assert received[0]["data"] == encoded
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": False})
+        await _until(socket, lambda events: any(e["type"] == "camera_state" and not e["enabled"] for e in events))
+        socket.push({"type": "camera_frame", "call_id": call_id, "frame_id": "denied",
+            "captured_at": route.time.time() * 1000, "data": encoded})
+        await _until(socket, lambda events: any(e["type"] == "camera_error" for e in events))
+        assert not task.done() and provider.send_video.await_count == 1
+        if ack_timeout:
+            provider.send_audio = AsyncMock()
+            socket.push({"type": "mic_audio", "data": base64.b64encode(b"\0\0" * 16).decode()})
+            await _until(socket, lambda _: provider.send_audio.await_count == 1)
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+async def test_arrival_burst_drops_camera_samples_without_error_or_interrupting_audio(monkeypatch):
+    from io import BytesIO
+    from PIL import Image
+    from unittest.mock import AsyncMock
+    from backend.shared.providers.live_voice import LiveVoiceCapabilities
+    from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals
+    original_accept = VoiceCallVisuals.accept
+    # A fixed ingress clock makes every sample after the first over budget,
+    # without sleeping or changing asyncio's clock.
+    monkeypatch.setattr(VoiceCallVisuals, "accept", lambda self, event: original_accept(self, event, now=100))
+    async def unused(*args, **kwargs):
+        raise AssertionError("No tool request is needed")
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, unused)
+    try:
+        provider.capabilities = LiveVoiceCapabilities(True, True, True, True, tools=True, video_input=True)
+        provider.send_video, provider.send_audio = AsyncMock(), AsyncMock()
+        call_id = next(event["call_id"] for event in socket.sent if event["type"] == "ready")
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": True})
+        output = BytesIO()
+        Image.new("RGB", (32, 32), "green").save(output, format="JPEG")
+        encoded = base64.b64encode(output.getvalue()).decode()
+        for index in range(3):
+            socket.push({"type": "camera_frame", "call_id": call_id, "frame_id": f"burst-{index}",
+                "captured_at": route.time.time() * 1000, "data": encoded})
+        socket.push({"type": "mic_audio", "data": base64.b64encode(b"\0\0" * 16).decode()})
+        await _until(socket, lambda _: provider.send_audio.await_count == 1)
+        assert provider.send_video.await_count == 1
+        assert not any(event["type"] in {"camera_error", "error", "ended"} for event in socket.sent)
+        assert not task.done()
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.usage.provider-metering,video-call.video.source-frame-provenance
+def test_visual_admission_reserve_releases_only_for_reported_image_or_video_usage():
+    from backend.core.api.app.routes.voice_call import _unsettled_visual_credits, _has_visual_usage
+    assert _unsettled_visual_credits(100, 0) > 0
+    assert _unsettled_visual_credits(100, 100) == 0
+    assert not _has_visual_usage({"promptTokensDetails": [{"modality": "TEXT", "tokenCount": 100}]})
+    for modality in ("IMAGE", "VIDEO"):
+        assert _has_visual_usage({"promptTokensDetails": [{"modality": modality, "tokenCount": 258}]})
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output,video-call.provider.boundary
+@pytest.mark.asyncio
+async def test_gemini_camera_frames_share_live_socket_and_preserve_audio_protocol():
+    from unittest.mock import AsyncMock
+    from backend.shared.providers.gemini_live_voice import GeminiLiveVoiceSession
+    provider = GeminiLiveVoiceSession("unused-test-key")
+    provider._socket = SimpleNamespace(send_json=AsyncMock())
+    await provider.send_audio("pcm")
+    await provider.send_video("jpeg")
+    await provider.end_audio()
+    assert provider.capabilities.video_input
+    assert [call.args[0] for call in provider._socket.send_json.await_args_list] == [
+        {"realtimeInput": {"audio": {"data": "pcm", "mimeType": "audio/pcm;rate=16000"}}},
+        {"realtimeInput": {"video": {"data": "jpeg", "mimeType": "image/jpeg"}}},
+        {"realtimeInput": {"audioStreamEnd": True}},
+    ]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output,video-call.usage.provider-metering,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+async def test_camera_only_activity_counts_while_mic_idle_and_camera_off_preserves_mic_activity(monkeypatch):
+    from io import BytesIO
+    from PIL import Image
+    from unittest.mock import AsyncMock
+    from backend.shared.providers.live_voice import LiveVoiceCapabilities
+    async def unused(*args, **kwargs):
+        raise AssertionError("No tool request is needed")
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, unused)
+    def latest_activity():
+        return [event for event in socket.sent if event["type"] == "billing_activity"][-1]
+    try:
+        provider.capabilities = LiveVoiceCapabilities(True, True, True, True, tools=True, video_input=True)
+        provider.send_video, provider.send_audio = AsyncMock(), AsyncMock()
+        call_id = next(event["call_id"] for event in socket.sent if event["type"] == "ready")
+        socket.push({"type": "audio_stream_end"})
+        provider.events.put_nowait({"serverContent": {"turnComplete": True}})
+        await _until(socket, lambda _: not latest_activity()["input_listening"] and not latest_activity()["processing"])
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": True})
+        output = BytesIO()
+        Image.new("RGB", (32, 32), "green").save(output, format="JPEG")
+        socket.push({"type": "camera_frame", "call_id": call_id, "frame_id": "camera-only",
+            "captured_at": route.time.time() * 1000, "data": base64.b64encode(output.getvalue()).decode()})
+        await _until(socket, lambda _: latest_activity()["input_listening"])
+        assert not latest_activity()["processing"] and provider.send_video.await_count == 1
+        assert provider.send_audio.await_count == 0
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": False})
+        await _until(socket, lambda _: not latest_activity()["input_listening"])
+        socket.push({"type": "mic_audio", "data": base64.b64encode(b"\0\0" * 16).decode()})
+        await _until(socket, lambda _: provider.send_audio.await_count == 1 and latest_activity()["input_listening"])
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": True})
+        socket.push({"type": "camera_state", "call_id": call_id, "enabled": False})
+        await _until(socket, lambda events: len([event for event in events if event["type"] == "camera_state"]) == 4)
+        assert latest_activity()["input_listening"]
+        socket.push({"type": "audio_stream_end"})
+        await _until(socket, lambda _: not latest_activity()["input_listening"])
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)

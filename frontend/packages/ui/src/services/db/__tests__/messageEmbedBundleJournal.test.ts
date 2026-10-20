@@ -134,6 +134,49 @@ describe("pending encrypted message retry journals", () => {
     expect(rows.get("call-correction")).not.toHaveProperty("content");
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.lifecycle.recovery-and-billing,chats.persistence.client-encrypted
+  it.each(["single", "batch"] as const)("keeps a newer confirmed call revision when a prepared %s sync save resumes", async (mode) => {
+    const { db, rows } = makeTransactions();
+    const stale = { ...message("call-correction", "synced"), content: undefined,
+      encrypted_content: "cipher:old", queue_revision: 1 };
+    rows.set(stale.message_id, { ...stale, status: "delivered" });
+    let admitWrite!: () => void;
+    let reportPrepared!: () => void;
+    const prepared = new Promise<void>(resolve => { reportPrepared = resolve; });
+    const resumed = new Promise<void>(resolve => { admitWrite = resolve; });
+    const getTransaction = db.getTransaction;
+    db.getTransaction = async (store, access) => {
+      if (access === "readwrite") {
+        reportPrepared();
+        await resumed;
+      }
+      return getTransaction(store, access);
+    };
+    const saving = mode === "single" ? saveMessage(db, stale) : batchSaveMessages(db, [stale]);
+    await prepared;
+    // The canonical fetch commits after this snapshot's duplicate check. Its
+    // ciphertext is already acknowledged, so no pending outbox protects it.
+    const confirmed = { ...stale, encrypted_content: "cipher:corrected", queue_revision: 3 };
+    rows.set(stale.message_id, confirmed);
+    admitWrite();
+    await saving;
+    expect(rows.get(stale.message_id)).toEqual(confirmed);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,chats.persistence.client-encrypted
+  it.each([3, 4])("still accepts equal or newer confirmed revision %i through both save paths", async (revision) => {
+    for (const save of [saveMessage, (db: Parameters<typeof saveMessage>[0], row: Message) => batchSaveMessages(db, [row])]) {
+      const { db, rows } = makeTransactions();
+      const stored = { ...message("call-correction", "delivered"), content: undefined,
+        encrypted_content: "cipher:stored", queue_revision: 3 };
+      rows.set(stored.message_id, stored);
+      await save(db, { ...stored, status: "synced", queue_revision: revision,
+        encrypted_content: "cipher:canonical" });
+      expect(rows.get(stored.message_id)).toMatchObject({ queue_revision: revision,
+        encrypted_content: "cipher:canonical", status: "synced" });
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send
   it("discovers synced sealed turns by numeric index in bounded pages without decrypting in the transaction", async () => {
     const indexed = [

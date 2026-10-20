@@ -407,6 +407,12 @@ export function hasNewEncryptedFields(
   });
 }
 
+function hasNewerStoredRevision(stored: Message, incoming: Message): boolean {
+  return Number.isSafeInteger(stored.queue_revision) &&
+    Number.isSafeInteger(incoming.queue_revision) &&
+    (stored.queue_revision ?? 0) > (incoming.queue_revision ?? 0);
+}
+
 // ============================================================================
 // DUPLICATE DETECTION
 // ============================================================================
@@ -1314,9 +1320,12 @@ export async function saveMessage(
         const next = encryptedMessage as Message & Record<string, unknown>;
         const callJournal = previous?.call_persistence_v1 as { entries?: unknown[] } | undefined;
         if (previous?.chat_id === message.chat_id && previous.role === message.role &&
-            Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) {
+            ((Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) ||
+              hasNewerStoredRevision(previous, encryptedMessage))) {
           // A phased-sync snapshot may still contain the previous call revision.
           // Only the call receipt may clear its exact randomized ciphertext outbox.
+          // Once confirmed, its revision still fences snapshots prepared before
+          // a concurrent canonical fetch or call-message update committed.
           const preserved = store.put(previous);
           preserved.onsuccess = () => { if (!resolveOnComplete) resolve(); };
           preserved.onerror = () => reject(preserved.error);
@@ -1767,7 +1776,8 @@ export async function batchSaveMessages(
         const next = encrypted as Message & Record<string, unknown>;
         const callJournal = previous?.call_persistence_v1 as { entries?: unknown[] } | undefined;
         if (previous?.chat_id === message.chat_id && previous.role === message.role &&
-            Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) {
+            ((Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) ||
+              hasNewerStoredRevision(previous, encrypted))) {
           const preserved = store.put(previous);
           preserved.onerror = () => {
             console.error(`[ChatDatabase] batchSaveMessages: Pending call row preservation failed for ${message.message_id}:`, preserved.error);

@@ -25634,6 +25634,48 @@
     },
     "privacy_save_failed": {
       "text": "Deine Bestätigung konnte nicht gespeichert werden. Versuche es erneut, um den Anruf zu starten."
+    },
+    "camera_preview": {
+      "text": "Kameravorschau"
+    },
+    "ai_generated": {
+      "text": "KI-generiert"
+    },
+    "flip_camera": {
+      "text": "Kamera wechseln"
+    },
+    "show_camera": {
+      "text": "Kamera anzeigen"
+    },
+    "generated_media": {
+      "text": "Anrufmedien"
+    },
+    "previous_media": {
+      "text": "Vorheriges Ergebnis"
+    },
+    "next_media": {
+      "text": "Nächstes Ergebnis"
+    },
+    "media_unavailable": {
+      "text": "Das Ergebnis konnte nicht geladen werden."
+    },
+    "camera_on": {
+      "text": "Kamera einschalten"
+    },
+    "camera_off": {
+      "text": "Kamera ausschalten"
+    },
+    "camera_denied": {
+      "text": "Der Zugriff auf die Kamera wurde verweigert."
+    },
+    "camera_missing": {
+      "text": "Es wurde keine Kamera gefunden."
+    },
+    "camera_failed": {
+      "text": "Die Kamera ist nicht verfügbar. Bitte versuche es erneut."
+    },
+    "source_frame_failed": {
+      "text": "Das Kamerabild konnte nicht gespeichert werden."
     }
   },
   "waiting_list": {
@@ -26089,6 +26131,14 @@
       "website_changes_message_title": {
         "text": "Congress-Neuigkeiten"
       }
+    }
+  },
+  "embeds_input": {
+    "image_used": {
+      "text": "Verwendetes Bild"
+    },
+    "open_image": {
+      "text": "Quellbild öffnen"
     }
   }
 }

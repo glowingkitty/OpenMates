@@ -6399,6 +6399,9 @@ class EmbedService:
             return str(uuid.uuid4())
         if child_index >= 32 or parent_embed_id != producer.primary_embed_id:
             raise RequiredRecoveryOutputError("Composite embed exceeds its registered producer intent")
+        if producer.classification == "authorized_voice":
+            from backend.apps.ai.processing.voice_async_skills import voice_child_embed_id
+            return voice_child_embed_id(producer.intent_id, parent_embed_id, child_index)
         return str(uuid.uuid5(uuid.UUID(producer.intent_id), f"embed-child:{child_index}"))
 
     @staticmethod
@@ -6817,11 +6820,10 @@ class EmbedService:
         """
         required_delivery = False
         try:
-            from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context
+            from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context, voice_child_embed_id
             voice = active_voice_worker_context.get()
             if voice is not None:
-                allowed_ids = {voice.embed_id, *(str(uuid.uuid5(uuid.UUID(voice.task_id),
-                    f"embed-child:{index}")) for index in range(32))}
+                allowed_ids = {voice.embed_id, *(voice_child_embed_id(voice.task_id, voice.embed_id, index) for index in range(32))}
                 if (user_id != voice.binding["user_id"] or user_id_hash != voice.binding["user_hash"]
                         or chat_id != voice.binding["chat_id"]
                         or message_id != voice.binding["assistant_message_id"] or embed_id not in allowed_ids):

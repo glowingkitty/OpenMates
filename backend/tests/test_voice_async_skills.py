@@ -236,7 +236,7 @@ async def test_authorized_voice_composite_keeps_sealed_parent_and_stable_search_
     finally:
         active_recovery_output_context.reset(token)
 
-    expected_children = [str(uuid.uuid5(uuid.UUID(worker.task_id), f"embed-child:{index}"))
+    expected_children = [voice.voice_child_embed_id(worker.task_id, worker.embed_id, index)
                          for index in range(2)]
     assert result["parent_embed_id"] == worker.embed_id
     assert result["child_embed_ids"] == expected_children
@@ -531,3 +531,179 @@ async def test_actual_audio_skill_uses_shared_music_queue_and_worker_signature(m
     inspect.signature(generate_audio_task.run).bind(**invocation)
     assert invocation["arguments"]["prompt"] == "Soft private rain"
     assert "Soft private rain" not in json.dumps(call)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.video.source-frame-provenance,video-call.privacy
+@pytest.mark.asyncio
+async def test_admitted_camera_placeholder_reuses_id_updates_cancel_task_and_keeps_source_only_by_reference(monkeypatch):
+    from toon_format import decode
+    cache, directus, encryption, binding, request_id, service, producer, calls = await setup(monkeypatch)
+    embed_id = str(uuid.uuid4())
+    source_id = str(uuid.uuid4())
+    placeholder = await service.create_processing_embed_placeholder(app_id="images", skill_id="generate",
+        chat_id=binding["chat_id"], message_id=binding["assistant_message_id"], user_id=binding["user_id"],
+        user_id_hash=binding["user_hash"], user_vault_key_id="owner-vault", embed_id=embed_id,
+        skill_task_id="broker-execution", metadata={"input_embed_ids": [source_id]})
+    binding.update(processing_placeholder=placeholder, input_embed_ids=[source_id],
+        visual_source={"data": "RAW-CAMERA-BYTES"}, context={"summary": "private"}, request="private question")
+    skill = GenerateSkill(app=SimpleNamespace(), app_id="images", skill_id="generate",
+        skill_name="generate", skill_description="generate", celery_producer=producer)
+    skill._current_chat_id, skill._current_message_id = binding["chat_id"], binding["assistant_message_id"]
+    async with voice.voice_async_output_context(binding=binding, request_id=request_id,
+            cache_service=cache, directus_service=directus, encryption_service=encryption,
+            embed_service=service):
+        result = await skill.execute(requests=[{"prompt": "A camera-based image edit"}],
+            user_id=binding["user_id"], placeholder_embed_ids=[embed_id])
+    call = calls[0]
+    assert result["embed_id"] == embed_id
+    cached = json.loads(await cache.redis.get(f"embed:{embed_id}"))
+    content = decode(await encryption.decrypt_with_user_key(cached["encrypted_content"], "owner-vault"))
+    assert content["skill_task_id"] == call["task_id"]
+    assert content["input_embed_ids"] == [source_id]
+    _, context = await voice.open_voice_task(task_name=call["name"], task_id=call["task_id"],
+        args=(), kwargs=call["kwargs"], headers=call["headers"], cache_service=cache,
+        directus_service=directus, encryption_service=encryption)
+    assert context.binding["input_embed_ids"] == [source_id]
+    assert context.arguments["input_embed_ids"] == [source_id]
+    assert not {"visual_source", "request", "context", "processing_placeholder"} & context.binding.keys()
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.skill-integration,video-call.video.source-frame-provenance,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("teardown", ["live", "hangup", "expired", "barge-in"])
+async def test_real_voice_service_receipts_processing_then_composite_in_ordinary_storage_namespace(monkeypatch, teardown):
+    from toon_format import decode
+    from backend.apps.ai.processing import voice_call_broker_runtime as runtime
+    from backend.apps.ai.tasks.voice_call_task import _emit_voice_progress
+    from backend.apps.ai.processing.voice_call_broker import transport_key
+    from backend.shared.python_utils.voice_call_registry import finalize_active_call
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+    from backend.core.api.app.services.embed_version_transaction_service import (
+        is_hosted_project_embed_id, requires_atomic_project_embed_write,
+    )
+
+    cache, directus, encryption, binding, request_id, _, _, _ = await setup(monkeypatch)
+    cache.get_discovered_apps_metadata = AsyncMock(return_value={})
+    directus.get_items = AsyncMock(return_value=[])
+    monkeypatch.setattr(celery_app, "send_task", Mock())  # External scheduler only.
+    service = runtime.voice_embed_service(cache, directus, encryption)
+    source_id, parent_id = str(uuid.uuid4()), str(uuid.uuid4())
+    service.input_embed_ids = [source_id]
+    request_id = "exact-processing-output"
+    binding = {**binding, "output_embed_id": parent_id}
+    await receipts.admit_voice_action_receipt(cache_service=cache, directus_service=directus,
+        encryption_service=encryption, binding=binding, request_id=request_id)
+    service.voice_context = voice.VoiceWorkerContext(binding, request_id, binding["operation_id"],
+        "apps.ai.tasks.voice_call_request", "sealed-voice-request", parent_id, {}, admission_only=True)
+    published = []
+
+    async def emit(event):
+        # The exact owner permit authorizes progress without any completion event.
+        assert cache.publish_event.await_count == 0
+        await voice.require_voice_publication(context=service.voice_context, cache_service=cache,
+            directus_service=directus, encryption_service=encryption, owner_hash=binding["user_hash"])
+        await _emit_voice_progress(event, data=binding, cache=cache, directus=directus,
+            encryption=encryption, key="owner-vault")
+        published.append(event)
+
+    token = runtime.voice_progress_emitter.set(emit)
+    common = dict(chat_id=binding["chat_id"], message_id=binding["assistant_message_id"],
+        user_id=binding["user_id"], user_id_hash=binding["user_hash"],
+        user_vault_key_id="owner-vault", task_id=binding["operation_id"])
+    try:
+        placeholder = await service.create_processing_embed_placeholder(app_id="web", skill_id="search",
+            embed_id=parent_id, skill_task_id=request_id, metadata={"input_embed_ids": [source_id]}, **common)
+        assert placeholder["embed_id"] == parent_id
+        assert published[0]["payload"]["status"] == "processing"
+        assert await cache.redis.smembers(receipts._key("pending", binding["user_id"], binding["session_id"])) == set()
+        assert json.loads(await cache.redis.get(f"embed:{parent_id}"))["status"] == "processing"
+        # Simulate execution having committed its results, then end its live
+        # transport immediately before the real final cache/publication path.
+        if teardown == "hangup":
+            await finalize_active_call(cache, **{field: binding[field] for field in (
+                "user_id", "session_id", "chat_id", "call_id")})
+        elif teardown == "expired":
+            await cache.redis.delete(f"voice:call:{binding['call_id']}", f"voice:call:{binding['call_id']}:messages")
+        elif teardown == "barge-in":
+            await cache.redis.set(transport_key(binding["operation_id"], "cancel"), "1", ex=60)
+        finished = await service.create_embeds_from_skill_results(app_id="web", skill_id="search",
+            results=[{"title": "A", "url": "https://example.org/a"},
+                     {"title": "B", "url": "https://example.org/b"}], **common)
+    finally:
+        runtime.voice_progress_emitter.reset(token)
+    assert finished["parent_embed_id"] == parent_id
+    children = [voice.voice_child_embed_id(binding["operation_id"], parent_id, index) for index in range(2)]
+    assert finished["child_embed_ids"] == children
+    assert [entry["payload"]["embed_id"] for entry in published] == [parent_id, *children, parent_id]
+    assert not service.voice_events  # Incremental delivery is not replayed in the final result.
+    live_progress = await cache.redis.lrange(transport_key(binding["operation_id"], "result"), 0, -1)
+    assert len(live_progress) == (4 if teardown == "live" else 1)
+    assert all(b"example.org" not in item for item in live_progress)
+    for embed_id in [*children, parent_id]:
+        assert uuid.UUID(embed_id).version == 4
+        assert not is_hosted_project_embed_id(embed_id)
+        assert not await requires_atomic_project_embed_write(directus, embed_id)
+        cached = json.loads(await cache.redis.get(f"embed:{embed_id}"))
+        assert cached["status"] == "finished" and cached["hashed_user_id"] == binding["user_hash"]
+        assert cached["encrypted_content"].startswith("vault:v")
+        if embed_id == parent_id:
+            content = decode(await encryption.decrypt_with_user_key(cached["encrypted_content"], "owner-vault"))
+            assert content["input_embed_ids"] == [source_id]
+            assert content["embed_ids"].split("|") == children
+        else:
+            assert cached["parent_embed_id"] == parent_id
+
+    # Only genuine final output creates a completed action notification. A retry
+    # stays idempotent, and teardown after that event cannot erase the artifact.
+    assert cache.publish_event.await_count == 0
+    for _ in range(2):
+        completed = await receipts.persist_voice_action_receipt(cache_service=cache, directus_service=directus,
+            encryption_service=encryption, binding=binding, request_id=request_id, embed_refs=[parent_id])
+    assert cache.publish_event.await_count == 1
+    assert cache.publish_event.await_args.args[1]["event_type"] == "voice_action_completed"
+    assert completed["embed_refs"] == [parent_id]
+    await cache.redis.delete(f"voice:call:{binding['call_id']}", f"voice:call:{binding['call_id']}:messages")
+    assert json.loads(await cache.redis.get(f"embed:{parent_id}"))["status"] == "finished"
+    await voice.require_voice_publication(context=service.voice_context, cache_service=cache,
+        directus_service=directus, encryption_service=encryption, owner_hash=binding["user_hash"])
+
+    # Same operation with another parent cannot collide, and an arbitrary v4
+    # output cannot borrow a valid voice receipt.
+    assert voice.voice_child_embed_id(binding["operation_id"], str(uuid.uuid4()), 0) != children[0]
+    with voice.bound_voice_worker(service.voice_context):
+        with pytest.raises(RequiredRecoveryOutputError, match="identity mismatch"):
+            await service.send_embed_data_to_client(embed_id=str(uuid.uuid4()), embed_type="web-website",
+                content_toon="title: Foreign", status="finished", **{k: v for k, v in common.items()
+                    if k != "user_vault_key_id"})
+    await cache.redis.delete(receipts._key("permit", binding["user_id"], binding["session_id"], request_id))
+    blocked_id = str(uuid.uuid4())
+    assert await service.create_processing_embed_placeholder(app_id="web", skill_id="search",
+        embed_id=blocked_id, **common) is None
+    assert await cache.redis.get(f"embed:{blocked_id}") is None
+    with pytest.raises((RequiredRecoveryOutputError, ValueError)):
+        await service.create_embeds_from_skill_results(app_id="web", skill_id="search",
+            results=[{"title": "Unauthorized", "url": "https://example.org"}], **common)
+    assert len(published) == 4
+    assert cache.publish_event.await_count == 1
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.memories-and-focus,video-call.chat.skill-integration
+@pytest.mark.asyncio
+async def test_real_focus_artifact_survives_incremental_delivery_without_buffer(monkeypatch):
+    from backend.apps.ai.processing import voice_call_broker_runtime as runtime
+    cache, directus, encryption, binding, _, _, _, _ = await setup(monkeypatch)
+    service = runtime.voice_embed_service(cache, directus, encryption)
+    progress = []
+    async def emit(event):
+        progress.append(event)
+    token = runtime.voice_progress_emitter.set(emit)
+    try:
+        artifact = await service.create_focus_mode_activation_embed(focus_id="web-research", app_id="web",
+            focus_mode_name="Research", chat_id=binding["chat_id"], message_id=binding["assistant_message_id"],
+            user_id=binding["user_id"], user_id_hash=binding["user_hash"],
+            user_vault_key_id="owner-vault", task_id=binding["operation_id"])
+    finally:
+        runtime.voice_progress_emitter.reset(token)
+    assert artifact and not service.voice_events
+    assert service.latest_voice_event == progress[0]
+    assert service.latest_voice_event["payload"]["embed_id"] == artifact["embed_id"]

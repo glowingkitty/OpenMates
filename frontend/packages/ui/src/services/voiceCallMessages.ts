@@ -299,7 +299,8 @@ export async function loadCallContext(chatId: string, canonical = true): Promise
 }
 
 async function putEncryptedMessage(message: Message, revision: number, callId?: string,
-                                   final = false, lifecycle = false): Promise<string> {
+                                   final = false, lifecycle = false, writeGuard?: () => void): Promise<string> {
+  writeGuard?.();
   const identity = getWorkspaceCacheIdentity();
   const key = await chatKeyManager.getKey(message.chat_id);
   if (!key || !await ensureChatKeySafeForWrite(message.chat_id, key, "voice transcript")) {
@@ -313,12 +314,14 @@ async function putEncryptedMessage(message: Message, revision: number, callId?: 
     encrypted_sender_name: encrypted.encrypted_sender_name,
   };
   if (lifecycle && (!identity || identity !== getWorkspaceCacheIdentity())) throw new Error("Call event account changed");
+  writeGuard?.();
   const transaction = await chatDB.getTransaction("messages", "readwrite");
   await new Promise<void>((resolve, reject) => {
     const store = transaction.objectStore("messages");
     const request = store.get(message.message_id);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
+      try { writeGuard?.(); } catch (error) { transaction.abort(); reject(error); return; }
       const previous = request.result as CallRow | undefined;
       if (previous && (previous.chat_id !== message.chat_id || previous.role !== message.role)) {
         transaction.abort();
@@ -465,7 +468,8 @@ async function confirmedCallMessageProof(event: CallTranscriptUpdate,
 }
 
 /** Upsert cumulative provisional text; only complete or interrupted text reaches storage. */
-async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMessagePersistenceProof | undefined> {
+async function applyCallTranscript(event: CallTranscriptUpdate, writeGuard?: () => void): Promise<CallMessagePersistenceProof | undefined> {
+    writeGuard?.();
     const existing = await chatDB.getMessage(event.messageId);
     if (existing && (existing.chat_id !== event.chatId || existing.role !== event.role ||
         (existing as CallRow).call_persistence_v1?.call_id &&
@@ -473,15 +477,13 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
       throw new Error("Call message identity conflict");
     }
     const references = new Map<string, VoiceArtifactReference>();
-    if (event.role === "assistant") {
-      for (const reference of [...callArtifactReferencesInText(existing?.content ?? ""), ...(event.embedReferences ?? [])]) {
-        const canonical = parseVoiceArtifactReference(reference);
-        if (canonical) references.set(canonical.embed_id, canonical);
-      }
+    for (const reference of [...callArtifactReferencesInText(existing?.content ?? ""), ...(event.embedReferences ?? [])]) {
+      const canonical = parseVoiceArtifactReference(reference);
+      if (canonical) references.set(canonical.embed_id, canonical);
     }
-    const legacyIds = event.role === "assistant" ? [...(existing?.content ?? "").matchAll(/\[embed:([A-Za-z0-9_-]{1,240})\]/g)].map((match) => match[1]) : [];
-    const refs = event.role === "assistant" ? [...new Set([...(event.embedRefs ?? []), ...references.keys(), ...legacyIds])]
-      .filter((id) => /^[A-Za-z0-9_-]{1,240}$/.test(id)) : [];
+    const legacyIds = [...(existing?.content ?? "").matchAll(/\[embed:([A-Za-z0-9_-]{1,240})\]/g)].map((match) => match[1]);
+    const refs = [...new Set([...(event.embedRefs ?? []), ...references.keys(), ...legacyIds])]
+      .filter((id) => /^[A-Za-z0-9_-]{1,240}$/.test(id));
     for (const id of refs) if (!references.has(id)) {
       const reference = await loadVoiceArtifactReference(id);
       if (reference) references.set(id, reference);
@@ -519,7 +521,7 @@ async function applyCallTranscript(event: CallTranscriptUpdate): Promise<CallMes
       status: event.final ? "sending" : "streaming",
       ...(event.role === "assistant" && event.userMessageId ? { user_message_id: event.userMessageId } : {}),
     };
-    const ciphertext = await putEncryptedMessage(message, revision, event.callId, event.final);
+    const ciphertext = await putEncryptedMessage(message, revision, event.callId, event.final, false, writeGuard);
     if (!event.final) return;
     await drainCallOutbox(event.messageId);
     return { revision, ciphertext };
@@ -536,6 +538,15 @@ export function upsertCallArtifact(event: Pick<CallTranscriptUpdate,
     const existing = await chatDB.getMessage(event.messageId);
     return applyCallTranscript({ ...event, role: "assistant", text: existing?.content ?? "",
       final: true, userMessageId: existing?.user_message_id ?? event.userMessageId });
+  });
+}
+
+/** Save source snapshots on their issued user turn, including artifact-only turns. */
+export function upsertCallUserArtifact(event: Pick<CallTranscriptUpdate,
+  "callId" | "chatId" | "messageId" | "createdAt" | "embedReferences">, writeGuard?: () => void): Promise<CallMessagePersistenceProof | undefined> {
+  return serializeMessage(event.messageId, async () => {
+    const existing = await chatDB.getMessage(event.messageId);
+    return applyCallTranscript({ ...event, role: "user", text: existing?.content ?? "", final: true }, writeGuard);
   });
 }
 

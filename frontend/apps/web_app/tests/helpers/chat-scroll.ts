@@ -1,6 +1,104 @@
 // contract-test-file: infrastructure
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { waitForComponentMotion } from './component-preview';
+
+/** Scroll a chat action into the usable area below any sticky call media. */
+export async function clickChatTarget(target: Locator, testInfo: TestInfo): Promise<void> {
+  try {
+    await expect(target).toBeVisible();
+    await expect(target).toBeEnabled();
+    await target.scrollIntoViewIfNeeded();
+    await expect.poll(() => target.evaluate(async element => {
+      const history = element.closest<HTMLElement>('[data-testid="chat-history-container"]');
+      if (!history) return false;
+      const h = history.getBoundingClientRect();
+      const bar = document.querySelector('[data-testid="voice-call-bar"]')?.getBoundingClientRect();
+      const top = Math.max(0, h.top, bar && bar.right > h.left && bar.left < h.right ? bar.bottom : h.top);
+      const bottom = Math.min(innerHeight, h.bottom);
+      const bounds = element.getBoundingClientRect();
+      if (bounds.top < top || bounds.bottom > bottom) {
+        history.scrollTop += bounds.top + bounds.height / 2 - (top + bottom) / 2;
+      }
+      const sample = () => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return { ready: history.getAttribute('data-scroll-state') === 'ready',
+          hit: hit === element || !!hit && element.contains(hit),
+          x: rect.x, y: rect.y, width: rect.width, height: rect.height, scrollTop: history.scrollTop };
+      };
+      const first = await new Promise<ReturnType<typeof sample>>(resolve => requestAnimationFrame(() => resolve(sample())));
+      const second = await new Promise<ReturnType<typeof sample>>(resolve => requestAnimationFrame(() => resolve(sample())));
+      return first.ready && second.ready && first.hit && second.hit && JSON.stringify(first) === JSON.stringify(second);
+    }), { message: 'chat action should settle in an unobstructed part of the chat viewport' }).toBe(true);
+    await target.click();
+  } catch (error) {
+    const state = await target.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      const history = element.closest<HTMLElement>('[data-testid="chat-history-container"]');
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return { testId: element.getAttribute('data-testid'), bounds: rect.toJSON(),
+        scrollState: history?.getAttribute('data-scroll-state'), scrollTop: history?.scrollTop,
+        hitTestId: hit?.closest('[data-testid]')?.getAttribute('data-testid') };
+    }).catch(() => null);
+    await testInfo.attach('chat-target-state', { body: JSON.stringify(state), contentType: 'application/json' });
+    throw error;
+  }
+}
+
+/** Open an untouched activity group after its asynchronous terminal check settles. */
+export async function openCompletedAssistantActivity(group: Locator, testInfo: TestInfo): Promise<void> {
+  await expect(group).not.toHaveClass(/(?:^|\s)active(?:\s|$)/);
+  const toggle = group.getByTestId('assistant-activity-toggle');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  // Observe the one real activation through its postcondition. Geometry alone
+  // cannot distinguish a missed click from replacement or a later state reset.
+  const activation = await toggle.evaluateHandle(element => {
+    const group = element.closest('[data-testid="assistant-activity-group"]');
+    const snapshot = () => ({ expanded: element.getAttribute('aria-expanded'),
+      connected: element.isConnected, groupConnected: group?.isConnected ?? false });
+    const transitions = [snapshot()];
+    const events: Array<{ type: string; phase: string; trusted: boolean; prevented: boolean;
+      targetTestId: string | null; originalTarget: boolean; expanded: string | null; connected: boolean }> = [];
+    const record = (event: Event, phase: string) => {
+      if (events.length >= 16) return;
+      const target = event.target instanceof Element ? event.target : null;
+      events.push({ type: event.type, phase, trusted: event.isTrusted, prevented: event.defaultPrevented,
+        targetTestId: target?.closest('[data-testid]')?.getAttribute('data-testid') ?? null,
+        originalTarget: !!target && (target === element || element.contains(target)),
+        expanded: element.getAttribute('aria-expanded'), connected: element.isConnected });
+    };
+    const capture = (event: Event) => record(event, 'capture');
+    const bubble = (event: Event) => record(event, 'bubble');
+    for (const type of ['pointerdown', 'pointerup', 'click']) {
+      document.addEventListener(type, capture, true);
+      document.addEventListener(type, bubble);
+    }
+    const observer = new MutationObserver(() => {
+      const state = snapshot();
+      if (transitions.length < 16 && JSON.stringify(state) !== JSON.stringify(transitions.at(-1))) transitions.push(state);
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
+    return { read: () => ({ events, transitions, final: snapshot() }), dispose: () => {
+      observer.disconnect();
+      for (const type of ['pointerdown', 'pointerup', 'click']) {
+        document.removeEventListener(type, capture, true);
+        document.removeEventListener(type, bubble);
+      }
+    } };
+  });
+  try {
+    await clickChatTarget(toggle, testInfo);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(group.getByTestId('assistant-activity-body')).toBeVisible();
+  } catch (error) {
+    const state = await activation.evaluate(probe => probe.read()).catch(() => ({ captureFailed: true }));
+    await testInfo.attach('assistant-activity-activation', { body: JSON.stringify(state), contentType: 'application/json' });
+    throw error;
+  } finally {
+    await activation.evaluate(probe => probe.dispose()).catch(() => {});
+    await activation.dispose();
+  }
+}
 
 /** Initial hydration can schedule a later scroll to the latest message. */
 export async function scrollChatHistoryToStart(page: Page, testInfo: TestInfo): Promise<void> {

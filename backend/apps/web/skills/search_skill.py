@@ -43,6 +43,7 @@ from backend.shared.providers.youtube.youtube_metadata import (
 from backend.apps.web.skills.search_fixture import (
     build_e2e_web_fixture_results,
     is_e2e_web_fixture_query,
+    wait_camera_search_provider_fixture,
 )
 
 logger = logging.getLogger(__name__)
@@ -533,6 +534,7 @@ class SearchSkill(BaseSkill):
         
         logger.debug(f"Executing search (id: {request_id}): query='{search_query}', country='{req_country}', result_filter='{req_result_filter}'")
         if is_e2e_web_fixture_query(search_query):
+            await wait_camera_search_provider_fixture(search_query)
             fixture_results = build_e2e_web_fixture_results(req_count)
             logger.info(
                 "Web search (id: %s) using dev/test fixture results for query '%s'",

@@ -69,6 +69,7 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
         return {
             "status": "finished", "embed_id": child_id,
             "prompt": child_args["prompt"], "model": "actual-model",
+            "input_embed_ids": child_args.get("input_embed_ids", []),
             "aes_key": "secret", "files": {"original": {"download_url": "signed-token"}},
         }
 
@@ -76,7 +77,7 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
         FakeTask(), app_id="images", skill_id="generate",
         arguments={
             "embed_id": parent_id, "user_id": "user", "chat_id": "chat", "message_id": "message",
-            "requests": [{"prompt": "first"}, {"prompt": "second"}, {"prompt": "third"}],
+            "requests": [{"prompt": "first", "input_embed_ids": ["saved-source"]}, {"prompt": "second", "input_embed_ids": ["failed-source"]}, {"prompt": "third"}],
         },
         generate_one=generate_one,
     )
@@ -85,6 +86,8 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     assert result["child_embed_ids"] == expected_children
     assert [item["embed_id"] for item in sent] == [*expected_children, parent_id]
     assert sent[-1]["embed_ids"] == expected_children
+    assert "saved-source" in sent[-1]["content_toon"]
+    assert "failed-source" in sent[-1]["content_toon"]
     assert sent[-1]["content_toon"]
     assert [item["subject_id"] for item in sent[-1]["producer_final_children"]] == expected_children
     callback.assert_awaited_once()
@@ -92,6 +95,7 @@ async def test_media_batch_seals_successful_children_and_notifies_once_after_par
     assert callback_args["async_task_id"] == task_id
     assert callback_args["result_status"] == "failed"
     assert [row["request_index"] for row in callback_args["completed_results"]] == [0, 1, 2]
+    assert callback_args["completed_results"][0]["input_embed_ids"] == ["saved-source"]
     assert callback_args["completed_results"][0]["embed_ref"]
     assert callback_args["completed_results"][0]["parent_embed_id"] == parent_id
     assert callback_args["completed_results"][0]["parent_embed_ref"].startswith("generated-media-images-")

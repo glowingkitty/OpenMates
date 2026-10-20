@@ -9,6 +9,7 @@
  */
 
 import { embedStore } from '../services/embedStore';
+import { chatSyncService } from '../services/chatSyncService';
 import { createAssistantRenderPlan } from '../message_parsing/streamingMessageBlocks';
 import { parse as parseYaml } from 'yaml';
 import { communityGardenWelcomeMelodyChat as mediaMusic } from '../demo_chats/data/example_chats/community-garden-welcome-melody';
@@ -117,6 +118,29 @@ if (typeof document !== 'undefined') {
   document.addEventListener('preview:finish-second-skill', () => seedLiveSkill('preview-live-second', 'finished'));
 }
 
+// A persisted call artifact is a durable message while its skill still runs.
+const voiceArtifactSkillId = 'preview-voice-artifact-skill';
+const voiceArtifactSourceId = 'preview-voice-artifact-source';
+embedStore.registerStaticEmbed({ embedId: voiceArtifactSourceId, type: 'images-image', appId: 'images', skillId: 'upload',
+  content: JSON.stringify({ type: 'image', filename: 'saved-call-source.jpg', previewImageUrl: '/images/examples/group1.jpg' }) });
+function seedVoiceArtifact(status: 'processing' | 'finished') {
+  embedStore.setInMemoryOnly(`embed:${voiceArtifactSkillId}`, {
+    embed_id: voiceArtifactSkillId, type: 'app-skill-use', app_id: 'web', skill_id: 'search', status,
+    content: JSON.stringify({ type: 'app_skill_use', app_id: 'web', skill_id: 'search', status,
+      query: 'Identify this saved camera frame', input_embed_ids: [voiceArtifactSourceId], results: [] }),
+  });
+  if (typeof document !== 'undefined') chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+    detail: { embed_id: voiceArtifactSkillId, status, chat_id: 'preview-chat', isProcessing: status === 'processing' },
+  }));
+}
+seedVoiceArtifact('processing');
+if (typeof document !== 'undefined') {
+  document.addEventListener('preview:finish-voice-artifact', () => seedVoiceArtifact('finished'));
+}
+const voiceArtifactDocument = createAssistantRenderPlan([
+  '```json', JSON.stringify({ type: 'app_skill_use', embed_id: voiceArtifactSkillId, app_id: 'web', skill_id: 'search' }), '```',
+].join('\n'), { phase: 'final' }).document;
+
 /** Default props — shows a user message */
 const defaultProps = {
 	role: 'user' as const,
@@ -150,6 +174,12 @@ function generatedMediaPreview(fixture: typeof mediaMusic, source: string, strea
 
 /** Named variants for different message types and states */
 export const variants = {
+  voiceCallProcessingArtifact: { ...defaultProps, role: 'assistant' as const, status: 'synced' as const,
+    content: voiceArtifactDocument, currentChatId: 'preview-chat',
+    original_message: { message_id: 'voice-artifact-assistant', chat_id: 'preview-chat', role: 'assistant' as const,
+      status: 'synced' as const, call_persistence_v1: { call_id: 'preview-call-artifact', entries: [] } } },
+  durableProcessingArtifact: { ...defaultProps, role: 'assistant' as const, status: 'synced' as const,
+    content: voiceArtifactDocument, currentChatId: 'preview-chat' },
   generatedMusic: generatedMediaPreview(mediaMusic, musicSource),
   generatedAudio: generatedMediaPreview(mediaAudio, audioSource),
   generatedImage: generatedMediaPreview(mediaImage, imageSource),

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte';
   import { text } from '../../i18n/translations';
-  import { notificationStore } from '../../stores/notificationStore';
   import { voiceCallController, initialVoiceCallState, type VoiceCallControllerLike, type VoiceCallState } from '../../services/voiceCall';
   import VoiceCallWaveform from './VoiceCallWaveform.svelte';
+  import VoiceCallMedia from './VoiceCallMedia.svelte';
 
   let { controller = voiceCallController, onReturn: _onReturn, boundChatVisible: _boundChatVisible = true,
     underFloatingHeader: _underFloatingHeader = false, underGlobalHeader: _underGlobalHeader = false,
@@ -37,7 +37,11 @@
     <div class="edge left">
       {#if fixed && moreActions}{@render moreActions()}
       {:else if fixed && onMore}<button class="round" data-testid="voice-call-more" aria-label={$text('voicecall.more_actions')} onclick={onMore}><span class="clickable-icon icon_more" aria-hidden="true"></span></button>{/if}
-      <button class="round" data-testid="voice-call-video" aria-label={$text('voicecall.video_call')} onclick={() => notificationStore.info($text('voicecall.video_coming_soon'))}>
+      <button class="round" class:camera-active={state.cameraEnabled} data-testid="voice-call-video"
+        aria-label={$text(state.cameraEnabled ? 'voicecall.camera_off' : 'voicecall.video_call')}
+        aria-pressed={state.cameraEnabled} aria-busy={state.cameraPending}
+        disabled={state.status !== 'live' || !state.cameraAvailable}
+        onclick={() => controller.setCameraEnabled(!state.cameraEnabled && !state.cameraPending)}>
         <span class="clickable-icon icon_video_call" aria-hidden="true"></span>
       </button>
     </div>
@@ -61,6 +65,17 @@
       {#if fixed && onCloseChat}<button class="round" data-testid="voice-call-close-chat" aria-label={$text('voicecall.close_chat')} onclick={onCloseChat}><span class="clickable-icon icon_close" aria-hidden="true"></span></button>{/if}
     </div>
     <span class="sr-only" id="voice-call-accessible-status" role={state.status === 'error' ? 'alert' : 'status'} data-testid="voice-call-status"><span data-testid="voice-call-status-text">{$text(`voicecall.${statusKey}`)}</span></span>
+    {#if active && (state.cameraEnabled || state.displayedMedia || state.cameraError)}
+      <div class="media-stage">
+        <VoiceCallMedia cameraStream={state.cameraStream} cameraEnabled={state.cameraEnabled}
+          cameraFacing={state.cameraFacing} expanded={state.mediaExpanded} displayedMedia={state.displayedMedia}
+          mediaCount={state.mediaItems.length} mediaIndex={state.mediaIndex}
+          error={state.cameraError ? $text(`voicecall.${state.cameraError}`) : null}
+          onExpandedChange={expanded => controller.setMediaExpanded(expanded)} onShowCamera={() => controller.showCamera()}
+          onFlipCamera={() => controller.flipCamera()} onPrevious={() => controller.selectMedia(state.mediaIndex - 1)}
+          onNext={() => controller.selectMedia(state.mediaIndex + 1)} />
+      </div>
+    {/if}
   </aside>
   {#if state.status === 'error'}
     <div class="call-error" role="alert" data-testid="voice-call-error">
@@ -73,11 +88,14 @@
 <style>
   .voice-call-bar { position:relative; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:var(--spacing-4); width:100%; box-sizing:border-box; min-height:4.25rem; padding:var(--spacing-6); border-radius:var(--radius-6); background:var(--gradient-primary); color:var(--color-font-button); }
   .edge { direction:ltr; display:flex; align-items:center; gap:var(--spacing-4); min-width:0; }
+  .media-stage { grid-column:1 / -1; min-width:0; }
   .right { justify-content:flex-end; }
   .voice-call-bar button { margin:0; border:0; height:auto; min-width:0; font:inherit; color:inherit; cursor:pointer; filter:none; }
   .voice-call-bar button:focus-visible { outline:2px solid var(--color-font-button); outline-offset:3px; }
   .voice-call-bar .round { display:flex; align-items:center; justify-content:center; flex:none; width:2.75rem; height:2.75rem; padding:var(--spacing-4); border-radius:var(--radius-full); background:color-mix(in srgb,var(--color-font-button) 20%,transparent); box-shadow:var(--shadow-md); }
   .voice-call-bar .round:hover { background:color-mix(in srgb,var(--color-font-button) 30%,transparent); }
+  .voice-call-bar .camera-active { background:color-mix(in srgb,var(--color-font-button) 40%,transparent); }
+  .voice-call-bar .round:disabled { cursor:default; opacity:.5; }
   .icon_more { mask-image:url("@openmates/ui/static/icons/more.svg"); -webkit-mask-image:url("@openmates/ui/static/icons/more.svg"); }
   .clickable-icon { display:block; width:1.75rem; height:1.75rem; margin:0; background:currentColor; }
   .hangup .icon_call { color:var(--color-button-primary); transform:rotate(135deg); }

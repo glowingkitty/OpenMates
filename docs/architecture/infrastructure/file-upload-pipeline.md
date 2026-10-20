@@ -110,6 +110,30 @@ metadata field, embedded format or information visible in the content itself.
 
 Client receives the plaintext AES key + S3 metadata, builds an embed TOON, client-encrypts it before storage (zero-knowledge at rest).
 
+### Exact Camera Source Images
+
+Calls save selected source frames through this ordinary encrypted upload path.
+For a fully decoded, metadata-free baseline JPEG of at most 256 KiB and
+1280×720 pixels in RGB or grayscale, the original variant preserves the input
+bytes exactly. The structural allowlist rejects metadata containers, progressive
+or multiple scans, extensions and trailing payloads. Other JPEG profiles retain
+the existing re-encoding path; derived WEBP full-size and preview variants are
+unchanged.
+
+New uploads store `files_metadata.original.preserved_original_sha256`, computed
+from the actual bytes passed to encryption. The incoming content hash alone
+cannot prove that an older upload retained its original bytes. Deduplication of
+an eligible camera JPEG therefore requires matching server-created stored-byte
+proof as well as the existing object-availability checks. Missing or mismatched
+proof creates a fresh immutable upload; existing records and objects are never
+rewritten or promoted from client metadata. Consumers choose JPEG, PNG or WEBP
+provider MIME from the decrypted original bytes rather than the legacy variant
+format label.
+
+The upload VM serves both dev and production. Changes to this processing path
+require a scoped shared-service rollout; refreshing the dev core stack alone
+does not update the upload processor.
+
 ### Security Architecture
 
 ```

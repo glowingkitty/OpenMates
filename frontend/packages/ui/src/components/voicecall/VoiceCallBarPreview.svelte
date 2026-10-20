@@ -2,12 +2,24 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import VoiceCallBar from './VoiceCallBar.svelte';
+  import ChatHistory from '../ChatHistory.svelte';
+  import type { Message } from '../../types/chat';
   import NotificationStack from '../NotificationStack.svelte';
   import { initialVoiceCallState, type VoiceCallState, type VoiceCallControllerLike } from '../../services/voiceCall';
   import { downsample, pcm16Base64 } from '../videocall/callAudio';
   import { voicePcmEnvelope } from '../../services/voiceCall';
-  let { state:initialState = {}, fixed = false, realAudio = true }: { state?:Partial<VoiceCallState>; fixed?:boolean; realAudio?:boolean } = $props();
-  const store = writable<VoiceCallState>({ ...initialVoiceCallState, status:'live' as const, chatId:'preview-chat', callId:'preview-call', activeElapsedSeconds:15, billingActivity:{inputListening:true,processing:false} });
+  let { state:initialState = {}, fixed = false, realAudio = true, withinHistory = false, historyHeight = 400 }: {
+    state?:Partial<VoiceCallState>; fixed?:boolean; realAudio?:boolean; withinHistory?:boolean; historyHeight?:number;
+  } = $props();
+  const historyChatId = 'demo-preview-call-sizing';
+  const historyMessages = Array.from({length:8}, (_, index): Message => ({
+    message_id:`preview-call-sizing-${index}`, chat_id:historyChatId, role:index % 2 ? 'assistant' : 'user',
+    content:`Fictional call layout message ${index + 1}. The camera and generated result should stay within the available chat area while this conversation scrolls.`,
+    created_at:1788870532 + index, status:'synced',
+  }));
+  const store = writable<VoiceCallState>({ ...initialVoiceCallState, status:'live' as const, cameraAvailable:true, chatId:'preview-chat', callId:'preview-call', activeElapsedSeconds:15, billingActivity:{inputListening:true,processing:false} });
+  let previewStream: MediaStream | null = null;
+  let collapseTimer: ReturnType<typeof setTimeout> | null = null;
   let closed = $state(false);
   const controller: VoiceCallControllerLike = {
     subscribe:store.subscribe,
@@ -15,8 +27,27 @@
     async submitText() { return true; },
     setMuted(muted) { store.update(current => ({ ...current, muted, audioLevels:muted && !current.assistantSpeaking ? Array(16).fill(0) : current.audioLevels, billingActivity:{inputListening:!muted,processing:current.billingActivity?.processing ?? false} })); },
     setMinimized(minimized) { store.update(current => ({ ...current,minimized })); },
-    hangup() { store.update(current => ({ ...current,status:'ended',audioLevels:Array(16).fill(0) })); },
+    async setCameraEnabled(cameraEnabled) {
+      if (collapseTimer) clearTimeout(collapseTimer);
+      previewStream?.getTracks().forEach(track => track.stop());
+      previewStream = null;
+      if (cameraEnabled) {
+        const canvas = document.createElement('canvas'); canvas.width=640; canvas.height=360;
+        const context=canvas.getContext('2d');
+        if(context) { context.fillStyle='#3b82f6'; context.fillRect(0,0,640,360); context.fillStyle='#93c5fd';
+          for(let x=0;x<640;x+=32)context.fillRect(x,0,8,360); }
+        previewStream=canvas.captureStream(1);
+      }
+      store.update(current => ({...current,cameraEnabled,cameraStream:previewStream,mediaExpanded:cameraEnabled}));
+      if(cameraEnabled) collapseTimer=setTimeout(()=>store.update(current=>({...current,mediaExpanded:false})),2000);
+    },
+    async flipCamera() { store.update(current=>({...current,cameraFacing:current.cameraFacing==='environment'?'user':'environment'})); },
+    setMediaExpanded(mediaExpanded) { if(collapseTimer)clearTimeout(collapseTimer); store.update(current=>({...current,mediaExpanded})); },
+    showCamera() { store.update(current=>({...current,displayedMedia:null,mediaExpanded:true})); },
+    selectMedia(mediaIndex) { store.update(current=>({...current,mediaIndex,displayedMedia:current.mediaItems[mediaIndex]??null})); },
+    hangup() { previewStream?.getTracks().forEach(track=>track.stop()); store.update(current => ({ ...current,status:'ended',audioLevels:Array(16).fill(0) })); },
   };
+  onMount(() => () => { if(collapseTimer)clearTimeout(collapseTimer); previewStream?.getTracks().forEach(track=>track.stop()); });
   onMount(() => {
     store.update(current => ({...current,...initialState}));
     if (!realAudio) return;
@@ -45,12 +76,23 @@
   </details>
 {/snippet}
 <div class="fixture-stack">
-  <VoiceCallBar {controller} {fixed} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
+  {#if withinHistory}
+    <div class="history-fixture" data-testid="voice-call-history-fixture" style:height={`${historyHeight}px`}>
+      {#snippet controls(stuck: boolean)}
+        <VoiceCallBar {controller} fixed={stuck} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
+      {/snippet}
+      <ChatHistory currentChatId={historyChatId} sourceMessages={historyMessages} isExampleChat={true}
+        chatTitle="Call sizing fixture" voiceCallBridge={{controls,onStickyChange:() => {}}} />
+    </div>
+  {:else}
+    <VoiceCallBar {controller} {fixed} {moreActions} onReturn={() => {}} onCloseChat={() => { closed=true; }} />
+  {/if}
   {#if closed}<span data-testid="preview-chat-closed">Chat closed; call retained</span>{/if}
 </div>
 <NotificationStack />
 <style>
   .fixture-stack { display:flex; flex-direction:column; width:100%; min-width:0; }
+  .history-fixture { position:relative; width:100%; overflow:hidden; }
   .fixture-menu { position:relative; color:var(--color-font-button); }
   summary { display:flex; align-items:center; justify-content:center; width:2.75rem; height:2.75rem; border-radius:var(--radius-full); background:color-mix(in srgb,currentColor 20%,transparent); box-shadow:var(--shadow-md); cursor:pointer; list-style:none; }
   summary::-webkit-details-marker { display:none; }

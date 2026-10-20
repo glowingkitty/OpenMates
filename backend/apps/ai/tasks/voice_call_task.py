@@ -11,6 +11,42 @@ from backend.core.api.app.tasks import celery_config
 logger = logging.getLogger(__name__)
 
 
+async def _emit_voice_progress(event: dict, *, data: dict, cache, directus, encryption, key: str) -> None:
+    """Deliver live progress without cancelling admitted output finalization."""
+    from backend.apps.ai.processing.voice_call_broker import (
+        transport_key, require_binding, MAX_RESULT_CHARS, TRANSPORT_TTL,
+    )
+    client = await cache.client
+    if await client.exists(transport_key(data["operation_id"], "cancel")) or (
+        data.get("request_cancel_id") and await client.exists(transport_key(data["request_cancel_id"], "cancel"))
+    ):
+        return
+    try:
+        await require_binding(cache, data)
+    except (PermissionError, ValueError):
+        # The live socket can disappear after an action executed. Its exact
+        # sealed output authority still governs cache and main-socket delivery.
+        from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context, require_voice_publication
+        context = active_voice_worker_context.get()
+        if context is None or any(context.binding.get(field) != data.get(field) for field in (
+            "user_id", "user_hash", "session_id", "chat_id", "call_id", "operation_id",
+        )):
+            raise
+        await require_voice_publication(context=context, cache_service=cache,
+            directus_service=directus, encryption_service=encryption,
+            owner_hash=data["user_hash"])
+        return
+    payload = {"operation_id": data["operation_id"], "call_id": data["call_id"], "progress": event}
+    if len(json.dumps(payload)) > MAX_RESULT_CHARS:
+        raise ValueError("Voice progress exceeds transport bound")
+    sealed, _ = await encryption.encrypt_with_user_key(json.dumps(payload), key)
+    if not sealed:
+        raise RuntimeError("Voice progress could not be sealed")
+    result_key = transport_key(data["operation_id"], "result")
+    await client.rpush(result_key, sealed)
+    await client.expire(result_key, TRANSPORT_TTL)
+
+
 async def run_voice_request(operation_id: str, user_id: str, ciphertext: str) -> None:
     from backend.apps.ai.processing.voice_call_broker import (
         transport_key, require_binding, user_vault_key, voice_operation_error_code,
@@ -40,9 +76,17 @@ async def run_voice_request(operation_id: str, user_id: str, ciphertext: str) ->
         await secrets_manager.initialize()
         try:
             from backend.shared.python_utils.private_inference_logging import private_inference_logging
-            with private_inference_logging():
-                result = await process_voice_request(data, cache=cache, directus=directus,
-                    encryption=encryption, secrets_manager=secrets_manager)
+            async def emit_progress(event: dict) -> None:
+                await _emit_voice_progress(event, data=data, cache=cache, directus=directus,
+                    encryption=encryption, key=key)
+            from backend.apps.ai.processing.voice_call_broker_runtime import voice_progress_emitter
+            token = voice_progress_emitter.set(emit_progress)
+            try:
+                with private_inference_logging():
+                    result = await process_voice_request(data, cache=cache, directus=directus,
+                        encryption=encryption, secrets_manager=secrets_manager)
+            finally:
+                voice_progress_emitter.reset(token)
             response = {"operation_id": operation_id, "call_id": data["call_id"], "result": result}
             if len(json.dumps(response, ensure_ascii=False)) > MAX_RESULT_CHARS:
                 raise ValueError("Voice result exceeds transport bound")

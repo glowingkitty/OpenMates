@@ -218,3 +218,40 @@ async def test_capacity_reserved_before_dispatch_and_cleanup_is_idempotent(monke
     await receipts.release_voice_action_admission(cache_service=cache, binding=second_binding,
                                                 request_id="second-action-request")
     assert await cache.redis.zcard(slots) == 2  # Cannot discard a committed result.
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.skill-integration,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tamper", ["embed_id", "owner_hash", "request_id", "skill_index"])
+async def test_processing_output_admission_is_exact_and_never_announces_completion(tamper):
+    cache, encryption, binding, directus = await setup()
+    binding.update(user_hash=hashlib.sha256(binding["user_id"].encode()).hexdigest(),
+                   output_embed_id=str(uuid.uuid4()), skill_index=0)
+    directus.chat.get_chat_metadata.return_value = {"hashed_user_id": binding["user_hash"]}
+    args = dict(cache_service=cache, directus_service=directus, encryption_service=encryption,
+                binding=binding, request_id="processing-output-request")
+    await receipts.admit_voice_action_receipt(**args)
+    authority = dict(**args, embed_id=binding["output_embed_id"], owner_hash=binding["user_hash"])
+    await receipts.require_voice_output_admission(**authority)
+    assert await receipts.load_voice_action_receipt(cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id=binding["user_id"], user_hash=binding["user_hash"],
+        session_id=binding["session_id"], request_id=args["request_id"]) is None
+    assert await cache.redis.smembers(receipts._key("pending", binding["user_id"], binding["session_id"])) == set()
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    await recovery.send_pending_voice_actions(manager=manager, cache_service=cache, directus_service=directus,
+        encryption_service=encryption, user_id=binding["user_id"], user_id_hash=binding["user_hash"],
+        session_hash=binding["session_id"], device_fingerprint_hash="device", request_id=args["request_id"])
+    manager.send_personal_message.assert_not_awaited()
+    forged = dict(authority)
+    if tamper == "skill_index":
+        forged["binding"] = {**binding, "skill_index": 1}
+    else:
+        forged[tamper] = str(uuid.uuid4())
+    with pytest.raises(ValueError):
+        await receipts.require_voice_output_admission(**forged)
+    with pytest.raises(ValueError, match="permit mismatch"):
+        await receipts.persist_voice_action_receipt(**args, embed_refs=[str(uuid.uuid4())])
+    await receipts.release_voice_action_admission(cache_service=cache, binding=binding, request_id=args["request_id"])
+    with pytest.raises(ValueError, match="unavailable"):
+        await receipts.require_voice_output_admission(**authority)
+    cache.publish_event.assert_not_awaited()  # Cancellation cannot announce completion.

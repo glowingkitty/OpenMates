@@ -2727,6 +2727,31 @@ export class EmbedStore {
     return null;
   }
 
+  /** Reuse a source image's canonical ciphertext without replacing its key or chat indexes. */
+  async getPersistencePayload(embedId: string): Promise<StoreEmbedPayload | null> {
+    const contentRef = `embed:${this.normalizeEmbedId(embedId)}`;
+    let entry = embedCache.get(contentRef);
+    if (!entry) {
+      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
+      entry = await new Promise<EmbedStoreEntry | undefined>((resolve, reject) => {
+        const request = transaction.objectStore(EMBEDS_STORE_NAME).get(contentRef);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    if (!entry?.embed_id || !entry.encrypted_type || !entry.encrypted_content
+        || !entry.hashed_chat_id || !entry.hashed_message_id || !entry.hashed_user_id) return null;
+    return {
+      embed_id: entry.embed_id, encrypted_type: entry.encrypted_type,
+      encrypted_content: entry.encrypted_content, encrypted_text_preview: entry.encrypted_text_preview,
+      status: entry.status ?? "finished", hashed_chat_id: entry.hashed_chat_id,
+      hashed_message_id: entry.hashed_message_id, hashed_user_id: entry.hashed_user_id,
+      content_hash: entry.content_hash, version_number: entry.version_number,
+      is_private: entry.is_private, is_shared: entry.is_shared,
+      created_at: normalizeUnixSeconds(entry.createdAt), updated_at: normalizeUnixSeconds(entry.updatedAt),
+    };
+  }
+
   async updateChildEmbedIds(parentEmbedId: string, childEmbedIds: string[]): Promise<StoreEmbedPayload> {
     const contentRef = `embed:${this.normalizeEmbedId(parentEmbedId)}`;
     let entry = embedCache.get(contentRef);

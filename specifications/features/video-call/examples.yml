@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@8
+specification: feature.video-call@9
 launch:
 - id: start-in-existing-chat
   given: Maya has an existing ramen chat open and is signed in with enough credits.
@@ -26,10 +26,10 @@ call_strip:
     bars centered, and Hang up then Close at right. More includes report/share actions. Scrolling back restores
     the inline strip without duplicate controls or a content jump, on phone and laptop. A round microphone
     button overlays the audio bars in the same style as Close while the duration stays readable.
-- id: video-placeholder-and-close
+- id: camera-and-close
   given: Maya is in a voice call using the fixed controls.
   when: She presses video, then closes the chat.
-  then: Video shows Coming soon and does not access the camera. Closing the chat keeps the call running in
+  then: Video requests camera permission and shares its view after permission is granted. Closing the chat keeps the call running in
     the brand-slot handset/timer pill, with the menu, center navigation and profile still in place.
 call_events:
 - id: connected-call-history
@@ -253,10 +253,46 @@ billing:
     information explains usage-based charges; idle connection time adds no separate charge.
 video:
 - id: share-and-generate
-  given: Maya is in a phase-3 call.
-  when: She explicitly shares her screen, then requests a generated illustration video and stops sharing.
-  then: The assistant can interpret the shared view; generated video plays and remains a normal chat embed;
-    stopping visual input leaves voice and transcripts active.
+  given: Maya is in an audio call on her phone and is holding a fabric sample.
+  when: She presses Video, grants camera permission, switches cameras and later turns the camera off.
+  then: The rear camera is preferred initially; its expanded preview becomes smaller after two seconds and
+    remains visible. Switching changes the shared view, and turning it off leaves voice and transcripts active.
+- id: camera-refusal
+  given: Maya is speaking in an audio call.
+  when: She presses Video but refuses camera permission.
+  then: An accessible camera error appears while the original audio call remains connected.
+source_frames:
+- id: fabric-search-source
+  given: Maya shows a blue fabric sample during a call and asks to find it online.
+  when: OpenMates saves the selected frame and starts the search, then Maya moves the camera to a different fabric.
+  then: Her message retains the first fabric image, and the search card shows that same image as its input
+    while processing and after completion. Hanging up and reloading preserves the image and search results.
+- id: source-cannot-save
+  given: Maya asks to edit a camera image, but saving the selected source frame fails.
+  when: The image-dependent skill would start.
+  then: That skill reports the source-save failure without using a different frame; the audio call continues.
+generated_media:
+- id: generated-image-stage
+  given: Maya's camera is active while an image-generation skill runs.
+  when: The result becomes available and she later presses the bottom-right upward-arrow button.
+  then: The call expands to show the plain generated image with a top-right AI icon, while the camera keeps
+    sharing. The upward arrow collapses the stage; the ordinary progress/result card remains in chat.
+- id: video-and-next-result
+  given: Maya is viewing generated media while another video is being generated.
+  when: The next result finishes and she uses the next/previous and video playback controls.
+  then: The old visual stays visible until completion, the new video starts muted once, and each output is
+    available through the controls and normal saved chat embeds without replacing the transcript.
+call_video_default:
+- id: fast-call-video
+  given: Maya asks for a short explanatory video during a call.
+  when: The normal video-generation skill starts.
+  then: It uses H3 Max Turbo with a five-second 480p request and disabled prompt expansion; progress is
+    visible while waiting, and measured or reported duration determines the charge.
+- id: call-video-failure
+  given: A call-video job has been accepted, but the provider fails to deliver its clip.
+  when: The job reports failure.
+  then: The failure remains visible without automatically submitting another paid request or switching
+    provider, and voice continues. Ordinary video generation outside calls keeps its existing default.
 providers:
 - id: first-provider
   given: Only the Gemini voice adapter is enabled for phase 1.

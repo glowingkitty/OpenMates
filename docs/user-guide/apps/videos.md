@@ -22,6 +22,7 @@ The Videos app helps you find videos on any topic and extract the text content f
 
 **Available skills:**
 
+- **Generate** -- Creates short AI videos. Ordinary generation uses Google Veo. Authenticated chats and calls can use H3 Max Turbo for five-second 480p clips with one saved image as the first frame. H3 results are encrypted and saved alongside other generated videos; REST generation currently supports Veo only.
 - **Search** -- Searches the web for videos, documentaries, tutorials, and clips on any topic. Results show video thumbnails, titles, and durations.
 - **Get Transcript** -- Extracts the full transcript (subtitles) from a YouTube video. Supports multiple languages including English, German, Spanish, and French. You can get transcripts from several videos at once.
 

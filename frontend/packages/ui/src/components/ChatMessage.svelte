@@ -3604,6 +3604,7 @@
               {#if run.kind === 'skills'}
                 <AssistantActivityGroup
                   document={run.document} appIds={run.appIds}
+                  trackPendingSkills={isVoiceCallTranscript}
                   thinkingContent={run.id === firstSkillActivityId ? (thinkingContent || '') : ''}
                   thinkingStreaming={run.id === firstSkillActivityId && isThinkingStreaming}
                   loadedMemories={run.id === firstSkillActivityId ? loadedMemories : []}

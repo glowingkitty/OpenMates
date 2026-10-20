@@ -28,12 +28,14 @@
   import { activitySummaryCandidates } from '../utils/assistantActivitySummary';
 
   let {
-    document, appIds = [], thinkingContent = '', thinkingStreaming = false, active = false,
+    document, appIds = [], thinkingContent = '', thinkingStreaming = false, active = false, trackPendingSkills = false,
     chatId = undefined, embedUpdateTimestamp = 0, piiMappings = undefined,
     piiRevealed = false, onEmbedClick = undefined,
     workedInSubChats = false, subChatsActive = false, loadedMemories = [], children,
   }: {
     document?: AssistantDocument; appIds?: string[]; thinkingContent?: string; thinkingStreaming?: boolean; active?: boolean;
+    /** Durable call artifact rows can finish saving while their skill is still running. */
+    trackPendingSkills?: boolean;
     chatId?: string; embedUpdateTimestamp?: number; piiMappings?: PIIMapping[];
     piiRevealed?: boolean; onEmbedClick?: (event: CustomEvent) => void;
     workedInSubChats?: boolean; subChatsActive?: boolean; loadedMemories?: AppliedMemory[]; children?: Snippet;
@@ -168,8 +170,9 @@
     };
   });
 
+  const tracksSkillProgress = $derived(active || trackPendingSkills);
   $effect(() => {
-    if (!active || !hasSkills) { skillsComplete = false; checkedRunSignature = ''; return; }
+    if (!tracksSkillProgress || !hasSkills) { skillsComplete = false; checkedRunSignature = ''; return; }
     const refs = JSON.parse(skillRefSignature) as string[];
     void $embedAvailabilityVersion;
     void embedUpdateTimestamp;
@@ -181,7 +184,7 @@
     }).catch(() => { if (current) skillsComplete = false; });
     return () => { current = false; };
   });
-  const groupActive = $derived(thinkingStreaming || (active && hasSkills && !skillsComplete) || focuses.some(focusOpen) ||
+  const groupActive = $derived(thinkingStreaming || (tracksSkillProgress && hasSkills && !skillsComplete) || focuses.some(focusOpen) ||
     batches.some(batchOpen) || subChatsActive || (active && !items.length && !workedInSubChats));
   $effect(() => { if (!userToggled) expanded = groupActive; });
   const updatedDocument = $derived(document ? { ...document, content: document.content.map((node) => {
@@ -238,7 +241,7 @@
   const summaryCandidates = $derived(activitySummaryCandidates({
     apps: appNames, memories: loadedMemories.map((memory) => { void $text; return loadedMemoryName(memory); }),
     focuses: focusNames, thinking: !!thinkingContent,
-    usingApps: active && !skillsComplete && hasSkills,
+    usingApps: tracksSkillProgress && !skillsComplete && hasSkills,
     thinkingStreaming, activatingFocus: focuses.some((item) => focusOpen(item) && $activeChatFocusStore[chatId ?? ''] !== item.focus_id),
     subChats: hasSubChats, workingSubChats: subChatsActive || batches.some(batchOpen),
     active: groupActive, cancelledFocus: cancelledFocusIds.length > 0,

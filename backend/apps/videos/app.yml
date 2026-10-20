@@ -72,9 +72,11 @@ embed_types:
       - {name: embed_ref, type: string}
       - {name: result_count, type: number, required: true}
       - {name: embed_ids, type: array, required: true}
+      - {name: input_embed_ids, type: array}
       - {name: output_embed_refs, type: array}
       - {name: failed_results, type: array}
     child_content_fields:
+      - {name: input_embed_ids, type: array}
       - {name: prompt, type: string, required: true}
       - {name: model, type: string, required: true}
       - {name: files, type: object, required: true}
@@ -212,6 +214,7 @@ skills:
     class_path: backend.apps.videos.skills.generate_skill.GenerateSkill
     providers:
       - Google
+      - fal.ai
     full_model_reference: google/veo-3.1-generate-preview
     pricing:
       per_second: 600
@@ -241,14 +244,21 @@ skills:
                 x-ui:
                   basic: true
                 type: integer
-                enum: [4, 6, 8]
+                enum: [4, 5, 6, 8]
                 default: 8
               resolution:
                 x-ui:
                   basic: true
                 type: string
-                enum: ["720p", "1080p", "4k"]
+                enum: ["480p", "720p", "1080p", "4k"]
                 default: "720p"
+              input_embed_ids:
+                type: array
+                maxItems: 1
+                items:
+                  type: string
+                  format: uuid
+                description: Optional first-frame image embed UUID, owned by the authenticated caller. H3 only; the output follows this image canvas.
               seed:
                 x-ui:
                   basic: false
@@ -258,7 +268,8 @@ skills:
                 x-ui:
                   basic: false
                 type: string
-                enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001"]
+                enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001", "minimax/h3-max-turbo/image-to-video"]
+                description: H3 is available in authenticated chats/calls with fixed 5-second 480p clips. REST supports Veo only.
                 default: "veo-3.1-generate-preview"
             required:
               - prompt

@@ -39,6 +39,7 @@
   const sourceChatId = sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
+  import InputEmbedThumbnails from './InputEmbedThumbnails.svelte';
   import Icon from '../Icon.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
@@ -51,6 +52,7 @@
   interface Props {
     /** Unique embed ID */
     id: string;
+    inputEmbedIds?: string[];
     /** Reuse card rendering for parent-owned content without an embed record or sync. */
     presentationOnly?: boolean;
     /** Draft content can be read locally but has no server record to recover yet. */
@@ -105,6 +107,7 @@
   
   let {
     id,
+    inputEmbedIds: inputEmbedIdsProp,
     presentationOnly = false,
     localOnly = false,
     appId,
@@ -136,6 +139,8 @@
   // override exists, render directly from the prop so finished preview fixtures
   // are clickable on the first paint.
   let localStatus = $state<EmbedStatus | null>(null);
+  let storedInputEmbedIds = $state<string[]>([]);
+  let inputEmbedIds = $derived(inputEmbedIdsProp ?? storedInputEmbedIds);
 
   // Track whether the store has resolved a definitive status for this embed.
   // Once the store says "finished", the $effect must NOT revert to statusProp
@@ -145,6 +150,10 @@
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus ?? statusProp ?? 'processing');
   let isInteractive = $derived(status === 'finished' || status === 'error');
+  // aria-disabled on a container also disables its nested source-image buttons.
+  // While the skill runs, expose a group of input actions instead of a disabled
+  // outer button; fullscreen activation remains gated by isInteractive/status.
+  let hasProcessingInputActions = $derived(!isInteractive && inputEmbedIds.length > 0);
 
   let isDirectContentEmbed = $derived.by(() => (
     appId === skillId
@@ -270,11 +279,13 @@
         if (storeResolved && embedData.status === 'processing') {
           return;
         }
-        if (onEmbedDataUpdated && embedData.content && typeof embedData.content === 'string') {
+        if (embedData.content && typeof embedData.content === 'string') {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
-            onEmbedDataUpdated({
+            storedInputEmbedIds = Array.isArray(decodedContent.input_embed_ids)
+              ? decodedContent.input_embed_ids.filter((id): id is string => typeof id === 'string') : [];
+            onEmbedDataUpdated?.({
               status: typeof embedData.status === 'string' ? embedData.status : status,
               decodedContent
             });
@@ -877,6 +888,8 @@
   }
 </script>
 
+<!-- The dynamic group role has tabindex -1; only interactive button cards receive 0. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
@@ -898,8 +911,8 @@
     tiltTransform ? `transform: ${tiltTransform};` : '',
     (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
   ].filter(Boolean).join(' ')}
-  role="button"
-  aria-disabled={!isInteractive}
+  role={hasProcessingInputActions ? "group" : "button"}
+  aria-disabled={hasProcessingInputActions ? undefined : !isInteractive}
   tabindex={isInteractive ? 0 : -1}
   onclick={handleClick}
   onkeydown={handleKeydown}
@@ -942,8 +955,11 @@
       />
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section">
+        {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
         {#if details}
-          {@render details({ isMobile: true, isLarge: false })}
+          {#if inputEmbedIds.length}
+            <div class="input-skill-content">{@render details({ isMobile: true, isLarge: false })}</div>
+          {:else}{@render details({ isMobile: true, isLarge: false })}{/if}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -976,8 +992,11 @@
       />
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section" class:full-width-image={hasFullWidthImage}>
+        {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
         {#if details}
-          {@render details({ isMobile: false, isLarge: isLargeContext })}
+          {#if inputEmbedIds.length}
+            <div class="input-skill-content">{@render details({ isMobile: false, isLarge: isLargeContext })}</div>
+          {:else}{@render details({ isMobile: false, isLarge: isLargeContext })}{/if}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -1159,6 +1178,8 @@
   }
   
   .mobile-layout .details-section {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     flex: 1;
     min-height: 0;
@@ -1168,6 +1189,8 @@
      Fallback for Missing Details Snippet
      =========================================== */
   
+  .input-skill-content { flex: 1; min-height: 0; overflow: hidden; width: 100%; }
+
   .missing-details-fallback {
     display: flex;
     align-items: center;

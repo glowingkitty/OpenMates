@@ -15,6 +15,27 @@ vi.mock('../voiceCallCues', () => ({ VoiceCallCuePlayer: class {
   prepare = cues.prepare; play = cues.play; stop = cues.stop;
 } }));
 const tools = vi.hoisted(() => ({ apply: vi.fn(async () => undefined as string | undefined) }));
+interface CameraCallbacks {
+  onFrame: (frame: {frameId:string;data:string;capturedAt:number;width:number;height:number}) => void;
+  onStream: (stream:MediaStream|null,facing:'environment'|'user') => void;
+  onError: (code:'camera_denied'|'camera_missing'|'camera_failed') => void;
+}
+const visual = vi.hoisted(() => ({
+  cameras: [] as Array<{callbacks:CameraCallbacks; stop:ReturnType<typeof vi.fn>; flip:()=>Promise<void> }>,
+  source: vi.fn(), resolve: vi.fn(), destroy: vi.fn(), listeners: new Set<() => void>(),
+}));
+vi.mock('../voiceCallCamera', () => ({ VoiceCallCamera: class {
+  stop = vi.fn(() => this.callbacks.onStream(null,'environment'));
+  constructor(readonly callbacks:CameraCallbacks) { visual.cameras.push(this); }
+  async start() { this.callbacks.onStream({id:'camera'} as MediaStream,'environment'); }
+  async flip() { this.callbacks.onStream(null,'user'); this.callbacks.onStream({id:'front'} as MediaStream,'user'); }
+} }));
+vi.mock('../voiceCallVisuals', () => ({ persistCallSourceFrame: visual.source }));
+vi.mock('../voiceCallMedia', () => ({ createVoiceCallMediaResolver: () => ({resolve:visual.resolve,destroy:visual.destroy}) }));
+vi.mock('../chatSyncService', () => ({chatSyncService:{
+  addEventListener: (_name:string,callback:()=>void) => visual.listeners.add(callback),
+  removeEventListener: (_name:string,callback:()=>void) => visual.listeners.delete(callback),
+}}));
 interface GateCallbacks {
   onAudio: (data: string) => void;
   onAudioEnd: () => void;
@@ -131,6 +152,11 @@ describe('integrated voice call typed turns', () => {
     capture.frames.length = 0;
     capture.playback.length = 0;
     gates.instances.length = 0;
+    visual.cameras.length = 0;
+    visual.listeners.clear();
+    visual.source.mockReset().mockResolvedValue({type:'image',embed_id:'source-1'});
+    visual.resolve.mockReset().mockResolvedValue([]);
+    visual.destroy.mockClear();
     persistence.prepare.mockReset().mockResolvedValue({ chatId: 'chat-1', history: [] });
   });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -661,5 +687,150 @@ describe('integrated voice call typed turns', () => {
     expect(await submitted).toBe(false);
     expect(persistence.rollback).toHaveBeenCalledWith('call-1', 'chat-1', id);
     expect(get(controller).status).toBe('error');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output
+  it('enables the camera on the existing socket, shrinks its preview and keeps audio on camera-off', async () => {
+    vi.useFakeTimers();
+    const {controller,harness,socket}=liveController();
+    harness.update({cameraAvailable:true});
+    await controller.setCameraEnabled(true);
+    expect(get(controller)).toMatchObject({cameraEnabled:true,cameraFacing:'environment',mediaExpanded:true,status:'live'});
+    expect(JSON.parse(socket.send.mock.calls[0][0])).toMatchObject({type:'camera_state',enabled:true,call_id:'call-1'});
+    visual.cameras[0].callbacks.onFrame({frameId:'frame-1',data:'jpeg',capturedAt:123,width:640,height:360});
+    expect(JSON.parse(socket.send.mock.calls[1][0])).toMatchObject({type:'camera_frame',frame_id:'frame-1',data:'jpeg',captured_at:123});
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(get(controller).mediaExpanded).toBe(false);
+    controller.setMediaExpanded(true);
+    await controller.setCameraEnabled(false);
+    expect(get(controller)).toMatchObject({cameraEnabled:false,cameraStream:null,status:'live',muted:false});
+    expect(socket.close).not.toHaveBeenCalled();
+    visual.cameras[0].callbacks.onStream({id:'late'} as MediaStream,'user');
+    expect(get(controller).cameraStream).toBeNull();
+    controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output
+  it('keeps generated media visible across camera flips and camera permission errors preserve voice', async () => {
+    const {controller,harness}=liveController();
+    harness.update({cameraAvailable:true});
+    await controller.setCameraEnabled(true);
+    const result={embedId:'generated',kind:'image' as const,url:'blob:generated'};
+    harness.update({displayedMedia:result});
+    await controller.flipCamera();
+    expect(get(controller)).toMatchObject({cameraFacing:'user',displayedMedia:result});
+    visual.cameras[0].callbacks.onError('camera_denied');
+    expect(get(controller)).toMatchObject({cameraEnabled:false,cameraError:'camera_denied',status:'live',displayedMedia:result});
+    controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output,video-call.audio.single-owner
+  it('keeps an in-flight camera flip owned until cancellation and ignores its late stream', async () => {
+    const {controller,harness}=liveController();
+    harness.update({cameraAvailable:true});
+    await controller.setCameraEnabled(true);
+    const camera=visual.cameras[0];
+    let finish!:()=>void;
+    vi.spyOn(camera,'flip').mockImplementation(()=>{
+      camera.callbacks.onStream(null,'user');
+      return new Promise<void>(resolve=>{finish=()=>{camera.callbacks.onStream({id:'late-front'} as MediaStream,'user');resolve();};});
+    });
+    const flipping=controller.flipCamera();
+    expect(get(controller).cameraPending).toBe(true);
+    await controller.setCameraEnabled(true);
+    expect(visual.cameras).toHaveLength(1);
+    await controller.setCameraEnabled(false);
+    expect(camera.stop).toHaveBeenCalled();
+    finish();await flipping;
+    expect(get(controller)).toMatchObject({cameraEnabled:false,cameraPending:false,cameraStream:null,status:'live'});
+    controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+  it('acknowledges only the selected saved source frame in the owning live call', async () => {
+    const {controller,harness,socket}=liveController();
+    const event={type:'voice_source_frame',call_id:'call-1',user_message_id:'user-1',frame_id:'frame-1',data:'/9j/AA==',captured_at:123,created_at:1};
+    harness.handleMessage({...event,call_id:'another-call'});
+    expect(visual.source).not.toHaveBeenCalled();
+    harness.handleMessage(event);
+    await vi.waitFor(()=>expect(socket.send).toHaveBeenCalledOnce());
+    expect(visual.source).toHaveBeenCalledWith({callId:'call-1',chatId:'chat-1',messageId:'user-1',frameId:'frame-1',data:'/9j/AA==',capturedAt:123,createdAt:1});
+    expect(JSON.parse(socket.send.mock.calls[0][0])).toEqual({type:'source_frame_saved',call_id:'call-1',user_message_id:'user-1',frame_id:'frame-1',embed_reference:{type:'image',embed_id:'source-1'}});
+    controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+  it('reports source-save failure without hanging up and fences late source acknowledgements', async () => {
+    const {controller,harness,socket}=liveController();
+    visual.source.mockRejectedValueOnce(new Error('sync unavailable'));
+    const event={type:'voice_source_frame',call_id:'call-1',user_message_id:'user-1',frame_id:'frame-1',data:'/9j/AA==',captured_at:123,created_at:1};
+    harness.handleMessage(event);
+    await vi.waitFor(()=>expect(get(controller).cameraError).toBe('source_frame_failed'));
+    expect(get(controller).status).toBe('live');
+    expect(JSON.parse(socket.send.mock.calls[0][0]).type).toBe('source_frame_failed');
+    let finish!:(value:unknown)=>void;
+    visual.source.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+    harness.handleMessage({...event,frame_id:'frame-2'});
+    await vi.waitFor(()=>expect(finish).toBeTypeOf('function'));
+    controller.hangup();
+    const before=socket.send.mock.calls.length;
+    finish({type:'image',embed_id:'late'});
+    await Promise.resolve();await Promise.resolve();
+    expect(socket.send.mock.calls.length).toBe(before);
+    expect(get(controller).status).toBe('ended');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+  it('attaches and acknowledges the same sampled frame independently for two user turns', async () => {
+    const {controller,harness,socket}=liveController();
+    let finish!:(reference:unknown)=>void;
+    const saving=new Promise(resolve=>{finish=resolve;});
+    visual.source.mockReturnValue(saving);
+    const event={type:'voice_source_frame',call_id:'call-1',frame_id:'same-frame',data:'/9j/AA==',captured_at:123,created_at:1};
+    harness.handleMessage({...event,user_message_id:'first-user'});
+    await vi.waitFor(()=>expect(visual.source).toHaveBeenCalledOnce());
+    harness.handleMessage({...event,user_message_id:'second-user'});
+    await vi.waitFor(()=>expect(visual.source).toHaveBeenCalledTimes(2));
+    finish({type:'image',embed_id:'shared-source'});
+    await vi.waitFor(()=>expect(socket.send).toHaveBeenCalledTimes(2));
+    expect(visual.source.mock.calls.map(call=>call[0].messageId)).toEqual(['first-user','second-user']);
+    expect(socket.send.mock.calls.map(call=>JSON.parse(call[0]).user_message_id)).toEqual(['first-user','second-user']);
+    controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.generated-media-stage
+  it('expands completed generated media, respects collapse and releases media after hangup', async () => {
+    const {controller,harness}=liveController();
+    const image={embedId:'generated-1',kind:'image' as const,url:'blob:image'};
+    const video={embedId:'generated-2',kind:'video' as const,url:'blob:video'};
+    visual.resolve.mockResolvedValue([image,video]);
+    tools.apply.mockResolvedValue('media-parent');
+    harness.handleMessage({type:'voice_embed',call_id:'call-1',function_call_id:'function-1',user_message_id:'user-1',assistant_message_id:'assistant-1',payload:{embed_id:'media-parent'}});
+    await vi.waitFor(()=>expect(get(controller).displayedMedia).toEqual(image));
+    controller.selectMedia(1);
+    expect(get(controller).displayedMedia).toEqual(video);
+    controller.setMediaExpanded(false);
+    for(const listener of visual.listeners)listener();
+    await vi.waitFor(()=>expect(visual.resolve).toHaveBeenCalledTimes(2));
+    expect(get(controller).mediaExpanded).toBe(false);
+    controller.hangup();
+    expect(visual.destroy).toHaveBeenCalledOnce();
+    expect(visual.listeners.size).toBe(0);
+    expect(get(controller).displayedMedia).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.video.generated-media-stage,video-call.chat.fixed-binding
+  it('saves a committed old-call artifact without presenting it inside a newer call', async () => {
+    const {controller,harness}=liveController();
+    let finish!:(id:string)=>void;
+    tools.apply.mockImplementationOnce(()=>new Promise<string>(resolve=>{finish=resolve;}));
+    harness.handleMessage({type:'voice_embed',call_id:'call-1',function_call_id:'function-1',user_message_id:'user-1',assistant_message_id:'assistant-1',payload:{embed_id:'old-parent'}});
+    controller.hangup();
+    harness.update({status:'live',callId:'call-2',chatId:'chat-2'});
+    finish('old-parent');
+    await vi.waitFor(()=>expect(persistence.artifact).toHaveBeenCalledWith(expect.objectContaining({callId:'call-1',chatId:'chat-1',embedRefs:['old-parent']})));
+    expect(visual.resolve).not.toHaveBeenCalled();
+    expect(get(controller)).toMatchObject({callId:'call-2',chatId:'chat-2',displayedMedia:null});
+    controller.hangup();
   });
 });

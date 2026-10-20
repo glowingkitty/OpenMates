@@ -26297,6 +26297,48 @@
     },
     "privacy_save_failed": {
       "text": "Your acknowledgement could not be saved. Try again to start the call."
+    },
+    "camera_preview": {
+      "text": "Camera preview"
+    },
+    "ai_generated": {
+      "text": "AI-generated"
+    },
+    "flip_camera": {
+      "text": "Flip camera"
+    },
+    "show_camera": {
+      "text": "Show camera"
+    },
+    "generated_media": {
+      "text": "Call media"
+    },
+    "previous_media": {
+      "text": "Previous result"
+    },
+    "next_media": {
+      "text": "Next result"
+    },
+    "media_unavailable": {
+      "text": "The result could not be loaded."
+    },
+    "camera_on": {
+      "text": "Turn camera on"
+    },
+    "camera_off": {
+      "text": "Turn camera off"
+    },
+    "camera_denied": {
+      "text": "Camera access was denied."
+    },
+    "camera_missing": {
+      "text": "No camera was found."
+    },
+    "camera_failed": {
+      "text": "The camera is unavailable. Please try again."
+    },
+    "source_frame_failed": {
+      "text": "The camera reference could not be saved."
     }
   },
   "waiting_list": {
@@ -27684,6 +27726,14 @@
       "website_changes_message_title": {
         "text": "Congress updates"
       }
+    }
+  },
+  "embeds_input": {
+    "image_used": {
+      "text": "Image used"
+    },
+    "open_image": {
+      "text": "Open source image"
     }
   }
 }

@@ -1200,6 +1200,38 @@ import { storageArchiveFetch } from "../config/api";
   function observeCallHeaderEnd(node: HTMLElement) {
     const scrollRoot = node.closest<HTMLElement>('.chat-history-container');
     if (!scrollRoot) return;
+    let disposed = false;
+    let strip: HTMLElement | null = null;
+    const stageHeightProperty = '--voice-call-stage-max-height';
+    function measureCallStage() {
+      if (disposed) return;
+      // Actions can mount before their following sibling. Keep observing the
+      // stable strip so media insertion/replacement also updates the allowance.
+      const sibling = node.nextElementSibling;
+      if (sibling instanceof HTMLElement && sibling.classList.contains('voice-call-strip') && sibling !== strip) {
+        if (strip) {
+          resizeObserver.unobserve(strip);
+          strip.style.removeProperty(stageHeightProperty);
+        }
+        strip = sibling;
+        resizeObserver.observe(strip);
+      }
+      if (!strip) return;
+      const bar = strip.querySelector<HTMLElement>('.voice-call-bar');
+      if (!bar) return;
+      const media = bar.querySelector<HTMLElement>('.call-media');
+      const toolbarHeight = bar.offsetHeight - (media?.offsetHeight ?? 0);
+      const rootStyle = getComputedStyle(scrollRoot);
+      const padding = Number.parseFloat(rootStyle.paddingTop) + Number.parseFloat(rootStyle.paddingBottom);
+      // The composer shrinks this scrollport independently of the window. The
+      // whole sticky strip must fit here, including its toolbar and padding.
+      const availableHeight = Math.max(0, Math.floor(scrollRoot.clientHeight - padding - toolbarHeight));
+      const value = `${availableHeight}px`;
+      if (strip.style.getPropertyValue(stageHeightProperty) !== value) strip.style.setProperty(stageHeightProperty, value);
+    }
+    const resizeObserver = new ResizeObserver(measureCallStage);
+    resizeObserver.observe(scrollRoot);
+    void tick().then(measureCallStage);
     const observer = new IntersectionObserver(([entry]) => {
       const stuck = !entry.isIntersecting && !!entry.rootBounds &&
         entry.boundingClientRect.bottom <= entry.rootBounds.top;
@@ -1207,7 +1239,15 @@ import { storageArchiveFetch } from "../config/api";
       voiceCallBridge?.onStickyChange(stuck);
     }, { root: scrollRoot, threshold: 0 });
     observer.observe(node);
-    return { destroy() { observer.disconnect(); voiceCallBridge?.onStickyChange(false); } };
+    return { destroy() {
+      disposed = true;
+      observer.disconnect();
+      resizeObserver.disconnect();
+      // The property belongs to this strip, never the shared scroll root, so an
+      // outgoing chat cannot remove a newer chat's measured allowance.
+      strip?.style.removeProperty(stageHeightProperty);
+      voiceCallBridge?.onStickyChange(false);
+    } };
   }
 
   // The intro video now uses the full banner as a media hero. Keep auth CTAs in

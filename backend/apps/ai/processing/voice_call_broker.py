@@ -50,6 +50,20 @@ def transport_key(operation_id: str, suffix: str) -> str:
     return f"{KEY_PREFIX}{operation_id}:{suffix}"
 
 
+async def _wait_for_queue(client: Any, key: str, *, deadline: float) -> Any:
+    """Wait within the operation deadline without exceeding cache read timeouts.
+
+    The shared cache connection has a five-second socket timeout. A long
+    server-side BLPOP timeout would fail at that transport boundary even while
+    an admitted worker or permission decision is still running normally.
+    """
+    while (remaining := deadline - time.monotonic()) > 0:
+        result = await client.blpop(key, timeout=min(1, remaining))
+        if result:
+            return result
+    return None
+
+
 def bounded_context(context: Any) -> dict[str, Any]:
     """Admit conversation data without accepting model/tool authority fields."""
     if not isinstance(context, dict):
@@ -148,18 +162,31 @@ class VoiceCallBroker:
                 "user_id": self.binding["user_id"], "ciphertext": ciphertext},
                 queue="app_ai", task_id=operation_id, expires=TRANSPORT_TTL)
             client = await self.cache.client
-            raw = await client.blpop(transport_key(operation_id, "result"), timeout=REQUEST_TIMEOUT)
-            if not raw:
-                raise TimeoutError("Voice request timed out")
-            await require_binding(self.cache, envelope)
-            sealed = raw[1].decode() if isinstance(raw[1], bytes) else raw[1]
-            opened = json.loads(await self.encryption.decrypt_with_user_key(sealed, vault_key))
-            if opened.get("operation_id") != operation_id or opened.get("call_id") != self.binding["call_id"]:
-                raise PermissionError("Voice result binding mismatch")
-            if opened.get("error"):
-                if data.get("operation") == "process_request" and opened.get("error_code") == "tool_operation_failed":
-                    raise VoiceToolOperationError("Voice tool request could not be completed")
-                raise RuntimeError(opened["error"])
+            deadline = time.monotonic() + REQUEST_TIMEOUT
+            progress_count = 0
+            while True:
+                raw = await _wait_for_queue(client, transport_key(operation_id, "result"), deadline=deadline)
+                if not raw or time.monotonic() > deadline:
+                    raise TimeoutError("Voice request timed out")
+                await require_binding(self.cache, envelope)
+                sealed = raw[1].decode() if isinstance(raw[1], bytes) else raw[1]
+                opened = json.loads(await self.encryption.decrypt_with_user_key(sealed, vault_key))
+                if opened.get("operation_id") != operation_id or opened.get("call_id") != self.binding["call_id"]:
+                    raise PermissionError("Voice result binding mismatch")
+                if opened.get("progress") is not None:
+                    progress_count += 1
+                    event = opened["progress"]
+                    if (progress_count > 128 or not isinstance(event, dict)
+                            or event.get("type") not in {"voice_embed", "voice_tool_status"}
+                            or len(json.dumps(event)) > MAX_RESULT_CHARS):
+                        raise ValueError("Invalid voice progress")
+                    await self.emit_event({**event, "function_call_id": data.get("function_call_id")})
+                    continue
+                if opened.get("error"):
+                    if data.get("operation") == "process_request" and opened.get("error_code") == "tool_operation_failed":
+                        raise VoiceToolOperationError("Voice tool request could not be completed")
+                    raise RuntimeError(opened["error"])
+                break
             received = True
             return opened["result"]
         finally:
@@ -188,14 +215,15 @@ class VoiceCallBroker:
     async def process_request(self, function_call_id: str, turn_generation: int, request: str,
                               context: dict[str, Any], *, user_message_id: str,
                               assistant_message_id: str | None = None,
-                              assistant_created_at: int | None = None) -> dict[str, Any]:
+                              assistant_created_at: int | None = None,
+                              visual_source: dict[str, Any] | None = None) -> dict[str, Any]:
         cancel_id = secrets.token_hex(16)
         self.operations.add(cancel_id)
         completed = False
         try:
             result = await self._process_request(function_call_id, turn_generation, request, context,
                 user_message_id=user_message_id, assistant_message_id=assistant_message_id,
-                assistant_created_at=assistant_created_at, cancel_id=cancel_id)
+                assistant_created_at=assistant_created_at, cancel_id=cancel_id, visual_source=visual_source)
             completed = True
             return result
         finally:
@@ -206,13 +234,16 @@ class VoiceCallBroker:
     async def _process_request(self, function_call_id: str, turn_generation: int, request: str,
                               context: dict[str, Any], *, user_message_id: str,
                               assistant_message_id: str | None, assistant_created_at: int | None,
-                              cancel_id: str) -> dict[str, Any]:
+                              cancel_id: str, visual_source: dict[str, Any] | None = None) -> dict[str, Any]:
         if not isinstance(request, str) or not 1 <= len(request.strip()) <= MAX_REQUEST_CHARS:
             raise ValueError("Invalid voice request")
         data = {"operation": "process_request", "function_call_id": function_call_id,
                 "turn_generation": turn_generation, "request": request.strip(),
                 "context": bounded_context(context), "user_message_id": user_message_id,
                 "assistant_message_id": assistant_message_id or user_message_id}
+        if visual_source:
+            data["visual_source"] = visual_source
+            data["input_embed_ids"] = [visual_source["embed_reference"]["embed_id"]]
         data["request_cancel_id"] = cancel_id
         data["assistant_created_at"] = assistant_created_at
         result = await self._dispatch(data)
@@ -226,7 +257,8 @@ class VoiceCallBroker:
                 await self.emit_event({"type": "voice_focus", "function_call_id": function_call_id,
                     "payload": {"event": "focus_mode_pending", **project_request["pending_event"]}})
                 client = await self.cache.client
-                decision = await client.blpop(transport_key(decision_id, "decision"), timeout=REQUEST_TIMEOUT)
+                decision = await _wait_for_queue(client, transport_key(decision_id, "decision"),
+                    deadline=time.monotonic() + REQUEST_TIMEOUT)
                 if not decision:
                     raise TimeoutError("Project access decision unavailable")
                 data["project_decision_made"] = True
@@ -272,7 +304,8 @@ class VoiceCallBroker:
                     "embed_id": focus_request["embed_id"], "expires_at": time.time() + 4,
                     "activation_policy": "delayed"}})
             client = await self.cache.client
-            decision = await client.blpop(transport_key(focus_request["decision_id"], "decision"), timeout=20)
+            decision = await _wait_for_queue(client, transport_key(focus_request["decision_id"], "decision"),
+                deadline=time.monotonic() + 20)
             if not decision:
                 raise TimeoutError("Focus activation decision unavailable")
             data["selection"] = result["selection"]

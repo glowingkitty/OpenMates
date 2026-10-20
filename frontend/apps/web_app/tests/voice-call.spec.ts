@@ -3,8 +3,8 @@
  * Only the external voice provider is synthetic, gated inside the disposable
  * backend; browser sockets, session admission and message storage stay real.
  */
-import type { Locator, Page } from '@playwright/test';
-import { scrollChatHistoryToStart, waitForStickyCallControlsReady } from './helpers/chat-scroll';
+import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
+import { clickChatTarget, openCompletedAssistantActivity, scrollChatHistoryToStart, waitForStickyCallControlsReady } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, waitForChatReady, startNewChat, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
@@ -23,6 +23,7 @@ interface SocketObservation {
   path: string;
   code?: string;
   stage?: string;
+  errorOrigin?: { category: string; function: string; line: number };
   socketId?: number;
   type: string;
   observedAt?: number;
@@ -82,6 +83,9 @@ interface CallEvidence {
       matchedBoundRow: boolean; held: boolean }>;
   };
   releaseChatLookup?: () => void;
+  historyDurability?: Array<{ ordinal: number; role: string; localExists: boolean; remoteExists: boolean;
+    localRevision: number; remoteRevision: number; pendingOutboxCount: number;
+    ciphertextMatches: boolean; plaintextMatches: boolean }>;
 }
 
 test.use({
@@ -183,7 +187,8 @@ test.afterEach(async ({ page }, testInfo) => {
             maxTranscriptLength: Math.max(0, ...frames.map((event) => event.textLength ?? 0)) });
         }
         return { transportObserved: true, phaseCounts, targetRowCount: targetIds.length, rows,
-          errors: state.received.filter(event => event.type === 'error').map(({code, stage}) => ({code, stage})),
+          errors: state.received.filter(event => event.type === 'error').map(({code, stage, errorOrigin}) => ({code, stage, errorOrigin})),
+          historyDurability: state.historyDurability,
           contextShape: state.sent.find(event => event.type === 'start')?.context?.map(row => ({
             role: row.role === 'user' || row.role === 'assistant' ? row.role : 'other',
             textLength: typeof row.text === 'string' ? row.text.length : null,
@@ -305,6 +310,10 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
                 ...(event.type === 'error' ? {
                   code: ['call_unavailable', 'context_too_large', 'transcript_limit'].includes(payload.code) ? payload.code : 'other',
                   stage: ['start_validation','context_options','personal_chat','session','credits','lock','registry','provider_selection','broker_creation','broker_prepare','prompt_configuration','provider_open','active'].includes(payload.stage) ? payload.stage : 'other',
+                  ...(payload.error_origin && /^[A-Za-z_][A-Za-z_0-9]{0,79}$/.test(payload.error_origin.category) &&
+                    /^[A-Za-z_][A-Za-z_0-9]{0,79}$/.test(payload.error_origin.function) && Number.isSafeInteger(payload.error_origin.line) ? {
+                      errorOrigin: { category: payload.error_origin.category, function: payload.error_origin.function, line: payload.error_origin.line },
+                    } : {}),
                 } : {}),
                 ...(event.type === 'voice_metadata_error' ? { code: payload.code === 'metadata_stale' ? 'metadata_stale' : 'metadata_unavailable',
                   stage: typeof payload.stage === 'string' && /^[A-Za-z_][A-Za-z_0-9]*:[0-9]+$/.test(payload.stage) ? payload.stage : 'unknown' } : {}),
@@ -451,6 +460,8 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
     });
     const nativeCapture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = async (constraints) => {
+      // Camera capture remains the genuine video-only device stream.
+      if (!constraints?.audio) return nativeCapture(constraints);
       const microphone = await nativeCapture(constraints);
       state.captureRequests++;
       state.nativeTracks.push(...microphone.getTracks());
@@ -585,9 +596,10 @@ async function assertCallHistoryDurable(page: Page, chatId: string, callId: stri
     const read=<T>(db:IDBDatabase,store:string,id:string)=>new Promise<T>((resolve,reject)=>{const r=db.transaction(store,'readonly').objectStore(store).get(id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
     const db=await open('chats_db');const keys=await open('openmates_crypto');
     try {
-      const local=await Promise.all(ids.map(id=>read<{encrypted_content?:string;content?:string;role:string;chat_id:string;created_at:number}|undefined>(db,'messages',id)));
+      const local=await Promise.all(ids.map(id=>read<{encrypted_content?:string;content?:string;role:string;chat_id:string;created_at:number;
+        queue_revision?:number;call_persistence_v1?:{entries:unknown[]}}|undefined>(db,'messages',id)));
       if(local.some(row=>!row?.encrypted_content||typeof row.content==='string'||row.chat_id!==chatId)) return {durable:0,decryptedEvents:0,privateRows:false,pair:false,times:false,duration:false};
-      const remote=new Map<string,{message_id:string;encrypted_content:string;role:string;created_at:number}>();
+      const remote=new Map<string,{message_id:string;encrypted_content:string;role:string;created_at:number;queue_revision?:number}>();
       const params=new URLSearchParams({direction:'latest',limit:'20',respect_compression_boundary:'false'});
       for(let window=0;window<8;window++) {
         const response=await fetch(`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params}`,{credentials:'include'});
@@ -604,6 +616,19 @@ async function assertCallHistoryDurable(page: Page, chatId: string, callId: stri
       const wrapped=bytes(chat.encrypted_chat_key);
       const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:wrapped.slice(0,12)},master,wrapped.slice(12));
       const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      state.historyDurability=await Promise.all(ids.map(async(id,ordinal)=>{
+        const own=local[ordinal];const canonical=remote.get(id);
+        const ciphertextMatches=!!own?.encrypted_content&&own.encrypted_content===canonical?.encrypted_content;
+        let plaintextMatches=ciphertextMatches;
+        if(!ciphertextMatches&&own?.encrypted_content&&canonical?.encrypted_content) {
+          try { plaintextMatches=await state.decryptChatContent!(own.encrypted_content,raw)===
+            await state.decryptChatContent!(canonical.encrypted_content,raw); } catch { /* Boolean only. */ }
+        }
+        return {ordinal,role:['user','assistant','system'].includes(own?.role??'')?own!.role:'other',
+          localExists:!!own,remoteExists:!!canonical,localRevision:own?.queue_revision??0,
+          remoteRevision:canonical?.queue_revision??0,pendingOutboxCount:own?.call_persistence_v1?.entries.length??0,
+          ciphertextMatches,plaintextMatches};
+      }));
       const events=[];
       let decryptedEvents=0;
       // Decrypt only inside the browser; diagnostics return counts/booleans.
@@ -964,6 +989,447 @@ async function seedVoiceContext(page: Page, chatId: string, coveredIds: string[]
     message: 'Fictional prior history must precede the next voice turn by an integer timestamp second',
   }).toBeGreaterThan(uncovered[0].created_at);
   return uncovered.map((row) => row.message_id);
+}
+
+interface CameraCallObservation {
+  type: string; observedAt: number; callId?: string; frameId?: string; userMessageId?: string;
+  assistantMessageId?: string; embedId?: string; embedType?: string; status?: string;
+  appId?: string; skillId?: string; inputEmbedIds?: string[]; model?: string; resolution?: string;
+}
+interface CameraCallEvidence {
+  sent: CameraCallObservation[]; received: CameraCallObservation[];
+  wire: Map<string, Promise<{ hash: string; bytes: number; width: number; height: number }>>;
+  sources: Map<string, Promise<string>>;
+  uploads: Array<{ filename: string; hash: Promise<string>; embedId?: string; savedHash?: string; clean?: boolean }>;
+  facing: string[]; beforeFlip?: MediaStreamTrack[];
+  openedSource?: { embedId: string; s3Files: Record<string, { s3_key: string; encryption?: string; aes_nonce?: string }>;
+    aesKey: string; aesNonce: string };
+}
+
+/** Observe genuine camera, upload and encrypted embed traffic without replacing a response. */
+async function observeCameraCall(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const state: CameraCallEvidence = { sent: [], received: [], wire: new Map(), sources: new Map(), uploads: [], facing: [] };
+    Object.assign(window, { __voiceCameraEvidence: state });
+    const digest = async (bytes: ArrayBuffer) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+      .map(value => value.toString(16).padStart(2, '0')).join('');
+    const decoded = (data: string) => Uint8Array.from(atob(data), value => value.charCodeAt(0));
+    const NativeSocket = window.WebSocket;
+    window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
+      const socket: WebSocket = Reflect.construct(Target, args);
+      const path = new URL(String(args[0]), location.href).pathname;
+      const originalSend = socket.send.bind(socket);
+      socket.send = (data) => {
+        if (path === '/v1/voice-call' && typeof data === 'string') {
+          const event = JSON.parse(data);
+          if (['camera_state', 'camera_frame', 'source_frame_saved', 'source_frame_failed'].includes(event.type)) {
+            state.sent.push({ type: event.type, observedAt: performance.now(), callId: event.call_id,
+              frameId: event.frame_id, userMessageId: event.user_message_id, embedId: event.embed_reference?.embed_id });
+            if (event.type === 'camera_frame') {
+              const bytes = decoded(event.data);
+              state.wire.set(event.frame_id, (async () => {
+                const image = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+                try { return { hash: await digest(bytes.buffer), bytes: bytes.byteLength, width: image.width, height: image.height }; }
+                finally { image.close(); }
+              })());
+            }
+          }
+        }
+        originalSend(data);
+      };
+      socket.addEventListener('message', ({ data }) => {
+        if (typeof data !== 'string') return;
+        const event = JSON.parse(data);
+        const payload = event.payload ?? event;
+        if (event.type === 'voice_source_frame') {
+          state.sources.set(`${event.user_message_id}:${event.frame_id}`, digest(decoded(event.data).buffer));
+        }
+        if (!['voice_source_frame', 'voice_embed', 'send_embed_data', 'camera_error'].includes(event.type)) return;
+        const content = typeof payload.content === 'string' ? payload.content : '';
+        const scalar = (name: string) => content.match(new RegExp(`^${name}:\\s*(.+)$`, 'm'))?.[1]?.replace(/^"|"$/g, '');
+        const inputs = content.match(/^input_embed_ids(?:\[\d+\])?:\s*(.*)$/m)?.[1] ?? '';
+        state.received.push({ type: event.type, observedAt: performance.now(), callId: event.call_id,
+          frameId: event.frame_id, userMessageId: event.user_message_id, assistantMessageId: event.assistant_message_id ?? payload.message_id,
+          embedId: payload.embed_id, embedType: payload.type, status: payload.status,
+          appId: scalar('app_id'), skillId: scalar('skill_id'), inputEmbedIds: inputs.match(/[0-9a-f]{8}-[0-9a-f-]{27}/gi) ?? [],
+          model: scalar('model'), resolution: scalar('resolution') });
+      });
+      return socket;
+    } });
+    const capture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      if (constraints?.video) {
+        const video = constraints.video;
+        const mode = typeof video === 'object' ? video.facingMode : undefined;
+        state.facing.push(typeof mode === 'object' && 'ideal' in mode ? String(mode.ideal) : String(mode ?? 'default'));
+      }
+      return capture(constraints);
+    };
+    // XHR is the ordinary upload service's transport. Hash only inside the browser;
+    // neither image bytes nor response AES keys enter Playwright diagnostics.
+    const urls = new WeakMap<XMLHttpRequest, string>();
+    XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, { apply(Target, xhr, args) {
+      urls.set(xhr, String(args[1]));
+      return Reflect.apply(Target, xhr, args);
+    } });
+    XMLHttpRequest.prototype.send = new Proxy(XMLHttpRequest.prototype.send, { apply(Target, xhr, args) {
+      const body = args[0];
+      const file = body instanceof FormData ? body.get('file') : null;
+      if (new URL(urls.get(xhr) ?? '/', location.href).pathname === '/v1/upload/file' && file instanceof File && file.name.startsWith('call-source-')) {
+        const upload: CameraCallEvidence['uploads'][number] = { filename: file.name, hash: file.arrayBuffer().then(digest) };
+        state.uploads.push(upload);
+        xhr.addEventListener('load', () => {
+          if (xhr.status < 200 || xhr.status >= 300) return;
+          const response = JSON.parse(xhr.responseText);
+          upload.embedId = response.embed_id; upload.savedHash = response.content_hash; upload.clean = response.malware_scan === 'clean';
+        });
+      }
+      return Reflect.apply(Target, xhr, args);
+    } });
+    document.addEventListener('imagefullscreen', (event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.embedId) state.openedSource = detail;
+    });
+  });
+}
+
+async function cameraCallEvidence(page: Page) {
+  return page.evaluate(() => {
+    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence }).__voiceCameraEvidence;
+    return { sent: state.sent, received: state.received, facing: state.facing };
+  });
+}
+
+async function sourceFrameProof(page: Page, userMessageId: string) {
+  return page.evaluate(async (userMessageId) => {
+    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence }).__voiceCameraEvidence;
+    const source = state.received.find(event => event.type === 'voice_source_frame' && event.userMessageId === userMessageId);
+    const ack = state.sent.find(event => event.type === 'source_frame_saved' && event.userMessageId === userMessageId);
+    if (!source?.frameId || !ack?.embedId || ack.frameId !== source.frameId) return null;
+    const wire = await state.wire.get(source.frameId);
+    const chosen = await state.sources.get(`${userMessageId}:${source.frameId}`);
+    const upload = state.uploads.find(upload => upload.filename === `call-source-${source.frameId}.jpg` && upload.embedId === ack.embedId);
+    return wire && upload ? { frameId: source.frameId, embedId: ack.embedId, hash: wire.hash,
+      exact: wire.hash === chosen && chosen === await upload.hash && upload.savedHash === chosen,
+      clean: upload.clean, bounded: wire.bytes <= 256 * 1024 && wire.width <= 1280 && wire.height <= 720 } : null;
+  }, userMessageId);
+}
+
+async function assertEncryptedSourceAttachment(page: Page, chatId: string, userMessageId: string, sourceId: string, hash: string): Promise<void> {
+  const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL!;
+  await expect.poll(() => page.evaluate(async ({ chatId, userMessageId, sourceId, hash, apiUrl }) => {
+    const open = (name: string) => new Promise<IDBDatabase>((resolve, reject) => { const r = indexedDB.open(name); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const read = <T>(db: IDBDatabase, store: string, id: string) => new Promise<T>((resolve, reject) => { const r = db.transaction(store).objectStore(store).get(id); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const db = await open('chats_db'); const keys = await open('openmates_crypto');
+    try {
+      const row = await read<{ encrypted_content?: string; content?: string }>(db, 'messages', userMessageId);
+      if (!row?.encrypted_content || row.content !== undefined) return false;
+      const chat = await read<{ encrypted_chat_key: string }>(db, 'chats', chatId);
+      const master = await read<CryptoKey>(keys, 'keys', 'master_key');
+      const bytes = (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+      const wrapped = bytes(chat.encrypted_chat_key);
+      const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, master, wrapped.slice(12));
+      const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
+      const text = await state.decryptChatContent!(row.encrypted_content, raw);
+      const attached = [...text.matchAll(/```json\s*\n([\s\S]*?)\n```/g)].some(match => {
+        const value = JSON.parse(match[1]); return value.type === 'image' && value.embed_id === sourceId;
+      });
+      const response = await fetch(`${apiUrl}/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(sourceId)}`, { credentials: 'include' });
+      if (!response.ok || !attached) return false;
+      const embed = (await response.json()).embed;
+      if (!embed?.encrypted_content || 'content' in embed) return false;
+      const material = await crypto.subtle.importKey('raw', raw, 'HKDF', false, ['deriveBits']);
+      const derived = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new TextEncoder().encode('openmates-embed-key-v1'), info: new TextEncoder().encode(sourceId) }, material, 256);
+      const key = await crypto.subtle.importKey('raw', derived, 'AES-GCM', false, ['decrypt']);
+      const payload = bytes(embed.encrypted_content);
+      const source = new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: payload.slice(0, 12) }, key, payload.slice(12)));
+      return new RegExp(`^content_hash:\\s*"?${hash}"?$`, 'm').test(source);
+    } finally { db.close(); keys.close(); }
+  }, { chatId, userMessageId, sourceId, hash, apiUrl }), { timeout: 45_000, message: 'The user attachment and owned source metadata must be encrypted and independently decryptable' }).toBe(true);
+}
+
+async function assertOpenOriginalSource(page: Page, thumbnail: Locator, sourceId: string, expectedHash: string, testInfo: TestInfo): Promise<void> {
+  await expect(thumbnail).toBeEnabled();
+  await expect.poll(() => thumbnail.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await clickChatTarget(thumbnail, testInfo);
+  await expect(page.getByTestId('image-embed-fullscreen')).toBeVisible();
+  await expect.poll(() => page.getByTestId('image-embed-fullscreen').locator('img:not(.preview-placeholder)').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  // Read the original through the normal owner-authorized presigned URL. Keys,
+  // ciphertext and plaintext remain within this browser evaluation.
+  const originalProof = await page.evaluate(async ({ apiUrl, sourceId, expectedHash }) => {
+    const detail = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence }).__voiceCameraEvidence.openedSource;
+    if (!detail) return { status: 'missing_source_event' };
+    if (detail.embedId !== sourceId) return { status: 'wrong_source_identity', embedId: detail.embedId };
+    if (!detail.s3Files?.original) return { status: 'missing_original', embedId: detail.embedId };
+    const original = detail.s3Files.original;
+    const signed = await fetch(`${apiUrl}/v1/embeds/presigned-url?s3_key=${encodeURIComponent(original.s3_key)}`, { credentials: 'include' });
+    if (!signed.ok) return { status: 'presign_failed', httpStatus: signed.status };
+    const downloaded = await fetch((await signed.json()).url);
+    if (!downloaded.ok) return { status: 'download_failed', httpStatus: downloaded.status };
+    const encrypted = await downloaded.arrayBuffer();
+    const bytes = (value: string) => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+    const noncePrefixed = original.encryption === 'aes-gcm-nonce-prefixed-v1';
+    const nonce = noncePrefixed ? new Uint8Array(encrypted.slice(0, 12)) : bytes(original.aes_nonce || detail.aesNonce);
+    const key = await crypto.subtle.importKey('raw', bytes(detail.aesKey), 'AES-GCM', false, ['decrypt']);
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, noncePrefixed ? encrypted.slice(12) : encrypted);
+    const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', plaintext))].map(value => value.toString(16).padStart(2, '0')).join('');
+    return { status: digest === expectedHash ? 'matched' : 'hash_mismatch', embedId: detail.embedId,
+      expectedHash, actualHash: digest };
+  }, { apiUrl: process.env.PLAYWRIGHT_TEST_API_URL!, sourceId, expectedHash });
+  expect(originalProof).toMatchObject({ status: 'matched', embedId: sourceId,
+    expectedHash, actualHash: expectedHash });
+  await page.getByTestId('embed-minimize').click();
+  await expect(page.getByTestId('image-embed-fullscreen')).toHaveCount(0);
+}
+
+async function sendCameraCallText(page: Page, text: string): Promise<string> {
+  const before = voiceFrames(await evidence(page), 'text_input').length;
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+  await editor.click(); await page.keyboard.insertText(text);
+  await page.getByTestId('composer-send-button').click();
+  await expect.poll(async () => voiceFrames(await evidence(page), 'text_input').length).toBe(before + 1);
+  return voiceFrames(await evidence(page), 'text_input').at(-1)!.messageId!;
+}
+
+async function waitForCameraAssistantTurn(page: Page, callId: string, messageId: string): Promise<void> {
+  // A finished skill arrives before the provider's final spoken reply. Wait for
+  // that exact turn and its rendered prose before inspecting a static card;
+  // otherwise new prose can move the target between pointer down and up.
+  await expect.poll(async () => (await evidence(page)).received.some(event =>
+    event.type === 'transcript' && event.path === '/v1/voice-call' && event.callId === callId &&
+    event.messageId === messageId && event.role === 'assistant' && event.final === true)).toBe(true);
+  await expect(page.locator(`[data-testid="message-assistant"][data-message-id="${messageId}"]`))
+    .toContainText('The search results are ready.');
+}
+
+async function runCameraCallFlow(page: Page, context: BrowserContext, testInfo: TestInfo, viewport: 'phone' | 'laptop'): Promise<void> {
+  test.setTimeout(240_000);
+  await page.setViewportSize(viewport === 'phone' ? { width: 390, height: 844 } : { width: 1280, height: 900 });
+  await context.grantPermissions(['microphone', 'camera']);
+  await installNativeVoiceInput(page);
+  await observeRealTransport(page);
+  await observeCameraCall(page);
+  await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+  await page.locator('[data-testid="voice-call-start"]:visible').click();
+  await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+  await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(0);
+  const ready = (await evidence(page)).received.find(event => event.type === 'ready' && event.path === '/v1/voice-call')!;
+  const chatId = voiceFrames(await evidence(page), 'start')[0].chatId!;
+  expect(ready.callId).toBeTruthy();
+  expect((await cameraCallEvidence(page)).facing).toEqual([]);
+  const camera = page.getByTestId('voice-call-video');
+  const mute = page.getByTestId('voice-call-mute');
+  await mute.click();
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => voiceFrames(await evidence(page), 'audio_stream_end').length).toBe(1);
+  const mutedMicFrames = voiceFrames(await evidence(page), 'mic_audio').length;
+  await camera.click();
+  await expect(camera).toHaveAttribute('aria-pressed', 'true');
+  const stage = page.getByTestId('voice-call-media');
+  await expect(stage).toHaveAttribute('data-expanded', 'true');
+  await expect.poll(() => page.getByTestId('voice-call-camera-preview').locator('video').evaluate((video: HTMLVideoElement) => video.videoWidth)).toBeGreaterThan(0);
+  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length).toBeGreaterThanOrEqual(2);
+  await expect(stage).toHaveAttribute('data-expanded', 'false');
+  await assertActivityCounter(page, true);
+  expect(voiceFrames(await evidence(page), 'mic_audio').length).toBe(mutedMicFrames);
+  expect((await cameraCallEvidence(page)).facing).toEqual(['environment']);
+  await page.evaluate(() => {
+    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence; __voiceCallEvidence: CallEvidence });
+    state.__voiceCameraEvidence.beforeFlip = state.__voiceCallEvidence.tracks.filter(track => track.kind === 'video');
+  });
+  await page.getByTestId('voice-call-camera-flip').click();
+  await expect.poll(async () => (await cameraCallEvidence(page)).facing).toEqual(['environment', 'user']);
+  await expect.poll(() => page.evaluate(() => {
+    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence; __voiceCallEvidence: CallEvidence });
+    return !!state.__voiceCameraEvidence.beforeFlip?.length && state.__voiceCameraEvidence.beforeFlip.every(track => track.readyState === 'ended') &&
+      state.__voiceCallEvidence.tracks.some(track => track.kind === 'video' && track.readyState === 'live' && !state.__voiceCameraEvidence.beforeFlip!.includes(track));
+  })).toBe(true);
+  await camera.click();
+  await expect(camera).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('voice-call-camera-preview')).toHaveCount(0);
+  await assertActivityCounter(page, false);
+  // Stopping video never replaces or mutes the original microphone owner.
+  await mute.click();
+  await playNativeVoiceFixture(page);
+  await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(mutedMicFrames);
+  await expect(mute).toHaveAttribute('aria-pressed', 'false');
+  await camera.click();
+  await expect(camera).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length).toBeGreaterThan(2);
+  await expect(mute).toHaveAttribute('aria-pressed', 'false');
+  await mute.click();
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
+  await expect(stage).toHaveAttribute('data-expanded', 'false');
+  await assertActivityCounter(page, true);
+  expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+  // Call clock/meter updates replace parent state while the camera owner stays
+  // the same. Its visible native preview must keep playing across those updates.
+  const livePreview = page.getByTestId('voice-call-camera-preview').locator('video');
+  await expect.poll(() => livePreview.evaluate((video: HTMLVideoElement) => video.readyState >= 2 && !video.paused)).toBe(true);
+  const previewTime = await livePreview.evaluate((video: HTMLVideoElement) => video.currentTime);
+  const previewFrames = (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length;
+  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length)
+    .toBeGreaterThanOrEqual(previewFrames + 2);
+  expect(await livePreview.evaluate((video: HTMLVideoElement) => video.currentTime)).toBeGreaterThan(previewTime + 0.75);
+
+  const searchUserId = await sendCameraCallText(page, 'Voice camera fixture: search current frame');
+  await expect.poll(async () => (await sourceFrameProof(page, searchUserId))?.exact, { timeout: 45_000 }).toBe(true);
+  const searchSource = (await sourceFrameProof(page, searchUserId))!;
+  expect(searchSource).toMatchObject({ exact: true, clean: true, bounded: true });
+  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.type === 'voice_embed' &&
+    event.userMessageId === searchUserId && event.embedType === 'app_skill_use' && event.appId === 'web' && event.status === 'processing')).toBe(true);
+  const searchProcessing = (await cameraCallEvidence(page)).received.find(event => event.type === 'voice_embed' &&
+    event.userMessageId === searchUserId && event.embedType === 'app_skill_use' && event.appId === 'web' && event.status === 'processing')!;
+  expect(searchProcessing.inputEmbedIds).toEqual([searchSource.embedId]);
+  const searchAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${searchProcessing.assistantMessageId}"]`);
+  const searchCard = searchAssistant.locator(`[data-testid="embed-preview"][data-embed-id="${searchProcessing.embedId}"]`);
+  const searchThumbnail = searchCard.getByTestId('skill-input-images').locator(`button[data-embed-id="${searchSource.embedId}"]`);
+  // Only this exact external camera-search fixture adds a one-second provider
+  // delay. The socket, processing publication, source upload and storage are real.
+  await expect(searchCard).toHaveAttribute('data-status', 'processing');
+  await expect(searchThumbnail).toBeVisible();
+  await expect(searchThumbnail).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath(`camera-search-processing-${viewport}.png`) });
+  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.embedId === searchProcessing.embedId && event.status === 'finished'), { timeout: 60_000 }).toBe(true);
+  const activity = searchAssistant.getByTestId('assistant-activity-group').filter({
+    has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="web"]'),
+  });
+  await waitForCameraAssistantTurn(page, ready.callId!, searchProcessing.assistantMessageId!);
+  await openCompletedAssistantActivity(activity, testInfo);
+  await expect(searchCard).toHaveAttribute('data-status', 'finished');
+  await assertEncryptedSourceAttachment(page, chatId, searchUserId, searchSource.embedId, searchSource.hash);
+  await expect(searchThumbnail).toBeVisible();
+  await expect(searchThumbnail).toBeEnabled();
+  // A single skill keeps the normal compact desktop card on both viewports;
+  // the horizontal group scroller exists only when multiple cards are grouped.
+  await expect(searchCard).toHaveClass(/\bdesktop\b/);
+  await expect(searchCard).toHaveCSS('width', '300px');
+  await expect(searchCard).toHaveCSS('height', '200px');
+  const compactBounds = await searchCard.boundingBox();
+  expect(compactBounds).not.toBeNull();
+  // Normal hover tilt changes the projected bounds, not the card's layout size.
+  expect(compactBounds!.width).toBeGreaterThan(compactBounds!.height);
+  const sourceRow = searchCard.getByTestId('skill-input-images');
+  await expect(sourceRow).toHaveCSS('display', 'flex');
+  await expect(sourceRow).toHaveCSS('flex-direction', 'row');
+  const searchEvents = (await cameraCallEvidence(page)).received.filter(event => event.embedId === searchProcessing.embedId);
+  const searchFinished = searchEvents.find(event => event.status === 'finished')!;
+  expect(searchFinished.inputEmbedIds).toEqual([searchSource.embedId]);
+  expect(searchEvents.findIndex(event => event.status === 'processing')).toBeLessThan(searchEvents.findIndex(event => event.status === 'finished'));
+  expect([...new Set((await cameraCallEvidence(page)).received.filter(event => event.type === 'voice_embed' &&
+    event.userMessageId === searchUserId && event.embedType === 'app_skill_use').map(event => event.embedId))]).toEqual([searchProcessing.embedId]);
+  await assertOpenOriginalSource(page, searchThumbnail, searchSource.embedId, searchSource.hash, testInfo);
+  // The toggle stays mounted when collapsed; its child cards do not. Match the
+  // Web icon within this exact assistant message so the same group can reopen.
+  await clickChatTarget(activity.getByTestId('assistant-activity-toggle'), testInfo);
+  await expect(searchThumbnail).toBeHidden();
+  await clickChatTarget(activity.getByTestId('assistant-activity-toggle'), testInfo);
+  await expect(searchThumbnail).toBeVisible();
+
+  const videoUserId = await sendCameraCallText(page, 'Voice camera fixture: animate current frame');
+  await expect.poll(async () => (await sourceFrameProof(page, videoUserId))?.exact, { timeout: 45_000 }).toBe(true);
+  const videoSource = (await sourceFrameProof(page, videoUserId))!;
+  expect(videoSource).toMatchObject({ exact: true, clean: true, bounded: true });
+  await assertEncryptedSourceAttachment(page, chatId, videoUserId, videoSource.embedId, videoSource.hash);
+  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.type === 'voice_embed' &&
+    event.userMessageId === videoUserId && event.appId === 'videos' && event.status === 'processing')).toBe(true);
+  const videoProcessing = (await cameraCallEvidence(page)).received.find(event => event.type === 'voice_embed' &&
+    event.userMessageId === videoUserId && event.appId === 'videos' && event.status === 'processing')!;
+  expect(videoProcessing.inputEmbedIds).toEqual([videoSource.embedId]);
+  const videoAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${videoProcessing.assistantMessageId}"]`);
+  const videoCard = videoAssistant.locator(`[data-testid="embed-preview"][data-embed-id="${videoProcessing.embedId}"]`);
+  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.embedId === videoProcessing.embedId && event.status === 'finished'), { timeout: 90_000 }).toBe(true);
+  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.type === 'send_embed_data' &&
+    event.embedType === 'generated_video' && event.status === 'finished' && event.inputEmbedIds?.includes(videoSource.embedId) &&
+    event.model === 'minimax/h3-max-turbo/image-to-video' && event.resolution === '480p')).toBe(true);
+  const generatedChildId = (await cameraCallEvidence(page)).received.find(event => event.type === 'send_embed_data' &&
+    event.embedType === 'generated_video' && event.status === 'finished' && event.inputEmbedIds?.includes(videoSource.embedId))!.embedId;
+  expect(generatedChildId).toBeTruthy();
+  await expect(stage).toHaveAttribute('data-expanded', 'true');
+  const generatedVideo = page.getByTestId('voice-call-generated-video');
+  await expect(generatedVideo).toBeVisible();
+  await expect.poll(() => generatedVideo.evaluate((video: HTMLVideoElement) => video.readyState >= 2 && video.videoWidth > 0)).toBe(true);
+  expect(await generatedVideo.evaluate((video: HTMLVideoElement) => ({ muted: video.muted, autoplay: video.autoplay, controls: video.controls, loop: video.loop })))
+    .toEqual({ muted: true, autoplay: true, controls: true, loop: false });
+  await expect(stage.getByTestId('embed-preview')).toHaveCount(0);
+  await expect(page.getByTestId('voice-call-media-ai')).toBeVisible();
+  await expect(page.getByTestId('voice-call-camera-preview')).toHaveClass(/inset/);
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
+  // The expanded stage must fit the real chat scrollport above its composer.
+  // Intersection ratios include ancestor clipping, unlike toBeVisible alone.
+  for (const id of ['voice-call-video', 'voice-call-mute', 'voice-call-hangup',
+    'voice-call-media-ai', 'voice-call-camera-flip', 'voice-call-media-expand']) {
+    await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
+  }
+  await page.screenshot({ path: testInfo.outputPath(`camera-generated-video-${viewport}.png`) });
+  await page.getByTestId('voice-call-media-expand').click();
+  await expect(stage).toHaveAttribute('data-expanded', 'false');
+  // Inspect the auto-expanded result before interacting with chat underneath it.
+  const videoActivity = videoAssistant.getByTestId('assistant-activity-group').filter({ has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="videos"]') });
+  await waitForCameraAssistantTurn(page, ready.callId!, videoProcessing.assistantMessageId!);
+  await openCompletedAssistantActivity(videoActivity, testInfo);
+  await expect(videoCard).toHaveAttribute('data-status', 'finished');
+  const framesBeforeCollapse = (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length;
+  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length).toBeGreaterThan(framesBeforeCollapse);
+  await expect(stage).toHaveAttribute('data-expanded', 'false');
+  await expect(searchThumbnail).toBeVisible();
+  // A newer frame cannot replace the source of the earlier skill.
+  await assertOpenOriginalSource(page, searchThumbnail, searchSource.embedId, searchSource.hash, testInfo);
+  await camera.click();
+  await expect(camera).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('voice-call-camera-preview')).toHaveCount(0);
+  await expect(generatedVideo).toBeVisible();
+  const beforeHangup = await evidence(page);
+  expect(voiceFrames(beforeHangup, 'start')).toHaveLength(1);
+  expect(beforeHangup.received.filter(event => event.type === 'ready' && event.path === '/v1/voice-call').map(event => [event.callId, event.socketId]))
+    .toEqual([[ready.callId, ready.socketId]]);
+  expect(beforeHangup.received.filter(event => event.type === 'error')).toHaveLength(0);
+  expect((await cameraCallEvidence(page)).sent.filter(event => event.type === 'source_frame_failed')).toHaveLength(0);
+  const frames = (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame');
+  expect(frames.every(event => event.callId === ready.callId)).toBe(true);
+  for (let index = 1; index < frames.length; index++) expect(frames[index].observedAt - frames[index - 1].observedAt).toBeGreaterThanOrEqual(999);
+  await page.getByTestId('voice-call-hangup').click();
+  await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+  await assertVoiceInputCleanup(page);
+  const transcriptIds = [...new Set((await evidence(page)).sent.filter(event => event.type === 'call_message_completed').map(event => event.messageId!))];
+  expect(transcriptIds).toContain(searchUserId); expect(transcriptIds).toContain(videoUserId);
+  await assertCallHistoryDurable(page, chatId, ready.callId!, transcriptIds);
+  await evictOwnedCallRows(page, chatId, ready.callId!, transcriptIds);
+  await page.reload();
+  await expect(page.getByTestId('voice-call-ended')).toHaveCount(1, { timeout: 45_000 });
+  await assertCallHistoryDurable(page, chatId, ready.callId!, transcriptIds);
+  await assertEncryptedSourceAttachment(page, chatId, searchUserId, searchSource.embedId, searchSource.hash);
+  await assertEncryptedSourceAttachment(page, chatId, videoUserId, videoSource.embedId, videoSource.hash);
+  for (const userId of [searchUserId, videoUserId]) {
+    const attachedImage = page.locator(`[data-testid="message-user"][data-message-id="${userId}"]`).getByTestId('embed-preview').locator('img').first();
+    await expect(attachedImage).toBeVisible();
+    await expect.poll(() => attachedImage.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  }
+  await openCompletedAssistantActivity(activity, testInfo);
+  await expect(searchCard).toHaveAttribute('data-status', 'finished');
+  await assertOpenOriginalSource(page, searchThumbnail, searchSource.embedId, searchSource.hash, testInfo);
+  const videoGroup = videoAssistant.getByTestId('assistant-activity-group').filter({ has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="videos"]') });
+  await openCompletedAssistantActivity(videoGroup, testInfo);
+  await expect(videoCard).toHaveAttribute('data-status', 'finished');
+  await assertOpenOriginalSource(page, videoCard.getByTestId('skill-input-images').locator(`button[data-embed-id="${videoSource.embedId}"]`), videoSource.embedId, videoSource.hash, testInfo);
+  await clickChatTarget(videoCard, testInfo);
+  const recoveredGroup = page.getByTestId('generated-media-group-fullscreen');
+  await expect(recoveredGroup).toBeVisible();
+  const recoveredChild = recoveredGroup.getByTestId('generated-media-child-card')
+    .locator(`[data-testid="embed-preview"][data-embed-id="${generatedChildId}"]`);
+  await expect(recoveredChild).toBeVisible();
+  await recoveredChild.click();
+  const recoveredVideo = page.getByTestId('video-generate-fullscreen-video');
+  await expect(recoveredVideo).toBeVisible();
+  await expect.poll(() => recoveredVideo.evaluate((video: HTMLVideoElement) => video.readyState >= 1 && video.videoWidth > 0)).toBe(true);
+  await page.getByTestId('embed-fullscreen-overlay').filter({ has: recoveredVideo }).getByTestId('embed-minimize').click();
+  await expect(recoveredVideo).toHaveCount(0);
+  await expect(recoveredGroup).toBeVisible();
+  await recoveredGroup.getByTestId('embed-minimize').click();
+  await expect(recoveredGroup).toHaveCount(0);
+  await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+  expect((await evidence(page)).received.filter(event => event.type === 'ready')).toHaveLength(0);
+  await page.screenshot({ path: testInfo.outputPath(`camera-saved-history-${viewport}.png`) });
 }
 
 test.describe('Integrated voice-call foundation', () => {
@@ -1662,6 +2128,16 @@ test.describe('Integrated voice-call foundation', () => {
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
     await assertVoiceInputCleanup(page);
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.video.generated-media-stage,video-call.video.fast-generation-default,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.privacy,video-call.lifecycle.recovery-and-billing
+  test('retains exact camera sources and generated clips through hangup and reload on phone', async ({ page, context }, testInfo) => {
+    await runCameraCallFlow(page, context, testInfo, 'phone');
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.video.generated-media-stage,video-call.video.fast-generation-default,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.privacy,video-call.lifecycle.recovery-and-billing
+  test('retains exact camera sources and generated clips through hangup and reload on laptop', async ({ page, context }, testInfo) => {
+    await runCameraCallFlow(page, context, testInfo, 'laptop');
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.chat.fixed-binding,video-call.chat.transcripts,video-call.chat.call-events,video-call.chat.call-strip-layout,video-call.chat.activity-status,video-call.chat.typed-input,video-call.chat.compressed-context,video-call.chat.memories-and-focus,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,video-call.privacy,video-call.usage.provider-metering

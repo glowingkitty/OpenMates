@@ -246,3 +246,87 @@ privacy_save_failed:
   en: Your acknowledgement could not be saved. Try again to start the call.
   de: Deine Bestätigung konnte nicht gespeichert werden. Versuche es erneut, um den Anruf zu starten.
   verified_by_human: []
+
+camera_preview:
+  context: Accessible name for the live camera preview
+  en: Camera preview
+  de: Kameravorschau
+  verified_by_human: []
+
+ai_generated:
+  context: Accessible label for the AI badge on generated call media
+  en: AI-generated
+  de: KI-generiert
+  verified_by_human: []
+
+flip_camera:
+  context: Switch between front and rear camera
+  en: Flip camera
+  de: Kamera wechseln
+  verified_by_human: []
+
+show_camera:
+  context: Return from generated media to the live camera
+  en: Show camera
+  de: Kamera anzeigen
+  verified_by_human: []
+
+generated_media:
+  context: Accessible name for media shown during a call
+  en: Call media
+  de: Anrufmedien
+  verified_by_human: []
+
+previous_media:
+  context: Show the previous generated result
+  en: Previous result
+  de: Vorheriges Ergebnis
+  verified_by_human: []
+
+next_media:
+  context: Show the next generated result
+  en: Next result
+  de: Nächstes Ergebnis
+  verified_by_human: []
+
+media_unavailable:
+  context: Generated media could not be decrypted or loaded
+  en: The result could not be loaded.
+  de: Das Ergebnis konnte nicht geladen werden.
+  verified_by_human: []
+
+camera_on:
+  context: Start sending live camera observations during a call
+  en: Turn camera on
+  de: Kamera einschalten
+  verified_by_human: []
+
+camera_off:
+  context: Stop sending live camera observations without ending the call
+  en: Turn camera off
+  de: Kamera ausschalten
+  verified_by_human: []
+
+camera_denied:
+  context: Browser denied camera permission
+  en: Camera access was denied.
+  de: Der Zugriff auf die Kamera wurde verweigert.
+  verified_by_human: []
+
+camera_missing:
+  context: No camera is available
+  en: No camera was found.
+  de: Es wurde keine Kamera gefunden.
+  verified_by_human: []
+
+camera_failed:
+  context: The live camera could not be started or stopped unexpectedly
+  en: The camera is unavailable. Please try again.
+  de: Die Kamera ist nicht verfügbar. Bitte versuche es erneut.
+  verified_by_human: []
+
+source_frame_failed:
+  context: An encrypted camera reference could not be saved
+  en: The camera reference could not be saved.
+  de: Das Kamerabild konnte nicht gespeichert werden.
+  verified_by_human: []

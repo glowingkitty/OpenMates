@@ -382,6 +382,7 @@ Use `UnifiedEmbedPreview.svelte`.
 | Shadow | Floating two-layer shadow. |
 | Layout | `BasicInfosBar` at the top, details section below, for every preview status and size. |
 | Text selection | Disabled; preview acts as one interactive object. |
+| Skill source images | A compact horizontal “Image used” strip appears above skill details when `input_embed_ids` is present; each thumbnail opens the original image viewer. |
 | Finished state | Pointer cursor, keyboard activation, hover/tilt, active press. |
 | Error state | Error border and error-tinted background. |
 

@@ -18,6 +18,8 @@ import { recordCallLifecycle } from './voiceCallLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
 import { VoiceCallMetadataScheduler } from './voiceCallMetadata';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
+import { VoiceCallCamera, type VoiceCallCameraFacing } from './voiceCallCamera';
+import type { VoiceCallDisplayedMedia, createVoiceCallMediaResolver } from './voiceCallMedia';
 
 export type VoiceCallStatus = 'idle' | 'connecting' | 'live' | 'ended' | 'error';
 export interface VoiceCallUsage {
@@ -43,6 +45,16 @@ export interface VoiceCallState {
   usage: VoiceCallUsage | null;
   billingActivity: { inputListening: boolean; processing: boolean } | null;
   error: string | null;
+  cameraAvailable: boolean;
+  cameraEnabled: boolean;
+  cameraPending: boolean;
+  cameraStream: MediaStream | null;
+  cameraFacing: VoiceCallCameraFacing;
+  cameraError: string | null;
+  mediaExpanded: boolean;
+  mediaItems: readonly VoiceCallDisplayedMedia[];
+  mediaIndex: number;
+  displayedMedia: VoiceCallDisplayedMedia | null;
   mateCategory?: string;
   mateName?: string;
   modelName?: string;
@@ -52,12 +64,19 @@ export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   submitText(chatId: string, text: string): Promise<boolean>;
   setMuted(muted: boolean): void;
   setMinimized(minimized: boolean): void;
+  setCameraEnabled(enabled: boolean): Promise<void>;
+  flipCamera(): Promise<void>;
+  setMediaExpanded(expanded: boolean): void;
+  showCamera(): void;
+  selectMedia(index: number): void;
   hangup(): void;
 }
 
 export const initialVoiceCallState: VoiceCallState = {
   status: 'idle', chatId: null, callId: null, minimized: false, muted: false,
   elapsedSeconds: 0, activeElapsedSeconds: 0, audioLevels: Array(16).fill(0), inputIdle: false, userSpeaking: false, assistantSpeaking: false, usage: null, billingActivity: null, error: null,
+  cameraAvailable: false, cameraEnabled: false, cameraPending: false, cameraStream: null,
+  cameraFacing: 'environment', cameraError: null, mediaExpanded: false, mediaItems: [], mediaIndex: 0, displayedMedia: null,
 };
 
 const NUMBER_FIELDS: (keyof VoiceCallUsage)[] = [
@@ -142,6 +161,16 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private metadata: VoiceCallMetadataScheduler | null = null;
   private transcriptWrites = new Map<string, Promise<void>>();
   private responseEmbeds = new Map<string, Map<string, VoiceArtifactReference>>();
+  private camera: VoiceCallCamera | null = null;
+  private cameraGeneration = 0;
+  private cameraCollapse: ReturnType<typeof setTimeout> | null = null;
+  private mediaResolver: ReturnType<typeof createVoiceCallMediaResolver> | null = null;
+  private mediaListenerCleanup: (() => void) | null = null;
+  private mediaLoad: Promise<void> | null = null;
+  private mediaDirty = false;
+  private mediaIds = new Set<string>();
+  private presentedMediaIds = new Set<string>();
+  private sourceFrames = new Map<string, Promise<void>>();
   private contextPause: string | null = null;
   private pausedInputs: Array<Record<string, unknown>> = [];
   private pausedInputBytes = 0;
@@ -355,6 +384,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.activeMillis = 0;
         setActiveVoiceCallId(message.call_id);
         this.update({ status: 'live', callId: message.call_id, error: null,
+          cameraAvailable: message.camera_available === true,
           modelName: typeof message.model === 'string' ? message.model : undefined,
           mateCategory: typeof message.mate_category === 'string' ? message.mate_category : this.state.mateCategory,
           mateName: typeof message.mate_name === 'string' ? message.mate_name : undefined,
@@ -370,6 +400,45 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.ticker = setInterval(() => this.refreshClock(), 250);
         return;
       }
+      case 'voice_source_frame': {
+        const { callId, chatId } = this.state;
+        const generation = this.generation;
+        if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
+            typeof message.user_message_id !== 'string' || typeof message.frame_id !== 'string' ||
+            typeof message.data !== 'string' || message.data.length > 350_000 ||
+            typeof message.captured_at !== 'number' || typeof message.created_at !== 'number') return;
+        const id = message.frame_id;
+        // One sampled frame may ground several turns before the next 1Hz
+        // observation. Each issued user message needs its own attachment/ack.
+        const sourceKey = `${message.user_message_id}:${id}`;
+        const previous = this.sourceFrames.get(sourceKey);
+        if (previous) return;
+        if (this.sourceFrames.size >= 8) {
+          this.send({ type: 'source_frame_failed', call_id: callId, user_message_id: message.user_message_id, frame_id: id });
+          this.update({ cameraError: 'source_frame_failed' });
+          return;
+        }
+        const pending = import('./voiceCallVisuals').then(({ persistCallSourceFrame }) => persistCallSourceFrame({
+          callId, chatId, messageId: message.user_message_id as string, frameId: id,
+          data: message.data as string, capturedAt: message.captured_at as number, createdAt: message.created_at as number,
+        })).then(reference => {
+          if (generation === this.generation && this.state.callId === callId && this.state.status === 'live') {
+            this.send({ type: 'source_frame_saved', call_id: callId, user_message_id: message.user_message_id,
+              frame_id: id, embed_reference: reference });
+          }
+        }).catch(() => {
+          if (generation !== this.generation || this.state.callId !== callId) return;
+          this.update({ cameraError: 'source_frame_failed' });
+          this.send({ type: 'source_frame_failed', call_id: callId, user_message_id: message.user_message_id, frame_id: id });
+        }).finally(() => { if (this.sourceFrames.get(sourceKey) === pending) this.sourceFrames.delete(sourceKey); });
+        this.sourceFrames.set(sourceKey, pending);
+        return;
+      }
+      case 'camera_error':
+        if (message.call_id !== this.state.callId || this.state.status !== 'live') return;
+        this.update({ cameraError: 'camera_failed' });
+        if (message.enabled === false) void this.setCameraEnabled(false);
+        return;
       case 'audio_chunk':
         if (this.state.status === 'live' && typeof message.data === 'string') {
           const schedule = this.audio?.playPcm16(message.data, 24_000);
@@ -452,6 +521,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
         }, message).then((embedId) => {
           if (!embedId || typeof message.assistant_message_id !== 'string') return;
           const id = message.assistant_message_id;
+          if (generation === this.generation && this.state.status === 'live' && this.state.callId === callId) {
+            this.mediaIds.add(embedId);
+            if (this.mediaIds.size > 64) this.mediaIds.delete(this.mediaIds.values().next().value!);
+            void this.refreshCallMedia();
+          }
           const previous = this.transcriptWrites.get(id) ?? Promise.resolve();
           const persisted = previous.catch(() => {}).then(() => upsertCallArtifact({
             callId, chatId, messageId: id, ...identity, userMessageId: String(message.user_message_id), embedRefs: [embedId],
@@ -534,6 +608,126 @@ export class VoiceCallController implements VoiceCallControllerLike {
 
   setMinimized(minimized: boolean): void { this.update({ minimized }); }
 
+  private clearCameraCollapse(): void {
+    if (this.cameraCollapse !== null) clearTimeout(this.cameraCollapse);
+    this.cameraCollapse = null;
+  }
+
+  async setCameraEnabled(enabled: boolean): Promise<void> {
+    if (this.state.status !== 'live') return;
+    if (!enabled) {
+      ++this.cameraGeneration;
+      this.camera?.stop();
+      this.camera = null;
+      this.clearCameraCollapse();
+      this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null });
+      this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
+      return;
+    }
+    if (!this.state.cameraAvailable || this.state.cameraEnabled || this.state.cameraPending) return;
+    const generation = this.generation;
+    const cameraGeneration = ++this.cameraGeneration;
+    this.camera?.stop();
+    let firstStream = true;
+    const current = () => generation === this.generation && cameraGeneration === this.cameraGeneration && this.state.status === 'live';
+    const camera = new VoiceCallCamera({
+      onFrame: frame => {
+        // Compression may pause provider ingress. Drop transient frames instead of
+        // queuing old images or delaying microphone/text recovery.
+        if (!current() || !this.state.cameraEnabled || this.contextPause) return;
+        if (!this.send({ type: 'camera_frame', call_id: this.state.callId, frame_id: frame.frameId,
+          data: frame.data, captured_at: frame.capturedAt })) {
+          this.update({ cameraError: 'camera_failed' });
+          void this.setCameraEnabled(false);
+        }
+      },
+      onStream: (stream, facing) => {
+        if (!current()) return;
+        const wasEnabled = this.state.cameraEnabled;
+        this.update({ cameraStream: stream, cameraFacing: facing, cameraEnabled: stream !== null });
+        if (!stream) {
+          if (wasEnabled) this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
+          return;
+        }
+        this.send({ type: 'camera_state', call_id: this.state.callId, enabled: true });
+        if (!firstStream) { this.update({ cameraPending: false, cameraError: null }); return; }
+        firstStream = false;
+        this.update({ cameraPending: false, cameraError: null, mediaExpanded: true, displayedMedia: null });
+        this.clearCameraCollapse();
+        this.cameraCollapse = setTimeout(() => {
+          this.cameraCollapse = null;
+          if (current() && !this.state.displayedMedia) this.update({ mediaExpanded: false });
+        }, 2000);
+      },
+      onError: error => {
+        if (!current()) return;
+        this.clearCameraCollapse();
+        this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, cameraError: error });
+        this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
+      },
+    });
+    this.camera = camera;
+    this.update({ cameraPending: true, cameraError: null });
+    await camera.start();
+  }
+
+  async flipCamera(): Promise<void> {
+    const camera = this.camera;
+    const generation = this.generation;
+    if (this.state.status !== 'live' || !this.state.cameraEnabled || this.state.cameraPending || !camera) return;
+    this.update({ cameraPending: true });
+    try { await camera.flip(); }
+    finally {
+      if (generation === this.generation && this.camera === camera) this.update({ cameraPending: false });
+    }
+  }
+
+  setMediaExpanded(expanded: boolean): void { this.clearCameraCollapse(); this.update({ mediaExpanded: expanded }); }
+  showCamera(): void { this.clearCameraCollapse(); this.update({ displayedMedia: null, mediaExpanded: true }); }
+  selectMedia(index: number): void {
+    const media = this.state.mediaItems[index];
+    if (!media || !Number.isSafeInteger(index)) return;
+    this.clearCameraCollapse();
+    this.update({ displayedMedia: media, mediaIndex: index, mediaExpanded: true });
+  }
+
+  private async refreshCallMedia(): Promise<void> {
+    if (this.state.status !== 'live' || !this.mediaIds.size) return;
+    if (this.mediaLoad) { this.mediaDirty = true; return this.mediaLoad; }
+    const generation = this.generation;
+    const current = () => generation === this.generation && this.state.status === 'live';
+    const pending = (async () => {
+      if (!this.mediaResolver) {
+        const [{ createVoiceCallMediaResolver }, { chatSyncService }] = await Promise.all([
+          import('./voiceCallMedia'), import('./chatSyncService'),
+        ]);
+        if (!current()) return;
+        this.mediaResolver = createVoiceCallMediaResolver();
+        const listener = () => { void this.refreshCallMedia(); };
+        chatSyncService.addEventListener('embedUpdated', listener);
+        this.mediaListenerCleanup = () => chatSyncService.removeEventListener('embedUpdated', listener);
+      }
+      do {
+        this.mediaDirty = false;
+        // Inspect newest call artifacts first; unrelated earlier skill cards
+        // must not exhaust the resolver's bounded graph before a new visual.
+        const items = await this.mediaResolver.resolve([...this.mediaIds].reverse());
+        if (!current()) return;
+        const fresh = items.find(item => !this.presentedMediaIds.has(item.embedId));
+        for (const item of items) this.presentedMediaIds.add(item.embedId);
+        if (fresh) {
+          this.clearCameraCollapse();
+          this.update({ mediaItems: items, displayedMedia: fresh, mediaIndex: items.indexOf(fresh), mediaExpanded: true });
+        } else if (items.length) {
+          this.update({ mediaItems: items, mediaIndex: Math.max(0, items.findIndex(item => item.embedId === this.state.displayedMedia?.embedId)) });
+        }
+      } while (this.mediaDirty && current());
+    })().catch(() => { if (current()) this.update({ cameraError: 'media_unavailable' }); })
+      .finally(() => { if (this.mediaLoad === pending) this.mediaLoad = null; });
+    this.mediaLoad = pending;
+    return pending;
+  }
+
   hangup(): void {
     if (this.state.status === 'idle' || this.state.status === 'ended') return;
     this.send({ type: 'hangup' });
@@ -559,6 +753,21 @@ export class VoiceCallController implements VoiceCallControllerLike {
 
   private closeResources(): void {
     ++this.generation;
+    ++this.cameraGeneration;
+    this.camera?.stop();
+    this.camera = null;
+    this.clearCameraCollapse();
+    this.mediaListenerCleanup?.();
+    this.mediaListenerCleanup = null;
+    this.mediaResolver?.destroy();
+    this.mediaResolver = null;
+    this.mediaLoad = null;
+    this.mediaDirty = false;
+    this.mediaIds.clear();
+    this.presentedMediaIds.clear();
+    this.sourceFrames.clear();
+    this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, cameraAvailable: false,
+      mediaExpanded: false, mediaItems: [], displayedMedia: null, mediaIndex: 0, cameraError: null });
     this.privacyRequest?.abort();
     this.privacyRequest = null;
     if (this.waveAnimation !== null) cancelAnimationFrame(this.waveAnimation);

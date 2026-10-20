@@ -1,4 +1,4 @@
-"""Ephemeral fal H3 Max Turbo queue client for the video-call experiment.
+"""Bounded fal H3 Max Turbo queue client for server-side video generation.
 
 Only server-created requests are accepted. Provider URLs are never taken from the
 browser, and returned media is downloaded into memory from fal's CDN only.
@@ -134,7 +134,7 @@ def _mp4_duration(data: bytes) -> float | None:
     return None
 
 
-async def submit_clip(client: httpx.AsyncClient, *, key: str, prompt: str, image_jpeg: bytes | None) -> FalJob:
+async def submit_clip(client: httpx.AsyncClient, *, key: str, prompt: str, image_jpeg: bytes | None, image_mime_type: str = "image/jpeg", seed: int | None = None) -> FalJob:
     if not prompt or len(prompt) + len(VIDEO_DIRECTION) + len(VIDEO_DIRECTION_END) > 3000:
         raise ValueError("Video prompt length is invalid")
     payload: dict[str, Any] = {
@@ -144,9 +144,13 @@ async def submit_clip(client: httpx.AsyncClient, *, key: str, prompt: str, image
         "prompt_expansion_mode": "disabled",
         "enable_safety_checker": True,
     }
+    if seed is not None:
+        payload["seed"] = seed
     if image_jpeg is not None:
+        if image_mime_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise ValueError("Unsupported fal input image format")
         import base64
-        payload["image_url"] = "data:image/jpeg;base64," + base64.b64encode(image_jpeg).decode("ascii")
+        payload["image_url"] = f"data:{image_mime_type};base64," + base64.b64encode(image_jpeg).decode("ascii")
     response = await client.post(
         QUEUE_URL, json=payload, headers={"Authorization": f"Key {key}"}
     )

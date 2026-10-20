@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.video-call
-version: 8
+version: 9
 status: approved
 title: Chat-bound Voice And Video Calls
 summary: 'Implement native AI calling in three phases: encrypted ordinary-chat voice and text foundation; app
@@ -140,7 +140,7 @@ assertions:
     downward handset at right. When scrolling moves the header out of view, the strip remains fixed at the
     top of the chat viewport without hiding content or duplicating controls. Fixed controls add More before
     video and Close chat after Hang up; More exposes the chat's existing report, share and other actions.
-    Video currently shows a Coming soon notification. Closing the chat preserves the call. Phone and laptop
+    Video explicitly enables or disables the user's camera without interrupting voice. Closing the chat preserves the call. Phone and laptop
     layouts preserve this order, clear touch targets and keyboard access. A dedicated round microphone button
     overlays the audio bars, matching the Close button; its muted state uses a red microphone-off icon and
     an accessible pressed state without obscuring the duration.
@@ -359,11 +359,46 @@ assertions:
   - examples.billing
 - id: video-call.video.input-and-output
   type: behavior
-  must: Phase 3 distinguishes user-authorized camera/screen input from generated-video output. Visual sharing
-    is explicit and stoppable without hanging up. A generated video runs through the normal authorized skill/embedding
-    path, plays in call controls, remains available in chat, and does not replace either side of the transcript.
+  must: Web calls distinguish explicit user-camera input from generated image/video output. Pressing Video
+    during an active audio call requests camera permission and starts visual input on the same call. Camera
+    sharing is independently stoppable and switchable between front and rear cameras; phones prefer the rear
+    camera. Permission refusal or camera failure preserves voice. The smooth camera preview expands for two
+    seconds, then becomes smaller while remaining visible; the user can expand it again. The provider receives
+    bounded sampled frames at no more than one per second. Screen sharing and Apple remain follow-ups.
   depends_on:
   - examples.video
+- id: video-call.video.source-frame-provenance
+  type: invariant
+  must: A camera-grounded user turn retains the exact selected source frame as an ordinary encrypted image
+    attachment on its user message. A skill using that visual context waits for successful source persistence,
+    receives the same image or its grounded description as appropriate, and references the saved image in its
+    normal processing and completed embed preview with an openable input thumbnail. Late transcripts,
+    minimized skill cards, call hangup and reload preserve that reference. A later camera frame cannot replace
+    the image actually used. Background frames remain transient. Neither call recordings nor a Record call
+    option are delivered in this increment.
+  depends_on:
+  - examples.source_frames
+- id: video-call.video.generated-media-stage
+  type: behavior
+  must: Image and video generation use the normal authorized app-skill pipeline, encrypted chat embeds and
+    progress cards. Skills show their processing card before execution and retain the same card through
+    completion and normal minimized horizontal presentation. A completed generated image or video expands
+    the call stage and displays the media without embed-preview chrome, with an AI icon at the top right.
+    Media stays visible until the user collapses it with a bottom-right upward-arrow button matching Close,
+    or returns to the camera. The previous visual remains while a new result is pending. Multiple outputs
+    have previous/next controls. Videos autoplay muted once with playback and sound controls. Camera sharing
+    continues independently, and generation results remain available after the call.
+  depends_on:
+  - examples.generated_media
+- id: video-call.video.fast-generation-default
+  type: behavior
+  must: Videos generated for calls default to H3 Max Turbo through the normal video-generation skill,
+    initially requesting short five-second 480p clips with prompt expansion disabled. This does not change
+    ordinary voice/text inference routing or the default video model outside calls. Progress remains visible
+    while a provider job is queued; failure does not silently submit another paid job or switch providers.
+    Provider-reported or measured duration determines generation charges, separately from live-camera tokens.
+  depends_on:
+  - examples.call_video_default
 - id: video-call.provider.boundary
   type: invariant
   must: Calling uses replaceable provider adapters with explicit supported capabilities. Gemini is the first

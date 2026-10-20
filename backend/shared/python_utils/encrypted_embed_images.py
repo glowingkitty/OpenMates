@@ -16,12 +16,6 @@ from backend.shared.python_utils.media_encryption import decrypt_media_payload
 
 
 MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024
-IMAGE_MIME_TYPES = {
-    "png": "image/png",
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "webp": "image/webp",
-}
 logger = logging.getLogger(__name__)
 
 
@@ -166,8 +160,15 @@ async def resolve_encrypted_image_embed(
         raise EncryptedEmbedImageError("Referenced image file could not be decrypted") from exc
     if len(plaintext) > MAX_IMAGE_INPUT_BYTES:
         raise EncryptedEmbedImageError("Referenced image exceeds the provider input size limit")
-    image_format = str(variant.get("format") or "").lower()
-    mime_type = IMAGE_MIME_TYPES.get(image_format)
-    if not mime_type:
+    # Legacy upload records label every original variant as WEBP, including
+    # preserved JPEG/PNG files. Provider data URLs must describe the decrypted
+    # container, rather than copying that unreliable metadata label.
+    if plaintext.startswith(b"\xff\xd8\xff"):
+        mime_type = "image/jpeg"
+    elif plaintext.startswith(b"\x89PNG\r\n\x1a\n"):
+        mime_type = "image/png"
+    elif len(plaintext) >= 12 and plaintext[:4] == b"RIFF" and plaintext[8:12] == b"WEBP":
+        mime_type = "image/webp"
+    else:
         raise EncryptedEmbedImageError("Referenced image format is not supported")
     return ResolvedEncryptedImage(content=plaintext, mime_type=mime_type)

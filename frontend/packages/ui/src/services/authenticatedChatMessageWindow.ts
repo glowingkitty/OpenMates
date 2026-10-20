@@ -30,6 +30,10 @@ function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: s
         role: messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user',
         created_at: typeof messageObj.created_at === 'number' ? messageObj.created_at : Math.floor(Date.now() / 1000),
         status: 'synced',
+        // Zero is the server's recoverable created-but-not-counted call marker.
+        queue_revision: typeof messageObj.queue_revision === 'number' &&
+            Number.isSafeInteger(messageObj.queue_revision) && messageObj.queue_revision >= 0
+            ? messageObj.queue_revision : undefined,
         encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
         encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
         hashed_user_id: typeof messageObj.hashed_user_id === 'string' ? messageObj.hashed_user_id : undefined,

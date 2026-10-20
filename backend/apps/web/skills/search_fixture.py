@@ -5,12 +5,14 @@
 # non-production query token to exercise result rendering without spending Brave
 # Search quota.
 
+import asyncio
 import os
 from typing import Any, Dict, List
 
 
 DEFAULT_E2E_WEB_FIXTURE_RESULT_COUNT = 6
 E2E_WEB_FIXTURE_QUERY_TOKEN = "openmates_e2e_web_fixture_ai"
+E2E_CAMERA_SEARCH_QUERY = E2E_WEB_FIXTURE_QUERY_TOKEN + " camera-current-frame"
 E2E_WEB_FIXTURE_RESULTS = [
     {
         "type": "search_result",
@@ -62,3 +64,12 @@ def build_e2e_web_fixture_results(requested_count: int | None) -> List[Dict[str,
         ),
     )
     return [dict(result) for result in E2E_WEB_FIXTURE_RESULTS[:result_count]]
+
+
+async def wait_camera_search_provider_fixture(query: str) -> None:
+    """Expose real processing UI with latency only in the exact isolated call fixture."""
+    if query != E2E_CAMERA_SEARCH_QUERY:
+        return
+    from backend.shared.testing.voice_call_fixture import isolated_voice_fixture_enabled
+    if isolated_voice_fixture_enabled():
+        await asyncio.sleep(1)

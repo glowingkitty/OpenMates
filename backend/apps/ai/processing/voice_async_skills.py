@@ -30,6 +30,18 @@ _IDENTITY = ("user_id", "user_hash", "session_id", "chat_id", "call_id",
              "user_message_id", "assistant_message_id", "operation_id")
 
 
+def voice_child_embed_id(task_id: str, parent_embed_id: str, index: int) -> str:
+    """Stable voice lineage in the ordinary chat namespace.
+
+    UUIDv5 is reserved by canonical storage for Project files and durable AI
+    producer children. Voice uses owner-sealed receipts instead of that registry.
+    """
+    if not 0 <= index < 32:
+        raise RequiredRecoveryOutputError("Voice child index exceeds its bound")
+    digest = uuid.uuid5(uuid.UUID(task_id), f"voice-embed-child:{parent_embed_id}:{index}")
+    return str(uuid.UUID(bytes=digest.bytes, version=4))
+
+
 @dataclass
 class VoiceAsyncState:
     binding: dict[str, Any]
@@ -53,6 +65,7 @@ class VoiceWorkerContext:
     invocation_binding: str
     embed_id: str
     arguments: dict[str, Any]
+    admission_only: bool = False
 
 
 active_voice_output_context: ContextVar[VoiceAsyncState | None] = ContextVar(
@@ -102,7 +115,11 @@ async def dispatch_voice_embed_task(producer: Any, *, task_name: str, queue: str
         raise RequiredRecoveryOutputError("Voice detached task identity mismatch")
     embed_id = arguments["embed_id"]
     task_id = task_uuid or str(uuid.uuid4())
-    child_binding = {**binding, "operation_id": task_id}
+    # Detached workers need issued identities and source references, never the
+    # call's raw image, transcript history or model-routing request.
+    child_binding = {key: value for key, value in binding.items()
+                     if key not in {"visual_source", "context", "request", "processing_placeholder", "output_embed_id"}}
+    child_binding["operation_id"] = task_id
     child_request_id = f"voice-async:{task_id}"
     client = await _client(state.cache_service)
     # The existing committed-action permit is the server's issued-row authority.
@@ -121,6 +138,8 @@ async def dispatch_voice_embed_task(producer: Any, *, task_name: str, queue: str
             raise asyncio.CancelledError
     await _owned_chat(state.directus_service, binding["chat_id"], binding["user_hash"])
     arguments = dict(arguments, **({"vault_key_id": key_id} if remotion else {"user_vault_key_id": key_id}))
+    if binding.get("input_embed_ids"):
+        arguments["input_embed_ids"] = list(binding["input_embed_ids"])
     kwargs = dict(kwargs, arguments=arguments)
     await admit_voice_action_receipt(cache_service=state.cache_service,
         directus_service=state.directus_service, encryption_service=state.encryption_service,
@@ -129,12 +148,17 @@ async def dispatch_voice_embed_task(producer: Any, *, task_name: str, queue: str
         common = dict(chat_id=binding["chat_id"], message_id=binding["assistant_message_id"],
             user_id=binding["user_id"], user_id_hash=binding["user_hash"],
             user_vault_key_id=key_id, task_id=task_id, embed_id=embed_id)
-        if remotion:
+        admitted_placeholder = binding.get("processing_placeholder")
+        if (isinstance(admitted_placeholder, dict) and admitted_placeholder.get("embed_id") == embed_id
+                and admitted_placeholder.get("skill_task_id") == task_id):
+            placeholder = admitted_placeholder
+        elif remotion:
             placeholder = await state.embed_service.create_remotion_video_embed_placeholder(
                 **common, filename=arguments.get("filename"))
         else:
             placeholder = await state.embed_service.create_processing_embed_placeholder(
-                **common, app_id=app_id, skill_id=skill_id, skill_task_id=task_id)
+                **common, app_id=app_id, skill_id=skill_id, skill_task_id=task_id,
+                metadata={"input_embed_ids": list(binding.get("input_embed_ids", []))})
         if not placeholder or placeholder["embed_id"] != embed_id:
             raise RequiredRecoveryOutputError("Voice processing artifact unavailable")
         invocation_binding = bind_task_invocation(task_name=task_name, task_uuid=task_id, args=[], kwargs=kwargs)
@@ -249,6 +273,12 @@ async def require_voice_publication(*, context: VoiceWorkerContext, cache_servic
                                     owner_hash: str) -> None:
     """Recheck owner and committed issued-row receipt after generation."""
     binding = context.binding
+    if context.admission_only:
+        from backend.shared.python_utils.voice_action_receipts import require_voice_output_admission
+        await require_voice_output_admission(cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, binding=binding, request_id=context.request_id,
+            embed_id=context.embed_id, owner_hash=owner_hash)
+        return
     receipt = await load_voice_action_receipt(cache_service=cache_service,
         directus_service=directus_service, encryption_service=encryption_service,
         user_id=binding["user_id"], user_hash=owner_hash,

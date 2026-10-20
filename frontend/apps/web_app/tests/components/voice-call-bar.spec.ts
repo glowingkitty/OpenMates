@@ -8,6 +8,62 @@ const globalPreview = (width:number, variant?:string) =>
   `/dev/preview/voicecall/VoiceCallGlobalHeaderPreview?${new URLSearchParams({chrome:'0',theme:'light',background:'#dbeafe',width:String(width),...(variant?{variant}:{})})}`;
 
 test.describe('Reference voice call strip', () => {
+  for(const width of [390,1280]) {
+    // contract-test: direct surface=gui.web assertions=video-call.video.generated-media-stage,video-call.chat.call-strip-layout,video-call.video.input-and-output
+    test(`expanded media fits the real chat history when its available height changes at ${width}px`,async({page})=>{
+      await page.setViewportSize({width,height:900});
+      await page.goto(preview('constrainedMedia',width,false,false));
+      await waitForComponentPreview(page);
+      const history=page.getByTestId('chat-history-container');
+      const fixture=page.getByTestId('voice-call-history-fixture');
+      const stage=page.getByTestId('voice-call-media');
+      const expand=page.getByTestId('voice-call-media-expand');
+      const camera=page.getByTestId('voice-call-video');
+      const expectControlsInside=async()=>{
+        await expect.poll(()=>history.evaluate(root=>{
+          const bounds=root.getBoundingClientRect();
+          const ids=['voice-call-video','voice-call-mute','voice-call-hangup','voice-call-media-ai','voice-call-media-expand','voice-call-camera-flip'];
+          return ids.every(id=>{
+            const control=root.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+            if(!control)return id==='voice-call-camera-flip';
+            const box=control.getBoundingClientRect();
+            return box.width>0&&box.height>0&&box.left>=bounds.left-.5&&box.right<=bounds.right+.5&&box.top>=bounds.top-.5&&box.bottom<=bounds.bottom+.5;
+          });
+        }),{message:'toolbar, AI badge and media controls fit the actual chat scrollport'}).toBe(true);
+        for(const id of ['voice-call-video','voice-call-mute','voice-call-hangup','voice-call-media-ai','voice-call-media-expand']) {
+          await expect(page.getByTestId(id)).toBeInViewport({ratio:1});
+        }
+      };
+      await expect(stage).toHaveAttribute('data-expanded','true');
+      await history.evaluate(root=>{root.scrollTop=root.scrollHeight;});
+      await expect.poll(()=>history.evaluate(root=>root.scrollTop)).toBeGreaterThan(0);
+      await expectControlsInside();
+      await camera.click();
+      const cameraVideo=page.getByTestId('voice-call-camera-preview').locator('video');
+      await expect.poll(()=>cameraVideo.evaluate((video:HTMLVideoElement)=>video.srcObject instanceof MediaStream&&video.readyState>=2)).toBe(true);
+      await expect(stage).toHaveAttribute('data-expanded','false');
+      const collapsedHeight=await page.evaluate(()=>Number.parseFloat(getComputedStyle(document.documentElement).fontSize)*6);
+      await expect.poll(async()=>(await stage.boundingBox())!.height).toBeCloseTo(collapsedHeight,0);
+      await expand.click();
+      await expect(stage).toHaveAttribute('data-expanded','true');
+      await expectControlsInside();
+      await expect(page.getByTestId('voice-call-camera-flip')).toBeInViewport({ratio:1});
+      await history.evaluate(root=>{root.scrollTop=root.scrollHeight;});
+      await expect.poll(()=>history.evaluate(root=>root.scrollTop)).toBeGreaterThan(0);
+      await expectControlsInside();
+      const originalHeight=(await stage.boundingBox())!.height;
+      await fixture.evaluate(element=>{element.style.height='280px';});
+      await expect.poll(async()=>(await stage.boundingBox())!.height).toBeLessThan(originalHeight);
+      await expectControlsInside();
+      await expect(page.getByTestId('voice-call-camera-flip')).toBeInViewport({ratio:1});
+      await page.getByTestId('voice-call-camera-flip').hover();
+      await page.getByTestId('voice-call-camera-flip').click();
+      await expect(cameraVideo).toHaveClass(/mirror/);
+      await expand.click();
+      await expect(stage).toHaveAttribute('data-expanded','false');
+      await expect.poll(async()=>(await stage.boundingBox())!.height).toBeCloseTo(collapsedHeight,0);
+    });
+  }
   // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.chat.call-strip-layout
   test('discloses the provider and usage-based billing in the launch control accessible description',async({page})=>{
     await page.goto('/dev/preview/voicecall/VoiceCallHeaderActions?chrome=0&theme=light&background=%23dbeafe&width=390');
@@ -131,8 +187,14 @@ test.describe('Reference voice call strip', () => {
           await page.keyboard.press('Enter');await expect(center).toHaveAttribute('aria-pressed',String(!muted));
           await expect(bar).toBeVisible();await expect(page.getByTestId('voice-call-timer')).toHaveText('00:15');
           if(!variant) {
-            await video.click();await expect(page.getByText('Video calls are coming soon.',{exact:true})).toBeVisible();
-            await page.getByTestId('notification-dismiss').click();await expect(page.getByTestId('notification')).toHaveCount(0);
+            await video.click();await expect(video).toHaveAttribute('aria-pressed','true');
+            await expect(page.getByTestId('voice-call-camera-preview')).toBeVisible();
+            await expect(page.getByTestId('voice-call-media')).toHaveAttribute('data-expanded','true');
+            await expect(page.getByTestId('voice-call-media')).toHaveAttribute('data-expanded','false');
+            await page.getByTestId('voice-call-media-expand').click();
+            await expect(page.getByTestId('voice-call-media')).toHaveAttribute('data-expanded','true');
+            await video.click();await expect(video).toHaveAttribute('aria-pressed','false');
+            await expect(page.getByTestId('voice-call-camera-preview')).toHaveCount(0);
           }
           if(fixed && !variant) {
             const more=page.getByTestId('voice-call-more');await more.focus();await page.keyboard.press('Enter');

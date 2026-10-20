@@ -5,11 +5,12 @@
 # bytes or keys into task payloads.
 
 import base64
+import io
 
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from backend.shared.python_utils.encrypted_embed_images import resolve_encrypted_image_embed
+from backend.shared.python_utils.encrypted_embed_images import EncryptedEmbedImageError, resolve_encrypted_image_embed
 from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
 
 
@@ -57,6 +58,7 @@ class _UnexpectedDirectus:
         self.embed = self._EmbedMethods()
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 @pytest.mark.asyncio
 async def test_cache_read_error_falls_back_to_directus_embed_methods() -> None:
     nonce = b"\x22" * 12
@@ -105,6 +107,7 @@ class _FakeS3:
         return self.encrypted
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 @pytest.mark.asyncio
 async def test_cache_miss_falls_back_to_directus_and_recaches_encrypted_embed() -> None:
     nonce = b"\x22" * 12
@@ -131,6 +134,7 @@ async def test_cache_miss_falls_back_to_directus_and_recaches_encrypted_embed() 
     assert "embed:embed-1" in cache.values
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 @pytest.mark.asyncio
 async def test_upload_cache_image_decrypts_without_chat_embed_persistence() -> None:
     nonce = b"\x22" * 12
@@ -162,6 +166,7 @@ async def test_upload_cache_image_decrypts_without_chat_embed_persistence() -> N
     assert resolved.mime_type == "image/png"
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 @pytest.mark.asyncio
 async def test_decoded_cache_record_decrypts_without_directus_fallback() -> None:
     nonce = b"\x22" * 12
@@ -191,6 +196,7 @@ async def test_decoded_cache_record_decrypts_without_directus_fallback() -> None
     assert resolved.mime_type == "image/png"
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 @pytest.mark.asyncio
 async def test_preloaded_upload_record_decrypts_when_worker_cache_misses() -> None:
     nonce = b"\x22" * 12
@@ -219,6 +225,7 @@ async def test_preloaded_upload_record_decrypts_when_worker_cache_misses() -> No
     assert resolved.mime_type == "image/png"
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 @pytest.mark.asyncio
 async def test_preloaded_v2_image_decrypts_without_top_level_nonce() -> None:
     nonce = b"\x23" * 12
@@ -250,3 +257,56 @@ async def test_preloaded_v2_image_decrypts_without_top_level_nonce() -> None:
 
     assert resolved.content == plaintext
     assert resolved.mime_type == "image/png"
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+@pytest.mark.asyncio
+@pytest.mark.parametrize("actual_format,expected_mime", [
+    ("JPEG", "image/jpeg"), ("PNG", "image/png"), ("WEBP", "image/webp"),
+])
+@pytest.mark.parametrize("nonce_prefixed", [False, True])
+async def test_provider_image_mime_matches_decrypted_container_despite_legacy_label(
+    actual_format, expected_mime, nonce_prefixed,
+) -> None:
+    from PIL import Image
+
+    source = io.BytesIO()
+    Image.new("RGB", (16, 12), "green").save(source, actual_format)
+    plaintext = source.getvalue()
+    nonce = b"\x23" * 12
+    encrypted = AESGCM(b"\x11" * 32).encrypt(nonce, plaintext, None)
+    variant = {"s3_key": "inputs/chair.png", "format": "webp"}
+    if nonce_prefixed:
+        encrypted = nonce + encrypted
+        variant["encryption"] = MEDIA_ENCRYPTION_V2
+
+    resolved = await resolve_encrypted_image_embed(
+        embed_id="embed-1", user_vault_key_id="vault-key-1",
+        cache_client=_FakeCache(), directus_service=_UnexpectedDirectus(),
+        encryption_service=_FakeEncryption(), s3_service=_FakeS3(encrypted),
+        preloaded_records={"embed-1": {
+            "vault_wrapped_aes_key": "wrapped-aes-key",
+            "aes_nonce": base64.b64encode(nonce).decode(),
+            "files": {"original": variant},
+        }},
+    )
+    assert resolved.content == plaintext
+    assert resolved.mime_type == expected_mime
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+@pytest.mark.asyncio
+async def test_declared_image_format_cannot_turn_unknown_plaintext_into_provider_input() -> None:
+    nonce = b"\x23" * 12
+    encrypted = AESGCM(b"\x11" * 32).encrypt(nonce, b"not an image container", None)
+    with pytest.raises(EncryptedEmbedImageError, match="format is not supported"):
+        await resolve_encrypted_image_embed(
+            embed_id="embed-1", user_vault_key_id="vault-key-1",
+            cache_client=_FakeCache(), directus_service=_UnexpectedDirectus(),
+            encryption_service=_FakeEncryption(), s3_service=_FakeS3(encrypted),
+            preloaded_records={"embed-1": {
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": base64.b64encode(nonce).decode(),
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }},
+        )

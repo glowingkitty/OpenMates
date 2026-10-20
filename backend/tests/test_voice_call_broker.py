@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -10,6 +11,140 @@ import pytest
 
 from backend.apps.ai.processing import voice_call_broker as transport
 from backend.apps.ai.processing import voice_call_broker_runtime as runtime
+
+
+@asynccontextmanager
+async def _redis_queue_peer():
+    """Test-owned RESP endpoint; the real Redis client owns socket timeouts."""
+    from redis.asyncio import Redis
+
+    queues, commands, connections = {}, [], {}
+
+    async def handle(reader, writer):
+        connections[asyncio.current_task()] = writer
+        try:
+            while line := await reader.readline():
+                assert line.startswith(b"*")
+                args = []
+                for _ in range(int(line[1:])):
+                    length = await reader.readline()
+                    assert length.startswith(b"$")
+                    args.append(await reader.readexactly(int(length[1:])))
+                    assert await reader.readexactly(2) == b"\r\n"
+                commands.append(args)
+                if args[0] == b"BLPOP":
+                    queue = queues.setdefault(args[1], asyncio.Queue())
+                    try:
+                        value = await asyncio.wait_for(queue.get(), timeout=float(args[2]))
+                    except asyncio.TimeoutError:
+                        writer.write(b"*-1\r\n")
+                    else:
+                        writer.write(b"*2\r\n" + b"".join(
+                            b"$" + str(len(part)).encode() + b"\r\n" + part + b"\r\n"
+                            for part in (args[1], value)))
+                elif args[0] == b"PING":
+                    writer.write(b"+PONG\r\n")
+                else:
+                    assert args[0] in (b"CLIENT", b"SET")
+                    writer.write(b"+OK\r\n")
+                await writer.drain()
+        except (ConnectionError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            writer.close()
+            connections.pop(asyncio.current_task(), None)
+
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+    client = Redis(host="127.0.0.1", port=server.sockets[0].getsockname()[1],
+        socket_timeout=5, socket_connect_timeout=5, retry_on_timeout=True,
+        health_check_interval=30, decode_responses=False)
+    try:
+        yield client, queues, commands
+    finally:
+        await client.aclose()
+        server.close()
+        await server.wait_closed()
+        pending = tuple(connections)
+        for task in pending:
+            connections[task].transport.abort()
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing,video-call.privacy
+@pytest.mark.asyncio
+async def test_real_redis_transport_retains_delayed_voice_result_past_cache_socket_timeout(monkeypatch):
+    import sys
+    from types import ModuleType
+
+    operation_id, call_id = "a" * 32, "c" * 32
+    delivered, workers = [], []
+    event = {"type": "voice_embed", "payload": {"embed_id": "stable", "status": "processing"}}
+    result = {"response": {"status": "done"}}
+    async with _redis_queue_peer() as (redis, queues, commands):
+        class Cache:
+            @property
+            async def client(self): return redis
+
+        state = SimpleNamespace(cache_service=Cache(), directus_service=object(),
+            encryption_service=SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("sealed-request", None)),
+                decrypt_with_user_key=AsyncMock(side_effect=lambda value, key: value)))
+        async def emit(value): delivered.append(value)
+        broker = transport.VoiceCallBroker(SimpleNamespace(app=SimpleNamespace(state=state)),
+            {"user_id": "owner", "call_id": call_id}, emit_event=emit)
+        monkeypatch.setattr(transport, "require_binding", AsyncMock())
+        monkeypatch.setattr(transport, "user_vault_key", AsyncMock(return_value="owner-key"))
+        monkeypatch.setattr(transport.secrets, "token_hex", lambda _: operation_id)
+
+        async def worker():
+            queue = queues.setdefault(transport.transport_key(operation_id, "result").encode(), asyncio.Queue())
+            await queue.put(json.dumps({"operation_id": operation_id, "call_id": call_id, "progress": event}).encode())
+            # Real provider work can outlast the shared five-second read timeout.
+            await asyncio.sleep(6)
+            assert delivered == [{**event, "function_call_id": "function"}]
+            await queue.put(json.dumps({"operation_id": operation_id, "call_id": call_id, "result": result}).encode())
+
+        celery = ModuleType("backend.core.api.app.tasks.celery_config")
+        celery.app = SimpleNamespace(send_task=lambda *args, **kwargs: workers.append(asyncio.create_task(worker())))
+        monkeypatch.setitem(sys.modules, celery.__name__, celery)
+        try:
+            assert await asyncio.wait_for(broker._dispatch({"operation": "process_request", "function_call_id": "function"}), 12) == result
+            await asyncio.gather(*workers)
+        finally:
+            for worker_task in workers:
+                worker_task.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+        pops = [args for args in commands if args[0] == b"BLPOP"]
+        assert len(pops) >= 6
+        assert all(0 < float(args[2]) <= 1 for args in pops)
+        assert not any(args[0] == b"SET" for args in commands)
+        assert not broker.operations
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.chat.skill-integration,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["decision", "deadline", "cancel"])
+async def test_real_redis_queue_wait_preserves_decisions_deadline_and_cancellation(outcome):
+    async with _redis_queue_peer() as (redis, queues, commands):
+        key = transport.transport_key("d" * 32, "decision")
+        deadline = transport.time.monotonic() + (0.15 if outcome == "deadline" else 20)
+        waiting = asyncio.create_task(transport._wait_for_queue(redis, key, deadline=deadline))
+        try:
+            if outcome == "decision":
+                await queues.setdefault(key.encode(), asyncio.Queue()).put(b"accepted")
+                assert await waiting == (key.encode(), b"accepted")
+            elif outcome == "deadline":
+                assert await asyncio.wait_for(waiting, 1) is None
+                assert transport.time.monotonic() >= deadline
+            else:
+                await asyncio.sleep(0.05)
+                waiting.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await waiting
+            assert all(0 < float(args[2]) <= 1 for args in commands if args[0] == b"BLPOP")
+        finally:
+            waiting.cancel()
+            await asyncio.gather(waiting, return_exceptions=True)
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.privacy
@@ -325,13 +460,16 @@ def test_private_inference_scope_redacts_nested_sdk_and_skill_exceptions() -> No
         parent.removeHandler(handler)
 
 
-# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.ethics,video-call.privacy
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.ethics,video-call.privacy,video-call.video.fast-generation-default
 @pytest.mark.asyncio
-@pytest.mark.parametrize("valid,cancel_after_execution,async_mode", [
-    (True, False, None), (False, False, None), (True, True, None),
-    (True, False, "dispatched"), (True, False, "partial-failure"),
+@pytest.mark.parametrize("valid,cancel_after_execution,async_mode,video_mode", [
+    (True, False, None, None), (False, False, None, None), (True, True, None, None),
+    (True, False, "dispatched", None), (True, False, "partial-failure", None),
+    (True, False, "cancel-before", None),
+    (True, False, None, "camera-off"), (True, False, None, "camera-on"),
+    (True, False, None, "ordinary-tool-defaults"),
 ])
-async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkeypatch, valid, cancel_after_execution, async_mode) -> None:
+async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkeypatch, valid, cancel_after_execution, async_mode, video_mode) -> None:
     import sys
     from contextlib import asynccontextmanager
     from types import ModuleType
@@ -339,6 +477,7 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
     from backend.shared.python_utils import billing_utils
     from backend.apps.ai.processing import model_usage_tracker
     from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.processing.voice_async_skills import VoiceWorkerContext
 
     def module(name, **members):
         value = ModuleType(name)
@@ -346,6 +485,12 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
         monkeypatch.setitem(sys.modules, name, value)
 
     chunk = SimpleNamespace(function_name="web__search", function_arguments_parsed={"query": "ramen"} if valid else {"query": 5}, parsing_error=None)
+    video_request = {"prompt": "Animate a gentle ocean wave"}
+    if video_mode:
+        if video_mode == "ordinary-tool-defaults":
+            video_request.update(model="google/veo-3.1", duration_seconds=8, resolution="720p")
+        chunk.function_name = "videos__generate"
+        chunk.function_arguments_parsed = {"requests": [video_request]}
     normalized = {"model_id": runtime.FLASH_MODEL, "attempt_id": "reported-attempt", "input_tokens": 4,
                   "uncached_input_tokens": 4, "output_tokens": 2, "inference_host": "google_ai_studio"}
     usage_chunk = SimpleNamespace(prompt_token_count=4, _normalized_llm_usage=normalized)
@@ -366,6 +511,7 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
     cancel_state = {"cancelled": False}
     async_state = SimpleNamespace(dispatched=False, artifact_ids=[], embed_references=[], actions=[])
     async def successful_execution(**kwargs):
+        complete_receipt.assert_not_called()  # Processing admission is not completion.
         cancel_state["cancelled"] = cancel_after_execution
         if async_mode:
             async_state.dispatched = True
@@ -386,7 +532,8 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
         _make_internal_api_request=charge_model, _fit_personal_chat_output_token_limit=fit)
     module("backend.core.api.app.tasks.celery_config", config_manager=SimpleNamespace(get_model_pricing=lambda *_: {}))
     module("backend.apps.ai.utils.instruction_loader", load_base_instructions=lambda: {"base_ethics_instruction": "Canonical ethics"})
-    admit_receipt, complete_receipt, release_receipt = AsyncMock(), AsyncMock(), AsyncMock()
+    admit_receipt, complete_receipt, release_receipt = AsyncMock(), AsyncMock(
+        side_effect=lambda **options: {"embed_refs": options["embed_refs"]}), AsyncMock()
     module("backend.shared.python_utils.voice_action_receipts", admit_voice_action_receipt=admit_receipt,
         persist_voice_action_receipt=complete_receipt, release_voice_action_admission=release_receipt)
     @asynccontextmanager
@@ -394,7 +541,8 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
         assert context_kwargs["binding"]["assistant_message_id"] == "assistant-turn"
         assert context_kwargs["embed_service"] is embed_service
         yield async_state
-    module("backend.apps.ai.processing.voice_async_skills", voice_async_output_context=output_context)
+    module("backend.apps.ai.processing.voice_async_skills", voice_async_output_context=output_context,
+        VoiceWorkerContext=VoiceWorkerContext)
     precheck = create_autospec(billing_utils.ensure_credit_headroom)
     monkeypatch.setattr(billing_utils, "ensure_credit_headroom", precheck)
     receipts = []
@@ -411,24 +559,57 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
         async def client(self): return redis
         get_base_instructions = AsyncMock(return_value={"base_ethics_instruction": "Canonical ethics"})
 
-    embed_service = SimpleNamespace(create_embeds_from_skill_results=AsyncMock(return_value={
+    async def placeholder(**options):
+        if async_mode == "cancel-before":
+            cancel_state["cancelled"] = True
+        return {"embed_id": options["embed_id"], "embed_reference": "processing client reference"}
+    embed_service = SimpleNamespace(create_processing_embed_placeholder=AsyncMock(side_effect=placeholder),
+        update_embed_status_to_error=AsyncMock(), create_embeds_from_skill_results=AsyncMock(return_value={
         "parent_embed_id": "artifact", "embed_reference": "encrypted client reference"}), voice_events=[])
     monkeypatch.setattr(runtime, "voice_embed_service", lambda *_: embed_service)
     monkeypatch.setattr(runtime, "require_binding", AsyncMock())
     skill = SimpleNamespace(id="search", tool_schema={"type": "object", "properties": {"query": {"type": "string"}},
         "required": ["query"], "additionalProperties": False}, preprocessor_hint="Search information")
-    apps = {"web": SimpleNamespace(skills=[skill])}
+    if video_mode:
+        skill = SimpleNamespace(id="generate", preprocessor_hint="Generate video", tool_schema={
+            "type": "object", "required": ["requests"], "properties": {"requests": {"type": "array", "items": {
+                "type": "object", "required": ["prompt", "model", "duration_seconds", "resolution"], "properties": {
+                    "prompt": {"type": "string"}, "model": {"const": "minimax/h3-max-turbo/image-to-video"},
+                    "duration_seconds": {"const": 5}, "resolution": {"const": "480p"},
+                    "input_embed_ids": {"type": "array", "items": {"type": "string"}}}}}}})
+    app_id = "videos" if video_mode else "web"
+    apps = {app_id: SimpleNamespace(skills=[skill])}
     context = transport.bounded_context({"messages": [
         {"role": "user", "text": "Find ramen in Tokyo"},
         {"role": "assistant", "text": "I will use your travel preferences"}],
         "summary": "Authoritative previous checkpoint"})
-    args = ({**request(), "context": context},
-            {"relevant_app_skills": ["web-search"]}, apps, SimpleNamespace(is_skill_available=lambda *_: True), {}, None)
+    call_data = {**request(), "context": context}
+    if video_mode == "camera-on":
+        call_data.update(visual_source={"data": "aW1hZ2U="}, input_embed_ids=["saved-camera-image"])
+    args = (call_data, {"relevant_app_skills": [f"{app_id}-{skill.id}"]}, apps,
+            SimpleNamespace(is_skill_available=lambda *_: True), {}, None)
     kwargs = dict(cache=Cache(), directus=None, encryption=None, secrets_manager=None, vault_key="owner-key")
+    if async_mode == "cancel-before":
+        with pytest.raises(asyncio.CancelledError):
+            await runtime.execute_voice_skills(*args, **kwargs)
+        execute.assert_not_called()
+        complete_receipt.assert_not_called()
+        embed_service.create_embeds_from_skill_results.assert_not_called()
+        embed_service.update_embed_status_to_error.assert_awaited_once()
+        release_receipt.assert_awaited_once()
+        return
     if valid:
         results, events = await runtime.execute_voice_skills(*args, **kwargs)
-        assert results[0]["skill_id"] == "search"
+        assert results[0]["skill_id"] == skill.id
         execute.assert_awaited_once()
+        if video_mode:
+            executed = execute.call_args.kwargs["arguments"]["requests"]
+            expected = {"prompt": video_request["prompt"], "model": "minimax/h3-max-turbo/image-to-video",
+                        "duration_seconds": 5, "resolution": "480p"}
+            if video_mode == "camera-on":
+                expected["input_embed_ids"] = ["saved-camera-image"]
+            assert executed == [expected]
+            assert chunk.function_arguments_parsed == {"requests": [video_request]}  # No mutation of ordinary defaults.
         if async_mode:
             charge_skill.assert_not_called()
             embed_service.create_embeds_from_skill_results.assert_not_called()
@@ -463,7 +644,7 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
     assert billing_request.message_history == []
     assert (billing_request.user_id, billing_request.user_id_hash,
             billing_request.chat_id, billing_request.message_id) == ("owner", "owner-hash", "chat", "user-turn")
-    expected_messages = [*context["messages"], {"role": "user", "content": request()["request"]}]
+    expected_messages = runtime.visual_tool_messages(call_data)
     assert invocations[0]["messages"] == expected_messages
     assert fit.call_args.kwargs["message_history"] == expected_messages
     assert precheck.call_args.kwargs["log_prefix"] == "[VoiceBroker]"
@@ -682,7 +863,7 @@ async def test_sealed_worker_error_recovers_only_explicit_tool_operation(monkeyp
 
 # contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing,video-call.privacy
 @pytest.mark.asyncio
-@pytest.mark.parametrize("fatal", [False, True])
+@pytest.mark.parametrize("fatal", [False, True, "cancel-before"])
 async def test_worker_seals_error_code_without_private_exception_text(monkeypatch, fatal):
     from backend.apps.ai.tasks import voice_call_task
     from backend.core.api.app.utils import encryption as encryption_module, secrets_manager as secrets_module
@@ -690,7 +871,7 @@ async def test_worker_seals_error_code_without_private_exception_text(monkeypatc
     from backend.shared.python_utils.billing_utils import BillingError
     operation_id, call_id = "a" * 32, "c" * 32
     envelope = {**request(), "operation_id": operation_id, "call_id": call_id, "expires_at": 10**12}
-    redis = SimpleNamespace(exists=AsyncMock(return_value=False), rpush=AsyncMock(), expire=AsyncMock())
+    redis = SimpleNamespace(exists=AsyncMock(return_value=fatal == "cancel-before"), rpush=AsyncMock(), expire=AsyncMock())
     class Cache:
         @property
         async def client(self): return redis
@@ -707,6 +888,11 @@ async def test_worker_seals_error_code_without_private_exception_text(monkeypatc
     monkeypatch.setattr(runtime, "process_voice_request", AsyncMock(side_effect=(
         BillingError("PRIVATE account balance") if fatal else TypeError("PRIVATE request content"))))
     await voice_call_task.run_voice_request(operation_id, "owner", "sealed-request")
+    if fatal == "cancel-before":
+        runtime.process_voice_request.assert_not_awaited()
+        encryption.encrypt_with_user_key.assert_not_awaited()
+        redis.rpush.assert_not_awaited()
+        return
     result = json.loads(encryption.encrypt_with_user_key.await_args.args[0])
     assert result["error_code"] == ("call_policy_failed" if fatal else "tool_operation_failed")
     assert "PRIVATE" not in json.dumps(result)
@@ -723,3 +909,84 @@ def test_failure_fixture_is_restricted_to_the_isolated_scenario(monkeypatch, iso
             voice_broker_fixture.selection({"request": voice_broker_fixture.FAILED_REQUEST}, {})
     else:
         assert voice_broker_fixture.selection({"request": voice_broker_fixture.FAILED_REQUEST}, {}) is None
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.video.source-frame-provenance,video-call.privacy
+@pytest.mark.asyncio
+async def test_sealed_incremental_progress_arrives_before_final_result(monkeypatch):
+    import sys
+    from types import ModuleType
+    operation_id, call_id = "a" * 32, "c" * 32
+    deliveries = []
+    event = {"type": "voice_embed", "payload": {"embed_id": "stable", "status": "processing"}}
+    replies = [json.dumps({"operation_id": operation_id, "call_id": call_id, "progress": event}),
+               json.dumps({"operation_id": operation_id, "call_id": call_id, "result": {"response": {"status": "done"}}})]
+    async def pop(*args, **kwargs):
+        if len(replies) == 1:
+            assert deliveries == [{**event, "function_call_id": "function"}]
+        return ("queue", replies.pop(0))
+    redis = SimpleNamespace(blpop=pop, set=AsyncMock())
+    class Cache:
+        @property
+        async def client(self): return redis
+    state = SimpleNamespace(cache_service=Cache(), directus_service=object(),
+        encryption_service=SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("vault:sealed", None)),
+            decrypt_with_user_key=AsyncMock(side_effect=lambda value, key: value)))
+    async def emit(event): deliveries.append(event)
+    broker = transport.VoiceCallBroker(SimpleNamespace(app=SimpleNamespace(state=state)),
+        {"user_id": "owner", "call_id": call_id}, emit_event=emit)
+    monkeypatch.setattr(transport, "require_binding", AsyncMock())
+    monkeypatch.setattr(transport, "user_vault_key", AsyncMock(return_value="owner-key"))
+    monkeypatch.setattr(transport.secrets, "token_hex", lambda _: operation_id)
+    celery = ModuleType("backend.core.api.app.tasks.celery_config")
+    celery.app = SimpleNamespace(send_task=lambda *args, **kwargs: None)
+    monkeypatch.setitem(sys.modules, celery.__name__, celery)
+    result = await broker._dispatch({"operation": "process_request", "function_call_id": "function"})
+    assert result["response"]["status"] == "done" and not replies
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.video.source-frame-provenance,video-call.privacy
+@pytest.mark.asyncio
+async def test_voice_embed_adapter_retains_source_in_ciphertext_and_streams_same_processing_identity(monkeypatch):
+    import sys
+    from types import ModuleType
+    from toon_format import decode
+    from backend.shared.python_utils.chat_recovery_context import active_verified_output_producer
+    sent, cached, producer_ids = [], [], []
+    class EmbedService:
+        def __init__(self, **kwargs): pass
+        async def send_embed_data_to_client(self, *args, **kwargs):
+            sent.append(kwargs)
+            return True
+        async def _cache_embed(self, *args): cached.append(args[1])
+        async def create_embeds_from_skill_results(self, **kwargs):
+            producer_ids.append(active_verified_output_producer.get().primary_embed_id)
+            return {"embed_id": producer_ids[-1]}
+    module = ModuleType("backend.core.api.app.services.embed_service")
+    module.EmbedService = EmbedService
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    encryption = SimpleNamespace(encrypt_with_user_key=AsyncMock(side_effect=lambda content, key: (content, 1)),
+        decrypt_with_user_key=AsyncMock(side_effect=lambda content, key: content))
+    service = runtime.voice_embed_service(None, None, encryption)
+    service.input_embed_ids = ["exact-source"]
+    service.processing_embed_id = "same-card"
+    service.voice_binding = {**request(), "operation_id": "a" * 32}
+    progress = []
+    async def emit(event): progress.append(event)
+    token = runtime.voice_progress_emitter.set(emit)
+    try:
+        data = {"type": "app_skill_use", "encrypted_content": "app_id: web\nskill_id: search"}
+        await service.send_embed_data_to_client(embed_id="same-card", embed_type="app_skill_use",
+            content_toon="app_id: web\nskill_id: search", status="finished", chat_id="chat", message_id="assistant",
+            finished_cache_data=data, finished_cache_vault_key_id="key")
+        assert decode(data["encrypted_content"])["input_embed_ids"] == ["exact-source"]
+        assert decode(progress[0]["payload"]["content"])["input_embed_ids"] == ["exact-source"]
+        assert json.loads(progress[0]["payload"]["embed_reference"])["embed_id"] == "same-card"
+        assert not service.voice_events
+        await service._cache_embed("same-card", data, "chat", "owner-hash", "key", "owner")
+        assert decode(cached[0]["encrypted_content"])["input_embed_ids"] == ["exact-source"]
+        result = await service.create_embeds_from_skill_results()
+        assert result["embed_id"] == "same-card" and producer_ids == ["same-card"]
+        assert active_verified_output_producer.get() is None
+    finally:
+        runtime.voice_progress_emitter.reset(token)

@@ -133,7 +133,7 @@ vi.mock("../../i18n/translations", () => ({ text: { subscribe: (run: (value: (ke
 
 import { fetchAuthenticatedChatMessageWindow } from "../authenticatedChatMessageWindow";
 import { applyCallMessageChanged, loadCallContext, markTypedCallMessageFailed,
-  persistTypedCallMessage, retryPendingCallMessages, upsertCallTranscript, upsertCallArtifact, recordCallLifecycle } from "../voiceCallMessages";
+  persistTypedCallMessage, retryPendingCallMessages, upsertCallTranscript, upsertCallArtifact, upsertCallUserArtifact, recordCallLifecycle } from "../voiceCallMessages";
 
 const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ embed_id: id,
   type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
@@ -644,4 +644,31 @@ it("orders same-second lifecycle events around UUIDv7 transcripts while preservi
   }
   expect(voiceCallLifecycleMessageId(callId, "started")).toBe(start);
   expect(voiceCallLifecycleMessageId("call-other-1234", "started")).not.toBe(start);
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+it("retains user source snapshots through ASR revisions and a reloaded canonical row", async () => {
+  const event = { callId: "call-test-1234", chatId: "chat-uuid-1234", messageId: "source-user" };
+  const source = { type: "image", embed_id: "source-image", filename: "source.jpg" };
+  await upsertCallUserArtifact({ ...event, embedReferences: [source], createdAt: 1700000001 });
+  await upsertCallTranscript({ ...event, role: "user", text: "What is this?", final: false });
+  await upsertCallTranscript({ ...event, role: "user", text: "What is this object?", final: true });
+  const row = mocks.rows.get(event.messageId)!;
+  expect(row.encrypted_content).toContain(JSON.stringify(source));
+  expect(row.encrypted_content).toContain("What is this object?");
+  delete row.call_persistence_v1;
+  await upsertCallTranscript({ ...event, role: "user", text: "What object is this?", final: true });
+  const content = (await mocks.db.getMessage(event.messageId))!.content;
+  expect(content).toContain(JSON.stringify(source));
+  expect(content).toContain("What object is this?");
+  expect(content.match(/source-image/g)).toHaveLength(1);
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
+it("checks the source save fence after a serialized user-artifact update starts", async () => {
+  const guard = vi.fn(() => { throw new Error("Source workspace changed"); });
+  await expect(upsertCallUserArtifact({ callId: "call-test-1234", chatId: "chat-uuid-1234",
+    messageId: "stale-source-user", embedReferences: [{ type: "image", embed_id: "source-image" }] }, guard))
+    .rejects.toThrow("Source workspace changed");
+  expect(mocks.rows.has("stale-source-user")).toBe(false);
 });

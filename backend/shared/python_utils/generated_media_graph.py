@@ -45,7 +45,7 @@ active_media_batch_child: ContextVar[bool] = ContextVar("active_media_batch_chil
 COMPLETION_RESULT_FIELDS = frozenset({
     "id", "type", "prompt", "text_preview", "model", "provider_model",
     "provider", "mode", "generation_type", "duration_seconds", "aspect_ratio",
-    "resolution", "output_filetype", "billing_status", "generated_at",
+    "resolution", "output_filetype", "billing_status", "generated_at", "input_embed_ids",
 })
 
 _INLINE_CARD_SKILLS = frozenset({("nutrition", "search_recipes"), ("design", "search_icons")})
@@ -363,6 +363,10 @@ async def run_generated_media_batch(
             await finalize_generated_media_parent(
                 service, parent_embed_id=parent_id, app_id=app_id, skill_id=skill_id,
                 children=children, failures=failures,
+                input_embed_ids=list(dict.fromkeys(
+                    source_id for request in requests if isinstance(request, dict)
+                    for source_id in request.get("input_embed_ids", []) if isinstance(source_id, str)
+                )),
                 chat_id=str(arguments["chat_id"]),
                 message_id=str(arguments["message_id"]),
                 user_id=user_id, user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
@@ -418,6 +422,10 @@ async def run_generated_media_batch(
         "completed_results": children,
         "child_embed_ids": [row["child_embed_id"] for row in children],
         "failed_results": failures,
+        "input_embed_ids": list(dict.fromkeys(
+            source_id for row in children for source_id in row.get("result", {}).get("input_embed_ids", [])
+            if isinstance(source_id, str)
+        )),
     }
 
 
@@ -485,6 +493,7 @@ async def finalize_generated_media_parent(
     user_id_hash: str,
     created_at: int,
     log_prefix: str,
+    input_embed_ids: list[str] | None = None,
 ) -> None:
     """Close the one producer after all request slots have reached a terminal state."""
     ordered = sorted(children, key=lambda row: int(row["request_index"]))
@@ -498,6 +507,10 @@ async def finalize_generated_media_parent(
         "embed_ids": child_ids,
         "output_embed_refs": [str(row["embed_ref"]) for row in ordered],
         "failed_results": failures,
+        "input_embed_ids": list(dict.fromkeys([*(input_embed_ids or []), *(
+            source_id for row in ordered for source_id in row.get("result", {}).get("input_embed_ids", [])
+            if isinstance(source_id, str)
+        )])),
     }
     if failures:
         content["partial_failure"] = bool(child_ids)

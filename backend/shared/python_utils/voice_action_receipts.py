@@ -100,6 +100,11 @@ async def admit_voice_action_receipt(*, cache_service: Any, directus_service: An
     permit = {k: binding[k] for k in ("user_id", "user_hash", "session_id", "chat_id", "call_id",
               "user_message_id", "assistant_message_id", "operation_id")}
     permit.update(request_id=request_id, created_at=timestamp, skill_index=binding.get("skill_index", 0))
+    if binding.get("output_embed_id"):
+        output_id = binding["output_embed_id"]
+        if not isinstance(output_id, str) or uuid.UUID(output_id).version != 4:
+            raise ValueError("Invalid admitted voice output identity")
+        permit["output_embed_id"] = output_id
     sealed, _ = await encryption_service.encrypt_with_user_key(json.dumps(permit, separators=(",", ":")),
         await _vault(cache_service, directus_service, binding["user_id"]))
     if not isinstance(sealed, str) or not sealed.startswith("vault:v"):
@@ -130,6 +135,35 @@ async def release_voice_action_admission(*, cache_service: Any, binding: dict,
         3, _key("permit", binding["user_id"], binding["session_id"], request_id),
         _key("slots", binding["user_id"], binding["session_id"]),
         _key("receipt", binding["user_id"], binding["session_id"], request_id), request_id)
+
+
+async def require_voice_output_admission(*, cache_service: Any, directus_service: Any,
+                                         encryption_service: Any, binding: dict,
+                                         request_id: str, embed_id: str, owner_hash: str) -> None:
+    """Authorize an exact synchronous output without announcing completion.
+
+    The owner-sealed permit survives call teardown. Its exact output identity
+    authorizes processing and final publication; the completed receipt is only
+    minted after the final encrypted artifact has been retained.
+    """
+    client = await _client(cache_service)
+    sealed = await client.get(_key("permit", binding["user_id"], binding["session_id"], request_id))
+    if isinstance(sealed, bytes):
+        sealed = sealed.decode()
+    if not sealed:
+        raise ValueError("Voice output admission unavailable")
+    opened = await encryption_service.decrypt_with_user_key(sealed,
+        await _vault(cache_service, directus_service, binding["user_id"]))
+    permit = json.loads(opened) if opened else None
+    identity = ("user_id", "user_hash", "session_id", "chat_id", "call_id",
+                "user_message_id", "assistant_message_id", "operation_id")
+    if (not isinstance(permit, dict) or any(permit.get(key) != binding.get(key) for key in identity)
+            or owner_hash != binding["user_hash"]
+            or owner_hash != hashlib.sha256(binding["user_id"].encode()).hexdigest()
+            or permit.get("request_id") != request_id or permit.get("output_embed_id") != embed_id
+            or permit.get("skill_index") != binding.get("skill_index", 0)):
+        raise ValueError("Voice output admission identity mismatch")
+    await _owned_chat(directus_service, binding["chat_id"], owner_hash)
 
 
 async def persist_voice_action_receipt(*, cache_service: Any, directus_service: Any,
@@ -166,7 +200,8 @@ async def persist_voice_action_receipt(*, cache_service: Any, directus_service: 
     permit = json.loads(permit_text) if permit_text else None
     if (not isinstance(permit, dict) or any(permit.get(k) != binding[k] for k in required)
             or permit.get("request_id") != request_id
-            or permit.get("skill_index") != binding.get("skill_index", 0)):
+            or permit.get("skill_index") != binding.get("skill_index", 0)
+            or permit.get("output_embed_id") is not None and embed_refs != [permit["output_embed_id"]]):
         raise ValueError("Committed voice action permit mismatch")
     await _owned_chat(directus_service, binding["chat_id"], binding["user_hash"])
     receipt = {k: binding[k] for k in required if k != "session_id"}

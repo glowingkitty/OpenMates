@@ -16,6 +16,7 @@ import logging
 import math
 import re
 import time
+import traceback
 import uuid
 from typing import Any
 
@@ -37,6 +38,7 @@ from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.shared.providers.gemini_live_voice import GeminiLiveVoiceSession
 from backend.shared.providers.live_voice import LiveVoiceSession
+from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals, FRAME_TOKEN_RESERVE
 from backend.apps.ai.processing.voice_call_broker import VoiceToolOperationError
 from backend.shared.python_utils.voice_call_registry import (
     finalize_active_call, issue_message_id, register_active_call, renew_active_call,
@@ -316,6 +318,17 @@ def _unsettled_audio_credits(audio_bytes: int, settled_audio_bytes: int) -> int:
     return _credits_for(estimated_tokens * INPUT_RATES["AUDIO"] / Decimal(1_000_000))
 
 
+def _unsettled_visual_credits(frame_count: int, settled_count: int) -> int:
+    return _credits_for(Decimal(max(0, frame_count - settled_count)) * FRAME_TOKEN_RESERVE
+                        * INPUT_RATES["IMAGE"] / Decimal(1_000_000))
+
+
+def _has_visual_usage(usage: Any) -> bool:
+    return isinstance(usage, dict) and any(isinstance(row, dict)
+        and str(row.get("modality", "")).upper() in {"IMAGE", "VIDEO"}
+        and int(row.get("tokenCount") or 0) > 0 for row in usage.get("promptTokensDetails", []) or [])
+
+
 async def _personal_chat(websocket: WebSocket, chat_id: str, user_id: str) -> bool:
     chat = await websocket.app.state.directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
     if not isinstance(chat, dict) or chat.get("id") != chat_id or chat.get("storage_state") == "deleting":
@@ -495,6 +508,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     provider: LiveVoiceSession | None = None
     ledger = UsageLedger()
     registered = False
+    visuals = VoiceCallVisuals()
+    visual_frames = settled_visual_frames = 0
     started = time.monotonic()
     send_lock = asyncio.Lock()
     turn_user_id: str | None = None
@@ -563,7 +578,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             processing = generating
         if compressing is not None:
             compression_processing = compressing
-        activity = (input_listening, processing or compression_processing)
+        activity = (input_listening or visuals.camera_active, processing or compression_processing)
         if activity != last_billing_activity:
             await send({"type": "billing_activity", "call_id": call_id,
                         "input_listening": activity[0], "processing": activity[1]})
@@ -622,10 +637,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                            user_message_id: str, assistant_message_id: str,
                            assistant_created_at: int) -> dict[str, Any]:
         try:
+            source = await visuals.source(user_message_id)
+            if user_message_id in visuals.sources and source is None:
+                raise VoiceToolOperationError("Camera source could not be saved")
             result = await broker.process_request(
                 function_id, generation, request, dict(call_context), user_message_id=user_message_id,
                 assistant_message_id=assistant_message_id,
-                assistant_created_at=assistant_created_at,
+                assistant_created_at=assistant_created_at, visual_source=source,
             )
         except VoiceToolOperationError as exc:
             # A failed operation must unblock Live without ending its call or
@@ -644,6 +662,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         if turn_user_id is not None and not turn_user_authoritative:
             if len(pending_late_users) >= MAX_PENDING_TRANSCRIPTS:
                 raise RuntimeError("Too many pending speech transcripts")
+            await freeze_source(turn_user_id, turn_user_created)
             pending_late_users.append((turn_user_id, turn_user_created, turn_user_text))
         if message_id is None:
             message_id, last_message_order = _ordered_message_id(last_message_order)
@@ -658,6 +677,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         turn_completed = False
         await issue(turn_user_id, "user")
 
+    async def freeze_source(user_message_id: str, created_at: int) -> None:
+        frame = visuals.freeze(user_message_id)
+        if frame is not None:
+            await send({"type": "voice_source_frame", "call_id": call_id,
+                "user_message_id": user_message_id, "frame_id": frame.frame_id,
+                "data": frame.data, "captured_at": frame.captured_at, "created_at": created_at})
+
     async def emit_user(*, final: bool) -> None:
         nonlocal turn_user_final
         if turn_user_id is None or not turn_user_text:
@@ -671,6 +697,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             "created_at": turn_user_created, "text": turn_user_text,
             "final": final, "interrupted": False,
         })
+        if final:
+            await freeze_source(turn_user_id, turn_user_created)
 
     async def emit_assistant(*, final: bool, interrupted: bool = False) -> None:
         if turn_assistant_id is None or (not turn_assistant_text and not turn_assistant_artifacts):
@@ -699,13 +727,15 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     async def send_provider(kind: str, value: str) -> None:
         nonlocal queued_bytes
         if handoff_deadline:
-            queued_bytes += len(value)
-            if queued_bytes > MAX_QUEUED_INPUT_BYTES:
+            if queued_bytes + len(value) > MAX_QUEUED_INPUT_BYTES:
                 raise ValueError("Provider handoff input overflow")
+            queued_bytes += len(value)
             queued_inputs.append((kind, value))
         elif kind == "audio":
             await provider.send_audio(value)  # type: ignore[union-attr]
             await billing_activity(listening=True)
+        elif kind == "video":
+            await provider.send_video(value)  # type: ignore[union-attr]
         elif kind == "end_audio":
             await provider.end_audio()  # type: ignore[union-attr]
             await billing_activity(listening=False)
@@ -771,12 +801,15 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         started = time.monotonic()
         await send({"type": "ready", "call_id": call_id, "model": provider.model, **mate_identity,
                     "input_sample_rate": 16000, "output_sample_rate": 24000,
-                    "billing_basis": "provider_tokens"})
+                    "billing_basis": "provider_tokens",
+                    "camera_available": bool(getattr(getattr(provider, "capabilities", None), "video_input", False))})
         await billing_activity()
         client_receive = asyncio.create_task(websocket.receive_text())
         provider_receive = asyncio.create_task(provider.receive())
         while True:
             now = time.monotonic()
+            # Expire activity when an enabled camera stops supplying frames.
+            await billing_activity()
             if lease_task.done():
                 await lease_task
             if registry_task.done():
@@ -863,7 +896,46 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             })
                     await send({"type": "ended", "reason": "user"})
                     break
-                if kind == "mic_audio":
+                if kind in {"camera_state", "camera_frame", "source_frame_saved", "source_frame_failed"}:
+                    if incoming.get("call_id") != call_id:
+                        raise PermissionError("Camera call binding mismatch")
+                    try:
+                        if kind == "camera_state":
+                            if incoming.get("enabled") and not getattr(getattr(provider, "capabilities", None), "video_input", False):
+                                raise ValueError("Camera unavailable")
+                            visuals.set_enabled(incoming.get("enabled"))
+                            # Drop unsent camera input on explicit off, preserving audio.
+                            if not visuals.enabled:
+                                queued_inputs = deque((k, v) for k, v in queued_inputs if k != "video")
+                                queued_bytes = sum(len(v) for _, v in queued_inputs)
+                            await send({"type": "camera_state", "call_id": call_id, "enabled": visuals.enabled})
+                        elif kind == "camera_frame":
+                            frame = visuals.accept(incoming)
+                            if frame is not None:
+                                if is_payment_enabled():
+                                    pending = max(0, _credits_for(ledger.gemini_cost) - ledger.charged)
+                                    # A conservative per-frame admission reserve is released
+                                    # only when the actual provider modality ledger settles.
+                                    visual_reserve = _unsettled_visual_credits(visual_frames + 1, settled_visual_frames)
+                                    audio_reserve = _unsettled_audio_credits(audio_bytes, settled_audio_bytes)
+                                    if await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM + pending + visual_reserve + audio_reserve:
+                                        visuals.set_enabled(False)
+                                        raise ValueError("Camera credit headroom unavailable")
+                                await send_provider("video", frame.data)
+                                visual_frames += 1
+                        else:
+                            await visuals.acknowledge(incoming, directus=websocket.app.state.directus_service, user_id=user_id)
+                    except ValueError:
+                        if not visuals.enabled:
+                            queued_inputs = deque((k, v) for k, v in queued_inputs if k != "video")
+                            queued_bytes = sum(len(v) for _, v in queued_inputs)
+                        await send({"type": "camera_error", "call_id": call_id, "code": "camera_input_rejected",
+                                    "enabled": visuals.enabled})
+                    finally:
+                        # Keep microphone state independent from camera on/off,
+                        # recoverable ingress errors and credit rejection.
+                        await billing_activity()
+                elif kind == "mic_audio":
                     encoded = incoming.get("data")
                     from backend.core.api.app.routes.video_call_experiment import _decode_media
                     chunk = _decode_media(encoded, max_bytes=MAX_AUDIO_CHUNK)
@@ -877,7 +949,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         raise ValueError("Audio stream exceeds real-time rate")
                     if is_payment_enabled():
                         pending = max(0, _credits_for(ledger.gemini_cost) - ledger.charged)
-                        reserve = _unsettled_audio_credits(audio_bytes, settled_audio_bytes)
+                        reserve = _unsettled_audio_credits(audio_bytes, settled_audio_bytes) + _unsettled_visual_credits(visual_frames, settled_visual_frames)
                         if await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM + pending + reserve:
                             raise RuntimeError("Insufficient credits")
                     if turn_user_id is None:
@@ -1022,6 +1094,9 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         if queued_kind == "audio":
                             await provider.send_audio(queued_value)
                             await billing_activity(listening=True)
+                        elif queued_kind == "video":
+                            if visuals.enabled:
+                                await provider.send_video(queued_value)
                         elif queued_kind == "end_audio":
                             await provider.end_audio()
                             await billing_activity(listening=False)
@@ -1093,9 +1168,12 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             turn_assistant_id = None
                             turn_assistant_text = ""
                             turn_assistant_segments.clear()
+                        visual_usage_settled = _has_visual_usage(ledger.pending_usage)
                         if ledger.commit_gemini_turn():
                             await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
                             settled_audio_bytes = max(settled_audio_bytes, last_finalized_audio_bytes)
+                            if visual_usage_settled:
+                                settled_visual_frames = visual_frames
                             await send({"type": "usage", "billing_basis": "provider_tokens", **{key: value for key, value in ledger.view(now - started).items() if key not in ("video_credits", "h3_generated_seconds", "h3_estimated_seconds", "video_credits_per_minute", "audio_credits_per_minute")}})
                     elif content.get("generationComplete"):
                         await billing_activity(generating=bool(set(tool_tasks) - permission_paused_tools))
@@ -1122,6 +1200,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             raise RuntimeError("Voice tool broker unavailable")
                         if turn_user_id is None:
                             await user_turn()
+                        await freeze_source(turn_user_id, turn_user_created)
                         await assistant_turn()
                         seen_tool_ids.add(function_id)
                         tool_bindings[function_id] = (turn_generation, turn_user_id, turn_assistant_id, turn_assistant_created)
@@ -1170,18 +1249,26 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        # Exception messages and tracebacks can contain provider text or media.
-        logger.warning("Voice call ended with %s stage=%s call_id=%s", type(exc).__name__, admission_stage, call_id)
+        # Retain only the code location, never exception text, locals or paths:
+        # provider/storage exceptions can contain transcripts or captured media.
+        frames = traceback.extract_tb(exc.__traceback__)
+        origin = frames[-1] if frames else None
+        error_origin = {"category": type(exc).__name__, "function": origin.name if origin else "unknown",
+                        "line": origin.lineno if origin else 0}
+        logger.warning("Voice call ended with %s at %s:%s stage=%s call_id=%s",
+                       error_origin["category"], error_origin["function"], error_origin["line"], admission_stage, call_id)
         try:
             if isinstance(exc, ContextLimitError):
                 await send({"type": "error", "code": "context_too_large", "message": "This chat's context is too large for a call. You can continue by text."})
             elif isinstance(exc, TranscriptLimitError):
                 await send({"type": "error", "code": "transcript_limit", "message": "The transcript exceeded the call limit. Your call has ended."})
             else:
-                await send({"type": "error", "code": "call_unavailable", "stage": admission_stage, "message": "Call unavailable. Your call has ended."})
+                await send({"type": "error", "code": "call_unavailable", "stage": admission_stage,
+                            "error_origin": error_origin, "message": "Call unavailable. Your call has ended."})
         except Exception:
             pass
     finally:
+        visuals.close()
         was_cancelled = False
         if registered:
             try:
