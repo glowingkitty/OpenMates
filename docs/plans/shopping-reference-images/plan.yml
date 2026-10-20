@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: shopping-reference-images
 title: Shopping product images and visual relevance
-status: implementing
+status: verified
 goal: >-
   Improve the shopping search skill by getting additional images, adding support
   for using Jev to evaluate / filter also based on user/assistant provided images
@@ -39,3 +39,13 @@ related_tasks:
   provider_assessment: 19f120e0-323d-49de-8660-40aa4da35a2e
   gallery_ui: 166a3b11-e95e-4a41-a862-1b816b184f40
   claim_grounding: a04c019c-2252-4699-9d4b-e2d0498175c6
+  image_model_validation: ffb0ce45-46b9-44f7-ba4b-25725b1cfce1
+  forty_candidates: ddad0ac8-6a73-45fd-9f0f-3f60f41fa695
+  mercury_assessment: edb91663-842d-450f-8906-bbdbc649034f
+verification_notes:
+  - "2026-10-20: all five isolated gallery component checks passed on unchanged UI source (run 39287134730)."
+  - "All five isolated Shopping integration cases passed with verified cleanup (run 39400678392, source 786a173999521ce461cc09cfe4703f7cbf35b635)."
+  - "Actual automatic-routing image checks covered OCR, counts, image history, obscured evidence and three-image comparison; Gemini 3.8 completed directly on AI Studio with LOW, MEDIUM and HIGH thinking."
+  - "The final unchanged-prompt Shopping run on 0cbcf2c715b49c83424f028659948683b4dbc94e made one request with final cap five, evaluated all forty candidates, filtered thirty-nine and retained the independently verified fabric match; no product was unavailable."
+  - "Known Stoffe CDN migration compatibility preserves supplied gallery URLs and existing public-DNS, pinned-IP and no-redirect guards; unavailable-image fallback remains explicit."
+  - "Mercury Decide comparison is recorded in docs/apis/mercury-decide-jev-comparison.md; Jev remains the production default and no Mercury or SubQ integration was added."
