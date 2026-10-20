@@ -5494,7 +5494,7 @@ assertions:
       surface: rest_api
     - &id703
       path: backend/tests/test_shopping_images_fixture.py
-      line: 622
+      line: 637
       name: test_forty_replay_runs_real_provider_ranking_and_final_limit
       surface: rest_api
     tests:
@@ -35004,7 +35004,7 @@ assertions:
     supporting_tests:
     - &id4360
       path: backend/tests/test_shopping_images_fixture.py
-      line: 591
+      line: 606
       name: test_gallery_answer_requires_real_parser_facts_and_server_grounding_notice
       surface: rest_api
     - &id4362
@@ -35192,7 +35192,7 @@ assertions:
     supporting_tests:
     - &id4382
       path: backend/tests/test_shopping_images_fixture.py
-      line: 516
+      line: 531
       name: test_grounded_answer_reads_actual_visual_helper_parent_and_provider_history
       surface: rest_api
     - &id4383
@@ -35267,7 +35267,7 @@ assertions:
     supporting_tests:
     - &id4389
       path: backend/tests/test_shopping_images_fixture.py
-      line: 622
+      line: 637
       name: test_forty_replay_runs_real_provider_ranking_and_final_limit
       surface: rest_api
     - &id4390
@@ -35357,12 +35357,12 @@ assertions:
     supporting_tests:
     - &id4400
       path: backend/tests/test_shopping_images_fixture.py
-      line: 516
+      line: 531
       name: test_grounded_answer_reads_actual_visual_helper_parent_and_provider_history
       surface: rest_api
     - &id4401
       path: backend/tests/test_shopping_images_fixture.py
-      line: 591
+      line: 606
       name: test_gallery_answer_requires_real_parser_facts_and_server_grounding_notice
       surface: rest_api
     - &id4402

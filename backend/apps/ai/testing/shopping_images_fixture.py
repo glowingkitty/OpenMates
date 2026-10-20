@@ -314,7 +314,9 @@ def _has_forty_results(tail: list[dict[str, Any]]) -> bool:
 
 
 def _has_direct_reference_result(tail: list[dict[str, Any]]) -> bool:
-    from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
+    from backend.apps.ai.utils.app_skill_result_groups import (
+        SHOPPING_GROUNDING_NOTICE, sanitize_shopping_visual_evaluations,
+    )
 
     for message in tail:
         if message.get("role") != "tool":
@@ -327,6 +329,8 @@ def _has_direct_reference_result(tail: list[dict[str, Any]]) -> bool:
             except (ValueError, TypeError):
                 continue
         if not isinstance(payload, dict):
+            continue
+        if payload.get("grounding_notice") != SHOPPING_GROUNDING_NOTICE:
             continue
         rows = payload.get("results", [])
         raw_evaluations = payload.get("visual_evaluations")

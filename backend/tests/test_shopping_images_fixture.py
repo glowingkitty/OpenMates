@@ -21,6 +21,7 @@ from toon_format import decode, encode
 from backend.shared.providers.typesafe import budget as jev_budget
 from backend.shared.testing.api_response_cache import ApiResponseCache
 from backend.shared.testing.mock_context import mock_group_var, mock_mode_var
+from backend.apps.ai.utils.app_skill_result_groups import SHOPPING_GROUNDING_NOTICE
 
 
 @pytest.fixture
@@ -134,7 +135,8 @@ def test_direct_reference_dispatch_still_requires_one_distinct_image(shopping_re
 @pytest.mark.parametrize("valid", [True, False])
 @pytest.mark.parametrize("flattened", [False, True])
 def test_direct_reference_answer_depends_on_actual_comparison_metadata(shopping_replay, valid, flattened):
-    payload = {"results": [{"title": "Synthetic direct reference product",
+    payload = {"grounding_notice": SHOPPING_GROUNDING_NOTICE,
+               "results": [{"title": "Synthetic direct reference product",
                             "visual_match": {"status": "evaluated"}}],
                "visual_evaluations": [{"visual_evaluation": {
                    "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}]}
@@ -159,7 +161,8 @@ def test_direct_reference_answer_depends_on_actual_comparison_metadata(shopping_
     {"visual_match": {"status": "evaluated"}, "visual_match_status": "unavailable"},
 ])
 def test_direct_reference_answer_rejects_unavailable_or_conflicting_match_metadata(shopping_replay, match):
-    payload = {"results": [{"title": "Synthetic direct reference product", **match}],
+    payload = {"grounding_notice": SHOPPING_GROUNDING_NOTICE,
+               "results": [{"title": "Synthetic direct reference product", **match}],
                "visual_evaluations": [{"visual_evaluation": {
                    "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}]}
     result = llm_fixture("llm/synthetic-auto-model", {
@@ -172,7 +175,8 @@ def test_direct_reference_answer_rejects_unavailable_or_conflicting_match_metada
 
 @pytest.mark.parametrize("extra", [None, {"visual_evaluation": {"status": "invalid"}}])
 def test_direct_reference_answer_rejects_extra_malformed_evaluations(shopping_replay, extra):
-    payload = {"results": [{"title": "Synthetic direct reference product", "visual_match_status": "evaluated"}],
+    payload = {"grounding_notice": SHOPPING_GROUNDING_NOTICE,
+               "results": [{"title": "Synthetic direct reference product", "visual_match_status": "evaluated"}],
                "visual_evaluations": [{"visual_evaluation": {
                    "status": "evaluated", "reference_count": 1, "evaluated_count": 1, "unavailable_count": 0}}, extra]}
     result = llm_fixture("llm/synthetic-auto-model", {
@@ -185,7 +189,8 @@ def test_direct_reference_answer_rejects_extra_malformed_evaluations(shopping_re
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("transform_history", [False, True], ids=["current-tool-message", "restored-history"])
-async def test_direct_reference_answer_reads_real_flattened_visual_result(shopping_replay, transform_history):
+@pytest.mark.parametrize("notice", ["actual", "missing", "altered"])
+async def test_direct_reference_answer_reads_real_flattened_visual_result(shopping_replay, transform_history, notice):
     from backend.apps.shopping.visual_ranking import download_public_product_image, rank_products_visually
     from backend.apps.shopping.providers.rewe_provider import _parse_product
     from backend.apps.shopping.skills.search_products import SearchProductsResponse
@@ -217,10 +222,20 @@ async def test_direct_reference_answer_reads_real_flattened_visual_result(shoppi
     }]
     if transform_history:
         history = _transform_message_history_for_llm(history)
+    actual_dispatch_payload = decode(history[-1]["content"])
+    assert actual_dispatch_payload["grounding_notice"] == SHOPPING_GROUNDING_NOTICE
+    # Mutate the actual model-dispatch payload after history normalization:
+    # normalization is allowed to restore server-authored grounding metadata.
+    if notice == "missing":
+        actual_dispatch_payload.pop("grounding_notice")
+    elif notice == "altered":
+        actual_dispatch_payload["grounding_notice"] = "Incomplete grounding guidance."
+    history[-1]["content"] = encode(actual_dispatch_payload)
     result = llm_fixture("llm/synthetic-auto-model", {
         "model": "synthetic-auto-model", "stream": True, "messages": history,
     })
-    assert result["response"]["chunks"][0]["value"] == DIRECT_REFERENCE_RESPONSE
+    answer = result["response"]["chunks"][0]["value"]
+    assert (answer == DIRECT_REFERENCE_RESPONSE) is (notice == "actual")
 
 
 @pytest.mark.asyncio
