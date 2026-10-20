@@ -992,6 +992,22 @@ def generate_specification_artifacts(repo_root: Path, *, specifications_root: Pa
     _write_output(build_coverage(registry, test_index), generated / "coverage.yml", False)
 
 
+def _standing_prompt_waiver(repo_root: Path, session_id: str, specification_id: str) -> bool:
+    """Only approval ceremony may honor a recorded standing human instruction.
+
+    Structural/registry/test/generated checks and direct fingerprint approval
+    queries remain independent. Missing or invalid evidence grants no waiver.
+    """
+    try:
+        from scripts.specification_prompt_waiver import permits_prompt_waiver
+    except ModuleNotFoundError:
+        try:
+            from specification_prompt_waiver import permits_prompt_waiver
+        except ModuleNotFoundError:
+            return False
+    return permits_prompt_waiver(repo_root, _control_plane_root(repo_root), session_id, specification_id)
+
+
 def check_changed_files(
     repo_root: Path,
     changed_paths: list[str],
@@ -1043,7 +1059,7 @@ def check_changed_files(
             bundle.specification_id,
             bundle.fingerprint,
         )
-        if approval_error:
+        if approval_error and not _standing_prompt_waiver(root, session_id, bundle.specification_id):
             errors.append(approval_error)
     if verify_generated and (specifications_root / "generated").exists():
         try:
@@ -1234,7 +1250,7 @@ def verify_plan_specifications(
                 ref["id"],
                 specifications[ref["id"]]["fingerprint"],
             )
-            if error:
+            if error and not _standing_prompt_waiver(Path(specifications_root).resolve().parent, session_id, ref["id"]):
                 errors.append(error)
     return errors
 

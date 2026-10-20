@@ -12847,6 +12847,42 @@ def cmd_worktree(args: argparse.Namespace) -> None:
 
 def cmd_specification(args: argparse.Namespace) -> None:
     """Run current Specification workflow tooling against one routed worktree."""
+    if args.specification_action in {"export-prompt-waiver", "import-prompt-waiver"}:
+        try:
+            try:
+                from scripts import specification_prompt_waiver as waiver
+            except ModuleNotFoundError:
+                import specification_prompt_waiver as waiver
+            data = _load_sessions()
+            session_id = _resolve_session_id(data, session_id=args.session)
+            session = data["sessions"][session_id]
+            root = _session_checkout_root(session).resolve()
+            if args.specification_action == "export-prompt-waiver":
+                output = Path(args.output).resolve()
+                if not (output.is_relative_to(root / ".runtime") or output.is_relative_to(CONTROL_PLANE_ROOT / "logs")):
+                    raise ValueError("Human evidence export must stay in private runtime/log storage")
+                value = waiver.build_export(root, session_id, session, plan=args.plan,
+                    specifications=args.specification, source={"provider": "codex",
+                        "session_id": args.source_session, "message_id": args.message_id}, quote=args.quote)
+                encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+                waiver.write_private(output, encoded)
+                print(json.dumps({"waiver_export": str(output), "sha256": hashlib.sha256(encoded).hexdigest(),
+                    "task_id": value["scope"]["task_id"], "approval_recorded": False}))
+            else:
+                binding = waiver.import_export(CONTROL_PLANE_ROOT, Path(args.evidence), args.sha256, session_id, session)
+                def record(current: dict) -> dict:
+                    owner = current["sessions"][session_id]
+                    if waiver.task_id(owner) != binding["task_id"]:
+                        raise ValueError("Owning Task changed before waiver import")
+                    receipts = owner.setdefault(waiver.STATE_KEY, [])
+                    if not any(row.get("binding_id") == binding["binding_id"] for row in receipts):
+                        receipts.append(binding)
+                    return binding
+                print(json.dumps({"prompt_waiver": _mutate_sessions(record), "approval_recorded": False}))
+        except (OSError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        return
     if args.specification_action != "approval-pdf":
         print(f"Unknown Specification action: {args.specification_action}", file=sys.stderr)
         sys.exit(2)
@@ -14767,6 +14803,19 @@ def main() -> None:
     p_specification_approval.add_argument("--no-upload", action="store_true", help="Generate without publishing")
     p_specification_approval.add_argument("--dry-run-upload", action="store_true", help="Use a fake media upload")
     p_specification_approval.add_argument("--json", action="store_true", help="Print structured output")
+
+    p_waiver_export = p_specification_sub.add_parser("export-prompt-waiver", help="Privately export an existing scoped human instruction; never approve fingerprints")
+    p_waiver_export.add_argument("--session", required=True)
+    p_waiver_export.add_argument("--plan", required=True)
+    p_waiver_export.add_argument("--specification", action="append", required=True, help="Exact referenced Specification id; repeat to scope")
+    p_waiver_export.add_argument("--source-session", required=True, help="Original bound human Codex thread")
+    p_waiver_export.add_argument("--message-id", required=True, help="Existing original user-message identity")
+    p_waiver_export.add_argument("--quote", required=True, help="Exact existing instruction; retained only in private evidence")
+    p_waiver_export.add_argument("--output", required=True, help="Private runtime/log evidence artifact")
+    p_waiver_import = p_specification_sub.add_parser("import-prompt-waiver", help="Carry verified private evidence into the same Task's explicit session")
+    p_waiver_import.add_argument("--session", required=True)
+    p_waiver_import.add_argument("--evidence", required=True)
+    p_waiver_import.add_argument("--sha256", required=True, help="Exact digest of the verified source export")
 
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
