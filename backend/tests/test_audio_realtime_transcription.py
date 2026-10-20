@@ -472,6 +472,31 @@ async def test_realtime_correction_failure_keeps_raw_transcript(
     ]
 
 
+# contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript
+@pytest.mark.asyncio
+async def test_realtime_mercury_correction_reports_model_and_sanitizes_text(monkeypatch) -> None:
+    sent: list[dict[str, object]] = []
+
+    class Socket(_FakeWebSocket):
+        async def send_json(self, message):
+            sent.append(message)
+
+    async def corrected(raw, manager, language):
+        assert raw == "um grüne boxen unter 50 euro"
+        assert language == "de"
+        return {"title": "Grüne Boxen", "corrected_transcript": "Grüne Boxen unter 50 Euro.", "model": "mercury-3"}
+
+    monkeypatch.setenv("INCEPTION_TRANSCRIPT_CORRECTION_ENABLED", "true")
+    monkeypatch.setattr(audio_realtime, "correct_transcript", corrected)
+    socket = Socket()
+    socket.app.state.secrets_manager = SimpleNamespace()
+    await audio_realtime._correct_and_send(socket, "um grüne boxen unter 50 euro", "de")
+    assert sent == [
+        {"type": "correction.started", "model": "mercury-3"},
+        {"type": "correction.done", "title": "Grüne Boxen", "transcript": "Grüne Boxen unter 50 Euro.", "correction_model": "mercury-3"},
+    ]
+
+
 # contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
 @pytest.mark.asyncio
 async def test_workflow_voice_uses_raw_transcript_without_correction_by_default(

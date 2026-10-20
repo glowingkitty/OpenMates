@@ -22,21 +22,14 @@ def clean_transcript_title(title: Optional[str]) -> str:
     return cleaned
 
 
-async def correct_transcript_with_gemini(
-    raw_transcript: str,
-    google_api_key: str,
-    detected_language: Optional[str] = None,
-) -> dict[str, str]:
-    """Clean a raw speech transcript while preserving intent and language."""
-    if not raw_transcript.strip():
-        raise ValueError("Cannot correct an empty transcript")
-
+def build_transcript_correction_prompt(detected_language: Optional[str] = None) -> str:
+    """Return the shared correction instructions for provider comparisons."""
     language_context = (
         f"Detected or requested transcript language: {detected_language}.\n"
         if detected_language
         else "No language hint was provided; infer the language from the transcript.\n"
     )
-    prompt = (
+    return (
         "You are correcting a raw speech-to-text transcript from an audio recording.\n"
         "Your goal is to output a clean, coherent written instruction or message while "
         "preserving the speaker's original intent, meaning, and informal tone.\n"
@@ -56,6 +49,17 @@ async def correct_transcript_with_gemini(
         "Keep the title in the transcript language, 3 to 8 words when possible, without "
         "quotes, markdown, or invented facts. Use 'Voice note' when the recording is unclear."
     )
+
+
+async def correct_transcript_with_gemini(
+    raw_transcript: str,
+    google_api_key: str,
+    detected_language: Optional[str] = None,
+) -> dict[str, str]:
+    """Clean a raw speech transcript while preserving intent and language."""
+    if not raw_transcript.strip():
+        raise ValueError("Cannot correct an empty transcript")
+    prompt = build_transcript_correction_prompt(detected_language)
     body = {
         "contents": [
             {

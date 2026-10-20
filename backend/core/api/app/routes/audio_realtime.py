@@ -42,6 +42,11 @@ from backend.shared.providers.workflow_transcript_correction import (
     correct_workflow_transcript_with_cerebras,
     correct_workflow_transcript_with_groq,
 )
+from backend.shared.providers.transcript_correction import (
+    MERCURY_CORRECTION_MODEL,
+    correct_transcript,
+    mercury_correction_enabled,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/apps/audio")
@@ -204,13 +209,20 @@ async def _correct_and_send(
         {
             "type": "correction.started",
             "model": (
-                first_workflow_model if workflow_context else GEMINI_CORRECTION_MODEL
+                first_workflow_model if workflow_context else (
+                    MERCURY_CORRECTION_MODEL if mercury_correction_enabled() else GEMINI_CORRECTION_MODEL
+                )
             ),
         }
     )
     try:
         result: dict[str, str] | None = None
         correction_model = GEMINI_CORRECTION_MODEL
+        if not workflow_context:
+            result = await correct_transcript(
+                raw_transcript, websocket.app.state.secrets_manager, language
+            )
+            correction_model = result["model"]
         if workflow_context:
             workflow_providers = (
                 (
@@ -262,6 +274,8 @@ async def _correct_and_send(
         corrected = sanitize_text_simple(
             result["corrected_transcript"], log_prefix="[AudioRealtime][Correction] "
         )
+        if not corrected.strip():
+            raise RuntimeError("Transcript correction returned empty text")
         title = clean_transcript_title(
             sanitize_text_simple(
                 result.get("title", ""), log_prefix="[AudioRealtime][Correction title] "

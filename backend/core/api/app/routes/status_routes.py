@@ -49,6 +49,7 @@ SERVICE_GROUPS: list[tuple[str, list[tuple[str, list[str]]]]] = [
         ("Google", ["google"]),
         ("Cerebras", ["cerebras"]),
         ("Together", ["together"]),
+        ("Inception", ["inception"]),
         ("OpenRouter", ["openrouter"]),
         ("AWS Bedrock", ["aws_bedrock"]),
     ]),

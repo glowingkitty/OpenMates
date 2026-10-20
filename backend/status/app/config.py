@@ -127,6 +127,7 @@ SERVICE_GROUPS: Final[tuple[tuple[str, tuple[UserComponent, ...]], ...]] = (
         UserComponent("Google", "AI Providers", ("google",)),
         UserComponent("Cerebras", "AI Providers", ("cerebras",)),
         UserComponent("Together", "AI Providers", ("together",)),
+        UserComponent("Inception", "AI Providers", ("inception",)),
         UserComponent("OpenRouter", "AI Providers", ("openrouter",)),
         UserComponent("AWS Bedrock", "AI Providers", ("aws_bedrock",)),
     )),

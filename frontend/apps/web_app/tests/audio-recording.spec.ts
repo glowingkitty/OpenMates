@@ -621,7 +621,7 @@ test('active recording shows live rolling waveform and releases analyser resourc
 // Test 5: Corrected speech enters the existing draft as editable text
 // ─────────────────────────────────────────────────────────────────────────────
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
-test('finished recording inserts corrected text at the original caret without audio storage', async ({ page }) => {
+test('Mercury corrected recording inserts editable text at the original caret without audio storage', async ({ page }) => {
 	test.setTimeout(120000);
 	let audioUploadRequests = 0;
 	let batchTranscriptionRequests = 0;
@@ -634,8 +634,9 @@ test('finished recording inserts corrected text at the original caret without au
 		socket.send(JSON.stringify({ type: 'session.ready' }));
 		socket.onMessage((payload: string) => {
 			if (JSON.parse(payload).type !== 'input_audio.end') return;
-			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'review', model: 'test-realtime' }));
-			socket.send(JSON.stringify({ type: 'correction.done', transcript: 'review', correction_model: 'test-correction' }));
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'um review please', model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.started', model: 'mercury-3' }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript: 'review', correction_model: 'mercury-3' }));
 		});
 	});
 	await setupAndFocusMessageField(page);

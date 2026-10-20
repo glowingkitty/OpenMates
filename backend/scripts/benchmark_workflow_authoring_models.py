@@ -3,7 +3,7 @@
 Run in the dev API container with Vault-backed provider credentials. Instructions
 and synthetic existing graphs are shared across arms; Jev runs once per case.
 No workflow, account, wallet or schedule is changed. Strict Cerebras and streaming
-Groq JSON transport reuse the actual Gemini parser, compiler and correction loop.
+Groq and Mercury JSON transport reuse the actual Gemini parser, compiler and correction loop.
 Usage includes reasoning and retries; reports are private and mode 0600.
 Usage: python -m backend.scripts.benchmark_workflow_authoring_models --allow-paid-dev-inference
 """
@@ -39,6 +39,37 @@ ARMS = {
     'groq-qwen': ('groq', 'qwen/qwen3.8-27b', (0.80, 4.00)),
 }
 ARMS.update({name + '-full': settings for name, settings in list(ARMS.items()) if name != 'gemini'})
+# Per-million USD: published promotional rates; retain regular rates separately.
+ARMS.update({
+    'mercury-instant': ('inception_labs', 'mercury-3', (0.10, 0.35)),
+    'mercury-low': ('inception_labs', 'mercury-3', (0.10, 0.35)),
+})
+MERCURY_REGULAR_PRICES = (0.20, 0.70)
+ENDPOINTS = {
+    'cerebras': 'https://api.cerebras.ai/v1/chat/completions',
+    'groq': 'https://api.groq.com/openai/v1/chat/completions',
+    'inception_labs': 'https://api.inceptionlabs.ai/v1/chat/completions',
+}
+
+
+async def selected_provider_keys(manager, arms):
+    """Read only transport credentials required by selected benchmark arms."""
+    providers = sorted({ARMS[arm][0] for arm in arms} - {'google'})
+    keys = {}
+    for provider in providers:
+        key = await manager.get_secret(
+            secret_path='kv/data/providers/' + provider, secret_key='api_key')
+        if not key:
+            raise ValueError('Selected benchmark provider credential unavailable: ' + provider)
+        keys[provider] = key
+    return keys
+
+
+class BridgeSecrets:
+    """The Google-shaped parser envelope needs no actual Google credential."""
+    async def get_secret(self, **kwargs):
+        return 'evaluation-transport-placeholder'
+
 
 
 def cerebras_schema(schema: dict) -> dict:
@@ -174,6 +205,45 @@ class ConvertedStream(httpx.AsyncByteStream):
         await self.response.aclose()
 
 
+class GoogleRecordingStream(httpx.AsyncByteStream):
+    """Observe authored text and usage without changing native Google events."""
+    def __init__(self, response, started, stats):
+        self.response, self.started, self.stats = response, started, stats
+
+    async def __aiter__(self):
+        async for line in self.response.aiter_lines():
+            if line.startswith('data:'):
+                event = json.loads(line[5:].strip())
+                if event.get('usageMetadata'):
+                    self.stats['usage'] = event['usageMetadata']
+                text = ''.join(part.get('text', '') for candidate in event.get('candidates', [])
+                               for part in (candidate.get('content') or {}).get('parts', [])
+                               if not part.get('thought'))
+                if text and self.stats['first_content_ms'] is None:
+                    self.stats['first_content_ms'] = round((time.perf_counter() - self.started) * 1000, 1)
+            yield (line + '\n').encode()
+
+    async def aclose(self):
+        await self.response.aclose()
+
+
+class GoogleRecordingTransport(httpx.AsyncBaseTransport):
+    """Pass through native request bytes, recording content TTFT per attempt."""
+    def __init__(self, client):
+        self.client, self.attempts = client, []
+
+    async def handle_async_request(self, request):
+        started = time.perf_counter()
+        stats = {'first_content_ms': None, 'usage': None}
+        self.attempts.append(stats)
+        response = await self.client.send(request, stream=True)
+        stats['http_status'] = response.status_code
+        headers = {key: value for key, value in response.headers.items()
+                   if key.lower() not in {'content-encoding', 'content-length'}}
+        return httpx.Response(response.status_code, headers=headers,
+                              stream=GoogleRecordingStream(response, started, stats))
+
+
 class OpenAITransport(httpx.AsyncBaseTransport):
     """An evaluation-only bridge around the production structured author."""
     def __init__(self, client, provider, model, key, reasoning='low', full=False, profile='native'):
@@ -195,6 +265,9 @@ class OpenAITransport(httpx.AsyncBaseTransport):
             fmt = {'type': 'json_schema', 'json_schema': {
                 'name': 'workflow_authoring', 'strict': True, 'schema': strict_full_schema(schema)}}
             system += '\nFor the strict transport, encode unused optional fields as null. The backend removes optional null fields before validation. Preserve header before nodes.'
+        elif self.provider == 'inception_labs':
+            fmt = {'type': 'json_schema', 'json_schema': {
+                'name': 'workflow_authoring', 'strict': True, 'schema': schema}}
         elif self.provider == 'cerebras':
             fmt = {'type': 'json_schema', 'json_schema': {
                 'name': 'workflow_authoring', 'strict': True, 'schema': cerebras_schema(schema)}}
@@ -204,14 +277,14 @@ class OpenAITransport(httpx.AsyncBaseTransport):
         payload = {'model': self.model, 'messages': [{'role': 'system', 'content': system},
                    {'role': 'user', 'content': user}], 'stream': not self.full,
                    'response_format': fmt,
-                   'max_completion_tokens': 8192, 'temperature': 1.0,
+                   'max_completion_tokens': 8192,
+                   'temperature': 0.5 if self.provider == 'inception_labs' else 1.0,
                    'reasoning_effort': self.reasoning}
         if self.provider == 'cerebras':
             payload['reasoning_format'] = 'parsed'
         if not self.full:
             payload['stream_options'] = {'include_usage': True}
-        endpoint = ('https://api.cerebras.ai/v1/chat/completions' if self.provider == 'cerebras'
-                    else 'https://api.groq.com/openai/v1/chat/completions')
+        endpoint = ENDPOINTS[self.provider]
         started = time.perf_counter()
         stats: dict = {'first_content_ms': None, 'usage': None}
         self.attempts.append(stats)
@@ -257,9 +330,11 @@ class OpenAITransport(httpx.AsyncBaseTransport):
 class BenchAuthor:
     def __init__(self, manager, client, arm, key, reasoning='low', profile='native'):
         self.arm, self.provider, self.model, self.prices = arm, *ARMS[arm]
-        self.bridge = None if arm == 'gemini' else OpenAITransport(client, self.provider, self.model, key, reasoning, full=arm.endswith('-full'), profile=profile)
-        self.client = client if self.bridge is None else httpx.AsyncClient(transport=self.bridge, timeout=45)
-        self.delegate = WorkflowGeminiAuthor(manager, self.client)
+        self.reasoning = arm.removeprefix('mercury-') if arm.startswith('mercury-') else reasoning
+        self.bridge = None if arm == 'gemini' else OpenAITransport(client, self.provider, self.model, key, self.reasoning, full=arm.endswith('-full'), profile=profile)
+        self.transport = self.bridge or GoogleRecordingTransport(client)
+        self.client = httpx.AsyncClient(transport=self.transport, timeout=45)
+        self.delegate = WorkflowGeminiAuthor(manager if self.bridge is None else BridgeSecrets(), self.client)
 
     async def generate(self, **kwargs):
         try:
@@ -273,23 +348,37 @@ class BenchAuthor:
         return plan, metrics
 
     def price(self, metrics):
+        if not self.transport.attempts:
+            metrics['usage_complete'] = False
+            metrics['estimated_cost_usd'] = None
+            return
+        details = self.transport.attempts[-1]
+        metrics['first_content_ms'] = details.get('first_content_ms')
+        if not details.get('usage'):
+            metrics['usage_complete'] = False
+            metrics['estimated_cost_usd'] = None
+            return
         if self.bridge:
             details = self.bridge.attempts[-1]
             metrics['first_content_ms'] = details.get('first_content_ms')
             metrics['provider_http_status'] = details.get('http_status')
             if details.get('usage') is None:
                 metrics['estimated_cost_usd'] = None
+                metrics['usage_complete'] = False
                 return
             usage = details['usage']
             metrics['input_tokens'] = int(usage.get('prompt_tokens') or 0)
             metrics['output_tokens'] = int(usage.get('completion_tokens') or 0)
             metrics['thinking_tokens'] = int((usage.get('completion_tokens_details') or {}).get('reasoning_tokens') or 0)
+        metrics['usage_complete'] = bool(metrics['input_tokens'] + metrics['output_tokens'])
+        if self.provider == 'inception_labs':
+            metrics['regular_cost_usd'] = round((metrics['input_tokens'] * MERCURY_REGULAR_PRICES[0]
+                + metrics['output_tokens'] * MERCURY_REGULAR_PRICES[1]) / 1_000_000, 8)
         metrics['estimated_cost_usd'] = round((metrics['input_tokens'] * self.prices[0]
                                                + metrics['output_tokens'] * self.prices[1]) / 1_000_000, 8)
 
     async def close(self):
-        if self.bridge:
-            await self.client.aclose()
+        await self.client.aclose()
 
 
 class FrozenSelector:
@@ -310,7 +399,9 @@ async def run(args):
     manager = SecretsManager()
     await manager.initialize()
     report = {'revision': args.revision, 'arms': {k: ARMS[k] for k in args.arms},
-              'reasoning_effort': args.reasoning, 'profile': args.profile, 'in_memory_only': True, 'selections': [], 'results': []}
+              'reasoning_effort': {arm: arm.removeprefix('mercury-') if arm.startswith('mercury-') else args.reasoning for arm in args.arms},
+              'mercury_prices_usd_per_million': {'promotional': (0.10, 0.35), 'regular': MERCURY_REGULAR_PRICES},
+              'profile': args.profile, 'in_memory_only': True, 'selections': [], 'results': []}
     selected_cases = [c for c in cases() if not args.cases or c.id in args.cases]
     if not selected_cases or args.cases and len(selected_cases) != len(set(args.cases)):
         raise ValueError('Unknown or duplicate case')
@@ -319,8 +410,7 @@ async def run(args):
                          if args.selection_report else {})
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(45, connect=5)) as client:
-            keys = {p: await manager.get_secret(secret_path='kv/data/providers/' + p, secret_key='api_key')
-                    for p in ('groq', 'cerebras')}
+            keys = await selected_provider_keys(manager, args.arms)
             jev = JevDecisionClient(secrets_manager=manager, http_client=client, timeout_seconds=3, max_retries=0)
             selector = WorkflowAuthoringPreselector(jev_client=jev, registry=WorkflowCapabilityRegistry())
             for case_index, case in enumerate(selected_cases):
@@ -380,7 +470,7 @@ async def run(args):
                                 first_header_ms=header_times[0] if header_times else None,
                                 first_node_ms=node_times[0] if node_times else None,
                                 validated_node_events=len(node_times), corrections=corrections,
-                                provider_attempts=author.bridge.attempts if author.bridge else None)
+                                provider_attempts=author.transport.attempts)
                             await author.close()
                         report['results'].append(row)
                         write_report(args.output, report)
@@ -395,10 +485,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-paid-dev-inference', action='store_true')
     parser.add_argument('--revision', required=True)
-    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini','cerebras-oss-full','groq-oss-full'])
+    parser.add_argument('--arms', nargs='+', choices=list(ARMS), default=['gemini','mercury-instant','mercury-low'])
     parser.add_argument('--cases', nargs='+')
     parser.add_argument('--selection-report', type=Path, help='Reuse measured Jev decisions for an exactly paired author comparison')
-    parser.add_argument('--repeats', type=int, default=1, choices=(1,2))
+    parser.add_argument('--repeats', type=int, default=2, choices=(1,2))
     parser.add_argument('--reasoning', choices=('none','low','medium'), default='low')
     parser.add_argument('--profile', choices=('native','guided'), default='native')
     parser.add_argument('--output', type=Path, default=Path('/tmp/workflow-authoring-models3e12.json'))

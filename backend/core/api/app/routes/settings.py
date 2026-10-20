@@ -89,6 +89,7 @@ LLM_PROVIDER_ENV_KEYS = (
     "SECRET__GOOGLE_AI_STUDIO__API_KEY",
     "SECRET__OPENROUTER__API_KEY",
     "SECRET__TOGETHER__API_KEY",
+    "SECRET__INCEPTION_LABS__API_KEY",
 )
 
 LLM_PROVIDER_VAULT_PATHS = (
@@ -100,6 +101,7 @@ LLM_PROVIDER_VAULT_PATHS = (
     "kv/data/providers/google_ai_studio",
     "kv/data/providers/openrouter",
     "kv/data/providers/together",
+    "kv/data/providers/inception_labs",
 )
 
 LOCAL_LLM_SERVER_IDS = {"ollama", "lm_studio", "custom_openai_compatible"}

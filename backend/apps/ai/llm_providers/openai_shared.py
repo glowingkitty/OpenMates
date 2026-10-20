@@ -170,6 +170,7 @@ class OpenAIUsageMetadata(BaseModel):
     cache_creation_5m_input_tokens: Optional[int] = None
     cache_creation_1h_input_tokens: Optional[int] = None
     usage_source: str = "provider_reported"
+    reasoning_tokens: Optional[int] = None
     inference_host: Optional[str] = None
     provider_request_id: Optional[str] = None
 

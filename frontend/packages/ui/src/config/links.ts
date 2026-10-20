@@ -138,6 +138,7 @@ export const routes = {
   },
 } as const;
 
+// Canonical links (including Inception) live in public-site/legal/privacyPolicyLinks.ts.
 // Privacy-policy links for every third-party provider referenced in the
 // privacy policy. Grouped to mirror shared/docs/privacy_policy.yml
 // provider_groups. When adding a new provider to a skill or

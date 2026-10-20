@@ -81,6 +81,23 @@ providers:
     action_required: none
     last_verified: "2026-04-16T11:15:00Z"
 
+  inception:
+    status: no_training_opt_out
+    provider_group: ai_models
+    policy_url: https://www.inceptionlabs.ai/docs/privacy-policy
+    terms_url: https://www.inceptionlabs.ai/docs/terms-of-use
+    quote: "we may use User Submissions ... and train our models."
+    source_document: "Inception Terms of Use, Licenses (effective 2025-09-01)"
+    mechanism: Training permitted unless the API Platform account setting Improve the model for everyone is OFF
+    notes: >
+      The account owner confirmed on 2026-10-20 that Improve the model for everyone
+      is OFF for the OpenMates API account. Training may apply if reenabled.
+      No fixed maximum retention is publicly promised. Custom zero-retention
+      arrangements are case-specific, not established for this account.
+    action_required: Verify opt-out remains OFF at each quarterly audit
+    opted_out_date: "2026-10-20"
+    last_verified: "2026-10-20T00:00:00Z"
+
   typesafe:
     status: no_training
     provider_group: ai_models

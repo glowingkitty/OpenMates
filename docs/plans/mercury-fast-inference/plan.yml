@@ -1,0 +1,50 @@
+schema_version: 2
+profile: concise
+id: mercury-fast-inference
+title: Mercury 3 integration and speed-sensitive workload evaluation
+status: implementing
+goal: >-
+  Research and implement Inception Labs' new Mercury model, benchmark it against
+  Gemini 3.8 Flash for low-complexity tasks, use it for transcript correction after
+  confirming API access, and evaluate its suitability for AI workflow creation
+  and other generative tasks where maximum speed matters.
+scope:
+  in:
+    - Direct Mercury 3 text, tool-call and streaming adapter with authoritative usage and pricing.
+    - Vault-first credentials and explicit provider availability, with current automatic routing preserved.
+    - Paired synthetic transcript and bounded generation benchmarks against Gemini 3.8 Flash and the current correction baseline.
+    - Workflow author evaluation through the existing compiler, prefix validation and semantic oracle; no workflow model replacement in this phase.
+    - Mercury-first ordinary audio correction with bounded Gemini fallback, actual model attribution and original transcript preservation.
+    - Provider privacy disclosure and reproducible private benchmark reports.
+  out:
+    - Default chat routing or account model changes.
+    - Replacing Jev decisions or enabling workflow transcript correction by default.
+    - Production deployment or changes to real user workflows.
+contracts:
+  api:
+    - GET https://api.inceptionlabs.ai/v1/models uses Bearer authentication and provides a nonbilling availability probe; listing alone does not prove generation access.
+    - POST https://api.inceptionlabs.ai/v1/chat/completions uses Bearer authentication, model mercury-3, messages and max_completion_tokens; tools and normal SSE streaming use the OpenAI-compatible wire contract.
+    - Model input and output are text only; context is 1M tokens and maximum completion is 131072 tokens.
+    - Reasoning is instant, low, medium or high; temperature is constrained to 0.5 through 1.0.
+    - Normalized outputs retain content, parsed tool calls, finish reason and actual provider usage, including reported reasoning and cached input without inventing missing counters.
+    - Authentication and malformed responses fail explicitly without logging private content or credentials; transient retry is bounded and correction uses a short timeout before fallback.
+    - Regular USD per million input/output is 0.20/0.70, cached input 0.02; launch promotion is 0.10/0.35 and cached input 0.01, checked 2026-10-20 with no published end date. Existing temporary_prices applies the 50% launch discount to supplier costs and customer credits, as explicitly requested by the user.
+  preserved:
+    - Existing audio correction result, title cleanup, language and meaning preservation, sanitization and failure behavior.
+    - Original transcript remains the timestamp source; unsuccessful correction never marks raw text corrected.
+    - Workflow generation remains Gemini and retains existing billing, validation, accepted-prefix and no-auto-execution contracts.
+verification:
+  required:
+    - Focused local adapter, audio correction, benchmark protocol and metadata checks.
+    - Live Vault-backed model generation and paired synthetic provider benchmarks outside CI, recording exact source identity and validation outcomes.
+    - Relevant audio product E2E coverage updated and verified in isolated GitHub CI.
+    - Scoped dev publication through sessions.py with required repository checks.
+evidence:
+  api_access: Vault-backed mercury-3 replied API_ACCESS_OK in 1.255 seconds on 2026-10-20; the local environment contains the normal IMPORTED_TO_VAULT marker rather than an API credential.
+  training_opt_out: The account owner explicitly confirmed on 2026-10-20 that Improve the model for everyone is OFF in the Inception API Platform.
+  sources:
+    - https://www.inceptionlabs.ai/blog/introducing-mercury-3
+    - https://docs.inceptionlabs.ai/get-started/models
+    - https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion
+    - https://docs.inceptionlabs.ai/capabilities/reasoning-efforts
+    - https://www.inceptionlabs.ai/docs/privacy-policy

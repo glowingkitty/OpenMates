@@ -79,11 +79,12 @@ quick_answers:
     audio is streamed to Mistral; uploaded recordings are encrypted by our
     upload service before durable S3 storage, then decrypted only in server
     memory when transcription is requested. The raw transcript is sent to
-    Google Gemini to correct obvious transcription errors and create a title.
+    Google Gemini, or Inception Mercury when that correction route is enabled,
+    to correct obvious transcription errors and create a title.
     Neither the voice audio nor the raw transcript receives the placeholder
     substitution used for eligible typed chat messages. OpenMates stores the
     recording and transcript as encrypted account content, but Mistral and
-    Google may retain API request data under their own policies.
+    Google or Inception may retain API request data under their own policies.
   voice_calls: >
     During a Gemini voice call, microphone audio, submitted text, and the
     permitted chat context travel over TLS through OpenMates to Google Gemini
@@ -98,7 +99,10 @@ quick_answers:
     third-party providers, training use depends on the provider. Most audited
     chat-model providers state that they do not train on API customer data, or
     only train if the customer opts in. Some image or 3D generation providers
-    have broader or limited-use policies. The public policy renders a
+    have broader or limited-use policies. Inception permits submission training
+    unless the API Platform account opts out. Our account owner confirmed that
+    opt-out on 2026-10-20; training may apply if it is reenabled. The public
+    policy renders a
     provider-by-provider training table with status, source document, and last
     verification date.
   placeholder_protection: >
@@ -396,6 +400,17 @@ provider_groups:
       feature explicitly says otherwise. You can see which provider a selectable
       model uses in the model details panel.
     providers:
+      inception:
+        privacy_policy: https://www.inceptionlabs.ai/docs/privacy-policy  # verified 2026-10-20
+        location: US
+        used_for:
+          - Mercury model inference when selected
+          - Voice transcript correction and title generation when the Inception correction route is enabled
+        data_shared:
+          - Chat text and context needed for selected Mercury model requests; eligible typed messages use client-side PII placeholders
+          - Raw voice transcript and language hint for correction; audio is not sent to Inception and raw transcripts do not receive typed-message placeholder substitution
+          - "Training: Inception's terms permit training on submissions unless the API Platform account opts out. The account owner confirmed the OpenMates API account opt-out on 2026-10-20; training may apply if the setting is reenabled."
+          - "Retention: purpose- and law-based, with no fixed public maximum; OpenMates does not guarantee zero retention."
       mistral:
         privacy_policy: https://legal.mistral.ai/terms/privacy-policy/
         location: EU
@@ -472,7 +487,7 @@ provider_groups:
         location: US
         used_for:
           - Gemini-family model inference (when you select a Gemini model)
-          - automatic correction and title generation for Mistral voice transcripts
+          - correction and title generation for Mistral voice transcripts on the Gemini correction route
           - live voice calling with spoken replies and user/assistant transcription
           - Gemini image generation and editing
           - Google Veo video generation
