@@ -21,6 +21,7 @@ import os
 import shlex
 import sys
 import time
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -30,41 +31,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
 
 
-BROWSER_CHECK = r"""
-const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
-(async () => {
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-           '--no-zygote', '--single-process', '--js-flags=--jitless'],
-  });
-  try {
-    const context = await browser.newContext({
-      viewport: { width: 1280, height: 800 },
-      recordVideo: { dir: '/tmp/openmates-startup-proof', size: { width: 1280, height: 800 } },
-    });
-    const page = await context.newPage();
-    const errors = [];
-    page.on('pageerror', error => errors.push(String(error)));
-    const response = await page.goto('http://127.0.0.1:5173/', { waitUntil: 'load', timeout: 15000 });
-    assert.equal(response.status(), 200);
-    await page.getByRole('heading', { name: 'Recipe Manager', exact: true }).waitFor();
-    await page.getByTestId('recipe-filter').fill('berry');
-    await page.getByTestId('recipe-option').click();
-    await page.getByTestId('cook-button').click();
-    assert.equal((await page.getByTestId('cook-count').textContent()).trim(), 'Cooked 1 times');
-    assert.equal((await page.getByTestId('recipe-count').textContent()).trim(), '1 recipes');
-    assert.deepEqual(errors, []);
-    await page.waitForTimeout(500);
-    const video = page.video();
-    await context.close();
-    console.log(JSON.stringify({ interactive: true, page_errors: errors, video_path: await video.path() }));
-  } finally {
-    await browser.close();
-  }
-})().catch(error => { console.error(String(error)); process.exit(1); });
-"""
+from application_preview_interaction_probe import RemoteInteractionProbe, sandbox_resources
 
 
 async def _api_key() -> str:
@@ -78,7 +45,8 @@ async def _api_key() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--execute", action="store_true", help="Explicitly allow one real E2B sandbox")
+    parser.add_argument("--execute", action="store_true", help="Allow disposable E2B app VM (plus browser helper in prepared mode)")
+    parser.add_argument("--prepared-browser-probe", action="store_true", help="Prepare a separate E2B client browser before starting the cold app clock")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--provider-source", type=Path, default=Path(
         "/app/backend/shared/providers/e2b_application_preview.py",
@@ -88,7 +56,11 @@ def main() -> int:
     ))
     parser.add_argument("--max-ready-seconds", type=float, default=15.0)
     parser.add_argument("--max-screenshot-seconds", type=float, default=15.0)
-    parser.add_argument("--template", help="Prepared secured-access-compatible E2B template ID")
+    parser.add_argument("--interaction-scenario", choices=("recipe", "todo"), default="recipe")
+    parser.add_argument("--max-interactive-seconds", type=float, default=15.0)
+    templates = parser.add_mutually_exclusive_group()
+    templates.add_argument("--template", help="Force base template; clears inherited warm-template setting")
+    templates.add_argument("--warm-template", help="Force eligible warm template; verify SDK selects this exact ID")
     args = parser.parse_args()
     if not args.execute:
         parser.error("--execute is required for the live provider check")
@@ -101,6 +73,9 @@ def main() -> int:
     spec.loader.exec_module(provider)
     if args.template:
         os.environ[provider.APPLICATION_PREVIEW_TEMPLATE_ENV] = args.template
+        os.environ.pop(provider.APPLICATION_PREVIEW_WARM_TEMPLATE_ENV, None)
+    elif args.warm_template:
+        os.environ[provider.APPLICATION_PREVIEW_WARM_TEMPLATE_ENV] = args.warm_template
     fixture = json.loads(args.fixture.read_text())
     file_data = fixture["embeds"]["11111111-1111-4111-8111-111111111111"]["files"]
     if {file["path"] for file in file_data} != {"package.json", "src/App.svelte"}:
@@ -108,6 +83,7 @@ def main() -> int:
     api_key = asyncio.run(_api_key())
     sdk_sandbox = e2b.Sandbox
     sandboxes: list[Any] = []
+    browser_helpers: list[Any] = []
     started = time.monotonic()
     receipt: dict[str, Any] = {
         "provider_source_sha256": hashlib.sha256(args.provider_source.read_bytes()).hexdigest(),
@@ -115,16 +91,25 @@ def main() -> int:
         "input_paths": [file["path"] for file in file_data],
         "max_ready_seconds": args.max_ready_seconds,
         "max_screenshot_seconds": args.max_screenshot_seconds,
+        "max_interactive_seconds": args.max_interactive_seconds,
+        "measurement": "cold provider invocation including sandbox create/upload/build; remote public-preview interaction",
+        "execution_location": "generated app and browser exclusively in E2B",
         "probe_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "template": args.template,
+        "warm_template": args.warm_template,
+        "prepared_browser_probe": args.prepared_browser_probe,
         "events": [],
     }
+
+    event_lock = threading.Lock()
+    probe: RemoteInteractionProbe | None = None
 
     def event(phase: str) -> float:
         elapsed = round(time.monotonic() - started, 3)
         item = {"phase": phase, "elapsed_seconds": elapsed}
-        receipt["events"].append(item)
-        print(json.dumps(item), flush=True)
+        with event_lock:
+            receipt["events"].append(item)
+            print(json.dumps(item), flush=True)
         return elapsed
 
     class TrackedCommands:
@@ -182,6 +167,12 @@ def main() -> int:
         @staticmethod
         def create(**kwargs: Any) -> Any:
             # Bound the external resource even if process cleanup is interrupted.
+            receipt["actual_sdk_template"] = kwargs.get("template")
+            expected_template = args.warm_template or args.template
+            if expected_template and kwargs.get("template") != expected_template:
+                raise ValueError("Requested template was not selected by provider")
+            receipt["sandbox_resources"] = {key: kwargs[key] for key in ("template", "cpu_count", "memory_mb") if key in kwargs}
+            receipt["sandbox_timeout_seconds"] = 600
             kwargs["timeout"] = 600
             sandbox = sdk_sandbox.create(**kwargs)
             sandboxes.append(sandbox)
@@ -191,10 +182,58 @@ def main() -> int:
         kill = staticmethod(sdk_sandbox.kill)
 
     def ready(_runtime: Any) -> None:
+        nonlocal probe
         receipt["http_ready_seconds"] = event("http_ready")
+        if args.prepared_browser_probe:
+            if probe is None:
+                raise AssertionError("Prepared browser is missing")
+            receipt["browser_target_upload_started_seconds"] = event("browser_target_upload_started")
+            probe.send_target(_runtime.upstream_base_url, sandboxes[-1].get_host(5173))
+            receipt["browser_target_upload_finished_seconds"] = event("browser_target_upload_finished")
+            return
+        probe = RemoteInteractionProbe(
+            sandbox=sandboxes[-1], url=_runtime.upstream_base_url,
+            capture_directory=provider.APPLICATION_CAPTURE_DIRECTORY,
+            scenario=args.interaction_scenario, output_dir=args.output_dir, event=event,
+        )
+        probe.start()
 
-    e2b.Sandbox = TrackedSandbox
     try:
+        if args.prepared_browser_probe:
+            helper_started = time.monotonic()
+            receipt["browser_helper"] = {"events": [], "clock": "separate helper-preparation clock"}
+            receipt["measurement"] = "cold app provider invocation -> already prepared separate E2B browser public-HTTPS interaction"
+
+            def helper_event(phase: str) -> float:
+                if phase not in ("interactive_probe_started", "browser_ready"):
+                    return event(phase)
+                elapsed = round(time.monotonic() - helper_started, 3)
+                receipt["browser_helper"]["events"].append({"phase": phase, "elapsed_seconds": elapsed})
+                print(json.dumps({"helper_phase": phase, "helper_elapsed_seconds": elapsed}), flush=True)
+                return elapsed
+
+            helper_template = args.warm_template or args.template
+            if not helper_template:
+                raise ValueError("Prepared browser requires an explicit template")
+            helper = sdk_sandbox.create(
+                template=helper_template, api_key=api_key, timeout=600,
+                envs={"PLAYWRIGHT_BROWSERS_PATH": provider.APPLICATION_CAPTURE_DIRECTORY + "/browsers"},
+                secure=True, allow_internet_access=True, network={"allow_public_traffic": True},
+            )
+            browser_helpers.append(helper)
+            receipt["browser_helper"].update(template=helper_template, timeout_seconds=600)
+            probe = RemoteInteractionProbe(
+                sandbox=helper, url=None, capture_directory=provider.APPLICATION_CAPTURE_DIRECTORY,
+                scenario=args.interaction_scenario, output_dir=args.output_dir, event=helper_event,
+                prepared=True,
+            )
+            probe.start()
+            probe.wait_for_browser_ready()
+            receipt["browser_helper"]["preparation_seconds"] = round(time.monotonic() - helper_started, 3)
+            # Client browser is now listening. No generated app has been uploaded or started.
+            started = time.monotonic()
+        e2b.Sandbox = TrackedSandbox
+        event("cold_app_provider_invoked")
         runtime = provider.start_application_preview_in_e2b(
             files=[provider.ApplicationPreviewFile(path=file["path"], content=file["content"]) for file in file_data],
             entrypoints=[provider.ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
@@ -205,26 +244,46 @@ def main() -> int:
         if not runtime.latest_screenshot_bytes:
             raise AssertionError("Provider did not return a rendered PNG")
         (args.output_dir / "preview.png").write_bytes(runtime.latest_screenshot_bytes)
-        command = f"cd {shlex.quote(provider.APPLICATION_CAPTURE_DIRECTORY)} && node - <<'NODE'\n{BROWSER_CHECK}\nNODE"
-        check = sandboxes[0].commands.run(f"bash -lc {shlex.quote(command)}", timeout=60)
-        if check.exit_code != 0:
-            raise RuntimeError(f"Interactive preview check failed: {check.stderr[-1000:]}")
-        browser_result = json.loads(check.stdout.strip())
-        receipt["interactive"] = browser_result["interactive"]
-        receipt["interactive_verified_seconds"] = event("interactive_verified")
-        video_bytes = sandboxes[0].files.read(browser_result["video_path"], format="bytes")
-        (args.output_dir / "interactive.webm").write_bytes(bytes(video_bytes))
+        if probe is None:
+            raise AssertionError("Provider did not call on_runtime_ready")
+        receipt["interaction"] = probe.finish()
+        receipt["sandbox_resources"].update(sandbox_resources(sandboxes[-1]))
+        if browser_helpers:
+            receipt["browser_helper"]["resources"] = sandbox_resources(browser_helpers[-1])
+        receipt["interactive"] = receipt["interaction"].get("interactive", False)
+        receipt["interactive_verified_seconds"] = receipt["interaction"].get("interaction_acknowledged_seconds")
+        if not receipt["interactive"]:
+            raise AssertionError("Public preview interaction failed")
         receipt["status"] = "pass" if (
             receipt["http_ready_seconds"] <= args.max_ready_seconds
             and receipt["first_screenshot_seconds"] <= args.max_screenshot_seconds
+            and receipt["interactive_verified_seconds"] <= args.max_interactive_seconds
         ) else "slow"
     except Exception as exc:
-        receipt.update(status="fail", error=str(exc))
+        receipt.update(status="fail", error_type=type(exc).__name__)
     finally:
         e2b.Sandbox = sdk_sandbox
+        if probe is not None and "interaction" not in receipt:
+            receipt["interaction"] = probe.finish()
+        stopped = 0
         for sandbox in sandboxes:
-            sdk_sandbox.kill(sandbox_id=sandbox.sandbox_id, api_key=api_key)
-        receipt["sandboxes_stopped"] = len(sandboxes)
+            try:
+                sdk_sandbox.kill(sandbox_id=sandbox.sandbox_id, api_key=api_key)
+                stopped += 1
+            except Exception as exc:
+                receipt.setdefault("cleanup_errors", []).append(type(exc).__name__)
+                receipt["status"] = "fail"
+        receipt["sandboxes_stopped"] = stopped
+        helper_stopped = 0
+        for helper in browser_helpers:
+            try:
+                sdk_sandbox.kill(sandbox_id=helper.sandbox_id, api_key=api_key)
+                helper_stopped += 1
+            except Exception as exc:
+                receipt.setdefault("cleanup_errors", []).append(type(exc).__name__)
+                receipt["status"] = "fail"
+        receipt["browser_helpers_stopped"] = helper_stopped
+        receipt["all_sandboxes_stopped"] = stopped == len(sandboxes) and helper_stopped == len(browser_helpers)
         (args.output_dir / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
         print(json.dumps(receipt), flush=True)
     return 0 if receipt["status"] == "pass" else 1

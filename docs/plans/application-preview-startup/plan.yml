@@ -4,6 +4,10 @@ id: application-preview-startup
 title: Repair and measure application preview startup
 status: implementing
 goal: |
+  Go ahead and implement the first three optimizations, then measure the time
+  until the app is actually interactive. Keep all compilation inside E2B and
+  preserve current user costs and privacy.
+
   go ahead and debug
   and reproduce the issue and confirm startup is happening within seconds
   (as fast as possible)
@@ -51,3 +55,11 @@ notes: |
   Treat all app code as malicious. Dependency installation, compilation,
   execution and browser rendering must remain inside E2B; the OpenMates host
   only validates, hashes and transfers data and coordinates disposable sandboxes.
+  Follow-up approved 2026-10-21: use one bounded SDK-side readiness waiter then
+  verify the public current revision; snapshot a generic already-listening Vite
+  server with optimized public dependencies; publish running through the existing
+  authenticated owner event transport and adopt late/pending client sessions.
+  Preserve generic fallback, exact allowed hosts, digest activation, timeouts,
+  /open semantics, billing boundaries and teardown. No provider/account secrets
+  enter a VM. Measure cold invocation through a public-URL browser interaction
+  in E2B, separately from HTTP readiness, screenshot and full OpenMates UI proof.

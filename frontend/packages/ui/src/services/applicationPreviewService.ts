@@ -41,6 +41,7 @@ export interface CachedApplicationPreviewSession extends ApplicationPreviewStart
   message_id?: string;
   auto_started?: boolean;
   started_at: number;
+  status_updated_at?: number;
 }
 
 interface ApplicationPreviewStartOptions {
@@ -63,6 +64,69 @@ interface SharedPreviewContext {
 
 const applicationPreviewSessions = new Map<string, CachedApplicationPreviewSession>();
 const autoStartAttempts = new Set<string>();
+let sessionGeneration = 0;
+const pendingStarts = new Map<string, Promise<ApplicationPreviewStartResponse>>();
+const sessionListeners = new Map<string, Set<(session: CachedApplicationPreviewSession) => void>>();
+const pendingUpdates = new Map<string, ApplicationPreviewStatusUpdate>();
+
+export function clearApplicationPreviewSessions(): void {
+  sessionGeneration += 1;
+  applicationPreviewSessions.clear();
+  autoStartAttempts.clear();
+  pendingStarts.clear();
+  pendingUpdates.clear();
+  sessionListeners.clear();
+}
+
+interface ApplicationPreviewStatusUpdate {
+  chat_id: string;
+  application_embed_id: string;
+  session_id: string;
+  status: ApplicationPreviewStatusValue;
+  updated_at: number;
+}
+
+export function subscribeApplicationPreviewSession(
+  chatId: string, applicationEmbedId: string,
+  listener: (session: CachedApplicationPreviewSession) => void,
+): () => void {
+  const key = sessionCacheKey(chatId, applicationEmbedId);
+  const listeners = sessionListeners.get(key) ?? new Set();
+  listeners.add(listener);
+  sessionListeners.set(key, listeners);
+  const cached = applicationPreviewSessions.get(key);
+  if (cached) listener(cached);
+  return () => {
+    listeners.delete(listener);
+    if (!listeners.size && sessionListeners.get(key) === listeners) sessionListeners.delete(key);
+  };
+}
+
+/** Receives metadata only from the authenticated owner-scoped WebSocket. */
+export function handleApplicationPreviewStatusUpdate(payload: unknown): void {
+  if (!payload || typeof payload !== 'object') return;
+  const update = payload as ApplicationPreviewStatusUpdate;
+  if (typeof update.chat_id !== 'string' || typeof update.application_embed_id !== 'string'
+    || typeof update.session_id !== 'string' || !Number.isFinite(update.updated_at)
+    || !['queued', 'starting', 'running', 'failed', 'stopped', 'timeout'].includes(update.status)) return;
+  const key = sessionCacheKey(update.chat_id, update.application_embed_id);
+  const session = applicationPreviewSessions.get(key);
+  if (!session || session.session_id !== update.session_id) {
+    // Readiness may beat the start POST response, including an explicit retry.
+    const previous = pendingUpdates.get(key);
+    if (pendingStarts.has(key) && (!previous || update.updated_at > previous.updated_at)) {
+      pendingUpdates.set(key, update);
+    }
+    return;
+  }
+  if (session.session_id !== update.session_id || update.updated_at <= (session.status_updated_at ?? 0)) return;
+  // A late startup event must never resurrect an explicitly stopped runtime.
+  if (['stopped', 'timeout', 'failed'].includes(session.status)
+    && ['queued', 'starting', 'running'].includes(update.status)) return;
+  session.status = update.status;
+  session.status_updated_at = update.updated_at;
+  for (const listener of sessionListeners.get(key) ?? []) listener(session);
+}
 
 function sessionCacheKey(chatId: string, applicationEmbedId: string): string {
   return `${chatId}:${applicationEmbedId}`;
@@ -74,7 +138,12 @@ function normalizeStartOptions(sharedContextOrOptions?: string | ApplicationPrev
 }
 
 function rememberApplicationPreviewSession(session: CachedApplicationPreviewSession) {
-  applicationPreviewSessions.set(sessionCacheKey(session.chat_id, session.application_embed_id), session);
+  const key = sessionCacheKey(session.chat_id, session.application_embed_id);
+  applicationPreviewSessions.set(key, session);
+  const pending = pendingUpdates.get(key);
+  pendingUpdates.delete(key);
+  if (pending) handleApplicationPreviewStatusUpdate(pending);
+  for (const listener of sessionListeners.get(key) ?? []) listener(session);
 }
 
 export function getCachedApplicationPreviewSession(
@@ -107,11 +176,32 @@ function errorMessageFromPayload(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function startApplicationPreview(
+export function startApplicationPreview(
   chatId: string,
   applicationEmbedId: string,
   sharedContextOrOptions?: string | ApplicationPreviewStartOptions,
 ): Promise<ApplicationPreviewStartResponse> {
+  const key = sessionCacheKey(chatId, applicationEmbedId);
+  const pending = pendingStarts.get(key);
+  if (pending) return pending;
+  const existing = getCachedApplicationPreviewSession(chatId, applicationEmbedId);
+  if (existing && ['queued', 'starting', 'running'].includes(existing.status)) return Promise.resolve(existing);
+  const request = performApplicationPreviewStart(chatId, applicationEmbedId, sharedContextOrOptions);
+  pendingStarts.set(key, request);
+  void request.finally(() => {
+    if (pendingStarts.get(key) === request) {
+      pendingStarts.delete(key);
+      pendingUpdates.delete(key);
+    }
+  }).catch(() => undefined);
+  return request;
+}
+
+async function performApplicationPreviewStart(
+  chatId: string, applicationEmbedId: string,
+  sharedContextOrOptions?: string | ApplicationPreviewStartOptions,
+): Promise<ApplicationPreviewStartResponse> {
+  const generation = sessionGeneration;
   const options = normalizeStartOptions(sharedContextOrOptions);
   const response = await fetch(`${getApiUrl()}/v1/applications/${encodeURIComponent(applicationEmbedId)}/preview/start`, {
     method: 'POST',
@@ -131,6 +221,7 @@ export async function startApplicationPreview(
   }
 
   const session = await response.json() as ApplicationPreviewStartResponse;
+  if (generation !== sessionGeneration) throw new Error("Application preview account session changed");
   rememberApplicationPreviewSession({
     ...session,
     application_embed_id: applicationEmbedId,
@@ -147,8 +238,9 @@ export async function autoStartCreatedApplicationPreview(
   messageId: string,
   markdown: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
+  const generation = sessionGeneration;
   const applicationEmbedId = await resolveCreatedApplicationEmbedId(markdown);
-  if (!applicationEmbedId) return undefined;
+  if (!applicationEmbedId || generation !== sessionGeneration) return undefined;
 
   return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
 }
@@ -158,7 +250,8 @@ export async function autoStartApplicationPreviewForEmbed(
   messageId: string | undefined,
   applicationEmbedId: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
-  if (!await waitForApplicationEmbed(applicationEmbedId)) return undefined;
+  const generation = sessionGeneration;
+  if (!await waitForApplicationEmbed(applicationEmbedId) || generation !== sessionGeneration) return undefined;
 
   return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
 }
@@ -170,8 +263,9 @@ export async function autoStartVisibleOwnerApplicationPreviewForEmbed(
   applicationEmbedId: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
   if (isPublicChat(chatId)) return undefined;
+  const generation = sessionGeneration;
   const chat = await chatDB.getChat(chatId);
-  if (!chat || chat.is_shared_by_others) return undefined;
+  if (!chat || chat.is_shared_by_others || generation !== sessionGeneration) return undefined;
 
   // Reuse the creator's existing attempt, including a failed terminal attempt;
   // opening fullscreen remains the explicit way to retry a paid preview.
@@ -185,18 +279,21 @@ async function startApplicationPreviewOnce(
   messageId: string | undefined,
   applicationEmbedId: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
+  const generation = sessionGeneration;
   const attemptKey = sessionCacheKey(chatId, applicationEmbedId);
   if (autoStartAttempts.has(attemptKey)) return undefined;
   autoStartAttempts.add(attemptKey);
 
   let lastError: unknown;
   for (let attempt = 0; attempt < AUTO_START_START_ATTEMPTS; attempt += 1) {
+    if (generation !== sessionGeneration) return undefined;
     try {
       return await startApplicationPreview(chatId, applicationEmbedId, {
         autoStarted: true,
         sourceMessageId: messageId,
       });
     } catch (error) {
+      if (generation !== sessionGeneration) return undefined;
       lastError = error;
       if (attempt < AUTO_START_START_ATTEMPTS - 1) {
         await new Promise((resolve) => setTimeout(resolve, AUTO_START_START_DELAY_MS));

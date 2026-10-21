@@ -51,6 +51,7 @@ APPLICATION_CAPTURE_BROWSER_TIMEOUT_SECONDS = 90
 APPLICATION_SANDBOX_TIMEOUT_SECONDS = 30 * 60
 APPLICATION_PREVIEW_TEMPLATE_ENV = "E2B_APPLICATION_PREVIEW_TEMPLATE"
 APPLICATION_PREVIEW_WARM_TEMPLATE_ENV = "E2B_APPLICATION_PREVIEW_WARM_TEMPLATE"
+APPLICATION_PREVIEW_WARM_PORT = 5173
 # Only public toolchains are cached; each sandbox starts with fresh user state.
 PREPARED_PREVIEW_DEPENDENCIES = {
     "svelte": "5.55.7", "vite": "5.4.21",
@@ -279,13 +280,7 @@ def start_application_preview_in_e2b(
     try:
         if warm_template:
             revision = _activate_warm_preview(sandbox, plan, vite_allowed_hosts)
-            attempts = 0
-            def fetch_warm(url: str) -> int:
-                nonlocal attempts
-                attempts += 1
-                return _fetch_warm_preview_status(sandbox, url, revision, inspect_failure=attempts % 3 == 0)
-            _wait_for_preview_ready(upstream_base_urls[primary_name], required_successes=1,
-                                    fetch_status=fetch_warm)
+            _wait_for_warm_preview_ready(sandbox, upstream_base_urls[primary_name], revision)
         elif template and _can_batch_prepared_vite_preview(plan):
             _start_batched_vite_preview(sandbox, plan, vite_allowed_hosts)
             # Two local successes already established server stability. Verify
@@ -371,6 +366,18 @@ def _can_batch_prepared_vite_preview(plan: ApplicationPreviewPlan) -> bool:
 def _can_warm_start_preview(plan: ApplicationPreviewPlan) -> bool:
     if not _can_batch_prepared_vite_preview(plan):
         return False
+    # The template snapshots an already-listening server on this port. Other
+    # entrypoints keep their requested port through the ordinary prepared path.
+    if plan.start_commands[0]["port"] != APPLICATION_PREVIEW_WARM_PORT:
+        return False
+    # A running server has already resolved these settings. Keep user-owned
+    # compiler/environment/style configuration on the ordinary prepared path.
+    for file in plan.files:
+        name = file.path.rsplit("/", 1)[-1]
+        if name in {"tsconfig.json", "jsconfig.json", ".browserslistrc"} or name.startswith(
+            (".env", "svelte.config.", "postcss.config.", ".postcssrc")
+        ):
+            return False
     by_path = {file.path: file.content for file in plan.files}
     if ("src/App.svelte" not in by_path or by_path.get("index.html") != SVELTE_PREVIEW_DEFAULT_INDEX_HTML
             or by_path.get("src/main.ts") != SVELTE_PREVIEW_DEFAULT_MAIN_TS):
@@ -391,8 +398,56 @@ def _activate_warm_preview(sandbox: Any, plan: ApplicationPreviewPlan, allowed_h
     # Upload may write files concurrently. The restored runtime verifies every
     # content digest before activation; a partially uploaded revision cannot run.
     _upload_prepared_vite_files(sandbox, plan.files, allowed_hosts,
-                               activation={"revision": revision, "port": plan.start_commands[0]["port"]})
+                               activation={"revision": revision, "port": plan.start_commands[0]["port"],
+                                           "allowed_hosts": allowed_hosts})
     return revision
+
+
+def _wait_for_warm_preview_ready(sandbox: Any, url: str, revision: str) -> None:
+    """Wait next to the compiler, then prove the current app is public.
+
+    One host-initiated SDK stream avoids slow repeated requests through the
+    public proxy while Vite is still compiling. This constant command carries
+    no source or credentials and runs only inside the disposable E2B VM.
+    """
+    deadline = time.monotonic() + PREVIEW_READINESS_TIMEOUT_SECONDS
+    command = """python3 - <<'OPENMATES_READY_WAIT'
+import json,re,time
+from pathlib import Path
+deadline=time.monotonic()+90
+while time.monotonic()<deadline:
+    try:
+        with Path('/tmp/openmates-preview-status.json').open() as handle:
+            state=json.loads(handle.read(65536))
+        status=state.get('status')
+        revision=state.get('revision')
+        if status=='failed':
+            print('{"status":"failed"}',flush=True)
+            break
+        if status in ('running','captured') and isinstance(revision,str) and re.fullmatch('[a-f0-9]{32}',revision):
+            print(json.dumps({'status':status,'revision':revision}),flush=True)
+            break
+    except (OSError,ValueError,AttributeError):
+        pass
+    time.sleep(.025)
+else:
+    raise SystemExit(2)
+OPENMATES_READY_WAIT"""
+    result = sandbox.commands.run(command, timeout=PREVIEW_READINESS_TIMEOUT_SECONDS)
+    try:
+        state = json.loads(result.stdout)
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise RuntimeError("Application preview warm readiness returned invalid state") from exc
+    if (getattr(result, "exit_code", 0) not in (0, None) or not isinstance(state, dict)
+            or state.get("status") not in {"running", "captured"} or state.get("revision") != revision):
+        raise RuntimeError("Application preview warm startup failed to verify current revision")
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise RuntimeError("Application preview warm startup timed out")
+    _wait_for_preview_ready(
+        url, timeout_seconds=remaining, required_successes=1,
+        fetch_status=lambda target: _fetch_warm_preview_status(sandbox, target, revision),
+    )
 
 
 def _fetch_warm_preview_status(sandbox: Any, url: str, revision: str, *, inspect_failure: bool = True) -> int:

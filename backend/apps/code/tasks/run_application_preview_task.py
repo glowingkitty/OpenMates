@@ -310,6 +310,32 @@ async def _patch_session(cache_service: Any, session_id: str, patch: dict[str, A
     if events:
         data.setdefault("events", []).extend(events)
     await client.set(application_preview_session_key(session_id), json.dumps(data), ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS)
+    # Persist before notifying the authenticated owner. Never publish source,
+    # upstream hosts, tokens, errors, screenshot keys, or billing material.
+    owner_hash = data.get("viewer_user_id_hash")
+    owner_id = data.get("viewer_user_id")
+    chat_id = (data.get("usage_context") or {}).get("chat_id")
+    if "status" in patch and owner_hash and owner_id and chat_id:
+        try:
+            await cache_service.publish_event(
+                f"user_updates::{owner_hash}",
+                {
+                    "event_for_client": "application_preview_status",
+                    "user_id_uuid": owner_id,
+                    "payload": {
+                        "chat_id": chat_id,
+                        "application_embed_id": data.get("application_embed_id"),
+                        "session_id": session_id,
+                        "status": data["status"],
+                        "updated_at": data.get("updated_at", time.time()),
+                    },
+                },
+            )
+        except Exception:
+            # Polling is the recovery path; notification failure must not stop
+            # or rebill a healthy preview.
+            logger.warning("Application preview status notification failed for %s", session_id, exc_info=True)
+
 
 
 def _dispatch_unopened_preview_deadline(session_id: str, sandbox_id: str) -> None:

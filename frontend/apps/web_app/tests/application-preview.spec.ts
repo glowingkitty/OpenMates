@@ -90,6 +90,34 @@ test('generated application embed starts explicit isolated live preview', async 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
 
+	// Hold the real authenticated POST response until fullscreen is mounted.
+	// Keep status/open replies queued so only the owner WebSocket can reveal readiness.
+	let releaseStart!: () => void;
+	const startGate = new Promise<void>((resolve) => { releaseStart = resolve; });
+	let starts = 0;
+	let opens = 0;
+	let activeSessionId = '';
+	await page.route('**/v1/applications/*/preview/start', async (route: any) => {
+		starts += 1;
+		const response = await route.fetch();
+		expect(response.ok()).toBe(true);
+		const payload = await response.json();
+		activeSessionId = payload.session_id;
+		await startGate;
+		await route.fulfill({ response, json: { ...payload, status: 'queued' } });
+	});
+	const queuedStatus = async (route: any) => {
+		if (route.request().method() === 'POST') {
+			opens += 1;
+			// Preserve the server-side opening transition and lifetime semantics.
+			const response = await route.fetch();
+			expect(response.ok()).toBe(true);
+		}
+		await route.fulfill({ json: { session_id: activeSessionId, status: 'queued' } });
+	};
+	await page.route('**/v1/applications/preview/*', queuedStatus);
+	await page.route('**/v1/applications/preview/*/open', queuedStatus);
+
 	await sendMessage(
 		page,
 		withMockMarker('Create a svelte based recipe manager application.', 'application_preview'),
@@ -120,20 +148,16 @@ test('generated application embed starts explicit isolated live preview', async 
 	}
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
-	const startButton = fullscreenOverlay.getByTestId('application-start-preview');
-	if (await startButton.isVisible()) {
-		const previewStartResponse = page.waitForResponse(
-			(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
-			{ timeout: 30_000 }
-		);
-		await dismissVisibleNotifications(page);
-		await startButton.click();
-		const startResponse = await previewStartResponse;
-		expect(startResponse.ok(), `preview start failed with ${startResponse.status()}`).toBe(true);
-	}
+	await expect.poll(() => starts, { timeout: 30_000 }).toBe(1);
+	// The auto-start is still pending when fullscreen opens; no manual start click.
+	releaseStart();
 
 	const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
 	await expect(iframe).toBeVisible({ timeout: 30_000 });
+	expect(starts, 'fullscreen must adopt the pending auto-start without another paid start').toBe(1);
+	await expect.poll(() => opens, { timeout: 10_000 }).toBe(1);
+	await page.unroute('**/v1/applications/preview/*', queuedStatus);
+	await page.unroute('**/v1/applications/preview/*/open', queuedStatus);
 	const iframeSrc = await iframe.getAttribute('src');
 	expect(iframeSrc, 'preview iframe src missing').toBeTruthy();
 	expect(iframeSrc).toContain('/t/');

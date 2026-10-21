@@ -40,7 +40,7 @@ def main() -> None:
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--name", required=True, help="New versioned template alias")
     parser.add_argument("--capture-directory", default=APPLICATION_CAPTURE_DIRECTORY)
-    parser.add_argument("--warm", action="store_true", help="Snapshot public tooling and a blank browser already running")
+    parser.add_argument("--warm", action="store_true", help="Snapshot a listening Vite server, public dependencies and a fresh browser context")
     parser.add_argument("--runtime-source", type=Path, default=Path(__file__).resolve().parents[1] / "shared/providers/application_preview_runtime.mjs")
     args = parser.parse_args()
     if not args.execute:

@@ -1,3 +1,4 @@
+import { clearApplicationPreviewSessions, handleApplicationPreviewStatusUpdate } from "./applicationPreviewService";
 import { initializeVoiceCallMetadata } from "./voiceCallMetadata";
 import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
@@ -670,6 +671,7 @@ export class ChatSynchronizationService extends EventTarget {
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
+      clearApplicationPreviewSessions();
       chatSyncActivity.clear();
       resetRecoveryLifecycleImpl();
       setChatMetadataRecoveryCapabilityEnabled(false);
@@ -1889,6 +1891,7 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { chat_id: string; reason: string; message?: string },
       ),
     );
+    webSocketService.on("application_preview_status", handleApplicationPreviewStatusUpdate);
     webSocketService.on("embed_update", (payload) =>
       aiHandlers.handleEmbedUpdateImpl(
         this,

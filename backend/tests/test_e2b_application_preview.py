@@ -680,6 +680,7 @@ def test_warm_activation_uploads_source_and_exact_hosts_before_content_free_sign
     activation = json.loads(source.pop('/tmp/openmates-preview-request.json'))
     assert activation['revision'] == revision
     assert activation['port'] == 5173
+    assert activation['allowed_hosts'] == ['5173-exact.e2b.app']
     assert activation['files'] == {path: hashlib.sha256(content.encode()).hexdigest() for path, content in source.items()}
 
 
@@ -700,7 +701,61 @@ def test_warm_readiness_requires_current_revision_header(monkeypatch, actual, ex
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
-@pytest.mark.parametrize('custom', ['entrypoint', 'predev', 'postdev'])
+@pytest.mark.parametrize('state', [
+    {'status': 'running', 'revision': 'stale'},
+    {'status': 'failed'},
+    {'status': 'waiting'},
+    [],
+])
+def test_warm_waiter_rejects_failed_or_stale_state_before_public_probe(monkeypatch, state):
+    from backend.shared.providers import e2b_application_preview as p
+    commands = []
+    def run(command, **kwargs):
+        commands.append((command, kwargs))
+        return SimpleNamespace(stdout=json.dumps(state), exit_code=0)
+    monkeypatch.setattr(p, '_wait_for_preview_ready', lambda *_a, **_kw: pytest.fail('Unverified state must not publish readiness'))
+    sandbox = SimpleNamespace(commands=SimpleNamespace(run=run))
+    with pytest.raises(RuntimeError, match='verify current revision'):
+        p._wait_for_warm_preview_ready(sandbox, 'https://5173-example.e2b.app', 'current')
+    assert len(commands) == 1
+    assert 'current' not in commands[0][0]
+    assert commands[0][1]['timeout'] == p.PREVIEW_READINESS_TIMEOUT_SECONDS
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('status', ['running', 'captured'])
+def test_warm_waiter_still_requires_public_current_revision_and_shares_deadline(monkeypatch, status):
+    from backend.shared.providers import e2b_application_preview as p
+    clock = iter([100.0, 102.5])
+    monkeypatch.setattr(p.time, 'monotonic', lambda: next(clock))
+    seen = []
+    sandbox = SimpleNamespace(commands=SimpleNamespace(run=lambda *_a, **_kw: SimpleNamespace(
+        stdout=json.dumps({'status': status, 'revision': 'current'}), exit_code=0)))
+    def public(url, **kwargs):
+        seen.append((url, kwargs))
+        assert kwargs['fetch_status'](url) == 503
+    monkeypatch.setattr(p, '_wait_for_preview_ready', public)
+    monkeypatch.setattr(p, '_fetch_warm_preview_status', lambda _s, _u, revision: 503 if revision == 'current' else 200)
+    p._wait_for_warm_preview_ready(sandbox, 'https://5173-example.e2b.app', 'current')
+    assert seen[0][1]['timeout_seconds'] == 87.5
+    assert seen[0][1]['required_successes'] == 1
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_alternate_port_keeps_ordinary_prepared_runtime():
+    from backend.shared.providers import e2b_application_preview as p
+    plan = p.plan_application_preview_startup(files=[
+        ApplicationPreviewFile(path='package.json', content=json.dumps({'scripts': {'dev': 'vite'}, 'dependencies': p.PREPARED_PREVIEW_DEPENDENCIES})),
+        ApplicationPreviewFile(path='src/App.svelte', content='<h1>Different port</h1>'),
+    ], entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=8000)])
+    assert not p._can_warm_start_preview(plan)
+    assert p._can_batch_prepared_vite_preview(plan)
+    assert plan.start_commands[0]['port'] == 8000
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('custom', ['entrypoint', 'predev', 'postdev', 'svelte.config.js',
+                                   'postcss.config.cjs', 'tsconfig.json', '.env.production'])
 def test_warm_start_keeps_custom_bootstrap_and_lifecycle_on_normal_path(custom):
     from backend.shared.providers import e2b_application_preview as p
     scripts = {'dev': 'vite'}
@@ -710,6 +765,8 @@ def test_warm_start_keeps_custom_bootstrap_and_lifecycle_on_normal_path(custom):
              ApplicationPreviewFile(path='src/App.svelte', content='<h1>App</h1>')]
     if custom == 'entrypoint':
         files.append(ApplicationPreviewFile(path='index.html', content='<script type="module" src="/custom.js"></script>'))
+    elif custom not in {'predev', 'postdev'}:
+        files.append(ApplicationPreviewFile(path=custom, content='// User-owned configuration'))
     plan = p.plan_application_preview_startup(files=files, entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)])
     assert p._can_warm_start_preview(plan) is False
 

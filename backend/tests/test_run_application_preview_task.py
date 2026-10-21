@@ -20,7 +20,19 @@ from backend.core.api.app.routes.application_preview import (
 )
 from backend.shared.providers.e2b_application_preview import ApplicationPreviewRuntime
 from backend.shared.python_utils.media_encryption import encrypt_media_variants
-from backend.tests.test_application_preview_config import FakeCache, _user
+from backend.tests.test_application_preview_config import FakeCache as BaseFakeCache, _user
+
+
+class FakeCache(BaseFakeCache):
+    def __init__(self):
+        super().__init__()
+        self.published_events = []
+
+    async def publish_event(self, channel, event):
+        session = json.loads(await self.redis.get(application_preview_session_key(event["payload"]["session_id"])))
+        assert session["status"] == event["payload"]["status"]
+        self.published_events.append((channel, event))
+        return True
 
 
 PNG_BYTES = (
@@ -714,6 +726,13 @@ async def test_runtime_is_visible_before_screenshot_storage_completes() -> None:
     async def thumbnail(**_kwargs):
         data = json.loads(await cache.redis.get(application_preview_session_key("session-1")))
         assert data["status"] == "running" and data["upstream_base_url"] == "https://sandbox.e2b.app"
+        channel, event = cache.published_events[-1]
+        assert channel == f"user_updates::{data['viewer_user_id_hash']}"
+        assert event == {
+            "event_for_client": "application_preview_status", "user_id_uuid": "alice-user",
+            "payload": {"chat_id": "chat-1", "application_embed_id": "app-embed-1",
+                "session_id": "session-1", "status": "running", "updated_at": 2030},
+        }
         # A user's stop while capture is pending must not be undone by its completion.
         data["status"] = "stopped"
         await cache.redis.set(application_preview_session_key("session-1"), json.dumps(data))
@@ -844,3 +863,19 @@ async def test_startup_preserves_unopened_deadline_even_when_cleanup_queue_is_bu
     assert stopped == ([('sandbox-1', 60)] if opened == 'never' else [])
     assert charges == ([5] if opened == 'never' else [])
     assert len(dispatches) == (0 if opened == 'immediately' else 1)
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible
+@pytest.mark.anyio
+async def test_preview_notification_failure_preserves_persisted_running_status() -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(cache_service=cache, session_id="notification-failure",
+        application_embed_id="app-embed-1", body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"), preview_origin="https://openmatesusercontent.org", now=2000)
+    async def fail_publish(*args):
+        raise RuntimeError("event transport unavailable")
+    cache.publish_event = fail_publish
+    await worker._patch_session(cache, "notification-failure", {"status": "running", "updated_at": 2030})
+    data = json.loads(await cache.redis.get(application_preview_session_key("notification-failure")))
+    assert data["status"] == "running"
