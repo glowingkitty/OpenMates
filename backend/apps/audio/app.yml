@@ -41,6 +41,7 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: false
+    fullscreen_component: audio/RecordingEmbedFullscreen.svelte
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.transcribe

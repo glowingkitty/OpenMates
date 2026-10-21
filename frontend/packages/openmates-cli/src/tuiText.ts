@@ -10,7 +10,8 @@ export function terminalText(value: string): string {
 export function graphemeCellWidth(value: string): number {
   if (/^[\p{Mark}\p{Cf}]+$/u.test(value)) return 0;
   const cp = value.codePointAt(0) ?? 0;
-  if (/\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3/u.test(value)) return 2;
+  // Text-presentation pictographs (such as the Settings gear) occupy one cell.
+  if (/\p{Emoji_Presentation}|\p{Regional_Indicator}|\uFE0F|\u20e3/u.test(value)) return 2;
   return cp >= 0x1100 && (cp <= 0x115f || cp === 0x2329 || cp === 0x232a ||
     (cp >= 0x2e80 && cp <= 0xa4cf && cp !== 0x303f) || (cp >= 0xac00 && cp <= 0xd7a3) ||
     (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe10 && cp <= 0xfe19) ||

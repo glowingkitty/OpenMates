@@ -146,7 +146,8 @@ test("saved result keeps child embed actions visible when parent response is lon
     children: [{ embedId: childId, type: "web-website", content: { title: "First website", url: "https://example.org" } }],
   }, 80).join("\n");
   assert.match(rendered, /First website[\s\S]*\/embed 22222222-2222-4222-8222-222222222222/);
-  assert.match(rendered, /Response/);
+  assert.match(rendered, /example.org/);
+  assert.doesNotMatch(rendered, /Response|Result 200/);
 });
 
 // contract-test: supporting surface=cli assertions=app-memories.catalog.declared-types-only,app-memories.transparency.loaded-set

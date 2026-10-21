@@ -185,6 +185,8 @@
         "apps-workspace.spec.ts",
         "header-mobile-layout.spec.ts",
         "components/apps-workspace-preview.spec.ts",
+        "components/apps-request-composer.spec.ts",
+        "components/chat-message-expansion.spec.ts",
         "components/header-mobile-layout-preview.spec.ts",
         "components/connection-status-preview.spec.ts",
         "components/embed-version-timeline.spec.ts",
@@ -482,6 +484,7 @@
       "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed.",
       "specs": [
         "ai-response-language.spec.ts",
+        "apps-workspace.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "cli-recovery-discovery.spec.ts",
         "chat-key-wrapper-migration.spec.ts",
@@ -826,6 +829,13 @@
         "components/inspiration-language.spec.ts",
         "website-language.spec.ts",
         "inspiration-language.spec.ts"
+      ]
+    },
+    "apps_workspace_private_api": {
+      "execution": "e2e",
+      "enabling_work": "Use isolated core session authentication, Vault and Directus with a disposable account. Verify private saved-search persistence, explicit disabled daily searches, account/Team denial and invalid parser/rank admission without provider calls, inference or daily charges.",
+      "specs": [
+        "apps-workspace-api.spec.ts"
       ]
     }
   },

@@ -7953,6 +7953,7 @@
       }
     }
   },
+  "embeds_input": {},
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -21798,6 +21799,5 @@
         "text": "선택한 정의를 복원하지 못했습니다."
       }
     }
-  },
-  "embeds_input": {}
+  }
 }

@@ -452,6 +452,21 @@ resolvers.set(
   },
 );
 
+// Native batch transcriptions reuse the recording preview with exact uploaded metadata.
+resolvers.set('app:audio:transcribe', async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const [{ default: component }, { audioTranscriptionResultContent }] = await Promise.all([
+    import('../components/embeds/audio/RecordingEmbedPreview.svelte'),
+    import('../components/embeds/audio/audioTranscriptionResult'),
+  ]);
+  const content = audioTranscriptionResultContent(decodedContent);
+  const status = normalizeStatus(embedData.status);
+  return { component, props: { id: embedId, status: status === 'processing' ? 'transcribing' : status === 'cancelled' ? 'error' : status,
+    filename: content.filename, transcript: content.transcript, title: content.title, duration: content.duration,
+    transcriptOriginal: content.transcript_original, transcriptCorrected: content.transcript_corrected,
+    useCorrected: content.use_corrected, s3Files: content.s3_files, s3BaseUrl: content.s3_base_url,
+    aesKey: content.aes_key, aesNonce: content.aes_nonce, onFullscreen } };
+});
+
 // ── App-skill-use: code / get_docs ────────────────────────────────────────────
 
 const codeGetDocsResolver: PreviewResolver = async ({

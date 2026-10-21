@@ -68,6 +68,14 @@
       "types": "./src/services/shortUrlEncryption.ts",
       "default": "./src/services/shortUrlEncryption.ts"
     },
+    "./services/appsWorkspaceHandoffNavigation.svelte": {
+      "types": "./src/services/appsWorkspaceHandoffNavigation.svelte.ts",
+      "default": "./src/services/appsWorkspaceHandoffNavigation.svelte.ts"
+    },
+    "./services/appsWorkspaceChatHandoffService": {
+      "types": "./src/services/appsWorkspaceChatHandoffService.ts",
+      "default": "./src/services/appsWorkspaceChatHandoffService.ts"
+    },
     "./services/workflowInputService": {
       "types": "./src/services/workflowInputService.ts",
       "default": "./src/services/workflowInputService.ts"

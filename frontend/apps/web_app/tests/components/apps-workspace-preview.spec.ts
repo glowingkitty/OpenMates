@@ -5,6 +5,7 @@ export {};
 import type { Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { ALL_EXAMPLE_CHATS } from '../../../../packages/ui/src/demo_chats/exampleChatData';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import { assertGuestHeaderControlsSeparated } from '../helpers/header-layout';
 
@@ -33,6 +34,7 @@ async function expectContainedInPreview(page: Page, locator: Locator): Promise<v
 }
 
 async function fixturePublicApps(page: Page): Promise<void> {
+  await page.route('**/v1/apps/workspace/public/**',route=>route.fulfill({json:{recommendations:[],cta:null}}));
   await page.route('**/v1/features/availability', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ disabled: [] }),
   }));
@@ -50,27 +52,6 @@ async function fixturePublicApps(page: Page): Promise<void> {
       unavailable_reason: null, execution_mode: 'sync',
     }),
   }));
-}
-
-async function expectLoadedMaskGlyph(glyph: Locator, svgName: string): Promise<void> {
-  await expect(glyph).toBeVisible();
-  const expectedSvg = readFileSync(resolve(__dirname, `../../../../packages/ui/static/icons/${svgName}.svg`), 'utf8');
-  const expectedPath = expectedSvg.match(/<path d="([^"]+)"/)?.[1];
-  expect(expectedPath).toBeTruthy();
-  const actualPath = await glyph.evaluate(async element => {
-    const mask = getComputedStyle(element).maskImage;
-    // Vite inlines this SVG as a data URL whose clip-path contains `url(...)`.
-    // Match the outer CSS url wrapper, including the embedded closing parenthesis.
-    const url = mask.match(/^url\((['"])(.*)\1\)$/)?.[2];
-    if (!url) return null;
-    const svg = await (await fetch(url)).text();
-    return new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('path')?.getAttribute('d');
-  });
-  expect(actualPath).toBe(expectedPath);
-}
-
-async function expectLoadedSkillHeroGlyph(page: Page, svgName: string): Promise<void> {
-  await expectLoadedMaskGlyph(page.getByTestId('apps-hero-icon').locator(`[data-skill-icon="${svgName}"]`), svgName);
 }
 
 async function attachWorkspaceScreenshot(page: Page, name: string): Promise<void> {
@@ -374,305 +355,201 @@ test.describe('Apps bare component previews', () => {
     }
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency,apps.navigation.hash-and-forwarding
-  test('shows app fullscreen tabs, icon and parent close route at laptop and phone widths', async ({ page }: { page: Page }) => {
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen,apps.navigation.hash-and-forwarding
+  test('app home keeps its header, clipped example carousel, controls and composer bounded on laptop and phone', async ({ page }: { page: Page }) => {
     await fixturePublicApps(page);
     for (const width of [1180, 390]) {
-      await page.setViewportSize({ width, height: 844 });
-      await page.goto(preview('apps/AppsWorkspace', width === 1180 ? 1100 : width, 'app'), { waitUntil: 'domcontentloaded' });
+      await page.setViewportSize({width,height:844});
+      await page.goto(preview('apps/AppsWorkspace',width,'app'),{waitUntil:'domcontentloaded'});
       await waitForComponentPreview(page);
-      const fullscreen = page.getByTestId('apps-detail-fullscreen');
+      const fullscreen=page.getByTestId('apps-detail-fullscreen');
       await expect(fullscreen).toBeVisible();
-      await expect(page.getByTestId('apps-hero-category')).toHaveText('App');
-      await page.evaluate(() => window.addEventListener('apps-preview-navigate', event => { (window as Window & { appsPreviewNavigation?: string }).appsPreviewNavigation = (event as CustomEvent<string>).detail; }));
-      await expect(page.getByTestId('apps-hero-icon')).toBeVisible();
-      // Background chat restoration must not navigate independent Apps details.
-      await page.evaluate(() => window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat_id: 'background-chat' } })));
-      await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible();
-      expect(await page.evaluate(() => (window as Window & { appsPreviewNavigation?: string }).appsPreviewNavigation ?? null)).toBeNull();
-      await expect(page.getByTestId('apps-hero-icon')).toHaveAttribute('aria-hidden', 'true');
-      await expect(page.getByTestId('apps-hero-icon')).not.toHaveAttribute('role', 'button');
-      await expect(page.getByTestId('apps-hero-icon')).not.toHaveAttribute('tabindex', '0');
-      await expect(page.getByTestId('apps-hero-icon')).not.toHaveJSProperty('tagName', 'BUTTON');
-      const appTile = page.getByTestId('apps-hero-icon').locator('.apps-header-app-icon');
-      await expect(appTile).toBeVisible();
-      await expect(appTile).toHaveClass(/\bicon\b/);
-      await expect(appTile).toHaveClass(/\bapp-/);
-      await expect(appTile).toHaveCSS('width', width === 1180 ? '70px' : '58px');
-      await expect(appTile).toHaveCSS('height', width === 1180 ? '70px' : '58px');
-      await expect(appTile).toHaveCSS('border-top-color', 'rgb(255, 255, 255)');
-      const cardTile = page.getByTestId('apps-app-card').getByTestId('app-store-card')
-        .filter({ has: page.getByTestId('app-card-name').getByText('Health', { exact: true }) }).getByTestId('app-card-icon').locator('.icon');
-      const cardStyle = await cardTile.evaluate(element => ({
-        gradient: getComputedStyle(element).backgroundImage,
-        glyph: getComputedStyle(element, '::before').backgroundImage,
-      }));
-      const heroStyle = await appTile.evaluate(element => ({
-        gradient: getComputedStyle(element).backgroundImage,
-        glyph: getComputedStyle(element, '::before').backgroundImage,
-      }));
-      expect(heroStyle).toEqual(cardStyle);
-      expect(heroStyle.gradient).toContain('linear-gradient');
-      expect(heroStyle.glyph).not.toBe('none');
-      await expect(page.getByTestId('apps-hero-icon')).toHaveCSS('border-top-width', '0px');
-      await expect(page.getByTestId('apps-hero-stats')).toContainText(/\d+ skills/);
-      await expect(page.getByTestId('apps-tab-overview')).toBeVisible();
-      await expect(page.getByTestId('apps-tab-embeds')).toBeVisible();
-      await expect(page.getByTestId('apps-tab-workflows')).toBeVisible();
-      await expect(page.getByTestId('apps-tab-focus_modes')).toBeVisible();
-      await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
-      await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(4);
-      await expectLoadedMaskGlyph(page.getByTestId('apps-tab-overview').locator('.tab-icon'), 'app');
-      await expectLoadedMaskGlyph(page.getByTestId('apps-tab-focus_modes').locator('.tab-icon'), 'search');
-      const tabBar = await page.getByTestId('apps-detail-tabs').boundingBox();
-      for (const tab of await page.getByTestId('apps-detail-tabs').getByRole('tab').all()) {
-        await expect(tab).toBeVisible();
-        const bounds = await tab.boundingBox();
-        expect(bounds!.x).toBeGreaterThanOrEqual(tabBar!.x - 1);
-        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(tabBar!.x + tabBar!.width + 1);
-        await expectContainedInPreview(page, tab);
+      await expect(fullscreen.getByTestId('embed-header-title')).toContainText('Health');
+      const hero=fullscreen.getByTestId('apps-hero-icon');
+      await expect(hero).toBeVisible();await expect(hero).toHaveAttribute('aria-hidden','true');await expect(hero).not.toHaveAttribute('tabindex','0');await expect(hero).toHaveCSS('pointer-events','none');
+      const tile=hero.locator('.apps-header-app-icon');await expect(tile).toBeVisible();expect(await tile.evaluate(element=>getComputedStyle(element).backgroundImage)).toContain('linear-gradient');expect(await tile.evaluate(element=>getComputedStyle(element,'::before').backgroundImage)).not.toBe('none');
+      await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);
+      await expect(page.getByTestId('apps-request-textarea')).toBeVisible();
+      for(const id of ['apps-settings-open','apps-sidebar-toggle','apps-request-add-files','apps-request-mic']) {
+        const control=page.getByTestId(id);await expect(control).toBeVisible();await expectContainedInPreview(page,control);
       }
-      await expect(page.getByTestId('apps-tab-overview').locator('.tab-icon')).toBeVisible();
-      const hero = await fullscreen.locator('.embed-header').boundingBox();
-      const innerCard = await page.getByTestId('apps-detail-card').boundingBox();
-      const floatingTabs = await page.getByTestId('apps-detail-tabs').boundingBox();
-      expect(hero?.height).toBeGreaterThanOrEqual(width === 1180 ? 345 : 285);
-      expect(floatingTabs?.y).toBeLessThan(innerCard?.y ?? 0);
-      expect(floatingTabs?.width).toBeLessThanOrEqual(320);
-      await expectContainedInPreview(page, page.getByTestId('apps-hero-identity'));
-      await expectContainedInPreview(page, page.getByTestId('apps-hero-icon'));
-      const category = await page.getByTestId('apps-hero-category').boundingBox();
-      const heroIcon = await page.getByTestId('apps-hero-icon').boundingBox();
-      expect((category?.y ?? 0) + (category?.height ?? 0)).toBeLessThan((heroIcon?.y ?? 0) - 2);
-      await expectContainedInPreview(page, page.getByTestId('apps-detail-card'));
-      await expectContainedInPreview(page, page.getByTestId('apps-detail-tabs'));
-      await expect(page.getByRole('heading', { name: 'Which app skill do you want to use?' })).toBeVisible();
+      const submit=page.getByTestId('apps-request-submit');
+      await expect(submit).toHaveCount(0);
+      await page.getByTestId('apps-request-textarea').fill('Find dermatologists in Berlin');
+      await expect(submit).toBeVisible();await expectContainedInPreview(page,submit);
+      await page.getByTestId('apps-request-textarea').fill('');
+      await expect(submit).toHaveCount(0);await expect(page.getByTestId('apps-request-mic')).toBeVisible();
+      await expect(page.getByTestId('apps-settings-open')).toHaveCount(1);
+      const carousel=page.getByTestId('apps-preview-carousel');
+      const examples=carousel.getByTestId('app-store-example-chat-card');
+      await expect(examples.first()).toBeVisible();
+      const ids=await examples.evaluateAll(elements=>elements.map(element=>element.getAttribute('data-chat-id')));
+      expect(ids.length).toBeGreaterThan(0);expect(ids.every(id=>ALL_EXAMPLE_CHATS.some(chat=>chat.chat_id===id))).toBe(true);
+      await expect(carousel).toHaveCSS('overflow-x','auto');
+      const geometry=await carousel.evaluate(element=>({scroll:element.scrollWidth,client:element.clientWidth}));
+      if(width===390&&ids.length>1)expect(geometry.scroll).toBeGreaterThan(geometry.client);
+      await carousel.evaluate(element=>{element.scrollLeft=element.scrollWidth;});
+      await expect(examples.last()).toBeInViewport();
+      const exampleNavigation=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
+      await examples.last().click();expect(await exampleNavigation).toBe('#chat-id='+encodeURIComponent(ids.at(-1)!));
+      await page.getByTestId('apps-request-textarea').focus();await expect(page.getByTestId('apps-request-textarea')).toBeFocused();
+      await page.getByTestId('apps-settings-open').click();await expect(page.getByTestId('apps-settings')).toBeVisible();
+      await expect(page.getByTestId('apps-daily-searches')).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
-      await attachWorkspaceScreenshot(page, `app-detail-${width}.png`);
+      const navigated=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
+      await page.getByTestId('apps-detail-close').click();expect(await navigated).toBe('#apps');
     }
-    const navigated = page.evaluate(() => new Promise<string>(resolve =>
-      window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-    await page.getByTestId('apps-detail-close').click();
-    expect(await navigated).toBe('#apps');
-    await page.goto(preview('apps/AppsWorkspace', 390, 'appCode'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    const codeTile = page.getByTestId('apps-hero-icon').locator('.apps-header-app-icon');
-    await expect(codeTile).toHaveClass(/\bapp-code\b/);
-    expect(await codeTile.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('linear-gradient');
-    expect(await codeTile.evaluate(element => getComputedStyle(element, '::before').backgroundImage)).not.toBe('none');
-    await expect(page.getByTestId('apps-tab-settings_memories')).toBeVisible();
-    const memoryRoute = page.evaluate(() => new Promise<string>(resolve =>
-      window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-    await page.getByTestId('apps-tab-settings_memories').click();
-    expect(await memoryRoute).toBe('#apps/code&tab=settings_memories');
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency,apps.navigation.hash-and-forwarding
-  test('shows only populated app tabs and opens a real focus example at phone width', async ({ page }: { page: Page }) => {
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.library.embeds-account-paginated
+  test('drafts survive profile publications and login readiness while account and Team changes clear private attachments', async ({ page }: { page: Page }) => {
     await fixturePublicApps(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(preview('apps/AppsWorkspace', 390, 'appFocus'), { waitUntil: 'domcontentloaded' });
+    await page.route('**/v1/apps/workspace/library/web*', route => route.fulfill({ json: {
+      app_id: 'web', daily_searches_enabled: false, saved_searches: [], recommendations: [],
+    } }));
+    await page.route('**/v1/apps/workspace/results?*', route => route.fulfill({ json: { items: [], offset: 0, limit: 20, has_more: false } }));
+    await page.goto(preview('apps/AppsWorkspace', 1180, 'teamLibrary'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
-    await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible();
-    await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
-    await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
-    await page.goto(preview('apps/AppsWorkspace', 390, 'appPolitics'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    await expect(page.getByTestId('apps-tab-focus_modes')).toBeVisible();
-    await expect(page.getByTestId('apps-tab-overview')).toHaveCount(0);
-    await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
-    await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible();
-    await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
-    await page.goto(preview('apps/AppsWorkspace', 390, 'politicsFocus'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    await page.evaluate(() => {
-      (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = undefined;
-      window.open = ((url, target, features) => {
-        (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = [String(url), String(target), String(features)];
-        return null;
-      }) as typeof window.open;
+    const input = page.getByTestId('apps-request-textarea');
+    const attach = async () => page.getByTestId('apps-request-file-input').setInputFiles({
+      name: 'private-garden.txt', mimeType: 'text/plain', buffer: Buffer.from('Synthetic garden reference'),
     });
-    await page.getByTestId('app-store-example-chat-card').click();
-    expect(await page.evaluate(() => (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample))
-      .toEqual(['/#chat-id=example-housing-policy-dinner-discussion', '_blank', 'noopener,noreferrer']);
-    await page.goto(preview('apps/AppsWorkspace', 390, 'appMemory'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    await expect(page.getByTestId('settings-memory-cards-scroll')).toBeVisible();
-    await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
-  });
-
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.presentation.shared-detail-and-recency
-  test('renders a skill form and focuses its main input from Use skill', async ({ page }: { page: Page }) => {
-    await fixturePublicApps(page);
-    await page.setViewportSize({ width: 1180, height: 844 });
-    await page.goto(preview('apps/AppsWorkspace', 1100, 'skill'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    const form = page.getByTestId('apps-skill-form');
-    await expect(form).toBeVisible();
-    const context = page.getByTestId('apps-skill-context');
-    await expect(context).not.toHaveAttribute('open', '');
-    await expect(page.getByTestId('apps-skill-context-toggle')).toContainText('Click here to learn more');
-    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
-    await expect(page.getByTestId('apps-skill-chat-example')).toHaveCount(0);
-    await expect(page.getByTestId('apps-skill-manual-intro')).toHaveCount(0);
-    // Sample both rectangles in one frame: the fullscreen slide moves both
-    // elements while separate Playwright calls can observe different frames.
-    const contextToFormGap = await context.evaluate(element => {
-      const form = element.closest('[data-testid="apps-detail-card"]')?.querySelector('[data-testid="apps-skill-form"]');
-      if (!form) throw new Error('Skill form is missing beside its disclosure');
-      return form.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
-    });
-    expect(contextToFormGap).toBeGreaterThanOrEqual(0);
-    await expect(page.getByTestId('apps-hero-category')).toContainText('Web');
-    await expect(page.getByTestId('apps-hero-providers')).toContainText('Brave');
-    await expect(page.getByTestId('apps-use-skill')).toBeVisible();
-    await expectLoadedSkillHeroGlyph(page, 'search');
-    const skillIcon = page.getByTestId('apps-hero-icon');
-    await expect(skillIcon).toHaveAttribute('aria-hidden', 'true');
-    await expect(skillIcon).not.toHaveJSProperty('tagName', 'BUTTON');
-    await expect(skillIcon).not.toHaveAttribute('tabindex', '0');
-    await expect(skillIcon).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(skillIcon).toHaveCSS('border-top-width', '0px');
-    await expect(skillIcon).toHaveCSS('box-shadow', 'none');
-    await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(3);
-    await expectContainedInPreview(page, page.getByTestId('apps-hero-identity'));
-    await expectContainedInPreview(page, page.getByTestId('apps-detail-card'));
-    await expectContainedInPreview(page, page.getByTestId('apps-detail-tabs'));
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-primary-fields').locator('input'));
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-settings-toggle'));
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-signup'));
-    await expect(page.getByTestId('apps-skill-primary-fields').locator('input')).toHaveCount(1);
-    await attachWorkspaceScreenshot(page, 'skill-detail-1180.png');
-    await page.getByTestId('apps-use-skill').click();
-    await expect(form.locator('input').first()).toBeFocused();
-    await expect(page.locator('.skill-form-area.highlight')).toBeVisible();
-    await page.getByTestId('apps-skill-settings-toggle').click();
-    await expect(page.getByTestId('apps-skill-settings')).toBeVisible();
-    await page.evaluate(() => {
-      (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = undefined;
-      window.open = ((url, target, features) => {
-        (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = [String(url), String(target), String(features)];
-        return null;
-      }) as typeof window.open;
-    });
-    await page.getByTestId('apps-skill-context-toggle').click();
-    await expect(page.getByTestId('apps-skill-context-details')).toBeVisible();
-    await expect(page.getByTestId('app-store-example-card')).toHaveCount(0);
-    await expect(page.getByTestId('apps-skill-chat-example')).toHaveCount(0);
-    const realSkillExample = page.locator('[data-testid="app-store-example-chat-card"][data-chat-id="example-eu-chat-control-law"]');
-    await expect(realSkillExample).toBeVisible();
-    await realSkillExample.click();
-    const opened = await page.evaluate(() => (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample);
-    expect(opened?.[0]).toBe('/#chat-id=example-eu-chat-control-law');
-    expect(opened?.slice(1)).toEqual(['_blank', 'noopener,noreferrer']);
-    await page.getByTestId('apps-skill-context-toggle').click();
-    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
-    await expect(form).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(preview('apps/AppsWorkspace', 390, 'skill'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible();
-    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-context-toggle'));
-    await expect(page.getByTestId('apps-use-skill')).toBeVisible();
-    await expectContainedInPreview(page, page.getByTestId('apps-hero-identity'));
-    await expectContainedInPreview(page, page.getByTestId('apps-detail-card'));
-    await expectContainedInPreview(page, page.getByTestId('apps-detail-tabs'));
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-primary-fields').locator('input'));
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-settings-toggle'));
-    await expectContainedInPreview(page, page.getByTestId('apps-skill-signup'));
-    const category = await page.getByTestId('apps-hero-category').boundingBox();
-    const heroIcon = await page.getByTestId('apps-hero-icon').boundingBox();
-    expect((category?.y ?? 0) + (category?.height ?? 0)).toBeLessThan((heroIcon?.y ?? 0) - 2);
-    await expectNoHorizontalOverflow(page);
-    await attachWorkspaceScreenshot(page, 'skill-detail-390.png');
-  });
-
-  // contract-test: direct surface=gui.web assertions=apps.library.workflows-account-related
-  test('switching Personal and Team clears rows and cursors before stale requests finish', async ({ page }: { page: Page }) => {
-    await fixturePublicApps(page);
-    const queries: Array<{ appId: string | null; teamId: string | null; offset: number; limit: number }> = [];
-    let releasePersonalLate!: () => void;
-    const personalLateGate = new Promise<void>(resolve => { releasePersonalLate = resolve; });
-    let releaseTeamFirst!: () => void;
-    const teamFirstGate = new Promise<void>(resolve => { releaseTeamFirst = resolve; });
-    await page.route('**/v1/workflows?*', async route => {
-      const url = new URL(route.request().url());
-      const appId = url.searchParams.get('app_id');
-      if (!appId) return route.continue();
-      const teamId = url.searchParams.get('team_id');
-      const offset = Number(url.searchParams.get('offset'));
-      const limit = Number(url.searchParams.get('limit'));
-      queries.push({ appId, teamId, offset, limit });
-      if (!teamId && offset === 40) await personalLateGate;
-      if (teamId && offset === 0) await teamFirstGate;
-      const scope = teamId ? 'Team' : 'Personal';
-      await route.fulfill({ json: {
-        workflows: [{ id: `${scope.toLowerCase()}-${offset}`, title: `${scope} workflow ${offset}` }],
-        has_more: !teamId && offset < 40, offset, limit,
-      } });
-    });
-    await page.goto(preview('apps/AppsWorkspace', 1100, 'teamLibrary'), { waitUntil: 'domcontentloaded' });
-    await waitForComponentPreview(page);
-    expect(await page.evaluate(() => (window as Window & {
-      appsPreviewAccountSnapshot?: () => unknown;
-    }).appsPreviewAccountSnapshot?.())).toEqual({ isAuthenticated: true, userId: 'preview-user', teamId: null });
-    await expect.poll(() => queries).toContainEqual({ appId: 'web', teamId: null, offset: 0, limit: 20 });
-    const rows = page.getByTestId('apps-workflows-list');
-    await expect(rows.getByText('Personal workflow 0')).toBeVisible();
-    await page.getByTestId('apps-next-page').click();
-    await expect(rows.getByText('Personal workflow 20')).toBeVisible();
-    expect(queries.at(-1)).toEqual({ appId: 'web', teamId: null, offset: 20, limit: 20 });
-
-    const firstTeamRequest = page.waitForRequest(request => {
-      const url = new URL(request.url());
-      return url.pathname.endsWith('/v1/workflows') && url.searchParams.get('team_id') === 'preview-studio';
-    });
+    await input.fill('Find quiet gardens'); await attach();
+    await page.getByTestId('apps-settings-open').click();
+    await expect(input).toHaveCount(0);
+    await page.getByTestId('apps-settings').getByRole('button', { name: 'Back to app', exact: true }).click();
+    await expect(input).toHaveValue('Find quiet gardens');
+    await expect(page.getByTestId('apps-request-attachments')).toContainText('private-garden.txt');
+    await page.evaluate(() => window.dispatchEvent(new Event('apps-preview-refresh-account')));
+    await expect(input).toHaveValue('Find quiet gardens');
+    await expect(page.getByTestId('apps-request-attachments')).toContainText('private-garden.txt');
+    await expect(page.getByTestId('apps-request-submit')).toBeEnabled();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-team', { detail: 'preview-studio' })));
-    await firstTeamRequest;
-    await expect(rows.getByText(/Personal workflow/)).toHaveCount(0);
-    expect(queries.at(-1)).toEqual({ appId: 'web', teamId: 'preview-studio', offset: 0, limit: 20 });
-    releaseTeamFirst();
-    await expect(rows.getByText('Team workflow 0')).toBeVisible();
-    await expect(page.getByTestId('apps-previous-page')).toBeDisabled();
-    await expect(page.getByTestId('apps-next-page')).toBeDisabled();
-
+    await expect(input).toHaveValue(''); await expect(page.getByTestId('apps-request-attachments')).toHaveCount(0);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-team', { detail: null })));
-    await expect(rows.getByText(/Team workflow/)).toHaveCount(0);
-    await expect(rows.getByText('Personal workflow 0')).toBeVisible();
-    await expect(page.getByTestId('apps-previous-page')).toBeDisabled();
-    expect(queries.at(-1)).toEqual({ appId: 'web', teamId: null, offset: 0, limit: 20 });
-    await page.getByTestId('apps-next-page').click();
-    await expect(rows.getByText('Personal workflow 20')).toBeVisible();
-
-    const latePersonal = page.waitForRequest(request => {
-      const url = new URL(request.url());
-      return url.pathname.endsWith('/v1/workflows') && url.searchParams.get('offset') === '40';
-    });
-    await page.getByTestId('apps-next-page').click();
-    await latePersonal;
-    const teamRequest = page.waitForRequest(request => {
-      const url = new URL(request.url());
-      return url.pathname.endsWith('/v1/workflows') && url.searchParams.get('team_id') === 'preview-studio';
-    });
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-team', { detail: 'preview-studio' })));
-    await expect(rows.getByText(/Personal workflow/)).toHaveCount(0);
-    await teamRequest;
-    expect(queries.at(-1)).toEqual({ appId: 'web', teamId: 'preview-studio', offset: 0, limit: 20 });
-    await expect(rows.getByText('Team workflow 0')).toBeVisible();
-    await expect(page.getByTestId('apps-previous-page')).toBeDisabled();
-    const staleResponse = page.waitForResponse(response => {
-      const url = new URL(response.url());
-      return url.pathname.endsWith('/v1/workflows') && url.searchParams.get('offset') === '40';
-    });
-    releasePersonalLate();
-    await staleResponse;
-    await expect(rows.getByText('Team workflow 0')).toBeVisible();
-    await expect(rows.getByText(/Personal workflow/)).toHaveCount(0);
-    await expect(page.getByTestId('apps-next-page')).toBeDisabled();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-owner', { detail: { authenticated: false, userId: null } })));
+    await input.fill('Continue this guest search after login'); await attach();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-owner', { detail: { authenticated: true, userId: null } })));
+    await expect(input).toHaveValue('Continue this guest search after login');
+    await expect(input).toBeDisabled();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-owner', { detail: { authenticated: true, userId: 'preview-user' } })));
+    await expect(input).toHaveValue('Continue this guest search after login');
+    await expect(input).toBeEnabled();
+    await expect(page.getByTestId('apps-request-attachments')).toContainText('private-garden.txt');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('apps-preview-set-owner', { detail: { authenticated: true, userId: 'preview-other' } })));
+    await expect(input).toHaveValue(''); await expect(page.getByTestId('apps-request-attachments')).toHaveCount(0);
   });
+
+  // contract-test: direct surface=gui.web assertions=apps.recommendations.private-daily,apps.requests.natural-language
+  test('saved and recommended carousels, ordered sidebar and Daily switch use the active account',async({page}:{page:Page})=>{
+    await fixturePublicApps(page);
+    const now=Math.floor(Date.now()/1000);let enabled=true;const settingsBodies:Record<string,unknown>[]=[];
+    const library=()=>({app_id:'web',daily_searches_enabled:enabled,saved_searches:Array.from({length:4},(_,index)=>({id:`saved-${index}`,skill_id:'search',title:`Saved garden ${index}`,query:`Saved garden ${index}`,parameters:{query:`garden ${index}`},saved_at:now-index})),
+      recommendations:[{id:'90000000-0000-4000-8000-000000000010',skill_id:'search',created_at:now,expires_at:now+3600,result:{query:'Recommended gardens',result_count:1,results:[{title:'Fresh garden result',url:'https://example.test/garden'}]}}]});
+    await page.route('**/v1/apps/workspace/library/web',route=>route.fulfill({json:library()}));
+    await page.route('**/v1/apps/workspace/results?*',route=>route.fulfill({json:{items:[],offset:0,limit:20,has_more:false}}));
+    await page.route('**/v1/apps/workspace/library/web/settings',route=>{const body=route.request().postDataJSON();settingsBodies.push(body);enabled=body.daily_searches_enabled;return route.fulfill({json:library()});});
+    for(const width of [1180,390]){
+      await page.setViewportSize({width,height:844});await page.goto(preview('apps/AppsWorkspace',width,'teamLibrary'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
+      await expect(page.getByTestId('apps-tab-recommended')).toHaveAttribute('aria-pressed','true');
+      await expect(page.getByTestId('apps-preview-carousel').getByTestId('embed-preview')).toBeVisible();
+      await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-tab-saved')).toHaveAttribute('aria-pressed','true');
+      const carousel=page.getByTestId('apps-preview-carousel');await expect(carousel.getByTestId('apps-saved-search-query')).toHaveCount(4);
+      expect(await carousel.evaluate(element=>element.scrollWidth>element.clientWidth)).toBe(true);
+      await carousel.evaluate(element=>{element.scrollLeft=element.scrollWidth;});await expect(carousel.getByTestId('apps-saved-search-query').last()).toBeInViewport();
+      await page.getByTestId('apps-sidebar-toggle').click();const sidebar=page.getByTestId('apps-sidebar');await expect(sidebar).toBeVisible();
+      expect(await sidebar.locator('section').evaluateAll(elements=>elements.map(element=>element.getAttribute('data-testid')))).toEqual(['apps-sidebar-saved','apps-sidebar-recent','apps-sidebar-examples']);
+      await expect(sidebar.getByTestId('apps-sidebar-saved').getByRole('button')).toHaveCount(4);
+      await sidebar.getByRole('button',{name:'Close',exact:true}).click();await expect(sidebar).toHaveCount(0);
+      await page.getByTestId('apps-settings-open').click();const toggle=page.getByTestId('apps-daily-searches-toggle');await expect(toggle).toBeVisible();
+      const before=enabled;await toggle.click();await expect.poll(()=>settingsBodies.at(-1)?.daily_searches_enabled).toBe(!before);
+      expect(settingsBodies.at(-1)?.expected_user_id).toBe('preview-user');await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding
+  test('a public focus detail still opens its real published example safely',async({page}:{page:Page})=>{
+    await page.goto(preview('apps/AppsWorkspace',390,'politicsFocus'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
+    await page.evaluate(()=>{window.open=((url,target,features)=>{(window as Window&{appsOpenedExample?:string[]}).appsOpenedExample=[String(url),String(target),String(features)];return null;}) as typeof window.open;});
+    await page.getByTestId('app-store-example-chat-card').click();expect(await page.evaluate(()=>(window as Window&{appsOpenedExample?:string[]}).appsOpenedExample)).toEqual(['/#chat-id=example-housing-policy-dinner-discussion','_blank','noopener,noreferrer']);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.recommendations.private-daily,apps.library.embeds-account-paginated
+  test('switching Personal and Team clears private saved entries before rejecting stale responses',async({page}:{page:Page})=>{
+    await fixturePublicApps(page);let releasePersonal!:()=>void;let releaseTeam!:()=>void;
+    const personalGate=new Promise<void>(resolve=>{releasePersonal=resolve;});const teamGate=new Promise<void>(resolve=>{releaseTeam=resolve;});
+    let blockPersonal=false;const queries:string[]=[];
+    await page.route('**/v1/apps/workspace/results?*',route=>route.fulfill({json:{items:[],offset:0,limit:20,has_more:false}}));
+    await page.route('**/v1/apps/workspace/library/web*',async route=>{
+      const team=new URL(route.request().url()).searchParams.get('team_id');queries.push(team??'personal');
+      if(!team&&blockPersonal)await personalGate;if(team)await teamGate;
+      await route.fulfill({json:{app_id:'web',daily_searches_enabled:true,recommendations:[],saved_searches:[{id:team?'team':'personal',skill_id:'search',query:team?'Team garden':'Personal garden',parameters:{query:'garden'},saved_at:1}]}});
+    });
+    await page.goto(preview('apps/AppsWorkspace',1100,'teamLibrary'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
+    await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Personal garden');
+    // A synthetic encrypted Personal memory exercises the actual snapshot reader,
+    // rather than treating a server saved-search row as a decrypted memory.
+    await page.evaluate(async () => {
+      const browser = window as Window & {
+        appsBlockMemoryRead?: boolean;
+        appsMemoryReadStarted?: number;
+        appsMemoryReadReleased?: number;
+        appsReleaseMemoryReads?: Array<() => void>;
+      };
+      const open = (name: string, version?: number) => new Promise<IDBDatabase>((resolve, reject) => {
+        const request = version ? indexedDB.open(name, version) : indexedDB.open(name);
+        request.onupgradeneeded = () => { if (name === 'openmates_crypto' && !request.result.objectStoreNames.contains('keys')) request.result.createObjectStore('keys'); };
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      const write = (db: IDBDatabase, store: string, value: unknown, key?: IDBValidKey) => new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(store, 'readwrite');
+        if (key === undefined) transaction.objectStore(store).put(value); else transaction.objectStore(store).put(value, key);
+        transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
+      });
+      const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify({
+        embed_id: '72000000-0000-4000-8000-000000000001', title: 'Personal encrypted memory marker', skill_id: 'search', _original_item_key: 'personal-memory',
+      }))));
+      const combined = new Uint8Array(iv.length + ciphertext.length); combined.set(iv); combined.set(ciphertext, iv.length);
+      const keyDb = await open('openmates_crypto', 1);
+      try { await write(keyDb, 'keys', key, 'master_key'); } finally { keyDb.close(); }
+      const chatDb = await open('chats_db');
+      try { await write(chatDb, 'app_settings_memories', {
+        id: '72000000-0000-4000-8000-000000000002', app_id: 'web', item_key: 'synthetic-personal-hash', item_type: 'read_later',
+        encrypted_item_json: btoa(String.fromCharCode(...combined)), encrypted_app_key: '', created_at: 1, updated_at: 1, item_version: 1,
+      }); } finally { chatDb.close(); }
+      const expected = btoa(String.fromCharCode(...ciphertext));
+      const decrypt = crypto.subtle.decrypt.bind(crypto.subtle);
+      browser.appsReleaseMemoryReads = [];
+      browser.appsMemoryReadStarted = 0; browser.appsMemoryReadReleased = 0;
+      crypto.subtle.decrypt = (async (...args: Parameters<SubtleCrypto['decrypt']>) => {
+        const decrypted = await decrypt(...args);
+        const data = args[2];
+        const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+        if (!browser.appsBlockMemoryRead || btoa(String.fromCharCode(...bytes)) !== expected) return decrypted;
+        browser.appsMemoryReadStarted = (browser.appsMemoryReadStarted ?? 0) + 1;
+        return new Promise<ArrayBuffer>(resolve => browser.appsReleaseMemoryReads!.push(() => {
+          browser.appsMemoryReadReleased = (browser.appsMemoryReadReleased ?? 0) + 1; resolve(decrypted);
+        }));
+      }) as SubtleCrypto['decrypt'];
+      window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));
+    });
+    await page.getByTestId('apps-sidebar-toggle').click();
+    await expect(page.getByTestId('apps-sidebar').getByText('Personal encrypted memory marker', { exact: true })).toBeVisible();
+
+    blockPersonal=true;await page.evaluate(()=>{(window as Window & {appsBlockMemoryRead?:boolean}).appsBlockMemoryRead=true;window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));});
+    await page.waitForFunction(() => ((window as Window & {appsMemoryReadStarted?:number}).appsMemoryReadStarted ?? 0) > 0);await expect.poll(()=>queries.filter(value=>value==='personal').length).toBeGreaterThan(1);
+    await page.evaluate(()=>window.dispatchEvent(new CustomEvent('apps-preview-set-team',{detail:'preview-studio'})));await expect.poll(()=>queries.at(-1)).toBe('preview-studio');
+    await expect(page.getByText('Personal garden',{exact:true})).toHaveCount(0);await expect(page.getByText('Personal encrypted memory marker',{exact:true})).toHaveCount(0);releaseTeam();
+    await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Team garden');
+    const lateResponse=page.waitForResponse(response=>response.url().endsWith('/v1/apps/workspace/library/web'));releasePersonal();
+    await page.evaluate(() => {const browser=window as Window & {appsBlockMemoryRead?:boolean;appsReleaseMemoryReads?:Array<()=>void>};browser.appsBlockMemoryRead=false;for(const release of browser.appsReleaseMemoryReads??[])release();});
+    await page.waitForFunction(() => ((window as Window & {appsMemoryReadReleased?:number}).appsMemoryReadReleased ?? 0) > 0);
+    await lateResponse;await expect(page.getByText('Personal encrypted memory marker',{exact:true})).toHaveCount(0);await expect(page.getByTestId('apps-saved-search-query')).toContainText('Team garden');await expect(page.getByText('Personal garden',{exact:true})).toHaveCount(0);
+    blockPersonal=false;await page.evaluate(()=>window.dispatchEvent(new CustomEvent('apps-preview-set-team',{detail:null})));await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Personal garden');await expect(page.getByText('Team garden',{exact:true})).toHaveCount(0);expect(queries.at(-1)).toBe('personal');await expect(page.getByTestId('apps-sidebar').getByText('Personal encrypted memory marker',{exact:true})).toBeVisible();
+  });
+
 });
 
 for (const theme of ['light', 'dark'] as const) {

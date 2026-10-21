@@ -7953,6 +7953,7 @@
       }
     }
   },
+  "embeds_input": {},
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -21798,6 +21799,5 @@
         "text": "चुनी गई परिभाषा को रीस्टोर करने में विफल।"
       }
     }
-  },
-  "embeds_input": {}
+  }
 }

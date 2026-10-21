@@ -192,6 +192,13 @@ function createAppSettingsMemoriesStore() {
   return {
     subscribe,
 
+    /** Read a snapshot without publishing decrypted data into the shared cache. */
+    async readEntriesForApp(appId: string) {
+      if (REMOVED_APP_MEMORY_APP_IDS.has(appId)) return [];
+      const entries = await chatDB.getAppSettingsMemoriesEntriesByApp(appId);
+      return [...(await decryptEntries(entries)).values()];
+    },
+
     async loadEntries() {
       update((state) => ({ ...state, isLoading: true, error: null }));
       try {

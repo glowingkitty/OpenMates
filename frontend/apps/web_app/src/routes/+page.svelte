@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { APPS_WORKSPACE_CHAT_HANDOFF_EVENT, APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT,
+    takeAppsWorkspaceChatHandoff, deliverAppsWorkspaceChatHandoff, isAppsWorkspaceHandoffCurrent, recordAppsWorkspaceHandoffPhase } from '@repo/ui/services/appsWorkspaceChatHandoffService';
+  import { createAppsWorkspaceHandoffNavigation } from '@repo/ui/services/appsWorkspaceHandoffNavigation.svelte';
 	import { getPublicLegalUrl } from '@repo/ui';
 	import { composerFocusRequested } from '@repo/ui/stores/composerFocusStore';
 	import { beginAuthBootstrapReadiness, settleAuthBootstrapReadiness, failAuthBootstrapReadiness,
@@ -115,6 +118,61 @@
 	// Height (px) reserved for the dev console at the bottom of the viewport
 	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+  const appsChatNavigation = createAppsWorkspaceHandoffNavigation();
+  let appsHandoffGeneration = 0;
+  function navigateAppsChatHandoff(): void {
+    const request = takeAppsWorkspaceChatHandoff();
+    if (!request) return;
+    appsHandoffGeneration++;
+    settingsMenuVisible.set(false); panelState.closeSettings(); notFoundPathStore.set(null);
+    const chatId = request.context?.chat_id ?? null;
+    const hash = chatId ? `#chat-id=${encodeURIComponent(chatId)}` : '#compose';
+    activeChatStore.setWithoutHashUpdate(chatId);
+    replaceState(`/${hash}`, {});
+    workspaceHash = hash;
+    appsChatNavigation.request = request;
+  }
+  onMount(() => {
+    const workflow = () => {
+      // The workflow route consumes its own one-use request after account setup.
+      replaceState('/#workflows', {}); workspaceHash = '#workflows';
+    };
+    window.addEventListener(APPS_WORKSPACE_CHAT_HANDOFF_EVENT, navigateAppsChatHandoff);
+    window.addEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, workflow);
+    navigateAppsChatHandoff();
+    return () => {
+      appsHandoffGeneration++;
+      window.removeEventListener(APPS_WORKSPACE_CHAT_HANDOFF_EVENT, navigateAppsChatHandoff);
+      window.removeEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, workflow);
+    };
+  });
+  $effect(() => {
+    const request = appsChatNavigation.request;
+    const surface = activeChat;
+    if (!request || !surface) return;
+    appsChatNavigation.request = null;
+    const generation = appsHandoffGeneration;
+    void (async () => {
+      const chatId = request.context?.chat_id ?? null;
+      const valid = () => (!chatId || getHashParam(window.location.hash, 'chat-id') === chatId) && generation === appsHandoffGeneration && activeChat === surface &&
+        isAppsWorkspaceHandoffCurrent(request) && readWorkspaceHashRoute(window.location.hash).workspace === 'chats';
+      if (!valid()) { recordAppsWorkspaceHandoffPhase('surface-stale'); return; }
+      recordAppsWorkspaceHandoffPhase('surface-ready');
+      try {
+        if (chatId) {
+          const chat = await chatNavigationReader.readChatForNavigation(chatId);
+          if (!valid()) return;
+          if (!chat) throw new Error('source_chat_unavailable');
+          await surface.loadChat(chat);
+        } else await surface.resetToNewChat();
+        recordAppsWorkspaceHandoffPhase('surface-prepared');
+        await tick();
+        if (!valid() || surface.getCurrentChatId() !== chatId) { recordAppsWorkspaceHandoffPhase('prepared-surface-stale'); return; }
+        deliverAppsWorkspaceChatHandoff(request, chatId);
+      } catch { recordAppsWorkspaceHandoffPhase('surface-error'); if (valid()) notificationStore.error($text('apps_workspace.request_error')); }
+    })();
+  });
+
 	let pendingExampleChatNavigation = $state<{
 		chat: Chat;
 		messageId?: string | null;

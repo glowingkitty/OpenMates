@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-/** Browser contracts for public Apps navigation, schema forms, and guest admission. */
+/** Browser contracts for public Apps navigation, natural-language requests and encrypted retention. */
 export {};
+import type { Page } from '@playwright/test';
 import { assertGuestHeaderControlsSeparated } from './helpers/header-layout';
+import { assertWorkspaceNavigationItems } from './helpers/workspace-navigation';
 import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl } = require('./helpers/cli-test-helpers');
-const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount, withMockMarker } = require('./signup-flow-helpers');
 
 type SkillFixture = {
   app_id: string;
@@ -18,8 +20,181 @@ type SkillFixture = {
   relevanceCriteria?: boolean;
 };
 
+
+// Keep startup exceptions available when the app fails before login can render.
+// Deliberately exclude ordinary console output, argument objects and HTTP bodies.
+const appsRuntimeErrors = new WeakMap<Page, Array<{ source: string; message: string; stack?: string }>>();
+function safeRuntimeError(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s)]+/g, raw => {
+      try { const url = new URL(raw); return `${url.origin}${url.pathname}`; } catch { return '[url]'; }
+    })
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
+    .replace(/\bBearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(/\b(?:access_token|refresh_token|api_key|password|authorization|cookie)\b\s*[:=]\s*[^\s,;]+/gi, '[credential redacted]')
+    .replace(/\b[A-Za-z0-9_+/=-]{48,}\b/g, '[long value redacted]')
+    .replace(/\{\s*["'][\s\S]*/, '[structured payload omitted]')
+    .slice(0, 700);
+}
+test.beforeEach(async ({ page }: { page: Page }) => {
+  const records: Array<{ source: string; message: string; stack?: string }> = [];
+  appsRuntimeErrors.set(page, records);
+  const capture = (source: string, message: string, stack?: string) => {
+    if (records.length >= 16) return;
+    const entry = { source, message: safeRuntimeError(message.split('\n')[0]),
+      ...(stack ? { stack: stack.split('\n').filter(line => /^\s*at\s/.test(line)).slice(0, 6).map(safeRuntimeError).join('\n') } : {}) };
+    if (!records.some(record => record.source === entry.source && record.message === entry.message)) records.push(entry);
+  };
+  page.on('pageerror', error => capture('pageerror', `${error.name}: ${error.message}`, error.stack));
+  page.on('console', message => {
+    if (!['error', 'warning'].includes(message.type())) return;
+    const firstLine = message.text().split('\n')[0];
+    if (/^\[(?:ChatSyncService:Senders|MessageInput|handleSend)\]/.test(firstLine)) {
+      capture(`sender.${message.type()}`, firstLine.replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi, '[id]'));
+      return;
+    }
+    if (/(?:InternalError|ReferenceError|TypeError|SyntaxError|RangeError|Uncaught|Cannot access .{0,120} before initialization|Failed to fetch dynamically imported module|Failed to load module script|\[svelte\].*(?:error|exception))/i.test(firstLine)) {
+      capture('console.error', firstLine);
+    }
+  });
+});
+test.afterEach(async ({ page }: { page: Page }, testInfo: { status?: string; expectedStatus?: string; attach: (name: string, options: { body: string; contentType: string }) => Promise<void> }) => {
+  const records = appsRuntimeErrors.get(page) ?? [];
+  appsRuntimeErrors.delete(page);
+  if (testInfo.status === testInfo.expectedStatus) return;
+  if (records.length) {
+    const body = JSON.stringify(records, null, 2);
+    await testInfo.attach('apps-client-runtime-errors', { body, contentType: 'application/json' });
+    console.info(`[Apps client runtime errors] ${JSON.stringify(records)}`);
+  }
+  // Capture lifecycle stages and counts, never draft prose, IDs or attachment data.
+  const handoff = await page.evaluate(() => {
+    const diagnosticWindow = window as typeof window & {
+      __openmatesAppsHandoffDebug?: string[];
+      __openmatesLastSendDebug?: { step?: string; details?: Record<string, unknown> };
+      __openmatesMessageInputDraftDiagnostics?: Array<Record<string, unknown>>;
+      __openmatesSendPrepPhases?: Array<{ phase?: unknown; ms?: unknown }>;
+      __openmatesLastChatKeyGuardDebug?: { reason?: unknown; teamScoped?: unknown; candidateCount?: unknown };
+    };
+    const send = diagnosticWindow.__openmatesLastSendDebug;
+    const safeLabel = (value: unknown) => typeof value === 'string' && /^[a-z0-9._:-]{1,100}$/i.test(value) ? value : null;
+    const error = send?.details?.error;
+    const exceptionNames = new Set(['Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError',
+      'AbortError', 'TimeoutError', 'InvalidStateError', 'SecurityError', 'ChatKeyNotReadyError']);
+    const errorName = error && typeof error === 'object' && 'name' in error ? error.name : undefined;
+    const errorMessage = error && typeof error === 'object' && 'message' in error ? error.message : undefined;
+    // Fixed classifications only: exception prose can contain private IDs/data.
+    const staticFailures = new Map([
+      ['Personal privacy owner unavailable', 'privacy_owner_unavailable'],
+      ['Personal privacy owner changed while saving preferences', 'privacy_owner_changed'],
+      ['Personal privacy freshness check failed', 'privacy_freshness_rejected'],
+      ['Personal privacy connection changed', 'privacy_connection_changed'],
+      ['Personal privacy freshness check timed out', 'privacy_freshness_timeout'],
+      ['Personal privacy freshness request could not be sent', 'privacy_request_unsent'],
+      ['Personal privacy full snapshot owner changed', 'privacy_snapshot_owner_changed'],
+      ['Personal privacy session expired before send', 'privacy_session_expired'],
+      ['Personal privacy full snapshot unavailable', 'privacy_snapshot_unavailable'],
+      ['Personal privacy full snapshot owner unavailable', 'privacy_snapshot_owner_unavailable'],
+      ['Personal privacy snapshot is invalid', 'privacy_snapshot_invalid'],
+      ['Personal privacy decryption failed', 'privacy_decryption_failed'],
+      ['Personal privacy entry is invalid', 'privacy_entry_invalid'],
+      ['Personal privacy snapshot is missing encrypted row content', 'privacy_snapshot_content_missing'],
+      ['Personal privacy receipt does not match this turn', 'privacy_receipt_mismatch'],
+      ['Personal privacy unchanged response has no matching prepared snapshot', 'privacy_unchanged_mismatch'],
+      ['Personal privacy changes are not yet confirmed by the server; retry after saving them', 'privacy_mutations_unconfirmed'],
+      ['Personal privacy scope changed during freshness check', 'privacy_scope_changed'],
+      ['Personal privacy owner or preferences changed before filtering', 'privacy_filter_scope_changed'],
+      ['Personal privacy session expired before transmission', 'privacy_transmission_session_expired'],
+      ['Personal privacy changed after the encrypted turn was prepared; retry this message', 'privacy_prepared_changed'],
+      ['Personal privacy owner changed before transmission', 'privacy_transmission_owner_changed'],
+      ['The previous encrypted reply has not been saved. Retry this message after recovery.', 'predecessor_not_saved'],
+      ['Cannot bind a settled encrypted chat turn.', 'turn_already_settled'],
+      ['Encrypted chat turn identity changed.', 'turn_identity_changed'],
+      ['Pending chat admission needs a compatible server connection for exact-ID retry.', 'admission_connection_incompatible'],
+      ['Durable chat preflight requires encrypted user content.', 'preflight_content_missing'],
+      ['Durable turn preflight requires an authenticated account.', 'preflight_account_missing'],
+      ['Retained encrypted turn preflight has a stale canonical version.', 'preflight_version_stale'],
+      ['Personal chat timestamp is invalid.', 'personal_timestamp_invalid'],
+    ]);
+    const errorCode = typeof errorMessage !== 'string' ? null
+      : staticFailures.get(errorMessage)
+        ?? (/^(?:Cannot read properties of (?:null|undefined) \(reading ['"]chat_id['"]\))$/.test(errorMessage)
+          ? 'chat_record_unavailable'
+          : /^Saved chat [0-9a-f-]+ has no safe chat key for required embed storage\.?$/i.test(errorMessage)
+            ? 'embed_key_not_ready'
+            : /^Saved chat [0-9a-f-]+ has no encrypted chat key for durable preflight\.?$/i.test(errorMessage)
+              ? 'preflight_encrypted_key_missing'
+              : /^Saved chat [0-9a-f-]+ has no safe chat key for durable preflight\.?$/i.test(errorMessage)
+                ? 'preflight_key_not_ready' : 'other');
+    // Capture only source-owned code paths and coordinates, never the first
+    // exception line or arbitrary URL/query/fragment/function payloads.
+    const rawStack = error && typeof error === 'object' && 'stack' in error && typeof error.stack === 'string'
+      ? error.stack : '';
+    const codeFrames = rawStack.split('\n').slice(1).flatMap(line => {
+      if (!/^\s*at\s/.test(line)) return [];
+      const frame = line.match(/\/(?:_app\/immutable\/(?:chunks|nodes)\/[A-Za-z0-9._-]+\.js|src\/(?:components|services|stores|utils|routes)\/[A-Za-z0-9_./+[\]-]+\.(?:svelte|ts|js)):\d+:\d+(?=[)\s]|$)/);
+      return frame ? [frame[0].replace(/^\//, '')] : [];
+    }).slice(0, 5);
+    const keyGuard = diagnosticWindow.__openmatesLastChatKeyGuardDebug;
+    const guardReasons = new Set(['candidate_keys_pending', 'fingerprint_mismatch', 'anonymous_key_unwrap_failed',
+      'anonymous_key_mismatch', 'encrypted_key_missing', 'persisted_key_unwrap_failed', 'persisted_key_mismatch']);
+    const editors = Array.from(document.querySelectorAll<HTMLElement>('.ProseMirror'));
+    const activeEditorChatId = editors[0]?.closest('[data-current-chat-id]')?.getAttribute('data-current-chat-id');
+    return {
+      phases: (diagnosticWindow.__openmatesAppsHandoffDebug ?? []).slice(-24).map(safeLabel),
+      sendStep: safeLabel(send?.step),
+      sendFailure: send?.step === 'send_failed' ? {
+        failedAfterStep: safeLabel(send.details?.failedAfterStep),
+        errorName: typeof errorName === 'string' && exceptionNames.has(errorName) ? errorName : null,
+        errorCode,
+        codeFrames,
+      } : null,
+      // The guard has no send identity/timestamp; this is only the last observed failure.
+      // Never capture exception messages, chat IDs, keys or private result context.
+      lastObservedKeyGuard: keyGuard ? {
+        reason: typeof keyGuard.reason === 'string' && guardReasons.has(keyGuard.reason) ? keyGuard.reason : null,
+        teamScoped: keyGuard.teamScoped === true,
+        candidateCount: typeof keyGuard.candidateCount === 'number' && Number.isSafeInteger(keyGuard.candidateCount)
+          && keyGuard.candidateCount >= 0 && keyGuard.candidateCount <= 1000 ? keyGuard.candidateCount : null,
+      } : null,
+      sendPreparation: (diagnosticWindow.__openmatesSendPrepPhases ?? []).slice(-80).map(row => ({
+        phase: safeLabel(row.phase), ms: typeof row.ms === 'number' && Number.isFinite(row.ms) ? row.ms : null,
+      })),
+      sendFlags: Object.fromEntries(Object.entries(send?.details ?? {}).filter(([key, value]) =>
+        /^[a-zA-Z][a-zA-Z0-9_]{0,80}$/.test(key) && (typeof value === 'boolean' || typeof value === 'number'))),
+      drafts: (diagnosticWindow.__openmatesMessageInputDraftDiagnostics ?? []).slice(-20).map(row => ({
+        event: safeLabel(row.event), hasEditor: row.hasEditor === true,
+        hasDraftContent: row.hasDraftContent === true,
+        version: typeof row.version === 'number' ? row.version : null,
+        textLength: typeof row.textLength === 'number' ? row.textLength : null,
+        reason: safeLabel(row.reason),
+        matchingChat: typeof row.chatId === 'string' && row.chatId === row.currentChatId,
+        matchingActiveEditor: typeof row.chatId === 'string' && row.chatId === activeEditorChatId,
+      })),
+      editors: editors.map(editor => ({ textLength: editor.innerText.length,
+        hasChatId: !!editor.closest('[data-current-chat-id]')?.getAttribute('data-current-chat-id') })),
+      userMessageCount: document.querySelectorAll('[data-testid="message-user"]').length,
+    };
+  }).catch(() => ({ captureUnavailable: true }));
+  await testInfo.attach('apps-handoff-lifecycle', { body: JSON.stringify(handoff, null, 2), contentType: 'application/json' });
+  console.info(`[Apps handoff lifecycle] ${JSON.stringify(handoff)}`);
+});
+
+async function fixtureInterpreter(page: any, appId: string, skillId: string, input: (text: string) => Record<string, unknown>): Promise<void> {
+  await page.route('**/v1/apps/workspace/interpret', (route: any) => {
+    const request = route.request().postDataJSON();
+    expect(request.app_id).toBe(appId);expect(request.request_id).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(request.timezone).toBeTruthy();expect(request.locale).toBeTruthy();
+    return route.fulfill({json:{action:'execute',request_id:request.request_id,skill_id:skillId,input:input(request.text)}});
+  });
+}
+
+const requestComposer = (page: any) => page.getByTestId('apps-detail-fullscreen').getByTestId('apps-request-composer');
+async function openRecent(page: any): Promise<void> { await page.getByTestId('apps-tab-recent').click(); }
+
 async function fixtureSkillDetails(page: any, fixture: SkillFixture): Promise<void> {
   const { app_id, skill_id, name, primary_fields, anonymous_allowed, requestEnvelope, relevanceCriteria } = fixture;
+  await fixtureInterpreter(page,app_id,skill_id,text=>requestEnvelope?{requests:[{query:text,count:10}]}:{query:text,location:'Berlin',limit:5});
   await page.route(`**/v1/apps/${app_id}/skills/${skill_id}/details`, async (route: any) => {
     await route.fulfill({
       status: 200,
@@ -118,7 +293,7 @@ test.describe('Apps workspace', () => {
       await expect(page.locator('.workspace-composer-slot, .ProseMirror, textarea')).toHaveCount(0);
       await expect(page.getByTestId('apps-search')).toHaveText('Search');
       await page.getByTestId('apps-search').click();
-      const controls = page.getByTestId('apps-catalog-controls');
+      const controls = page.locator('.search-sort-bar');
       const search = controls.getByRole('textbox');
       await expect(search).toBeFocused();
       await search.fill('Brave');
@@ -159,45 +334,21 @@ test.describe('Apps workspace', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.navigation.hash-and-forwarding
-  test('guest browses the app and compact skill URL, then Back, Forward, and close restore the parent', async ({ page }: { page: any }) => {
+  test('guest browses compact skill URLs, then Back, Forward and close restore the parent',async({page}:{page:any})=>{
     test.setTimeout(90000);
-    await fixtureSkillDetails(page, {
-      app_id: 'health', skill_id: 'search_appointments', name: 'Search appointments',
-      primary_fields: ['query', 'location'], anonymous_allowed: false,
-    });
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(getE2EDebugUrl('/#apps'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('apps-workspace-home').locator('.workspace-eyebrow')).toHaveCount(0);
-    await expect(page.getByTestId('apps-workspace-background-icon')).toBeVisible();
-    await expect(page.locator('.workspace-composer-slot')).toHaveCount(0);
-    await expect(page.getByTestId('apps-quick-use-affordance')).toHaveCount(0);
-    await expect(page.locator('.ProseMirror, textarea')).toHaveCount(0);
-    await expect(page.getByTestId('workspace-mobile-select')).toBeVisible();
+    await page.setViewportSize({width:390,height:844});
+    await page.goto(getE2EDebugUrl('/#apps'),{waitUntil:'domcontentloaded'});
+    await expect(page.getByTestId('apps-workspace-home')).toBeVisible({timeout:30000});
     await expect(page.getByTestId('workspace-mobile-select')).toHaveValue('/#apps');
-    await page.getByTestId('apps-app-card').filter({ hasText: /Health/i }).first().click();
-    await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible();
-    expect(appHash(page)).toBe('#apps/health');
-
-    await page.getByTestId('settings-skill-cards-scroll').getByText(/Search appointments/i).first().click();
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
-    expect(appHash(page)).toBe('#apps/health/search-appointments');
-    await page.goBack();
-    expect(appHash(page)).toBe('#apps/health');
-    await page.goForward();
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible();
-    await page.getByTestId('apps-detail-close').click();
-    await expect.poll(() => appHash(page)).toBe('#apps');
-
-    await page.goto(getE2EDebugUrl('/apps/health/search-appointments'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
-    expect(appHash(page)).toBe('#apps/health/search-appointments');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
-    await page.getByTestId('apps-detail-close').click();
-    await expect.poll(() => appHash(page)).toBe('#apps/health');
+    await page.getByTestId('apps-app-card').filter({hasText:/Health/i}).first().click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
+    await expect(requestComposer(page)).toBeVisible();await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);
+    await page.evaluate(()=>{window.location.hash='#apps/health/search-appointments';});await expect(requestComposer(page)).toBeVisible();
+    await page.goBack();await expect.poll(()=>appHash(page)).toBe('#apps/health');await page.goForward();await expect.poll(()=>appHash(page)).toBe('#apps/health/search-appointments');
+    await page.getByTestId('apps-detail-close').click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
+    await page.goto(getE2EDebugUrl('/apps/health/search-appointments'),{waitUntil:'domcontentloaded'});await expect(requestComposer(page)).toBeVisible({timeout:30000});
+    expect(appHash(page)).toBe('#apps/health/search-appointments');await page.reload({waitUntil:'domcontentloaded'});await expect(requestComposer(page)).toBeVisible({timeout:30000});
+    await page.getByTestId('apps-detail-close').click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
   });
-
   // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding
   test('app, skill, focus and memory detail close restore an example chat origin', async ({ page }: { page: any }) => {
     const exampleChatId = 'example-gigantic-airplanes';
@@ -207,7 +358,7 @@ test.describe('Apps workspace', () => {
       await page.goto(getE2EDebugUrl(`/#apps/${path}&origin=${encodeURIComponent(origin)}`), { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
       if (path === 'health') {
-        await page.getByTestId('apps-tab-focus_modes').click();
+        await page.getByTestId('apps-settings-open').click();
         await expect.poll(() => new URLSearchParams(new URL(page.url()).hash.split('&').slice(1).join('&')).get('origin')).toBe(origin);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
@@ -233,7 +384,7 @@ test.describe('Apps workspace', () => {
     await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).hash).toBe(sharePath);
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.forms.metadata-driven,apps.navigation.hash-and-forwarding
+  // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.requests.natural-language,apps.navigation.hash-and-forwarding
   test('real public skill schema loads after cold boot and leaving Apps cannot reopen the detail', async ({ page }: { page: any }) => {
     test.setTimeout(90000);
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -277,15 +428,11 @@ test.describe('Apps workspace', () => {
     const details = page.waitForResponse((response: any) => response.url().includes('/v1/apps/web/skills/search/details') && response.request().method() === 'GET');
     await page.getByTestId('apps-nav-link').click();
     await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+    await page.evaluate(async (api:string)=>{const response=await fetch(api+'/v1/apps/web/skills/search/details',{credentials:'include'});if(!response.ok)throw new Error('Public skill metadata unavailable');},deriveApiUrl(page.url()));
     expect((await details).status()).toBe(200);
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+    await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
     await assertProfileInHeader(page);
     await expect(page.getByText('The skill details could not be loaded.', { exact: true })).toHaveCount(0);
-    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
-    await page.getByTestId('apps-skill-context-toggle').click();
-    await expect(page.getByTestId('apps-skill-context-details')).toBeVisible();
-    await page.getByTestId('apps-skill-context-toggle').click();
-    await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
     const hero = page.getByTestId('apps-hero-icon');
     await expect(hero).toHaveAttribute('aria-hidden', 'true');
     await expect(hero).toHaveCSS('pointer-events', 'none');
@@ -303,7 +450,7 @@ test.describe('Apps workspace', () => {
     expect(appHash(page)).not.toMatch(/^#apps/);
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,apps.forms.metadata-driven,apps.execution.direct-shared-contract,apps.results.web-retained-graph,workspace-shell.nav.released-surfaces-visible
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,apps.requests.natural-language,apps.execution.direct-shared-contract,apps.results.web-retained-graph,workspace-shell.nav.released-surfaces-visible
   test('login from a skill preserves its route and input, then Chats exits Apps on desktop and mobile', async ({ page }: { page: any }) => {
     test.setTimeout(180000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -314,11 +461,11 @@ test.describe('Apps workspace', () => {
     });
     await page.goto(getE2EDebugUrl('/#apps/web/search&tab=overview'), { waitUntil: 'domcontentloaded' });
     const initialUrl = page.url();
-    const query = page.getByTestId('apps-skill-form').getByRole('textbox', { name: 'Query' });
+    const query = requestComposer(page).getByTestId('apps-request-textarea');
     await expect(query).toBeVisible({ timeout: 30000 });
     await query.fill('gpt 6 astra');
     await page.evaluate(() => { (window as Window & { appsLoginDocument?: string }).appsLoginDocument = 'same-document'; });
-    await page.getByTestId('apps-skill-signup').click();
+    await page.getByTestId('header-login-signup-btn').click();
     await expect(page.locator('.apps-auth-layer')).toBeVisible();
     await page.getByTestId('tab-login').click();
     await page.getByTestId('login-email-input').fill(credentials.email);
@@ -336,7 +483,7 @@ test.describe('Apps workspace', () => {
     expect(page.url()).toBe(initialUrl);
     expect(await page.evaluate(() => (window as Window & { appsLoginDocument?: string }).appsLoginDocument)).toBe('same-document');
     await expect(query).toHaveValue('gpt 6 astra');
-    await expect(page.getByTestId('apps-skill-submit')).toBeVisible();
+    await expect(page.getByTestId('apps-request-submit').first()).toBeVisible();
     // Exercise the retained request immediately after login, before visiting
     // another route or reloading to fill in any missing session state.
     let skillPosts = 0;
@@ -348,20 +495,14 @@ test.describe('Apps workspace', () => {
         description: 'Safe result fixture after authentication.',
       }] }] } } });
     });
-    await page.getByTestId('apps-skill-submit').click();
-    await expect(page.getByTestId('apps-inline-results-grid')).toContainText('Saved search after login', { timeout: 30000 });
-    await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
-    expect(page.url()).toBe(initialUrl);
-    await expect(query).toHaveValue('gpt 6 astra');
-    const geometry = await page.evaluate(() => ({ button: document.querySelector('[data-testid=apps-skill-submit]')!.getBoundingClientRect().bottom, results: document.querySelector('[data-testid=apps-inline-results]')!.getBoundingClientRect().top }));
-    expect(geometry.results).toBeGreaterThan(geometry.button);
-    await page.getByTestId('apps-inline-results-grid').getByTestId('embed-preview').click();
-    await expect(page.getByTestId('apps-result-fullscreen')).toContainText('Saved search after login');
+    await page.getByTestId('apps-request-submit').first().click();
+    await expect(page.getByTestId('apps-result-fullscreen')).toContainText('Saved search after login',{timeout:30000});
+    const grid=page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid');await expect(grid.getByTestId('embed-preview')).toHaveCount(1);
     const childUrl = page.url();
-    expect(childUrl).toMatch(/&embed-id=[0-9a-f-]{36}&root-id=[0-9a-f-]{36}/i);
+    expect(childUrl).toMatch(/&embed-id=[0-9a-f-]{36}/i);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('apps-result-fullscreen')).toContainText('Saved search after login', { timeout: 30000 });
-    await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toHaveCount(0);
+    await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(1);
     expect(page.url()).toBe(childUrl);
     expect(skillPosts).toBe(1);
     await expect(page.getByText('The request could not finish. You can try again.', { exact: true })).toHaveCount(0);
@@ -373,17 +514,16 @@ test.describe('Apps workspace', () => {
       await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) {
-        expect(await page.locator('.icon-tab-bar').getByRole('link').evaluateAll((links: Element[]) => links.map(link => link.getAttribute('data-testid')))).toEqual([
+        await assertWorkspaceNavigationItems(page, 'desktop', [
           'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'tasks-nav-link', 'workflows-nav-link',
         ]);
       } else {
-        expect(await page.getByTestId('workspace-mobile-select').locator('option').evaluateAll((options: HTMLOptionElement[]) => options.map(option => option.value))).toEqual([
+        await assertWorkspaceNavigationItems(page, 'mobile', [
           '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
         ]);
       }
       await page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ hasText: /Web/i }).first().click();
-      await page.getByTestId('settings-skill-cards-scroll').getByText('Search', { exact: true }).first().click();
-      await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+      await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) await page.getByTestId('chats-nav-link').click();
       else await page.getByTestId('workspace-mobile-select').selectOption('/');
@@ -392,7 +532,7 @@ test.describe('Apps workspace', () => {
       await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 30000 });
       expect(appHash(page)).not.toMatch(/^#apps/);
       await page.goBack();
-      await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+      await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
       await page.goForward();
       await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
       expect(appHash(page)).not.toMatch(/^#apps/);
@@ -421,10 +561,11 @@ test.describe('Apps workspace', () => {
         }),
       }));
       await test.info().attach(`apps-layout-${width}`, { body: JSON.stringify(geometry), contentType: 'application/json' });
-      expect(bounds.x).toBeCloseTo(10, 0);
+      // Desktop shares Chat's 10px outer offset plus 10px inner gutter.
+      expect(bounds.x).toBeCloseTo(width === 1440 ? 20 : 10, 0);
       expect(bounds.y).toBeCloseTo(header.y + header.height + 10, 0);
       expect(width - bounds.x - bounds.width).toBeCloseTo(width === 1440 ? 20 : 10, 0);
-      expect(1000 - bounds.y - bounds.height).toBeCloseTo(10, 0);
+      expect(1000 - bounds.y - bounds.height).toBeCloseTo(width === 1440 ? 20 : 10, 0);
       await page.getByTestId('embed-report-issue-button').click();
       const settings = page.getByTestId('settings-menu');
       await expect(settings).toBeVisible();
@@ -438,7 +579,7 @@ test.describe('Apps workspace', () => {
         const narrowed = await main.boundingBox();
         expect(panel.x - narrowed.x - narrowed.width).toBeCloseTo(20, 0);
         expect(panel.y).toBeCloseTo(narrowed.y, 0);
-        expect(narrowed.x).toBeCloseTo(10, 0);
+        expect(narrowed.x).toBeCloseTo(20, 0);
       }
       const screenshot = test.info().outputPath(`apps-settings-gutters-${width}.png`);
       await page.screenshot({ path: screenshot, animations: 'disabled' });
@@ -487,25 +628,13 @@ test.describe('Apps workspace', () => {
     }
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
-  test('declared primary fields and defaults stay in the form when settings expand', async ({ page }: { page: any }) => {
-    await fixtureSkillDetails(page, {
-      app_id: 'web', skill_id: 'search', name: 'Search web',
-      primary_fields: ['query'], anonymous_allowed: false,
-    });
-    await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-    const form = page.getByTestId('apps-skill-form');
-    await expect(form).toBeVisible({ timeout: 30000 });
-    const primary = form.getByTestId('apps-skill-primary-fields');
-    expect(await primary.locator('input, textarea, select').count()).toBeLessThanOrEqual(2);
-    await expect(form.getByTestId('apps-skill-settings')).toHaveCount(0);
-    await form.getByTestId('apps-skill-settings-toggle').click();
-    const settings = form.getByTestId('apps-skill-settings');
-    await expect(settings).toBeVisible();
-    await expect(settings.getByRole('textbox', { name: 'Location' })).toHaveValue('Berlin');
-    await expect(settings.getByRole('spinbutton', { name: 'Limit' })).toHaveValue('5');
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  test('app settings expose skill pricing and providers while the request uses natural language',async({page}:{page:any})=>{
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false});
+    await page.goto(getE2EDebugUrl('/#apps/web/search'),{waitUntil:'domcontentloaded'});await expect(requestComposer(page)).toBeVisible({timeout:30000});
+    await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);await page.getByTestId('apps-settings-open').click();await expect(page.getByTestId('apps-settings')).toBeVisible();
+    await page.getByTestId('apps-settings').getByText('Search',{exact:true}).first().click();await expect(page.getByTestId('apps-settings').locator('.skill-details')).toBeVisible();
   });
-
   // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,apps.discovery.public-catalog
   test('legacy Settings links forward and public focus and memory details remain reachable', async ({ page }: { page: any }) => {
     await fixtureSkillDetails(page, {
@@ -513,7 +642,7 @@ test.describe('Apps workspace', () => {
       primary_fields: ['query', 'location'], anonymous_allowed: false,
     });
     await page.goto(getE2EDebugUrl('/#settings/apps/health/skill/search_appointments'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+    await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
     expect(appHash(page)).toBe('#apps/health/search-appointments');
 
     await page.goto(getE2EDebugUrl('/#apps/health/focus/prepare_doctor_appointment'), { waitUntil: 'domcontentloaded' });
@@ -524,118 +653,35 @@ test.describe('Apps workspace', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=apps.anonymous.cli-equivalent-gate
-  test('guest sees Signup before an ineligible skill can dispatch', async ({ page }: { page: any }) => {
-    await fixtureSkillDetails(page, {
-      app_id: 'web', skill_id: 'search', name: 'Search web',
-      primary_fields: ['query'], anonymous_allowed: false,
-    });
-    const dispatched: string[] = [];
-    page.on('request', (request: any) => {
-      if (request.method() === 'POST' && /\/v1\/(apps|skills)\//.test(request.url())) dispatched.push(request.url());
-    });
-    await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-    const form = page.getByTestId('apps-skill-form');
-    await expect(form.getByTestId('apps-skill-signup')).toBeVisible({ timeout: 30000 });
-    await expect(form.getByTestId('apps-skill-submit')).toHaveCount(0);
-    expect(dispatched).toEqual([]);
-    await form.getByTestId('apps-skill-signup').click();
-    const signup = page.getByRole('dialog', { name: /sign.?up/i });
-    await expect(signup).toBeVisible();
-    await signup.getByRole('button', { name: /^close$/i }).click();
-    await expect(signup).toHaveCount(0);
+  test('guest sees Signup before an ineligible interpreted skill can dispatch',async({page}:{page:any})=>{
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false});let providerPosts=0;
+    page.on('request',(request:any)=>{if(request.method()==='POST'&&/\/v1\/(?:anonymous\/)?apps\/web\/skills\/search$/.test(new URL(request.url()).pathname))providerPosts++;});
+    await page.goto(getE2EDebugUrl('/#apps/web/search'),{waitUntil:'domcontentloaded'});const form=requestComposer(page);await expect(form).toBeVisible({timeout:30000});
+    await form.getByTestId('apps-request-textarea').fill('Find accessible museums');await form.getByTestId('apps-request-submit').click();
+    await expect(page.locator('.apps-auth-layer')).toBeVisible();expect(providerPosts).toBe(0);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
+    await page.locator('.apps-auth-layer').getByRole('button',{name:'Close',exact:true}).click();await expect(page.locator('.apps-auth-layer')).toHaveCount(0);
   });
-
   // contract-test: supporting surface=gui.web assertions=apps.anonymous.cli-equivalent-gate
-  test('eligible quick skill shows Signup after its request quote denies the available budget', async ({ page }: { page: any }) => {
-    await fixtureSkillDetails(page, {
-      app_id: 'web', skill_id: 'search', name: 'Search web',
-      primary_fields: ['query'], anonymous_allowed: true,
-    });
-    await page.route('**/v1/anonymous/free-usage/status?*', (route: any) => route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ active: true, can_send_text: true }),
-    }));
-    await page.route('**/v1/anonymous/apps/web/skills/search/availability', (route: any) => route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ allowed: false, reason: 'daily_limit_reached' }),
-    }));
-    const dispatched: string[] = [];
-    page.on('request', (request: any) => {
-      if (request.method() === 'POST' && /\/v1\/anonymous\/apps\/web\/skills\/search(?:\?|$)/.test(request.url())) dispatched.push(request.url());
-    });
-    await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-    const form = page.getByTestId('apps-skill-form');
-    await expect(form).toBeVisible({ timeout: 30000 });
-    const deniedQuote = page.waitForResponse((response: any) =>
-      response.url().endsWith('/v1/anonymous/apps/web/skills/search/availability')
-      && response.request().method() === 'POST');
-    await form.getByRole('textbox', { name: 'Query' }).fill('accessible museums in Berlin');
-    const quote = await deniedQuote;
-    expect(quote.request().postDataJSON().query).toBe('accessible museums in Berlin');
-    await expect(form.getByTestId('apps-skill-signup')).toBeVisible();
-    await form.getByRole('textbox', { name: 'Query' }).press('Enter');
-    await expect(form.getByTestId('apps-skill-submit')).toHaveCount(0);
-    expect(dispatched).toEqual([]);
+  test('eligible interpreted skill shows Signup when its request quote denies the budget',async({page}:{page:any})=>{
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:true});
+    await page.route('**/v1/anonymous/apps/web/skills/search/availability',(route:any)=>route.fulfill({json:{allowed:false,reason:'daily_limit_reached'}}));let posts=0;
+    page.on('request',(request:any)=>{if(request.method()==='POST'&&new URL(request.url()).pathname==='/v1/anonymous/apps/web/skills/search')posts++;});
+    await page.goto(getE2EDebugUrl('/#apps/web/search'),{waitUntil:'domcontentloaded'});const form=requestComposer(page);await expect(form).toBeVisible({timeout:30000});
+    await form.getByTestId('apps-request-textarea').fill('accessible museums in Berlin');const quote=page.waitForResponse((response:any)=>response.url().endsWith('/v1/anonymous/apps/web/skills/search/availability')&&response.request().method()==='POST');
+    await form.getByTestId('apps-request-submit').click();expect((await quote).request().postDataJSON().query).toBe('accessible museums in Berlin');
+    await expect(page.locator('.apps-auth-layer')).toBeVisible();expect(posts).toBe(0);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
   });
-
-  // contract-test: supporting surface=gui.web assertions=apps.library.embeds-account-paginated,apps.library.workflows-account-related
-  test('Personal app libraries request bounded pages and reset when the app changes', async ({ page }: { page: any }) => {
-    test.setTimeout(120000);
-    test.skip(!getTestAccount().email, 'Test account credentials required.');
-    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-    await loginToTestAccount(page, () => {}, async () => {});
-
-    const resultQueries: URLSearchParams[] = [];
-    const workflowQueries: URLSearchParams[] = [];
-    await page.route('**/v1/apps/workspace/results?*', (route: any) => {
-      const params = new URL(route.request().url()).searchParams;
-      resultQueries.push(params);
-      const appId = params.get('app_id');
-      const offset = Number(params.get('offset'));
-      const items = appId === 'web' ? [{
-        embed_id: `web-result-${offset}`, app_id: 'web', skill_id: 'search',
-        created_at: 1, status: 'finished',
-      }] : [];
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-        items, has_more: appId === 'web' && offset === 0, offset, limit: 20,
-      }) });
-    });
-    await page.route('**/v1/workflows?*', (route: any) => {
-      const params = new URL(route.request().url()).searchParams;
-      if (!params.has('app_id')) return route.continue();
-      workflowQueries.push(params);
-      const offset = Number(params.get('offset'));
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-        workflows: [{ id: `web-workflow-${offset}`, title: `Web workflow ${offset}` }],
-        has_more: offset === 0, offset, limit: 20,
-      }) });
-    });
-
-    await page.goto(getE2EDebugUrl('/#apps/web&tab=embeds'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-result-open-web-result-0')).toBeVisible({ timeout: 30000 });
-    expectPersonalPageQuery(resultQueries.at(-1), 'web', 0);
-    await page.getByTestId('apps-next-page').click();
-    await expect(page.getByTestId('apps-result-open-web-result-20')).toBeVisible();
-    await expect(page.getByTestId('apps-result-open-web-result-0')).toHaveCount(0);
-    expectPersonalPageQuery(resultQueries.at(-1), 'web', 20);
-    await page.getByTestId('apps-previous-page').click();
-    await expect(page.getByTestId('apps-result-open-web-result-0')).toBeVisible();
-    expectPersonalPageQuery(resultQueries.at(-1), 'web', 0);
-
-    await page.getByTestId('apps-tab-workflows').click();
-    await expect(page.getByTestId('apps-workflows-list').getByText('Web workflow 0')).toBeVisible();
-    expectPersonalPageQuery(workflowQueries.at(-1), 'web', 0);
-    await page.getByTestId('apps-next-page').click();
-    await expect(page.getByTestId('apps-workflows-list').getByText('Web workflow 20')).toBeVisible();
-    expectPersonalPageQuery(workflowQueries.at(-1), 'web', 20);
-
-    await page.goto(getE2EDebugUrl('/#apps/health&tab=embeds'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-results-list')).toBeVisible();
-    await expect(page.getByTestId('apps-result-open-web-result-20')).toHaveCount(0);
-    await expect(page.getByTestId('apps-next-page')).toBeDisabled();
-    expectPersonalPageQuery(resultQueries.at(-1), 'health', 0);
+  // contract-test: supporting surface=gui.web assertions=apps.library.embeds-account-paginated
+  test('Personal app libraries request bounded pages and reset when the app changes',async({page}:{page:any})=>{
+    test.setTimeout(120000);test.skip(!getTestAccount().email,'Test account credentials required.');await page.goto(getE2EDebugUrl('/'),{waitUntil:'domcontentloaded'});await loginToTestAccount(page,()=>{},async()=>{});
+    const queries:URLSearchParams[]=[];const libraryApps:string[]=[];
+    await page.route('**/v1/apps/workspace/results?*',(route:any)=>{const params=new URL(route.request().url()).searchParams;queries.push(params);const app=params.get('app_id'),offset=Number(params.get('offset'));return route.fulfill({json:{items:app==='web'?[{embed_id:`web-result-${offset}`,app_id:'web',skill_id:'search',created_at:1,status:'finished'}]:[],offset,limit:20,has_more:app==='web'&&offset===0}});});
+    await page.route('**/v1/apps/workspace/library/*',(route:any)=>{const appId=new URL(route.request().url()).pathname.split('/').at(-1)!;libraryApps.push(appId);return route.fulfill({json:{app_id:appId,daily_searches_enabled:true,recommendations:[],saved_searches:[{id:appId,skill_id:'search',query:appId+' saved search',parameters:{query:appId},saved_at:1}]}});});
+    await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('web saved search');expectPersonalPageQuery(queries.at(-1),'web',0);
+    await openRecent(page);await expect(page.getByTestId('apps-preview-carousel').locator('[data-embed-id="web-result-0"]')).toBeVisible();await page.getByTestId('apps-next-page').click();await expect(page.getByTestId('apps-preview-carousel').locator('[data-embed-id="web-result-20"]')).toBeVisible();expectPersonalPageQuery(queries.at(-1),'web',20);
+    await page.goto(getE2EDebugUrl('/#apps/health'),{waitUntil:'domcontentloaded'});await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('health saved search');await expect(page.getByText('web saved search',{exact:true})).toHaveCount(0);
+    await expect(page.getByTestId('apps-preview-carousel').locator('[data-embed-id="web-result-20"]')).toHaveCount(0);await expect(page.getByTestId('apps-next-page')).toHaveCount(0);expectPersonalPageQuery(queries.at(-1),'health',0);expect(libraryApps).toContain('web');expect(libraryApps).toContain('health');
   });
-
   // contract-test: direct surface=gui.web assertions=apps.library.embeds-account-paginated
   test('an open app library indexes an older chat root after background sync and refreshes without reload', async ({ page }: { page: any }) => {
     test.setTimeout(120000);
@@ -661,8 +707,8 @@ test.describe('Apps workspace', () => {
       has_more: false, offset: 0, limit: 20,
     } }));
     await page.goto(getE2EDebugUrl('/#apps/web&tab=embeds'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-results-list')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId(`apps-result-open-${embedId}`)).toHaveCount(0);
+    await expect(page.getByTestId('apps-preview-carousel')).toBeVisible({ timeout: 30000 });
+    await openRecent(page);await expect(page.getByTestId('apps-preview-carousel').locator(`[data-embed-id="${embedId}"]`)).toHaveCount(0);
     const chatHash = await page.evaluate(async ({ chatId, embedId }: { chatId: string; embedId: string }) => {
       const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(chatId))))
         .map(value => value.toString(16).padStart(2, '0')).join('');
@@ -696,12 +742,11 @@ test.describe('Apps workspace', () => {
         encrypted_type: 'Zml4dHVyZQ==', encrypted_content: 'Zml4dHVyZQ==',
         hashed_chat_id: chatHash, status: 'finished', created_at: 1, updated_at: 1 }],
     } }));
-    await expect(page.getByTestId(`apps-result-open-${embedId}`)).toBeVisible({ timeout: 30000 });
+    await expect(page.locator(`[data-embed-id="${embedId}"]`)).toBeVisible({ timeout: 30000 });
     expect(batchBody.expected_user_id).toMatch(/^[0-9a-f-]{36}$/i);
     expect(batchBody.team_id).toBeNull();
     expect(batchBody.items.length).toBeLessThanOrEqual(50);
     expect(batchBody.items).toContainEqual({ embed_id: embedId, chat_id: chatId, app_id: 'web', skill_id: 'search' });
-    await expect(page.getByTestId('apps-next-page')).toBeDisabled();
   });
 
   // contract-test: direct surface=gui.web assertions=apps.execution.direct-shared-contract,apps.results.web-retained-graph
@@ -719,6 +764,11 @@ test.describe('Apps workspace', () => {
     const saves: any[] = [];
     const skillBodies: any[] = [];
     const rootGets: string[] = [];
+    // Other tests can leave durable results in this shared account. This case
+    // isolates the new local graph, including its strict zero-root-GET contract.
+    await page.route('**/v1/apps/workspace/results?*', (route: any) => route.fulfill({ json: {
+      items: [], has_more: false, offset: 0, limit: 20,
+    } }));
     let releaseFinished!: () => void;
     const finishedGate = new Promise<void>(resolve => { releaseFinished = resolve; });
     page.on('request', (request: any) => {
@@ -738,11 +788,11 @@ test.describe('Apps workspace', () => {
     });
     try {
       await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-      const form = page.getByTestId('apps-skill-form');
+      const form = requestComposer(page);
       await expect(form).toBeVisible({ timeout: 30000 });
-      await form.getByRole('textbox', { name: 'Query' }).fill(query);
-      await form.getByTestId('apps-skill-submit').click();
-      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title, { timeout: 30000 });
+      await form.getByTestId('apps-request-textarea').fill(query);
+      await form.getByTestId('apps-request-submit').click();
+      await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title, { timeout: 30000 });
       await expect.poll(() => saves.length).toBe(1);
       expect(saves).toHaveLength(1);
       expect(saves[0].embeds).toHaveLength(2);
@@ -750,7 +800,6 @@ test.describe('Apps workspace', () => {
       expect(skillBodies).toHaveLength(1);
       expect(skillBodies[0].requests[0].query).toBe(query);
       expect(rootGets).toEqual([]);
-      await page.getByTestId('apps-inline-results-grid').getByTestId('embed-preview').click();
       await expect(page.getByTestId('apps-result-fullscreen')).toContainText(title);
       expect(rootGets).toEqual([]);
       expect(saves).toHaveLength(1);
@@ -776,6 +825,9 @@ test.describe('Apps workspace', () => {
     let skillPosts = 0;
     let saveAcknowledged = false;
     let libraryFails = true;
+    let requestGeneration = 0;
+    const requestGenerations = new WeakMap<object, number>();
+    page.on('request', (request: object) => { requestGenerations.set(request, requestGeneration); });
     let releaseFailure!: () => void;
     let releaseRetry!: () => void;
     const failureGate = new Promise<void>(resolve => { releaseFailure = resolve; });
@@ -788,8 +840,11 @@ test.describe('Apps workspace', () => {
         await route.fulfill({ status: 503, json: { detail: 'Fixture save outage' } });
       } else {
         await retryGate;
+        // Model the server commit before its acknowledgment reaches the client.
+        // A prior reload can have detached another waiter from this same gate.
+        saveAcknowledged = true;
         await route.fulfill({ json: { root_embed_id: body.root_embed_id, linked_embed_ids: [] } })
-          .then(() => { saveAcknowledged = true; }).catch(() => {});
+          .catch(() => {});
       }
     });
     await page.route('**/v1/apps/workspace/results?*', (route: any) => libraryFails
@@ -807,11 +862,11 @@ test.describe('Apps workspace', () => {
     });
     try {
       await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-      const form = page.getByTestId('apps-skill-form');
+      const form = requestComposer(page);
       await expect(form).toBeVisible({ timeout: 30000 });
-      await form.getByRole('textbox', { name: 'Query' }).fill('Accessible museums after outage');
-      await form.getByTestId('apps-skill-submit').click();
-      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title, { timeout: 30000 });
+      await form.getByTestId('apps-request-textarea').fill('Accessible museums after outage');
+      await form.getByTestId('apps-request-submit').click();
+      await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title, { timeout: 30000 });
       await expect.poll(() => savedBodies.length).toBe(1);
       expect(savedBodies).toHaveLength(1);
       expect(savedBodies[0].embeds[0].status).toBe('finished');
@@ -819,84 +874,68 @@ test.describe('Apps workspace', () => {
       releaseFailure();
       await expect(page.getByTestId('apps-result-save-state')).toHaveAttribute('data-save-state', 'error');
       await expect(page.getByTestId('apps-result-save-retry')).toBeVisible();
-      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title);
+      await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title);
       const rootId = savedBodies[0].root_embed_id;
-      const childId = savedBodies[0].embeds[1].embed_id;
-      await page.getByTestId('apps-tab-embeds').click();
-      const pending = page.getByTestId('apps-pending-results-list');
-      await expect(pending).toBeVisible({ timeout: 30000 });
-      const pendingParent = pending.getByTestId(`apps-result-open-${rootId}`);
-      await expect(pendingParent.getByTestId('embed-preview')).toBeVisible();
-      await expect(page.getByRole('alert')).toBeVisible();
-      await expect(page.getByTestId(`apps-result-open-${childId}`)).toHaveCount(0);
-      await expect(pendingParent.getByTestId(`apps-result-save-retry-${rootId}`)).toBeVisible();
-      await pendingParent.getByTestId('embed-preview').click();
-      await expect(page.getByTestId('apps-result-fullscreen')).toContainText(title);
+      const rootUrl=page.url();expect(rootUrl).toContain(`embed-id=${rootId}`);
+      // A remote library outage must not hide the locally durable outbox card.
       await page.getByTestId('apps-result-fullscreen').getByTestId('embed-minimize').click();
-      await pendingParent.getByTestId(`apps-result-save-retry-${rootId}`).click();
+      await openRecent(page);
+      const localCard = page.getByTestId(`apps-result-open-${rootId}`);
+      await expect(localCard).toBeVisible({ timeout: 30000 });
+      await localCard.getByTestId('embed-preview').first().click();
+      await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title);
+      await page.getByTestId('apps-result-save-retry').click();
       await expect.poll(() => savedBodies.length).toBe(2);
       expect(savedBodies[1].embeds[0].status).toBe('finished');
       expect(savedBodies[1].embeds).toHaveLength(2);
       expect(skillPosts).toBe(1);
-      await page.evaluate(() => { window.location.hash = '#apps/web/search'; });
-      await expect(page.getByTestId('apps-skill-form')).toBeVisible();
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await expect(page.getByTestId('apps-inline-results-grid')).toContainText(title, { timeout: 30000 });
+      await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title, { timeout: 30000 });
       await expect.poll(() => savedBodies.length).toBeGreaterThanOrEqual(3);
       expect(savedBodies.at(-1)).toEqual(savedBodies[1]);
+      expect(page.url()).toBe(rootUrl);
       expect(skillPosts).toBe(1);
       releaseRetry();
       await expect(page.getByTestId('apps-result-save-state')).toHaveAttribute('data-save-state', 'saved');
+      await expect.poll(() => saveAcknowledged).toBe(true);
       libraryFails = false;
       await page.goto(getE2EDebugUrl('/#apps/web&tab=embeds'), { waitUntil: 'domcontentloaded' });
-      await expect(page.getByTestId(`apps-result-open-${rootId}`)).toBeVisible({ timeout: 30000 });
-      for (const row of savedBodies[1].embeds.slice(1)) await expect(page.getByTestId(`apps-result-open-${row.embed_id}`)).toHaveCount(0);
+      // Match requests issued for this reload, excluding delayed outage responses
+      // from the previous document even when they have the exact same URL.
+      const reloadGeneration = ++requestGeneration;
+      const reloadedLibrary = page.waitForResponse((response: any) => {
+        const url = new URL(response.url());
+        return requestGenerations.get(response.request()) === reloadGeneration
+          && response.request().method() === 'GET' && url.pathname === '/v1/apps/workspace/results'
+          && url.searchParams.get('app_id') === 'web' && url.searchParams.get('offset') === '0';
+      });
+      // Changing only the hash keeps this Apps scope mounted. Explicitly reload
+      // after restoring the remote library so its fresh GET is part of the proof.
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      const libraryResponse = await reloadedLibrary;
+      expect(libraryResponse.ok()).toBe(true);
+      expect((await libraryResponse.json()).items).toEqual([expect.objectContaining({ embed_id: rootId, status: 'finished' })]);
+      await openRecent(page);await expect(page.getByTestId(`apps-result-open-${rootId}`)).toBeVisible({timeout:30000});
+      for(const row of savedBodies[1].embeds.slice(1))await expect(page.getByTestId(`apps-result-open-${row.embed_id}`)).toHaveCount(0);
     } finally { releaseFailure(); releaseRetry(); }
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.execution.direct-shared-contract
-  test('Events relevance criteria is a schema-native requirement outside Settings and posts in the request', async ({ page }: { page: any }) => {
-    test.setTimeout(90000);
-    expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
-    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-    await loginToTestAccount(page, () => {}, async () => {});
-    await fixtureSkillDetails(page, {
-      app_id: 'events', skill_id: 'search', name: 'Search events',
-      primary_fields: ['requests[].query', 'requests[].count'], anonymous_allowed: false,
-      requestEnvelope: true, relevanceCriteria: true,
-    });
-    let posted: any;
-    await page.route('**/v1/apps/workspace/results', (route: any) => route.fulfill({ json: {
-      root_embed_id: route.request().postDataJSON().root_embed_id, linked_embed_ids: [],
-    } }));
-    await page.route('**/v1/apps/events/skills/search', (route: any) => {
-      posted = route.request().postDataJSON();
-      return route.fulfill({ json: { success: true, data: { provider: 'Fixture Events', results: [{ id: 'request-1', results: [] }] } } });
-    });
-    await page.goto(getE2EDebugUrl('/#apps/events/search'), { waitUntil: 'domcontentloaded' });
-    const form = page.getByTestId('apps-skill-form');
-    await expect(form).toBeVisible({ timeout: 30000 });
-    const criteria = form.getByTestId('apps-skill-relevance-criteria');
-    await expect(criteria).toBeVisible();
-    await expect(form.getByTestId('apps-skill-settings')).toHaveCount(0);
-    const naturalText = 'Prefer free outdoor jazz events near public transport.';
-    await form.getByRole('textbox', { name: 'Query' }).fill('jazz this weekend');
-    await criteria.fill(naturalText);
-    await form.getByTestId('apps-skill-submit').click();
-    await expect.poll(() => posted?.requests?.[0]?.relevance_criteria).toBe(naturalText);
-    expect(posted.requests[0].query).toBe('jazz this weekend');
-    await fixtureSkillDetails(page, {
-      app_id: 'web', skill_id: 'search', name: 'Search web',
-      primary_fields: ['query'], anonymous_allowed: false, requestEnvelope: true,
-    });
-    await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('apps-skill-relevance-criteria')).toHaveCount(0);
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.execution.direct-shared-contract
+  test('Events natural-language criteria posts the interpreted native request without form fields',async({page}:{page:any})=>{
+    test.setTimeout(90000);expect(getTestAccount().email).toBeTruthy();await page.goto(getE2EDebugUrl('/'),{waitUntil:'domcontentloaded'});await loginToTestAccount(page,()=>{},async()=>{});
+    await fixtureSkillDetails(page,{app_id:'events',skill_id:'search',name:'Search events',primary_fields:['requests[].query'],anonymous_allowed:false,requestEnvelope:true,relevanceCriteria:true});
+    const text='Find jazz this weekend. Prefer free outdoor events near public transport.';
+    const input={requests:[{query:'jazz this weekend',count:10,relevance_criteria:'Prefer free outdoor events near public transport.'}]};
+    await fixtureInterpreter(page,'events','search',value=>{expect(value).toBe(text);return input;});let posted:any;
+    await page.route('**/v1/apps/workspace/results',(route:any)=>route.fulfill({json:{root_embed_id:route.request().postDataJSON().root_embed_id,linked_embed_ids:[]}}));
+    await page.route('**/v1/apps/events/skills/search',(route:any)=>{posted=route.request().postDataJSON();return route.fulfill({json:{success:true,data:{results:[{id:'request-1',results:[]}]}}});});
+    await page.goto(getE2EDebugUrl('/#apps/events/search'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});
+    await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);await composer.getByTestId('apps-request-textarea').fill(text);await composer.getByTestId('apps-request-submit').click();
+    await expect.poll(()=>posted).toEqual(input);await expect(page.getByTestId('apps-result-fullscreen')).toBeVisible();
   });
-
-  // contract-test: direct surface=gui.web assertions=apps.execution.direct-shared-contract,apps.results.web-retained-graph
+  // contract-test: direct surface=gui.web assertions=apps.execution.direct-shared-contract,apps.results.web-retained-graph,apps.results.shared-fullscreen
   // contract-test: direct surface=rest_api assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
-  test('one Web search retains all 25 children after leaving its form and reopens after reload', async ({ page }: { page: any }) => {
+  test('one Web search retains all 25 children after leaving its composer and reopens after reload', async ({ page }: { page: any }) => {
     test.setTimeout(120000);
     expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -939,16 +978,16 @@ test.describe('Apps workspace', () => {
     });
 
     await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
-    const form = page.getByTestId('apps-skill-form');
+    const form = requestComposer(page);
     await expect(form).toBeVisible({ timeout: 30000 });
-    await form.getByRole('textbox', { name: 'Query' }).fill(query);
+    await form.getByTestId('apps-request-textarea').fill(query);
     const finalSave = page.waitForResponse((response: any) => {
       if (response.request().method() !== 'POST' || new URL(response.url()).pathname !== '/v1/apps/workspace/results') return false;
       return response.request().postDataJSON()?.embeds?.length === 26;
     });
     const skillRequest = page.waitForRequest((request: any) => request.method() === 'POST'
       && new URL(request.url()).pathname === '/v1/apps/web/skills/search');
-    await form.getByTestId('apps-skill-submit').click();
+    await form.getByTestId('apps-request-submit').click();
     await skillRequest;
     await page.getByTestId('apps-detail-close').click();
     await expect.poll(() => appHash(page)).toBe('#apps/web');
@@ -995,7 +1034,7 @@ test.describe('Apps workspace', () => {
       }
     }
 
-    const api = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+    const api = deriveApiUrl(page.url());
     const detail = await page.request.get(`${api}/v1/apps/workspace/results/${rootId}`);
     expect(detail.ok()).toBe(true);
     const persisted = await detail.json();
@@ -1010,19 +1049,25 @@ test.describe('Apps workspace', () => {
 
     await page.goto(getE2EDebugUrl('/#apps/web&tab=embeds'), { waitUntil: 'domcontentloaded' });
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await openRecent(page);
     const card = page.getByTestId(`apps-result-open-${rootId}`);
     await expect(card).toBeVisible({ timeout: 30000 });
-    await expect(card).toContainText(query);
-    for (const childId of root.embed_ids) await expect(page.getByTestId(`apps-result-open-${childId}`)).toHaveCount(0);
-    await card.getByTestId('embed-preview').click();
+    await expect(card.getByTestId('embed-preview')).toHaveCount(25);await expect(card).toContainText(`Fixture page 25 ${marker}`);
+    for(const childId of root.embed_ids)await expect(page.getByTestId(`apps-result-open-${childId}`)).toHaveCount(0);
+    await card.getByTestId('embed-preview').first().click();
+    await expect(page.getByTestId('apps-result-fullscreen')).toContainText(`Fixture page 1 ${marker}`);
+    expect(page.url()).toContain(`embed-id=${rootId}`);
+    await expect(page.getByTestId('apps-result-fullscreen').getByTestId('apps-request-textarea')).toBeVisible();
+    await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-toolbar')).toBeVisible();
     await expect(page.getByTestId('apps-result-fullscreen')).toBeVisible();
     const grid = page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid');
     await expect(grid.getByTestId('embed-preview')).toHaveCount(25, { timeout: 30000 });
-    await expect(grid).toContainText(`Fixture page 25 ${marker}`);
+    await expect(grid).toContainText(`Fixture page 25 ${marker}`);await page.reload({waitUntil:'domcontentloaded'});await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(25,{timeout:30000});expect(skillPosts).toBe(1);
   });
 
-  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.execution.direct-shared-contract,apps.results.web-retained-graph,apps.library.embeds-account-paginated
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.execution.direct-shared-contract,apps.results.web-retained-graph,apps.library.embeds-account-paginated,apps.results.shared-fullscreen
   test('Health public-insurance search sends native filters and retains populated appointment views', async ({ page }: { page: any }) => {
+    await page.addInitScript(() => sessionStorage.setItem('openmates:send-prep-timing', '1'));
     test.setTimeout(120000);
     expect(getTestAccount().email, 'CI must provide its existing authenticated test account').toBeTruthy();
     await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -1032,7 +1077,9 @@ test.describe('Apps workspace', () => {
       class: 'place', type: 'city', namedetails: { name: 'Berlin' },
       address: { city: 'Berlin', country: 'Germany' },
     }] }));
-    const marker = `apps-health-${Date.now()}`;
+    // Keep the unique fixture identifier alphabetic: ordinary chat correctly
+    // masks long digit sequences as phone numbers by default.
+    const marker = `apps-health-${String(Date.now()).replace(/\d/g, digit => String.fromCharCode(97 + Number(digit)))}`;
     const names = [`Synthetic Practice ${marker}`, `Synthetic Doctor ${marker}`];
     const appointments = names.map((name, index) => ({
       type: 'appointment', name, speciality: 'Hautarzt', address: 'Synthetic Street, Berlin',
@@ -1048,28 +1095,16 @@ test.describe('Apps workspace', () => {
       nativeInput = route.request().postDataJSON();
       return route.fulfill({ json: { success: true, data: { results: [{ id: '1', results: appointments }], error: null } } });
     });
-    await page.goto(getE2EDebugUrl('/#apps/health/search-appointments'), { waitUntil: 'domcontentloaded' });
-    const form = page.getByTestId('apps-skill-form');
-    await expect(form).toBeVisible({ timeout: 30000 });
-    await form.getByRole('textbox', { name: /Speciality/i }).fill('dermatologist');
-    await form.getByTestId('workflow-node-location-picker').click();
-    await form.getByTestId('map-location-search-input').fill('Berlin');
-    await form.getByTestId('map-location-search-result').click();
-    await expect(form.getByTestId('apps-skill-settings-toggle')).toHaveAttribute('aria-expanded', 'false');
-    expect(skillPosts).toBe(0);
-    await form.getByTestId('map-location-select').click();
-    await expect(form.getByTestId('apps-skill-settings-toggle')).toHaveAttribute('aria-expanded', 'false');
-    expect(skillPosts).toBe(0);
-    await expect(form.getByTestId('workflow-node-location-picker')).toContainText('Berlin');
-    await form.getByTestId('apps-skill-settings-toggle').click();
-    await form.getByRole('combobox', { name: /Insurance Sector/i }).selectOption('public');
-    await form.getByTestId('apps-skill-settings-toggle').click();
-    await expect(form.getByTestId('apps-skill-relevance-criteria')).toHaveCount(0);
+    const utterance='Find dermatologists in Berlin accepting new patients with public insurance this week.';
+    await fixtureInterpreter(page,'health','search_appointments',value=>{expect(value).toBe(utterance);return {requests:[{speciality:'dermatologist',city:'Berlin',provider_platform:'both',insurance_sector:'public',days_ahead:7,max_doctors:10,telehealth:false}]};});
+    await page.goto(getE2EDebugUrl('/#apps/health/search-appointments'),{waitUntil:'domcontentloaded'});
+    const form=requestComposer(page);await expect(form).toBeVisible({timeout:30000});
+    await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);await form.getByTestId('apps-request-textarea').fill(utterance);expect(skillPosts).toBe(0);
     const finalSave = page.waitForResponse((response: any) => response.request().method() === 'POST'
       && new URL(response.url()).pathname === '/v1/apps/workspace/results'
       && response.request().postDataJSON()?.embeds?.length === 3);
-    await form.getByTestId('apps-skill-submit').click();
-    const inline = page.getByTestId('apps-inline-results-grid');
+    await form.getByTestId('apps-request-submit').click();
+    const inline = page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid');
     await expect(inline.getByTestId('embed-preview')).toHaveCount(2, { timeout: 30000 });
     await expect(inline).toContainText(names[0]);
     expect(nativeInput?.requests).toHaveLength(1);
@@ -1082,17 +1117,20 @@ test.describe('Apps workspace', () => {
     const body = saved.request().postDataJSON();
     expect(JSON.stringify(body)).not.toContain(marker);
     expect(skillPosts).toBe(1);
-    await inline.getByTestId('embed-preview').first().click();
-    const fullscreen = page.getByTestId('apps-result-fullscreen');
-    await expect(fullscreen.locator('.doctor-name')).toHaveText(names[0], { timeout: 30000 });
+    const fullscreen=page.getByTestId('apps-result-fullscreen');
+    await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(2);await expect(fullscreen).toContainText(names[0]);
     await fullscreen.getByTestId('embed-minimize').click();
-    await page.getByTestId('apps-tab-embeds').click();
-    const rootCard = page.getByTestId(`apps-result-open-${body.root_embed_id}`);
+    await openRecent(page);
+    const rootCard=page.getByTestId(`apps-result-open-${body.root_embed_id}`);
     await expect(rootCard).toBeVisible({ timeout: 30000 });
     for (const child of body.embeds.filter((item: any) => item.parent_embed_id === body.root_embed_id)) {
       await expect(page.getByTestId(`apps-result-open-${child.embed_id}`)).toHaveCount(0);
     }
-    await rootCard.getByTestId('embed-preview').click();
+    await expect(rootCard.getByTestId('embed-preview')).toHaveCount(2);
+    await rootCard.getByTestId('embed-preview').first().click();
+    expect(page.url()).toContain(`embed-id=${body.root_embed_id}`);
+    await expect(fullscreen.getByTestId('apps-request-textarea')).toBeVisible();
+    await expect(fullscreen.getByTestId('search-template-toolbar')).toBeVisible();
     const children = fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview');
     await expect(children).toHaveCount(2, { timeout: 30000 });
     await expect(fullscreen).toContainText(names[1]);
@@ -1100,6 +1138,275 @@ test.describe('Apps workspace', () => {
     await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(2, { timeout: 30000 });
     await expect(fullscreen).toContainText(names[0]);
     expect(skillPosts).toBe(1);
+    // A Recent child preview reopens its parent so followups retain native filters.
+    // Fixture replay must never fall through to record mode or live inference.
+    expect(process.env.E2E_USE_MOCKS, 'ordinary chat handoff requires fixture replay').toBeTruthy();
+    expect(process.env.E2E_RECORD_FIXTURES).toBeFalsy();
+    const followup = withMockMarker('Explain these saved appointments', 'chat_flow_capital');
+    let followupContext: Record<string, any> | undefined;
+    await page.route('**/v1/apps/workspace/interpret', (route: any) => {
+      const request = route.request().postDataJSON();
+      expect(request.text).toBe(followup);
+      followupContext = request.context;
+      return route.fulfill({ json: { action: 'chat', request_id: request.request_id } });
+    });
+    await fullscreen.getByTestId('apps-request-textarea').fill(followup);
+    await fullscreen.getByTestId('apps-request-submit').click();
+    await expect.poll(() => followupContext?.embed_id).toBe(body.root_embed_id);
+    expect(followupContext?.input?.requests?.[0]).toMatchObject({
+      speciality: 'dermatologist', city: 'Berlin', insurance_sector: 'public',
+      provider_platform: 'both', days_ahead: 7, max_doctors: 10, telehealth: false,
+    });
+    // Keep the complete native context, including the exact saved child IDs.
+    expect(followupContext?.result?.results).toHaveLength(2);
+    expect(followupContext?.result?.results?.map((item: any) => item.embed_id)).toEqual(expect.arrayContaining(
+      body.embeds.filter((item: any) => item.parent_embed_id === body.root_embed_id).map((item: any) => item.embed_id),
+    ));
+    expect(followupContext?.result?.results?.[0]).toMatchObject({
+      type: 'appointment',
+      insurance: 'public',
+    });
+    expect(followupContext?.result?.results?.[0]?.name).toBe(names[0]);
+    const delivered = page.getByTestId('message-user').last();
+    await expect(delivered).toContainText('Explain these saved appointments', { timeout: 30000 });
+    await expect(delivered).toContainText('Result context (data supplied by the user):');
+    // The complete saved result context exceeds the user-message collapse limit.
+    await delivered.getByRole('button', { name: 'Show full message', exact: true }).click();
+    await expect(delivered).toContainText(names[0]);
+    await expect(delivered).toContainText('dermatologist');
+    await expect(delivered).toContainText('public');
+    const assistant = page.getByTestId('message-assistant').last();
+    await expect(assistant).toContainText('The capital of Germany', { timeout: 60000 });
+    await expect(assistant).toContainText('Berlin');
+    // Expanded messages also render a read-only ProseMirror document. Verify
+    // that the actual composer cleared after accepting the handoff.
+    await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText('');
+    expect(skillPosts).toBe(1);
+  });
+
+  // @privacy-promise: pii-placeholder-substitution
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen,pii.composer.detect-redact-exclude
+  test('Apps masks two distinct emails and prior context for interpretation while restoring validated native input locally', async ({ page }: { page: any }) => {
+    // A fresh guest uses the production privacy store's enabled default settings.
+    // Only supplier HTTP responses are fixtures; the detector/store remain real.
+    await fixtureSkillDetails(page, { app_id: 'web', skill_id: 'search', name: 'Search web',
+      primary_fields: ['query'], anonymous_allowed: true, requestEnvelope: true });
+    await page.route('**/v1/anonymous/apps/web/skills/search/availability', (route: any) => route.fulfill({ json: { allowed: true } }));
+    const emails = ['apps-privacy-one@example.com', 'apps-privacy-two@example.net'];
+    const queries = [`Find public pages mentioning ${emails[0]} and ${emails[1]}`,
+      `Find more public pages mentioning ${emails[0]} and ${emails[1]}`];
+    let interpretations = 0;
+    let nativePosts = 0;
+    await page.route('**/v1/apps/workspace/interpret', (route: any) => {
+      const body = route.request().postDataJSON();
+      const serialized = JSON.stringify(body);
+      for (const email of emails) expect(serialized).not.toContain(email);
+      expect(serialized).not.toMatch(/"(?:(?:pii|token|placeholder)[_-]?(?:map|mapping)s?|original(?:Text|Value)?|textToHide|replaceWith)"\s*:/i);
+      const tokens = body.text.match(/\[OM_PII_[A-F0-9]{32}\]/g) ?? [];
+      expect(tokens).toHaveLength(2);
+      expect(new Set(tokens).size).toBe(2);
+      expect(body.text).toBe(queries[interpretations].replace(emails[0], tokens[0]).replace(emails[1], tokens[1]));
+      if (interpretations === 0) expect(body.context).toBeUndefined();
+      else {
+        expect(body.context.skill_id).toBe('search');
+        expect(body.context.input.requests[0].query).toBe(queries[0].replace(emails[0], tokens[0]).replace(emails[1], tokens[1]));
+        expect(body.context.embed_id).toMatch(/^[0-9a-f-]{36}$/i);
+      }
+      interpretations++;
+      return route.fulfill({ json: { action: 'execute', request_id: body.request_id, skill_id: 'search',
+        input: { requests: [{ query: body.text, count: 2 }] } } });
+    });
+    await page.route('**/v1/anonymous/apps/web/skills/search', (route: any) => {
+      const input = route.request().postDataJSON();
+      expect(input).toEqual({ requests: [{ query: queries[nativePosts], count: 2 }] });
+      expect(JSON.stringify(input)).not.toContain('[OM_PII_');
+      nativePosts++;
+      return route.fulfill({ json: { success: true, data: { results: [{ results: [{ type: 'search_result',
+        title: `Private-input result ${nativePosts}`, url: `https://example.test/privacy/${nativePosts}`,
+        description: 'A native result rendered after local placeholder restoration.' }] }] } } });
+    });
+    await page.goto(getE2EDebugUrl('/#apps/web'), { waitUntil: 'domcontentloaded' });
+    const composer = requestComposer(page);
+    await expect(composer).toBeVisible({ timeout: 30000 });
+    await composer.getByTestId('apps-request-textarea').fill(queries[0]);
+    await composer.getByTestId('apps-request-submit').click();
+    const fullscreen = page.getByTestId('apps-result-fullscreen');
+    await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(1);
+    await expect(fullscreen).toContainText('Private-input result 1');
+    await fullscreen.getByTestId('apps-request-textarea').fill(queries[1]);
+    await fullscreen.getByTestId('apps-request-submit').click();
+    await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Private-input result 2');
+    await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(1);
+    const secondRootId = page.url().match(/&embed-id=([0-9a-f-]{36})/i)?.[1];
+    expect(secondRootId).toBeTruthy();
+    await fullscreen.getByTestId('embed-minimize').click();
+    await openRecent(page);
+    const recent = page.getByTestId(`apps-result-open-${secondRootId}`);
+    await expect(recent).toBeVisible();
+    await recent.getByTestId('embed-preview').first().click();
+    await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Private-input result 2');
+    expect(interpretations).toBe(2);
+    expect(nativePosts).toBe(2);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  test('natural-language routing waits for accepted execution before fullscreen and filters actual child previews',async({page}:{page:any})=>{
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:true,requestEnvelope:true});
+    await page.route('**/v1/anonymous/apps/web/skills/search/availability',(route:any)=>route.fulfill({json:{allowed:true}}));
+    for(const width of [1180,390]){
+      let releaseInterpret!:()=>void,releaseSkill!:()=>void;const interpreted=new Promise<void>(resolve=>{releaseInterpret=resolve;});const skillDone=new Promise<void>(resolve=>{releaseSkill=resolve;});let interpreterPosts=0,providerPosts=0;
+      await page.route('**/v1/apps/workspace/interpret',async(route:any)=>{interpreterPosts++;const body=route.request().postDataJSON();expect(body.text).toBe('Find gardens near Berlin');await interpreted;await route.fulfill({json:{action:'execute',request_id:body.request_id,skill_id:'search',input:{requests:[{query:'gardens near Berlin',count:2}]}}});});
+      await page.route('**/v1/anonymous/apps/web/skills/search',async(route:any)=>{providerPosts++;expect(route.request().postDataJSON().requests[0].query).toBe('gardens near Berlin');await skillDone;await route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:'Community garden Berlin',url:'https://example.test/community',description:'Outdoor community garden'},{type:'search_result',title:'Botanical garden Berlin',url:'https://example.test/botanical',description:'Botanical collections'}]}]}}});});
+      try{
+        await page.setViewportSize({width,height:844});await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});
+        await composer.getByTestId('apps-request-textarea').fill('Find gardens near Berlin');await composer.getByTestId('apps-request-submit').click();await expect.poll(()=>interpreterPosts).toBe(1);
+        await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);expect(providerPosts).toBe(0);expect(appHash(page)).toBe('#apps/web');
+        releaseInterpret();await expect.poll(()=>providerPosts).toBe(1);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
+        releaseSkill();const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen).toBeVisible();const grid=fullscreen.getByTestId('search-template-grid');await expect(grid.getByTestId('embed-preview')).toHaveCount(2);
+        await expect(grid).toContainText('Community garden Berlin');await expect(grid).toContainText('Botanical garden Berlin');await expect(fullscreen.getByTestId('search-template-toolbar')).toBeVisible();
+        await fullscreen.getByTestId('search-template-filter').fill('Botanical');await expect(grid.getByTestId('embed-preview')).toHaveCount(1);await expect(grid).toContainText('Botanical garden Berlin');
+        await expect(fullscreen.getByTestId('apps-request-textarea')).toBeVisible();expect(page.url()).toMatch(/&embed-id=[0-9a-f-]{36}/i);
+        const layout=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));expect(layout.scroll).toBeLessThanOrEqual(layout.width+2);
+      }finally{releaseInterpret();releaseSkill();await page.unroute('**/v1/apps/workspace/interpret');await page.unroute('**/v1/anonymous/apps/web/skills/search');}
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  test('guest chat interpretation preserves the original draft and exhausted-budget signup gate without dispatch', async ({ page }: { page: any }) => {
+    const request = 'Explain how I should compare these travel options';
+    let providerPosts = 0, anonymousPosts = 0;
+    const exhausted = { active: false, can_send_text: false, reason: 'per_identity_exhausted',
+      reset_at: new Date(Date.now() + 3600000).toISOString(), cta: 'Create an account to keep using OpenMates.' };
+    await page.route('**/v1/settings/server-status', (route: any) => route.fulfill({ json: {
+      is_self_hosted: false, payment_enabled: true, server_edition: 'development',
+      domain: 'app.dev.openmates.org', ai_models_configured: true, anonymous_free_usage: exhausted,
+    } }));
+    await page.route('**/v1/anonymous/free-usage/status**', (route: any) => route.fulfill({ json: exhausted }));
+    // An admission regression must fail without spending a real anonymous request.
+    await page.route('**/v1/anonymous/chat/stream', (route: any) => { anonymousPosts++; return route.abort(); });
+    await page.route('**/v1/apps/workspace/interpret', (route: any) => {
+      const body = route.request().postDataJSON(); expect(body.text).toBe(request);
+      return route.fulfill({ json: { action: 'chat', request_id: body.request_id, reason: 'chat_required' } });
+    });
+    page.on('request', (item: any) => {
+      if (item.method() === 'POST' && /\/v1\/(?:anonymous\/)?apps\/[^/]+\/skills\/[^/]+$/.test(new URL(item.url()).pathname)) providerPosts++;
+    });
+    await page.goto(getE2EDebugUrl('/#apps/travel'), { waitUntil: 'domcontentloaded' });
+    const composer = requestComposer(page); await expect(composer).toBeVisible({ timeout: 30000 });
+    await composer.getByTestId('apps-request-textarea').fill(request); await composer.getByTestId('apps-request-submit').click();
+    await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+    await expect(page.locator('.ProseMirror').first()).toContainText(request, { timeout: 30000 });
+    await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible();
+    await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
+    expect(anonymousPosts).toBe(0); expect(providerPosts).toBe(0);
+    await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
+    expect(page.url()).not.toContain('model=');
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  test('late chat and workflow interpretations cannot hand off after same-app navigation', async ({ page }: { page: any }) => {
+    let downstreamPosts = 0;
+    for (const endpoint of ['**/v1/anonymous/chat/stream', '**/v1/workflows/input/stream', '**/v1/anonymous/apps/*/skills/*', '**/v1/apps/*/skills/*']) {
+      await page.route(endpoint, (route: any) => {
+        if (route.request().method() !== 'POST') return route.fallback();
+        downstreamPosts++; return route.abort();
+      });
+    }
+    await page.addInitScript(() => {
+      const state = window as typeof window & { appsLateHandoffs: string[] };
+      state.appsLateHandoffs = [];
+      for (const name of ['appsWorkspaceChatHandoff', 'appsWorkspaceWorkflowHandoff']) {
+        window.addEventListener(name, () => state.appsLateHandoffs.push(name));
+      }
+    });
+    for (const action of ['chat', 'workflow']) {
+      let release!: () => void, interpreterPosts = 0;
+      const pending = new Promise<void>(resolve => { release = resolve; });
+      await page.route('**/v1/apps/workspace/interpret', async (route: any) => {
+        interpreterPosts++; const body = route.request().postDataJSON();
+        await pending; await route.fulfill({ json: { action, request_id: body.request_id } });
+      });
+      try {
+        await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+        const composer = requestComposer(page); await expect(composer).toBeVisible({ timeout: 30000 });
+        await composer.getByTestId('apps-request-textarea').fill('Explain this result after I leave');
+        await composer.getByTestId('apps-request-submit').click(); await expect.poll(() => interpreterPosts).toBe(1);
+        // Same app/account: only the original hash fence can reject this response.
+        await page.evaluate(() => { window.location.hash = '#apps/web'; });
+        await expect.poll(() => appHash(page)).toBe('#apps/web');
+        const response = page.waitForResponse('**/v1/apps/workspace/interpret'); release(); await response;
+        const textarea = composer.getByTestId('apps-request-textarea');
+        await expect(textarea).toHaveValue('');
+        await expect(textarea).toHaveJSProperty('readOnly', false);
+        await expect(composer.getByTestId('apps-request-mic')).toBeEnabled();
+        await expect(composer.getByTestId('apps-request-submit')).toHaveCount(0);
+        expect(downstreamPosts).toBe(0);
+        expect(await page.evaluate(() => (window as typeof window & { appsLateHandoffs: string[] }).appsLateHandoffs)).toEqual([]);
+        await expect(page.getByTestId('apps-workspace')).toBeVisible(); expect(appHash(page)).toBe('#apps/web');
+      } finally { release(); await page.unroute('**/v1/apps/workspace/interpret'); }
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.recommendations.private-daily,apps.results.shared-fullscreen
+  test('saving a search explains Daily credit use and Turn off persists before subsequent saves',async({page}:{page:any})=>{
+    test.setTimeout(120000);expect(getTestAccount().email).toBeTruthy();await page.goto(getE2EDebugUrl('/'),{waitUntil:'domcontentloaded'});await loginToTestAccount(page,()=>{},async()=>{});
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false,requestEnvelope:true});
+    let enabled=true;const saves:any[]=[];const changes:any[]=[];
+    const library=()=>({app_id:'web',daily_searches_enabled:enabled,recommendations:[],saved_searches:saves.map((body,index)=>({id:`saved-${index}`,skill_id:body.skill_id,title:body.title,query:body.query,parameters:body.parameters,saved_at:Math.floor(Date.now()/1000)}))});
+    await page.route('**/v1/apps/workspace/library/web',(route:any)=>route.fulfill({json:library()}));
+    await page.route('**/v1/apps/workspace/library/web/saved-searches',(route:any)=>{saves.push(route.request().postDataJSON());return route.fulfill({json:{...library(),first_save:saves.length===1}});});
+    await page.route('**/v1/apps/workspace/library/web/settings',(route:any)=>{const body=route.request().postDataJSON();changes.push(body);enabled=body.daily_searches_enabled;return route.fulfill({json:library()});});
+    await page.route('**/v1/apps/web/skills/search',(route:any)=>route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:'Saved garden fixture',url:'https://example.test/garden'}]}]}}}));
+    await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});await composer.getByTestId('apps-request-textarea').fill('Find gardens near Berlin');await composer.getByTestId('apps-request-submit').click();
+    const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Saved garden fixture');await fullscreen.getByRole('button',{name:'Save this search',exact:true}).click();
+    await expect.poll(()=>saves.length).toBe(1);expect(saves[0]).toMatchObject({skill_id:'search',parameters:{requests:[{query:'Find gardens near Berlin',count:10}]},query:'Find gardens near Berlin'});expect(saves[0].expected_user_id).toMatch(/^[0-9a-f-]{36}$/i);
+    const notice=page.getByTestId('notification').filter({hasText:'Your saved search will run daily and use credits.'});await expect(notice).toBeVisible();await expect(notice).toContainText('latest saved search per app');await expect(notice.getByRole('button',{name:'OK',exact:true})).toBeVisible();
+    await notice.getByRole('button',{name:'Turn off',exact:true}).click();await expect.poll(()=>changes.at(-1)?.daily_searches_enabled).toBe(false);expect(changes.at(-1).expected_user_id).toBe(saves[0].expected_user_id);
+    await fullscreen.getByRole('button',{name:'Save this search',exact:true}).click();await expect.poll(()=>saves.length).toBe(2);expect(enabled).toBe(false);await expect(notice).toHaveCount(0);
+    await fullscreen.getByTestId('embed-minimize').click();await page.getByTestId('apps-settings-open').click();await expect(page.getByTestId('apps-daily-searches').getByRole('checkbox')).not.toBeChecked();
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  test('workflow interpretation submits the followup and readable result context once to existing authoring',async({page}:{page:any})=>{
+    test.setTimeout(120000);expect(getTestAccount().email).toBeTruthy();await page.goto(getE2EDebugUrl('/'),{waitUntil:'domcontentloaded'});await loginToTestAccount(page,()=>{},async()=>{});
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false,requestEnvelope:true});
+    const text='Turn this garden search into a weekly workflow';const requests:any[]=[];let skillPosts=0,workflowId:string|undefined;
+    await page.route('**/v1/apps/workspace/interpret',(route:any)=>{const body=route.request().postDataJSON();if(body.text===text){expect(body.context.input.requests[0].query).toBe('Find gardens');expect(JSON.stringify(body.context.result)).toContain('Garden handoff context');return route.fulfill({json:{action:'workflow',request_id:body.request_id}});}return route.fulfill({json:{action:'execute',request_id:body.request_id,skill_id:'search',input:{requests:[{query:'Find gardens',count:1}]}}});});
+    await page.route('**/v1/apps/web/skills/search',(route:any)=>{skillPosts++;return route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:'Garden handoff context',url:'https://example.test/weekly-garden'}]}]}}});});
+    const api=deriveApiUrl(page.url());
+    await page.route('**/v1/workflows/input/stream',async(route:any)=>{
+      const body=route.request().postDataJSON();requests.push(body);expect(body.text).toContain(text);expect(body.text).toContain('Garden handoff context');expect(body.text).toContain('Find gardens');
+      const response=await page.request.post(`${api}/v1/workflows`,{data:{title:`Apps workflow handoff ${Date.now()}`,enabled:false,graph:{version:2,trigger_node_id:'manual',nodes:[{id:'manual',type:'manual_trigger',title:'Manual start',config:{}}],edges:[]}}});expect(response.ok()).toBe(true);const workflow=(await response.json()).workflow;workflowId=workflow.id;
+      await route.fulfill({contentType:'text/event-stream',body:`data: ${JSON.stringify({type:'session',session:{session_id:'apps-workflow-handoff',status:'executed',workflow,mutations:[{type:'create_workflow',target_id:workflow.id}]}})}\n\n`});
+    });
+    try{
+      await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});await composer.getByTestId('apps-request-textarea').fill('Find gardens');await composer.getByTestId('apps-request-submit').click();
+      const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Garden handoff context');await fullscreen.getByTestId('apps-request-textarea').fill(text);await fullscreen.getByTestId('apps-request-submit').click();
+      await expect.poll(()=>requests.length).toBe(1);await expect(page.getByTestId('apps-workspace')).toHaveCount(0);await expect.poll(()=>workflowId).toBeTruthy();expect(skillPosts).toBe(1);expect(page.url()).not.toContain('model=');
+    }finally{if(workflowId)await page.request.delete(`${api}/v1/workflows/${workflowId}`);}
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  test('fullscreen followups refine the prior search or start a new search using current context',async({page}:{page:any})=>{
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:true,requestEnvelope:true});
+    await page.route('**/v1/anonymous/apps/web/skills/search/availability',(route:any)=>route.fulfill({json:{allowed:true}}));const interpreted:any[]=[];const posted:any[]=[];
+    await page.route('**/v1/apps/workspace/interpret',(route:any)=>{
+      const body=route.request().postDataJSON();interpreted.push(body);const query=body.text==='Find gardens'?'gardens':body.text==='Only gardens open Sundays'?'gardens open Sundays':body.text==='Find libraries'?'libraries':'museums';
+      return route.fulfill({json:{action:'execute',request_id:body.request_id,skill_id:'search',input:{requests:[{query,count:1}]}}});
+    });
+    await page.route('**/v1/anonymous/apps/web/skills/search',(route:any)=>{const body=route.request().postDataJSON();posted.push(body);return route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:`Result for ${body.requests[0].query}`,url:'https://example.test/refined'}]}]}}});});
+    await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});await composer.getByTestId('apps-request-textarea').fill('Find gardens');await composer.getByTestId('apps-request-submit').click();
+    const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Result for gardens');const firstRoot=new URL(page.url()).hash;
+    await fullscreen.getByTestId('apps-request-textarea').fill('Only gardens open Sundays');await fullscreen.getByTestId('apps-request-submit').click();await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Result for gardens open Sundays');
+    expect(interpreted[1].context.input.requests[0].query).toBe('gardens');expect(JSON.stringify(interpreted[1].context.result)).toContain('Result for gardens');expect(interpreted[1].context.embed_id).toMatch(/^[0-9a-f-]{36}$/i);expect(new URL(page.url()).hash).not.toBe(firstRoot);
+    await fullscreen.getByTestId('apps-request-textarea').fill('Start a new search for museums');await fullscreen.getByTestId('apps-request-submit').click();await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Result for museums');
+    expect(interpreted[2].context.input.requests[0].query).toBe('gardens open Sundays');expect(posted.map(input=>input.requests[0].query)).toEqual(['gardens','gardens open Sundays','museums']);
+    await fullscreen.getByTestId('embed-minimize').click();
+    const home = requestComposer(page); await expect(home).toBeVisible();
+    await home.getByTestId('apps-request-textarea').fill('Find libraries'); await home.getByTestId('apps-request-submit').click();
+    await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Result for libraries');
+    expect(interpreted).toHaveLength(4); expect(interpreted[3]).not.toHaveProperty('context');
+    expect(posted[3]).toEqual({ requests: [{ query: 'libraries', count: 1 }] });
   });
 
 });

@@ -213,7 +213,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             # Validation errors can echo the submitted plaintext Team name.
             # This check is transient: never persist its response body in logs.
-            private_decision = method == "POST" and path.rstrip("/") in DECISION_POST_PATHS
+            private_decision = (method == "POST" and path.rstrip("/") in DECISION_POST_PATHS) or path.startswith("/v1/apps/workspace/")
             if status_code >= 400 and private_decision:
                 # FastAPI root/JSON validation can echo arbitrary inline image
                 # bytes before skill validation runs. Log status only.
@@ -283,7 +283,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Log exceptions as errors with more context
             trace_id = getattr(request.state, 'trace_id', None)
-            private_decision = method == "POST" and path.rstrip("/") in DECISION_POST_PATHS
+            private_decision = (method == "POST" and path.rstrip("/") in DECISION_POST_PATHS) or path.startswith("/v1/apps/workspace/")
             safe_error = "Decision request failed" if private_decision else str(e)
             extra_exception_data = {
                 "request_id": request_id,
@@ -296,7 +296,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             if trace_id:
                 extra_exception_data["trace_id"] = trace_id
             if hasattr(request, 'query_params'): # Check if request attributes are safe to access
-                extra_exception_data["query_params"] = str(request.query_params) if request.query_params else None
+                extra_exception_data["query_params"] = None if private_decision else (str(request.query_params) if request.query_params else None)
             if hasattr(request, 'headers'):
                  headers_subset = {
                     h_key: redact_newsletter_token_urls(request.headers[h_key]) for h_key in ["user-agent", "referer", "origin"]

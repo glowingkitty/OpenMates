@@ -35,6 +35,52 @@ test("frame holds exact display-cell width and row count with CJK, emoji and unt
   assert.equal(frame.includes("\x1b"), false);
 });
 
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
+test("terminal width distinguishes text pictographs from emoji presentation", () => {
+  assert.equal(cells("⚙ Settings"), 10);
+  assert.equal(cells("⚙️ Settings"), 11);
+  assert.equal(cells("© ™ ♥"), 5);
+  assert.equal(cells("🧪"), 2);
+  assert.equal(cells("1️⃣"), 2);
+  assert.equal(cells("🇩🇪"), 2);
+});
+
+// contract-test: supporting surface=cli assertions=cli.surface.semantic-parity,apps.execution.direct-shared-contract
+test("Apps Settings gear preserves exact terminal row geometry and the request prompt", () => {
+  const state = createInitialTuiState();
+  state.workspace = "apps"; state.screen = "app";
+  state.activeApp = {id: "proof", name: "Proof app", description: "Synthetic app", category: "research", skills: [], focusModes: [], settingsMemories: []};
+  for (const width of [72, 160]) {
+    const rows = stripAnsi(renderTuiFrame(state, width, 45, {colorMode: "truecolor"})).split("\n");
+    assert.equal(rows.length, 45);
+    assert.match(rows.join("\n"), /⚙ Settings/);
+    assert.match(rows.join("\n"), /What would you like to find or do\?/);
+    // Every character in this synthetic frame occupies one terminal cell.
+    // Count code points independently so a shared cells() padding bug cannot pass.
+    assert.ok(rows.every(row => Array.from(row).length === width), rows.map(row => Array.from(row).length).join(","));
+  }
+});
+
+// contract-test: supporting surface=cli assertions=apps.execution.direct-shared-contract,apps.recommendations.private-daily,cli.surface.semantic-parity
+test("Apps loading and expired results render safely when pinned headers exceed available rows", () => {
+  const state = createInitialTuiState();
+  state.workspace = "apps"; state.screen = "app-result"; state.focus = "composer";
+  state.activeApp = {id: "web", name: "Web", description: "Synthetic app", category: "research", skills: [], focusModes: [], settingsMemories: []};
+  for (const result of [null,
+    {embedId: "expired", appId: "web", skillId: "search", status: "expired", content: {}, children: []},
+    {embedId: "expired-by-time", appId: "web", skillId: "search", status: "finished", expiresAt: Date.now() - 1, content: {}, children: []},
+  ]) {
+    state.activeAppResult = result;
+    for (const [width, height] of [[72, 18], [160, 45]]) {
+      const rows = stripAnsi(renderTuiFrame(state, width, height, {colorMode: "truecolor"})).split("\n");
+      assert.equal(rows.length, height);
+      assert.ok(rows.every(row => cells(row) === width));
+      assert.match(rows.join("\n"), result ? /This recommendation expired/ : /Loading saved result/);
+      assert.ok(rows.some(row => row.includes("Enter follow up")));
+    }
+  }
+});
+
 test("long sidebars keep the keyboard selection visible at wide and narrow widths", () => {
   const state = createInitialTuiState();
   state.recentChats = Array.from({length: 40}, (_, i) => ({id: `chat-${i}`, title: `Recent chat ${i + 1}`} as typeof state.recentChats[number]));
@@ -132,15 +178,16 @@ test("app content expands while the composer stays centered at its existing maxi
     state.sidebarOpen = sidebar;
     const rows = stripAnsi(renderTuiFrame(state, 200, 32, {colorMode: "ansi256"})).split("\n");
     const header = rows.find((row) => row.includes("APP WORKSPACE"))!;
-    const tabs = rows.find((row) => row.includes("[Skills]"))!;
-    const inputTop = rows.find((row) => /^\s+╭─+╮\s+$/.test(row))!;
+    const settings = rows.find((row) => row.includes("⚙ Settings"))!;
+    const inputIndex=rows.findIndex(row=>row.includes("What would you like Health to find or do?"));
+    const inputTop=rows[inputIndex-1]!;
     const left = header.indexOf("╭"), right = 200 - header.indexOf("╮") - 1;
     assert.ok(Math.abs(left - (sidebar ? 27 : 0) - right) <= 1);
     const inputLeft=inputTop.indexOf('╭'),inputRight=200-inputTop.indexOf('╮')-1;
     assert.ok(Math.abs(inputLeft-(sidebar?27:0)-inputRight)<=1);
     assert.equal(inputTop.indexOf('╮')-inputLeft+1,100);
     assert.ok(header.indexOf('╮')-left+1>100);
-    assert.equal(tabs.indexOf("1 [Skills]"), left + 1);
+    assert.equal(settings.indexOf("⚙ Settings"), left);
     assert.ok(rows.every((row) => cells(row) === 200 && row.startsWith(" ") && row.endsWith(" ")));
     assert.equal(rows.length, 32);
   }

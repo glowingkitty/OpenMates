@@ -50,3 +50,5 @@ const previewProps = {
 } satisfies ComponentProps<typeof EmbedsMapView>;
 
 export default previewProps;
+
+export const variants = { fullscreen: { ...previewProps, highlightRefs: [], fullscreen: true }, fullscreenCalendar: { ...previewProps, highlightRefs: [], fullscreen: true, initialVisualTab: 'calendar' } };

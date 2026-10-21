@@ -564,7 +564,8 @@ export async function clearCurrentDraft(expected?: {
       console.debug(
         `[DraftService] Deleting chat from IndexedDB: ${currentChatId}`,
       );
-      const { deletedEmbedIds } = await chatDB.deleteChat(currentChatId);
+      const { deleted, deletedEmbedIds } = await chatDB.deleteDraftOnlyChat(currentChatId);
+      if (!deleted) return;
       console.debug(
         `[DraftService] Chat deleted from IndexedDB: ${currentChatId}, cleaned up ${deletedEmbedIds.length} embeds`,
       );
@@ -707,11 +708,10 @@ async function discardStaleDraftWrite(chatId: string): Promise<void> {
     if (!chat) return;
     const messages = await chatDB.getMessagesForChat(chatId);
     if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
-      await chatDB.deleteChat(chatId);
-      return;
+      const result = await chatDB.deleteDraftOnlyChat(chatId);
+      if (result.deleted) return;
     }
-    await chatDB.upsertRawChat({
-      ...chat,
+    await chatDB.saveChatDraftFields(chatId, {
       cleared_draft_v: Math.max(chat.cleared_draft_v ?? 0, chat.draft_v ?? 0),
       encrypted_draft_md: null,
       encrypted_draft_preview: null,
@@ -1435,7 +1435,7 @@ export const saveDraftDebounced = debounce(
           console.info(
             `[DraftService] Updating existing draft for chat ${currentChatIdForOperation}`,
           );
-          versionBeforeSave = existingChat.draft_v || 0;
+          versionBeforeSave = Math.max(existingChat.draft_v ?? 0, existingChat.cleared_draft_v ?? 0);
           userDraft = {
             ...existingChat,
             encrypted_draft_md: encryptedMarkdown,
@@ -1449,7 +1449,21 @@ export const saveDraftDebounced = debounce(
               (existingChat.updated_at ?? 0) + 1,
             ),
           };
-          await chatDB.upsertRawChat(userDraft);
+          const savedDraft = await chatDB.saveChatDraftFields(currentChatIdForOperation, {
+            encrypted_draft_md: userDraft.encrypted_draft_md,
+            encrypted_draft_preview: userDraft.encrypted_draft_preview,
+            draft_v: userDraft.draft_v,
+            updated_at: userDraft.updated_at,
+          });
+          if (!savedDraft || savedDraft.encrypted_draft_md !== encryptedMarkdown ||
+              savedDraft.encrypted_draft_preview !== encryptedPreview) {
+            // A concurrent clear/newer draft won the write lock. Never acknowledge
+            // this editor's different plaintext as saved or sync the rejected copy.
+            draftEditorUIState.update((state) => state.currentChatId === currentChatIdForOperation
+              ? { ...state, hasUnsavedChanges: true } : state);
+            return;
+          }
+          userDraft = savedDraft;
           if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
             await discardStaleDraftWrite(currentChatIdForOperation);
             return;

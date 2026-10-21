@@ -29,7 +29,7 @@ import { chatResultsViews } from './tuiChatResults.js';
 import {handleQuestionKey, openQuestion} from './tuiInteractiveQuestions.js';
 import { buildTuiResultsViewData, type TuiResultsViewMode } from './tuiResultsViews.js';
 import { currentInspiration, homeContinueItems, isWorkspaceHome, loadHomeData, workspaceInspirations } from "./tuiHome.js";
-import { loadTuiApps, homeTuiApps, loadTuiAppsSkill, buildTuiAppsSkillForm, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
+import { loadTuiApps, homeTuiApps, parseTuiAppsLibrary, emptyTuiAppsLibrary, tuiAppsLibraryEntries, tuiAppsCarouselGroups, interpretTuiAppsRequest, executeTuiAppsRequest, tuiAppsHandoffText, recommendationTuiAppsResult, tuiAppsResultChildren, toTuiAppsEmbed, loadTuiAppsSkill, prepareTuiAppsSkillRun, buildTuiAppsRunConfirmation, executeTuiAppsSkill, loadTuiAppsResults, loadTuiAppsResult, loadTuiAppsWorkflows } from "./tuiAppsWorkspace.js";
 import { loadCachedTuiWorkspace, invalidateCachedTuiWorkspace, writeCachedTuiWorkspace, readCachedTuiWorkspace, captureTuiWorkspaceOwner } from './tuiCachedWorkspaces.js';
 import {isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
 import { tuiChatMessages } from './tuiTeamChat.js';
@@ -305,6 +305,64 @@ async function openTuiAuthoringExecutor(context: WorkspaceContext, event: Author
     }) });
 }
 
+async function loadAppLibrary(context: WorkspaceContext): Promise<void> {
+  const {state,client,render}=context,app=state.activeApp;
+  if(!app)return;
+  const version=state.routeVersion,ownerCurrent=state.signedIn?captureTuiWorkspaceOwner(client):()=>typeof client.hasSession!=="function"||!client.hasSession();
+  const personal=state.signedIn&&!client.getActiveTeamId?.();
+  const [library,results,publicData,cachedChats]=await Promise.allSettled([
+    personal&&typeof client.getAppsWorkspaceLibrary==="function"?client.getAppsWorkspaceLibrary(app.id):Promise.resolve(null),
+    personal?loadTuiAppsResults(client,app.id):Promise.resolve(null),
+    typeof client.getAppsWorkspacePublicRecommendations==="function"?client.getAppsWorkspacePublicRecommendations(app.id,Intl.DateTimeFormat().resolvedOptions().locale):Promise.resolve(null),
+    personal&&typeof client.listCachedChats==="function"?client.listCachedChats(60,1):Promise.resolve(null),
+  ]);
+  if(version!==state.routeVersion||!ownerCurrent()||state.activeApp?.id!==app.id)return;
+  if(library.status==="fulfilled"&&library.value)state.appLibrary=parseTuiAppsLibrary(library.value,app.id);
+  else if(personal&&library.status==="rejected")state.status="Saved searches are unavailable. You can still submit a request.";
+  state.appPublicRecommendations=publicData.status==="fulfilled"&&publicData.value
+    ?parseTuiAppsLibrary({...publicData.value as object,app_id:app.id},app.id).recommendations:[];
+  if(!state.appLibrary.recommendations.length)state.appLibrary.recommendations=state.appPublicRecommendations;
+  if(results.status==="fulfilled"&&results.value)state.appResults=results.value;
+  state.appRecentChats=personal?(cachedChats.status==="fulfilled"&&cachedChats.value?cachedChats.value.chats:state.recentChats).filter(chat=>chat.activeFocusId?.startsWith(app.id+"-")).slice(0,12):[];
+  render();
+}
+
+export async function submitTuiAppsRequest(context: WorkspaceContext,text:string):Promise<void> {
+  const {state,client,render}=context,app=state.screen==="app-result"&&state.activeAppResult?state.apps.find(item=>item.id===state.activeAppResult?.appId)??null:state.activeApp;
+  if(!app)throw new Error("Open the app before submitting a request.");
+  if(state.appRequestBusy)return;
+  const version=state.routeVersion,ownerCurrent=captureTuiWorkspaceOwner(client);
+  const previous=state.screen==="app-result"?state.activeAppResult:null;
+  state.appRequestBusy=true;state.status="Understanding your request…";render();
+  const current=()=>version===state.routeVersion&&ownerCurrent()&&state.activeApp?.id===app.id;
+  try {
+    const plan=await interpretTuiAppsRequest(client,app,text,previous);
+    if(!current())return;
+    const handoff=tuiAppsHandoffText(text,previous);
+    if(plan.action==="chat"){
+      state.appRequestBusy=false;newChat(state);state.focus="composer";await context.send(handoff);return;
+    }
+    if(plan.action==="workflow"){
+      state.status="Creating workflow…";render();
+      const session=await client.startWorkflowInput({text:handoff,inputType:"text",optimisticSave:true,
+        timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,idempotencyKey:randomUUID()});
+      if(!current())return;
+      route(state,"workflows","workflow");const workflow=session.workflow??session.workflows?.[0];
+      state.activeWorkflow=workflow??null;state.workflowInputSessionId=workflow?null:session.session_id;
+      state.status=session.error??session.message??(workflow?"Workflow created.":"Creating workflow. Use /refresh to check progress.");return;
+    }
+    if(!plan.run)throw new Error("Apps did not prepare a skill request.");
+    state.status="Running your request…";render();
+    const result=await executeTuiAppsRequest(client,plan.run);
+    if(!current())return;
+    const draft=state.input;route(state,"apps","app-result");state.input=draft;state.activeAppResult=result;state.focus="composer";
+    state.status=result.retentionError??null;
+  } catch(error) {
+    if(current()){state.input=state.input||text;state.inputCursor=null;state.status=null;}
+    throw error;
+  } finally {state.appRequestBusy=false;render();}
+}
+
 export async function handleWorkspaceCommand(context: WorkspaceContext, command: string): Promise<boolean> {
   const {state, client, render} = context;
   const space = command.indexOf(" ");
@@ -413,16 +471,53 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
     }
     case "/app": {
       const app=state.apps.find((a)=>a.id===arg);if(!app)throw new Error("App not found. Open /apps first.");
-      route(state,"apps","app");state.activeApp=app;state.activeAppSkill=null;state.appTab="skills";render();return true;
+      route(state,"apps","app");state.activeApp=app;state.activeAppSkill=null;state.activeAppResult=null;state.appTab="skills";state.appLibrary=emptyTuiAppsLibrary(app.id);state.appPublicRecommendations=[];state.appRecentChats=[];state.appResults={items:[],hasMore:false,offset:0};state.appCarouselIndex=0;state.appCarouselPositions={};state.appCarouselRow=0;state.focus="composer";render();await loadAppLibrary(context);return true;
     }
     case "/app-skill": {
       const [appId,skillId]=arg.split("/");if(!appId||!skillId)throw new Error("Choose /app-skill app/skill.");
       const request=route(state,"apps","app-skill");state.activeAppSkill=null;state.appTab="skills";state.appSkillTab="overview";state.status="Loading skill…";render();
       const apps=state.apps.length?state.apps:await loadTuiApps(client);
       if(request!==state.routeVersion)return true;
-      const skill=await loadTuiAppsSkill(client,appId,skillId);if(request===state.routeVersion){state.apps=apps;state.activeAppSkill=skill;state.activeApp=apps.find((a)=>a.id===appId)??null;state.status=null;}render();return true;
+      const skill=await loadTuiAppsSkill(client,appId,skillId);const changedApp=state.appLibrary.appId!==appId;if(request===state.routeVersion){state.apps=apps;state.activeAppSkill=skill;state.activeApp=apps.find((a)=>a.id===appId)??null;state.status=null;if(changedApp){state.appLibrary=emptyTuiAppsLibrary(appId);state.appResults={items:[],hasMore:false,offset:0};state.activeAppResult=null;}}render();if(request===state.routeVersion&&changedApp)await loadAppLibrary(context);return true;
     }
-    case "/app-run": if(!state.activeAppSkill)throw new Error("Open an app skill first.");state.form=buildTuiAppsSkillForm(state.activeAppSkill);render();return true;
+    case "/app-run": if(!state.activeApp)throw new Error("Open an app first.");state.focus="composer";render();return true;
+    case "/app-request": if(arg)await submitTuiAppsRequest(context,arg);else state.focus="composer";render();return true;
+    case "/app-settings": if(!state.activeApp)throw new Error("Open an app first.");++state.routeVersion;state.screen="app";state.appTab="settings_memories";state.focus="content";state.scrollOffset=0;render();return true;
+    case "/app-daily-ok": state.appDailyNotice=false;state.status=null;render();return true;
+    case "/app-daily": {
+      const app=state.activeApp;if(!app)throw new Error("Open an app first.");
+      if(client.getActiveTeamId())throw new Error("Switch to Personal to manage Apps searches.");
+      const ownerCurrent=captureTuiWorkspaceOwner(client),version=state.routeVersion;
+      const owner=await client.whoAmI();if(!ownerCurrent()||version!==state.routeVersion)return true;
+      const library=await client.updateAppsWorkspaceSettings(app.id,{daily_searches_enabled:arg!=="off",expected_user_id:owner.id??owner.user_id});
+      if(ownerCurrent()&&version===state.routeVersion){state.appLibrary=parseTuiAppsLibrary(library,app.id);state.appDailyNotice=false;state.status=`Daily searches ${state.appLibrary.dailySearchesEnabled?"on":"off"}.`;}
+      render();return true;
+    }
+    case "/app-save": {
+      const result=state.activeAppResult;if(!result)throw new Error("Open a result before saving its search.");
+      if(result.expiresAt&&result.expiresAt<=Date.now())throw new Error("This recommendation expired. Open the app for fresh results.");
+      if(client.getActiveTeamId())throw new Error("Switch to Personal to save Apps searches.");
+      const ownerCurrent=captureTuiWorkspaceOwner(client),version=state.routeVersion;
+      const owner=await client.whoAmI();if(!ownerCurrent()||version!==state.routeVersion)return true;
+      const first=!state.appLibrary.savedSearches.length;
+      const input=result.content.input&&typeof result.content.input==="object"?result.content.input as Record<string,unknown>:{};
+      if(!Object.keys(input).length)throw new Error("This result does not contain a reusable search request.");
+      const query=typeof result.content.request_text==="string"?result.content.request_text:typeof input.query==="string"?input.query:JSON.stringify(input);
+      const library=await client.saveAppsWorkspaceSearch(result.appId,{skill_id:result.skillId,parameters:input,query,title:query.slice(0,120),expected_user_id:owner.id??owner.user_id});
+      if(ownerCurrent()&&version===state.routeVersion){state.appLibrary=parseTuiAppsLibrary(library,result.appId);
+        state.appDailyNotice=(library&&typeof library==="object"&&"first_save" in library?(library as {first_save:boolean}).first_save:first)&&state.appLibrary.dailySearchesEnabled;state.status="Search saved.";}
+      render();return true;
+    }
+    case "/app-saved": {
+      const saved=state.appLibrary.savedSearches.find(item=>item.id===arg);if(!saved)throw new Error("Saved search unavailable.");
+      const text=saved.query||saved.title||`Run ${saved.skillId} with ${JSON.stringify(saved.parameters)}`;
+      await submitTuiAppsRequest(context,`${text}\nSaved search parameters: ${JSON.stringify(saved.parameters)}`);return true;
+    }
+    case "/app-recommendation": {
+      const item=state.appLibrary.recommendations.find(item=>item.id===arg&&item.expiresAt>Date.now());
+      if(!item||!state.activeApp)throw new Error("This recommendation has expired.");
+      route(state,"apps","app-result");state.activeAppResult=recommendationTuiAppsResult(state.activeApp.id,item);state.focus="composer";render();return true;
+    }
     case "/app-results": {
       if(!state.activeApp)throw new Error("Open an app first.");const request=++state.routeVersion;state.status="Loading saved results…";render();
       const results=await loadTuiAppsResults(client,state.activeApp.id,arg?Number(arg):0);if(request===state.routeVersion){state.appResults=results;state.appTab="embeds";state.appSkillTab="embeds";state.selectedIndex=0;state.status=null;}render();return true;
@@ -433,7 +528,7 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
     }
     case "/app-result": {
       const request=route(state,"apps","app-result");state.activeAppResult=null;render();const result=await loadTuiAppsResult(client,arg);
-      if(request===state.routeVersion)state.activeAppResult=result;render();return true;
+      if(request===state.routeVersion){state.activeAppResult=result;state.activeApp=state.apps.find(app=>app.id===result.appId)??state.activeApp;state.focus="composer";}render();return true;
     }
     case "/new": case "/clear": newChat(state); state.selectedProjectId = null; render(); return true;
     case '/active': state.sidebarOpen = true; state.focus = 'sidebar'; state.sidebarIndex = 0; render(); await refreshTuiChatSidebar(state, client, render, true); state.sidebarIndex = 0; render(); return true;
@@ -551,7 +646,8 @@ export async function handleWorkspaceCommand(context: WorkspaceContext, command:
         try {
         const example = state.activeExample?.embeds?.find((embed) => embed.embed_id === id);
         const content = example ? parseEmbedContentObject(example.content) : null;
-        let embed = state.chatEmbeds[id] ?? (example && content ? {id, embedId:id, type:example.type, content, textPreview:null,
+        const appChild=state.workspace==="apps"&&state.activeAppResult?tuiAppsResultChildren(state.activeAppResult).find(child=>child.embedId===id):undefined;
+        let embed = (appChild&&state.activeAppResult?toTuiAppsEmbed(appChild,state.activeAppResult.appId,state.activeAppResult.skillId):null) ?? state.chatEmbeds[id] ?? (example && content ? {id, embedId:id, type:example.type, content, textPreview:null,
           appId:typeof content.app_id==="string"?content.app_id:null, skillId:typeof content.skill_id==="string"?content.skill_id:null, createdAt:null} : await client.getEmbed(id,{preferCache:true,chatId:state.activeChatId ?? undefined}));
         if (request !== state.routeVersion) return true;
         state.detailTitle = embed.textPreview || (embed.appId ? `${embed.appId}${embed.skillId ? `/${embed.skillId}` : ""}` : embed.type?.replaceAll("_", " ")) || "Embed";
@@ -826,7 +922,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
     const edge = key.name === 'home' ? 'first' : key.name === 'end' ? 'last' : undefined;
     if (state.workspace === 'chats') moveTuiChatSidebarSelection(state, direction * step, edge);
     else {
-      const count = state.workspace === 'projects' ? state.projects.length : state.workspace === 'tasks' ? state.tasks.length : state.workspace === 'apps' ? state.apps.length : state.workflows.length;
+      const count = state.workspace === 'projects' ? state.projects.length : state.workspace === 'tasks' ? state.tasks.length : state.workspace === 'apps' ? (state.activeApp&&state.screen!=="apps"?tuiAppsLibraryEntries(state).length:state.apps.length) : state.workflows.length;
       state.sidebarIndex = edge === 'first' ? 0 : edge === 'last' ? Math.max(0,count-1) : Math.max(0,Math.min(Math.max(0,count-1),state.sidebarIndex + direction * step));
     }
     render(); return true;
@@ -894,7 +990,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   }
   if (state.focus === "sidebar") {
     const chatRows = tuiChatSidebarRows(state);
-    const count = state.workspace === "chats" ? chatRows.length : state.workspace === "projects" ? state.projects.length : state.workspace === "tasks" ? state.tasks.length : state.workspace==="apps"?state.apps.length:state.workflows.length;
+    const count = state.workspace === "chats" ? chatRows.length : state.workspace === "projects" ? state.projects.length : state.workspace === "tasks" ? state.tasks.length : state.workspace==="apps"?(state.activeApp&&state.screen!=="apps"?tuiAppsLibraryEntries(state).length:state.apps.length):state.workflows.length;
     if (key.name === "up" || key.name === "down") {
       if (state.workspace === 'chats') moveTuiChatSidebarSelection(state, key.name === 'up' ? -1 : 1);
       else state.sidebarIndex = Math.max(0, Math.min(Math.max(0,count - 1), state.sidebarIndex + (key.name === 'up' ? -1 : 1)));
@@ -922,11 +1018,18 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
       else if (state.workspace === "projects") await context.command(`/project ${state.projects[state.sidebarIndex]?.id}`);
       else if (state.workspace === "tasks") await openTask(context,state.tasks[state.sidebarIndex]?.taskId ?? "");
       else if (state.workspace === "workflows") await context.command(`/workflow ${state.workflows[state.sidebarIndex]?.id}`);
-      else if(state.workspace==="apps")await context.command(`/app ${state.apps[state.sidebarIndex]?.id}`);
+      else if(state.workspace==="apps"){const entry=state.activeApp&&state.screen!=="apps"?tuiAppsLibraryEntries(state)[state.sidebarIndex]:null;if(entry)await context.command(entry.command);else await context.command(`/app ${state.apps[state.sidebarIndex]?.id}`);}
     } else if (chunk !== "/") return true;
     render(); if (chunk !== "/") return true;
   }
   if(state.focus==="content"&&state.workspace==="apps"){
+    if(state.screen==="app"&&state.appTab==="skills"&&["left","right","up","down","return"].includes(key.name??"")){
+      const groups=tuiAppsCarouselGroups(state),group=groups[state.appCarouselRow];
+      if(key.name==="up"||key.name==="down"){state.appCarouselRow=Math.max(0,Math.min(groups.length-1,state.appCarouselRow+(key.name==="up"?-1:1)));state.appCarouselIndex=state.appCarouselPositions[groups[state.appCarouselRow]?.title]??0;}
+      else if(key.name==="left"||key.name==="right"){state.appCarouselIndex=Math.max(0,Math.min((group?.commands.length??1)-1,state.appCarouselIndex+(key.name==="left"?-1:1)));if(group)state.appCarouselPositions[group.title]=state.appCarouselIndex;}
+      else {const command=group?.commands[state.appCarouselIndex];if(command)await context.command(command);else state.focus="composer";}
+      render();return true;
+    }
     if(state.screen==="app-result"&&(key.name==="up"||key.name==="down")){state.scrollOffset=Math.max(0,state.scrollOffset+(key.name==="up"?-1:1));render();return true;}
     if(state.screen==="app"&&/^[1-5]$/.test(chunk)){
       ++state.routeVersion;
@@ -947,7 +1050,7 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
       else if(resultsTab){const result=state.appResults.items[state.selectedIndex];if(result)await context.command(`/app-result ${result.embedId}`);}
       else if(workflowsTab){const workflow=state.appWorkflows.items[state.selectedIndex];if(workflow)await context.command(`/workflow ${workflow.id}`);}
       else if(state.screen==="app-skill")await context.command("/app-run");
-      else if(state.appTab==="skills"&&state.activeApp){const skill=state.activeApp.skills[state.selectedIndex];if(skill)await context.command(`/app-skill ${state.activeApp.id}/${skill.id}`);}
+      else if(state.appTab==="skills"&&state.activeApp){state.focus="composer";render();}
       return true;
     }
     if((chunk==="]"||chunk==="[")&&resultsTab){await context.command(`/app-results ${Math.max(0,state.appResults.offset+(chunk==="]"?20:-20))}`);return true;}
@@ -1014,6 +1117,11 @@ export async function handleWorkspaceKey(context: WorkspaceContext, chunk: strin
   if (state.focus === "composer") {
     if(key.name==='return'&&state.workspace==='chats'&&state.isBusy&&!state.input.startsWith('/')){
       rememberDraft(state);state.status='The previous reply is still running. Your draft is kept.';render();return true;
+    }
+    if(key.name==="return"&&state.workspace==="apps"&&["app","app-skill","app-result"].includes(state.screen)){
+      if(state.appRequestBusy)return true;
+      const text=state.input.trim();if(!text)return true;
+      state.input="";state.inputCursor=null;await submitTuiAppsRequest(context,text);return true;
     }
     if (key.name === "return" && state.workspace !== "chats") {
       const value=state.input.trim();state.input="";state.inputCursor=null;

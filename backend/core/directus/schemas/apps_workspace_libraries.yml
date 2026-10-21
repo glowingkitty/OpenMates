@@ -1,0 +1,40 @@
+# Durable saved searches/settings are part of managed PostgreSQL backups.
+# No temporary recommendation/result/child payload belongs in this collection.
+apps_workspace_libraries:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary key. Internal first-party service only."
+    scope_hash:
+      type: string
+      unique: true
+      note: "[Indexed, Unique] SHA256 owner/app/explicit Team scope."
+    owner_user_id:
+      type: uuid
+      note: "Internal scheduler routing only; reauthorize owner and Team each run."
+      indexed: true
+      foreign_key:
+        collection: directus_users
+        field: id
+        on_delete: CASCADE
+    app_id:
+      type: string
+      note: "Internal application routing."
+    team_id:
+      type: uuid
+      note: "Nullable explicit Team scope; never Personal fallback."
+    encrypted_config:
+      type: text
+      note: "Per-user server Vault Transit ciphertext: saved titles, queries, parameters and daily enabled preference. Never recommendation batches."
+    version:
+      type: integer
+      default: 1
+      note: "Conditional update version preventing stale configuration or claim writes."
+    last_attempt_at:
+      type: integer
+      default: 0
+      note: "Durable paid-attempt time; preserved by supported backup/restore."
+    attempt_id:
+      type: uuid
+      note: "Nullable durable idempotency identity; contains no search/result data."

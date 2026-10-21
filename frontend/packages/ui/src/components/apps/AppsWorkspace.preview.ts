@@ -61,4 +61,13 @@ export const ready = (async () => {
       epoch: current.epoch + 1,
     }));
   });
+  window.addEventListener('apps-preview-refresh-account', () => {
+    authStore.update(state => ({ ...state }));
+    userProfile.update(profile => ({ ...profile, credits: profile.credits + 1 }));
+  });
+  window.addEventListener('apps-preview-set-owner', event => {
+    const { authenticated, userId } = (event as CustomEvent<{ authenticated: boolean; userId: string | null }>).detail;
+    authStore.update(state => ({ ...state, isAuthenticated: authenticated }));
+    userProfile.update(profile => ({ ...profile, user_id: userId }));
+  });
 })();

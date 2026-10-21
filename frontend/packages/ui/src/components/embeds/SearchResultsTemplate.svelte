@@ -27,7 +27,18 @@
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, getContext } from 'svelte';
+  import { saveAppsSearchWithNotice } from '../../services/appsWorkspaceLibraryService';
+  import { searchResultMapMarkers } from './searchResultMapMarkers';
+  import EmbedLeafletMap from './EmbedLeafletMap.svelte';
+  import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import AppsRequestComposer from '../apps/AppsRequestComposer.svelte';
+  import { get } from 'svelte/store';
+  import { activeTeamContext } from '../../stores/teamStore';
+  import { authStore } from '../../stores/authState';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  import { APPS_RESULTS_ACTIONS_CONTEXT, runAppsWorkspaceRequest, type AppsResultsActionsContext, type AppsRequestContext } from '../../services/appsWorkspaceRequestService';
+  import { queueAppsWorkspaceChatHandoff, queueAppsWorkspaceWorkflowHandoff, captureAppsWorkspaceHandoffGuard } from '../../services/appsWorkspaceChatHandoffService';
   import { activeEmbedStore } from '../../stores/activeEmbedStore';
   import {
     restorePreviousFullscreenRoute,
@@ -40,7 +51,7 @@
    * Navigation context passed to childFullscreen snippet so the consumer
    * can wire up close/prev/next on the overlay fullscreen component.
    */
-  export interface ChildNavContext<U> {
+  interface ChildNavContext<U> {
     result: U;
     index: number;
     total: number;
@@ -150,6 +161,7 @@
     errorMessage: errorMessageProp,
     emptyTestId = 'search-template-empty',
     status = 'finished',
+    query,
 
     // Snippets
     resultCard,
@@ -157,11 +169,61 @@
     embedHeaderCta,
   }: Props = $props();
 
+  const resultOwnerCurrent = captureAppsWorkspaceHandoffGuard();
+  const actions = getContext<AppsResultsActionsContext | undefined>(APPS_RESULTS_ACTIONS_CONTEXT);
+  const sourceChat = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  let parentContent = $state<Record<string, unknown>>({});
+  $effect(() => {
+    let cancelled = false;
+    parentContent = {};
+    if (currentEmbedId && !actions) void resolveEmbed(currentEmbedId).then(async embed => {
+      const content = embed ? await decodeToonContent(embed.content) : null;
+      if (!cancelled && content) parentContent = content;
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  });
+  let resultFilter = $state('');
+  let submittingRequest = $state(false);
+  let requestError = $state(false);
+  function requestContext(): AppsRequestContext {
+    if (!resultOwnerCurrent()) throw new Error('account_context_changed');
+    return { skill_id: skillId, input: parentContent.input && typeof parentContent.input === 'object' ? parentContent.input as Record<string, unknown> : query ? { query } : undefined, embed_id: currentEmbedId,
+      chat_id: sourceChat?.chatId ?? (typeof parentContent.chat_id === 'string' ? parentContent.chat_id : undefined), result: { ...parentContent, results: allResults } };
+  }
+  async function saveSearch(): Promise<void> {
+    requestError = false;
+    try { const context = requestContext(); if (actions?.onSaveSearch) await actions.onSaveSearch(context); else await saveAppsSearchWithNotice(appId, context, undefined, get(activeTeamContext).teamId ?? undefined); }
+    catch { requestError = true; }
+  }
+  async function createWorkflow(): Promise<void> {
+    requestError = false;
+    try { const context = requestContext(); if (actions?.onCreateWorkflow) await actions.onCreateWorkflow(context); else await queueAppsWorkspaceWorkflowHandoff({ text: $text('apps_workspace.create_workflow'), context }); }
+    catch { requestError = true; }
+  }
+  function matchesFilter(result: T): boolean {
+    if (!resultFilter.trim()) return true;
+    // Search only actual preview data; no speculative category/price filters.
+    const values = Object.entries(result).filter(([key]) => !['embed_id', 'embed_type'].includes(key));
+    return JSON.stringify(values).toLocaleLowerCase().includes(resultFilter.trim().toLocaleLowerCase());
+  }
+  async function submitFollowup(value: string, attachments: File[]): Promise<boolean> {
+    submittingRequest = true; requestError = false;
+    try {
+      if (actions) return (await actions.onSubmit(value, attachments, requestContext())) !== false;
+      const result = await runAppsWorkspaceRequest({ appId, text: value, attachments, guest: !$authStore.isAuthenticated, teamId: get(activeTeamContext).teamId ?? undefined,
+        context: requestContext(), onAccepted: ({ embedId }) => { setCanonicalFullscreenRoute(embedId); }, onChat: queueAppsWorkspaceChatHandoff, onWorkflow: queueAppsWorkspaceWorkflowHandoff });
+      if (result.action !== 'execute') onClose();
+      return true;
+    } catch { requestError = true; return false; }
+    finally { submittingRequest = false; }
+  }
+
   // ── Drill-down state ──
   /** Index of selected result (-1 = none, show grid) */
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
+  const mapMarkers = $derived(searchResultMapMarkers(allResults));
   let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);
@@ -322,6 +384,16 @@
   a full search grid behind the child fullscreen.
 -->
 
+  {#snippet mapHeader()}
+      <EmbedLeafletMap center={mapMarkers[0]} markers={mapMarkers} height="300px" fitBounds={true} scrollWheelZoom={false}
+        onMarkerSelect={(ref) => { const index = allResults.findIndex(result => result.embed_id === ref); if (index >= 0) handleResultSelect(index, allResults); }} />
+  {/snippet}
+
+  {#snippet followupComposer()}
+      <AppsRequestComposer {appId} submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
+      {#if requestError}<p role="alert">{$text('apps_workspace.request_error')}</p>{/if}
+  {/snippet}
+
 <UnifiedEmbedFullscreen
   {testId}
   {closeTestId}
@@ -357,9 +429,18 @@
   }}
   {onEmbedDataUpdated}
   {embedHeaderCta}
+  embedHeaderContent={mapMarkers.length > 0 && !initialChildEmbedId ? mapHeader : undefined}
+  fixedBottom={!initialChildEmbedId ? followupComposer : undefined}
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
+    {#if !initialChildEmbedId && results.length > 0}
+      <div class="search-template-toolbar" data-testid="search-template-toolbar">
+        <input type="search" bind:value={resultFilter} placeholder={$text('apps_workspace.filter_results')} aria-label={$text('apps_workspace.filter_results')} data-testid="search-template-filter" />
+        {#if skillId && (parentContent.input || query)}<button type="button" onclick={saveSearch}>{$text('apps_workspace.save_search')}</button>{/if}
+        <button type="button" onclick={createWorkflow}>{$text('apps_workspace.create_workflow')}</button>
+      </div>
+    {/if}
 
     {#if isOpeningInitialChild || isDirectInitialChildOpen}
       <div class="search-template-child-transition" data-testid="search-template-child-transition" aria-busy="true"></div>
@@ -386,6 +467,9 @@
         </div>
       {/if}
     {:else}
+      {#if !results.some(matchesFilter)}
+        <div class="search-template-empty" role="status">{$text('embeds.search_no_results')}</div>
+      {/if}
       <!-- Results grid -->
       <div
         class="search-template-grid"
@@ -394,7 +478,7 @@
         style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};"
       >
         {#each results as result, i (result.embed_id)}
-          {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}
+          {#if matchesFilter(result)}{@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}{/if}
         {/each}
       </div>
     {/if}
@@ -422,6 +506,9 @@
 {/if}
 
 <style>
+  .search-template-toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 64px 12px 20px; background: var(--color-grey-20); }
+  .search-template-toolbar input { flex: 1; min-width: 140px; border: 1px solid var(--color-grey-30); border-radius: 12px; padding: 10px 12px; background: var(--color-grey-10); color: var(--color-font-primary); }
+  .search-template-toolbar button { border: 0; border-radius: 12px; padding: 10px; color: var(--color-font-primary); background: var(--color-grey-10); cursor: pointer; }
   /* Results grid -- responsive auto-fill columns */
   .search-template-grid {
     display: grid;
@@ -430,8 +517,10 @@
     max-width: var(--max-grid-width, 1000px);
     margin: 0 auto;
     padding: var(--spacing-12) var(--spacing-5);
-    padding-bottom: 120px;
-    grid-template-columns: repeat(auto-fill, minmax(var(--min-card-width, 280px), 1fr));
+    padding-bottom: 24px;
+    box-sizing: border-box;
+    overflow: clip;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--min-card-width, 280px)), 1fr));
   }
 
   .search-template-child-transition {

@@ -267,6 +267,7 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
     assert result.returncode == 0, result.stderr
 
     direct_paths = {
+        "/v1/apps/workspace/interpret", "/v1/apps/workspace/rank",
         "/v1/apps/workspace/results", "/v1/apps/workspace/results/*",
         "/v1/apps/*/skills/*", "/v1/tasks/*", "/v1/anonymous/apps/*",
     }
@@ -399,5 +400,17 @@ def test_production_account_chat_key_uses_exact_first_party_handlers() -> None:
     assert "/v1/account/*" not in content
     for name in ("@webapp_paths path ", "@webapp_general_options {", "@webapp_actual {"):
         assert route in content.split(name, 1)[1].split("\n", 2)[0 if name.endswith("path ") else 1]
-    public = next(line for line in content.splitlines() if line.strip().startswith("@public_api_paths path "))
+    if "@public_api_paths {" in content:
+        public = content.split("@public_api_paths {", 1)[1].split("}", 1)[0]
+    else:
+        public = next(line for line in content.splitlines() if line.strip().startswith("@public_api_paths path "))
     assert route not in public
+
+
+def test_apps_interpretation_and_ranking_use_exact_first_party_paths() -> None:
+    for caddyfile in ALL_CADDYFILES:
+        paths = [line.split("#", 1)[0].split() for line in caddyfile.read_text().splitlines()
+                 if "/v1/apps/workspace/interpret" in line and not line.lstrip().startswith("#")]
+        assert paths, caddyfile
+        assert all("/v1/apps/workspace/rank" in line for line in paths), caddyfile
+        assert all("/v1/apps/workspace/*" not in line for line in paths), caddyfile

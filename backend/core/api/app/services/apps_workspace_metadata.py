@@ -115,11 +115,21 @@ def execution_status(*, app_id: str, skill: Any, registry: Any, capability: Any)
     mode = workflow.get("execution_mode") if isinstance(workflow, dict) else None
     if not skill.class_path or not registry or not registry.is_skill_available(app_id, skill.id):
         return False, "SKILL_NOT_REGISTERED", mode
-    if skill.api_config and not skill.api_config.expose_post:
+    direct_audio_upload = app_id == "audio" and skill.id == "transcribe"
+    if skill.api_config and not skill.api_config.expose_post and not direct_audio_upload:
         return False, "REST_EXECUTION_UNAVAILABLE", mode
     if capability is None:
         return False, "WORKFLOW_CLASSIFICATION_REQUIRED", mode
     if not capability.enabled:
+        # The explicit custom POST accepts a user-supplied encrypted upload.
+        # Its workflow classification blocks unattended automation precisely
+        # because such input is absent there; it does not disable direct use.
+        if direct_audio_upload and capability.reason == "WORKFLOW_FILE_OR_EMBED_INPUT_REQUIRED":
+            schema = request_schema(skill)
+            properties = schema.get("properties", {}).get("requests", {}).get("items", {}).get("properties", {})
+            if not {"s3_base_url", "s3_key", "aes_nonce", "vault_wrapped_aes_key"}.issubset(properties):
+                return False, "REQUEST_SCHEMA_UNAVAILABLE", mode
+            return True, None, "sync"
         return False, capability.reason or "WORKFLOW_UNAVAILABLE", mode
     if mode not in {"sync", "async_job", "sandbox"}:
         return False, "DIRECT_EXECUTION_UNSUPPORTED", mode

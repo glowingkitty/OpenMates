@@ -2456,6 +2456,7 @@ export interface ChatListItem {
   updatedAt: number | null;
   createdAt?: number | null;
   category: string | null;
+  activeFocusId?: string;
   mateName: string | null;
   source?: "example";
   parentId?: string | null;
@@ -5961,8 +5962,8 @@ export class OpenMatesClient {
     // may decrypt together. No decrypted metadata or key is cached globally.
     const decrypt = chatKeyBytes ? await createAesGcmCombinedDecryptor(chatKeyBytes) : async () => null;
     const field = (name: string) => typeof d[name] === "string" ? decrypt(d[name] as string) : Promise.resolve(null);
-    const [title, summary, category, slugValue] = await Promise.all([
-      field("encrypted_title"), field("encrypted_chat_summary"), field("encrypted_category"), field("encrypted_slug"),
+    const [title, summary, category, slugValue, activeFocusId] = await Promise.all([
+      field("encrypted_title"), field("encrypted_chat_summary"), field("encrypted_category"), field("encrypted_slug"), field("encrypted_active_focus_id"),
     ]);
     const slug = chatKeyBytes && typeof d.encrypted_slug === "string" ? slugValue ?? "" : null;
 
@@ -5972,6 +5973,7 @@ export class OpenMatesClient {
       participantUserHashes: Array.isArray(d.participant_user_hashes) ? d.participant_user_hashes.filter((value): value is string => typeof value === 'string') : undefined,
       shortId: id.slice(0, 8),
       slug,
+      ...(activeFocusId?{activeFocusId}:{}),
       title,
       summary,
       createdAt: typeof d.created_at === "number" ? d.created_at : null,
@@ -12506,6 +12508,45 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`App skill details failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  /** Interpret a natural-language Apps request without executing its chosen action. */
+  async interpretAppsWorkspaceRequest(payload: Record<string, unknown>): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post("/v1/apps/workspace/interpret", payload, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps request failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  /** Public inspiration is independent of the current account and wallet. */
+  async getAppsWorkspacePublicRecommendations(appId: string, language = "en"): Promise<unknown> {
+    const query = new URLSearchParams({language: language.startsWith("de") ? "de" : "en"});
+    const response = await this.http.get(`/v1/apps/workspace/public/${encodeURIComponent(appId)}?${query}`);
+    if (!response.ok) throw new Error(`Public Apps recommendations failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAppsWorkspaceLibrary(appId: string): Promise<unknown> {
+    this.requireSession();
+    const teamId = this.getActiveTeamId();
+    const query = teamId ? `?${new URLSearchParams({team_id: teamId})}` : "";
+    const response = await this.http.get(`/v1/apps/workspace/library/${encodeURIComponent(appId)}${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps library failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async saveAppsWorkspaceSearch(appId: string, payload: Record<string, unknown>): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(`/v1/apps/workspace/library/${encodeURIComponent(appId)}/saved-searches`, payload, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Save search failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async updateAppsWorkspaceSettings(appId: string, payload: Record<string, unknown>): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.patch(`/v1/apps/workspace/library/${encodeURIComponent(appId)}/settings`, payload, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps settings failed with HTTP ${response.status}`);
     return response.data;
   }
 

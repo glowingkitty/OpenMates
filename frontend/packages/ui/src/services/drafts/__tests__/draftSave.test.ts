@@ -63,10 +63,11 @@ const mocks = vi.hoisted(() => {
       },
       getChat: vi.fn().mockResolvedValue(undefined),
       getMessagesForChat: vi.fn().mockResolvedValue([]),
+      deleteDraftOnlyChat: vi.fn().mockResolvedValue({ deleted: true, deletedEmbedIds: [] }),
       deleteChat: vi.fn().mockResolvedValue({ deletedEmbedIds: [] }),
       getRawChat: vi.fn().mockResolvedValue(undefined),
       addChat: vi.fn().mockResolvedValue(undefined),
-      upsertRawChat: vi.fn().mockResolvedValue(undefined),
+      saveChatDraftFields: vi.fn(async (chatId, fields) => ({ chat_id: chatId, ...fields })),
       createNewChatWithCurrentUserDraft: vi.fn().mockResolvedValue({
         chat_id: "created-chat-id",
         draft_v: 1,
@@ -326,7 +327,7 @@ describe("draftSave", () => {
       await clearCurrentDraft();
 
       expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat");
-      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
       expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
     });
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
@@ -386,7 +387,7 @@ describe("draftSave", () => {
       expect(editor.chain).not.toHaveBeenCalled();
       expect(mocks.draftState.hasUnsavedChanges).toBe(true);
       expect(mocks.draftState.currentChatId).toBe("team-chat");
-      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
     });
 
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
@@ -455,7 +456,7 @@ describe("draftSave", () => {
       finishMessageRead([]);
       await clearing;
 
-      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
       expect(editor.chain).not.toHaveBeenCalled();
       expect(mocks.draftState.currentUserDraftVersion).toBe(3);
     });
@@ -582,7 +583,7 @@ describe("draftSave", () => {
 
       expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
       expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
-      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
       expect(mocks.draftState.currentChatId).toBe("auth-draft-chat");
     });
 
@@ -768,6 +769,31 @@ describe("draftSave", () => {
       expect(mocks.draftState.isSaveInProgress).toBe(false);
     });
 
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+    it.each([false, true])("keeps a rejected local draft unsaved and retries beyond the winning version (cleared=%s)", async (cleared) => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Local edit still needs saving");
+      mocks.resetDraftState({ currentChatId: "draft-race", lastSavedContentMarkdown: "old", hasUnsavedChanges: true });
+      mocks.chatDB.getRawChat.mockResolvedValueOnce({ chat_id: "draft-race", draft_v: 1,
+        encrypted_draft_md: "old-cipher", encrypted_draft_preview: "old-preview" });
+      const winner = { chat_id: "draft-race", draft_v: cleared ? 0 : 3,
+        cleared_draft_v: cleared ? 3 : 0,
+        encrypted_draft_md: cleared ? null : "winning-cipher",
+        encrypted_draft_preview: cleared ? null : "winning-preview" };
+      mocks.chatDB.saveChatDraftFields.mockResolvedValueOnce(winner);
+      await saveDraftDebounced("draft-race", editor as never);
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+      expect(mocks.draftState.lastSavedContentMarkdown).toBe("old");
+      expect(mocks.chatSyncService.sendUpdateDraft).not.toHaveBeenCalled();
+      mocks.chatDB.getRawChat.mockResolvedValueOnce(winner);
+      await saveDraftDebounced("draft-race", editor as never);
+      expect(mocks.chatDB.saveChatDraftFields).toHaveBeenLastCalledWith("draft-race",
+        expect.objectContaining({ draft_v: 4, encrypted_draft_md: "encrypted-data" }));
+      expect(mocks.draftState.hasUnsavedChanges).toBe(false);
+      expect(mocks.draftState.lastSavedContentMarkdown).toBe("Local edit still needs saving");
+    });
+
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("removes a first-save shell that finishes persisting after clear", async () => {
       const editor = createEditor(false);
@@ -804,7 +830,7 @@ describe("draftSave", () => {
       });
       await savePromise;
 
-      expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("late-created-chat-id");
+      expect(mocks.chatDB.deleteDraftOnlyChat).toHaveBeenCalledWith("late-created-chat-id");
       expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
       expect(mocks.draftState.isSaveInProgress).toBe(false);
     });
@@ -829,9 +855,9 @@ describe("draftSave", () => {
       finishPersistence({ chat_id: "committed-team-chat", team_id: "team-1", messages_v: 2,
         draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null });
       await saving;
-      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
-      expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(expect.objectContaining({
-        chat_id: "committed-team-chat", messages_v: 2, encrypted_draft_md: null,
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledWith("committed-team-chat", expect.objectContaining({
+        encrypted_draft_md: null,
       }));
     });
   });
@@ -933,7 +959,7 @@ describe("draftSave", () => {
       expect(mocks.draftState).toMatchObject({
         currentChatId: chatId, currentUserDraftVersion: 0, hasUnsavedChanges: false,
       });
-      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
     });
 
     // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.cancel
@@ -990,7 +1016,7 @@ describe("draftSave", () => {
         expect(mocks.encryptWithMasterKey.mock.calls.map((call) => call[0])).toEqual([
           "draft", "draft", "draft", "draft",
         ]);
-        expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledTimes(1);
+        expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledTimes(1);
       } finally {
         vi.useRealTimers();
       }

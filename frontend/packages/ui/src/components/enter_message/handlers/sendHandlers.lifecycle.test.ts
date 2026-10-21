@@ -1,6 +1,6 @@
 vi.mock("../../../services/voiceCall", () => ({ voiceCallController: mocks.store({ status: "idle" }) }));
 vi.mock("../../../services/preparedPrivacyForSend", () => ({ registerPersonalPrivacyExclusions: vi.fn() }));
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Editor } from '@tiptap/core';
 import { createHash } from 'node:crypto';
 import { get } from 'svelte/store';
@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => {
     refreshAnonymousFreeUsageStatus: vi.fn(async () => ({ active: true, can_send_text: true })),
     tipTapToCanonicalMarkdown: vi.fn((_content: unknown) => 'Send these attachments'),
     createEmbedFromUrl: vi.fn(),
+    privacySettings: { masterEnabled: false, categories: {} },
     consumeClickedSuggestion: vi.fn(() => null),
     extractProjectFocusSendIntent: vi.fn(() => null),
     beginFreshProjectRoutingForSend: vi.fn(),
@@ -102,11 +103,12 @@ vi.mock('../../../stores/appSettingsMemoriesPermissionStore', () => ({ appSettin
 vi.mock('../../../stores/editMessageStore', () => ({ editMessageStore: mocks.store(null), cancelEdit: vi.fn() }));
 vi.mock('../../../stores/incognitoModeStore', () => ({ incognitoMode: { get: vi.fn(() => false) } }));
 vi.mock('../../../stores/notificationStore', () => ({ notificationStore: { error: vi.fn(), addNotificationWithOptions: mocks.notify } }));
-vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store({ masterEnabled: false, categories: {} }), enabledEntries: mocks.store([]) } }));
+vi.mock('../../../stores/personalDataStore', () => ({ personalDataStore: { settings: mocks.store(mocks.privacySettings), enabledEntries: mocks.store([]) } }));
 vi.mock('../services/piiDetectionService', () => ({ detectPII: vi.fn(() => []), replacePIIWithPlaceholders: vi.fn(), createPIIMappingsForStorage: vi.fn(() => []) }));
 vi.mock('../services/placeholderRewriteService', () => ({ rewriteKnownPIIPlaceholders: vi.fn() }));
 vi.mock('../../../stores/embedPIIStore', () => ({ getActivePIIMappingsForRewrite: vi.fn(() => []) }));
 vi.mock('../../../stores/teamStore', () => ({
+  activeTeamContext: mocks.store({ teamId: null, epoch: 0 }),
   activeTeamId: mocks.store(null),
   getActiveTeamContextSnapshot: () => ({ ...mocks.teamContext }),
   isActiveTeamContext: (teamId: string | null, epoch: number) =>
@@ -122,7 +124,7 @@ vi.mock('../../../services/projectFocusSendPreflight', () => ({
   ProjectFocusSendPreflightError: class ProjectFocusSendPreflightError extends Error {},
 }));
 
-import { executeDeferredSend, handleSend } from './sendHandlers';
+import { executeDeferredSend, handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './sendHandlers';
 import { pendingUploadStore, removePendingSend } from '../../../stores/pendingUploadStore';
 
 function makeEditor(includeEmbeds = true) {
@@ -698,5 +700,84 @@ describe('handleSend authenticated acceptance lifecycle', () => {
     expect(dispatch).toHaveBeenCalledWith('sendMessageRejected', expect.anything());
     expect(document).toEqual({ ...original, content: [] });
     expect(clearContent).toHaveBeenCalledWith(false);
+  });
+});
+
+// The real URL serializer is exercised while transport/storage remain bounded mocks.
+describe('literal Apps result URL data', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.privacySettings.masterEnabled = false;
+    mocks.authState.isAuthenticated = true;
+    mocks.teamContext.teamId = null;
+    mocks.teamContext.epoch = 0;
+    mocks.chatRecord.team_id = null;
+    mocks.draftState.currentChatId = 'chat-auth';
+    mocks.chatDB.ensureReadyForSend.mockResolvedValue(undefined);
+    mocks.chatSyncService.sendNewMessage.mockResolvedValue(undefined);
+  });
+  afterEach(() => { mocks.privacySettings.masterEnabled = false; });
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  it('keeps context URL data literal without exempting its text from ordinary PII processing', async () => {
+    const { appsWorkspaceContextOnlyUrls, appsRequestContextText } = await import('../../../services/appsWorkspaceChatHandoffService');
+    const pii = await import('../services/piiDetectionService');
+    const rewrite = await import('../services/placeholderRewriteService');
+    const request = { text: 'Explain these appointments', context: { result: { practice_url: 'https://example.test/appointments/one', email: 'person@example.test' } } };
+    const literal = appsRequestContextText(request);
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue(literal);
+    mocks.privacySettings.masterEnabled = true;
+    vi.mocked(rewrite.rewriteKnownPIIPlaceholders).mockReturnValue({ markdown: literal, appliedMappings: [] });
+    vi.mocked(pii.detectPII).mockReturnValue([{ type: 'EMAIL', match: 'person@example.test', startIndex: literal.indexOf('person@'), endIndex: literal.indexOf('person@') + 19, placeholder: '[EMAIL_1]', id: 'email' }]);
+    vi.mocked(pii.replacePIIWithPlaceholders).mockReturnValue(literal.replace('person@example.test', '[EMAIL_1]'));
+    const prepared = await prepareQueuedMessageRevision({}, new Set(), appsWorkspaceContextOnlyUrls(request, detectUrlsInText));
+    expect(mocks.createEmbedFromUrl).not.toHaveBeenCalled();
+    expect(prepared.content).toContain('https://example.test/appointments/one');
+    expect(prepared.content).not.toContain('person@example.test');
+    expect(prepared.content).toContain('[EMAIL_1]');
+    expect(pii.detectPII).toHaveBeenCalledWith(literal, expect.anything());
+  });
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  it('still processes an explicit request URL using the same normalized detector matches', async () => {
+    const { appsWorkspaceContextOnlyUrls, appsRequestContextText } = await import('../../../services/appsWorkspaceChatHandoffService');
+    const request = { text: 'Summarize youtu.be/abc', context: { result: { url: 'https://youtu.be/abc', practice_url: 'https://example.test/practice' } } };
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue(appsRequestContextText(request));
+    mocks.createEmbedFromUrl.mockResolvedValue(null);
+    await prepareQueuedMessageRevision({}, new Set(), appsWorkspaceContextOnlyUrls(request, detectUrlsInText));
+    expect(mocks.createEmbedFromUrl.mock.calls.map(([url]) => url)).toEqual(['https://youtu.be/abc', 'https://youtu.be/abc']);
+  });
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  it('captures URL ignores before an optimistic clear or a rejected send mutates the caller set', async () => {
+    const literal = 'Explain result {"practice_url":"https://example.test/practice"}';
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue(literal);
+    mocks.chatDB.ensureReadyForSend.mockRejectedValueOnce(new Error('storage unavailable'));
+    const ignored = new Set(['https://example.test/practice']);
+    const { editor } = makeEditor(false);
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth', new Set(), false, () => false,
+      undefined, undefined, { ignoredEmbedUrls: ignored })).toBe(false);
+    mocks.chatDB.ensureReadyForSend.mockResolvedValue(undefined);
+    const retry = handleSend(editor, vi.fn(), vi.fn(), 'chat-auth', new Set(), false, () => false,
+      undefined, undefined, { ignoredEmbedUrls: ignored });
+    ignored.clear();
+    expect(await retry).toBe(true);
+    expect(mocks.createEmbedFromUrl).not.toHaveBeenCalled();
+  });
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
+  it('retains the exact ignored URL snapshot through an upload-delayed send', async () => {
+    const literal = 'Explain result {"practice_url":"https://example.test/practice"}';
+    mocks.tipTapToCanonicalMarkdown.mockReturnValue(literal);
+    const { editor, document } = makeEditor();
+    (document.content[1] as { attrs: Record<string, unknown> }).attrs.status = 'uploading';
+    (document.content[1] as { attrs: Record<string, unknown> }).attrs.contentRef = null;
+    const ignored = new Set(['https://example.test/practice']);
+    expect(await handleSend(editor, vi.fn(), vi.fn(), 'chat-auth', new Set(), false, () => false,
+      undefined, undefined, { ignoredEmbedUrls: ignored })).toBe(true);
+    const context = [...get(pendingUploadStore).values()].flat().at(-1)!;
+    try {
+      expect(context.ignoredEmbedUrls).toEqual(['https://example.test/practice']);
+      ignored.clear();
+      await executeDeferredSend(context);
+      expect(mocks.createEmbedFromUrl).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendNewMessage).toHaveBeenCalledWith(expect.objectContaining({ content: literal }), undefined, undefined, undefined, expect.anything());
+    } finally { removePendingSend(context.chatId, context.pendingId); }
   });
 });

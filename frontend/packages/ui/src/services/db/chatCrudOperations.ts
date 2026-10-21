@@ -9,6 +9,7 @@
 // - Batch chat operations
 
 import type { Chat, Message, TiptapJSON } from "../../types/chat";
+import { isDraftOnlyChatSurface } from "../../utils/chatDraftState";
 import {
   encryptChatKeyWithMasterKey,
   decryptChatKeyWithMasterKey,
@@ -62,6 +63,22 @@ export async function deleteChatIfNoPendingTurn(
   dbInstance: ChatDatabaseInstance,
   chatId: string,
 ): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+  return deleteChatConditionally(dbInstance, chatId, false);
+}
+
+/** A stale empty-editor cleanup must never delete a newly committed first turn. */
+export async function deleteDraftOnlyChat(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+  return deleteChatConditionally(dbInstance, chatId, true);
+}
+
+async function deleteChatConditionally(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  requireDraftOnly: boolean,
+): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
   await dbInstance.init();
   const hashedChatId = await computeSHA256(chatId);
   // Crypto is asynchronous. Prepare hashed embed IDs before opening the write
@@ -112,7 +129,11 @@ export async function deleteChatIfNoPendingTurn(
     pending.onerror = () => tx.abort();
     pending.onsuccess = () => {
       const cursor = pending.result;
-      if (!cursor) { verifyHeads(); return; }
+      if (!cursor) {
+        if (requireDraftOnly) verifyDraftShell();
+        else verifyHeads();
+        return;
+      }
       const row = cursor.value as Message & Record<string, unknown>;
       if (row.chat_id === chatId &&
           typeof row.pending_encrypted_turn_preflight_v1 === "string" &&
@@ -120,6 +141,22 @@ export async function deleteChatIfNoPendingTurn(
       if (++scanned >= MAX_INFERRED_DELETE_PENDING_PROBE) return;
       cursor.continue();
     };
+
+    function verifyDraftShell(): void {
+      const request = chats.get(chatId);
+      request.onerror = () => tx.abort();
+      request.onsuccess = () => {
+        const chat = request.result as Chat | undefined;
+        if (!isDraftOnlyChatSurface(chat, true)) return;
+        // Header and first-message writes are separate transactions. Either
+        // one establishes that an empty-editor cleanup no longer owns the row.
+        const messageRequest = messages.index("chat_id").openCursor(IDBKeyRange.only(chatId));
+        messageRequest.onerror = () => tx.abort();
+        messageRequest.onsuccess = () => {
+          if (!messageRequest.result) verifyHeads();
+        };
+      };
+    }
 
     function verifyHeads(): void {
       const request = embeds.index("hashed_chat_id")
@@ -1471,6 +1508,70 @@ export async function setTeamDraftPendingSync(
           ? chat.cleared_draft_v
           : Math.max(chat.cleared_draft_v ?? 0, expected.clearedDraftVersion) };
       store.put(updated);
+    };
+  });
+}
+
+/** Draft ciphertext is master-key encrypted; never replace its chat security/header snapshot. */
+export type ChatDraftFields = Partial<Pick<Chat,
+  "encrypted_draft_md" | "encrypted_draft_preview" | "draft_v" | "cleared_draft_v" |
+  "ideabucket" | "ideabucket_processing_window_id" | "updated_at"
+>>;
+
+/**
+ * Update only draft fields under the same transaction that reads the latest row.
+ * A sync broadcast may explicitly seed an absent draft shell. Local edits never
+ * recreate a deleted chat. No key recovery, generation or replacement runs here.
+ */
+export async function saveChatDraftFields(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  fields: ChatDraftFields,
+  missingRow?: Chat,
+): Promise<Chat | null> {
+  if (get(forcedLogoutInProgress) || get(isLoggingOut)) {
+    throw new Error("Cannot write chat draft during logout");
+  }
+  if (!dbInstance.db) await dbInstance.init();
+  const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    let saved: Chat | null = null;
+    transaction.oncomplete = () => resolve(saved);
+    transaction.onerror = () => reject(transaction.error ?? new Error("Draft transaction failed"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Draft transaction aborted"));
+    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+    const request = store.get(chatId);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const current = request.result as Chat | undefined;
+      if (!current && !missingRow) return;
+      if (missingRow && (missingRow.chat_id !== chatId ||
+          (current && (current.team_id ?? null) !== (missingRow.team_id ?? null)))) {
+        transaction.abort();
+        return;
+      }
+      const base = current ?? missingRow!;
+      // Recheck draft ordering under the write lock, rather than trusting the
+      // caller's earlier read while a send or deletion was committing.
+      const clearsCurrentDraft = fields.encrypted_draft_md === null && fields.draft_v === 0 &&
+        (fields.cleared_draft_v ?? -1) >= (base.draft_v ?? 0);
+      if (current && !clearsCurrentDraft && fields.draft_v !== undefined &&
+          (fields.draft_v < (current.draft_v ?? 0) ||
+            (fields.encrypted_draft_md != null && fields.draft_v <= (current.cleared_draft_v ?? -1)))) {
+        saved = current;
+        return;
+      }
+      saved = { ...base };
+      for (const key of ["encrypted_draft_md", "encrypted_draft_preview", "draft_v",
+        "ideabucket", "ideabucket_processing_window_id"] as const) {
+        if (Object.prototype.hasOwnProperty.call(fields, key)) {
+          Object.assign(saved, { [key]: fields[key] });
+        }
+      }
+      if (fields.cleared_draft_v !== undefined) saved.cleared_draft_v = Math.max(base.cleared_draft_v ?? 0, fields.cleared_draft_v);
+      if (fields.updated_at !== undefined) saved.updated_at = Math.max(base.updated_at ?? 0, fields.updated_at);
+      delete saved.messages;
+      store.put(saved);
     };
   });
 }

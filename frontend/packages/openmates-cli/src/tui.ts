@@ -1,3 +1,4 @@
+import {expireTuiAppsRecommendations} from "./tuiAppsWorkspace.js";
 import { claimPrivacyOffer } from "./privacyModel.js";
 import { runPrivacyCommand } from "./privacyCommands.js";
 import { createTuiStartup, type TuiStartupServices } from "./tuiStartup.js";
@@ -180,6 +181,7 @@ export async function runTui(
   const activityPoll = setInterval(() => { void refreshActivity(); }, 30_000);
   const activityAnimation = setInterval(() => {
     if (closed) return;
+    if(expireTuiAppsRecommendations(state)){render();return;}
     const sidebarActivity = state.runningChatIds.length > 0;
     if (sidebarActivity) state.activityFrame = (state.activityFrame + 1) % 4;
     const streaming = state.screen === 'chat' && state.isAwaitingAi && state.streamingMessage && !state.textSelection

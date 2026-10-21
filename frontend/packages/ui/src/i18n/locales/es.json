@@ -7980,6 +7980,7 @@
       }
     }
   },
+  "embeds_input": {},
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -21825,6 +21826,5 @@
         "text": "Error al restaurar la definición seleccionada."
       }
     }
-  },
-  "embeds_input": {}
+  }
 }

@@ -168,11 +168,28 @@ export function renderTuiEmbedPreview(
   const appName = prettyName(appId || 'Embed');
   const skillName = prettyName(skillId || embed.type || 'View');
   const title = readable(content.title || content.name || content.query || embed.textPreview);
-  const summary = readable(content.summary || content.description);
+  const summary = readable(content.summary || content.description || content.snippet || content.text || content.transcript || content.code || (typeof content.content==='string'?content.content:''));
   const status = readable(options.status || content.status);
   if (recording || (appId === 'audio' && skillId === 'transcribe')) {
     return card(recordingDetails(content, title, width, status), width, appName, skillName, alias, appId, false);
   }
-  const details = [title, summary && summary !== title ? summary : '', status && status !== 'finished' ? prettyName(status) : ''].filter(Boolean);
+  // Child cards expose the same concrete information in Apps and chat carousels.
+  const value = (name: string) => readable(content[name]);
+  const domain = (() => {try {return new URL(value('url') || value('link')).hostname.replace(/^www\./,'');} catch {return '';}})();
+  const priceValue = content.price ?? content.total_price ?? content.price_per_night;
+  const price = typeof priceValue === 'object' && priceValue ? readable((priceValue as Record<string,unknown>).formatted ?? (priceValue as Record<string,unknown>).amount)
+    : readable(priceValue);
+  const fare = content.fare && typeof content.fare === 'object' ? content.fare as Record<string,unknown> : {};
+  const money = price ? [value('currency'), price].filter(Boolean).join(' ') : readable(fare.summary);
+  const dates = [value('date') || value('start_date') || value('departure_datetime') || value('check_in'),
+    value('time_range') || value('start_time'), value('end_date') || value('arrival_datetime') || value('check_out')].filter(Boolean).join(' · ');
+  const location = value('venue_name') || value('location') || value('address') || value('city');
+  const provider = value('source') || value('provider') || value('author') || domain;
+  const rating = value('rating') ? `★ ${value('rating')}${value('review_count') ? ` (${value('review_count')})` : ''}` : '';
+  const route = [value('origin') || value('departure_station'),value('destination') || value('arrival_station')].filter(Boolean).join(' → ');
+  const details = [...new Set([title || value('headline') || value('name') || route || value('caption') || prettyName(embed.type || 'Result'),
+    summary && summary !== title ? summary : value('snippet'), route && route !== title ? route : '',
+    dates, location, [money,rating].filter(Boolean).join(' · '), provider,
+    value('published_at'), status && status !== 'finished' ? prettyName(status) : ''].filter(Boolean))];
   return card(details, width, appName, skillName, alias, appId);
 }

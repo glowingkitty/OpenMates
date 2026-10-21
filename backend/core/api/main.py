@@ -37,6 +37,7 @@ from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
 from backend.core.api.app.routes import internal_health  # noqa: E402
+from backend.core.api.app.routes import apps_workspace_requests, apps_workspace_recommendations, apps_workspace_public  # noqa: E402
 from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -1398,6 +1399,9 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(recent_work_internal.router, include_in_schema=False)
     app.include_router(internal_health.router, include_in_schema=False)
+    app.include_router(apps_workspace_requests.router, include_in_schema=False)
+    app.include_router(apps_workspace_recommendations.router, include_in_schema=False)
+    app.include_router(apps_workspace_public.router, include_in_schema=False)
     app.include_router(apps_workspace.router, include_in_schema=False)  # First-party encrypted Apps result library
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only

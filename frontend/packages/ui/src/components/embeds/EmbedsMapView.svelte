@@ -73,6 +73,9 @@
     sourceRefs?: string[];
     highlightRefs?: string[];
     interactionMode?: 'open' | 'select';
+    /** Parent fullscreen owns the scroll; render previews as a vertical grid. */
+    fullscreen?: boolean;
+    initialVisualTab?: 'map' | 'calendar';
   }
 
   interface MapViewEntry {
@@ -176,6 +179,8 @@
     sourceRefs = [],
     highlightRefs = [],
     interactionMode = 'open',
+    fullscreen = false,
+    initialVisualTab = 'map',
   }: Props = $props();
 
   let entries = $state<MapViewEntry[]>([]);
@@ -183,6 +188,7 @@
   let hoveredRef = $state<string | null>(null);
   let activeCategory = $state<string>('all');
   let activeVisualTab = $state<VisualTabId>('map');
+  let initialVisualTabApplied = $state(false);
   let rangeFilters = $state<Record<string, { min: number; max: number }>>({});
   let optionFilters = $state<Record<string, string[]>>({});
   let filtersOpen = $state(false);
@@ -1322,7 +1328,7 @@
     const category = getCategory(embedData.type, decodedContent);
     const point = extractPoint(decodedContent);
     const route = extractRoute(decodedContent);
-    const entry = {
+    const entry: MapViewEntry = {
       ref,
       embedId,
       embedType: embedData.type,
@@ -1551,6 +1557,10 @@
   });
 
   $effect(() => {
+    if (!initialVisualTabApplied && !isLoading && eligibleEntries.length > 0) {
+      if (visualTabs.some(tab => tab.id === initialVisualTab)) activeVisualTab = initialVisualTab;
+      initialVisualTabApplied = true;
+    }
     if (visualTabs.length > 0 && !visualTabs.some((tab) => tab.id === activeVisualTab)) {
       activeVisualTab = visualTabs[0].id;
     }
@@ -1578,7 +1588,7 @@
 
 <span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
 {#if eligibleEntries.length > 0}
-<section class="embeds-results-view embeds-map-view" class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
+<section class="embeds-results-view embeds-map-view" class:fullscreen class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
     {#if showVisualTabs}
@@ -1592,7 +1602,7 @@
             aria-label={tab.label}
             aria-selected={selectedVisualTab === tab.id}
             aria-controls={`embeds-results-view-panel-${tab.id}`}
-            onclick={() => (activeVisualTab = tab.id)}
+            onclick={() => { initialVisualTabApplied = true; activeVisualTab = tab.id; }}
           >
             <span class={`results-view-tab-icon results-view-tab-icon-${tab.id}`} data-testid={`embeds-results-view-tab-${tab.id}-icon`} aria-hidden="true"></span>
             <span class="visually-hidden">{tab.label}</span>
@@ -1917,6 +1927,16 @@
 {/if}
 
 <style>
+  .embeds-map-view.fullscreen { max-width: 1100px; margin: 0 auto; padding-top: 0; border: 0; box-shadow: none; }
+  .fullscreen .map-view-body:not(.calendar-active) { display: flex; flex-direction: column; height: auto; overflow: visible; }
+  .fullscreen .results-view-pane { order: -1; }
+  .fullscreen .map-view-list { height: auto; }
+  .fullscreen .map-view-carousel { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); height: auto; overflow: clip; gap: 20px; padding: 20px 14px; scroll-snap-type: none; }
+  .fullscreen .map-view-card { width: 100%; min-width: 0; }
+  .fullscreen .show-all-results { position: relative; margin: 12px 16px; }
+  .fullscreen .map-view-toolbar { position: sticky; top: 0; z-index: 20; background: var(--color-grey-20); padding-right: 64px; }
+  .fullscreen .results-view-tabs { transform: translate(-50%, 0); }
+
   :global(.results-view-mount:not(:has([data-result-view-visible="true"]))) { display: none !important; }
   :global(pre.results-view-protocol-host:not(:has([data-result-view-visible="true"]))) { display: none !important; }
   :global(pre.results-view-protocol-host) { background: transparent !important; border: 0 !important; padding: 0 !important; font-size: 0 !important; white-space: normal !important; }

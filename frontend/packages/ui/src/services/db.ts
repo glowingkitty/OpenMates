@@ -2019,6 +2019,14 @@ class ChatDatabase {
     return chatCrudOps.getRawChat(this, chat_id, transaction);
   }
 
+  async saveChatDraftFields(
+    chatId: string,
+    fields: chatCrudOps.ChatDraftFields,
+    missingRow?: Chat,
+  ): Promise<Chat | null> {
+    return chatCrudOps.saveChatDraftFields(this, chatId, fields, missingRow);
+  }
+
   async upsertRawChat(
     chat: Chat,
     transaction?: IDBTransaction,
@@ -2071,6 +2079,15 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<{ deletedEmbedIds: string[] }> {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
+  }
+
+  async deleteDraftOnlyChat(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+    const result = await chatCrudOps.deleteDraftOnlyChat(this, chatId);
+    if (result.deleted && result.deletedEmbedIds.length > 0) {
+      const { embedStore } = await import("./embedStore");
+      for (const embedId of result.deletedEmbedIds) embedStore.removeFromMemoryCache(`embed:${embedId}`);
+    }
+    return result;
   }
 
   async deleteChatIfNoPendingTurn(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {

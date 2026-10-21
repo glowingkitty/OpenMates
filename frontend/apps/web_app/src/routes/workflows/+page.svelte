@@ -9,7 +9,9 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+  import { APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, takeAppsWorkspaceWorkflowHandoff,
+    isAppsWorkspaceHandoffCurrent, appsRequestContextText, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
+	import { onMount, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
 	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
@@ -891,6 +893,22 @@
 			icon: item.icon ?? 'workflow'
 		});
 	}
+
+  function consumeAppsWorkflowHandoff(): void {
+    if (!canLoadWorkflows || saving || pendingSaveSessionId) return;
+    const request = takeAppsWorkspaceWorkflowHandoff();
+    if (!request || !isAppsWorkspaceHandoffCurrent(request)) return;
+    if (request.attachments?.length) { void queueAppsWorkspaceChatHandoff(request); return; }
+    void submitWorkflowInput(appsRequestContextText(request));
+  }
+  onMount(() => {
+    window.addEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, consumeAppsWorkflowHandoff);
+    consumeAppsWorkflowHandoff();
+    return () => window.removeEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, consumeAppsWorkflowHandoff);
+  });
+  $effect(() => {
+    if (canLoadWorkflows && !saving && !pendingSaveSessionId) untrack(consumeAppsWorkflowHandoff);
+  });
 
 	async function submitWorkflowInput(text: string = workflowInputText): Promise<boolean> {
 		const instruction = text.trim();

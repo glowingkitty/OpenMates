@@ -855,3 +855,49 @@ def test_workflow_preview_uses_registered_child_embed_types_without_dispatch() -
     assert adapter.result_embed_type("travel", "search_connections") == "travel-connection"
     assert adapter.result_embed_type("events", "unknown") is None
     assert registry.calls == []
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=apps.execution.direct-shared-contract
+async def test_team_daily_context_prechecks_team_wallet_and_charges_same_wallet(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    registry = FakeRegistry(response={"results": []}, metadata=_weather_metadata())
+    directus = object()
+    estimates, charges = [], []
+
+    class TeamBilling:
+        def __init__(self, value):
+            assert value is directus
+
+        async def has_spending_headroom(self, team_id, user_id, credits):
+            estimates.append((team_id, user_id, credits))
+            return True
+
+    async def calculate(**kwargs):
+        return 5
+
+    async def charge(**kwargs):
+        charges.append(kwargs)
+        return {"charged_credits": kwargs["credits"]}
+
+    apps_api = SimpleNamespace(calculate_skill_credits=calculate, VARIABLE_RESULT_BILLING_SKILLS=set(),
+        get_variable_preflight_reserved_credits=lambda *_: 0,
+        is_skill_execution_successful=lambda _: True,
+        get_variable_result_charge_items=lambda *_: None,
+        get_variable_result_usage_details=lambda *_: {},
+        resolve_skill_provider_info=lambda *_: {"model_used": None, "server_provider": "test", "server_region": "EU"},
+        charge_credits_via_internal_api=charge)
+    _patch_apps_api_module(monkeypatch, apps_api)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.team_billing_service",
+                        SimpleNamespace(TeamBillingService=TeamBilling))
+    personal_precheck = AsyncMock(side_effect=AssertionError("Personal wallet must not be used"))
+    monkeypatch.setattr(workflow_app_skill_adapter, "ensure_credit_headroom", personal_precheck)
+    adapter = WorkflowAppSkillAdapter(registry=registry, directus_service=directus)
+    await adapter.execute("weather", "forecast", {"location": "Berlin"}, user_id="alice",
+        billing_context={"workflow_id": "daily", "run_id": "run-one", "node_id": "search-one",
+                         "source": "workflow", "team_id": "selected-team", "max_credits_remaining": 100})
+    assert estimates == [("selected-team", "alice", 5)]
+    assert charges[0]["team_id"] == "selected-team"
+    assert charges[0]["user_id"] == "alice"
+    personal_precheck.assert_not_awaited()

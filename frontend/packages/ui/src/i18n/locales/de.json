@@ -3348,6 +3348,111 @@
     },
     "inspiration_weather_feature_description": {
       "text": "Wähle einen Ort und die gewünschten Tage."
+    },
+    "request_placeholder": {
+      "text": "Beschreibe, wonach du suchst"
+    },
+    "followup_placeholder": {
+      "text": "Stelle eine Folgefrage"
+    },
+    "submit_request": {
+      "text": "Anfrage senden"
+    },
+    "interpreting_request": {
+      "text": "Deine Anfrage wird verarbeitet…"
+    },
+    "add_files": {
+      "text": "Dateien anhängen"
+    },
+    "remove_file": {
+      "text": "Datei entfernen"
+    },
+    "audio_attached": {
+      "text": "Audio angehängt"
+    },
+    "filter_results": {
+      "text": "Ergebnisse filtern"
+    },
+    "all_results": {
+      "text": "Alle Ergebnisse"
+    },
+    "save_search": {
+      "text": "Diese Suche speichern"
+    },
+    "create_workflow": {
+      "text": "Workflow erstellen"
+    },
+    "recommended": {
+      "text": "Empfohlen"
+    },
+    "recent": {
+      "text": "Zuletzt"
+    },
+    "saved_search": {
+      "text": "Gespeicherte Suche"
+    },
+    "run_saved_search": {
+      "text": "Diese Suche erneut ausführen"
+    },
+    "example_chats": {
+      "text": "Beispielchats"
+    },
+    "daily_search_notice": {
+      "text": "Deine gespeicherte Suche wird täglich ausgeführt und verbraucht Credits."
+    },
+    "daily_search_notice_details": {
+      "text": "Wir aktualisieren nur deine zuletzt gespeicherte Suche pro App, wenn du in den letzten 7 Tagen aktiv warst. Du kannst tägliche Suchen in den App-Einstellungen ausschalten."
+    },
+    "daily_search_ok": {
+      "text": "OK"
+    },
+    "daily_search_turn_off": {
+      "text": "Ausschalten"
+    },
+    "daily_searches": {
+      "text": "Tägliche Suchen"
+    },
+    "daily_searches_description": {
+      "text": "Aktualisiere deine zuletzt gespeicherte Suche täglich mit Credits. Nach 7 Tagen ohne Aktivität pausieren die Suchen."
+    },
+    "back_to_app": {
+      "text": "Zurück zur App"
+    },
+    "app_settings": {
+      "text": "App-Einstellungen"
+    },
+    "pricing_and_providers": {
+      "text": "Preise und Anbieter"
+    },
+    "saved_and_recent": {
+      "text": "Gespeicherte und letzte Einträge"
+    },
+    "toggle_map": {
+      "text": "Zwischen Karte und App-Übersicht wechseln"
+    },
+    "app_greeting": {
+      "text": "Hallo {name}!"
+    },
+    "recommended_for_you": {
+      "text": "Neue Empfehlungen für dich"
+    },
+    "your_saved_searches": {
+      "text": "Deine gespeicherten Suchen"
+    },
+    "your_recent_results": {
+      "text": "Deine letzten Ergebnisse"
+    },
+    "try_an_example": {
+      "text": "Öffne ein Beispiel oder beschreibe, was du brauchst"
+    },
+    "create_workflow_from_search": {
+      "text": "Erstelle einen Workflow auf Grundlage dieser Suche."
+    },
+    "show_more": {
+      "text": "Mehr anzeigen"
+    },
+    "calendar_view": {
+      "text": "Kalenderansicht"
     }
   },
   "artifact_history": {
@@ -9293,6 +9398,14 @@
       }
     }
   },
+  "embeds_input": {
+    "image_used": {
+      "text": "Verwendetes Bild"
+    },
+    "open_image": {
+      "text": "Quellbild öffnen"
+    }
+  },
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -13497,7 +13610,15 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn du ein Gemini-Modell auswählst. Gemini Live erhält während Sprachanrufen unverarbeitetes Mikrofonaudio, übermittelten Text und zulässigen Chatkontext. Gemini wird außerdem verwendet, um Mistral-Rohtranskripte von Sprachaufnahmen zu korrigieren und Titel zu erstellen, und kann Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Anrufaudio und Rohtranskripte erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
+              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn du ein Gemini-Modell auswählst. Gemini Live erhält während Sprachanrufen unverarbeitetes Mikrofonaudio, übermittelten Text und zulässigen Chatkontext. Auf dem Gemini-Korrekturweg korrigiert Gemini Mistral-Rohtranskripte von Sprachaufnahmen und erstellt Titel, und kann Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Anrufaudio und Rohtranskripte erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
+            }
+          },
+          "inception": {
+            "heading": {
+              "text": "Inception Mercury (USA)"
+            },
+            "description": {
+              "text": "Inception erhält Text und Kontext für Anfragen mit ausgewählten Mercury-Modellen sowie Rohtranskripte und einen Sprachhinweis, wenn der Inception-Weg für Korrektur und Titelerstellung aktiviert ist. Audio wird nicht an Inception gesendet. Rohtranskripte erhalten keine Platzhalterersetzung und können sensible Daten enthalten. Die Bedingungen erlauben Training mit eingereichten Inhalten, sofern das API-Platform-Konto nicht widerspricht; der Kontoinhaber hat am 20.10.2026 bestätigt, dass diese Option für das OpenMates-API-Konto ausgeschaltet ist. Bei erneuter Aktivierung ist Training möglich. Es gibt keine feste öffentlich zugesagte maximale Aufbewahrungsfrist; eine Verarbeitung ohne Aufbewahrung wird nicht garantiert."
             }
           }
         },
@@ -14687,7 +14808,7 @@
             "text": "Was passiert, wenn ich Audio aufnehme?"
           },
           "answer": {
-            "text": "Audio wird über TLS durch das bei Hetzner gehostete OpenMates-Backend übertragen und zur Transkription an Mistral gesendet. Echtzeitaudio wird gestreamt; hochgeladene Aufnahmen werden vor der dauerhaften Speicherung von unserem Upload-Dienst verschlüsselt und nur im Arbeitsspeicher des Servers für die Transkription entschlüsselt. Das Rohtranskript wird anschließend an Google Gemini gesendet, um offensichtliche Transkriptionsfehler zu korrigieren und einen Titel zu erstellen. Bei Audio und Rohtranskripten erfolgt nicht die Platzhalterersetzung, die für geeignete eingetippte Chatnachrichten verwendet wird. OpenMates speichert Aufnahmen und Transkripte als verschlüsselte Kontoinhalte, Mistral und Google können API-Anfragedaten jedoch nach ihren eigenen Richtlinien aufbewahren."
+            "text": "Audio wird über TLS durch das bei Hetzner gehostete OpenMates-Backend übertragen und zur Transkription an Mistral gesendet. Echtzeitaudio wird gestreamt; hochgeladene Aufnahmen werden vor der dauerhaften Speicherung von unserem Upload-Dienst verschlüsselt und nur im Arbeitsspeicher des Servers für die Transkription entschlüsselt. Das Rohtranskript wird anschließend an Google Gemini oder bei aktiviertem Inception-Korrekturweg an Inception Mercury gesendet, um offensichtliche Transkriptionsfehler zu korrigieren und einen Titel zu erstellen. Bei Audio und Rohtranskripten erfolgt nicht die Platzhalterersetzung, die für geeignete eingetippte Chatnachrichten verwendet wird. OpenMates speichert Aufnahmen und Transkripte als verschlüsselte Kontoinhalte, Mistral, Google oder Inception können API-Anfragedaten jedoch nach ihren eigenen Richtlinien aufbewahren."
           }
         },
         "voice_calls": {
@@ -26131,14 +26252,6 @@
       "website_changes_message_title": {
         "text": "Congress-Neuigkeiten"
       }
-    }
-  },
-  "embeds_input": {
-    "image_used": {
-      "text": "Verwendetes Bild"
-    },
-    "open_image": {
-      "text": "Quellbild öffnen"
     }
   }
 }

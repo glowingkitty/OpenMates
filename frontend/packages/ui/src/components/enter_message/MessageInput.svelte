@@ -1,5 +1,8 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
+    import { appsWorkspaceComposerHandoff, takeAppsWorkspaceComposerHandoff,
+      isAppsWorkspaceHandoffCurrent, appsRequestContextDocument, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, appsWorkspaceContextOnlyUrls,
+      rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../../services/appsWorkspaceChatHandoffService';
     import { onMount, onDestroy, tick, untrack, flushSync } from 'svelte';
     import { Editor } from '@tiptap/core';
     import type { WikipediaArticleIdentity } from '../../utils/wikipediaLearning';
@@ -99,7 +102,7 @@
     import { voiceCallController } from '../../services/voiceCall';
 
     // Handlers
-    import { handleSend, prepareQueuedMessageRevision } from './handlers/sendHandlers';
+    import { handleSend, prepareQueuedMessageRevision, detectUrlsInText } from './handlers/sendHandlers';
     import type { Message } from '../../types/chat';
     import { shouldAwaitAITaskStart } from './handlers/sendClassification';
     import MentionDropdown from './MentionDropdown.svelte';
@@ -118,13 +121,15 @@
         handleDragLeave as handleFileDragLeave,
         handlePaste as handleFilePaste,
         onFileSelected as handleFileSelectedEvent,
-        extractChatLinkFromYAML
+        extractChatLinkFromYAML,
+        processFiles
     } from './fileHandlers';
     import {
         // insertVideo, // Disabled: video upload not yet supported — re-enable with handleVideoRecorded
         insertImage,
         insertMap,
-        retryTranscription
+        retryTranscription,
+        insertRecording
     } from './embedHandlers';
     import {
         handleEmbedInteraction as handleMenuEmbedInteraction,
@@ -293,6 +298,61 @@
     let cameraInput: HTMLInputElement;
     let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
+    let appsHandoffEditorReady = $state(false);
+    let applyingAppsHandoff = false;
+    async function applyAppsComposerHandoff(): Promise<void> {
+      if (!appsHandoffEditorReady || !editor || editor.isDestroyed || applyingAppsHandoff || startNewChatOnClick) return;
+      const request = takeAppsWorkspaceComposerHandoff(currentChatId, isNewChatContext);
+      if (!request) return;
+      applyingAppsHandoff = true;
+      const targetEditor = editor;
+      const targetChat = currentChatId;
+      const valid = () => editor === targetEditor && !targetEditor.isDestroyed && currentChatId === targetChat && isAppsWorkspaceHandoffCurrent(request);
+      try {
+        if (!valid()) return;
+        const contextUrls = appsWorkspaceContextOnlyUrls(request, detectUrlsInText);
+        targetEditor.commands.setContent(appsRequestContextDocument(request));
+        if (targetChat) rememberAppsWorkspaceDraftUrls(request, targetChat,
+          tipTapToCanonicalMarkdown(targetEditor.getJSON()), contextUrls);
+        recordAppsWorkspaceHandoffPhase('document-set');
+        const attachments = request.attachments ?? [];
+        const files = attachments.filter(file => !file.type.startsWith('audio/'));
+        if (files.length) {
+          if (!$authStore.isAuthenticated) setPendingAnonymousFileAttachment(true);
+          await processFiles(files, targetEditor, $authStore.isAuthenticated);
+        }
+        for (const audio of attachments.filter(file => file.type.startsWith('audio/'))) {
+          if (!valid()) return;
+          await insertRecording(targetEditor, audio, audio.type, '0:00', $authStore.isAuthenticated, targetChat);
+        }
+        if (!valid()) return;
+        if (targetChat) rememberAppsWorkspaceDraftUrls(request, targetChat,
+          tipTapToCanonicalMarkdown(targetEditor.getJSON()), contextUrls);
+        hasContent = editorHasSendableText(targetEditor);
+        refreshDraftPreviewState(targetEditor);
+        updateEmbedGroupLayouts(); observeEmbedGroupContainers();
+        await tick();
+        if (valid()) {
+          recordAppsWorkspaceHandoffPhase('send-started');
+          await submitAppsWorkspaceHandoffDraft({
+            submit: async () => {
+              const accepted = await handleSendMessage();
+              if (accepted === true) forgetAppsWorkspaceDraftUrls(request);
+              return accepted;
+            },
+            isCurrent: valid,
+            focusRejectedDraft: focus,
+          });
+          recordAppsWorkspaceHandoffPhase('send-finished');
+        } else recordAppsWorkspaceHandoffPhase('editor-owner-changed');
+      } catch { recordAppsWorkspaceHandoffPhase('editor-error'); if (valid()) notificationStore.error(get(text)('apps_workspace.request_error')); }
+      finally { applyingAppsHandoff = false; }
+    }
+    $effect(() => {
+      void currentChatId; void isNewChatContext;
+      if (appsHandoffEditorReady) untrack(() => { void applyAppsComposerHandoff(); });
+    });
+
     let lastDirectEditOwner: { editor: Editor; chatId: string; userId: string | null; teamId: string | null } | null = null;
     let observedEditorChatId: string | undefined;
 
@@ -1506,6 +1566,8 @@
         // Use originalMarkdown to preserve existing json_embed blocks when detecting new URLs
         // Fall back to editor text if originalMarkdown is not available yet
         const sourceText = originalMarkdown || editor.getText();
+        const ignoredUrls = new Set([...ignoredEmbedUrls,
+          ...restoredAppsWorkspaceDraftUrls(currentChatId, tipTapToCanonicalMarkdown(editor.getJSON()))]);
         const lastChar = sourceText.slice(-1);
         
         // Only check for closed URLs if the user just typed a space or newline
@@ -1537,26 +1599,20 @@
         
         // Find all URLs in the source text
         // We'll check each one to see if it's closed (followed by whitespace) and recently added
-        const urlRegex = /https?:\/\/[^\s]+/g;
-        let match;
-        
-        // Reset regex lastIndex to ensure we get all matches
-        urlRegex.lastIndex = 0;
-        
         // Track all URLs and their positions
         const allUrls: Array<{url: string, startPos: number, endPos: number}> = [];
         
-        while ((match = urlRegex.exec(sourceText)) !== null) {
-            const url = match[0];
-            const urlStart = match.index!;
-            const urlEnd = urlStart + url.length;
+        for (const match of detectUrlsInText(sourceText)) {
+            const url = match.url;
+            const urlStart = match.startPos;
+            const urlEnd = match.endPos;
             
             // Check if this URL is inside any code block - skip if it is
             const isInsideCodeBlock = codeBlockRanges.some(range => 
                 urlStart >= range.start && urlEnd <= range.end
             );
             
-            if (!isInsideCodeBlock && !ignoredEmbedUrls.has(url)) {
+            if (!isInsideCodeBlock && !ignoredUrls.has(url)) {
                 allUrls.push({
                     url,
                     startPos: urlStart,
@@ -2709,6 +2765,8 @@
             }
         }
         window.addEventListener('docsMessagePrefill', handleDocsPrefill);
+        appsHandoffEditorReady = true;
+        const unsubscribeAppsHandoff = appsWorkspaceComposerHandoff.subscribe(() => { void applyAppsComposerHandoff(); });
         function dismissOnOutsidePointer(event: PointerEvent) {
             if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction) return;
             const target = event.target;
@@ -2729,6 +2787,8 @@
             unsubscribeAiTyping();
             unsubscribeText();
             unsubscribeComposerFocus();
+            appsHandoffEditorReady = false;
+            unsubscribeAppsHandoff();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
             document.removeEventListener('pointerdown', dismissOnOutsidePointer, true);
             window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
@@ -5444,7 +5504,9 @@
         queuedEdit = { ...edit, busy: true, error: null };
         editor.setEditable(false);
         try {
-            const revision = await prepareQueuedMessageRevision(contentSnapshot, new Set(piiExclusions));
+            const revision = await prepareQueuedMessageRevision(contentSnapshot, new Set(piiExclusions),
+              new Set([...ignoredEmbedUrls,
+                ...restoredAppsWorkspaceDraftUrls(edit.chatId, tipTapToCanonicalMarkdown(contentSnapshot))]));
             await chatSyncService.reviseQueuedMessage({
                 chatId: edit.chatId,
                 messageId: edit.messageId,
@@ -5482,6 +5544,10 @@
     });
 
     async function handleSendMessage(event?: Event) {
+        const documentAtClick = editor && !editor.isDestroyed ? tipTapToCanonicalMarkdown(editor.getJSON()) : '';
+        const releaseDraftUrlsAtClick = captureAppsWorkspaceDraftUrlCleanup(currentChatId, documentAtClick);
+        const ignoredUrlsAtClick = new Set([...ignoredEmbedUrls,
+          ...restoredAppsWorkspaceDraftUrls(currentChatId, documentAtClick)]);
         if (recordingCorrectionPending) return;
         if (callOwnsComposer) {
             if (!plainCallTextOnly() || queuedEdit) {
@@ -5675,6 +5741,7 @@
             {
                 // Preserve the first-turn data proof from before preview awaits.
                 firstTurnContextAtClick,
+                ignoredEmbedUrls: ignoredUrlsAtClick,
                 resolveModelSelection: async () => {
                     // A new chat has no saved preference to restore. Keep the
                     // selection visible at this click, including a chosen model.
@@ -5715,8 +5782,9 @@
             if (isFocused && editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
                 editor.view.focus();
             }
-            return;
+            return false;
         }
+        releaseDraftUrlsAtClick();
         // The composer may already contain the next message. Keep its focus and
         // detection state when the previous send finishes in the background.
         if (!shouldDismissComposerAfterSend({
@@ -5726,7 +5794,7 @@
                 currentChatId === chatIdAtPreviewWait && $userProfile.user_id === modelOwner.userId &&
                 get(activeTeamId) === modelOwner.teamId,
             hasNewDraft: !editor.isDestroyed && inspectDraftContent(editor.getJSON()).hasMeaningfulContent,
-        })) return;
+        })) return true;
         dismissFocus();
         
         // Clear PII state after sending
@@ -5734,6 +5802,7 @@
         piiExclusions = new Set();
         // Clear the URL ignore list — a new message starts with a clean slate
         ignoredEmbedUrls = new Set();
+        return true;
     }
 
     /**
@@ -6189,7 +6258,7 @@
         finally { questionEditor?.destroy(); sendClickInProgress = false; }
     }
 
-    export function sendCurrentMessage() { return handleSendMessage(); }
+    export async function sendCurrentMessage(): Promise<void> { await handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);
@@ -6507,6 +6576,7 @@
      *                          without deleting the previous chat's draft.
      */
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
+        forgetAppsWorkspaceDraftUrls(currentChatId);
         const inputTrace = (window as typeof window & { __savedComposerInputTrace?: Array<Record<string, unknown>> }).__savedComposerInputTrace;
         if (inputTrace) inputTrace.push({ t: Math.round(performance.now()), kind: 'clearMessageField',
             chat: currentChatId, boundChat: get(draftEditorUIState).currentChatId,

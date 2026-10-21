@@ -1,5 +1,6 @@
 /** Pure shared workspace layout, terminal color adaptation and overlays. */
 import type { TuiState } from "./tuiRenderer.js";
+import {tuiAppsLibraryEntries} from "./tuiAppsWorkspace.js";
 import {renderTuiSettings} from './tuiSettings.js';
 import {renderTuiModelSelector,tuiModelTriggerLabel} from './tuiModelSelector.js';
 import {renderTuiMentions} from './tuiMentions.js';
@@ -69,7 +70,11 @@ export function sidebarLines(state: TuiState): string[] {
     case "projects": return ["Projects", "", ...state.projects.map((p, i) => selected(p.name, i)), "", "/project-create new"];
     case "tasks": return ["Tasks", "", ...state.tasks.map((t, i) => selected(`${t.shortId} ${t.title}`, i)), "", "/task-create new"];
     case "workflows": return ["Workflows", "", ...state.workflows.map((w, i) => selected(w.title, i)), "", "Select a workflow to open"];
-    case "apps": return ["Apps", "", ...state.apps.map((a,i)=>selected(a.name,i)), "", "Ctrl+B close sidebar"];
+    case "apps": {
+      if(!state.activeApp||state.screen==="apps")return ["Apps", "", ...state.apps.map((a,i)=>selected(a.name,i)), "", "Ctrl+B close sidebar"];
+      const entries=tuiAppsLibraryEntries(state);
+      return [state.activeApp.name,"",...entries.map((entry,index)=>selected(`${entry.section} · ${entry.title}`,index)),"","Ctrl+B close sidebar"];
+    }
   }
 }
 
@@ -77,6 +82,7 @@ export function sidebarLines(state: TuiState): string[] {
 export function sidebarPointerIds(state:TuiState):Array<string|null> {
   if(state.workspace==='chats')return tuiChatSidebarRows(state).map(row=>row.kind==='section'?null:
     JSON.stringify([row.kind,row.chatId,row.projectId,row.folderId]));
+  if(state.workspace==='apps'&&state.activeApp&&state.screen!=='apps')return tuiAppsLibraryEntries(state).map(entry=>entry.id);
   return (state.workspace==='projects'?state.projects:state.workspace==='tasks'?state.tasks:
     state.workspace==='workflows'?state.workflows:state.apps).map(item=>'taskId' in item?item.taskId:item.id);
 }
@@ -110,9 +116,9 @@ export function workspaceHint(state: TuiState): string {
   if (state.screen === "workflow") return "g template   r runs   ↑/↓ select   Enter expand   e title   E config   x run   c cancel";
   if (state.screen === "task") return "e edit   m status   a activity   s start   d done   b block   Esc back";
   if (state.screen === "project") return "1 overview   2 files   3 tasks   Enter open   n new chat   Esc back";
-  if (state.screen === "app") return "1–5 tabs   ↑/↓ choose   Enter open   Esc Apps   /search";
-  if (state.screen === "app-skill") return "1–3 tabs   Enter use skill   Esc app   Ctrl+P actions";
-  if (state.screen === "app-result") return "↑/↓ scroll   Esc saved results   Ctrl+P actions";
+  if (state.screen === "app") return "Enter submit   Tab focus   ←/→ cards   Esc Apps   /app-settings";
+  if (state.screen === "app-skill") return "Enter submit   Tab focus   Esc app   /app-settings";
+  if(state.screen==="app-result")return "Enter follow up   /search filter   /app-save   Esc app";
   if (state.screen === "apps") return state.focus === "composer"
     ? "Type /command   Shift+Tab apps   Ctrl+B sidebar"
     : "←/→ app   Enter open   ↑/↓ scroll   /search   /browse Show all   Ctrl+B sidebar";
@@ -221,7 +227,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   if(!modal)addPointerTarget(state,settingsColumn,0,cells(settingsLabel),{kind:'command',command:state.settings?'/settings-close':'/settings'});
   const navigationRow=' '.repeat(bodyColumn)+renderedNav+' '.repeat(Math.max(0,settingsColumn-bodyColumn-navWidth))+foreground(settingsLabel,settingsColor,mode,true)+' '.repeat(gutter);
   const input = composerViewport(state, composerWidth);
-  const showComposer = !settingsFullscreen && (state.workspace !== "apps" || state.focus === "composer" || Boolean(state.input));
+  const showComposer = !settingsFullscreen && (state.workspace !== "apps" || ["app","app-skill","app-result"].includes(state.screen) || state.focus === "composer" || Boolean(state.input));
   const aiComposer = isTuiAiComposer(state);
   const composerRows = showComposer ? input.count : 0;
   const bodyHeight = Math.max(1, height - 2 - (showComposer ? composerRows + (aiComposer ? 4 : 3) : 1));
@@ -230,8 +236,9 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
   const sidebarOverlay = sidebar && !sidebarWidth;
   let content = overlay ? overlayLines(state, contentWidth, bodyHeight) : settingsFullscreen ? renderTuiSettings(state.settings!,contentWidth) : sidebarOverlay ? pointerSidebarLines(state) : body;
   const stickyCapacity=Math.max(0,bodyHeight-8),requestedSticky=options.stickyRows??0;
-  const stickyCount=settingsFullscreen?Math.min(4,Math.max(0,bodyHeight-5)):!overlay&&!sidebarOverlay
-    ?Math.min(requestedSticky>stickyCapacity?options.stickyFallbackRows??requestedSticky:requestedSticky,stickyCapacity):0;
+  // Loading and expired views may contain fewer rows than their loaded header.
+  const stickyCount=Math.min(content.length,settingsFullscreen?Math.min(4,Math.max(0,bodyHeight-5)):!overlay&&!sidebarOverlay
+    ?Math.min(requestedSticky>stickyCapacity?options.stickyFallbackRows??requestedSticky:requestedSticky,stickyCapacity):0);
   const fixed=content.slice(0,stickyCount);content=content.slice(stickyCount);
   const viewportHeight=bodyHeight-stickyCount;
   const maxStart = Math.max(0, content.length - viewportHeight);
@@ -387,7 +394,7 @@ export function renderWorkspaceFrame(state: TuiState, rawWidth: number, rawHeigh
     : state.workspace === "chats" ? state.screen === "chat" ? "Ask a follow-up, use @file, or type /help" : "Ask anything..."
     : state.workspace === "projects" ? "Name a new project  ·  /search to browse"
     : state.workspace === "workflows" ? "Describe new workflow  ·  /search to browse"
-    : state.workspace === "tasks" ? "Add or update tasks  ·  /search to browse" : "Search apps or type / for actions";
+    : state.workspace === "tasks" ? "Add or update tasks  ·  /search to browse" : state.screen==="app-result" ? "Refine this search, start a new one, chat about results, or make a workflow…" : state.activeApp && state.screen!=="apps" ? `What would you like ${state.activeApp.name} to find or do?` : "Search apps or type / for actions";
   const hint = state.textSelection ? 'Select text: drag to highlight, use terminal copy. Ctrl+Y / Esc resume.' : state.status && state.screen !== "status" && state.screen !== "embed" ? `${state.status}  ·  ${workspaceHint(state)}` : workspaceHint(state);
   const hintColor = state.focus === "composer" ? "#a0a0a0" : "#ff553b";
   const composer: string[] = [];

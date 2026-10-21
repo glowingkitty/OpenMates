@@ -109,7 +109,7 @@ const URL_REGEX =
  * @param text The text content to search
  * @returns Array of {url, startPos, endPos} objects
  */
-function detectUrlsInText(
+export function detectUrlsInText(
   text: string,
 ): Array<{ url: string; startPos: number; endPos: number }> {
   const urls: Array<{ url: string; startPos: number; endPos: number }> = [];
@@ -220,8 +220,8 @@ function protectEmbedRefsFromPII(markdown: string): {
  * @param markdown The markdown content to process
  * @returns Updated markdown with URLs replaced by embed references
  */
-async function processUrlsBeforeSend(markdown: string): Promise<string> {
-  const urls = detectUrlsInText(markdown);
+async function processUrlsBeforeSend(markdown: string, ignoredEmbedUrls?: ReadonlySet<string>): Promise<string> {
+  const urls = detectUrlsInText(markdown).filter(({ url }) => !ignoredEmbedUrls?.has(url));
 
   if (urls.length === 0) {
     console.debug("[sendHandlers] No URLs to process in message");
@@ -466,10 +466,11 @@ function mergePIIMappingsForStorage(
 export async function prepareQueuedMessageRevision(
   editorContent: Record<string, unknown>,
   piiExclusions: Set<string>,
+  ignoredEmbedUrls?: ReadonlySet<string>,
 ): Promise<{ content: string; piiMappings: PIIMapping[] }> {
   let markdown = tipTapToCanonicalMarkdown(editorContent).replace(/^\n+/, "");
   if (!markdown.trim()) throw new Error("Queued message cannot be empty");
-  markdown = await processUrlsBeforeSend(markdown);
+  markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrls);
 
   const settings: PIIDetectionSettings = get(personalDataStore.settings);
   if (!settings.masterEnabled) return { content: markdown, piiMappings: [] };
@@ -581,8 +582,9 @@ export async function handleSend(
   isSendCancelled: (chatId: string) => boolean = () => false,
   e2eServerContentOverride?: E2ESendServerContentOverride,
   projectFocusDocumentAtSendRequest?: unknown,
-  options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string>; firstTurnContextAtClick?: boolean } = {},
+  options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string>; firstTurnContextAtClick?: boolean; ignoredEmbedUrls?: ReadonlySet<string> } = {},
 ) {
+  const ignoredEmbedUrlsAtClick = new Set(options.ignoredEmbedUrls);
   // Direct callers must not start a second text inference for the chat owned by
   // a live call. MessageInput routes supported plain text through the call.
   const voiceCall = get(voiceCallController);
@@ -1058,6 +1060,7 @@ export async function handleSend(
       embedProgress: embedProgressMap,
       createdAt: Date.now(),
       piiExclusions: new Set(activePIIExclusions),
+      ignoredEmbedUrls: [...ignoredEmbedUrlsAtClick],
       piiRewriteMappings: getActivePIIMappingsForRewrite(),
       modelSelection: selectedChatModel,
       partialMarkdown: "",
@@ -1364,7 +1367,7 @@ export async function handleSend(
   recordSendDebugStep("url_processing_started", { currentChatId });
   try {
     if (get(authStore).isAuthenticated) {
-      markdown = await processUrlsBeforeSend(markdown);
+      markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrlsAtClick);
       recordSendDebugStep("url_processing_complete", {
         currentChatId,
         markdownLength: markdown.length,
@@ -2676,7 +2679,7 @@ export async function executeDeferredSend(
   // 4. Process URLs → embed references
   // -------------------------------------------------------------------------
   try {
-    markdown = await processUrlsBeforeSend(markdown);
+    markdown = await processUrlsBeforeSend(markdown, new Set(readyCtx.ignoredEmbedUrls));
   } catch (error) {
     console.error(
       "[executeDeferredSend] Error processing URLs before send:",

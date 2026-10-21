@@ -385,10 +385,6 @@ skills:
       required:
         - requests
 
-  - id: create_report
-    anonymous_access: authenticated
-    name_translation_key: health.create_report
-    description_translation_key: health.create_report.description
 
 focuses:
   - id: prepare_doctor_report

@@ -119,6 +119,8 @@ export interface PendingSendContext {
    * with the final contentRef from EmbedStore and re-serializes to markdown.
    */
   editorSnapshot: unknown;
+  /** Exact URL conversions declined for this captured document (in memory only). */
+  ignoredEmbedUrls?: readonly string[];
   /**
    * Snapshots of ALL embed nodes in the editor at deferred-send time.
    * Keyed by embed ID for quick lookup. Used to reconstruct embed references

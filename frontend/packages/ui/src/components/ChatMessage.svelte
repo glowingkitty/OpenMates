@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import { loadExpandedMessageMarkdown } from '../utils/chatMessageExpansion';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
@@ -3103,23 +3104,24 @@
     
     isLoadingFullContent = true;
     try {
-      // Import chatDB dynamically to avoid circular dependencies
-      const { chatDB } = await import('../services/db');
-      
-      // Load full content from IndexedDB
-      const fullMessage = await chatDB.getMessage(original_message.message_id);
-      if (fullMessage) {
-        // Convert the full markdown content to TipTap JSON with unified parsing (includes embed parsing)
-        const { parse_message } = await import('../message_parsing/parse_message');
-        const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
-
-        const tiptapJson = parse_message(fullMessage.content, 'read', {
-          unifiedParsingEnabled: true,
-          role,
-        });
-        fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
-        showFullMessage = true;
-      }
+      // The live row owns full decoded content even before its optimistic save.
+      // Re-reading disk here can miss the row and silently leave it collapsed.
+      const source = original_message;
+      const sourceContent = source.content;
+      const markdown = await loadExpandedMessageMarkdown(source, async (id) => {
+        const { chatDB } = await import('../services/db');
+        return chatDB.getMessage(id);
+      });
+      if (markdown === null) return;
+      const { parse_message } = await import('../message_parsing/parse_message');
+      const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
+      const tiptapJson = parse_message(markdown, 'read', { unifiedParsingEnabled: true, role });
+      // Status publications may replace the row object; a different message or
+      // edited document must not receive an older asynchronous expansion.
+      if (original_message?.message_id !== source.message_id || original_message?.chat_id !== source.chat_id
+          || original_message?.content !== sourceContent) return;
+      fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      showFullMessage = true;
     } catch (error) {
       console.error('Error loading full message:', error);
     } finally {

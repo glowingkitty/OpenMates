@@ -46,7 +46,7 @@ export function closeTuiFullscreen(state:TuiState):boolean {
     return true;
   }
   if(state.screen==='app-result'){
-    state.screen=state.activeAppSkill?'app-skill':'app';state.appSkillTab='embeds';state.appTab='embeds';state.focus='content';state.scrollOffset=0;++state.routeVersion;return true;
+    state.screen='app';state.appSkillTab='overview';state.appTab='skills';state.focus='content';state.scrollOffset=0;++state.routeVersion;return true;
   }
   return false;
 }
@@ -57,6 +57,7 @@ export function fullscreenHeaderControls(state:TuiState,width:number):HeaderCont
   if(width>=20&&origin?.workspace==='projects'&&state.activeProject)controls.push({id:'parent',label:state.activeProject.name,command:`/project ${state.activeProject.id}`});
   else if(width>=20)controls.push({id:'parent',label:state.workspace==='apps'?'Apps':'Chats',command:state.workspace==='apps'?'/apps':'/chats'});
   if(width>=36&&['embed','results-view'].includes(state.screen)&&origin&&['chat','example'].includes(origin.screen))controls.push({id:'chat',label:state.activeChat?.title??state.activeExample?.chat?.title??'Chat',command:'/back'});
+  if(state.screen==='app-result')controls.push({id:'settings',label:'⚙ Settings',command:'/app-settings'});
   const actions=headerCapabilities(state).filter(action=>width>=64||width>=30&&['share','more'].includes(action.id)||width>=15&&action.id==='more');
   controls.push(...actions.map(action=>({id:action.id,label:action.label,command:`/header ${action.id}`})),{id:'close',label:width<10?'×':'× Close',command:'/close'});
   return controls;
@@ -66,7 +67,7 @@ export function fullscreenHeaderLines(state:TuiState,width:number):TuiLine[] {
   width=Math.max(1,width);
   const controls=fullscreenHeaderControls(state,width),actionStart=controls.findIndex(control=>!['back','parent','chat'].includes(control.id));
   const span=(control:HeaderControl):TuiSpan=>({text:control.label,color:state.focus==='header'&&controls[state.headerActionIndex]?.id===control.id?'#32ade6':'#b3c5e9',bold:true,action:{kind:'command',command:control.command}});
-  const title=['embed','results-view'].includes(state.screen)?state.detailTitle||'Results':state.screen==='app-result'?String(state.activeAppResult?.content.title??'Saved result'):state.activeChat?.title??state.activeExample?.chat?.title??'Chat';
+  const title=['embed','results-view'].includes(state.screen)?state.detailTitle||'Results':state.screen==='app-result'?String(state.activeAppResult?.content.title??state.activeAppResult?.content.request_text??'Results'):state.activeChat?.title??state.activeExample?.chat?.title??'Chat';
   const crumbControls=controls.slice(0,actionStart),crumbs:TuiSpan[]=[];
   let remaining=width;
   for(const control of crumbControls){

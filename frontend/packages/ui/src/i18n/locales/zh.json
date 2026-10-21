@@ -7953,6 +7953,7 @@
       }
     }
   },
+  "embeds_input": {},
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -21798,6 +21799,5 @@
         "text": "无法恢复所选定义。"
       }
     }
-  },
-  "embeds_input": {}
+  }
 }

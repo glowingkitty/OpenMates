@@ -5,21 +5,29 @@
   import { getAppsResult, type AppsResultStatus } from '../../services/appsWorkspaceResultsService';
   import GenericAppSkillEmbedPreview from '../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
 
-  let { embedId, appId, skillId, status = 'finished', teamId, hydrate = false, onFullscreen }: {
+  let { embedId, appId, skillId, status = 'finished', teamId, hydrate = false, content, embedType = 'app-skill-use', onFullscreen }: {
     embedId: string; appId: string; skillId: string; status?: AppsResultStatus;
-    teamId?: string; hydrate?: boolean; onFullscreen: () => void;
+    teamId?: string; hydrate?: boolean; content?: Record<string, unknown>; embedType?: string; onFullscreen: () => void;
   } = $props();
   let preview = $state<{ component: unknown; props: Record<string, unknown> } | null>(null);
   onMount(() => {
     let cancelled = false;
     void (async () => {
       try {
+        // Temporary recommendations never enter the durable saved-embed store.
+        if (content) {
+          const resolved = await embedPreviewRegistry.resolve({ embedId,
+            embedData: { type: embedType, status, app_id: appId, skill_id: skillId },
+            decodedContent: content, onFullscreen });
+          if (!cancelled) preview = resolved;
+          return;
+        }
         if (hydrate) await getAppsResult(embedId, teamId);
         const data = await resolveEmbed(embedId);
         if (!data || cancelled) return;
-        const content = await decodeToonContent(data.content);
-        if (!content || cancelled) return;
-        const resolved = await embedPreviewRegistry.resolve({ embedId, embedData: { ...data, app_id: appId, skill_id: skillId }, decodedContent: content, onFullscreen });
+        const resolvedContent = await decodeToonContent(data.content);
+        if (!resolvedContent || cancelled) return;
+        const resolved = await embedPreviewRegistry.resolve({ embedId, embedData: { ...data, app_id: appId, skill_id: skillId }, decodedContent: resolvedContent, onFullscreen });
         if (!cancelled) preview = resolved;
       } catch { /* The saved parent remains openable with a truthful status. */ }
     })();

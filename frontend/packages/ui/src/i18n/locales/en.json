@@ -3369,6 +3369,111 @@
     },
     "inspiration_weather_feature_description": {
       "text": "Choose a location and dates."
+    },
+    "request_placeholder": {
+      "text": "Describe what you search for"
+    },
+    "followup_placeholder": {
+      "text": "Ask a follow-up"
+    },
+    "submit_request": {
+      "text": "Send request"
+    },
+    "interpreting_request": {
+      "text": "Understanding your request…"
+    },
+    "add_files": {
+      "text": "Attach files"
+    },
+    "remove_file": {
+      "text": "Remove file"
+    },
+    "audio_attached": {
+      "text": "Audio attached"
+    },
+    "filter_results": {
+      "text": "Filter results"
+    },
+    "all_results": {
+      "text": "All results"
+    },
+    "save_search": {
+      "text": "Save this search"
+    },
+    "create_workflow": {
+      "text": "Create a workflow"
+    },
+    "recommended": {
+      "text": "Recommended"
+    },
+    "recent": {
+      "text": "Recent"
+    },
+    "saved_search": {
+      "text": "Saved search"
+    },
+    "run_saved_search": {
+      "text": "Run this search again"
+    },
+    "example_chats": {
+      "text": "Example chats"
+    },
+    "daily_search_notice": {
+      "text": "Your saved search will run daily and use credits."
+    },
+    "daily_search_notice_details": {
+      "text": "We refresh only your latest saved search per app while you have been active in the last 7 days. You can turn off Daily searches in app settings."
+    },
+    "daily_search_ok": {
+      "text": "OK"
+    },
+    "daily_search_turn_off": {
+      "text": "Turn off"
+    },
+    "daily_searches": {
+      "text": "Daily searches"
+    },
+    "daily_searches_description": {
+      "text": "Refresh your latest saved search daily using credits. Runs pause after 7 days of inactivity."
+    },
+    "back_to_app": {
+      "text": "Back to app"
+    },
+    "app_settings": {
+      "text": "App settings"
+    },
+    "pricing_and_providers": {
+      "text": "Pricing and providers"
+    },
+    "saved_and_recent": {
+      "text": "Saved and recent entries"
+    },
+    "toggle_map": {
+      "text": "Switch between map and app overview"
+    },
+    "app_greeting": {
+      "text": "Hey {name}!"
+    },
+    "recommended_for_you": {
+      "text": "Fresh recommendations for you"
+    },
+    "your_saved_searches": {
+      "text": "Your saved searches"
+    },
+    "your_recent_results": {
+      "text": "Your recent results"
+    },
+    "try_an_example": {
+      "text": "Try an example or describe what you need"
+    },
+    "create_workflow_from_search": {
+      "text": "Create a workflow based on this search."
+    },
+    "show_more": {
+      "text": "Show more"
+    },
+    "calendar_view": {
+      "text": "Calendar view"
     }
   },
   "artifact_history": {
@@ -9338,6 +9443,14 @@
       }
     }
   },
+  "embeds_input": {
+    "image_used": {
+      "text": "Image used"
+    },
+    "open_image": {
+      "text": "Open source image"
+    }
+  },
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -13575,7 +13688,15 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini Live receives raw microphone audio, submitted text, and permitted chat context during voice calls. Gemini is also used to correct raw Mistral voice transcripts and create titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Call audio and raw transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
+              "text": "Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini Live receives raw microphone audio, submitted text, and permitted chat context during voice calls. On the Gemini correction route, Gemini corrects raw Mistral voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Call audio and raw transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
+            }
+          },
+          "inception": {
+            "heading": {
+              "text": "Inception Mercury (US)"
+            },
+            "description": {
+              "text": "Inception receives text and context for selected Mercury model requests, and raw voice transcripts plus a language hint when its correction and title-generation route is enabled. Audio is not sent to Inception. Raw transcripts do not receive typed-message placeholder substitution and may contain sensitive data. Its terms permit training on submissions unless the API Platform account opts out; the account owner confirmed on 2026-10-20 that this is OFF for the OpenMates API account. Training may apply if reenabled. Retention has no fixed public maximum; zero retention is not guaranteed."
             }
           }
         },
@@ -14765,7 +14886,7 @@
             "text": "What happens when I record audio?"
           },
           "answer": {
-            "text": "Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral and Google may retain API request data under their own policies."
+            "text": "Audio travels over TLS through the OpenMates backend hosted by Hetzner and is sent to Mistral for transcription. Realtime audio is streamed; uploaded recordings are encrypted by our upload service before durable storage and decrypted only in server memory for transcription. The raw transcript is then sent to Google Gemini, or Inception Mercury when that correction route is enabled, to correct obvious transcription errors and create a title. Audio and raw transcripts do not receive the placeholder substitution used for eligible typed chat messages. OpenMates stores recordings and transcripts as encrypted account content, but Mistral, Google, or Inception may retain API request data under their own policies."
           }
         },
         "voice_calls": {
@@ -27726,14 +27847,6 @@
       "website_changes_message_title": {
         "text": "Congress updates"
       }
-    }
-  },
-  "embeds_input": {
-    "image_used": {
-      "text": "Image used"
-    },
-    "open_image": {
-      "text": "Open source image"
     }
   }
 }

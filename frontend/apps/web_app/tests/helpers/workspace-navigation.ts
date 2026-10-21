@@ -1,6 +1,24 @@
 import { expect, type Page } from '@playwright/test';
 import { waitForChatReady } from './chat-test-helpers';
 
+/** Auth restoration can finish before feature-controlled workspace links load. */
+export async function assertWorkspaceNavigationItems(
+  page: Page,
+  mode: 'desktop' | 'mobile',
+  expectedItems: readonly string[],
+  timeout = 30_000,
+): Promise<void> {
+  const header = page.getByTestId('global-header');
+  await expect.poll(async () => mode === 'desktop'
+    ? header.getByRole('link').and(header.getByTestId(/-nav-link$/))
+      .evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
+    : header.getByTestId('workspace-mobile-select').getByRole('option', { includeHidden: true })
+      .evaluateAll(options => options.map(option => (option as HTMLOptionElement).value)), {
+    timeout,
+    message: `The ${mode} workspace navigation must expose the exact expected items after feature loading`,
+  }).toEqual(expectedItems);
+}
+
 /** The workflow home renders before auth restoration and feature loading finish. */
 export async function waitForWorkflowWorkspaceReady(page: Page, timeout = 30_000): Promise<void> {
   const started = Date.now();

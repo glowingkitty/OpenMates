@@ -15,6 +15,7 @@ services:
     stop_grace_period: 15s # Allow broadcast_to_all() + lifespan teardown before SIGKILL
     env_file: ../../.env
     environment:
+      APPS_RECOMMENDATIONS_DIR: "/app/data/apps-recommendations"
       PYTHONPATH: "/app"
       REST_API_PORT: 8000
       CMS_URL: "http://cms:8055"
@@ -37,6 +38,7 @@ services:
       # Expose on localhost only — Caddy on this VM proxies to this port.
       - "127.0.0.1:8000:8000"
     volumes:
+      - apps-recommendations-data:/app/data/apps-recommendations
       # Changed: Mount the entire host 'backend' directory to '/app/backend' for development
       - ../../backend:/app/backend
       # Mount for logs, assuming application logs to /app/logs
@@ -223,6 +225,7 @@ services:
     user: root
     env_file: ../../.env
     environment:
+      APPS_RECOMMENDATIONS_DIR: "/app/data/apps-recommendations"
       PYTHONPATH: "/app"
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
@@ -252,7 +255,7 @@ services:
       - sh
       - -c
       - |
-        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && \
         mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
         chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
         chmod -R 777 /app/logs /app/backend/core/api/logs && \
@@ -266,6 +269,7 @@ services:
         --max-memory-per-child=600000 \
         --prefetch-multiplier=1
     volumes:
+      - apps-recommendations-data:/app/data/apps-recommendations
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
@@ -1525,6 +1529,10 @@ networks:
     name: openmates
 
 volumes:
+  apps-recommendations-data:
+    labels:
+      openmates.backup.exclude: "true"
+      openmates.data.retention: "temporary-recommendations-24h"
   openmates-postgres-data:
     name: openmates-postgres-data
   cache-data:

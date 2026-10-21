@@ -1,135 +1,127 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import type { AllAppsFilterType } from '../../stores/allAppsFilterStore';
   import { text } from '../../i18n/translations';
   import { appSkillsStore, featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import { authStore } from '../../stores/authStore';
-  import { skillStoreExampleFullscreenStore, closeSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
   import { userProfile } from '../../stores/userProfile';
   import { activeTeamContext } from '../../stores/teamStore';
-  import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
-  import { getAppsSkillDetails, canRunGuestAppsSkill, executeAppsSkill } from '../../services/appsWorkspaceService';
-  import { retainAppsResult, listAppsResults, listPendingAppsResultItems, promoteGuestAppsResults, startAppsHistoricalDiscovery,
-    appsResultSaveStates, recoverPendingAppsResults, retryAppsResultSave, AppsResultSavePendingError, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
-  import { listAppsWorkflows, type AppsWorkflowLibraryItem } from '../../services/appsWorkflowLibraryService';
-  import { readAppsWorkspaceRoute, readAppsWorkspaceOrigin, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
-  import type { AppsSkillDetails } from '../../types/appsWorkspace';
+  import { skillStoreExampleFullscreenStore, closeSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
+  import { listAppsResults, getAppsResult, startAppsHistoricalDiscovery, recoverPendingAppsResults, listPendingAppsResultItems, promoteGuestAppsResults, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
+  import { emptyAppsLibrary, getAppsLibrary, getPublicAppsRecommendations, setAppsDailySearches, saveAppsSearchWithNotice, freshAppsRecommendations,
+    type AppsLibrary, type AppsSavedSearch, type AppsRecommendation } from '../../services/appsWorkspaceLibraryService';
+  import { runAppsWorkspaceRequest, type AppsRequestContext } from '../../services/appsWorkspaceRequestService';
+  import { queueAppsWorkspaceChatHandoff, queueAppsWorkspaceWorkflowHandoff } from '../../services/appsWorkspaceChatHandoffService';
+  import { readAppsWorkspaceRoute, readAppsWorkspaceOrigin, buildAppsWorkspaceHash, resolveAppsAppId } from '../../utils/appsWorkspaceRoute';
   import type { AppMetadata } from '../../types/apps';
+  import type { Chat } from '../../types/chat';
+  import { getExampleChatsForSkill, getExampleChatsForFocusMode, getExampleChatsForContentEmbed } from '../../demo_chats';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import SearchSortBar from '../settings/SearchSortBar.svelte';
   import AppDetailsWrapper from '../settings/AppDetailsWrapper.svelte';
-  import SkillDetails from '../settings/SkillDetails.svelte';
-  import SettingsTabs from '../settings/elements/SettingsTabs.svelte';
+  import ChatPreviewCard from '../settings/ChatPreviewCard.svelte';
+  import { SettingsItem, SettingsCard, SettingsSectionHeading } from '../settings/elements';
   import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
+  import EmbedLeafletMap from '../embeds/EmbedLeafletMap.svelte';
+  import EmbedsMapView from '../embeds/EmbedsMapView.svelte';
   import AppsEmbedPreview from './AppsEmbedPreview.svelte';
-  import AppsInlineResults from './AppsInlineResults.svelte';
-  import AppsSkillForm from './AppsSkillForm.svelte';
+  import AppsSavedSearchPreview from './AppsSavedSearchPreview.svelte';
+  import AppsRequestComposer from './AppsRequestComposer.svelte';
   import AppsResultFullscreen from './AppsResultFullscreen.svelte';
+  import AppsSidebar from './AppsSidebar.svelte';
+  import AppsResultPreviewGroup from './AppsResultPreviewGroup.svelte';
+  import { recommendationPreviewItems } from '../../services/appsWorkspacePreviewService';
+  import { loadAppsRecentChats } from '../../services/appsWorkspaceRecentChatsService';
+  import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
 
   let { hash, onNavigate, onSignup, onSettings }: {
-    hash: string;
-    onNavigate: (hash: string) => void;
-    onSignup: () => void;
-    onSettings: (path: string) => void;
+    hash: string; onNavigate: (hash: string) => void; onSignup: () => void; onSettings: (path: string) => void;
   } = $props();
-  const tr = (key: string) => $text(`apps_workspace.${key}`);
+  const tr = (key: string) => $text('apps_workspace.' + key);
   const route = $derived(readAppsWorkspaceRoute(hash));
-  const catalogFilter = $derived.by((): AllAppsFilterType | undefined => {
-    const value = new URLSearchParams(hash.split('&').slice(1).join('&')).get('filter');
-    return ['skills', 'focus_modes', 'settings_memories'].includes(value ?? '') ? value as AllAppsFilterType : undefined;
-  });
   const apps = $derived.by(() => { void $featureAvailabilityStore; return appSkillsStore.getState().apps; });
-  const resolvedAppId = $derived(route?.appId ? resolveAppsAppId(route.appId, Object.keys(apps)) : null);
-  const app = $derived(resolvedAppId ? apps[resolvedAppId] : undefined);
-  const skillId = $derived(route?.skillId && app ? resolveAppsSkillId(route.skillId, app.skills.map(skill => skill.id)) : null);
-  const skill = $derived(app?.skills.find(item => item.id === skillId));
-  const accountKey = $derived($authStore.isAuthenticated ? `${$userProfile.user_id ?? ''}:${$activeTeamContext.teamId ?? 'personal'}` : 'guest');
-  const teamId = $derived($authStore.isAuthenticated ? $activeTeamContext.teamId ?? undefined : undefined);
+  const appId = $derived(route?.appId ? resolveAppsAppId(route.appId, Object.keys(apps)) : null);
+  const app = $derived(appId ? apps[appId] : undefined);
+  const appName = $derived(app?.name_translation_key ? $text(app.name_translation_key) : app?.name ?? '');
+  const description = $derived(app?.description_translation_key ? $text(app.description_translation_key) : app?.description ?? '');
+  const authenticatedOwner = $derived($authStore.isAuthenticated ? $userProfile.user_id : null);
+  const teamId = $derived(authenticatedOwner ? $activeTeamContext.teamId ?? undefined : undefined);
   const viewer = $derived(Boolean(teamId && $activeTeamContext.team?.role === 'viewer'));
-  let metadata = $state<AppsSkillDetails | null>(null);
-  let metadataLoading = $state(false);
-  let metadataError = $state(false);
-  let skillContextOpen = $state(false);
-  let submitting = $state(false);
-  let requestError = $state(false);
-  let inlineResultId = $state<string | null>(null);
-  let pendingResultId = $state<string | null>(null);
-  let libraryError = $state(false);
-  let libraryLoading = $state(false);
+  const accountKey = $derived(authenticatedOwner ? authenticatedOwner + ':' + (teamId ?? 'personal') + ':' + $activeTeamContext.epoch : 'guest');
+  let library = $state<AppsLibrary>(emptyAppsLibrary(''));
   let results = $state<AppsResultItem[]>([]);
-  let pendingResults = $state<AppsResultItem[]>([]);
-  const resultSaveId = $derived(inlineResultId ?? pendingResultId);
-  const inlineSaveState = $derived(resultSaveId ? $appsResultSaveStates[`${accountKey}:${resultSaveId}`] : undefined);
-  let workflows = $state<AppsWorkflowLibraryItem[]>([]);
-  let offset = $state(0);
-  let hasMore = $state(false);
-  let libraryGeneration = 0;
-  let recents = $state<string[]>([]);
+  let recentChats = $state<Chat[]>([]);
+  let resultTitles = $state<Record<string, string>>({});
+  let savedEmbedSnapshot = $state<{ owner: string; items: Array<{ id: string; title: string; skillId: string }> } | null>(null);
+  let hasMoreResults = $state(false);
+  let resultOffset = $state(0);
+  let publicRecommendations = $state<AppsRecommendation[]>([]);
+  let libraryLoading = $state(false);
+  let libraryError = $state(false);
+  let requestError = $state(false);
+  let submitting = $state(false);
+  let requestText = $state('');
+  let requestFiles = $state<File[]>([]);
+  let composerEpoch = $state(0);
+  let settingsOpen = $state(false);
+  let settingsPath = $state('');
+  let selectedSection = $state<'recommended' | 'saved' | 'recent'>('recommended');
+  let mapView = $state(true);
+  let calendarView = $state(false);
+  let sidebarOpen = $state<boolean | null>(null);
+  let viewportWidth = $state(0);
+  let now = $state(Date.now());
+  let recentAppIds = $state<string[]>([]);
   let lastHomeHash = $state('#apps');
   let catalogSearchOpen = $state(false);
   let catalogSearchQuery = $state('');
+  let catalogSearchElement = $state<HTMLDivElement>();
   let catalogSort = $state('newest');
-  let activeCatalogFilter = $state<AllAppsFilterType>('all');
-  let catalogSearchElement = $state<HTMLDivElement | undefined>();
-  let formElement = $state<HTMLDivElement | undefined>();
-  let highlight = $state(false);
-  let highlightTimer: ReturnType<typeof setTimeout> | undefined;
-  let mounted = false;
-  const pageSize = 20;
-  // Private provider admission must refresh when the account changes. Public
-  // schemas keep their form mounted through login so guest input survives.
-  const privateMetadataContext = $derived(resolvedAppId === 'mail' && skillId === 'search'
-    ? `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}` : '');
-  const guestEligibility = $derived(metadata ? canRunGuestAppsSkill(metadata, $anonymousFreeUsageStatus) : undefined);
-  const title = $derived(skill?.name_translation_key ? $text(skill.name_translation_key) : app?.name_translation_key ? $text(app.name_translation_key) : tr('title'));
-  const description = $derived(skill?.description_translation_key ? $text(skill.description_translation_key) : app?.description_translation_key ? $text(app.description_translation_key) : '');
-  const appName = $derived(app?.name_translation_key ? $text(app.name_translation_key) : app?.name ?? '');
-  const heroCategory = $derived(skillId ? $text('apps_workspace.skill_label', { values: { app: appName } }) : tr('app_label'));
-  const heroStats = $derived(!skillId && app ? $text('apps_workspace.app_stats', { values: { skills: app.skills.length, focusModes: app.focus_modes?.length ?? 0 } }) : '');
-  const heroProviders = $derived(skillId ? skill?.providers ?? [] : []);
-  const heroAppIcon = $derived(app?.icon_image?.replace(/\.svg$/i, '') ?? '');
-  const heroSkillIcon = $derived(skillId ? (metadata?.icon_image ?? skill?.icon_image ?? '').replace(/\.svg$/i, '') : '');
-  const detailPath = $derived.by(() => {
-    if (!app || !route) return '';
-    const suffix = route.settingsPath?.replace(/^memory\//, 'settings_memories/');
-    return `apps/${app.id}${skillId ? `/skill/${skillId}` : ''}${suffix ? `/${suffix}` : ''}`;
+  let catalogFilter = $state('all');
+  let temporaryResult = $state<AppsRecommendation | null>(null);
+  let generation = 0;
+  let pendingRequestToken = 0;
+  let previousApp: string | null = null;
+  let previousAccount = "";
+  const showSidebar = $derived(Boolean(app && (sidebarOpen ?? viewportWidth > 1440)));
+  const recommended = $derived(freshAppsRecommendations(library.recommendations, now).length
+    ? freshAppsRecommendations(library.recommendations, now) : freshAppsRecommendations(publicRecommendations, now));
+  const examples = $derived.by(() => {
+    if (!app) return [];
+    const chats = [
+      ...app.skills.flatMap(skill => getExampleChatsForSkill(app.id, skill.id)),
+      ...(app.focus_modes ?? []).flatMap(focus => getExampleChatsForFocusMode(app.id, focus.id)),
+      ...CONTENT_EMBED_CATALOG.filter(item => item.appId === app.id).flatMap(item => getExampleChatsForContentEmbed(app.id, item.contentTypeId)),
+    ];
+    return [...new Map(chats.map(chat => [chat.chat_id, chat])).values()].slice(0, 12);
   });
-  function appItem(metadata: AppMetadata) {
-    return {
-      id: metadata.id,
-      title: metadata.name_translation_key ? $text(metadata.name_translation_key) : metadata.name ?? metadata.id,
-      summary: metadata.description_translation_key ? $text(metadata.description_translation_key) : metadata.description ?? '',
-      appId: metadata.id, icon: 'app', iconImage: metadata.icon_image, category: 'productivity',
-      appMetadata: metadata,
-    };
+  const savedEmbeds = $derived(!teamId && $authStore.isAuthenticated && savedEmbedSnapshot?.owner === accountKey
+    ? savedEmbedSnapshot.items : []);
+  const visibleSection = $derived(
+    selectedSection === 'recommended' && !recommended.length ? (library.saved_searches.length || savedEmbeds.length ? 'saved' : 'recent') : selectedSection
+  );
+  $effect(() => {
+    if (temporaryResult && temporaryResult.expires_at * 1000 <= now) temporaryResult = null;
+    const expiry = Math.min(...recommended.map(item => item.expires_at * 1000));
+    if (!Number.isFinite(expiry)) return;
+    const timer = setTimeout(() => { now = Date.now(); }, Math.max(1, expiry - Date.now() + 1));
+    return () => clearTimeout(timer);
+  });
+  function appItem(item: AppMetadata) {
+    return { id: item.id, title: item.name_translation_key ? $text(item.name_translation_key) : item.name ?? item.id,
+      summary: item.description_translation_key ? $text(item.description_translation_key) : item.description ?? '',
+      appId: item.id, icon: 'app', iconImage: item.icon_image, category: 'productivity', appMetadata: item };
   }
-  const homeItems = $derived.by(() => {
-    const ids = [...recents, 'web', 'news', 'health', 'travel', 'weather', 'audio'];
-    return [...new Set(ids)].filter(id => apps[id]).slice(0, 6).map(id => appItem(apps[id]));
-  });
-  const catalogItems = $derived.by(() => {
-    const query = catalogSearchQuery.trim().toLowerCase();
-    const list = Object.values(apps).filter(item => {
-      if (item.id === 'ai') return false;
-      if (activeCatalogFilter === 'skills' && !item.skills?.length) return false;
-      if (activeCatalogFilter === 'focus_modes' && !item.focus_modes?.length) return false;
-      if (activeCatalogFilter === 'settings_memories' && !item.settings_and_memories?.length) return false;
-      if (!query) return true;
-      const name = item.name_translation_key ? $text(item.name_translation_key) : item.name ?? item.id;
-      const description = item.description_translation_key ? $text(item.description_translation_key) : item.description ?? '';
-      return `${name} ${description} ${(item.providers ?? []).join(' ')}`.toLowerCase().includes(query);
-    });
-    list.sort((a, b) => {
-      if (catalogSort === 'newest') {
-        return (b.last_updated ? Date.parse(b.last_updated) : 0) - (a.last_updated ? Date.parse(a.last_updated) : 0);
-      }
-      const aName = a.name_translation_key ? $text(a.name_translation_key) : a.name ?? a.id;
-      const bName = b.name_translation_key ? $text(b.name_translation_key) : b.name ?? b.id;
-      return catalogSort === 'name_desc' ? bName.localeCompare(aName) : aName.localeCompare(bName);
-    });
-    return list.map(appItem);
-  });
+  const homeItems = $derived([...new Set([...recentAppIds, 'web', 'news', 'health', 'travel', 'weather', 'audio'])]
+    .filter(id => apps[id]).slice(0, 6).map(id => appItem(apps[id])));
+  const catalogItems = $derived.by(() => Object.values(apps).filter(item => item.id !== 'ai'
+    && (catalogFilter !== 'skills' || item.skills.length > 0)
+    && (catalogFilter !== 'focus_modes' || (item.focus_modes?.length ?? 0) > 0)
+    && (catalogFilter !== 'settings_memories' || (item.settings_and_memories?.length ?? 0) > 0)
+    && (!catalogSearchQuery.trim() || [appItem(item).title, item.id, appItem(item).summary, ...(item.providers ?? [])]
+      .join(' ').toLowerCase().includes(catalogSearchQuery.trim().toLowerCase())))
+    .sort((a, b) => catalogSort === 'newest' ? (b.last_updated ? Date.parse(b.last_updated) : 0) - (a.last_updated ? Date.parse(a.last_updated) : 0)
+      : catalogSort === 'name_desc' ? appItem(b).title.localeCompare(appItem(a).title) : appItem(a).title.localeCompare(appItem(b).title)).map(appItem));
   const catalogSortOptions = $derived([
     { value: 'newest', label: $text('settings.app_store.all_apps.sort_by_newest') },
     { value: 'name_asc', label: $text('settings.app_store.all_apps.sort_by_name_asc') },
@@ -137,335 +129,365 @@
   ]);
   const catalogFilterOptions = $derived([
     { value: 'all', label: $text('settings.app_store.all_apps.filter_all') },
-    { value: 'settings_memories', label: $text('settings.app_store.all_apps.filter_settings_memories') },
-    { value: 'focus_modes', label: $text('settings.app_store.all_apps.filter_focus_modes') },
     { value: 'skills', label: $text('settings.app_store.all_apps.filter_skills') },
+    { value: 'focus_modes', label: $text('settings.app_store.all_apps.filter_focus_modes') },
+    { value: 'settings_memories', label: $text('settings.app_store.all_apps.filter_settings_memories') },
   ]);
-  const tabs = $derived(skillId ? [
-    { id: 'overview', icon: 'skill', label: tr('overview') },
-    { id: 'embeds', icon: 'files', label: tr('embeds') },
-    { id: 'workflows', icon: 'workflow', label: tr('workflows') },
-  ] : [
-    ...(app && (app.skills.length > 0 || CONTENT_EMBED_CATALOG.some(item => item.appId === app.id)) ? [{ id: 'overview', icon: 'app', label: tr('skills') }] : []),
-    ...(app?.focus_modes?.length ? [{ id: 'focus_modes', icon: 'search', label: tr('focus_modes') }] : []),
-    ...(app && ((app.memories?.length ?? 0) > 0 || app.settings_and_memories?.some(category => $authStore.isAuthenticated || (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0)) ? [{ id: 'settings_memories', icon: 'settings', label: tr('settings_memories') }] : []),
-    { id: 'embeds', icon: 'files', label: tr('embeds') },
-    { id: 'workflows', icon: 'workflow', label: tr('workflows') },
-  ]);
-  const activeTab = $derived((tabs.some(tab => tab.id === route?.tab) ? route?.tab : tabs[0]?.id ?? 'embeds') as AppsWorkspaceTab);
-
   $effect(() => {
     if (route && !route.appId) lastHomeHash = hash;
-    if (route?.showAll && catalogFilter) {
-      activeCatalogFilter = catalogFilter;
-      catalogSearchOpen = true;
+    const selected = new URLSearchParams(hash.split('&').slice(1).join('&')).get('filter');
+    if (route?.showAll && selected && ['skills', 'focus_modes', 'settings_memories'].includes(selected)) {
+      catalogFilter = selected; catalogSearchOpen = true;
     }
   });
   $effect(() => {
-    if (route?.showAll && catalogSearchOpen) {
-      void tick().then(() => {
-        if (route?.showAll && catalogSearchOpen) catalogSearchElement?.querySelector('input')?.focus();
-      });
-    }
+    void accountKey;
+    try { recentAppIds = JSON.parse(localStorage.getItem('apps-recents:' + accountKey) ?? '[]'); } catch { recentAppIds = []; }
+  });
+  $effect(() => {
+    if (route?.showAll && catalogSearchOpen) void tick().then(() => {
+      if (route?.showAll && catalogSearchOpen) catalogSearchElement?.querySelector('input')?.focus();
+    });
   });
   function showAllApps(): void {
-    catalogSearchQuery = '';
-    activeCatalogFilter = 'all';
-    catalogSearchOpen = false;
+    catalogSearchQuery = ''; catalogFilter = 'all'; catalogSearchOpen = false;
     onNavigate('#apps/all');
   }
-  function searchAllApps(): void {
-    catalogSearchOpen = true;
-    if (!route?.showAll) onNavigate('#apps/all');
-  }
-
   $effect(() => {
-    const context = accountKey;
-    try { recents = JSON.parse(localStorage.getItem(`apps-recents:${context}`) ?? '[]'); }
-    catch { recents = []; }
-  });
-  $effect(() => {
-    void resolvedAppId; void skillId; void accountKey;
-    skillContextOpen = false;
-    inlineResultId = null;
-    pendingResultId = null;
-  });
-  $effect(() => {
-    const context = accountKey; const appId = resolvedAppId; const selectedSkill = skillId; const selectedTeamId = teamId;
-    if (!$authStore.isAuthenticated || !$userProfile.user_id) return;
-    let cancelled = false;
-    const recover = () => { void recoverPendingAppsResults(selectedTeamId, appId, selectedSkill).then(embedId => {
-      if (!cancelled && context === accountKey && !submitting && !inlineResultId && embedId) inlineResultId = embedId;
-    }).catch(() => {}); };
-    recover();
-    window.addEventListener('online', recover);
-    return () => { cancelled = true; window.removeEventListener('online', recover); };
-  });
-  $effect(() => {
-    const appId = resolvedAppId; const selectedSkill = skillId;
-    void privateMetadataContext;
-    metadata = null; metadataError = false; requestError = false;
-    if (!appId || !selectedSkill || route?.settingsPath) return;
-    const controller = new AbortController();
-    metadataLoading = true;
-    void getAppsSkillDetails(appId, selectedSkill, controller.signal).then(value => {
-      if (!controller.signal.aborted) metadata = value;
-    }).catch(() => { if (!controller.signal.aborted) metadataError = true; })
-      .finally(() => { if (!controller.signal.aborted) metadataLoading = false; });
-    return () => controller.abort();
-  });
-  $effect(() => {
-    if (resolvedAppId && skillId && !$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
-  });
-  $effect(() => {
-    const appId = resolvedAppId; const tab = activeTab; void accountKey;
-    libraryGeneration++; results = []; pendingResults = []; workflows = []; offset = 0; hasMore = false; libraryError = false;
-    if (appId && (tab === 'embeds' || tab === 'workflows')) untrack(() => void loadLibrary(0));
-    if (appId && tab === 'embeds' && $authStore.isAuthenticated) {
-      return untrack(() => startAppsHistoricalDiscovery(appId, teamId));
-    }
+    const selectedApp = appId; const context = accountKey;
+    // Credit, profile and auth-readiness publications must not reset a draft or
+    // invalidate an accepted request. Only an app or account scope change does.
+    return untrack(() => {
+      if (selectedApp === previousApp && context === previousAccount) return;
+      const preserveDraft = selectedApp === previousApp && previousAccount === 'guest' && context !== 'guest';
+      previousApp = selectedApp; previousAccount = context;
+      pendingRequestToken++;
+      generation++; results = []; recentChats = []; resultTitles = {}; savedEmbedSnapshot = null; resultOffset = 0; hasMoreResults = false; publicRecommendations = []; library = emptyAppsLibrary(selectedApp ?? '');
+      settingsOpen = false; temporaryResult = null; submitting = false; calendarView = false;
+      if (!preserveDraft) { requestText = ''; requestFiles = []; composerEpoch++; }
+      requestError = false; selectedSection = 'recommended';
+      if (!selectedApp) return;
+      void loadLibrary(selectedApp, context);
+      if (authenticatedOwner) {
+        void promoteGuestAppsResults().catch(() => {});
+        void recoverPendingAppsResults(teamId, selectedApp).then(id => {
+          if (id && context === accountKey && appId === selectedApp && !route?.embedId && !submitting) openResult(id);
+        }).catch(() => {});
+      }
+      if (authenticatedOwner) return startAppsHistoricalDiscovery(selectedApp, teamId);
+    });
   });
   onMount(() => {
-    mounted = true;
-    const refreshResults = (event: Event) => {
-      const updated = (event as CustomEvent<{ teamId: string | null; userId?: string; embedId?: string; appId?: string; skillId?: string; status?: string }>).detail;
-      if (updated?.userId && updated.userId !== $userProfile.user_id) return;
-      if (route?.tab === 'embeds' && updated?.teamId === (teamId ?? null)) void loadLibrary(offset);
-      else if (!submitting && route?.tab === 'overview' && updated?.teamId === (teamId ?? null)
-        && updated.appId === resolvedAppId && updated.skillId === skillId && updated.status === 'finished' && updated.embedId) inlineResultId = updated.embedId;
-    };
-    window.addEventListener('appsResultUpdated', refreshResults);
     void initializeFeatureAvailability();
-    if ($authStore.isAuthenticated) void promoteGuestAppsResults().catch(() => {});
-    return () => { mounted = false; clearTimeout(highlightTimer); window.removeEventListener('appsResultUpdated', refreshResults); };
+    const refresh = () => { now = Date.now(); if (appId) void loadLibrary(appId, accountKey); };
+    const timer = setInterval(() => { now = Date.now(); }, 30000);
+    const visible = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('appsResultUpdated', refresh);
+    window.addEventListener('appsWorkspaceLibraryUpdated', refresh);
+    document.addEventListener('visibilitychange', visible);
+    return () => {
+      generation++; clearInterval(timer);
+      window.removeEventListener('appsResultUpdated', refresh);
+      window.removeEventListener('appsWorkspaceLibraryUpdated', refresh);
+      document.removeEventListener('visibilitychange', visible);
+    };
   });
-
-  function navigateSettings(event: CustomEvent<{ settingsPath: string }>): void {
-    const path = event.detail.settingsPath;
-    if (path === 'apps' || path.startsWith('apps/')) onNavigate(buildAppsWorkspaceHash(path));
-    else onSettings(path);
-  }
-  function remember(appId: string, context = accountKey): void {
-    let previous: string[] = [];
-    try { previous = JSON.parse(localStorage.getItem(`apps-recents:${context}`) ?? '[]'); } catch { /* first visit */ }
-    const next = [appId, ...previous.filter(id => id !== appId)].slice(0, 20);
-    try { localStorage.setItem(`apps-recents:${context}`, JSON.stringify(next)); } catch { /* optional recency */ }
-    if (accountKey === context) recents = next;
-  }
-  function selectTab(tab: string): void { onNavigate(buildAppsWorkspaceHash(detailPath, tab as AppsWorkspaceTab)); }
-  async function useSkill(): Promise<void> {
-    if (route?.tab !== 'overview') { selectTab('overview'); await tick(); }
-    formElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    formElement?.querySelector<HTMLElement>('input,textarea,select,button')?.focus({ preventScroll: true });
-    highlight = true; clearTimeout(highlightTimer); highlightTimer = setTimeout(() => { highlight = false; }, 1400);
-  }
-  async function submit(input: Record<string, unknown>): Promise<void> {
-    if (submitting || !metadata || viewer) return;
-    const selected = metadata; const submittedTeamId = teamId; const guest = !$authStore.isAuthenticated;
-    const submittedContext = accountKey; const requestId = crypto.randomUUID();
-    let acceptedTaskId: string | undefined;
-    submitting = true; requestError = false; inlineResultId = null; pendingResultId = null;
-    try {
-      await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing' }, teamId: submittedTeamId, guest, requestId, newRequest: true, persistence: 'background' });
-      const response = await executeAppsSkill(selected.app_id, selected.skill_id, input, { guest, teamId: submittedTeamId, metadata: selected, onTaskSubmitted: async taskId => { acceptedTaskId = taskId; await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing', task_id: taskId }, teamId: submittedTeamId, guest, requestId, persistence: 'background' }); } });
-      const embedId = await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response, teamId: submittedTeamId, guest, requestId, persistence: 'background' });
-      remember(selected.app_id, submittedContext);
-      if (mounted && accountKey === submittedContext && resolvedAppId === selected.app_id && skillId === selected.skill_id) inlineResultId = embedId;
-    } catch (error) {
-      if (error instanceof AppsResultSavePendingError) {
-        if (accountKey === submittedContext) pendingResultId = error.embedId;
-      } else {
-        await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: acceptedTaskId ? { status: 'processing', task_id: acceptedTaskId } : { status: 'error' }, teamId: submittedTeamId, guest, requestId, persistence: 'background' }).catch(() => {});
-        if (accountKey === submittedContext) requestError = true;
-      }
-    } finally { submitting = false; if (guest) void refreshAnonymousFreeUsageStatus(); }
-  }
-  async function loadLibrary(nextOffset: number): Promise<void> {
-    if (!resolvedAppId || !route) return;
-    const generation = ++libraryGeneration; const appId = resolvedAppId; const tab = activeTab;
-    const selectedTeamId = teamId; const context = accountKey;
-    results = []; pendingResults = []; workflows = []; libraryLoading = true; libraryError = false;
-    try {
-      if (tab === 'workflows' && !$authStore.isAuthenticated) { hasMore = false; offset = 0; return; }
-      const pending = tab === 'embeds' && nextOffset === 0 ? await listPendingAppsResultItems(appId, selectedTeamId) : [];
-      if (generation !== libraryGeneration || context !== accountKey) return;
-      pendingResults = pending;
-      const page = tab === 'workflows' ? await listAppsWorkflows(appId, selectedTeamId, nextOffset, pageSize) : await listAppsResults(appId, selectedTeamId, nextOffset, pageSize);
-      if (generation !== libraryGeneration || context !== accountKey) return;
-      if (tab === 'workflows') workflows = page.items as AppsWorkflowLibraryItem[];
-      else {
-        pendingResults = pending;
-        const pendingIds = new Set(pending.map(item => item.embedId));
-        results = (page.items as AppsResultItem[]).filter(item => !pendingIds.has(item.embedId));
-      }
-      hasMore = page.hasMore; offset = page.offset;
-    } catch { if (generation === libraryGeneration) libraryError = true; }
-    finally { if (generation === libraryGeneration) libraryLoading = false; }
-  }
-  function openResult(embedId: string, rootEmbedId?: string): void {
-    onNavigate(`${buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')}&embed-id=${encodeURIComponent(embedId)}${rootEmbedId && rootEmbedId !== embedId ? `&root-id=${encodeURIComponent(rootEmbedId)}` : ''}`);
-  }
-  function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')); }
-  function closeDetail(): void {
-    onNavigate(readAppsWorkspaceOrigin(hash) ?? (skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : lastHomeHash));
-  }
-  function openNewMessage(message: string): void { window.open(`/#new-message=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer'); }
-  function openExampleChat(chatId: string): void { window.open(`/#chat-id=${encodeURIComponent(chatId)}`, '_blank', 'noopener,noreferrer'); }
-  async function shareDetail(): Promise<void> {
-    if (!detailPath) return;
-    const url = new URL(window.location.href);
-    url.hash = buildAppsWorkspaceHash(detailPath);
-    if (navigator.share) {
-      try { await navigator.share({ title, url: url.toString() }); return; }
-      catch (error) { if ((error as DOMException).name === 'AbortError') return; }
+  async function loadLibrary(selectedApp = appId, context = accountKey): Promise<void> {
+    if (!selectedApp || context !== accountKey || selectedApp !== appId) return;
+    const current = ++generation; const selectedTeam = teamId; libraryLoading = true; libraryError = false;
+    const awaitingOwner = $authStore.isAuthenticated && !authenticatedOwner;
+    const page = await Promise.allSettled([
+      awaitingOwner ? Promise.resolve({ items: [] as AppsResultItem[], offset: 0, limit: 20, hasMore: false }) : listAppsResults(selectedApp, selectedTeam, 0, 20),
+      $authStore.isAuthenticated && $userProfile.user_id ? getAppsLibrary(selectedApp, selectedTeam) : Promise.resolve(emptyAppsLibrary(selectedApp)),
+      listPendingAppsResultItems(selectedApp, selectedTeam),
+      getPublicAppsRecommendations(selectedApp),
+      loadAppsRecentChats(selectedApp, selectedTeam),
+      authenticatedOwner && !selectedTeam ? appSettingsMemoriesStore.readEntriesForApp(selectedApp) : Promise.resolve([]),
+    ]);
+    if (current !== generation || context !== accountKey || selectedApp !== appId) return;
+    const pending = page[2].status === 'fulfilled' ? page[2].value : [];
+    const remote = page[0].status === 'fulfilled' ? page[0].value.items : results;
+    results = [...pending, ...remote.filter(item => !pending.some(row => row.embedId === item.embedId))];
+    if (page[0].status === 'fulfilled') {
+      resultOffset = page[0].value.offset; hasMoreResults = page[0].value.hasMore;
     }
-    await navigator.clipboard.writeText(url.toString());
+    if (page[1].status === 'fulfilled') library = page[1].value;
+    if (page[3].status === 'fulfilled') publicRecommendations = page[3].value;
+    if (page[4].status === 'fulfilled') recentChats = page[4].value;
+    if (page[5].status === 'fulfilled') savedEmbedSnapshot = { owner: context, items: page[5].value
+      .filter(entry => typeof entry.item_value.embed_id === 'string')
+      .map(entry => ({ id: entry.item_value.embed_id as string,
+        title: String(entry.item_value.title || entry.item_value.name || entry.item_key), skillId: String(entry.item_value.skill_id || '') })) };
+    if (temporaryResult && ![...library.recommendations, ...publicRecommendations].some(item => item.id === temporaryResult?.id)) temporaryResult = null;
+    libraryError = page.slice(0, 2).some(result => result.status === 'rejected');
+    libraryLoading = false;
   }
+  function rememberApp(): void {
+    if (!appId) return;
+    recentAppIds = [appId, ...recentAppIds.filter(id => id !== appId)].slice(0, 20);
+    try { localStorage.setItem('apps-recents:' + accountKey, JSON.stringify(recentAppIds)); } catch { /* Optional recency cache. */ }
+  }
+  async function moreResults(): Promise<void> {
+    if (!appId || !hasMoreResults || libraryLoading || ($authStore.isAuthenticated && !authenticatedOwner)) return;
+    const identity = accountKey; const selectedApp = appId; libraryLoading = true;
+    try {
+      const page = await listAppsResults(selectedApp, teamId, resultOffset + 20, 20);
+      if (identity !== accountKey || selectedApp !== appId) return;
+      const ids = new Set(results.map(item => item.embedId));
+      results = [...results, ...page.items.filter(item => !ids.has(item.embedId))];
+      resultOffset = page.offset; hasMoreResults = page.hasMore;
+    } catch { if (identity === accountKey && selectedApp === appId) libraryError = true; }
+    finally { if (identity === accountKey && selectedApp === appId) libraryLoading = false; }
+  }
+  function openResult(embedId: string, rootId = embedId): void {
+    if (!appId) return;
+    onNavigate(buildAppsWorkspaceHash('apps/' + appId) + '&embed-id=' + encodeURIComponent(embedId) + (rootId !== embedId ? '&root-id=' + encodeURIComponent(rootId) : ''));
+  }
+  async function showCalendar(): Promise<void> {
+    const context = accountKey; const selectedApp = appId;
+    for (let offset = 0; offset < results.length; offset += 4) {
+      await Promise.allSettled(results.slice(offset, offset + 4).map(result => getAppsResult(result.embedId, teamId)));
+      if (context !== accountKey || selectedApp !== appId) return;
+    }
+    calendarView = true;
+  }
+  function openSavedEmbed(embedId: string): void {
+    if (appId) onNavigate(buildAppsWorkspaceHash('apps/' + appId) + '&embed-id=' + encodeURIComponent(embedId) + '&source=saved');
+  }
+  function closeResult(): void { if (appId) onNavigate(buildAppsWorkspaceHash('apps/' + appId)); }
+  function closeDetail(): void {
+    onNavigate(readAppsWorkspaceOrigin(hash) ?? (route?.skillId || route?.settingsPath ? buildAppsWorkspaceHash('apps/' + route.appId) : lastHomeHash));
+  }
+  function openExample(chat: Chat): void { onNavigate('#chat-id=' + encodeURIComponent(chat.chat_id)); }
+  function openDetailExample(chatId: string): void { window.open('/#chat-id=' + encodeURIComponent(chatId), '_blank', 'noopener,noreferrer'); }
+  async function submit(value: string, attachments: File[] = [], context?: AppsRequestContext): Promise<boolean> {
+    if (!appId || submitting || viewer || ($authStore.isAuthenticated && !authenticatedOwner)) return false;
+    const selected = appId; const identity = accountKey; const submittedHash = hash;
+    const requestToken = ++pendingRequestToken; let acceptedOpened = false;
+    const stillCurrent = () => requestToken === pendingRequestToken && identity === accountKey && appId === selected && hash === submittedHash;
+    submitting = true; requestError = false;
+    try {
+      const accepted = (result: { embedId: string; skillId: string; input: Record<string, unknown> }) => {
+        if (acceptedOpened || !stillCurrent()) return;
+        acceptedOpened = true;
+        openResult(result.embedId);
+      };
+      const result = await runAppsWorkspaceRequest({ appId: selected, text: value, attachments, context,
+        guest: !$authStore.isAuthenticated, teamId,
+        onChat: async request => { if (stillCurrent()) await queueAppsWorkspaceChatHandoff(request); },
+        onWorkflow: async request => { if (stillCurrent()) await queueAppsWorkspaceWorkflowHandoff(request); }, onAccepted: accepted });
+      if (identity !== accountKey || selected !== appId) return false;
+      requestText = ''; rememberApp();
+      if (result.embedId && result.skillId && result.input) accepted({ embedId: result.embedId, skillId: result.skillId, input: result.input });
+      void loadLibrary(); return true;
+    } catch (error) {
+      if (identity === accountKey) {
+        const reason = error instanceof Error ? error.message : '';
+        if (['signup_required', 'daily_limit_reached', 'free_usage_unavailable', 'anonymous_budget_exhausted'].some(code => reason.toLowerCase().includes(code))) onSignup();
+        else requestError = true;
+      }
+      return false;
+    } finally { if (identity === accountKey && requestToken === pendingRequestToken) submitting = false; }
+  }
+  async function runSaved(search: AppsSavedSearch): Promise<void> {
+    await submit(search.query || search.title || tr('run_saved_search'), [], { skill_id: search.skill_id, input: search.parameters });
+  }
+  async function saveSearch(context: AppsRequestContext): Promise<void> {
+    if (!appId) return;
+    if (!$authStore.isAuthenticated) { onSignup(); return; }
+    const selectedApp = appId; const owner = accountKey;
+    const saved = await saveAppsSearchWithNotice(selectedApp, context, undefined, teamId);
+    if (owner === accountKey && selectedApp === appId) library = saved;
+  }
+  async function toggleDaily(): Promise<void> {
+    if (!appId || viewer) return;
+    const selectedApp = appId; const owner = accountKey;
+    try {
+      const updated = await setAppsDailySearches(selectedApp, !library.daily_searches_enabled, teamId);
+      if (owner === accountKey && selectedApp === appId) library = updated;
+    } catch { if (owner === accountKey && selectedApp === appId) libraryError = true; }
+  }
+  function settingsNavigate(event: CustomEvent<{ settingsPath: string }>): void {
+    if (event.detail.settingsPath.startsWith('apps/')) settingsPath = event.detail.settingsPath;
+    else onSettings(event.detail.settingsPath);
+  }
+  function temporaryContent(batch: AppsRecommendation): Record<string, unknown> {
+    const result = batch.result;
+    const data = result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data as Record<string, unknown> : result;
+    return { ...data, app_id: appId, skill_id: batch.skill_id, status: 'finished', input: batch.input, request_text: batch.request_text };
+  }
+
 </script>
 
-<div class="apps-workspace" data-testid="apps-workspace">
-  <WorkspaceHomeShell surface="apps" eyebrow={$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.home_greeting', { values: { name: $userProfile.username } }) : ''} heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems} actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" allItemTestId="apps-all-item" showAllMode={route?.showAll ?? false} allItems={catalogItems} allItemsEmptyLabel={$text('settings.app_store.all_apps.no_apps_found')} showReportIssue showComposer={false} showAllLabel={tr('show_all')} backLabel={tr('back_to_recent')} searchLabel={$text('common.search')} onShowAll={showAllApps} onSearchAll={searchAllApps} onBackToRecent={() => onNavigate('#apps')} onAllItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onActionItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onStartInspiration={item => onNavigate(buildAppsWorkspaceHash(item.feature?.settings_path?.startsWith('apps') ? item.feature.settings_path : 'apps/web/search'))}>
-    <div slot="all-items-controls">
-      {#if catalogSearchOpen}
-        <div class="catalog-controls" data-testid="apps-catalog-controls" bind:this={catalogSearchElement}>
-          <SearchSortBar bind:searchQuery={catalogSearchQuery} bind:sortBy={catalogSort} bind:filterBy={activeCatalogFilter} searchPlaceholder={$text('settings.app_store.all_apps.search_placeholder')} sortOptions={catalogSortOptions} filterOptions={catalogFilterOptions} />
-        </div>
-      {/if}
-    </div>
-  </WorkspaceHomeShell>
-
-  {#if route?.appId}
-    <div class="apps-detail-layer">
-      {#key route.appId}
-        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={closeDetail} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
-          {#snippet embedHeaderCta()}
-            {#if skillId && !route?.settingsPath}
-              <button class="hero-action" data-testid="apps-use-skill" onclick={useSkill}>{tr('use_skill')}</button>
+{#snippet appMapHeader()}
+  <div class="app-map-header" data-testid="apps-map-header"><EmbedLeafletMap center={{ lat: 20, lon: 0 }} zoom={2} /></div>
+{/snippet}
+<svelte:window bind:innerWidth={viewportWidth} />
+<div class="apps-workspace" class:with-sidebar={showSidebar} data-testid="apps-workspace">
+  {#if showSidebar && app}
+    <AppsSidebar {appName} saved={library.saved_searches} recent={results} {resultTitles} {savedEmbeds} {recentChats} {examples}
+      onSavedEmbed={openSavedEmbed}
+      onSaved={search => void runSaved(search)} onRecent={result => openResult(result.embedId)}
+      onExample={openExample} onClose={() => { sidebarOpen = false; }} />
+  {/if}
+  <div class="workspace-main">
+    <WorkspaceHomeShell surface="apps" heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems}
+      actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" allItemTestId="apps-all-item"
+      showAllMode={route?.showAll ?? false} allItems={catalogItems} allItemsEmptyLabel={$text('settings.app_store.all_apps.no_apps_found')}
+      showReportIssue showComposer={false} showAllLabel={tr('show_all')} backLabel={tr('back_to_recent')} searchLabel={$text('common.search')}
+      onShowAll={showAllApps} onSearchAll={() => { catalogSearchOpen = true; if (!route?.showAll) onNavigate('#apps/all'); }}
+      onBackToRecent={() => onNavigate('#apps')} onAllItem={item => onNavigate(buildAppsWorkspaceHash('apps/' + item.id))}
+      onActionItem={item => onNavigate(buildAppsWorkspaceHash('apps/' + item.id))}
+      onStartInspiration={item => onNavigate(buildAppsWorkspaceHash(item.feature?.settings_path?.startsWith('apps') ? item.feature.settings_path : 'apps/web'))}>
+      <div slot="all-items-controls">
+        {#if catalogSearchOpen}<div data-testid="apps-catalog-controls" bind:this={catalogSearchElement}><SearchSortBar bind:searchQuery={catalogSearchQuery} bind:sortBy={catalogSort} bind:filterBy={catalogFilter}
+          searchPlaceholder={$text('settings.app_store.all_apps.search_placeholder')} sortOptions={catalogSortOptions} filterOptions={catalogFilterOptions} /></div>{/if}
+      </div>
+    </WorkspaceHomeShell>
+    {#if route?.appId}
+      <div class="apps-detail-layer">
+        <UnifiedEmbedFullscreen appId={appId ?? route.appId} closeOnChatSelection={false} onClose={closeDetail}
+          showShare={false} testId="apps-detail-fullscreen" closeTestId="apps-detail-close"
+          embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderContent={(app?.id === "travel" || app?.id === "calendar") && mapView ? appMapHeader : undefined}
+          appIconName={app?.icon_image?.replace(/\.svg$/i, '') ?? ''} embedHeaderTitle={!mapView && recommended[0]?.title ? recommended[0].title : appName} embedHeaderSubtitle={!mapView && recommended[0]?.request_text ? recommended[0].request_text : description}>
+          {#snippet fixedBottom()}
+            {#if app && !settingsOpen && !route.settingsPath}
+              <div class="apps-composer-dock">{#key composerEpoch}<AppsRequestComposer appId={app.id} bind:value={requestText} bind:files={requestFiles}
+                disabled={viewer || ($authStore.isAuthenticated && !authenticatedOwner)} {submitting} onSubmit={submit} />{/key}
+                {#if requestError}<p role="alert">{tr('request_error')}</p>{/if}
+                {#if viewer}<p>{tr('viewer_read_only')}</p>{/if}
+              </div>
             {/if}
           {/snippet}
           {#snippet content()}
-            <div class="apps-detail-content">
-              {#if app}
-                <div class="apps-detail-card" data-testid="apps-detail-card">
-                  <div class="apps-detail-tabs" data-testid="apps-detail-tabs"><SettingsTabs {tabs} maxVisibleTabs={skillId ? 4.3 : 5} {activeTab} testIdPrefix="apps-tab" onChange={selectTab} /></div>
-                <div role="tabpanel" tabindex="0" id={`tabpanel-${activeTab}`} aria-label={tr(activeTab)}>
-                  {#if activeTab === 'embeds' || activeTab === 'workflows'}
-                    {#if activeTab === 'embeds' && pendingResults.length}
-                      <p role="status">{tr('saving_results')}</p>
-                      <div class="results-grid" data-testid="apps-pending-results-list">
-                        {#each pendingResults as result (result.embedId)}
-                          <div data-testid={`apps-result-open-${result.embedId}`}>
-                            <AppsEmbedPreview embedId={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} {teamId} hydrate onFullscreen={() => openResult(result.embedId)} />
-                            {#if $appsResultSaveStates[`${accountKey}:${result.embedId}`] === 'error'}
-                              <p>{tr('save_failed')}</p>
-                              <button class="plain-action" data-testid={`apps-result-save-retry-${result.embedId}`} onclick={() => void retryAppsResultSave(result.embedId, teamId).catch(() => {})}>{tr('retry_save')}</button>
-                            {/if}
-                          </div>
-                        {/each}
-                      </div>
-                    {/if}
-                    {#if libraryLoading}<p role="status">{$text('common.loading')}</p>
-                    {:else if libraryError}<p role="alert">{tr('library_error')}</p><button class="plain-action" onclick={() => void loadLibrary(offset)}>{tr('retry')}</button>
-                    {:else if activeTab === 'embeds'}
-                      <div class="results-grid" data-testid="apps-results-list">
-                        {#each results as result (result.embedId)}
-                          <div data-testid={`apps-result-open-${result.embedId}`}>
-                            <AppsEmbedPreview embedId={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} {teamId} hydrate onFullscreen={() => openResult(result.embedId)} />
-                          </div>
-                        {:else}{#if !pendingResults.length}<p>{tr('no_embeds')}</p>{/if}{/each}
-                      </div>
-                    {:else}
-                      <div data-testid="apps-workflows-list">
-                        {#each workflows as workflow (workflow.id)}<a class="workflow-row" href={`/#workflow-id=${encodeURIComponent(workflow.id)}`}>{workflow.title}</a>
-                        {:else}<p>{tr('no_workflows')}</p>{/each}
-                      </div>
-                    {/if}
-                    <div class="pagination">
-                      <button class="plain-action" data-testid="apps-previous-page" disabled={offset === 0 || libraryLoading} onclick={() => void loadLibrary(Math.max(0, offset - pageSize))}>{tr('previous')}</button>
-                      <button class="plain-action" data-testid="apps-next-page" disabled={!hasMore || libraryLoading} onclick={() => void loadLibrary(offset + pageSize)}>{tr('next')}</button>
-                    </div>
-                  {:else if route?.skillId && !skillId}<p role="alert">{tr('not_found')}</p>
-                  {:else if skillId && !route?.settingsPath}
-                    <details class="skill-context" data-testid="apps-skill-context" bind:open={skillContextOpen}>
-                      <summary data-testid="apps-skill-context-toggle">
-                        <span class="skill-context-icon" aria-hidden="true"></span>
-                        <span>{tr('skill_context_intro')}</span>
-                        <span>{tr('skill_context_chat')}</span>
-                        <span class="skill-context-action">{tr(skillContextOpen ? 'skill_context_collapse' : 'skill_context_expand')}<span class="skill-context-caret" aria-hidden="true"></span></span>
-                      </summary>
-                      {#if skillContextOpen}
-                        <div class="skill-context-details" data-testid="apps-skill-context-details">
-                          <SkillDetails appId={app.id} {skillId} onOpenExample={openNewMessage} onOpenExampleChat={openExampleChat} on:openSettings={navigateSettings} />
-                        </div>
-                      {/if}
-                    </details>
-                    <div class="skill-form-area" class:highlight bind:this={formElement}>
-                      {#if metadataLoading}<p role="status">{$text('common.loading')}</p>
-                      {:else if metadataError}<p role="alert">{tr('metadata_error')}</p>
-                      {:else if metadata}<AppsSkillForm {metadata} showManualIntro={false} onSubmit={submit} {submitting} disabled={viewer} guest={!$authStore.isAuthenticated} {guestEligibility} {onSignup} />{/if}
-                      {#if requestError}<p role="alert">{tr('request_error')}</p>{/if}
-                      {#if viewer}<p>{tr('viewer_read_only')}</p>{/if}
-                      {#if inlineSaveState && resultSaveId}
-                          <div class="result-save-state" data-testid="apps-result-save-state" data-save-state={inlineSaveState} aria-live="polite">
-                            <span>{tr(inlineSaveState === 'error' ? 'save_failed' : inlineSaveState === 'saved' ? 'saved' : 'saving')}</span>
-                            {#if inlineSaveState === 'error'}<button class="plain-action" data-testid="apps-result-save-retry" onclick={() => void retryAppsResultSave(resultSaveId!, teamId).catch(() => {})}>{tr('retry_save')}</button>{/if}
-                          </div>
-                      {/if}
-                      {#if inlineResultId}
-                        {#key `${accountKey}:${inlineResultId}`}<AppsInlineResults embedId={inlineResultId} appId={app.id} {skillId} onOpen={openResult} />{/key}
-                      {/if}
-                    </div>
+            {#if !app}<p role="alert">{tr('not_found')}</p>
+            {:else if route.settingsPath}
+              <AppDetailsWrapper presentation="apps" activeSettingsView={'apps/' + app.id + '/' + route.settingsPath.replace(/^memory\//, 'settings_memories/')}
+                onOpenExampleChat={openDetailExample} on:openSettings={settingsNavigate} />
+            {:else if settingsOpen}
+              <div class="app-settings" data-testid="apps-settings">
+                <SettingsItem title={tr('back_to_app')} icon="back" onClick={() => { settingsOpen = false; }} />
+                <SettingsSectionHeading title={tr('app_settings')} icon="settings" />
+                {#if $authStore.isAuthenticated}
+                  <SettingsCard><SettingsItem title={tr('daily_searches')} subtitleBottom={tr('daily_searches_description')}
+                    hasToggle checked={library.daily_searches_enabled} disabled={viewer} onToggleClick={() => void toggleDaily()} data-testid="apps-daily-searches" /></SettingsCard>
+                {/if}
+                {#if settingsPath && settingsPath !== 'apps/' + app.id}
+                  <AppDetailsWrapper activeSettingsView={settingsPath} on:openSettings={settingsNavigate} />
+                {:else}
+                  {#each app.skills as skill (skill.id)}
+                    <SettingsItem title={$text(skill.name_translation_key)} subtitleBottom={tr('pricing_and_providers')}
+                      onClick={() => { settingsPath = 'apps/' + app.id + '/skill/' + skill.id; }} />
+                  {/each}
+                  <AppDetailsWrapper activeSettingsView={'apps/' + app.id} section="settings_memories" on:openSettings={settingsNavigate} />
+                {/if}
+              </div>
+            {:else}
+              <div class="app-home" data-testid="apps-app-home">
+                <div class="app-actions">
+                  <div>
+                    <button class="circle-action" data-testid="apps-sidebar-toggle" aria-label={tr('saved_and_recent')} onclick={() => { sidebarOpen = !showSidebar; }}><span class="clickable-icon icon_menu" aria-hidden="true"></span></button>
+                    {#if app.id === 'travel' || app.id === 'calendar'}<button class="circle-action" data-testid="apps-map-toggle" aria-pressed={mapView} aria-label={tr('toggle_map')} onclick={() => { mapView = !mapView; calendarView = false; }}><span class="clickable-icon icon_maps" aria-hidden="true"></span></button>{/if}
+                    {#if app.id === 'calendar'}<button class="circle-action" data-testid="apps-calendar-toggle" aria-pressed={calendarView} aria-label={tr('calendar_view')} onclick={() => void showCalendar()}><span class="clickable-icon icon_calendar" aria-hidden="true"></span></button>{/if}
+                  </div>
+                  <button class="circle-action" data-testid="apps-settings-open" aria-label={tr('app_settings')} onclick={() => { settingsOpen = true; settingsPath = ''; }}><span class="clickable-icon icon_settings" aria-hidden="true"></span></button>
+                </div>
+                <div class="app-greeting">
+                  <h2>{$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.app_greeting', { values: { name: $userProfile.username } }) : appName}</h2>
+                  <p>{tr(visibleSection === 'recommended' ? 'recommended_for_you' : visibleSection === 'saved' ? 'your_saved_searches' : results.length || recentChats.length ? 'your_recent_results' : 'try_an_example')}</p>
+                </div>
+                {#if libraryLoading}<p class="library-state" role="status">{$text('common.loading')}</p>{/if}
+                {#if libraryError}<p class="library-state" role="status">{tr('library_error')} <button onclick={() => void loadLibrary()}>{tr('retry')}</button></p>{/if}
+                {#if calendarView}
+                  <div class="app-calendar" data-testid="apps-calendar-view"><EmbedsMapView id={'apps-calendar-' + app.id} title={appName} initialVisualTab="calendar"
+                    embedRefs={savedEmbeds.map(item => item.id)} sourceRefs={results.map(item => item.embedId)} /></div>
+                {:else}
+                <div class="app-carousel" data-testid="apps-preview-carousel">
+                  {#if visibleSection === 'recommended' && recommended.length}
+                    {#each recommended as batch (batch.id)}
+                      {#each recommendationPreviewItems(app.id, batch) as child (child.id)}
+                        <div class="preview-card"><AppsEmbedPreview embedId={child.id} appId={app.id} skillId={batch.skill_id}
+                          embedType={child.type} content={child.content} onFullscreen={() => { temporaryResult = batch; }} /></div>
+                      {/each}
+                    {/each}
+                  {:else if visibleSection === 'saved' && (library.saved_searches.length || savedEmbeds.length)}
+                    {#each savedEmbeds as saved (saved.id)}<div class="preview-card"><AppsEmbedPreview embedId={saved.id} appId={app.id} skillId={saved.skillId} onFullscreen={() => openSavedEmbed(saved.id)} /></div>{/each}
+                    {#each library.saved_searches as search (search.id)}<div class="preview-card"><AppsSavedSearchPreview {search} appId={app.id} onOpen={() => void runSaved(search)} /></div>{/each}
+                  {:else if results.length}
+                    {#each results as result (result.embedId)}<AppsResultPreviewGroup {result} appId={app.id} {teamId} onOpen={openResult} onLabel={(id, title) => { resultTitles = { ...resultTitles, [id]: title }; }} />{/each}
+                    {#if hasMoreResults}<button class="more-results" data-testid="apps-next-page" disabled={libraryLoading} onclick={() => void moreResults()}>{tr('show_more')}</button>{/if}
+                  {:else if recentChats.length}
+                    {#each recentChats as chat (chat.chat_id)}<ChatPreviewCard {chat} appId={app.id} onOpen={openExample} />{/each}
                   {:else}
-                    <AppDetailsWrapper presentation="apps" section={activeTab === 'focus_modes' || activeTab === 'settings_memories' ? activeTab : 'skills'} onOpenExample={openNewMessage} onOpenExampleChat={openExampleChat} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
+                    {#each examples as chat (chat.chat_id)}<ChatPreviewCard {chat} appId={app.id} onOpen={openExample} />{/each}
                   {/if}
                 </div>
-                </div>
-              {:else}<p role="alert">{tr('not_found')}</p>{/if}
-            </div>
+                {/if}
+                <nav class="library-tabs" aria-label={tr('results')}>
+                  {#if recommended.length}<button data-testid="apps-tab-recommended" aria-pressed={visibleSection === 'recommended'} onclick={() => { selectedSection = 'recommended'; }}>{tr('recommended')}</button>{/if}
+                  <button data-testid="apps-tab-saved" aria-pressed={visibleSection === 'saved'} onclick={() => { selectedSection = 'saved'; }}><span class="clickable-icon icon_heart" aria-hidden="true"></span>{tr('saved')}</button>
+                  <button data-testid="apps-tab-recent" aria-pressed={visibleSection === 'recent'} onclick={() => { selectedSection = 'recent'; }}><span class="clickable-icon icon_history" aria-hidden="true"></span>{tr('recent')}</button>
+                </nav>
+              </div>
+            {/if}
           {/snippet}
         </UnifiedEmbedFullscreen>
-      {/key}
-    </div>
-  {/if}
-  {#if $skillStoreExampleFullscreenStore}
-    <div class="apps-result-layer">
-      {#key $skillStoreExampleFullscreenStore.embedId}<AppsResultFullscreen embedId={$skillStoreExampleFullscreenStore.embedId} appId={$skillStoreExampleFullscreenStore.appId} exampleData={$skillStoreExampleFullscreenStore} onClose={closeSkillStoreExampleFullscreen} />{/key}
-    </div>
-  {/if}
-  {#if route?.embedId && route.appId}
-    <div class="apps-result-layer" data-testid="apps-result-fullscreen">
-      {#key `${accountKey}:${route.embedId}`}<AppsResultFullscreen embedId={route.embedId} rootEmbedId={route.rootEmbedId ?? route.embedId} appId={resolvedAppId ?? route.appId} {teamId} onClose={closeResult} />{/key}
-    </div>
-  {/if}
+      </div>
+    {/if}
+    {#if route?.embedId && appId}
+      <div class="apps-result-layer" data-testid="apps-result-fullscreen">
+        {#key accountKey + ':' + route.embedId}<AppsResultFullscreen embedId={route.embedId} rootEmbedId={route.rootEmbedId ?? route.embedId}
+          {appId} {teamId} hydrateGraph={new URLSearchParams(hash.split("&").slice(1).join("&")).get("source") !== "saved"} onClose={closeResult} onSubmit={(value, files, context) => submit(value, files, context)}
+          onSaveSearch={saveSearch} onCreateWorkflow={context => queueAppsWorkspaceWorkflowHandoff({ text: tr('create_workflow_from_search'), context })} />{/key}
+      </div>
+    {/if}
+    {#if temporaryResult && appId}
+      <div class="apps-result-layer" data-testid="apps-recommendation-fullscreen">
+        <AppsResultFullscreen embedId={temporaryResult.id} {appId} onClose={() => { temporaryResult = null; }}
+          exampleData={{ embedId: temporaryResult.id, appId, skillId: temporaryResult.skill_id, decodedContent: temporaryContent(temporaryResult) }}
+          onSubmit={(value, files, context) => submit(value, files, context)} onSaveSearch={saveSearch}
+          onCreateWorkflow={context => queueAppsWorkspaceWorkflowHandoff({ text: tr('create_workflow_from_search'), context })} />
+      </div>
+    {/if}
+    {#if $skillStoreExampleFullscreenStore}
+      <div class="apps-result-layer"><AppsResultFullscreen embedId={$skillStoreExampleFullscreenStore.embedId}
+        appId={$skillStoreExampleFullscreenStore.appId} exampleData={$skillStoreExampleFullscreenStore} onClose={closeSkillStoreExampleFullscreen} /></div>
+    {/if}
+  </div>
 </div>
 
 <style>
-  .result-save-state { display: flex; align-items: center; justify-content: center; gap: var(--spacing-3); margin-top: var(--spacing-4); color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  .apps-workspace { width: 100%; height: 100%; position: relative; min-width: 0; min-height: 0; }
-  .apps-detail-layer,.apps-result-layer { position: absolute; inset: 0; z-index: var(--z-index-overlay, 100); }
+  .apps-workspace { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; height: 100%; min-width: 0; min-height: 0; position: relative; }
+  .apps-workspace.with-sidebar { grid-template-columns: 19rem minmax(0, 1fr); gap: var(--spacing-10); }
+  .workspace-main { min-width: 0; min-height: 0; position: relative; }
+  .apps-detail-layer, .apps-result-layer { position: absolute; inset: 0; z-index: var(--z-index-overlay, 100); }
   .apps-result-layer { z-index: calc(var(--z-index-overlay, 100) + 1); }
-  .apps-detail-content { width: 100%; max-width: 75rem; min-width: 0; box-sizing: border-box; margin: 0 auto; padding: 0 var(--spacing-6) var(--spacing-8); }
-  .apps-detail-card { width: 82%; min-width: 0; box-sizing: border-box; min-height: 20rem; margin: var(--spacing-9, 2.25rem) auto 0; padding: 0 var(--spacing-6) var(--spacing-8); border-radius: var(--radius-5); background: var(--color-grey-0); }
-  .apps-detail-tabs { position: relative; top: -1.25rem; z-index: var(--z-index-raised-2); width: min(100%, 19rem); margin: 0 auto -0.25rem; }
-  .apps-detail-card [role='tabpanel'] { min-width: 0; max-width: 100%; }
-  .skill-form-area { margin: var(--spacing-6) 0; border-radius: var(--border-radius-lg); transition: box-shadow .3s; }
-  .skill-form-area.highlight { box-shadow: 0 0 0 .2rem var(--color-primary-start); }
-  .skill-context { padding-top: var(--spacing-6); color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  .skill-context summary { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1); text-align: center; list-style: none; cursor: pointer; }
-  .skill-context summary::-webkit-details-marker { display: none; }
-  .skill-context summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: var(--radius-4); }
-  .skill-context-icon { width: 1.25rem; height: 1.25rem; margin-bottom: var(--spacing-2); background: var(--color-primary); -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center/contain no-repeat; mask: url('@openmates/ui/static/icons/chat.svg') center/contain no-repeat; }
-  .skill-context-action { display: inline-flex; align-items: center; gap: var(--spacing-2); font-weight: 700; margin-top: var(--spacing-1); }
-  .skill-context-caret { width: .35rem; height: .35rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); }
-  .skill-context[open] .skill-context-caret { transform: translateY(2px) rotate(225deg); }
-  .skill-context-details { text-align: left; margin-top: var(--spacing-6); }
-  .hero-action,.plain-action { border: 0; border-radius: var(--border-radius-lg); padding: .75rem 1.25rem; font: inherit; cursor: pointer; }
-  .hero-action { min-width: 11rem; border-radius: var(--radius-5); background: var(--color-button-primary); color: var(--color-font-button); font-weight: 700; box-shadow: var(--shadow-md); }
-  .plain-action { background: var(--color-grey-10); color: var(--color-font-primary); }
-  .plain-action:disabled { opacity: .45; cursor: default; }
-  .catalog-controls { margin-bottom: var(--spacing-5); }
-  .results-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(18.75rem,1fr)); gap: var(--spacing-6); padding: var(--spacing-6) 0; }
-  .pagination { display: flex; justify-content: space-between; gap: var(--spacing-4); margin-block: var(--spacing-6); }
-  .workflow-row { display: block; padding: var(--spacing-4); border-bottom: 1px solid var(--color-grey-20); color: var(--color-font-primary); text-decoration: none; }
-  @media(max-width: 600px) { .apps-detail-content { padding: 0 var(--spacing-3) var(--spacing-6); } .apps-detail-card { width: 100%; padding: 0 var(--spacing-3) var(--spacing-6); } .results-grid { grid-template-columns: 1fr; justify-items: center; } }
+  .app-map-header { width: 100%; height: 20rem; border-radius: var(--radius-6); overflow: hidden; }
+  .app-home { min-width: 0; padding: var(--spacing-8) 0 var(--spacing-16); }
+  .app-actions { display: flex; justify-content: space-between; padding: 0 var(--spacing-8); }
+  .app-actions > div { display: flex; gap: var(--spacing-6); }
+  .circle-action { border: 0; border-radius: var(--radius-full); width: 2.5rem; height: 2.5rem; background: var(--color-grey-0); box-shadow: var(--shadow-md); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .icon_calendar { mask-image: url('@openmates/ui/static/icons/calendar.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg'); }
+  .icon_heart { mask-image: url('@openmates/ui/static/icons/heart.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg'); }
+  .icon_history { mask-image: url('@openmates/ui/static/icons/time.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/time.svg'); }
+  .app-greeting { text-align: center; margin: var(--spacing-6) var(--spacing-12) var(--spacing-12); }
+  .app-greeting h2, .app-greeting p { margin: var(--spacing-2) 0; font-size: var(--font-size-p); }
+  .app-carousel { display: flex; align-items: center; gap: var(--spacing-12); overflow-x: auto; overflow-y: clip; padding: var(--spacing-8) max(var(--spacing-12), calc(50% - 9.375rem)) var(--spacing-12); scrollbar-width: none; }
+  .app-carousel::-webkit-scrollbar { display: none; }
+  .preview-card { flex: 0 0 18.75rem; width: 18.75rem; }
+  .more-results { flex: 0 0 auto; font: inherit; color: var(--color-primary); background: var(--color-grey-0); border: 0; padding: var(--spacing-8); border-radius: var(--radius-5); cursor: pointer; }
+  .library-tabs { display: flex; justify-content: center; gap: var(--spacing-12); padding: var(--spacing-4) var(--spacing-8); }
+  .library-tabs button { display: inline-flex; align-items: center; gap: var(--spacing-4); font: inherit; color: var(--color-font-secondary); background: transparent; border: 0; cursor: pointer; padding: var(--spacing-4); }
+  .library-tabs .clickable-icon { background-color: currentColor; }
+  .library-tabs button[aria-pressed='true'] { color: var(--color-primary); }
+  .apps-composer-dock { width: min(100%, 42rem); margin: 0 auto; box-sizing: border-box; padding: var(--spacing-8) var(--spacing-12); }
+  .apps-composer-dock p { text-align: center; font-size: var(--font-size-small); }
+  .app-settings { width: min(100%, 44rem); margin: 0 auto; padding: var(--spacing-12); box-sizing: border-box; }
+  .library-state { text-align: center; color: var(--color-font-secondary); font-size: var(--font-size-small); }
+  @media (max-width: 730px) {
+    .apps-workspace.with-sidebar { grid-template-columns: minmax(0, 1fr); }
+    .with-sidebar > :global(.apps-sidebar) { position: absolute; inset: 0 12% 0 0; z-index: calc(var(--z-index-overlay, 100) + 3); box-shadow: var(--shadow-lg); }
+    .preview-card { flex-basis: 18.75rem; }
+    .app-map-header { height: 15rem; }
+  }
 </style>

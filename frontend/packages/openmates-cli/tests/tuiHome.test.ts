@@ -243,12 +243,12 @@ test("every workspace has shared colored inspiration and Apps shows web headings
   }
 });
 
-test("filtered app highlight and Enter target agree, and returning to Overview cannot open stale history",async()=>{
+test("filtered app highlight and Enter target agree, and returning to Overview focuses the natural language composer",async()=>{
   const state=createInitialTuiState();state.workspace="apps";state.screen="apps";state.focus="content";state.apps=[app("web","Web"),app("weather","Weather")];state.filter="Weather";
   assert.match(renderTuiFrame(state,100,30),/› Weather/);
   const {ctx}=context(state);await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.activeApp?.id,"weather");
-  state.screen="app-skill";state.appTab="embeds";state.appSkillTab="embeds";state.activeAppSkill={appId:"weather",skillId:"forecast",name:"Forecast",description:"",schema:{type:"object",properties:{}},defaults:{},primaryFields:[],providers:[],pricing:null,executionAvailable:true,unavailableReason:null};
-  await handleWorkspaceKey(ctx,"1",{name:"1"});await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.form?.kind,"app-skill-input");
+  state.focus="content";state.screen="app-skill";state.appTab="embeds";state.appSkillTab="embeds";state.activeAppSkill={appId:"weather",skillId:"forecast",name:"Forecast",description:"",schema:{type:"object",properties:{}},defaults:{},primaryFields:[],providers:[],pricing:null,executionAvailable:true,unavailableReason:null};
+  await handleWorkspaceKey(ctx,"1",{name:"1"});await handleWorkspaceKey(ctx,"\r",{name:"return"});assert.equal(state.form,null);assert.equal(state.focus,"composer");assert.equal(state.appSkillTab,"overview");
 });
 
 test("overlapping result requests keep the latest selected Apps page",async()=>{

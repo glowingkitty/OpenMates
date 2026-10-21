@@ -7953,6 +7953,7 @@
       }
     }
   },
+  "embeds_input": {},
   "enter_message": {
     "attachments": {
       "take_photo": {
@@ -21798,6 +21799,5 @@
         "text": "שחזור ההגדרה שנבחרה נכשל."
       }
     }
-  },
-  "embeds_input": {}
+  }
 }

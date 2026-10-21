@@ -747,8 +747,17 @@ export async function handleChatDraftUpdatedImpl(
       chat.updated_at = Math.floor(Date.now() / 1000);
 
       // Store synced draft updates without decrypting/generating chat keys.
-      await chatDB.upsertRawChat(chat);
-      updatedChat = chat;
+      const saved = await chatDB.saveChatDraftFields(payload.chat_id, {
+        encrypted_draft_md: chat.encrypted_draft_md,
+        encrypted_draft_preview: chat.encrypted_draft_preview,
+        draft_v: chat.draft_v,
+        cleared_draft_v: chat.cleared_draft_v,
+        ideabucket: chat.ideabucket,
+        ideabucket_processing_window_id: chat.ideabucket_processing_window_id,
+        updated_at: chat.updated_at,
+      });
+      if (!saved) return;
+      updatedChat = saved;
     } else {
       console.warn(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`,
@@ -770,8 +779,16 @@ export async function handleChatDraftUpdatedImpl(
         created_at: payload.last_edited_overall_timestamp,
         updated_at: payload.last_edited_overall_timestamp,
       };
-      await chatDB.upsertRawChat(newChatForDraft);
-      updatedChat = newChatForDraft;
+      const saved = await chatDB.saveChatDraftFields(payload.chat_id, {
+        encrypted_draft_md: newChatForDraft.encrypted_draft_md,
+        encrypted_draft_preview: newChatForDraft.encrypted_draft_preview,
+        draft_v: newChatForDraft.draft_v,
+        ideabucket: newChatForDraft.ideabucket,
+        ideabucket_processing_window_id: newChatForDraft.ideabucket_processing_window_id,
+        updated_at: newChatForDraft.updated_at,
+      }, newChatForDraft);
+      if (!saved) return;
+      updatedChat = saved;
     }
 
     // DB operations completed successfully - now do cache invalidation and event dispatch

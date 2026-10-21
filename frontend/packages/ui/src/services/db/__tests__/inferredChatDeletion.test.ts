@@ -22,9 +22,11 @@ vi.mock("../../teamService", () => ({
   unwrapTeamChatKey: vi.fn(), wrapTeamChatKey: vi.fn(),
 }));
 
-import { deleteChatIfNoPendingTurn } from "../chatCrudOperations";
+import { deleteChatIfNoPendingTurn, deleteDraftOnlyChat } from "../chatCrudOperations";
 
 function guardedDeletionDb(pendingTurn: boolean) {
+  let currentChat: Record<string, unknown> | undefined;
+  let hasMessage = false;
   const head = {
     contentRef: "embed:artifact", embed_id: "artifact", hashed_chat_id: "hash:draft-chat",
     encrypted_content: "sealed head", version_number: 1,
@@ -61,10 +63,10 @@ function guardedDeletionDb(pendingTurn: boolean) {
             } } : null);
           }
           expect(indexName).toBe("chat_id");
-          return request(null);
+          return request(hasMessage ? { value: { message_id: "first-message" } } : null);
         } }),
       };
-      if (name === "chats") return { delete: (id: string) => { writes.push(`chat:${id}`); return request(undefined); } };
+      if (name === "chats") return { get: () => request(currentChat), delete: (id: string) => { writes.push(`chat:${id}`); return request(undefined); } };
       if (name === "embeds") return {
         index: () => ({ getAll: () => request([head]) }),
         delete: (id: string) => { writes.push(`head:${id}`); return request(undefined); },
@@ -84,12 +86,45 @@ function guardedDeletionDb(pendingTurn: boolean) {
       return writer;
     }),
   };
-  return { db, writer, writes };
+  return { db, writer, writes, commit: (chat: Record<string, unknown>, message = false) => {
+    currentChat = chat; hasMessage = message;
+  } };
 }
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("inferred Phase 2 chat deletion", () => {
+  // contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,chats.persistence.client-encrypted
+  it.each(["header-before-message", "message-before-header"])("retains a first send committed after stale draft cleanup reads (%s)", async (interval) => {
+    vi.stubGlobal("IDBKeyRange", { bound: () => ({}), only: () => ({}) });
+    const { db, writer, writes, commit } = guardedDeletionDb(false);
+    // The cleanup caller already observed a draft-only header + empty history.
+    const draft = { chat_id: "draft-chat", messages_v: 0, draft_v: 1, encrypted_title: null };
+    commit(draft);
+    const deleting = deleteDraftOnlyChat(db as never, "draft-chat");
+    // Commit while candidate embeds/crypto are prepared before the write lock.
+    // New-chat addChat writes messages_v:1 BEFORE saveMessage; existing-draft
+    // send writes its first message before updating the old draft-only header.
+    commit(interval === "header-before-message"
+      ? { ...draft, messages_v: 1, draft_v: 0, encrypted_chat_key: "first-send-wrapped-key" }
+      : draft, interval === "message-before-header");
+    await vi.waitFor(() => expect(writer.oncomplete).toBeTypeOf("function"));
+    writer.oncomplete?.();
+    expect(await deleting).toEqual({ deleted: false, deletedEmbedIds: [] });
+    expect(writes).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+  it("deletes a genuinely empty draft shell and its unshared embeds", async () => {
+    vi.stubGlobal("IDBKeyRange", { bound: () => ({}), only: () => ({}) });
+    const { db, writer, writes, commit } = guardedDeletionDb(false);
+    commit({ chat_id: "draft-chat", messages_v: 0, draft_v: 0, encrypted_title: null });
+    const deleting = deleteDraftOnlyChat(db as never, "draft-chat");
+    await vi.waitFor(() => expect(writes).toContain("chat:draft-chat"));
+    writer.oncomplete?.();
+    expect(await deleting).toEqual({ deleted: true, deletedEmbedIds: ["artifact"] });
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
   it("retains the complete encrypted draft when a pending journal appears before the write transaction", async () => {
     vi.stubGlobal("IDBKeyRange", { bound: () => ({}), only: () => ({}) });

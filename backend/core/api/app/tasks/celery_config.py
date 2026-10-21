@@ -190,6 +190,7 @@ async def get_worker_cache_service() -> _CacheService:
 # Define task groups, their modules, and associated queues in one place.
 # This simplifies adding new task types.
 TASK_CONFIG = [
+    {'name': 'email', 'module': 'backend.core.api.app.tasks.apps_workspace_recommendations_tasks'},
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks'},
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
@@ -1189,6 +1190,7 @@ def init_worker_process(*args, **kwargs):
 # So we need both pattern-based routing and explicit task name routing
 # IMPORTANT: Explicit routing must come FIRST to take precedence over pattern-based routing
 task_routes = {
+    "apps_workspace.*": {"queue": "email"},
     # Explicit routing for tasks with custom names that don't match module patterns
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
@@ -1361,6 +1363,10 @@ _EXPLICIT_TASK_ROUTES = {
 
      # Browser Web Push notification task
      "app.tasks.push_notification_task.send_push_notification": "push",
+
+      "apps_workspace.refresh_daily": "email",
+      "apps_workspace.refresh_public": "email",
+      "apps_workspace.cleanup_expired": "email",
 
       # Workflow tasks
       "workflows.run": "workflow",
@@ -1641,6 +1647,21 @@ app.conf.beat_schedule = {
     },
     # Temporary workflows are retained for seven days after chat creation unless
     # the user keeps them as reusable workflows.
+    'refresh-private-apps-recommendations': {
+        'task': 'apps_workspace.refresh_daily',
+        'schedule': timedelta(seconds=3600),
+        'options': {'queue': 'email', 'expires': 3500},
+    },
+    'refresh-public-apps-recommendations': {
+        'task': 'apps_workspace.refresh_public',
+        'schedule': timedelta(seconds=3600),
+        'options': {'queue': 'email', 'expires': 3500},
+    },
+    'cleanup-apps-recommendations': {
+        'task': 'apps_workspace.cleanup_expired',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'email', 'expires': 55},
+    },
     'cleanup-expired-temporary-workflows': {
         'task': 'workflows.cleanup_expired_temporary',
         'schedule': timedelta(seconds=3600),  # Every hour

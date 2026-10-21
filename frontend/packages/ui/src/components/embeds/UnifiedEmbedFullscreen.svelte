@@ -28,6 +28,9 @@
 -->
 
 <script lang="ts">
+  import { APPS_RESULTS_SAVE_CONTEXT, type AppsResultsSaveContext } from '../../services/appsWorkspaceContext';
+  import { text } from '../../i18n/translations';
+  const appsSave = getContext<AppsResultsSaveContext | undefined>(APPS_RESULTS_SAVE_CONTEXT);
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.chatId ?? null;
@@ -135,6 +138,8 @@
      */
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
     /** Optional embed-specific actions in the standard header menu. */
+    fixedBottom?: import('svelte').Snippet;
+    embedHeaderContent?: import('svelte').Snippet;
     headerActions?: import('svelte').Snippet;
     headerActionCount?: number;
 
@@ -379,6 +384,8 @@
     onShare,
     showShare = true,
     content,
+    fixedBottom,
+    embedHeaderContent,
     headerActions,
     headerActionCount = 1,
     embedHeaderCta,
@@ -1419,6 +1426,9 @@
              EmbedTopBar floats above it as a transparent overlay.
              If a CTA is present it pokes out from the banner's bottom edge
              and the embed content must provide enough top spacing to clear it. -->
+        {#if embedHeaderContent}
+          {@render embedHeaderContent()}
+        {:else}
         <EmbedHeader
         staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
           presentation={embedHeaderPresentation}
@@ -1443,6 +1453,7 @@
           onNavigateNext={handleNavigateNext}
         />
 
+        {/if}
         <!-- ── Embed-specific content ── -->
         {#if content}
           {@render content(childEmbedContext)}
@@ -1455,6 +1466,13 @@
 
     </div>
     <!-- end .content-area -->
+    {#if appsSave?.state}
+      <div class="apps-save-state" data-testid="apps-result-save-state" data-save-state={appsSave.state} role="status">
+        {$text(appsSave.state === 'error' ? 'apps_workspace.save_failed' : appsSave.state === 'saving' ? 'apps_workspace.saving' : 'apps_workspace.saved')}
+        {#if appsSave.state === 'error'}<button type="button" data-testid="apps-result-save-retry" onclick={() => appsSave.retry()}>{$text('apps_workspace.retry_save')}</button>{/if}
+      </div>
+    {/if}
+    {#if fixedBottom}<div class="fixed-bottom" data-testid="embed-fixed-bottom">{@render fixedBottom()}</div>{/if}
 
     <!-- ── Action buttons (transparent overlay, positioned over the header) ──
          position: absolute so it does not push the content area down.
@@ -1590,7 +1608,12 @@
      =========================================== */
 
   /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
+  .apps-save-state { position: relative; z-index: 1000; flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; font-size: var(--font-size-xs); color: var(--color-font-secondary); background: var(--embed-content-background); }
+  .apps-save-state button { padding: 4px 8px; border: 0; border-radius: 8px; background: var(--color-grey-10); color: var(--color-font-primary); cursor: pointer; }
+  .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
+
   .content-area {
+    min-height: 0;
     flex: 1;
     background-color: var(--embed-content-background);
     overflow-y: auto;

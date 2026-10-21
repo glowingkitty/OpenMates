@@ -1,10 +1,12 @@
-"""Bound ai.decide JSON bodies before FastAPI parses inline image data."""
+"""Bound transient decision JSON bodies before FastAPI parses inline image data."""
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.shared.providers.typesafe.assets import MAX_DECISION_BODY_BYTES
 
 DECISION_POST_PATHS = frozenset({
+    "/v1/apps/workspace/interpret",
+    "/v1/apps/workspace/rank",
     "/v1/apps/ai/skills/decide",
     "/v1/anonymous/apps/ai/skills/decide",
     "/v1/anonymous/apps/ai/skills/decide/availability",

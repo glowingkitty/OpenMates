@@ -8225,8 +8225,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
     export async function resetToNewChat() {
-        if (!currentChat && showWelcome) {
-            return; // Already in a clean state
+        // A clean welcome can mount before async initialization allocates its
+        // temporary ID. Prepare that identity before handing text to its editor:
+        // assigning it later remounts the keyed composer and loses the draft.
+        if (!currentChat && showWelcome && temporaryChatId) {
+            return; // Already in a clean state with a stable draft/editor owner
         }
         await handleNewChatClick();
     }
