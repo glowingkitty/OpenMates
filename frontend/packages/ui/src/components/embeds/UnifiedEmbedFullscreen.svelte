@@ -139,7 +139,11 @@
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
     /** Optional embed-specific actions in the standard header menu. */
     fixedBottom?: import('svelte').Snippet;
+    /** App landing pages fit one screen; result collections retain scrolling. */
+    contentLayout?: 'default' | 'app-home';
     embedHeaderContent?: import('svelte').Snippet;
+    /** Primary embed action stays visible alongside privacy controls at all widths. */
+    headerPrimaryAction?: import('svelte').Snippet;
     /** An open child panel may consume Escape before this fullscreen closes. */
     escapeScope?: { consume: () => boolean };
     headerActions?: import('svelte').Snippet;
@@ -170,6 +174,7 @@
     embedHeaderSubtitle?: string;
     /** Opt-in taller Apps workspace hero; regular embeds keep their existing banner. */
     embedHeaderPresentation?: 'embed' | 'apps';
+    embedHeaderCompact?: boolean;
     /** Keep regular embed icon navigation; Apps heroes can render the icon as decoration. */
     embedHeaderIconInteractive?: boolean;
     embedHeaderEyebrow?: string;
@@ -387,7 +392,9 @@
     showShare = true,
     content,
     fixedBottom,
+    contentLayout = 'default',
     embedHeaderContent,
+    headerPrimaryAction,
     escapeScope,
     headerActions,
     headerActionCount = 1,
@@ -396,6 +403,7 @@
     embedHeaderTitle = '',
     embedHeaderSubtitle = '',
     embedHeaderPresentation = 'embed',
+    embedHeaderCompact = false,
     embedHeaderIconInteractive = true,
     embedHeaderEyebrow = '',
     embedHeaderFooter = '',
@@ -1409,7 +1417,7 @@
     <!-- ── Scrollable content area (header banner + embed content) ──
          Fills the full container height. EmbedTopBar overlays the top
          via position: absolute so no space is reserved for it here. -->
-    <div class="content-area" bind:this={contentAreaElement}>
+    <div class="content-area" class:app-home-content={contentLayout === 'app-home'} bind:this={contentAreaElement}>
 
       {#if $chatDebugStore.rawTextMode && $userProfile.is_admin}
         <div class="embed-debug-output selectable">
@@ -1439,6 +1447,7 @@
         <EmbedHeader
         staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
           presentation={embedHeaderPresentation}
+          compact={embedHeaderCompact}
           eyebrow={embedHeaderEyebrow}
           footer={embedHeaderFooter}
           providers={embedHeaderProviders}
@@ -1485,6 +1494,7 @@
          position: absolute so it does not push the content area down.
          The gradient header is visible through the semi-transparent buttons. -->
     <EmbedTopBar
+      {headerPrimaryAction}
       {headerActions}
       {headerActionCount}
       {showChatButton}
@@ -1618,6 +1628,7 @@
   .apps-save-state { position: relative; z-index: 1000; flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; font-size: var(--font-size-xs); color: var(--color-font-secondary); background: var(--embed-content-background); }
   .apps-save-state button { padding: 4px 8px; border: 0; border-radius: 8px; background: var(--color-grey-10); color: var(--color-font-primary); cursor: pointer; }
   .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
+  .content-area.app-home-content { display: flex; flex-direction: column; overflow: hidden; }
 
   .content-area {
     min-height: 0;

@@ -97,11 +97,10 @@
 	import { waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
-	import { afterNavigate, goto, replaceState } from '$app/navigation';
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
 	import AppsRoute from './apps/AppsRoute.svelte';
-	import { buildAppsWorkspaceHash, withAppsWorkspaceOrigin } from '@repo/ui/utils/appsWorkspaceRoute';
 	import ProjectsRoute from './projects/+page.svelte';
 	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
@@ -1836,12 +1835,7 @@
 	 * @param hash The hash string (e.g., '#settings/billing/invoices/.../refund')
 	 */
 	function processSettingsDeepLink(hash: string, options: { preserveHash?: boolean; originHash?: string } = {}) {
-        const path = getSettingsPathFromHash(hash);
-        if (path === 'apps' || path?.startsWith('apps/')) {
-            panelState.closeSettings();
-            void goto(`/${withAppsWorkspaceOrigin(buildAppsWorkspaceHash(path), options.originHash ?? window.location.pathname + window.location.search + window.location.hash)}`, { replaceState: true, noScroll: true, keepFocus: true });
-            return;
-        }
+
 		processSettingsDeepLinkUnified(hash, {
 			openSettings: () => panelState.openSettings(),
 			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)

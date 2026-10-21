@@ -11,7 +11,8 @@ export interface AppsResultsSaveContext { readonly state: 'saving' | 'saved' | '
 export const APPS_RESULTS_ACTIONS_CONTEXT = Symbol('apps-results-actions');
 export interface AppsResultsActionsContext {
   onSubmit: (text: string, attachments: File[], context: AppsRequestContext) => Promise<void | boolean>;
-  onSaveSearch?: (context: AppsRequestContext) => Promise<void>;
+  isSearchSaved?: (context: AppsRequestContext) => boolean;
+  onSaveSearch?: (context: AppsRequestContext) => Promise<boolean | void>;
   onCreateWorkflow?: (context: AppsRequestContext) => Promise<void>;
 }
 

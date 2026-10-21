@@ -32,6 +32,8 @@
     staticPresentation?: boolean;
     /** Apps workspace uses a fuller app-store hero; embeds retain their usual size. */
     presentation?: 'embed' | 'apps';
+    /** Match the daily inspiration banner on a non-scrolling app landing page. */
+    compact?: boolean;
     eyebrow?: string;
     footer?: string;
     providers?: string[];
@@ -72,6 +74,7 @@
     appId,
     staticPresentation = false,
     presentation = 'embed',
+    compact = false,
     eyebrow = '',
     footer = '',
     providers = [],
@@ -206,6 +209,7 @@
   class:static-presentation={staticPresentation}
   class:has-cta={hasCta}
   class:apps-presentation={presentation === 'apps'}
+  class:compact
   role="presentation"
   ontouchstart={handleHeaderTouchStart}
   ontouchmove={handleHeaderTouchMove}
@@ -420,6 +424,11 @@
   .apps-presentation .apps-provider-footer { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
   .apps-presentation .apps-provider { display: inline-flex; align-items: center; gap: 5px; }
   .apps-presentation .header-cta-area { bottom: 64px; transform: none; }
+  .embed-header.apps-presentation.compact { height: clamp(120px, 24dvh, 240px); }
+  .apps-presentation.compact .header-center { padding: var(--spacing-24) var(--spacing-12) var(--spacing-8); gap: var(--spacing-2); }
+  .apps-presentation.compact .header-icon { --apps-hero-icon-size: 52px; width: 52px; height: 52px; }
+  .apps-presentation.compact .header-title-text { font-size: var(--font-size-h3); }
+  .apps-presentation.compact .header-subtitle { -webkit-line-clamp: 2; line-clamp: 2; font-size: var(--font-size-small); }
 
   /* Inner banner: carries gradient + clips decorative overflow icons.
      Fills 100% of the outer wrapper. */
@@ -1015,6 +1024,9 @@
 
   @media (max-width: 730px) {
     .embed-header.apps-presentation { height: 290px; }
+    .embed-header.apps-presentation.compact { height: clamp(110px, 24dvh, 190px); }
+    .apps-presentation.compact .header-center { padding: var(--spacing-24) var(--spacing-12) var(--spacing-6); }
+    .apps-presentation.compact .header-icon { --apps-hero-icon-size: 38px; width: 38px; height: 38px; }
     .apps-presentation .apps-header-eyebrow { top: 20px; }
     .apps-presentation .header-center { padding: 66px 26px 42px; }
     .apps-presentation.has-cta .header-center { transform: translateY(-38px); }

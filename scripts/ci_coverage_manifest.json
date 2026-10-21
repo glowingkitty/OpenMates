@@ -192,6 +192,8 @@
         "apps-workspace.spec.ts",
         "header-mobile-layout.spec.ts",
         "components/apps-workspace-preview.spec.ts",
+        "components/apps-sidebar-preview.spec.ts",
+        "components/home-search-details.spec.ts",
         "components/apps-request-composer.spec.ts",
         "components/chat-message-expansion.spec.ts",
         "components/header-mobile-layout-preview.spec.ts",

@@ -12,9 +12,28 @@ import { userProfile } from '../../stores/userProfile';
 import { activeTeamContext } from '../../stores/teamStore';
 import { queueAppsWorkspaceChatHandoff, takeAppsWorkspaceChatHandoff, deliverAppsWorkspaceChatHandoff,
   takeAppsWorkspaceComposerHandoff, isAppsWorkspaceHandoffCurrent, queueAppsWorkspaceWorkflowHandoff,
-  takeAppsWorkspaceWorkflowHandoff, appsRequestContextDocument, appsRequestContextText, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../appsWorkspaceChatHandoffService';
+  takeAppsWorkspaceWorkflowHandoff, appsWorkflowInstruction, appsRequestContextDocument, appsRequestContextText, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../appsWorkspaceChatHandoffService';
 beforeEach(() => { authStore.update(state => ({ ...state, isAuthenticated: true })); userProfile.update(profile => ({ ...profile, user_id: 'reset' })); userProfile.update(profile => ({ ...profile, user_id: 'A' })); activeTeamContext.set({ team: null, teamId: null, epoch: 0 }); });
 describe('private Apps handoffs', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  it('fits large result handoffs into the real workflow text limit while preserving the instruction and search', () => {
+    const request = { text: 'Create a weekly garden workflow', context: {
+      result: { results: Array.from({ length: 100 }, (_, index) => ({ title: `Garden ${index}`, description: 'Details '.repeat(20_000) })) },
+      skill_id: 'search', input: { requests: [{ query: 'Find gardens', count: 10 }], api_key: 'private-key' },
+    } };
+    const original = JSON.stringify(request);
+    expect(appsRequestContextText(request).length).toBeGreaterThan(20_000);
+    const instruction = appsWorkflowInstruction(request);
+    expect(instruction.length).toBeLessThanOrEqual(20_000);
+    expect(instruction).toContain(request.text);
+    expect(instruction).toContain('Find gardens');
+    expect(instruction).toContain('Garden 0');
+    expect(instruction).not.toContain('private-key');
+    expect(JSON.stringify(request)).toBe(original);
+    const long = { ...request, text: 'A'.repeat(19_900) };
+    expect(appsWorkflowInstruction(long).startsWith(long.text)).toBe(true);
+    expect(appsWorkflowInstruction(long).length).toBeLessThanOrEqual(20_000);
+  });
   // contract-test: direct surface=gui.web assertions=apps.requests.natural-language
   it('does not let late acceptance clear a newer handoff policy in the same chat and document', async () => {
     const first = { text: 'Explain' }, next = { text: 'Explain' };

@@ -12,6 +12,15 @@ describe('temporary recommendation child previews', () => {
     expect(JSON.stringify(result)).toBe(snapshot);
   });
   // contract-test: direct surface=gui.web assertions=apps.recommendations.public-daily,apps.results.shared-fullscreen
+  it('preserves individual News article payloads and their creating app in recommendation envelopes', () => {
+    const articles = [{ type: 'search_result', url: 'https://example.test/one', title: 'First article' },
+      { url: 'https://example.test/two', title: 'Second article', thumbnail: { original: 'https://example.test/photo.png' } }];
+    const previews = recommendationPreviewItems('news', { ...batch, skill_id: 'search', result: { data: { results: [{ results: articles }] } } });
+    expect(previews.map(item => item.id)).toEqual(['daily:0', 'daily:1']);
+    expect(previews[0].content).toEqual({ ...articles[0], app_id: 'news', skill_id: 'search' });
+    expect(previews[1]).toMatchObject({ type: 'web-website', content: { ...articles[1], app_id: 'news', skill_id: 'search' } });
+  });
+  // contract-test: direct surface=gui.web assertions=apps.recommendations.public-daily,apps.results.shared-fullscreen
   it('bounds preview work while preserving source order', () => {
     const results = Array.from({ length: 100 }, (_, index) => ({ title: `Repo ${index}` }));
     const previews = recommendationPreviewItems('code', { ...batch, result: { results } });

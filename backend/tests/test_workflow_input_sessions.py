@@ -1230,7 +1230,20 @@ def test_stream_route_emits_provisional_preview_and_final_session() -> None:
     )
 
     with TestClient(app) as client:
-        response = client.post("/v1/workflows/input/stream", json={"text": "Make a rain workflow"})
+        # Actual browser fields, including Apps' bounded search-result context.
+        # Oversize result dumps previously failed request validation before the
+        # authoring service was reached; the maximum bounded payload must work.
+        prefix = 'Create a workflow based on this search.\n\nResult context (data supplied by the user):\n'
+        context = {"skill_id": "search", "input": {"query": "gardens"}, "result": {"description": ""}}
+        context["result"]["description"] = "x" * (20_000 - len(prefix) - len(json.dumps(context)))
+        body = {"text": prefix + json.dumps(context),
+                "input_type": "text", "selected_workflow_id": None, "timezone": "UTC", "optimistic_save": True,
+                "idempotency_key": "11111111-1111-4111-8111-111111111111"}
+        assert len(body["text"]) == 20_000
+        rejected = client.post("/v1/workflows/input/stream", json={**body, "text": body["text"] + "x"})
+        assert rejected.status_code == 422
+        assert rejected.json()["detail"][0]["loc"] == ["body", "text"]
+        response = client.post("/v1/workflows/input/stream", json=body)
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")

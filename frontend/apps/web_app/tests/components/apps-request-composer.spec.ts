@@ -20,7 +20,7 @@ test('natural request composer submits text with compatible files and preserves 
 });
 
 // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
-test('saved result fullscreen keeps typed cards, pinned filters and a followup composer with native context', async ({ page }) => {
+test('saved result fullscreen keeps typed cards, toggleable filters and a followup composer with native context', async ({ page }) => {
   await page.goto('/dev/preview/apps/AppsResultFullscreen?chrome=0&theme=light&width=390&variant=sharedResults');
   await waitForComponentPreview(page);
   const grid = page.getByTestId('search-template-grid');
@@ -34,6 +34,10 @@ test('saved result fullscreen keeps typed cards, pinned filters and a followup c
   const scrollport = await contentArea.boundingBox();
   expect(scrollport?.height ?? 0).toBeGreaterThan(300);
   await contentArea.evaluate(element => element.scrollTop = element.scrollHeight);
+  await expect(page.getByTestId('search-template-filter')).toHaveCount(0);
+  await page.getByTestId('search-template-filter-button').click();
+  await expect(page.getByTestId('search-template-filter-button')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('search-template-filter')).toBeFocused();
   await expect(page.getByTestId('search-template-toolbar')).toBeInViewport();
   await expect(composer).toBeInViewport();
   const after = await composer.boundingBox();
@@ -41,6 +45,26 @@ test('saved result fullscreen keeps typed cards, pinned filters and a followup c
   await page.getByTestId('search-template-filter').fill('books');
   await expect(grid.getByTestId('embed-preview')).toHaveCount(1);
   await expect(grid).toContainText('Cafe 1');
+  await page.getByTestId('search-template-filter-button').click();
+  await expect(page.getByTestId('search-template-filter')).toHaveCount(0);
+  await expect(grid.getByTestId('embed-preview')).toHaveCount(1);
+  await expect(page.getByTestId('search-template-query')).toHaveText('Saved cafes');
+  for (const id of ['search-template-save-search', 'search-template-create-workflow']) {
+    const action = page.getByTestId(id);
+    await expect(action).toHaveCSS('text-decoration-line', 'none');
+    await action.hover();
+    await expect(action).toHaveCSS('text-decoration-line', 'none');
+    await action.focus();
+    await expect(action).toBeFocused();
+    await expect(action).toHaveCSS('text-decoration-line', 'none');
+  }
+  const saved = page.evaluate(() => new Promise<unknown>(resolve => window.addEventListener('apps-result-preview-save', event => resolve((event as CustomEvent).detail), { once: true })));
+  await page.getByTestId('search-template-save-search').click();
+  expect(await saved).toMatchObject({ skill_id: 'search', input: { requests: [{ query: 'Saved cafes' }] } });
+  await expect(page.getByTestId('search-template-save-search')).toHaveText('Saved search');
+  await expect(page.getByTestId('search-template-save-search')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('search-template-save-search')).toBeDisabled();
+  await expect(page.getByTestId('search-template-save-search').locator('.search-heart')).toHaveCSS('background-color', 'rgb(253, 80, 160)');
   await page.getByTestId('apps-request-textarea').fill('Which has outdoor seats?');
   const followup = page.evaluate(() => new Promise<unknown>(resolve => window.addEventListener('apps-result-preview-followup', event => resolve((event as CustomEvent).detail), { once: true })));
   await page.getByTestId('apps-request-submit').click();
@@ -81,4 +105,36 @@ test('native paid audio transcription opens the shared recording fullscreen with
   await expect(page.getByText('The meeting starts at nine.', { exact: true })).toBeVisible();
   await expect(page.getByTestId('embed-header-title')).toContainText('Meeting notes');
   await expect(page.getByText('This result could not be opened.', { exact: true })).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=apps.results.shared-fullscreen,apps.recommendations.private-daily
+test('reopened search fullscreen recognizes the saved native request without another save', async ({ page }) => {
+  await page.goto('/dev/preview/apps/AppsResultFullscreen?chrome=0&theme=light&width=1000&variant=savedResults');
+  await waitForComponentPreview(page);
+  const saveSearch = page.getByTestId('search-template-save-search');
+  await expect(saveSearch).toHaveText('Saved search');
+  await expect(saveSearch).toHaveAttribute('aria-pressed', 'true');
+  await expect(saveSearch).toBeDisabled();
+  await expect(saveSearch.locator('.search-heart')).toHaveCSS('background-color', 'rgb(253, 80, 160)');
+  await expect(page.getByTestId('search-template-create-workflow')).toBeVisible();
+  await expect(page.getByTestId('search-template-filter')).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=apps.results.shared-fullscreen,apps.recommendations.private-daily
+test('declining a guest search save leaves the search unsaved and retryable', async ({ page }) => {
+  await page.goto('/dev/preview/apps/AppsResultFullscreen?chrome=0&theme=light&width=390&variant=guestSaveDeclined');
+  await waitForComponentPreview(page);
+  await page.evaluate(() => {
+    const browser = window as Window & { signupAttempts?: number };
+    browser.signupAttempts = 0;
+    window.addEventListener('apps-result-preview-signup', () => { browser.signupAttempts = (browser.signupAttempts ?? 0) + 1; });
+  });
+  const saveSearch = page.getByTestId('search-template-save-search');
+  for (const attempts of [1, 2]) {
+    await saveSearch.click();
+    await expect.poll(() => page.evaluate(() => (window as Window & { signupAttempts?: number }).signupAttempts)).toBe(attempts);
+    await expect(saveSearch).toHaveText('Save this search');
+    await expect(saveSearch).toHaveAttribute('aria-pressed', 'false');
+    await expect(saveSearch).toBeEnabled();
+  }
 });

@@ -15,6 +15,7 @@
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import AppStoreCard from './AppStoreCard.svelte';
+    import AppDailySearchesSettings from './appSettings/AppDailySearchesSettings.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import { SettingsButton, SettingsCard, SettingsConsentToggle, SettingsDetailRow, SettingsInfoBox, SettingsSectionHeading } from './elements';
@@ -348,6 +349,9 @@
             <button class="back-button" onclick={goBack}>← Back to Apps</button>
         </div>
     {:else}
+        {#if presentation === 'settings' && section === 'all'}
+            <AppDailySearchesSettings {appId} />
+        {/if}
         <!-- Skills section - only show if skills exist -->
         {#if (section === 'all' || section === 'skills') && skills.length > 0}
             <div class="section">

@@ -3453,6 +3453,9 @@
     },
     "calendar_view": {
       "text": "Kalenderansicht"
+    },
+    "results_for": {
+      "text": "Ergebnisse für"
     }
   },
   "artifact_history": {

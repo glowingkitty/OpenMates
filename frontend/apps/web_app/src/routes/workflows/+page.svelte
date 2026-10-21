@@ -10,7 +10,7 @@
 
 <script lang="ts">
   import { APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, takeAppsWorkspaceWorkflowHandoff,
-    isAppsWorkspaceHandoffCurrent, appsRequestContextText, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
+    isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
 	import { onMount, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
 	import { derived, get } from 'svelte/store';
@@ -108,6 +108,14 @@
 	let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
 	let saving = $state(false);
 	let routeError = $state<string | null>(null);
+	$effect(() => {
+		if (!routeError) return;
+		// Keep diagnostic transport errors out of product copy. The notification
+		// stack owns failure presentation; route state still tracks submit outcome.
+		const message = /HTTP \d{3}|^WORKFLOW_[A-Z_]+$/.test(routeError)
+			? $text('workflows.builder.ai_failed') : routeError;
+		untrack(() => notificationStore.error(message));
+	});
 	let completionChatStatus = $state<'idle' | 'checking' | 'waiting' | 'unavailable'>('idle');
 	let completionRetry = $state(0);
 	let authoringReminder = $state<string | null>(null);
@@ -899,7 +907,7 @@
     const request = takeAppsWorkspaceWorkflowHandoff();
     if (!request || !isAppsWorkspaceHandoffCurrent(request)) return;
     if (request.attachments?.length) { void queueAppsWorkspaceChatHandoff(request); return; }
-    void submitWorkflowInput(appsRequestContextText(request));
+    void submitWorkflowInput(appsWorkflowInstruction(request));
   }
   onMount(() => {
     window.addEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, consumeAppsWorkflowHandoff);
@@ -1597,9 +1605,6 @@
 				data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
 			>
 				<!-- Background loading failures use the header connection indicator. -->
-				{#if routeError}
-					<div class="error-banner" data-testid="workflows-error">{routeError}</div>
-				{/if}
 				{#if completionChatStatus !== 'idle'}
 					<WorkflowCompletionStatus status={completionChatStatus} onRetry={() => completionRetry += 1} />
 				{/if}
@@ -2300,14 +2305,6 @@
 	.blank-creator .primary {
 		color: var(--color-font-button);
 		background: var(--color-button-primary);
-	}
-
-	.error-banner {
-		margin-block-end: 14px;
-		padding: 10px 12px;
-		border-radius: var(--radius-8, 20px);
-		color: var(--color-error, #b00020);
-		background: color-mix(in srgb, var(--color-error, #b00020) 10%, transparent);
 	}
 
 	.workflow-test-now-row {

@@ -10,7 +10,7 @@ vi.mock('../../stores/notificationStore', () => ({ notificationStore: { addNotif
 import { userProfile } from '../../stores/userProfile';
 import { activeTeamContext } from '../../stores/teamStore';
 import { notificationStore } from '../../stores/notificationStore';
-import { emptyAppsLibrary, freshAppsRecommendations, getAppsLibrary, saveAppsSearchWithNotice } from '../appsWorkspaceLibraryService';
+import { appsSearchQuery, isAppsSearchSaved, emptyAppsLibrary, freshAppsRecommendations, getAppsLibrary, saveAppsSearchWithNotice } from '../appsWorkspaceLibraryService';
 
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(notificationStore.addNotificationWithOptions).mockReturnValue('daily-search-notice'); userProfile.set({ user_id: 'A' }); activeTeamContext.set({ teamId: null, epoch: 0 }); });
 describe('private Apps library ownership and expiry', () => {
@@ -92,4 +92,26 @@ describe('private Apps library ownership and expiry', () => {
     expect(notificationStore.removeNotification).not.toHaveBeenCalled();
   });
 
+});
+
+// contract-test: supporting surface=gui.web assertions=apps.results.shared-fullscreen,apps.recommendations.private-daily
+describe('saved search identity', () => {
+  it('recognizes native requests with reordered nested object keys without comparing result text', () => {
+    const library = { ...emptyAppsLibrary('news'), saved_searches: [{ id: 'saved', skill_id: 'search', parameters: { requests: [{ query: 'Climate news', count: 10, options: { country: 'DE', language: 'en' } }] }, query: 'An older display title', saved_at: 1 }] };
+    expect(isAppsSearchSaved(library, { skill_id: 'search', input: { requests: [{ options: { language: 'en', country: 'DE' }, count: 10, query: 'Climate news' }] }, result: { title: 'Current title' } })).toBe(true);
+    expect(isAppsSearchSaved(library, { skill_id: 'search', input: { requests: [{ query: 'Different news', count: 10, options: { country: 'DE', language: 'en' } }] } })).toBe(false);
+    expect(isAppsSearchSaved(library, { skill_id: 'other_skill', input: library.saved_searches[0].parameters })).toBe(false);
+    expect(isAppsSearchSaved(library, { skill_id: 'search' })).toBe(false);
+    expect(isAppsSearchSaved(null, { skill_id: 'search', input: {} })).toBe(false);
+  });
+  // contract-test: supporting surface=gui.web assertions=apps.results.shared-fullscreen,apps.recommendations.private-daily
+  it('preserves request order and native value types', () => {
+    const library = { ...emptyAppsLibrary('news'), saved_searches: [{ id: 'saved', skill_id: 'search', parameters: { requests: [{ query: 'First' }, { query: 'Second' }], count: 10 }, saved_at: 1 }] };
+    expect(isAppsSearchSaved(library, { skill_id: 'search', input: { count: 10, requests: [{ query: 'Second' }, { query: 'First' }] } })).toBe(false);
+    expect(isAppsSearchSaved(library, { skill_id: 'search', input: { count: '10', requests: [{ query: 'First' }, { query: 'Second' }] } })).toBe(false);
+  });
+  // contract-test: supporting surface=gui.web assertions=apps.results.shared-fullscreen,apps.recommendations.private-daily
+  it('uses the native requests envelope query for old search results', () => {
+    expect(appsSearchQuery({ skill_id: 'search', input: { requests: [{ query: 'News from Berlin' }] } })).toBe('News from Berlin');
+  });
 });

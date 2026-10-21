@@ -395,3 +395,8 @@ calendar_view:
   context: Calendar app workspace calendar button
   en: Calendar view
   de: Kalenderansicht
+
+results_for:
+  context: Centered heading above shared search result cards
+  en: Results for
+  de: Ergebnisse für

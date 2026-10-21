@@ -116,12 +116,39 @@ export async function submitAppsWorkspaceHandoffDraft(options: {
   if (accepted !== true && options.isCurrent()) options.focusRejectedDraft();
 }
 
+const contextSecretFields = new Set(['aeskey', 'aesnonce', 'vaultwrappedaeskey', 'encryptedembedkey', 'encryptedchatkey', 'accesstoken', 'refreshtoken', 'authorization', 'apikey', 'password']);
+function contextJson(value: unknown): string {
+  return JSON.stringify(value, (key, item) => contextSecretFields.has(key.replace(/_/g, '').toLowerCase()) ? undefined : item);
+}
+
 export function appsRequestContextText(request: AppsRequestHandoff): string {
-  // Keep the complete original request in memory for ownership checks and file
-  // transfer. Decryption/upload credentials never become model-visible prose.
-  const secretFields = new Set(['aeskey', 'aesnonce', 'vaultwrappedaeskey', 'encryptedembedkey', 'encryptedchatkey', 'accesstoken', 'refreshtoken', 'authorization', 'apikey', 'password']);
-  const context = request.context ? JSON.stringify(request.context, (key, value) => secretFields.has(key.replace(/_/g, '').toLowerCase()) ? undefined : value) : '';
+  // Complete context stays available for chat; credentials never enter prose.
+  const context = request.context ? contextJson(request.context) : '';
   return context ? `${request.text}\n\nResult context (data supplied by the user):\n${context}` : request.text;
+}
+
+/** Match WorkflowInputStartRequest.text's 20,000 character contract without
+ * discarding the user's instruction. Authoring needs the selected skill/query
+ * and representative results, not an entire retained search embed. Originals
+ * remain in the in-memory handoff for identity checks and chat transfer. */
+export function appsWorkflowInstruction(request: AppsRequestHandoff): string {
+  if (!request.context) return request.text;
+  const { skill_id, input, embed_id, chat_id, result } = request.context;
+  const compact = (value: unknown, depth = 0): unknown => {
+    if (typeof value === 'string') return value.length > 512 ? `${value.slice(0, 512)}…` : value;
+    if (value === null || typeof value !== 'object') return value;
+    if (depth >= 8) return '[Further result details omitted]';
+    if (Array.isArray(value)) return value.slice(0, 5).map(item => compact(item, depth + 1));
+    return Object.fromEntries(Object.entries(value).slice(0, 32).map(([key, item]) => [key, compact(item, depth + 1)]));
+  };
+  // Put the original query/options before result summaries even if the caller's
+  // object insertion order differs. This keeps the recurring search actionable.
+  const context = contextJson({ skill_id, input, embed_id, chat_id, result: compact(result) });
+  const prefix = '\n\nResult context (data supplied by the user):\n';
+  const omitted = '\n[Additional result context omitted]';
+  const budget = 20_000 - request.text.length - prefix.length;
+  if (budget <= omitted.length) return request.text;
+  return request.text + prefix + (context.length <= budget ? context : context.slice(0, budget - omitted.length) + omitted);
 }
 
 export type { AppsRequestHandoff } from './appsWorkspaceRequestService';

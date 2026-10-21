@@ -1,4 +1,5 @@
 import { get } from 'svelte/store';
+import { appsResultRequestFields } from '../utils/appsResultRequestFields';
 import { getApiEndpoint } from '../config/api';
 // Read state without loading authentication actions during shared embed SSR.
 import { authStore } from '../stores/authState';
@@ -95,8 +96,20 @@ export const saveAppsSearch = (appId: string, skillId: string, parameters: Recor
 export const setAppsDailySearches = (appId: string, enabled: boolean, teamId?: string) =>
   libraryRequest(appId, '/settings', teamId, { daily_searches_enabled: enabled });
 
+/** Match native skill arguments, independent of JSON object key order. */
+export function isAppsSearchSaved(library: AppsLibrary | null | undefined, context: AppsRequestContext): boolean {
+  if (!library || !context.skill_id || !context.input) return false;
+  const stableParameters = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(stableParameters);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, stableParameters(child)]));
+  };
+  const parameters = JSON.stringify(stableParameters(context.input));
+  return library.saved_searches.some(search => search.skill_id === context.skill_id && JSON.stringify(stableParameters(search.parameters)) === parameters);
+}
+
 export function appsSearchQuery(context: AppsRequestContext): string {
-  for (const candidate of [context.result?.request_text, context.result?.query, context.input?.query, context.result?.title]) {
+  for (const candidate of [context.result?.request_text, context.result?.query, appsResultRequestFields(context.input).query, context.result?.title]) {
     if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
   }
   return get(text)('apps_workspace.saved_search');

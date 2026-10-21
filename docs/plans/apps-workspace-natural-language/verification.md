@@ -81,11 +81,40 @@ Specification gate pass. The reviewed candidate contains only app-home
 presentation and focused test/fixture changes; backend source remains at the
 healthy feature rollout.
 
-Proxy activation remains blocked by OS authentication: the managed Caddy helper
-requires interactive sudo, which rejected the non-interactive attempt. A read-only
-preflight confirms the old wildcard-origin response without credential support
-is still active for `/v1/apps/workspace/interpret`. The user has the coordinated
-interactive command; the helper acquires the dev-stack lease before applying
-the committed configuration and reloads Caddy. Do not treat new credentialed
-Apps requests as fully rolled out until this step and the preflight check pass.
-Production deployment is outside this task's authorization.
+The dev proxy correction was applied on 2026-10-21 with coordinated operation
+`docker-c44e87db`. The narrow helper preserved the existing live
+`/v1/account/chat-encryption-key` route in the installed configuration, retained
+recording routes, WebSocket ordering, service environment and root:caddy 0640
+permissions, then gracefully reloaded only the reviewed Apps changes and the
+explicitly authorized retired OpenCode host removal. The backup remains private
+under `/etc/caddy/`. The resulting live hash matches the reviewed candidate.
+
+A read-only browser check with the actual personal dev account confirms HTTP 200
+for both Web and News library/results requests, with the exact first-party origin
+and credential allowance. Unauthenticated probes still receive HTTP 401;
+untrusted origins receive no allow-origin header. Private account evidence stays
+local with 0700/0600 permissions. Production deployment is outside this task's
+authorization.
+
+## Reported regression repair, 2026-10-21
+
+The preceding CI table records the initial rollout. The reported regressions are
+being verified separately on the combined repair source before deployment.
+The actual personal browser reproduced two root causes: credentialed library
+responses were blocked by the old proxy CORS configuration, and a Workflow
+handoff sent 43,189 characters to an API field limited to 20,000.
+
+The repair restores the canonical Apps settings hierarchy, bounded chat-style
+sidebar rows and the global sidebar toggle, compact non-scrolling app landing
+views, typed News article navigation, an always-visible fullscreen filter and
+centered save/workflow actions with an active pink saved heart. Text action links
+never use underlines. Failures use the shared notification system.
+
+The reconciled source preserves newer domain-filter behavior. Its four focused
+component suites pass 39 cases without retries/skips; the focused service,
+registry, settings and child-navigation unit suites pass 68 cases. Full-route
+verification found a same-owner profile publication remounting the fullscreen
+composer and losing a followup draft. The loader now tracks primitive owner and
+readiness values; three mounted regressions pass, including the draft-preservation
+case that failed against the previous source. Independent review found no issue. Final full-route and deployed personal-account UI evidence are still
+required before marking this repair complete.

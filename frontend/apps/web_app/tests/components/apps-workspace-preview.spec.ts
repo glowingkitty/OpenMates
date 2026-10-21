@@ -11,7 +11,7 @@ import { assertGuestHeaderControlsSeparated } from '../helpers/header-layout';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-const preview = (component: 'Header' | 'apps/AppsWorkspace' | 'apps/AppsResultFullscreen' | 'apps/AppsInlineResults' | 'apps/AppsEmbedPreview', width: number, variant?: string) =>
+const preview = (component: 'Header' | 'apps/AppsWorkspace' | 'apps/AppsResultFullscreen' | 'apps/AppsInlineResults' | 'apps/AppsEmbedPreview' | 'settings/AppDetails', width: number, variant?: string) =>
   `/dev/preview/${component}?${new URLSearchParams({
     theme: 'light', background: '#dbeafe', width: String(width), chrome: '0',
     ...(variant ? { variant } : {}),
@@ -54,6 +54,20 @@ async function fixturePublicApps(page: Page): Promise<void> {
   }));
 }
 
+async function expectPreviewFailure(page: Page, message: string): Promise<void> {
+  await expect.poll(() => page.evaluate(() => (window as Window & { appsResultPreviewClosed?: number }).appsResultPreviewClosed ?? 0)).toBe(1);
+  await expect.poll(() => page.evaluate(() => (window as Window & { appsResultPreviewNotifications?: Array<{ type: string; message: string }> }).appsResultPreviewNotifications ?? [])).toContainEqual({ type: 'error', message });
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByTestId('search-template-grid')).toHaveCount(0);
+}
+
+async function expectSettingsDispatch(page: Page, path: string): Promise<void> {
+  const opened = page.evaluate(() => new Promise<string>(resolve => window.addEventListener('apps-preview-settings', event => resolve((event as CustomEvent<string>).detail), { once: true })));
+  await page.getByTestId('apps-settings-open').click();
+  expect(await opened).toBe(path);
+  await expect(page.getByTestId('apps-settings')).toHaveCount(0);
+}
+
 async function attachWorkspaceScreenshot(page: Page, name: string): Promise<void> {
   const path = test.info().outputPath(name);
   await page.screenshot({ path, animations: 'disabled' });
@@ -74,11 +88,7 @@ test.describe('Apps bare component previews', () => {
   test('a saved failed request remains a truthful failure rather than an unavailable empty search', async ({ page }: { page: Page }) => {
     await page.goto(preview('apps/AppsResultFullscreen', 390, 'failedRequest'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
-    await expect(page.getByRole('alert')).toHaveText('The request could not finish. You can try again.');
-    await expect(page.getByTestId('search-template-grid')).toHaveCount(0);
-    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
-    await page.getByTestId('embed-minimize').click();
-    await closed;
+    await expectPreviewFailure(page, 'The request could not finish. You can try again.');
   });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
   test('inline results use the regular child previews and pass their parent graph when opened', async ({ page }: { page: Page }) => {
@@ -122,26 +132,20 @@ test.describe('Apps bare component previews', () => {
     await opened;
   });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
-  test('keeps an unavailable result closeable when its renderer is missing', async ({ page }: { page: Page }) => {
+  test('closes a missing renderer and sends its failure to shared notifications', async ({ page }: { page: Page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(preview('apps/AppsResultFullscreen', 390, 'missingRegistry'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
-    await expect(page.getByRole('status')).toContainText('This result could not be opened.');
-    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
-    await page.getByTestId('embed-minimize').click();
-    await closed;
+    await expectPreviewFailure(page, 'This result could not be opened.');
   });
 
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
-  test('keeps an unavailable result closeable when its component loader returns null', async ({ page }: { page: Page }) => {
+  test('closes a null renderer and sends its failure to shared notifications', async ({ page }: { page: Page }) => {
     await page.route('**/WebSearchEmbedFullscreen.svelte*', route => route.fulfill({ contentType: 'application/javascript', body: 'export default null;' }));
     await page.setViewportSize({ width: 1180, height: 844 });
     await page.goto(preview('apps/AppsResultFullscreen', 1100), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
-    await expect(page.getByText('This result could not be opened.', { exact: true }).first()).toBeVisible();
-    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
-    await page.getByTestId('embed-minimize').click();
-    await closed;
+    await expectPreviewFailure(page, 'This result could not be opened.');
   });
   // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,workspace-shell.nav.released-surfaces-visible
   test('orders signed-in workspaces with Apps second and keeps the public Apps choice on phone', async ({ page }: { page: Page }) => {
@@ -358,9 +362,9 @@ test.describe('Apps bare component previews', () => {
   // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen,apps.navigation.hash-and-forwarding
   test('app home keeps its header, clipped example carousel, controls and composer bounded on laptop and phone', async ({ page }: { page: Page }) => {
     await fixturePublicApps(page);
-    for (const width of [1180, 390]) {
+    for (const theme of ['light', 'dark']) for (const width of [1180, 390]) {
       await page.setViewportSize({width,height:844});
-      await page.goto(preview('apps/AppsWorkspace',width,'app'),{waitUntil:'domcontentloaded'});
+      await page.goto(preview('apps/AppsWorkspace',width,'app').replace('theme=light', 'theme=' + theme),{waitUntil:'domcontentloaded'});
       await waitForComponentPreview(page);
       const fullscreen=page.getByTestId('apps-detail-fullscreen');
       await expect(fullscreen).toBeVisible();
@@ -370,10 +374,20 @@ test.describe('Apps bare component previews', () => {
       const tile=hero.locator('.apps-header-app-icon');await expect(tile).toBeVisible();expect(await tile.evaluate(element=>getComputedStyle(element).backgroundImage)).toContain('linear-gradient');expect(await tile.evaluate(element=>getComputedStyle(element,'::before').backgroundImage)).not.toBe('none');
       await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);
       await expect(page.getByTestId('apps-request-textarea')).toBeVisible();
-      for(const id of ['apps-settings-open','apps-sidebar-toggle','apps-request-add-files','apps-request-mic']) {
+      await expect(page.getByTestId('apps-sidebar-toggle')).toHaveCount(0);
+      const inner = fullscreen.locator('.content-area').first();
+      await expect.poll(() => inner.evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
+      const headerHeight = await fullscreen.locator('.embed-header').first().evaluate(element => element.getBoundingClientRect().height);
+      expect(headerHeight).toBeLessThanOrEqual(width === 390 ? 190 : 240);
+      const scrollBefore = await inner.evaluate(element => element.scrollTop);
+      await inner.hover(); await page.mouse.wheel(0, 600);
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expect.poll(() => inner.evaluate(element => element.scrollTop)).toBe(scrollBefore);
+
+      for(const id of ['apps-settings-open','apps-request-add-files','apps-request-mic']) {
         const control=page.getByTestId(id);await expect(control).toBeVisible();await expectContainedInPreview(page,control);
       }
-      for (const id of ['apps-settings-open', 'apps-sidebar-toggle']) {
+      for (const id of ['apps-settings-open']) {
         const bounds = await page.getByTestId(id).boundingBox();
         expect(bounds!.width).toBeCloseTo(bounds!.height, 0);
         expect(bounds!.width).toBeLessThanOrEqual(44);
@@ -398,7 +412,7 @@ test.describe('Apps bare component previews', () => {
       const exampleNavigation=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
       await examples.last().click();expect(await exampleNavigation).toBe('#chat-id='+encodeURIComponent(ids.at(-1)!));
       await page.getByTestId('apps-request-textarea').focus();await expect(page.getByTestId('apps-request-textarea')).toBeFocused();
-      await page.getByTestId('apps-settings-open').click();await expect(page.getByTestId('apps-settings')).toBeVisible();
+      await expectSettingsDispatch(page, 'apps/health');
       await expect(page.getByTestId('apps-daily-searches')).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
       const navigated=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
@@ -458,9 +472,8 @@ test.describe('Apps bare component previews', () => {
       name: 'private-garden.txt', mimeType: 'text/plain', buffer: Buffer.from('Synthetic garden reference'),
     });
     await input.fill('Find quiet gardens'); await attach();
-    await page.getByTestId('apps-settings-open').click();
-    await expect(input).toHaveCount(0);
-    await page.getByTestId('apps-settings').getByRole('button', { name: 'Back to app', exact: true }).click();
+    await expectSettingsDispatch(page, 'apps/web');
+    await expect(input).toBeVisible();
     await expect(input).toHaveValue('Find quiet gardens');
     await expect(page.getByTestId('apps-request-attachments')).toContainText('private-garden.txt');
     await page.evaluate(() => window.dispatchEvent(new Event('apps-preview-refresh-account')));
@@ -484,14 +497,13 @@ test.describe('Apps bare component previews', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=apps.recommendations.private-daily,apps.requests.natural-language
-  test('saved and recommended carousels, ordered sidebar and Daily switch use the active account',async({page}:{page:Page})=>{
+  test('saved and recommended carousels and the explicit sidebar use the active account',async({page}:{page:Page})=>{
     await fixturePublicApps(page);
-    const now=Math.floor(Date.now()/1000);let enabled=true;const settingsBodies:Record<string,unknown>[]=[];
+    const now=Math.floor(Date.now()/1000);const enabled=true;
     const library=()=>({app_id:'web',daily_searches_enabled:enabled,saved_searches:Array.from({length:4},(_,index)=>({id:`saved-${index}`,skill_id:'search',title:`Saved garden ${index}`,query:`Saved garden ${index}`,parameters:{query:`garden ${index}`},saved_at:now-index})),
       recommendations:[{id:'90000000-0000-4000-8000-000000000010',skill_id:'search',created_at:now,expires_at:now+3600,result:{query:'Recommended gardens',result_count:1,results:[{title:'Fresh garden result',url:'https://example.test/garden'}]}}]});
     await page.route('**/v1/apps/workspace/library/web',route=>route.fulfill({json:library()}));
     await page.route('**/v1/apps/workspace/results?*',route=>route.fulfill({json:{items:[],offset:0,limit:20,has_more:false}}));
-    await page.route('**/v1/apps/workspace/library/web/settings',route=>{const body=route.request().postDataJSON();settingsBodies.push(body);enabled=body.daily_searches_enabled;return route.fulfill({json:library()});});
     for(const width of [1180,390]){
       await page.setViewportSize({width,height:844});await page.goto(preview('apps/AppsWorkspace',width,'teamLibrary'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
       await expect(page.getByTestId('apps-tab-recommended')).toHaveAttribute('aria-pressed','true');
@@ -500,13 +512,34 @@ test.describe('Apps bare component previews', () => {
       const carousel=page.getByTestId('apps-preview-carousel');await expect(carousel.getByTestId('apps-saved-search-query')).toHaveCount(4);
       expect(await carousel.evaluate(element=>element.scrollWidth>element.clientWidth)).toBe(true);
       await carousel.evaluate(element=>{element.scrollLeft=element.scrollWidth;});await expect(carousel.getByTestId('apps-saved-search-query').last()).toBeInViewport();
-      await page.getByTestId('apps-sidebar-toggle').click();const sidebar=page.getByTestId('apps-sidebar');await expect(sidebar).toBeVisible();
+      await page.goto(preview('apps/AppsWorkspace',width,'teamLibrarySidebar'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);const sidebar=page.getByTestId('apps-sidebar');await expect(sidebar).toBeVisible();
       expect(await sidebar.locator('section').evaluateAll(elements=>elements.map(element=>element.getAttribute('data-testid')))).toEqual(['apps-sidebar-saved','apps-sidebar-recent','apps-sidebar-examples']);
       await expect(sidebar.getByTestId('apps-sidebar-saved').getByRole('button')).toHaveCount(4);
-      await sidebar.getByRole('button',{name:'Close',exact:true}).click();await expect(sidebar).toHaveCount(0);
-      await page.getByTestId('apps-settings-open').click();const toggle=page.getByTestId('apps-daily-searches-toggle');await expect(toggle).toBeVisible();
-      const before=enabled;await toggle.click();await expect.poll(()=>settingsBodies.at(-1)?.daily_searches_enabled).toBe(!before);
-      expect(settingsBodies.at(-1)?.expected_user_id).toBe('preview-user');await expectNoHorizontalOverflow(page);
+      const closed=page.evaluate(()=>new Promise<void>(resolve=>window.addEventListener('apps-preview-sidebar-close',()=>resolve(),{once:true})));await sidebar.getByRole('button',{name:'Close',exact:true}).click();await closed;
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.recommendations.private-daily,settings-ui.composition.canonical-and-accessible
+  test('canonical app settings show skill cards and persist Daily searches for the active owner', async ({ page }: { page: Page }) => {
+    let enabled = true; const bodies: Record<string, unknown>[] = [];
+    const library = () => ({ app_id: 'web', daily_searches_enabled: enabled, saved_searches: [], recommendations: [] });
+    await page.route('**/v1/apps/workspace/library/web', route => route.fulfill({ json: library() }));
+    await page.route('**/v1/apps/workspace/library/web/settings', route => { const body = route.request().postDataJSON(); bodies.push(body); enabled = body.daily_searches_enabled; return route.fulfill({ json: library() }); });
+    for (const width of [1180, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview('settings/AppDetails', width, 'authenticatedSettings'), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      await expect(page.getByTestId('settings-skill-cards-scroll').getByTestId('app-store-card').first()).toBeVisible();
+      const toggle = page.getByTestId('apps-daily-searches').getByRole('checkbox');
+      await expect(toggle).toBeEnabled();
+      await expect(toggle).toBeChecked({ checked: enabled });
+      const before = enabled; await page.getByTestId('apps-daily-searches-toggle').click();
+      await expect.poll(() => bodies.at(-1)?.daily_searches_enabled).toBe(!before);
+      await expect(toggle).toBeChecked({ checked: !before });
+      expect(bodies.at(-1)?.expected_user_id).toBe('preview-settings-user');
+      await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+      await expectNoHorizontalOverflow(page);
     }
   });
 
@@ -528,7 +561,7 @@ test.describe('Apps bare component previews', () => {
       if(!team&&blockPersonal)await personalGate;if(team)await teamGate;
       await route.fulfill({json:{app_id:'web',daily_searches_enabled:true,recommendations:[],saved_searches:[{id:team?'team':'personal',skill_id:'search',query:team?'Team garden':'Personal garden',parameters:{query:'garden'},saved_at:1}]}});
     });
-    await page.goto(preview('apps/AppsWorkspace',1100,'teamLibrary'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
+    await page.goto(preview('apps/AppsWorkspace',1100,'teamLibrarySidebar'),{waitUntil:'domcontentloaded'});await waitForComponentPreview(page);
     await page.getByTestId('apps-tab-saved').click();await expect(page.getByTestId('apps-saved-search-query')).toContainText('Personal garden');
     // A synthetic encrypted Personal memory exercises the actual snapshot reader,
     // rather than treating a server saved-search row as a decrypted memory.
@@ -578,7 +611,6 @@ test.describe('Apps bare component previews', () => {
       }) as SubtleCrypto['decrypt'];
       window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));
     });
-    await page.getByTestId('apps-sidebar-toggle').click();
     await expect(page.getByTestId('apps-sidebar').getByText('Personal encrypted memory marker', { exact: true })).toBeVisible();
 
     blockPersonal=true;await page.evaluate(()=>{(window as Window & {appsBlockMemoryRead?:boolean}).appsBlockMemoryRead=true;window.dispatchEvent(new Event('appsWorkspaceLibraryUpdated'));});

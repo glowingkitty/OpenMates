@@ -60,9 +60,9 @@
 </script>
 
 <div class="apps-route" class:settings-open={$panelState.isSettingsOpen} data-authenticated={$authStore.isAuthenticated}>
-  <div class="apps-route-header" data-testid="apps-route-header"><Header context="webapp" isLoggedIn={$authStore.isAuthenticated} /></div>
+  <div class="apps-route-header" data-testid="apps-route-header"><Header context="webapp" isLoggedIn={$authStore.isAuthenticated} onToggleSidebar={panelState.toggleChats} isSidebarOpen={$panelState.isActivityHistoryOpen} /></div>
   <div class="apps-route-body">
-    <main inert={$loginInterfaceOpen}><AppsWorkspace hash={page.url.hash} onNavigate={navigate} onSignup={signup} onSettings={openSettings} /></main>
+    <main inert={$loginInterfaceOpen}><AppsWorkspace hash={page.url.hash} onNavigate={navigate} onSignup={signup} onSettings={openSettings} sidebarOpen={$panelState.isActivityHistoryOpen} onSidebarClose={panelState.closeChats} /></main>
   </div>
   <!-- Settings owns header controls as well as its panel. Keep its absolute
        header controls relative to the whole route, rather than the body. -->

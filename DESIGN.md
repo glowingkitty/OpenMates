@@ -248,6 +248,10 @@ Global default buttons are orange, pill-shaped, shadowed, and pressable. Setting
 
 Avoid relying on global `button` styles inside complex components. Reset or use canonical primitives where needed.
 
+### Text links
+
+Never underline text links, including hover, active, visited, and focus states. Use color and visible focus outlines to communicate interaction.
+
 ### Inputs
 
 General input pattern:

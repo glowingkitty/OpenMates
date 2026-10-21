@@ -342,6 +342,7 @@ test.describe('Apps workspace', () => {
     await expect(page.getByTestId('workspace-mobile-select')).toHaveValue('/#apps');
     await page.getByTestId('apps-app-card').filter({hasText:/Health/i}).first().click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
     await expect(requestComposer(page)).toBeVisible();await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);
+    await expect(page.getByTestId('apps-sidebar-toggle')).toHaveCount(0);const sidebarToggle=page.getByTestId('global-header').getByTestId('sidebar-toggle');await sidebarToggle.click();await expect(page.getByTestId('apps-sidebar')).toBeVisible();await sidebarToggle.click();await expect(page.getByTestId('apps-sidebar')).toHaveCount(0);
     await page.evaluate(()=>{window.location.hash='#apps/health/search-appointments';});await expect(requestComposer(page)).toBeVisible();
     await page.goBack();await expect.poll(()=>appHash(page)).toBe('#apps/health');await page.goForward();await expect.poll(()=>appHash(page)).toBe('#apps/health/search-appointments');
     await page.getByTestId('apps-detail-close').click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
@@ -349,6 +350,19 @@ test.describe('Apps workspace', () => {
     expect(appHash(page)).toBe('#apps/health/search-appointments');await page.reload({waitUntil:'domcontentloaded'});await expect(requestComposer(page)).toBeVisible({timeout:30000});
     await page.getByTestId('apps-detail-close').click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
   });
+  // contract-test: direct surface=gui.web assertions=apps.recommendations.public-daily,apps.results.shared-fullscreen,apps.presentation.shared-detail-and-recency
+  test('public News recommendation cards open the selected article with News identity and return to News', async ({ page }: { page: any }) => {
+    const now=Math.floor(Date.now()/1000);
+    const first='Synthetic city science report';const second='Synthetic ocean science report';
+    await page.route('**/v1/apps/workspace/public/news*',(route:any)=>route.fulfill({json:{cta:null,recommendations:[{id:'92000000-0000-4000-8000-000000000001',skill_id:'search',created_at:now,expires_at:now+3600,input:{requests:[{query:'Science reports'}]},result:{data:{results:[{results:[{type:'search_result',title:first,url:'https://example.test/city-science',description:'City research article',thumbnail:{original:'https://example.test/news-one.png'}},{type:'search_result',title:second,url:'https://example.test/ocean-science',description:'Ocean research article',thumbnail:{original:'https://example.test/news-two.png'}}]}]}}}]}}));
+    await page.goto(getE2EDebugUrl('/#apps/news'),{waitUntil:'domcontentloaded'});
+    const carousel=page.getByTestId('apps-preview-carousel');await expect(carousel.getByTestId('embed-preview')).toHaveCount(2);
+    const selected=carousel.getByTestId('embed-preview').filter({hasText:second});await expect(selected).toContainText('Ocean research article');await expect(selected).toHaveAttribute('data-app-id','news');
+    await selected.click();const article=page.getByTestId('apps-recommendation-fullscreen');await expect(article).toBeVisible();await expect(article.getByTestId('embed-header-title')).toHaveText(second);await expect(article.locator('[data-app-icon="news"]')).toBeVisible();
+    await page.evaluate(()=>{window.open=((url,target,features)=>{(window as Window&{appsOpenedNewsArticle?:string[]}).appsOpenedNewsArticle=[String(url),String(target),String(features)];return null;}) as typeof window.open;});await article.getByRole('button',{name:'Open on example.test',exact:true}).click();expect(await page.evaluate(()=>(window as Window&{appsOpenedNewsArticle?:string[]}).appsOpenedNewsArticle)).toEqual(['https://example.test/ocean-science','_blank','noopener,noreferrer']);await expect(article.getByTestId('search-template-grid')).toHaveCount(0);await expect(article.getByText(first,{exact:true})).toHaveCount(0);
+    await article.getByTestId('embed-minimize').click();await expect(page.getByTestId('apps-recommendation-fullscreen')).toHaveCount(0);await expect.poll(()=>appHash(page)).toBe('#apps/news');await expect(carousel.getByTestId('embed-preview')).toHaveCount(2);
+  });
+
   // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding
   test('app, skill, focus and memory detail close restore an example chat origin', async ({ page }: { page: any }) => {
     const exampleChatId = 'example-gigantic-airplanes';
@@ -359,7 +373,10 @@ test.describe('Apps workspace', () => {
       await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
       if (path === 'health') {
         await page.getByTestId('apps-settings-open').click();
+        await expect(page.getByTestId('settings-menu')).toBeVisible();
         await expect.poll(() => new URLSearchParams(new URL(page.url()).hash.split('&').slice(1).join('&')).get('origin')).toBe(origin);
+        await page.getByTestId('icon-button-close').click();
+        await expect(page.getByTestId('settings-menu')).not.toBeVisible();
         await page.reload({ waitUntil: 'domcontentloaded' });
         await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30000 });
       }
@@ -632,8 +649,9 @@ test.describe('Apps workspace', () => {
   test('app settings expose skill pricing and providers while the request uses natural language',async({page}:{page:any})=>{
     await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false});
     await page.goto(getE2EDebugUrl('/#apps/web/search'),{waitUntil:'domcontentloaded'});await expect(requestComposer(page)).toBeVisible({timeout:30000});
-    await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);await page.getByTestId('apps-settings-open').click();await expect(page.getByTestId('apps-settings')).toBeVisible();
-    await page.getByTestId('apps-settings').getByText('Search',{exact:true}).first().click();await expect(page.getByTestId('apps-settings').locator('.skill-details')).toBeVisible();
+    await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);await page.getByTestId('apps-settings-open').click();
+    const settings=page.getByTestId('settings-menu');await expect(settings).toBeVisible();await expect(settings.locator('.app-details')).toBeVisible();await expect(page.getByTestId('apps-settings')).toHaveCount(0);
+    await settings.getByTestId('settings-skill-cards-scroll').getByTestId('app-store-card').filter({hasText:/Search/}).first().click();await expect(settings.locator('.skill-details')).toBeVisible();await expect(settings.getByText('Pricing',{exact:true}).first()).toBeVisible();await expect(settings.getByText('Providers',{exact:true}).first()).toBeVisible();
   });
   // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,apps.discovery.public-catalog
   test('legacy Settings links forward and public focus and memory details remain reachable', async ({ page }: { page: any }) => {
@@ -883,7 +901,9 @@ test.describe('Apps workspace', () => {
       const localCard = page.getByTestId(`apps-result-open-${rootId}`);
       await expect(localCard).toBeVisible({ timeout: 30000 });
       await localCard.getByTestId('embed-preview').first().click();
-      await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title);
+      await expect(page.getByTestId('apps-result-fullscreen')).toContainText(title);
+      const childId=savedBodies[0].embeds.find((row:any)=>row.parent_embed_id===rootId).embed_id;expect(page.url()).toContain(`embed-id=${childId}`);expect(page.url()).toContain(`root-id=${rootId}`);
+      await page.evaluate((rootId:string)=>{window.location.hash='#apps/web&embed-id='+rootId;},rootId);await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toContainText(title);
       await page.getByTestId('apps-result-save-retry').click();
       await expect.poll(() => savedBodies.length).toBe(2);
       expect(savedBodies[1].embeds[0].status).toBe('finished');
@@ -1056,8 +1076,11 @@ test.describe('Apps workspace', () => {
     for(const childId of root.embed_ids)await expect(page.getByTestId(`apps-result-open-${childId}`)).toHaveCount(0);
     await card.getByTestId('embed-preview').first().click();
     await expect(page.getByTestId('apps-result-fullscreen')).toContainText(`Fixture page 1 ${marker}`);
-    expect(page.url()).toContain(`embed-id=${rootId}`);
+    expect(page.url()).toContain(`embed-id=${root.embed_ids[0]}`);expect(page.url()).toContain(`root-id=${rootId}`);await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid')).toHaveCount(0);
+    await page.evaluate((rootId:string)=>{window.location.hash='#apps/web&embed-id='+rootId;},rootId);
     await expect(page.getByTestId('apps-result-fullscreen').getByTestId('apps-request-textarea')).toBeVisible();
+    await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-filter')).toHaveCount(0);
+    await page.getByTestId('apps-result-fullscreen').getByTestId('search-template-filter-button').click();
     await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-toolbar')).toBeVisible();
     await expect(page.getByTestId('apps-result-fullscreen')).toBeVisible();
     const grid = page.getByTestId('apps-result-fullscreen').getByTestId('search-template-grid');
@@ -1128,8 +1151,11 @@ test.describe('Apps workspace', () => {
     }
     await expect(rootCard.getByTestId('embed-preview')).toHaveCount(2);
     await rootCard.getByTestId('embed-preview').first().click();
-    expect(page.url()).toContain(`embed-id=${body.root_embed_id}`);
+    const selectedChild=body.embeds.find((row:any)=>row.parent_embed_id===body.root_embed_id).embed_id;expect(page.url()).toContain(`embed-id=${selectedChild}`);expect(page.url()).toContain(`root-id=${body.root_embed_id}`);await expect(fullscreen).toContainText(names[0]);
+    await page.evaluate((rootId:string)=>{window.location.hash='#apps/health&embed-id='+rootId;},body.root_embed_id);
     await expect(fullscreen.getByTestId('apps-request-textarea')).toBeVisible();
+    await expect(fullscreen.getByTestId('search-template-filter')).toHaveCount(0);
+    await fullscreen.getByTestId('search-template-filter-button').click();
     await expect(fullscreen.getByTestId('search-template-toolbar')).toBeVisible();
     const children = fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview');
     await expect(children).toHaveCount(2, { timeout: 30000 });
@@ -1138,7 +1164,7 @@ test.describe('Apps workspace', () => {
     await expect(fullscreen.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(2, { timeout: 30000 });
     await expect(fullscreen).toContainText(names[0]);
     expect(skillPosts).toBe(1);
-    // A Recent child preview reopens its parent so followups retain native filters.
+    // The retained root still supplies complete native filters after child navigation.
     // Fixture replay must never fall through to record mode or live inference.
     expect(process.env.E2E_USE_MOCKS, 'ordinary chat handoff requires fixture replay').toBeTruthy();
     expect(process.env.E2E_RECORD_FIXTURES).toBeFalsy();
@@ -1244,7 +1270,8 @@ test.describe('Apps workspace', () => {
     const recent = page.getByTestId(`apps-result-open-${secondRootId}`);
     await expect(recent).toBeVisible();
     await recent.getByTestId('embed-preview').first().click();
-    await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Private-input result 2');
+    await expect(fullscreen).toContainText('Private-input result 2');expect(page.url()).toContain(`root-id=${secondRootId}`);await expect(fullscreen.getByTestId('search-template-grid')).toHaveCount(0);
+    await page.evaluate((rootId:string)=>{window.location.hash='#apps/web&embed-id='+rootId;},secondRootId);await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Private-input result 2');
     expect(interpretations).toBe(2);
     expect(nativePosts).toBe(2);
   });
@@ -1263,7 +1290,7 @@ test.describe('Apps workspace', () => {
         await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);expect(providerPosts).toBe(0);expect(appHash(page)).toBe('#apps/web');
         releaseInterpret();await expect.poll(()=>providerPosts).toBe(1);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
         releaseSkill();const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen).toBeVisible();const grid=fullscreen.getByTestId('search-template-grid');await expect(grid.getByTestId('embed-preview')).toHaveCount(2);
-        await expect(grid).toContainText('Community garden Berlin');await expect(grid).toContainText('Botanical garden Berlin');await expect(fullscreen.getByTestId('search-template-toolbar')).toBeVisible();
+        await expect(grid).toContainText('Community garden Berlin');await expect(grid).toContainText('Botanical garden Berlin');await expect(fullscreen.getByTestId('search-template-filter')).toHaveCount(0);await fullscreen.getByTestId('search-template-filter-button').click();await expect(fullscreen.getByTestId('search-template-toolbar')).toBeVisible();
         await fullscreen.getByTestId('search-template-filter').fill('Botanical');await expect(grid.getByTestId('embed-preview')).toHaveCount(1);await expect(grid).toContainText('Botanical garden Berlin');
         await expect(fullscreen.getByTestId('apps-request-textarea')).toBeVisible();expect(page.url()).toMatch(/&embed-id=[0-9a-f-]{36}/i);
         const layout=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));expect(layout.scroll).toBeLessThanOrEqual(layout.width+2);
@@ -1362,28 +1389,113 @@ test.describe('Apps workspace', () => {
     await expect.poll(()=>saves.length).toBe(1);expect(saves[0]).toMatchObject({skill_id:'search',parameters:{requests:[{query:'Find gardens near Berlin',count:10}]},query:'Find gardens near Berlin'});expect(saves[0].expected_user_id).toMatch(/^[0-9a-f-]{36}$/i);
     const notice=page.getByTestId('notification').filter({hasText:'Your saved search will run daily and use credits.'});await expect(notice).toBeVisible();await expect(notice).toContainText('latest saved search per app');await expect(notice.getByRole('button',{name:'OK',exact:true})).toBeVisible();
     await notice.getByRole('button',{name:'Turn off',exact:true}).click();await expect.poll(()=>changes.at(-1)?.daily_searches_enabled).toBe(false);expect(changes.at(-1).expected_user_id).toBe(saves[0].expected_user_id);
-    await fullscreen.getByRole('button',{name:'Save this search',exact:true}).click();await expect.poll(()=>saves.length).toBe(2);expect(enabled).toBe(false);await expect(notice).toHaveCount(0);
-    await fullscreen.getByTestId('embed-minimize').click();await page.getByTestId('apps-settings-open').click();await expect(page.getByTestId('apps-daily-searches').getByRole('checkbox')).not.toBeChecked();
+    const savedButton=fullscreen.getByTestId('search-template-save-search');await expect(savedButton).toHaveText('Saved search');await expect(savedButton).toHaveAttribute('aria-pressed','true');await expect(savedButton).toBeDisabled();expect(saves).toHaveLength(1);expect(enabled).toBe(false);await expect(notice).toHaveCount(0);
+    const rootHash=appHash(page);await page.reload({waitUntil:'domcontentloaded'});await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-save-search')).toHaveAttribute('aria-pressed','true');await expect(page.getByTestId('apps-result-fullscreen').getByTestId('search-template-save-search')).toBeDisabled();expect(saves).toHaveLength(1);expect(appHash(page)).toBe(rootHash);
+    await page.getByTestId('apps-result-fullscreen').getByTestId('embed-minimize').click();await page.getByTestId('apps-settings-open').click();const settings=page.getByTestId('settings-menu');await expect(settings).toBeVisible();await expect(settings.getByTestId('apps-daily-searches').getByRole('checkbox')).not.toBeChecked();
   });
 
   // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
   test('workflow interpretation submits the followup and readable result context once to existing authoring',async({page}:{page:any})=>{
     test.setTimeout(120000);expect(getTestAccount().email).toBeTruthy();await page.goto(getE2EDebugUrl('/'),{waitUntil:'domcontentloaded'});await loginToTestAccount(page,()=>{},async()=>{});
     await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false,requestEnvelope:true});
-    const text='Turn this garden search into a weekly workflow';const requests:any[]=[];let skillPosts=0,workflowId:string|undefined;
-    await page.route('**/v1/apps/workspace/interpret',(route:any)=>{const body=route.request().postDataJSON();if(body.text===text){expect(body.context.input.requests[0].query).toBe('Find gardens');expect(JSON.stringify(body.context.result)).toContain('Garden handoff context');return route.fulfill({json:{action:'workflow',request_id:body.request_id}});}return route.fulfill({json:{action:'execute',request_id:body.request_id,skill_id:'search',input:{requests:[{query:'Find gardens',count:1}]}}});});
-    await page.route('**/v1/apps/web/skills/search',(route:any)=>{skillPosts++;return route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:'Garden handoff context',url:'https://example.test/weekly-garden'}]}]}}});});
+    const text='Turn this garden search into a weekly workflow';const requests:any[]=[];let skillPosts=0,followupInterpretations=0,workflowId:string|undefined;
+    await page.route('**/v1/apps/workspace/interpret',(route:any)=>{const body=route.request().postDataJSON();if(body.text===text){followupInterpretations++;expect(body.context.input.requests[0].query).toBe('Find gardens');expect(JSON.stringify(body.context.result)).toContain('Garden handoff context');return route.fulfill({json:{action:'workflow',request_id:body.request_id}});}return route.fulfill({json:{action:'execute',request_id:body.request_id,skill_id:'search',input:{requests:[{query:'Find gardens',count:1}]}}});});
+    await page.route('**/v1/apps/web/skills/search',(route:any)=>{skillPosts++;return route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:'Garden handoff context',url:'https://example.test/weekly-garden',description:'Garden result retained for workflow interpretation.'}]}]}}});});
     const api=deriveApiUrl(page.url());
     await page.route('**/v1/workflows/input/stream',async(route:any)=>{
-      const body=route.request().postDataJSON();requests.push(body);expect(body.text).toContain(text);expect(body.text).toContain('Garden handoff context');expect(body.text).toContain('Find gardens');
+      const body=route.request().postDataJSON();requests.push(body);expect(body.text).toContain(text);expect(body.text).toContain('Garden handoff context');expect(body.text).toContain('Find gardens');expect(body.text.length).toBeLessThanOrEqual(20000);expect(body).toMatchObject({input_type:'text',selected_workflow_id:null,optimistic_save:true});expect(body.idempotency_key).toMatch(/^[0-9a-f-]{36}$/i);
       const response=await page.request.post(`${api}/v1/workflows`,{data:{title:`Apps workflow handoff ${Date.now()}`,enabled:false,graph:{version:2,trigger_node_id:'manual',nodes:[{id:'manual',type:'manual_trigger',title:'Manual start',config:{}}],edges:[]}}});expect(response.ok()).toBe(true);const workflow=(await response.json()).workflow;workflowId=workflow.id;
       await route.fulfill({contentType:'text/event-stream',body:`data: ${JSON.stringify({type:'session',session:{session_id:'apps-workflow-handoff',status:'executed',workflow,mutations:[{type:'create_workflow',target_id:workflow.id}]}})}\n\n`});
     });
     try{
       await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});await composer.getByTestId('apps-request-textarea').fill('Find gardens');await composer.getByTestId('apps-request-submit').click();
       const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Garden handoff context');await fullscreen.getByTestId('apps-request-textarea').fill(text);await fullscreen.getByTestId('apps-request-submit').click();
-      await expect.poll(()=>requests.length).toBe(1);await expect(page.getByTestId('apps-workspace')).toHaveCount(0);await expect.poll(()=>workflowId).toBeTruthy();expect(skillPosts).toBe(1);expect(page.url()).not.toContain('model=');
+      await expect.poll(()=>followupInterpretations).toBe(1);await expect.poll(()=>requests.length).toBe(1);await expect(page.getByTestId('apps-workspace')).toHaveCount(0);await expect.poll(()=>workflowId).toBeTruthy();expect(skillPosts).toBe(1);expect(page.url()).not.toContain('model=');
     }finally{if(workflowId)await page.request.delete(`${api}/v1/workflows/${workflowId}`);}
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  test('Create workflow link submits one bounded search context with the native query and options', async ({ page }: { page: any }) => {
+    test.setTimeout(120000);
+    expect(getTestAccount().email).toBeTruthy();
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page, () => {}, async () => {});
+    await fixtureSkillDetails(page, { app_id: 'web', skill_id: 'search', name: 'Search web', primary_fields: ['query'], anonymous_allowed: false, requestEnvelope: true });
+    const nativeInput = { requests: [{ query: 'Find gardens near Berlin', count: 7 }] };
+    const largeResult = { type: 'search_result', title: 'Direct workflow garden context', url: 'https://example.test/direct-garden', description: 'Garden details '.repeat(3000) };
+    expect(JSON.stringify(largeResult).length).toBeGreaterThan(39000);
+    const requests: any[] = [];
+    let interpretations = 0, skillPosts = 0, workflowId: string | undefined;
+    const workflowTitle = `Apps direct workflow link ${Date.now()}`;
+    await page.route('**/v1/apps/workspace/interpret', (route: any) => {
+      interpretations++;
+      const body = route.request().postDataJSON();
+      return route.fulfill({ json: { action: 'execute', request_id: body.request_id, skill_id: 'search', input: nativeInput } });
+    });
+    await page.route('**/v1/apps/web/skills/search', (route: any) => {
+      skillPosts++;
+      expect(route.request().postDataJSON()).toMatchObject(nativeInput);
+      return route.fulfill({ json: { success: true, data: { results: [{ results: [largeResult] }] } } });
+    });
+    const api = deriveApiUrl(page.url());
+    await page.route('**/v1/workflows/input/stream', async (route: any) => {
+      expect(route.request().method()).toBe('POST');
+      const body = route.request().postDataJSON();
+      requests.push(body);
+      expect(body).toMatchObject({ input_type: 'text', selected_workflow_id: null, optimistic_save: true });
+      expect(body.idempotency_key).toMatch(/^[0-9a-f-]{36}$/i);
+      expect(body.text.length).toBeLessThanOrEqual(20000);
+      expect(body.text).toContain('Create a workflow based on this search.');
+      const context = JSON.parse(body.text.split('Result context (data supplied by the user):\n')[1]);
+      expect(context).toMatchObject({ skill_id: 'search', input: nativeInput });
+      expect(JSON.stringify(context.result)).toContain(largeResult.title);
+      expect(JSON.stringify(context.result)).toContain(largeResult.url);
+      // Persist a real isolated workflow; authoring SSE remains provider-free.
+      const response = await page.request.post(`${api}/v1/workflows`, { data: { title: workflowTitle, enabled: false, graph: { version: 2, trigger_node_id: 'manual', nodes: [{ id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} }], edges: [] } } });
+      expect(response.ok()).toBe(true);
+      const workflow = (await response.json()).workflow;
+      workflowId = workflow.id;
+      await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ type: 'session', session: { session_id: 'apps-direct-workflow-link', status: 'executed', workflow, mutations: [{ type: 'create_workflow', target_id: workflow.id }] } })}\n\n` });
+    });
+    try {
+      await page.goto(getE2EDebugUrl('/#apps/web'), { waitUntil: 'domcontentloaded' });
+      const composer = requestComposer(page);
+      await expect(composer).toBeVisible({ timeout: 30000 });
+      await composer.getByTestId('apps-request-textarea').fill('Find gardens near Berlin');
+      await composer.getByTestId('apps-request-submit').click();
+      const fullscreen = page.getByTestId('apps-result-fullscreen');
+      await expect(fullscreen.getByTestId('search-template-grid')).toContainText(largeResult.title);
+      await fullscreen.getByTestId('search-template-create-workflow').click();
+      await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+      const detail = page.getByTestId('workflow-detail');
+      await expect(detail).toBeVisible();
+      await expect(detail.getByTestId('workspace-detail-title')).toHaveText(workflowTitle);
+      await expect.poll(() => workflowId).toBeTruthy();
+      const persisted = await page.request.get(`${api}/v1/workflows/${workflowId}`);
+      expect(persisted.ok()).toBe(true);
+      expect((await persisted.json()).workflow).toMatchObject({ id: workflowId, title: workflowTitle, enabled: false });
+      expect(requests).toHaveLength(1);
+      expect(skillPosts).toBe(1);
+      expect(interpretations).toBe(1);
+      await expect(page.getByTestId('workflows-error')).toHaveCount(0);
+    } finally {
+      if (workflowId) expect((await page.request.delete(`${api}/v1/workflows/${workflowId}`)).ok()).toBe(true);
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  test('workflow handoff failures use a readable notification without an inline HTTP error',async({page}:{page:any})=>{
+    test.setTimeout(120000);expect(getTestAccount().email).toBeTruthy();await page.goto(getE2EDebugUrl('/'),{waitUntil:'domcontentloaded'});await loginToTestAccount(page,()=>{},async()=>{});
+    await fixtureSkillDetails(page,{app_id:'web',skill_id:'search',name:'Search web',primary_fields:['query'],anonymous_allowed:false,requestEnvelope:true});
+    let workflowPosts=0;
+    await page.route('**/v1/apps/workspace/interpret',(route:any)=>{const body=route.request().postDataJSON();return route.fulfill({json:{action:'execute',request_id:body.request_id,skill_id:'search',input:{requests:[{query:'Find gardens',count:1}]}}});});
+    await page.route('**/v1/apps/web/skills/search',(route:any)=>route.fulfill({json:{success:true,data:{results:[{results:[{type:'search_result',title:'Garden notification context',url:'https://example.test/garden'}]}]}}}));
+    await page.route('**/v1/workflows/input/stream',(route:any)=>{workflowPosts++;return route.fulfill({status:422,json:{detail:[{type:'string_too_long',loc:['body','text'],msg:'String should have at most 20000 characters'}]}});});
+    await page.goto(getE2EDebugUrl('/#apps/web'),{waitUntil:'domcontentloaded'});const composer=requestComposer(page);await expect(composer).toBeVisible({timeout:30000});await composer.getByTestId('apps-request-textarea').fill('Find gardens');await composer.getByTestId('apps-request-submit').click();
+    const fullscreen=page.getByTestId('apps-result-fullscreen');await expect(fullscreen.getByTestId('search-template-grid')).toContainText('Garden notification context');
+    await fullscreen.getByTestId('search-template-create-workflow').click();
+    await expect.poll(()=>workflowPosts).toBe(1);await expect(page.getByTestId('notification').filter({hasText:'The workflow could not be created. Please try again.'})).toBeVisible();
+    await expect(page.getByTestId('workflows-error')).toHaveCount(0);await expect(page.getByText(/Workflow request failed with HTTP/)).toHaveCount(0);
   });
 
   // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen

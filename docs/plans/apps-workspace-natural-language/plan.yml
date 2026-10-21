@@ -66,3 +66,13 @@ verification:
   constraints:
     - Product E2E uses isolated GitHub CI; only actual provider inference uses dev.
     - OpenMates test chats retain automatic routing with no model overrides.
+
+reported_regressions_2026_10_21:
+  - Reuse the global Header hamburger for the Apps sidebar and match bounded chat sidebar rows.
+  - Restore canonical Settings > Apps > selected app, including pricing, providers and Daily searches.
+  - Fit each app landing page without vertical scrolling; use daily-inspiration-sized headers.
+  - Render News articles as News previews and open the selected child rather than its search parent.
+  - Show a persistent fullscreen filter button and centered query/save/workflow actions; saved searches show an active pink heart.
+  - Text links never use underlines, including hover, active, visited and focus states.
+  - Report failures through existing notifications and fix the library CORS and oversized Workflow context causes.
+  - Verify with the actual personal dev account as explicitly requested, keeping personal evidence private; keep synthetic component/API coverage in isolated CI.

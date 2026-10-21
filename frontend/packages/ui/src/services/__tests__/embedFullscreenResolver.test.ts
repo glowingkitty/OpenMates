@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ component: vi.fn(), reload: vi.fn() }));
+const mocks = vi.hoisted(() => ({ news: () => {}, component: vi.fn(), reload: vi.fn() }));
+vi.mock('../../components/embeds/news/NewsArticleEmbedFullscreen.svelte', () => ({ default: mocks.news }));
 vi.mock('../../components/embeds/business/BusinessCompanyFinancialsEmbedFullscreen.svelte', () => ({ default: () => {} }));
 vi.mock('../../components/embeds/models3d/Model3DResultEmbedFullscreen.svelte', () => ({ default: () => {} }));
 vi.mock('../../components/embeds/maps/MapLocationEmbedFullscreen.svelte', () => ({
@@ -12,10 +13,22 @@ vi.mock('../../utils/chunkErrorHandler', () => ({
   forcePageReload: mocks.reload,
 }));
 
-import { loadFullscreenComponent, resolveRegistryKey } from '../embedFullscreenResolver';
+import { hasFullscreenComponent, loadFullscreenComponent, resolveRegistryKey } from '../embedFullscreenResolver';
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 describe('fullscreen registry routing', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  it('opens News children with the article viewer while preserving the search parent', async () => {
+    for (const type of ['website', 'web-website', 'search_result']) {
+      const key = resolveRegistryKey(type, { app_id: 'news', skill_id: 'search', url: 'https://example.test/article' });
+      expect(key).toBe('news-article');
+      expect(hasFullscreenComponent(key!)).toBe(true);
+      expect(await loadFullscreenComponent(key!)).toBe(mocks.news);
+    }
+    expect(resolveRegistryKey('app_skill_use', { app_id: 'news', skill_id: 'search', embed_ids: ['article'] })).toBe('app:news:search');
+    expect(resolveRegistryKey('website', { app_id: 'web', skill_id: 'search' })).toBe('web-website');
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it('opens a generated invocation as a group and its historical asset on the leaf viewer', () => {
     expect(resolveRegistryKey('app_skill_use', {

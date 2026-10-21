@@ -241,7 +241,12 @@ resolvers.set("hosting-domain", async ({ embedId, decodedContent, onFullscreen }
 // Website children retain the search skill that produced them, but have their
 // own preview contract. Resolve their concrete type before the parent skill.
 resolvers.set("web-website", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
-  const { default: component } = await import("../components/embeds/web/WebsiteEmbedPreview.svelte");
+  // News and web share the persisted website child type. Preserve the creating
+  // app when choosing the article card, just as News search fullscreen does.
+  const appId = decodedContent.app_id || embedData.app_id;
+  const { default: component } = appId === 'news'
+    ? await import("../components/embeds/news/NewsEmbedPreview.svelte")
+    : await import("../components/embeds/web/WebsiteEmbedPreview.svelte");
   const status = normalizeStatus(embedData.status);
   return {
     component,

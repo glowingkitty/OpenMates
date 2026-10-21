@@ -8,8 +8,9 @@ import { describe, expect, it, vi } from 'vitest';
 // These unit checks verify renderer selection and its props. The real Svelte
 // components are exercised by the bare preview and route E2E specs; importing
 // their authentication/runtime graph here would obscure that small contract.
-const previews = vi.hoisted(() => ({ website: () => {}, connection: () => {}, place: () => {}, search: () => {} }));
+const previews = vi.hoisted(() => ({ website: () => {}, news: () => {}, connection: () => {}, place: () => {}, search: () => {} }));
 vi.mock('../../components/embeds/web/WebSearchEmbedPreview.svelte', () => ({ default: previews.search }));
+vi.mock('../../components/embeds/news/NewsEmbedPreview.svelte', () => ({ default: previews.news }));
 vi.mock('../../components/embeds/web/WebsiteEmbedPreview.svelte', () => ({ default: previews.website }));
 vi.mock('../../components/embeds/travel/TravelConnectionEmbedPreview.svelte', () => ({ default: previews.connection }));
 vi.mock('../../components/embeds/maps/MapLocationEmbedPreview.svelte', () => ({ default: previews.place }));
@@ -55,6 +56,20 @@ describe('embedPreviewRegistry parent preview metadata', () => {
       expect(resolved?.props).not.toHaveProperty('childEmbedIds');
       expect(resolved?.props).not.toHaveProperty('resultCount');
     }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  it.each(['website', 'web-website', 'search_result'])('keeps News article identity and metadata for %s children', async (type) => {
+    const onFullscreen = vi.fn();
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId: 'news-child-2', embedData: { type, status: 'finished', app_id: 'news', skill_id: 'search' },
+      decodedContent: { app_id: 'news', skill_id: 'search', parent_embed_id: 'news-root', url: 'https://example.test/article-2', title: 'Second article', snippet: 'Article details', thumbnail: { original: 'https://example.test/photo.png' } },
+      onFullscreen,
+    });
+    expect(resolved?.component).toBe(previews.news);
+    expect(resolved?.props).toMatchObject({ id: 'news-child-2', url: 'https://example.test/article-2', title: 'Second article', description: 'Article details', image: 'https://example.test/photo.png' });
+    (resolved?.props.onFullscreen as () => void)();
+    expect(onFullscreen).toHaveBeenCalledOnce();
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity

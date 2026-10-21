@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAppsResult, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import { normalizeEmbedIdList } from '../embeds/embedPreviewHydration';
   import AppsEmbedPreview from './AppsEmbedPreview.svelte';
   let { result, appId, teamId, onOpen, onLabel }: {
     result: AppsResultItem; appId: string; teamId?: string;
@@ -10,6 +11,7 @@
   let childIds = $state<string[]>([]);
   $effect(() => {
     const rootId = result.embedId; void result.status;
+    childIds = [];
     let cancelled = false;
     void (async () => {
       try {
@@ -17,7 +19,7 @@
         const root = await resolveEmbed(rootId);
         const content = root ? await decodeToonContent(root.content) : null;
         if (!content || cancelled) return;
-        childIds = Array.isArray(content.embed_ids) ? content.embed_ids.filter((id): id is string => typeof id === 'string').slice(0, 40) : [];
+        childIds = [...new Set(normalizeEmbedIdList(content.embed_ids ?? root?.embed_ids))].filter(id => id !== rootId).slice(0, 40);
         const title = content.request_text ?? content.query ?? content.title;
         if (typeof title === 'string' && title.trim()) onLabel(rootId, title);
       } catch { /* Pending local result remains visible and retryable. */ }
@@ -28,8 +30,8 @@
 
 <div class="result-group" data-testid={'apps-result-open-' + result.embedId}>
   {#each childIds.length ? childIds : [result.embedId] as embedId (embedId)}
-    <div class="result-card"><AppsEmbedPreview {embedId} {appId} skillId={result.skillId}
-      status={result.status} {teamId} onFullscreen={() => onOpen(result.embedId, result.embedId)} /></div>
+    <div class="result-card" data-testid={'apps-result-child-' + embedId}><AppsEmbedPreview {embedId} {appId} skillId={result.skillId}
+      status={result.status} {teamId} onFullscreen={() => onOpen(embedId, result.embedId)} /></div>
   {/each}
 </div>
 

@@ -125,6 +125,7 @@
   appId="news"
   skillId="search"
   skillIconName="search"
+  {query}
   embedHeaderTitle={query}
   embedHeaderSubtitle={viaProvider}
   {onClose}

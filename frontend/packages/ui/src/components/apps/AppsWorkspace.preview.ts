@@ -7,28 +7,30 @@ import { webSocketService } from '../../services/websocketService';
 
 const onNavigate = (hash: string) => window.dispatchEvent(new CustomEvent('apps-preview-navigate', { detail: hash }));
 const onSignup = () => window.dispatchEvent(new Event('apps-preview-signup'));
+const onSidebarClose = () => window.dispatchEvent(new Event('apps-preview-sidebar-close'));
 const onSettings = (path: string) => window.dispatchEvent(new CustomEvent('apps-preview-settings', { detail: path }));
 
-export default { hash: '#apps', onNavigate, onSignup, onSettings };
+export default { hash: '#apps', onNavigate, onSignup, onSettings, onSidebarClose };
 export const layout = 'fill';
 export const variants = {
-  allApps: { hash: '#apps/all', onNavigate, onSignup, onSettings },
-  allFocusApps: { hash: '#apps/all&filter=focus_modes', onNavigate, onSignup, onSettings },
-  app: { hash: '#apps/health', onNavigate, onSignup, onSettings },
-  appTravel: { hash: '#apps/travel', onNavigate, onSignup, onSettings },
-  appCode: { hash: '#apps/code', onNavigate, onSignup, onSettings },
-  appFocus: { hash: '#apps/health&tab=focus_modes', onNavigate, onSignup, onSettings },
-  appPolitics: { hash: '#apps/politics', onNavigate, onSignup, onSettings },
-  politicsFocus: { hash: '#apps/politics/focus/prepare_discussion', onNavigate, onSignup, onSettings },
-  appMemory: { hash: '#apps/books&tab=settings_memories', onNavigate, onSignup, onSettings },
-  skill: { hash: '#apps/web/search', onNavigate, onSignup, onSettings },
-  teamLibrary: { hash: '#apps/web&tab=workflows', onNavigate, onSignup, onSettings },
+  allApps: { hash: '#apps/all', onNavigate, onSignup, onSettings, onSidebarClose },
+  allFocusApps: { hash: '#apps/all&filter=focus_modes', onNavigate, onSignup, onSettings, onSidebarClose },
+  app: { hash: '#apps/health', onNavigate, onSignup, onSettings, onSidebarClose },
+  appTravel: { hash: '#apps/travel', onNavigate, onSignup, onSettings, onSidebarClose },
+  appCode: { hash: '#apps/code', onNavigate, onSignup, onSettings, onSidebarClose },
+  appFocus: { hash: '#apps/health&tab=focus_modes', onNavigate, onSignup, onSettings, onSidebarClose },
+  appPolitics: { hash: '#apps/politics', onNavigate, onSignup, onSettings, onSidebarClose },
+  politicsFocus: { hash: '#apps/politics/focus/prepare_discussion', onNavigate, onSignup, onSettings, onSidebarClose },
+  appMemory: { hash: '#apps/books&tab=settings_memories', onNavigate, onSignup, onSettings, onSidebarClose },
+  skill: { hash: '#apps/web/search', onNavigate, onSignup, onSettings, onSidebarClose },
+  teamLibrarySidebar: { hash: '#apps/web&tab=workflows', sidebarOpen: true, onNavigate, onSignup, onSettings, onSidebarClose },
+  teamLibrary: { hash: '#apps/web&tab=workflows', onNavigate, onSignup, onSettings, onSidebarClose },
 };
 
 // The bare preview has no account session. Only this explicit variant supplies
 // local store context so the real workspace account-switch effect can be tested.
 export const ready = (async () => {
-  if (typeof window === 'undefined' || new URLSearchParams(window.location.search).get('variant') !== 'teamLibrary') return;
+  if (typeof window === 'undefined' || !['teamLibrary', 'teamLibrarySidebar'].includes(new URLSearchParams(window.location.search).get('variant') ?? '')) return;
   // This preview has no real session. The WebSocket singleton normally reacts
   // to authStore and forces a session check when it has no token, which would
   // clear the synthetic account before the library can render.

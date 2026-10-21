@@ -7,7 +7,7 @@
   import { activeTeamContext } from '../../stores/teamStore';
   import { skillStoreExampleFullscreenStore, closeSkillStoreExampleFullscreen } from '../../stores/skillStoreExampleFullscreenStore';
   import { listAppsResults, getAppsResult, startAppsHistoricalDiscovery, recoverPendingAppsResults, listPendingAppsResultItems, promoteGuestAppsResults, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
-  import { emptyAppsLibrary, getAppsLibrary, getPublicAppsRecommendations, setAppsDailySearches, saveAppsSearchWithNotice, freshAppsRecommendations,
+  import { emptyAppsLibrary, getAppsLibrary, getPublicAppsRecommendations, saveAppsSearchWithNotice, freshAppsRecommendations, isAppsSearchSaved,
     type AppsLibrary, type AppsSavedSearch, type AppsRecommendation } from '../../services/appsWorkspaceLibraryService';
   import { runAppsWorkspaceRequest, type AppsRequestContext } from '../../services/appsWorkspaceRequestService';
   import { queueAppsWorkspaceChatHandoff, queueAppsWorkspaceWorkflowHandoff } from '../../services/appsWorkspaceChatHandoffService';
@@ -20,7 +20,7 @@
   import SearchSortBar from '../settings/SearchSortBar.svelte';
   import AppDetailsWrapper from '../settings/AppDetailsWrapper.svelte';
   import ChatPreviewCard from '../settings/ChatPreviewCard.svelte';
-  import { SettingsItem, SettingsCard, SettingsSectionHeading } from '../settings/elements';
+  import { notificationStore } from '../../stores/notificationStore';
   import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
   import EmbedLeafletMap from '../embeds/EmbedLeafletMap.svelte';
   import EmbedsMapView from '../embeds/EmbedsMapView.svelte';
@@ -34,8 +34,9 @@
   import { loadAppsRecentChats } from '../../services/appsWorkspaceRecentChatsService';
   import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
 
-  let { hash, onNavigate, onSignup, onSettings }: {
+  let { hash, onNavigate, onSignup, onSettings, sidebarOpen = false, onSidebarClose }: {
     hash: string; onNavigate: (hash: string) => void; onSignup: () => void; onSettings: (path: string) => void;
+    sidebarOpen?: boolean; onSidebarClose: () => void;
   } = $props();
   const tr = (key: string) => $text('apps_workspace.' + key);
   const route = $derived(readAppsWorkspaceRoute(hash));
@@ -57,19 +58,14 @@
   let resultOffset = $state(0);
   let publicRecommendations = $state<AppsRecommendation[]>([]);
   let libraryLoading = $state(false);
-  let libraryError = $state(false);
-  let requestError = $state(false);
+  let libraryFailureNotified = false;
   let submitting = $state(false);
   let requestText = $state('');
   let requestFiles = $state<File[]>([]);
   let composerEpoch = $state(0);
-  let settingsOpen = $state(false);
-  let settingsPath = $state('');
   let selectedSection = $state<'recommended' | 'saved' | 'recent'>('recommended');
   let mapView = $state(true);
   let calendarView = $state(false);
-  let sidebarOpen = $state<boolean | null>(null);
-  let viewportWidth = $state(0);
   let now = $state(Date.now());
   let recentAppIds = $state<string[]>([]);
   let lastHomeHash = $state('#apps');
@@ -78,12 +74,12 @@
   let catalogSearchElement = $state<HTMLDivElement>();
   let catalogSort = $state('newest');
   let catalogFilter = $state('all');
-  let temporaryResult = $state<AppsRecommendation | null>(null);
+  let temporaryResult = $state<{ batch: AppsRecommendation; child: ReturnType<typeof recommendationPreviewItems>[number] } | null>(null);
   let generation = 0;
   let pendingRequestToken = 0;
   let previousApp: string | null = null;
   let previousAccount = "";
-  const showSidebar = $derived(Boolean(app && (sidebarOpen ?? viewportWidth > 1440)));
+  const showSidebar = $derived(Boolean(app && sidebarOpen));
   const recommended = $derived(freshAppsRecommendations(library.recommendations, now).length
     ? freshAppsRecommendations(library.recommendations, now) : freshAppsRecommendations(publicRecommendations, now));
   const examples = $derived.by(() => {
@@ -101,7 +97,7 @@
     selectedSection === 'recommended' && !recommended.length ? (library.saved_searches.length || savedEmbeds.length ? 'saved' : 'recent') : selectedSection
   );
   $effect(() => {
-    if (temporaryResult && temporaryResult.expires_at * 1000 <= now) temporaryResult = null;
+    if (temporaryResult && temporaryResult.batch.expires_at * 1000 <= now) temporaryResult = null;
     const expiry = Math.min(...recommended.map(item => item.expires_at * 1000));
     if (!Number.isFinite(expiry)) return;
     const timer = setTimeout(() => { now = Date.now(); }, Math.max(1, expiry - Date.now() + 1));
@@ -163,9 +159,9 @@
       previousApp = selectedApp; previousAccount = context;
       pendingRequestToken++;
       generation++; results = []; recentChats = []; resultTitles = {}; savedEmbedSnapshot = null; resultOffset = 0; hasMoreResults = false; publicRecommendations = []; library = emptyAppsLibrary(selectedApp ?? '');
-      settingsOpen = false; temporaryResult = null; submitting = false; calendarView = false;
+      temporaryResult = null; submitting = false; calendarView = false; libraryFailureNotified = false;
       if (!preserveDraft) { requestText = ''; requestFiles = []; composerEpoch++; }
-      requestError = false; selectedSection = 'recommended';
+      selectedSection = 'recommended';
       if (!selectedApp) return;
       void loadLibrary(selectedApp, context);
       if (authenticatedOwner) {
@@ -194,7 +190,7 @@
   });
   async function loadLibrary(selectedApp = appId, context = accountKey): Promise<void> {
     if (!selectedApp || context !== accountKey || selectedApp !== appId) return;
-    const current = ++generation; const selectedTeam = teamId; libraryLoading = true; libraryError = false;
+    const current = ++generation; const selectedTeam = teamId; libraryLoading = true;
     const awaitingOwner = $authStore.isAuthenticated && !authenticatedOwner;
     const page = await Promise.allSettled([
       awaitingOwner ? Promise.resolve({ items: [] as AppsResultItem[], offset: 0, limit: 20, hasMore: false }) : listAppsResults(selectedApp, selectedTeam, 0, 20),
@@ -218,8 +214,10 @@
       .filter(entry => typeof entry.item_value.embed_id === 'string')
       .map(entry => ({ id: entry.item_value.embed_id as string,
         title: String(entry.item_value.title || entry.item_value.name || entry.item_key), skillId: String(entry.item_value.skill_id || '') })) };
-    if (temporaryResult && ![...library.recommendations, ...publicRecommendations].some(item => item.id === temporaryResult?.id)) temporaryResult = null;
-    libraryError = page.slice(0, 2).some(result => result.status === 'rejected');
+    if (temporaryResult && ![...library.recommendations, ...publicRecommendations].some(item => item.id === temporaryResult?.batch.id)) temporaryResult = null;
+    const failed = page.slice(0, 2).some(result => result.status === 'rejected');
+    if (failed && !libraryFailureNotified) notificationStore.error(tr('library_error'));
+    libraryFailureNotified = failed;
     libraryLoading = false;
   }
   function rememberApp(): void {
@@ -236,7 +234,7 @@
       const ids = new Set(results.map(item => item.embedId));
       results = [...results, ...page.items.filter(item => !ids.has(item.embedId))];
       resultOffset = page.offset; hasMoreResults = page.hasMore;
-    } catch { if (identity === accountKey && selectedApp === appId) libraryError = true; }
+    } catch { if (identity === accountKey && selectedApp === appId) notificationStore.error(tr('library_error')); }
     finally { if (identity === accountKey && selectedApp === appId) libraryLoading = false; }
   }
   function openResult(embedId: string, rootId = embedId): void {
@@ -265,7 +263,7 @@
     const selected = appId; const identity = accountKey; const submittedHash = hash;
     const requestToken = ++pendingRequestToken; let acceptedOpened = false;
     const stillCurrent = () => requestToken === pendingRequestToken && identity === accountKey && appId === selected && hash === submittedHash;
-    submitting = true; requestError = false;
+    submitting = true;
     try {
       const accepted = (result: { embedId: string; skillId: string; input: Record<string, unknown> }) => {
         if (acceptedOpened || !stillCurrent()) return;
@@ -284,7 +282,7 @@
       if (identity === accountKey) {
         const reason = error instanceof Error ? error.message : '';
         if (['signup_required', 'daily_limit_reached', 'free_usage_unavailable', 'anonymous_budget_exhausted'].some(code => reason.toLowerCase().includes(code))) onSignup();
-        else requestError = true;
+        else notificationStore.error(tr('request_error'));
       }
       return false;
     } finally { if (identity === accountKey && requestToken === pendingRequestToken) submitting = false; }
@@ -292,24 +290,17 @@
   async function runSaved(search: AppsSavedSearch): Promise<void> {
     await submit(search.query || search.title || tr('run_saved_search'), [], { skill_id: search.skill_id, input: search.parameters });
   }
-  async function saveSearch(context: AppsRequestContext): Promise<void> {
-    if (!appId) return;
-    if (!$authStore.isAuthenticated) { onSignup(); return; }
+  async function saveSearch(context: AppsRequestContext): Promise<boolean> {
+    if (!appId) return false;
+    if (!$authStore.isAuthenticated) { onSignup(); return false; }
     const selectedApp = appId; const owner = accountKey;
     const saved = await saveAppsSearchWithNotice(selectedApp, context, undefined, teamId);
-    if (owner === accountKey && selectedApp === appId) library = saved;
-  }
-  async function toggleDaily(): Promise<void> {
-    if (!appId || viewer) return;
-    const selectedApp = appId; const owner = accountKey;
-    try {
-      const updated = await setAppsDailySearches(selectedApp, !library.daily_searches_enabled, teamId);
-      if (owner === accountKey && selectedApp === appId) library = updated;
-    } catch { if (owner === accountKey && selectedApp === appId) libraryError = true; }
+    if (owner !== accountKey || selectedApp !== appId) return false;
+    library = saved;
+    return true;
   }
   function settingsNavigate(event: CustomEvent<{ settingsPath: string }>): void {
-    if (event.detail.settingsPath.startsWith('apps/')) settingsPath = event.detail.settingsPath;
-    else onSettings(event.detail.settingsPath);
+    onSettings(event.detail.settingsPath);
   }
   function temporaryContent(batch: AppsRecommendation): Record<string, unknown> {
     const result = batch.result;
@@ -322,13 +313,12 @@
 {#snippet appMapHeader()}
   <div class="app-map-header" data-testid="apps-map-header"><EmbedLeafletMap center={{ lat: 20, lon: 0 }} zoom={2} minHeight="0" zoomControlPosition="bottomleft" /></div>
 {/snippet}
-<svelte:window bind:innerWidth={viewportWidth} />
 <div class="apps-workspace" class:with-sidebar={showSidebar} data-testid="apps-workspace">
   {#if showSidebar && app}
     <AppsSidebar {appName} saved={library.saved_searches} recent={results} {resultTitles} {savedEmbeds} {recentChats} {examples}
       onSavedEmbed={openSavedEmbed}
       onSaved={search => void runSaved(search)} onRecent={result => openResult(result.embedId)}
-      onExample={openExample} onClose={() => { sidebarOpen = false; }} />
+      onExample={openExample} onClose={onSidebarClose} />
   {/if}
   <div class="workspace-main">
     <WorkspaceHomeShell surface="apps" heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems}
@@ -348,13 +338,13 @@
       <div class="apps-detail-layer">
         <UnifiedEmbedFullscreen appId={appId ?? route.appId} closeOnChatSelection={false} onClose={closeDetail}
           showShare={false} testId="apps-detail-fullscreen" closeTestId="apps-detail-close"
+          contentLayout={app && !route.settingsPath && !calendarView ? 'app-home' : 'default'} embedHeaderCompact={!route.settingsPath}
           embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderContent={(app?.id === "travel" || app?.id === "calendar") && mapView ? appMapHeader : undefined}
           appIconName={app?.icon_image?.replace(/\.svg$/i, '') ?? ''} embedHeaderTitle={!mapView && recommended[0]?.title ? recommended[0].title : appName} embedHeaderSubtitle={!mapView && recommended[0]?.request_text ? recommended[0].request_text : description}>
           {#snippet fixedBottom()}
-            {#if app && !settingsOpen && !route.settingsPath}
+            {#if app && !route.settingsPath}
               <div class="apps-composer-dock">{#key composerEpoch}<AppsRequestComposer appId={app.id} bind:value={requestText} bind:files={requestFiles}
                 disabled={viewer || ($authStore.isAuthenticated && !authenticatedOwner)} {submitting} onSubmit={submit} />{/key}
-                {#if requestError}<p role="alert">{tr('request_error')}</p>{/if}
                 {#if viewer}<p>{tr('viewer_read_only')}</p>{/if}
               </div>
             {/if}
@@ -364,40 +354,20 @@
             {:else if route.settingsPath}
               <AppDetailsWrapper presentation="apps" activeSettingsView={'apps/' + app.id + '/' + route.settingsPath.replace(/^memory\//, 'settings_memories/')}
                 onOpenExampleChat={openDetailExample} on:openSettings={settingsNavigate} />
-            {:else if settingsOpen}
-              <div class="app-settings" data-testid="apps-settings">
-                <SettingsItem title={tr('back_to_app')} icon="back" onClick={() => { settingsOpen = false; }} />
-                <SettingsSectionHeading title={tr('app_settings')} icon="settings" />
-                {#if $authStore.isAuthenticated}
-                  <SettingsCard><SettingsItem title={tr('daily_searches')} subtitleBottom={tr('daily_searches_description')}
-                    hasToggle checked={library.daily_searches_enabled} disabled={viewer} onToggleClick={() => void toggleDaily()} data-testid="apps-daily-searches" /></SettingsCard>
-                {/if}
-                {#if settingsPath && settingsPath !== 'apps/' + app.id}
-                  <AppDetailsWrapper activeSettingsView={settingsPath} on:openSettings={settingsNavigate} />
-                {:else}
-                  {#each app.skills as skill (skill.id)}
-                    <SettingsItem title={$text(skill.name_translation_key)} subtitleBottom={tr('pricing_and_providers')}
-                      onClick={() => { settingsPath = 'apps/' + app.id + '/skill/' + skill.id; }} />
-                  {/each}
-                  <AppDetailsWrapper activeSettingsView={'apps/' + app.id} section="settings_memories" on:openSettings={settingsNavigate} />
-                {/if}
-              </div>
             {:else}
               <div class="app-home" data-testid="apps-app-home">
                 <div class="app-actions">
                   <div>
-                    <button class="circle-action" data-testid="apps-sidebar-toggle" aria-label={tr('saved_and_recent')} onclick={() => { sidebarOpen = !showSidebar; }}><span class="clickable-icon icon_menu" aria-hidden="true"></span></button>
                     {#if app.id === 'travel' || app.id === 'calendar'}<button class="circle-action" data-testid="apps-map-toggle" aria-pressed={mapView} aria-label={tr('toggle_map')} onclick={() => { mapView = !mapView; calendarView = false; }}><span class="clickable-icon icon_maps" aria-hidden="true"></span></button>{/if}
                     {#if app.id === 'calendar'}<button class="circle-action" data-testid="apps-calendar-toggle" aria-pressed={calendarView} aria-label={tr('calendar_view')} onclick={() => void showCalendar()}><span class="clickable-icon icon_calendar" aria-hidden="true"></span></button>{/if}
                   </div>
-                  <button class="circle-action" data-testid="apps-settings-open" aria-label={tr('app_settings')} onclick={() => { settingsOpen = true; settingsPath = ''; }}><span class="clickable-icon icon_settings" aria-hidden="true"></span></button>
+                  <button class="circle-action" data-testid="apps-settings-open" aria-label={tr('app_settings')} onclick={() => onSettings('apps/' + app.id)}><span class="clickable-icon icon_settings" aria-hidden="true"></span></button>
                 </div>
                 <div class="app-greeting">
                   <h2>{$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.app_greeting', { values: { name: $userProfile.username } }) : appName}</h2>
                   <p>{tr(visibleSection === 'recommended' ? 'recommended_for_you' : visibleSection === 'saved' ? 'your_saved_searches' : results.length || recentChats.length ? 'your_recent_results' : 'try_an_example')}</p>
                 </div>
                 {#if libraryLoading}<p class="library-state" role="status">{$text('common.loading')}</p>{/if}
-                {#if libraryError}<p class="library-state" role="status">{tr('library_error')} <button onclick={() => void loadLibrary()}>{tr('retry')}</button></p>{/if}
                 {#if calendarView}
                   <div class="app-calendar" data-testid="apps-calendar-view"><EmbedsMapView id={'apps-calendar-' + app.id} title={appName} initialVisualTab="calendar"
                     embedRefs={savedEmbeds.map(item => item.id)} sourceRefs={results.map(item => item.embedId)} /></div>
@@ -407,7 +377,7 @@
                     {#each recommended as batch (batch.id)}
                       {#each recommendationPreviewItems(app.id, batch) as child (child.id)}
                         <div class="preview-card"><AppsEmbedPreview embedId={child.id} appId={app.id} skillId={batch.skill_id}
-                          embedType={child.type} content={child.content} onFullscreen={() => { temporaryResult = batch; }} /></div>
+                          embedType={child.type} content={child.content} onFullscreen={() => { temporaryResult = { batch, child }; }} /></div>
                       {/each}
                     {/each}
                   {:else if visibleSection === 'saved' && (library.saved_searches.length || savedEmbeds.length)}
@@ -438,14 +408,14 @@
       <div class="apps-result-layer" data-testid="apps-result-fullscreen">
         {#key accountKey + ':' + route.embedId}<AppsResultFullscreen embedId={route.embedId} rootEmbedId={route.rootEmbedId ?? route.embedId}
           {appId} {teamId} hydrateGraph={new URLSearchParams(hash.split("&").slice(1).join("&")).get("source") !== "saved"} onClose={closeResult} onSubmit={(value, files, context) => submit(value, files, context)}
-          onSaveSearch={saveSearch} onCreateWorkflow={context => queueAppsWorkspaceWorkflowHandoff({ text: tr('create_workflow_from_search'), context })} />{/key}
+          isSearchSaved={context => isAppsSearchSaved(library, context)} onSaveSearch={saveSearch} onCreateWorkflow={context => queueAppsWorkspaceWorkflowHandoff({ text: tr('create_workflow_from_search'), context })} />{/key}
       </div>
     {/if}
     {#if temporaryResult && appId}
       <div class="apps-result-layer" data-testid="apps-recommendation-fullscreen">
-        <AppsResultFullscreen embedId={temporaryResult.id} {appId} onClose={() => { temporaryResult = null; }}
-          exampleData={{ embedId: temporaryResult.id, appId, skillId: temporaryResult.skill_id, decodedContent: temporaryContent(temporaryResult) }}
-          onSubmit={(value, files, context) => submit(value, files, context)} onSaveSearch={saveSearch}
+        <AppsResultFullscreen embedId={temporaryResult.child.id} rootEmbedId={temporaryResult.batch.id} {appId} onClose={() => { temporaryResult = null; }}
+          presentationData={{ type: temporaryResult.child.type, content: temporaryResult.child.content, parent: temporaryContent(temporaryResult.batch) }}
+          onSubmit={(value, files, context) => submit(value, files, context)} isSearchSaved={context => isAppsSearchSaved(library, context)} onSaveSearch={saveSearch}
           onCreateWorkflow={context => queueAppsWorkspaceWorkflowHandoff({ text: tr('create_workflow_from_search'), context })} />
       </div>
     {/if}
@@ -462,34 +432,33 @@
   .workspace-main { min-width: 0; min-height: 0; position: relative; }
   .apps-detail-layer, .apps-result-layer { position: absolute; inset: 0; z-index: var(--z-index-overlay, 100); }
   .apps-result-layer { z-index: calc(var(--z-index-overlay, 100) + 1); }
-  .app-map-header { width: 100%; height: 20rem; border-radius: var(--radius-6); overflow: hidden; }
+  .app-map-header { width: 100%; height: clamp(120px, 24dvh, 240px); border-radius: var(--radius-6); overflow: hidden; }
   .app-map-header :global(.leaflet-bottom.leaflet-left .leaflet-control-zoom) { display: flex; margin: var(--spacing-8) !important; border-radius: var(--radius-full); overflow: hidden; }
   .app-map-header :global(.leaflet-control-zoom a) { width: 2.5rem !important; height: 2.5rem !important; line-height: 2.5rem; border-radius: 0 !important; }
-  .app-home { min-width: 0; padding: var(--spacing-8) 0 var(--spacing-16); }
-  .app-actions { display: flex; justify-content: space-between; padding: 0 var(--spacing-8); }
+  .app-home { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; padding: var(--spacing-8) 0 var(--spacing-6); box-sizing: border-box; }
+  .app-actions { flex-shrink: 0; display: flex; justify-content: space-between; padding: 0 var(--spacing-8); }
   .app-actions > div { display: flex; gap: var(--spacing-6); }
   .circle-action { border: 0; border-radius: var(--radius-full); width: 2.5rem; min-width: 0; height: 2.5rem; flex: 0 0 2.5rem; padding: 0; margin: 0; filter: none; box-sizing: border-box; background: var(--color-grey-0); box-shadow: var(--shadow-md); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
   .icon_calendar { mask-image: url('@openmates/ui/static/icons/calendar.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg'); }
   .icon_heart { mask-image: url('@openmates/ui/static/icons/heart.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg'); }
   .icon_history { mask-image: url('@openmates/ui/static/icons/time.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/time.svg'); }
-  .app-greeting { text-align: center; margin: var(--spacing-6) var(--spacing-12) var(--spacing-12); }
+  .app-greeting { flex-shrink: 0; text-align: center; margin: var(--spacing-6) var(--spacing-12); }
   .app-greeting h2, .app-greeting p { margin: var(--spacing-2) 0; font-size: var(--font-size-p); }
-  .app-carousel { display: flex; align-items: center; gap: var(--spacing-12); overflow-x: auto; overflow-y: clip; padding: var(--spacing-8) max(var(--spacing-12), calc(50% - 9.375rem)) var(--spacing-12); scrollbar-width: none; }
+  .app-carousel { flex: 1; min-height: 0; display: flex; align-items: center; gap: var(--spacing-12); overflow-x: auto; overflow-y: hidden; padding: var(--spacing-8) max(var(--spacing-12), calc(50% - 9.375rem)) var(--spacing-12); scrollbar-width: none; }
   .app-carousel::-webkit-scrollbar { display: none; }
   .preview-card { flex: 0 0 18.75rem; width: 18.75rem; }
   .more-results { flex: 0 0 auto; font: inherit; color: var(--color-primary); background: var(--color-grey-0); border: 0; padding: var(--spacing-8); border-radius: var(--radius-5); cursor: pointer; }
-  .library-tabs { display: flex; justify-content: center; gap: var(--spacing-12); padding: var(--spacing-4) var(--spacing-8); }
+  .library-tabs { flex-shrink: 0; display: flex; justify-content: center; gap: var(--spacing-12); padding: var(--spacing-4) var(--spacing-8); }
   .library-tabs button { display: inline-flex; align-items: center; gap: var(--spacing-4); font: inherit; color: var(--color-font-secondary); background: transparent; border: 0; cursor: pointer; padding: var(--spacing-4); }
   .library-tabs .clickable-icon { background-color: currentColor; }
   .library-tabs button[aria-pressed='true'] { color: var(--color-primary); }
   .apps-composer-dock { width: min(100%, 42rem); margin: 0 auto; box-sizing: border-box; padding: var(--spacing-8) 0; }
   .apps-composer-dock p { text-align: center; font-size: var(--font-size-small); }
-  .app-settings { width: min(100%, 44rem); margin: 0 auto; padding: var(--spacing-12); box-sizing: border-box; }
   .library-state { text-align: center; color: var(--color-font-secondary); font-size: var(--font-size-small); }
   @media (max-width: 730px) {
     .apps-workspace.with-sidebar { grid-template-columns: minmax(0, 1fr); }
     .with-sidebar > :global(.apps-sidebar) { position: absolute; inset: 0 12% 0 0; z-index: calc(var(--z-index-overlay, 100) + 3); box-shadow: var(--shadow-lg); }
     .preview-card { flex-basis: 18.75rem; }
-    .app-map-header { height: 15rem; }
+    .app-map-header { height: clamp(110px, 24dvh, 190px); }
   }
 </style>
