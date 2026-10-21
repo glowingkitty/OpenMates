@@ -88,12 +88,12 @@
     "iconUrl": "/icons/jobs.svg",
     "gradient": "var(--color-app-jobs)",
     "capability": {
-      "type": "focus",
-      "id": "career_insights"
+      "type": "skill",
+      "id": "search"
     },
-    "exampleChatId": "example-adjacent-career-portfolio-experiments",
-    "promptEn": "Help with career advice",
-    "promptDe": "Hilf mir bei Karrierefragen"
+    "exampleChatId": "example-jobs-in-germany",
+    "promptEn": "Find jobs in Germany",
+    "promptDe": "Finde Jobs in Deutschland"
   },
   {
     "id": "web",

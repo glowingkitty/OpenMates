@@ -4908,6 +4908,104 @@
       "assistant_response": {
         "text": "使用活动搜索查找附近的课程和聚会。选择地点和主题，看看周边有哪些活动。"
       }
+    },
+    "collective": {
+      "title": {
+        "text": "动物的集体行为"
+      },
+      "description": {
+        "text": "动物群体如何协调行动和决策。"
+      },
+      "phrase": {
+        "text": "成千上万的动物为何能在没有指挥的情况下同步移动？"
+      },
+      "assistant_response": {
+        "text": "动物群体如何协调行动和决策。"
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "亚历山大图书馆"
+      },
+      "description": {
+        "text": "古代最著名的知识中心之一。"
+      },
+      "phrase": {
+        "text": "古代最著名的图书馆也是一所研究机构。"
+      },
+      "assistant_response": {
+        "text": "古代最著名的知识中心之一。"
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "张拉整体结构"
+      },
+      "description": {
+        "text": "通过拉力与压力的平衡保持稳定的结构。"
+      },
+      "phrase": {
+        "text": "有些结构看似悬浮，是拉力在暗中发挥作用。"
+      },
+      "assistant_response": {
+        "text": "通过拉力与压力的平衡保持稳定的结构。"
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "可信来源引用"
+      },
+      "description": {
+        "text": "让助手检查来源并引用支持回答的原文。"
+      },
+      "phrase": {
+        "text": "需要核实回答？请 OpenMates 引用支持它的来源。"
+      },
+      "assistant_response": {
+        "text": "让助手检查来源并引用支持回答的原文。"
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "AI 图像检测"
+      },
+      "description": {
+        "text": "上传图像，直接在聊天中查看 AI 生成的迹象。"
+      },
+      "phrase": {
+        "text": "想知道图像是否由 AI 生成？上传后查看相关迹象。"
+      },
+      "assistant_response": {
+        "text": "上传图像，直接在聊天中查看 AI 生成的迹象。"
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "无痕聊天"
+      },
+      "description": {
+        "text": "当你不想保存历史记录时，开启临时聊天。"
+      },
+      "phrase": {
+        "text": "需要临时对话？让它不进入已保存的聊天记录。"
+      },
+      "assistant_response": {
+        "text": "当你不想保存历史记录时，开启临时聊天。"
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "隐私控制"
+      },
+      "description": {
+        "text": "在同一处管理个人数据隐藏、关联账户和自动删除。"
+      },
+      "phrase": {
+        "text": "提前了解 OpenMates 如何保护数据，以及有哪些可用设置。"
+      },
+      "assistant_response": {
+        "text": "在同一处管理个人数据隐藏、关联账户和自动删除。"
+      }
     }
   },
   "demo_chats": {
@@ -9663,36 +9761,48 @@
         "text": "解释住房市场供应如何应对价格管制"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "瑞典开发人员职位"
+        "text": "德国有意义的工作"
       },
       "summary": {
-        "text": "比较斯德哥尔摩和马尔默当前的开发人员职位，提供原始招聘信息及有据可查的工作场所详情。"
+        "text": "在四个招聘平台搜索德国职位空缺，然后比较设计岗位并为雇主准备面试问题。"
       },
       "message_1": {
-        "text": "从瑞典公共就业服务机构中查找两个斯德哥尔摩和两个马尔默的当前软件开发人员职位。为每个职位显示简短的列点，包括职位名称、雇主、工作城市和原始招聘链接。仅在招聘信息中明确说明的情况下包含薪资数据或居家办公安排；否则请说明未注明。请将回答控制在 200 字以内。"
+        "text": "我正在德国寻找有意义的工作，特别是研究、设计或软件工程领域。请使用 80,000 Hours、Hard Problems、Arbeitnow 和联邦就业局 (Federal Employment Agency) 查找一些当前的职位空缺。我不限工作地点，德国境内任何地方都可以。请给我一份简短的清单，包含雇主、地点、来源和申请链接。如果招聘信息中没有说明，请不要假设可以远程办公或薪资水平。"
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n来自 Arbetsförmedlingen (Platsbanken) 的最新软件开发人员招聘信息：\n\n### 斯德哥尔摩\n\n* **职位名称：** Senior Systemutvecklare  \n  **雇主：** NXT Interim Stockholm AB  \n  **工作城市：** 斯德哥尔摩  \n  **原始招聘链接：** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供远程工作岗位 (*remote-arbetsplatser*)\n\n* **职位名称：** Javautvecklare  \n  **雇主：** AFRY AB  \n  **工作城市：** 斯德哥尔摩  \n  **原始招聘链接：** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供混合办公机会 (*möjlighet till hybridarbete*)\n\n---\n\n### 马尔默\n\n* **职位名称：** Senior AI Engineer  \n  **雇主：** Iver Accelerate AB  \n  **工作城市：** 马尔默  \n  **原始招聘链接：** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **薪资：** 未注明  \n  **居家办公安排：** 提供混合办公机会 (*möjlighet till hybridarbete*)\n\n* **职位名称：** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **雇主：** Jobbakuten Väst AB  \n  **工作城市：** 马尔默  \n  **原始招聘链接：** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **薪资：** 未注明（招聘信息中提到了市场化薪资，但未给出具体数字）  \n  **居家办公安排：** 混合办公 (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n以下是来自 [80,000 Hours](wiki:80,000_Hours)、**Hard Problems**、**Arbeitnow** 和**德国联邦就业局** (*Bundesagentur für Arbeit*) 的德国研究、设计和软件工程领域的最新职位空缺简表。\n\n---\n\n### 设计\n\n* **高级产品设计师 (Senior Product Designer)**\n  * **雇主：** voize（开发语音识别 AI 以简化护理和临床记录）\n  * **地点：** 德国柏林（注明可远程办公）\n  * **来源：** Hard Problems\n  * **薪资：** 未注明\n  * **申请：** [通过 voize 申请](embed:senior-product-designer-Wid)\n\n* **UI/UX 设计 (m/w/d)**\n  * **雇主：** stiftung ear（负责协调电子垃圾处理、回收和循环经济追踪的国家注册机构）\n  * **地点：** 纽伦堡，巴伐利亚州\n  * **来源：** 联邦就业局\n  * **工作形式与薪资：** 职位描述中提到灵活/移动办公选项，但无正式的全远程分类；薪资未注明\n  * **申请：** [通过联邦就业局申请](embed:ui-ux-design-1Bm)\n\n---\n\n### 研究\n\n* **联合奖学金项目（和平与安全政策）**\n  * **雇主：** [汉堡大学](wiki:University_of_Hamburg) & 和平研究与安全政策研究所 (IFSH)\n  * **地点：** 汉堡，德国\n  * **来源：** 80,000 Hours\n  * **工作形式与薪资：** 未注明\n  * **申请：** [通过 IFSH / 80,000 Hours 申请](embed:joint-fellowship-program-iLH)\n\n* **研究助理 (m/f/x) – 机器学习与不确定性下的决策**\n  * **雇主：** [波鸿鲁尔大学](wiki:Ruhr_University_Bochum)\n  * **地点：** 波鸿，北莱茵-威斯特法伦州\n  * **来源：** 联邦就业局\n  * **工作形式与薪资：** 全职（39.83 小时/周）；未注明远程安排；根据 TV-L E13 公共集体工资标准支付报酬（具体金额未在列表中公布）\n  * **申请：** [通过联邦就业局申请](embed:research-associate-m-79L)\n\n* **研究工程师 (f/m/d) – 电网脱碳与基础技术**\n  * **雇主：** [西门子能源](wiki:Siemens_Energy)\n  * **地点：** 柏林\n  * **来源：** 联邦就业局\n  * **工作形式与薪资：** 文中提到灵活/移动办公选项，但未说明固定远程状态；薪资未注明\n  * **申请：** [通过联邦就业局申请](embed:research-engineer-f-7ao)\n\n---\n\n### 软件工程\n\n* **高级后端工程师 (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **雇主：** idealo internet GmbH\n  * **地点：** 柏林，德国\n  * **来源：** Arbeitnow\n  * **工作形式与薪资：** 现场/混合办公环境；薪资未注明\n  * **申请：** [通过 Arbeitnow 申请](embed:senior-backend-engineer-q7x)\n\n* **实习生 – 软件工程（计算机视觉 / 自主系统）**\n  * **雇主：** Quantum-Systems GmbH（自主航空平台和机器人感知）\n  * **地点：** 吉尔兴，巴伐利亚州\n  * **来源：** Arbeitnow\n  * **工作形式与薪资：** 现场/混合办公；薪资未注明\n  * **申请：** [通过 Arbeitnow 申请](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**正在识别德国的就业机会**\n\n我目前正专注于精准定位德国的相关职位空缺。我首先整理了一份极具潜力的来源名单：`80,000 Hours`、`Hard Problems`、`Arbeitnow` 以及 `联邦就业局 (Federal Employment Agency)`。我的主要兴趣集中在研究、设计和软件工程岗位，并将密切关注工作地点。\n\n\n**优化搜索参数**\n\n我正在优化方法，以便更有效地使用 `jobs-search` 工具。由于限制为 5 个请求，我正专注于 `requests` 数组，以进行一系列查询并直接指定提供商。我正在检查函数定义，以确认如何以列表形式明确提供提供商，以及如何定义相关性标准。这将有助于创建一个包含雇主、地点、来源和申请链接的入围名单。我的目标是在没有明确说明的情况下，避免对远程办公或薪资做出假设。\n\n\n**检查提供商返回结果**\n\n好了，我已经初步查看了返回的提供商结果。目前有来自 “Hard Problems” 的职位，以及几个来自 Arbeitnow 的职位；一个是后端工程（Java/Kotlin）的高级职位，另一个是实习生（Working Student）职位。我正在记录初步印象，并评估每个职位的潜在影响。\n\n\n**分析当前机会**\n\n我目前正专注于评估两个极具潜力的机会。第一个是汉堡大学和平研究与安全政策研究所的“联合奖学金项目 (Joint Fellowship Program)”，第二个是 Interface 网络安全项目中的“学生助理 (Student Assistant)”职位。我正在分别结合和平与安全研究以及网络安全背景，仔细权衡它们各自的优势。\n\n\n**优先处理新线索**\n\n我已将注意力转向策划一份平衡的入围名单。我优先考虑设计和研究领域的机会，重点关注相关性和近期发布的帖子。目前，我正在查看柏林 voize 的高级产品设计师职位，以及 stiftung ear 的 UI/UX 设计职位。研究方面，我正在审查波鸿鲁尔大学的一个职位，以及汉堡的联合奖学金项目。\n\n\n**评估新的可能性**\n\n我正根据我的标准权衡新的线索。我发现了一些选择，例如通过联邦就业局找到的柏林西门子能源公司 (Siemens Energy) 的研究工程师职位，该职位专注于基础研究。我也在考虑 idealo internet GmbH（柏林，Arbeitnow）的高级后端开发职位和 CT Software Engineering（因戈尔施塔特，联邦就业局）的初级 C++ 软件开发职位。这些都符合我对软件工程的兴趣。\n\n\n**完善申请标准**\n\n我正在明确如何处理申请链接。我必须记住优先考虑清晰的申请流程，检查是否使用了 `[显示文本](embed:embed_ref)` 或标准链接。此外，除非招聘信息中明确说明，否则我不应假设可以远程办公或透露薪资。\n\n\n**明确申请协议**\n\n我正专注于申请链接的格式。我的重点是确保直接链接集成或使用 `(embed:embed_ref)` 格式，并确保不同时提供两者。我正在仔细审查从应用技能返回的 URL，以确保合规。我的目标是坚持每个职位申请链接仅使用一种链接样式的规则。\n\n\n**标准化申请链接**\n\n我正在实施申请链接策略。我的目标是标准化职位发布的格式。我将仅使用嵌入引用 (embed ref) 作为申请链接。我还将为每个空缺职位整合职位名称、雇主、地点和来源，并使用嵌入链接。我会确保每个职位始终只使用一个链接。\n\n\n**汇编机会数据**\n\n我正在整理多个机会的详细信息。我已经掌握了 voize 的高级产品设计师职位、stiftung ear 的 UI/UX 设计职位以及汉堡大学联合奖学金项目的信息。我记录了每个职位的名称、雇主、地点和来源，以及远程办公和薪资说明。我正专注于通过为每个申请使用嵌入链接来确保链接格式的一致性。\n\n\n**整合新职位**\n\n我正在将新职位整合到数据集中。我添加了波鸿鲁尔大学的研究助理职位，来源为联邦就业局，并记录了其远程办公和薪资详情。此外，我还汇编了西门子能源公司研究工程师职位的信息，包括灵活的工作选择。我正在确保链接格式的一致性，在申请链接中使用嵌入引用。\n\n\n**添加新职位**\n\n我刚刚添加了两个新职位：一个地点不详的高级后端工程师职位，以及位于吉尔兴 (Gilching) 的 Quantum-Systems GmbH 的实习生职位。我正专注于准确捕捉所有细节，包括地点、远程办公选项、薪资信息（如有）以及标准格式的申请链接。我正在申请链接中使用 `(embed:embed_ref)` 格式。"
+      },
+      "message_3": {
+        "text": "这两个设计岗位听起来最吸引人。你能简要对比一下已保存的招聘信息具体说了什么，并建议我在申请前应该向每位雇主询问些什么吗？"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n以下是各招聘职位的直接对比，以及你在申请前或申请过程中可以向每位雇主提出的针对性问题。\n\n---\n\n### 职位对比\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### 申请前的提问建议\n\n#### 针对 voize：\n1. **用户研究渠道：** *“设计师在日常临床环境中与一线护士和护理人员进行实地考察或测试的频率如何？通过哪些渠道进行？”*\n2. **团队成熟度与职责范围：** *“产品团队的结构是怎样的？目前设计师与产品经理（PM）及工程师的比例是多少？该职位是个人贡献者角色，还是需要负责建立设计系统？”*\n3. **薪酬与远程办公节奏：** *“该资历级别的目标薪酬范围是多少？尽管有远程办公政策，是否仍有强制性的线下团队团建或核心办公时间？”*\n\n#### 针对 stiftung ear：\n1. **纽伦堡线下的办公要求：** *“移动办公在实践中是如何安排的——每周或每月是否有固定的时间要求必须在纽伦堡办公室现场办公？”*\n2. **设计与 QA 的平衡：** *“招聘信息中提到了软件测试实施以及 UX/UI 设计。该职位中，专注于用户研究/原型设计的工作比例是多少，专注于技术软件验证和质量保证的工作比例又是多少？”*\n3. **设计工具与开发交接：** *“目前使用了哪些设计系统和原型设计工具？你们是与内部开发团队合作，还是与外部 IT 服务提供商合作？”*\n4. **薪酬基准：** *“鉴于 stiftung ear 履行的是公共利益法定职责，薪酬是遵循特定的公共集体薪资标准（如 TVöD/TV-L），还是采用内部职级结构？”*"
+      },
+      "message_4_thinking": {
+        "text": "**分析职位列表内容**\n\n好的，我已开始对比职位描述。我正专注于 Voize 的高级产品设计师角色和 Stiftung EAR 的 UI/UX 设计职位的核心职责及所需技能。现在，我正在准备这两份职位列表的核心职责和所需技能摘要。随后，我将确定可能还需要哪些进一步的信息。\n\n\n**分析职位描述**\n\n好的，我现在正深入研究每个列表的细节。我的重点是剖析描述中所使用的实际语言。我正试图确定需要回答哪些关键问题，以便为每位雇主做好准备。例如，在 voize 的列表中，我需要了解他们的 AI 伴侣产品。\n\n\n**评估关键细节**\n\n我现在正锁定 voize 的列表并提取关键要点。这是一个具有重大自主权的高级角色，需要能够挑战产品经理的人才。工作安排很灵活，设有柏林办公室并提供远程办公选项。薪酬未说明，但福利包括不错的带薪假期和体育俱乐部会员资格。尽管背景是德国医疗保健，但英语是主要语言。\n\n\n**精准定位具体要求**\n\n我现在正锁定位于纽伦堡的角色。我已分解了关键领域：法律合规方面侧重于 ElektroG 法规。我的工作包括 Web 应用程序开发和 UX 活动，并为利益相关者提供建议。必须具备流利的德语（至少 C1 水平），有监管软件经验者优先。该职位是永久性的，具有很大的远程办公灵活性。薪酬基于绩效。\n\n\n**比较职位属性**\n\n我现在正对这些角色进行直接比较。我已按领域、文化、所需技能和工作地点进行了分解。具体来说，我正在对比 voize 与 stiftung ear 的角色。我正专注于对比他们的环境和优先级，从一线医疗保健到电子垃圾合规。我正记录关键差异，如语言要求和经验水平。此外，我还在评估他们在远程办公政策方面的差异。"
       },
       "follow_up_1": {
-        "text": "搜索哥德堡的远程软件开发人员职位"
+        "text": "在柏林搜索更多 UI/UX 设计职位"
       },
       "follow_up_2": {
-        "text": "比较这些高级开发人员职位的要求"
+        "text": "起草一封给 voize 招聘经理的联系邮件"
       },
       "follow_up_3": {
-        "text": "搜索斯德哥尔摩的前端开发人员职位职缺"
+        "text": "在德国寻找类似的医疗科技职位职位"
       },
       "follow_up_4": {
-        "text": "列出这些招聘信息中提到的热门技术栈"
+        "text": "比较在医疗初创公司与公共机构工作的优缺点"
       },
       "follow_up_5": {
-        "text": "搜索瑞典的初级开发人员招聘信息"
+        "text": "在纽伦堡搜索公共部门的科技职位"
       },
       "follow_up_6": {
-        "text": "总结瑞典科技行业的远程办公趋势"
+        "text": "列出高级产品设计面试的关键准备步骤"
       }
     },
     "launch_readiness_checklist_doc": {

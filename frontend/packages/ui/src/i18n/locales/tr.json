@@ -4908,6 +4908,104 @@
       "assistant_response": {
         "text": "Yakınındaki dersleri ve buluşmaları bulmak için Etkinlik aramasını kullan. Çevrende neler olduğunu görmek için bir yer ve konu seç."
       }
+    },
+    "collective": {
+      "title": {
+        "text": "Hayvanlarda kolektif davranış"
+      },
+      "description": {
+        "text": "Hayvan gruplarının hareketlerini ve kararlarını nasıl koordine ettiği."
+      },
+      "phrase": {
+        "text": "Binlerce hayvan, bir şef olmadan tek bir canlı gibi hareket eder."
+      },
+      "assistant_response": {
+        "text": "Hayvan gruplarının hareketlerini ve kararlarını nasıl koordine ettiği."
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "İskenderiye Kütüphanesi"
+      },
+      "description": {
+        "text": "Antik dünyanın en ünlü bilgi merkezlerinden biri."
+      },
+      "phrase": {
+        "text": "Antik dünyanın en ünlü kütüphanesi aynı zamanda bir araştırma kurumuydu."
+      },
+      "assistant_response": {
+        "text": "Antik dünyanın en ünlü bilgi merkezlerinden biri."
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "Tensegrite"
+      },
+      "description": {
+        "text": "Çekme ve basınç kuvvetlerinin dengesiyle sabit kalan yapılar."
+      },
+      "phrase": {
+        "text": "Bazı yapılar, gerilimin görünmeyen işi sayesinde havada asılı gibi görünür."
+      },
+      "assistant_response": {
+        "text": "Çekme ve basınç kuvvetlerinin dengesiyle sabit kalan yapılar."
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "Güvenilir kaynak alıntıları"
+      },
+      "description": {
+        "text": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
+      },
+      "phrase": {
+        "text": "Yanıtı doğrulamak mı istiyorsun? OpenMates’ten destekleyici kaynağı alıntılamasını iste."
+      },
+      "assistant_response": {
+        "text": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "Yapay zekâ görsel tespiti"
+      },
+      "description": {
+        "text": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
+      },
+      "phrase": {
+        "text": "Bir görsel yapay zekâyla mı üretildi? Yükle ve işaretleri incele."
+      },
+      "assistant_response": {
+        "text": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "Gizli sohbetler"
+      },
+      "description": {
+        "text": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
+      },
+      "phrase": {
+        "text": "Geçici bir konuşma mı gerekiyor? Kayıtlı sohbet geçmişinin dışında tut."
+      },
+      "assistant_response": {
+        "text": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "Gizlilik kontrolleri"
+      },
+      "description": {
+        "text": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
+      },
+      "phrase": {
+        "text": "Kontrollere acilen ihtiyaç duymadan önce OpenMates’in neleri koruduğunu incele."
+      },
+      "assistant_response": {
+        "text": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
+      }
     }
   },
   "demo_chats": {
@@ -9663,36 +9761,48 @@
         "text": "Konut piyasası arzının fiyat kontrollerine nasıl tepki verdiğini açıkla"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "İsveç'teki yazılımcı işleri"
+        "text": "Almanya'da Anlamlı İşler"
       },
       "summary": {
-        "text": "Stokholm ve Malmö'deki güncel yazılımcı işlerini orijinal ilanlar ve kaynak destekli iş yeri ayrıntılarıyla karşılaştır."
+        "text": "Almanya'daki iş ilanları için dört platformda arama yap, tasarım rollerini karşılaştır ve işverenler için sorular hazırla."
       },
       "message_1": {
-        "text": "İsveç kamu istihdam kurumundan Stokholm'de iki ve Malmö'de iki adet güncel yazılım geliştirici işi bul. Her biri için unvan, işveren, iş yeri şehri ve orijinal ilan bağlantısını içeren kısa bir madde göster. Maaş rakamını veya evden çalışma düzenini yalnızca o ilanda açıkça belirtilmişse dahil et; aksi takdirde belirtilmediğini söyle. Yanıtı 200 kelimenin altında tut."
+        "text": "Almanya'da, özellikle araştırma, tasarım veya yazılım mühendisliği alanlarında anlamlı bir iş arıyorum. Lütfen 80,000 Hours, Hard Problems, Arbeitnow ve Federal İstihdam Kurumu'nu kullanarak birkaç güncel ilan bul. Almanya'nın her yerine açığım. İşveren, konum, kaynak ve başvuru bağlantısını içeren kısa bir liste hazırla; ilanda belirtilmediği sürece uzaktan çalışma veya maaş varsayımında bulunma."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nArbetsförmedlingen (Platsbanken) üzerinden güncel yazılım geliştirici ilanları:\n\n### Stockholm\n\n* **Pozisyon:** Senior Systemutvecklare  \n  **İşveren:** NXT Interim Stockholm AB  \n  **İş yeri şehri:** Stockholm  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Maaş bilgisi:** Belirtilmemiş  \n  **Uzaktan çalışma düzeni:** Uzaktan çalışma imkanı sunuyor (*remote-arbetsplatser*)\n\n* **Pozisyon:** Javautvecklare  \n  **İşveren:** AFRY AB  \n  **İş yeri şehri:** Stockholm  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Maaş bilgisi:** Belirtilmemiş  \n  **Uzaktan çalışma düzeni:** Hibrit çalışma imkanı (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Pozisyon:** Senior AI Engineer  \n  **İşveren:** Iver Accelerate AB  \n  **İş yeri şehri:** Malmö  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Maaş bilgisi:** Belirtilmemiş  \n  **Uzaktan çalışma düzeni:** Hibrit çalışma imkanı (*möjlighet till hybridarbete*)\n\n* **Pozisyon:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **İşveren:** Jobbakuten Väst AB  \n  **İş yeri şehri:** Malmö  \n  **Orijinal ilan bağlantısı:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Maaş bilgisi:** Belirtilmemiş (ilan, belirli bir rakam belirtmeden piyasa rayicinde maaştan bahsediyor)  \n  **Uzaktan çalışma düzeni:** Hibrit çalışma (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nİşte [80,000 Hours](wiki:80,000_Hours), **Hard Problems**, **Arbeitnow** ve **Federal İstihdam Kurumu**'ndan (*Bundesagentur für Arbeit*) alınan; Almanya'daki araştırma, tasarım ve yazılım mühendisliği alanlarındaki güncel iş ilanlarının kısa bir listesi. \n\n---\n\n### Tasarım\n\n* **Senior Product Designer**\n  * **İşveren:** voize (hemşirelik ve klinik bakım dokümantasyonunu kolaylaştırmak için konuşma tanıma yapay zekası geliştiriyor)\n  * **Konum:** Berlin, Almanya (uzaktan çalışmaya uygun olarak listelenmiş)\n  * **Kaynak:** Hard Problems\n  * **Maaş:** Belirtilmemiş\n  * **Başvuru:** [voize üzerinden başvur](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **İşveren:** stiftung ear (elektronik atıkların bertarafı, geri alımı ve döngüsel ekonomi takibini koordine eden ulusal kayıt kuruluşu)\n  * **Konum:** Nürnberg, Bavyera\n  * **Kaynak:** Federal İstihdam Kurumu\n  * **Çalışma Düzeni ve Maaş:** İlan açıklamasında esnek/mobil çalışma seçeneklerinden bahsedilmiş ancak resmi bir tam uzaktan çalışma sınıflandırması yok; maaş belirtilmemiş\n  * **Başvuru:** [Bundesagentur für Arbeit üzerinden başvur](embed:ui-ux-design-1Bm)\n\n---\n\n### Araştırma\n\n* **Joint Fellowship Program (Peace & Security Policy)**\n  * **İşveren:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Konum:** Hamburg, Almanya\n  * **Kaynak:** 80,000 Hours\n  * **Çalışma Düzeni ve Maaş:** Belirtilmemiş\n  * **Başvuru:** [IFSH / 80,000 Hours üzerinden başvur](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/f/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **İşveren:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Konum:** Bochum, Kuzey Ren-Vestfalya\n  * **Kaynak:** Federal İstihdam Kurumu\n  * **Çalışma Düzeni ve Maaş:** Tam zamanlı (haftalık 39,83 saat); uzaktan çalışma düzeni belirtilmemiş; TV-L E13 kamu toplu sözleşme skalasına göre ücretlendirilir (kesin miktar ilanda yayınlanmamış)\n  * **Başvuru:** [Bundesagentur für Arbeit üzerinden başvur](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Grid Decarbonization & Basic Technology**\n  * **İşveren:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Konum:** Berlin\n  * **Kaynak:** Federal İstihdam Kurumu\n  * **Çalışma Düzeni ve Maaş:** Metinde esnek/mobil seçeneklerden bahsedilmiş ancak sabit bir uzaktan çalışma durumu belirtilmemiş; maaş belirtilmemiş\n  * **Başvuru:** [Bundesagentur für Arbeit üzerinden başvur](embed:research-engineer-f-7ao)\n\n---\n\n### Yazılım Mühendisliği\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **İşveren:** idealo internet GmbH\n  * **Konum:** Berlin, Almanya\n  * **Kaynak:** Arbeitnow\n  * **Çalışma Düzeni ve Maaş:** Yerinde/hibrit ofis ortamı; maaş belirtilmemiş\n  * **Başvuru:** [Arbeitnow üzerinden başvur](embed:senior-backend-engineer-q7x)\n\n* **Working Student – Software Engineering (Computer Vision / Autonomous Systems)**\n  * **İşveren:** Quantum-Systems GmbH (otonom hava platformları ve robotik algılama)\n  * **Konum:** Gilching, Bavyera\n  * **Kaynak:** Arbeitnow\n  * **Çalışma Düzeni ve Maaş:** Yerinde/hibrit; maaş belirtilmemiş\n  * **Başvuru:** [Arbeitnow üzerinden başvur](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**Almanya'daki Fırsatların Belirlenmesi**\n\nŞu anda Almanya'daki ilgili iş ilanlarını tespit etmeye odaklanmış durumdayım. İşe gelecek vaat eden kaynaklardan oluşan bir liste derleyerek başladım: `80,000 Hours`, `Hard Problems`, `Arbeitnow` ve `Federal İstihdam Kurumu`. Temel ilgi alanım araştırma, tasarım ve yazılım mühendisliği rollerinde yatıyor ve konum unsurunu yakından takip edeceğim.\n\n\n**Arama Parametrelerinin İyileştirilmesi**\n\nŞimdi `jobs-search` aracını etkili bir şekilde kullanmak için yaklaşımımı geliştiriyorum. 5 istek sınırı göz önüne alındığında, bir dizi sorgu yapmak ve sağlayıcıları doğrudan belirtmek için `requests` dizisine odaklanıyorum. Sağlayıcıların bir liste olarak açıkça nasıl sunulacağını ve alaka düzeyi kriterlerinin nasıl tanımlanacağını onaylamak için fonksiyon tanımını kontrol ediyorum. Bu; işveren, konum, kaynak ve başvuru bağlantısını içeren bir kısa liste oluşturmaya yardımcı olacak. Amacım, açıkça belirtilmediği sürece uzaktan çalışma veya maaş hakkında varsayımlarda bulunmaktan kaçınmak.\n\n\n**Sağlayıcı Dönüşlerinin İncelenmesi**\n\nTamam, geri dönen sağlayıcılara ilk bakışımı attım. Görünüşe göre elimizde \"Hard Problems\" ve Arbeitnow'dan birkaç ilan var; biri arka uç mühendisliğinde (Java/Kotlin) kıdemli bir rol, diğeri ise çalışan öğrenci rolü. İlk izlenimleri not ediyor ve her bir ilanın potansiyel etkisini değerlendiriyorum.\n\n\n**Mevcut Fırsatların Analiz Edilmesi**\n\nŞu anda gelecek vaat eden iki fırsatı değerlendirmeye odaklanmış durumdayım. Birincisi Hamburg Üniversitesi Barış Araştırmaları ve Güvenlik Politikası Enstitüsü'ndeki \"Ortak Burs Programı\", ikincisi ise Arayüz Siber Güvenlik Programı bünyesindeki \"Öğrenci Asistanı\" pozisyonu. Bunların barış ve güvenlik araştırmaları ile siber güvenlik bağlamındaki değerlerini sırasıyla dikkatle değerlendiriyorum.\n\n\n**Yeni Adayların Önceliklendirilmesi**\n\nDikkatimi dengeli bir kısa liste oluşturmaya kaydırdım. Alaka düzeyine ve son ilanlara odaklanarak tasarım ve araştırma alanındaki fırsatlara öncelik veriyorum. Şu anda Berlin'deki voize'da Kıdemli Ürün Tasarımcısı rolünü ve stiftung ear'daki UI/UX Tasarım pozisyonunu inceliyorum. Araştırma için, Hamburg'daki Ortak Burs Programı'nın yanı sıra Ruhr-Universität Bochum'daki bir rolü gözden geçiriyorum.\n\n\n**Yeni Olasılıkların Değerlendirilmesi**\n\nŞimdi yeni adayları kriterlerim ışığında tartıyorum. Federal İstihdam Kurumu aracılığıyla Berlin'deki Siemens Energy'de temel araştırmaya odaklanan bir Araştırma Mühendisi rolü gibi seçenekler ortaya çıkardım. Ayrıca sırasıyla idealo internet GmbH (Berlin, Arbeitnow) ve CT Software Engineering'deki (Ingolstadt, Federal İstihdam Kurumu) Kıdemli Arka Uç ve Küçük C++ Yazılım Geliştirici rollerini de değerlendiriyorum. Bunlar yazılım mühendisliğine olan ilgime uygun.\n\n\n**Başvuru Kriterlerinin İyileştirilmesi**\n\nŞimdi başvuru bağlantılarının nasıl ele alınacağını netleştiriyorum. `[görünen metin](embed:embed_ref)` veya standart bağlantıların kullanımını kontrol ederek net başvuru süreçlerine öncelik vermeyi unutmamalıyım. Ayrıca, ilanda açıkça belirtilmediği sürece uzaktan çalışma varsayımında bulunmaktan veya maaş bilgisini paylaşmaktan kaçınmalıyım.\n\n\n**Başvuru Protokollerinin Netleştirilmesi**\n\nŞimdi başvuru bağlantısı formatlarına odaklanıyorum. Doğrudan bağlantı entegrasyonunu veya `(embed:embed_ref)` formatının kullanımını sağlamaya odaklanarak her ikisini birden sunmadığımdan emin oluyorum. Uyumluluğu sağlamak için uygulama becerilerinden dönen URL'leri dikkatle gözden geçiriyorum. İş başvurusu bağlantısı başına yalnızca bir bağlantı stili kullanma kuralına uymayı hedefliyorum.\n\n\n**Başvuru Bağlantılarının Standartlaştırılması**\n\nŞimdi başvuru bağlantısı stratejisini uyguluyorum. Amacım iş ilanları için formatı standartlaştırmak. Başvuru bağlantıları için yalnızca gömülü referansı (embed ref) kullanacağım. Ayrıca her boş pozisyon için rol, işveren, konum ve kaynağı dahil edeceğim ve gömülü bir bağlantı kullanacağım. Her boş pozisyon için her zaman tek bir bağlantı kullandığımdan emin olacağım.\n\n\n**Fırsat Verilerinin Derlenmesi**\n\nŞimdi birden fazla fırsat için ayrıntıları topluyorum. voize'daki Kıdemli Ürün Tasarımcısı rolü, stiftung ear'daki UI/UX Tasarım pozisyonu ve Hamburg Üniversitesi'ndeki Ortak Burs Programı için bilgilere sahibim. Her biri için rolü, işvereni, konumu ve kaynağı, ayrıca uzaktan çalışma ve maaş özelliklerini not ediyorum. Her başvuru için gömülü bağlantılar kullanarak tutarlı bağlantı formatları sağlamaya odaklanıyorum.\n\n\n**Yeni İlanların Entegre Edilmesi**\n\nŞimdi yeni ilanları veri setine entegre ediyorum. Ruhr-Universität Bochum'daki bir Araştırma Görevlisi pozisyonunu Federal İstihdam Kurumu'ndan temin ederek ve uzaktan çalışma ile maaş ayrıntılarını not ederek ekledim. Ayrıca, esnek seçenekler de dahil olmak üzere Siemens Energy'deki bir Araştırma Mühendisi rolü hakkında bilgi derledim. Başvuru bağlantıları için gömülü bağlantılar kullanarak bağlantı formatlarında tutarlılık sağlıyorum.\n\n\n**Yeni İlanların Eklenmesi**\n\nBelirtilmemiş bir konumdaki Kıdemli Arka Uç Mühendisi rolü ve Gilching'deki Quantum-Systems GmbH'deki bir Çalışan Öğrenci pozisyonu olmak üzere iki yeni ilan ekledim. Konum, uzaktan çalışma seçenekleri, maaş bilgileri (varsa) ve standart formattaki başvuru bağlantıları dahil olmak üzere tüm ayrıntıları doğru bir şekilde yakalamaya odaklanıyorum. Başvuru bağlantısı için `(embed:embed_ref)` formatını kullanıyorum."
+      },
+      "message_3": {
+        "text": "İki tasarım rolü en ilgi çekici olanlar gibi görünüyor. Kaydedilen ilanların tam olarak ne dediğini kısaca karşılaştırabilir ve başvurmadan önce her bir işverene ne sormam gerektiği konusunda öneride bulunabilir misin?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nİşte her bir ilanın belirttiklerinin doğrudan bir karşılaştırması ve ardından başvuru sürecinden önce veya süreç sırasında her bir işverene sorabileceğin hedefe yönelik sorular.\n\n---\n\n### İlanların Karşılaştırması\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Başvurmadan Önce Neler Sorulmalı\n\n#### voize için:\n1. **Kullanıcı araştırması erişimi:** *\"Tasarımcılar, günlük klinik ortamlarında saha hemşireleri ve bakım personeli ile ne sıklıkla ve hangi kanallar aracılığıyla saha çalışması veya testler yürütüyor?\"*\n2. **Ekip olgunluğu ve kapsamı:** *\"Ürün ekibi nasıl yapılandırılmış, tasarımcıların Ürün Yöneticilerine (PM) ve mühendislere oranı nedir ve bu rol bireysel bir katkı sağlayan pozisyon mu yoksa tasarım sistemleri kurması mı bekleniyor?\"*\n3. **Ücretlendirme ve uzaktan çalışma düzeni:** *\"Bu kıdem seviyesi için hedeflenen ücret aralığı nedir ve uzaktan çalışma politikasına rağmen zorunlu yerinde ekip toplantıları veya çekirdek çalışma saatleri var mı?\"*\n\n#### stiftung ear için:\n1. **Nürnberg'deki yerinde çalışma beklentileri:** *\"Mobil çalışma pratikte nasıl yapılandırılıyor; Nürnberg ofisinde bulunmak için haftalık veya aylık sabit bir gereklilik var mı?\"*\n2. **Tasarım ve Kalite Güvence (QA) dengesi:** *\"İlanda UX/UI tasarımının yanı sıra yazılım testi uygulamasından da bahsediliyor. Rolün yüzde kaçı kullanıcı araştırması/prototiplemeye, yüzde kaçı teknik yazılım doğrulama ve kalite güvencesine odaklanıyor?\"*\n3. **Tasarım araçları ve geliştirme devri:** *\"Şu anda hangi tasarım sistemi ve prototipleme araçları kullanılıyor ve şirket içi bir geliştirme ekibiyle mi yoksa harici BT hizmet sağlayıcılarıyla mı çalışıyorsunuz?\"*\n4. **Ücretlendirme kriteri:** *\"stiftung ear'ın kamu yararına yasal bir kapasitede faaliyet gösterdiği göz önüne alındığında, ücretlendirme belirli bir kamu toplu ölçeğini (TVöD/TV-L gibi) mi yoksa dahili bir derecelendirme yapısını mı takip ediyor?\"*"
+      },
+      "message_4_thinking": {
+        "text": "**İş İlanı İçeriği Analiz Ediliyor**\n\nTamam, iş tanımlarını karşılaştırmaya başladım. Voize'deki Kıdemli Ürün Tasarımcısı rolü ile Stiftung EAR'daki UI/UX Tasarım pozisyonu için temel sorumluluklara ve gerekli becerilere odaklanıyorum. Şimdi her iki iş ilanının temel sorumluluklarının ve gerekli becerilerinin bir özetini hazırlıyorum. Ardından, başka hangi bilgilere ihtiyacım olabileceğini belirleyeceğim.\n\n\n**İş Tanımları Analiz Ediliyor**\n\nTamam, şimdi her bir ilanın ayrıntılarını daha derinlemesine inceliyorum. Odak noktam, açıklamalarda kullanılan asıl dili çözümlemek. Her bir işveren için hazırlık yapmak amacıyla hangi temel soruların yanıtlanması gerektiğini belirlemeye çalışıyorum. Örneğin, voize ilanında, yapay zeka asistan ürünleri hakkında bilgi edinmem gerekiyor.\n\n\n**Temel Ayrıntılar Değerlendiriliyor**\n\nŞimdi voize ilanına odaklanıyor ve önemli çıkarımları belirliyorum. Bu, ürün yöneticilerini zorlayabilecek, önemli ölçüde sahiplik gerektiren kıdemli bir rol. Berlin ofisi ve uzaktan çalışma seçenekleriyle esnek bir yapı sunuluyor. Ücret belirtilmemiş ancak yan haklar arasında makul tatil süresi ve spor kulübü üyeliği yer alıyor. Bağlam Alman sağlık sektörü olsa da birincil dil İngilizce.\n\n\n**Belirli Gereksinimler Tespit Ediliyor**\n\nŞimdi Nürnberg merkezli role odaklanıyorum. Temel alanları belirledim: yasal uyumluluk yönü ElektroG düzenlemelerine odaklanıyor. Çalışmalarım web uygulaması geliştirme ve paydaşlara danışmanlık sağlayan UX faaliyetlerini içeriyor. Akıcı Almanca (en az C1) zorunlu, düzenleyici yazılım deneyimi ise bir avantaj. Pozisyon kalıcıdır ve önemli ölçüde uzaktan çalışma esnekliği sunar. Ücretlendirme performansa dayalıdır.\n\n\n**İş Nitelikleri Karşılaştırılıyor**\n\nŞimdi roller arasında doğrudan karşılaştırmalar yapıyorum. Bunları alan, kültür, gerekli beceriler ve çalışma yeri bazında ayırdım. Özellikle voize ile stiftung ear rolünü karşılaştırıyorum. Birinci basamak sağlık hizmetlerinden e-atık uyumluluğuna kadar ortamlarını ve önceliklerini kıyaslamaya odaklanıyorum. Dil gereksinimleri ve deneyim düzeyi gibi temel farklılıkları not ediyorum. Ayrıca, uzaktan çalışma politikalarındaki farklılıkları değerlendiriyorum."
       },
       "follow_up_1": {
-        "text": "Göteborg'daki uzaktan yazılım geliştirici işlerini ara"
+        "text": "Berlin'de daha fazla UI/UX tasarım işi ara"
       },
       "follow_up_2": {
-        "text": "Bu kıdemli geliştirici rollerinin gereksinimlerini karşılaştır"
+        "text": "voize'daki işe alım yöneticisi için bir iletişim e-postası taslağı hazırla"
       },
       "follow_up_3": {
-        "text": "Stokholm'deki ön uç geliştirici pozisyonlarını ara"
+        "text": "Almanya'da benzer sağlık teknolojisi rollerini bul"
       },
       "follow_up_4": {
-        "text": "Bu ilanlarda belirtilen en popüler teknoloji yığınlarını listele"
+        "text": "Sağlık teknolojisi girişimlerinde çalışmanın kamu kurumlarına kıyasla artılarını ve eksilerini karşılaştır"
       },
       "follow_up_5": {
-        "text": "İsveç'teki başlangıç seviyesi geliştirici ilanlarını ara"
+        "text": "Nürnberg'de kamu sektörü teknoloji işlerini ara"
       },
       "follow_up_6": {
-        "text": "İsveç teknoloji işlerindeki uzaktan çalışma trendlerini özetle"
+        "text": "Kıdemli ürün tasarımı mülakatı için temel hazırlık adımlarını listele"
       }
     },
     "launch_readiness_checklist_doc": {

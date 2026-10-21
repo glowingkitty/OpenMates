@@ -4908,6 +4908,104 @@
       "assistant_response": {
         "text": "Użyj wyszukiwarki wydarzeń, aby znaleźć lokalne zajęcia i spotkania. Wybierz miejsce i temat, by zobaczyć, co dzieje się w pobliżu."
       }
+    },
+    "collective": {
+      "title": {
+        "text": "Zachowania zbiorowe zwierząt"
+      },
+      "description": {
+        "text": "Jak grupy zwierząt koordynują ruchy i decyzje."
+      },
+      "phrase": {
+        "text": "Tysiące zwierząt poruszają się jak jedno, bez dyrygenta."
+      },
+      "assistant_response": {
+        "text": "Jak grupy zwierząt koordynują ruchy i decyzje."
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "Biblioteka Aleksandryjska"
+      },
+      "description": {
+        "text": "Jeden z najsłynniejszych ośrodków wiedzy starożytnego świata."
+      },
+      "phrase": {
+        "text": "Najsłynniejsza biblioteka starożytności była też instytucją badawczą."
+      },
+      "assistant_response": {
+        "text": "Jeden z najsłynniejszych ośrodków wiedzy starożytnego świata."
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "Tensegracja"
+      },
+      "description": {
+        "text": "Konstrukcje stabilizowane równowagą naprężeń rozciągających i ściskających."
+      },
+      "phrase": {
+        "text": "Niektóre konstrukcje zdają się unosić dzięki niewidocznemu działaniu sił naciągu."
+      },
+      "assistant_response": {
+        "text": "Konstrukcje stabilizowane równowagą naprężeń rozciągających i ściskających."
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "Cytaty z wiarygodnych źródeł"
+      },
+      "description": {
+        "text": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
+      },
+      "phrase": {
+        "text": "Chcesz zweryfikować odpowiedź? Poproś OpenMates o cytat ze źródła."
+      },
+      "assistant_response": {
+        "text": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "Wykrywanie obrazów AI"
+      },
+      "description": {
+        "text": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
+      },
+      "phrase": {
+        "text": "Czy obraz powstał dzięki AI? Prześlij go i sprawdź wskazówki."
+      },
+      "assistant_response": {
+        "text": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "Czaty incognito"
+      },
+      "description": {
+        "text": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
+      },
+      "phrase": {
+        "text": "Potrzebujesz tymczasowej rozmowy? Nie zapisuj jej w historii czatów."
+      },
+      "assistant_response": {
+        "text": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "Ustawienia prywatności"
+      },
+      "description": {
+        "text": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
+      },
+      "phrase": {
+        "text": "Sprawdź ochronę OpenMates, zanim pilnie potrzebne będą ustawienia."
+      },
+      "assistant_response": {
+        "text": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
+      }
     }
   },
   "demo_chats": {
@@ -9663,36 +9761,48 @@
         "text": "Wyjaśnij, jak podaż na rynku mieszkaniowym reaguje na kontrolę cen"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "Praca dla programistów w Szwecji"
+        "text": "Praca z misją w Niemczech"
       },
       "summary": {
-        "text": "Porównaj aktualne oferty pracy dla programistów w Sztokholmie i Malmö z oryginalnymi ogłoszeniami i zweryfikowanymi informacjami o miejscu pracy."
+        "text": "Przeszukaj cztery platformy z ofertami pracy w Niemczech, porównaj role projektowe i przygotuj pytania dla pracodawców."
       },
       "message_1": {
-        "text": "Znajdź dwie aktualne oferty pracy dla programistów w Sztokholmie i dwie w Malmö ze szwedzkiego publicznego urzędu pracy. Przedstaw każdą w krótkim punkcie, podając stanowisko, pracodawcę, miasto i link do oryginalnego ogłoszenia. Podaj wysokość wynagrodzenia lub informację o pracy zdalnej tylko wtedy, gdy są wyraźnie określone w ogłoszeniu; w przeciwnym razie napisz „nie podano”. Odpowiedź powinna mieć mniej niż 200 słów."
+        "text": "Szukam pracy z misją w Niemczech, szczególnie w badaniach, projektowaniu lub inżynierii oprogramowania. Znajdź proszę kilka aktualnych ofert pracy, korzystając z 80,000 Hours i Hard Problems, a także Arbeitnow i Federalnej Agencji Pracy. Jestem otwarty na dowolną lokalizację w Niemczech. Przygotuj krótką listę z pracodawcą, lokalizacją, źródłem i linkiem do aplikacji; nie zakładaj pracy zdalnej ani wynagrodzenia, jeśli nie podano ich w ogłoszeniu."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktualne oferty pracy dla programistów z Arbetsförmedlingen (Platsbanken):\n\n### Sztokholm\n\n* **Stanowisko:** Senior Systemutvecklare  \n  **Pracodawca:** NXT Interim Stockholm AB  \n  **Miejscowość:** Sztokholm  \n  **Link do oryginalnego ogłoszenia:** [Ogłoszenie Platsbanken 31589252](embed:senior-systemutvecklare-2ps)  \n  **Wynagrodzenie:** Nie podano  \n  **Możliwość pracy zdalnej:** Oferuje zdalne miejsca pracy (*remote-arbetsplatser*)\n\n* **Stanowisko:** Javautvecklare  \n  **Pracodawca:** AFRY AB  \n  **Miejscowość:** Sztokholm  \n  **Link do oryginalnego ogłoszenia:** [Ogłoszenie Platsbanken 31588186](embed:javautvecklare-y47)  \n  **Wynagrodzenie:** Nie podano  \n  **Możliwość pracy zdalnej:** Możliwość pracy hybrydowej (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Stanowisko:** Senior AI Engineer  \n  **Pracodawca:** Iver Accelerate AB  \n  **Miejscowość:** Malmö  \n  **Link do oryginalnego ogłoszenia:** [Ogłoszenie Platsbanken 31588387](embed:senior-ai-engineer-Duw)  \n  **Wynagrodzenie:** Nie podano  \n  **Możliwość pracy zdalnej:** Możliwość pracy hybrydowej (*möjlighet till hybridarbete*)\n\n* **Stanowisko:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Pracodawca:** Jobbakuten Väst AB  \n  **Miejscowość:** Malmö  \n  **Link do oryginalnego ogłoszenia:** [Ogłoszenie Platsbanken 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Wynagrodzenie:** Nie podano (ogłoszenie wspomina o wynagrodzeniu rynkowym bez podania konkretnej kwoty)  \n  **Możliwość pracy zdalnej:** Praca hybrydowa (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nOto krótka lista aktualnych ofert pracy w Niemczech w obszarach badań, projektowania i inżynierii oprogramowania ze źródeł [80,000 Hours](wiki:80,000_Hours), **Hard Problems**, **Arbeitnow** oraz **Federalnej Agencji Pracy** (*Bundesagentur für Arbeit*). \n\n---\n\n### Projektowanie\n\n* **Starszy projektant produktu**\n  * **Pracodawca:** voize (firma rozwijająca sztuczną inteligencję rozpoznającą mowę w celu usprawnienia dokumentacji w opiece pielęgniarskiej i klinicznej)\n  * **Lokalizacja:** Berlin, Niemcy (oferta dopuszcza pracę zdalną)\n  * **Źródło:** Hard Problems\n  * **Wynagrodzenie:** Nie podano\n  * **Aplikowanie:** [Aplikuj przez voize](embed:senior-product-designer-Wid)\n\n* **Projektowanie UI/UX (m/w/d)**\n  * **Pracodawca:** stiftung ear (krajowy rejestr koordynujący utylizację i odbiór elektroodpadów oraz monitorowanie ich obiegu w gospodarce o obiegu zamkniętym)\n  * **Lokalizacja:** Norymberga, Bawaria\n  * **Źródło:** Federalna Agencja Pracy\n  * **Tryb pracy i wynagrodzenie:** W opisie oferty wspomniano o elastycznej pracy i możliwości pracy mobilnej, ale formalnie nie sklasyfikowano jej jako w pełni zdalnej; wynagrodzenia nie podano\n  * **Aplikowanie:** [Aplikuj przez Bundesagentur für Arbeit](embed:ui-ux-design-1Bm)\n\n---\n\n### Badania\n\n* **Wspólny program stypendialny (polityka pokojowa i bezpieczeństwa)**\n  * **Pracodawca:** [Uniwersytet w Hamburgu](wiki:University_of_Hamburg) i Instytut Badań nad Pokojem i Polityką Bezpieczeństwa (IFSH)\n  * **Lokalizacja:** Hamburg, Niemcy\n  * **Źródło:** 80,000 Hours\n  * **Tryb pracy i wynagrodzenie:** Nie podano\n  * **Aplikowanie:** [Aplikuj przez IFSH / 80,000 Hours](embed:joint-fellowship-program-iLH)\n\n* **Pracownik naukowy (m/f/x) – uczenie maszynowe i podejmowanie decyzji w warunkach niepewności**\n  * **Pracodawca:** [Uniwersytet Ruhry w Bochum](wiki:Ruhr_University_Bochum)\n  * **Lokalizacja:** Bochum, Nadrenia Północna-Westfalia\n  * **Źródło:** Federalna Agencja Pracy\n  * **Tryb pracy i wynagrodzenie:** Pełny etat (39,83 godz. tygodniowo); nie określono zasad pracy zdalnej; wynagrodzenie według grupy E13 układu zbiorowego TV-L dla sektora publicznego (w ofercie nie opublikowano dokładnej kwoty)\n  * **Aplikowanie:** [Aplikuj przez Bundesagentur für Arbeit](embed:research-associate-m-79L)\n\n* **Inżynier ds. badań (f/m/d) – dekarbonizacja sieci elektroenergetycznych i technologie podstawowe**\n  * **Pracodawca:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Lokalizacja:** Berlin\n  * **Źródło:** Federalna Agencja Pracy\n  * **Tryb pracy i wynagrodzenie:** W tekście wspomniano o elastycznej pracy i możliwości pracy mobilnej, ale nie określono stałych zasad pracy zdalnej; wynagrodzenia nie podano\n  * **Aplikowanie:** [Aplikuj przez Bundesagentur für Arbeit](embed:research-engineer-f-7ao)\n\n---\n\n### Inżynieria oprogramowania\n\n* **Starszy inżynier backendu (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Pracodawca:** idealo internet GmbH\n  * **Lokalizacja:** Berlin, Niemcy\n  * **Źródło:** Arbeitnow\n  * **Tryb pracy i wynagrodzenie:** Praca stacjonarna/hybrydowa w biurze; wynagrodzenia nie podano\n  * **Aplikowanie:** [Aplikuj przez Arbeitnow](embed:senior-backend-engineer-q7x)\n\n* **Praca dla studenta – inżynieria oprogramowania (widzenie komputerowe / systemy autonomiczne)**\n  * **Pracodawca:** Quantum-Systems GmbH (autonomiczne platformy powietrzne i percepcja robotyczna)\n  * **Lokalizacja:** Gilching, Bawaria\n  * **Źródło:** Arbeitnow\n  * **Tryb pracy i wynagrodzenie:** Praca stacjonarna/hybrydowa; wynagrodzenia nie podano\n  * **Aplikowanie:** [Aplikuj przez Arbeitnow](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**Identyfikowanie możliwości w Niemczech**\n\nObecnie skupiam się na wyszukiwaniu odpowiednich ofert pracy w Niemczech. Zacząłem od sporządzenia listy obiecujących źródeł: `80,000 Hours`, `Hard Problems`, `Arbeitnow` oraz `Federalna Agencja Pracy`. Moje główne zainteresowania to role w obszarze badań, projektowania i inżynierii oprogramowania, a szczególną uwagę będę zwracać na lokalizację.\n\n\n**Doprecyzowanie parametrów wyszukiwania**\n\nDopracowuję teraz swoje podejście, aby skutecznie korzystać z narzędzia `jobs-search`. Skupiam się na tablicy `requests`, aby wykonać serię zapytań i bezpośrednio określić dostawców, biorąc pod uwagę limit 5 żądań. Sprawdzam definicję funkcji, aby potwierdzić, jak jawnie podać dostawców jako listę oraz jak zdefiniować kryteria trafności. Pomoże to w stworzeniu krótkiej listy zawierającej pracodawcę, lokalizację, źródło i link do aplikacji. Moim celem jest unikanie założeń dotyczących pracy zdalnej lub wynagrodzenia, jeśli nie zostały one wyraźnie określone.\n\n\n**Analiza wyników od dostawców**\n\nDobrze, mam pierwszy wgląd w zwróconych dostawców. Wygląda na to, że mamy „Hard Problems” i kilka ofert z Arbeitnow; jedna to stanowisko Senior Backend Engineer (Java/Kotlin), a druga to rola dla studenta pracującego. Odnotowuję pierwsze wrażenia i oceniam potencjalny wpływ każdego ogłoszenia.\n\n\n**Analiza aktualnych możliwości**\n\nObecnie koncentruję się na ocenie dwóch obiecujących możliwości. Pierwszą z nich jest „Joint Fellowship Program” w Instytucie Badań nad Pokojem i Polityką Bezpieczeństwa Uniwersytetu w Hamburgu, a drugą stanowisko „Asystenta Studenckiego” w ramach programu Interface Cybersecurity. Starannie rozważam ich zalety odpowiednio w kontekście badań nad pokojem i bezpieczeństwem oraz cyberbezpieczeństwa.\n\n\n**Priorytetyzacja nowych tropów**\n\nPrzeniosłem uwagę na przygotowanie zrównoważonej krótkiej listy. Priorytetowo traktuję możliwości w projektowaniu i badaniach, skupiając się na trafności i aktualności ogłoszeń. Obecnie analizuję rolę Senior Product Designer w voize w Berlinie oraz stanowisko UI/UX Design w stiftung ear. W przypadku badań przeglądam ofertę na Ruhr-Universität Bochum wraz z programem Joint Fellowship w Hamburgu.\n\n\n**Ocena nowych możliwości**\n\nRozważam teraz nowe tropy w świetle moich kryteriów. Odkryłem opcje takie jak rola Research Engineer w Siemens Energy w Berlinie (przez Federalną Agencję Pracy), która koncentruje się na badaniach podstawowych. Rozważam również role Senior Backend i Junior C++ Software Developer odpowiednio w idealo internet GmbH (Berlin, Arbeitnow) i CT Software Engineering (Ingolstadt, Federalna Agencja Pracy). Pasują one do moich zainteresowań inżynierią oprogramowania.\n\n\n**Doprecyzowanie kryteriów aplikacji**\n\nWyjaśniam teraz, jak postępować z linkami do aplikacji. Muszę pamiętać o priorytetowym traktowaniu jasnych procesów aplikacyjnych, sprawdzając użycie formatu `[tekst wyświetlany](embed:embed_ref)` lub standardowych linków. Ponadto powinienem unikać zakładania pracy zdalnej lub ujawniania wynagrodzenia, chyba że zostało to wyraźnie określone w ogłoszeniu.\n\n\n**Wyjaśnienie protokołów aplikacyjnych**\n\nSkupiam się teraz na formatach linków do aplikacji. Zależy mi na zapewnieniu bezpośredniej integracji linków lub użyciu formatu `(embed:embed_ref)`, dbając o to, by nie podawać obu jednocześnie. Starannie sprawdzam adresy URL zwrócone z umiejętności aplikacji, aby zapewnić zgodność. Moim celem jest przestrzeganie zasady stosowania tylko jednego stylu linku na ofertę pracy.\n\n\n**Standaryzacja linków do aplikacji**\n\nWdrażam teraz strategię linków do aplikacji. Moim celem jest ujednolicenie formatu ogłoszeń o pracę. Do linków aplikacyjnych będę używać wyłącznie odniesień embed. Dla każdego wolnego stanowiska uwzględnię również rolę, pracodawcę, lokalizację i źródło, korzystając z osadzonego linku. Upewnię się, że zawsze używam jednego linku na ofertę.\n\n\n**Zestawianie danych o możliwościach**\n\nZbieram teraz szczegóły dotyczące wielu możliwości. Mam informacje o roli Senior Product Designer w voize, stanowisku UI/UX Design w stiftung ear oraz programie Joint Fellowship na Uniwersytecie w Hamburgu. Odnotowuję rolę, pracodawcę, lokalizację i źródło dla każdego z nich, a także specyfikacje dotyczące pracy zdalnej i wynagrodzenia. Skupiam się na zapewnieniu spójnych formatów linków poprzez stosowanie osadzeń dla każdej aplikacji.\n\n\n**Integracja nowych ogłoszeń**\n\nIntegruję teraz nowe ogłoszenia z zestawem danych. Dodałem stanowisko pracownika naukowego (Research Associate) na Ruhr-Universität Bochum, pozyskując je z Federalnej Agencji Pracy i odnotowując szczegóły dotyczące pracy zdalnej i wynagrodzenia. Ponadto zebrałem informacje o roli Research Engineer w Siemens Energy, w tym o opcjach elastycznych. Zapewniam spójność formatów linków, używając osadzeń dla linków aplikacyjnych.\n\n\n**Dodawanie nowych ogłoszeń**\n\nWłaśnie dodałem dwa nowe ogłoszenia: rolę Senior Backend Engineer w nieokreślonej lokalizacji oraz stanowisko dla studenta pracującego w Quantum-Systems GmbH w Gilching. Skupiam się na dokładnym uchwyceniu wszystkich szczegółów, w tym lokalizacji, opcji pracy zdalnej, informacji o wynagrodzeniu (tam, gdzie są dostępne) oraz linków do aplikacji w ustandaryzowanym formacie. Do linku aplikacyjnego używam formatu `(embed:embed_ref)`."
+      },
+      "message_3": {
+        "text": "Te dwie role projektowe brzmią najciekawiej. Czy możesz krótko porównać, co właściwie mówią zapisane ogłoszenia i zasugerować, o co zapytać każdego pracodawcę przed złożeniem aplikacji?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nOto bezpośrednie porównanie informacji zawartych w każdym ogłoszeniu, a następnie konkretne pytania, które możesz zadać każdemu pracodawcy przed procesem aplikacji lub w jego trakcie.\n\n---\n\n### Porównanie ogłoszeń\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### O co zapytać przed złożeniem aplikacji\n\n#### Dla voize:\n1. **Dostęp do badań użytkowników:** „Jak często i jakimi kanałami projektanci przeprowadzają badania terenowe lub testy z pielęgniarkami i personelem opiekuńczym w ich codziennym środowisku klinicznym?”\n2. **Dojrzałość i zakres zespołu:** „Jak ustrukturyzowany jest zespół produktowy, jaki jest obecny stosunek liczby projektantów do PM-ów i inżynierów oraz czy jest to stanowisko samodzielne (IC), czy też oczekuje się tworzenia systemów projektowych?”\n3. **Wynagrodzenie i tryb pracy zdalnej:** „Jakie są widełki wynagrodzenia dla tego poziomu doświadczenia i czy mimo polityki pracy zdalnej obowiązują obowiązkowe wyjazdy integracyjne lub godziny rdzeniowe?”\n\n#### Dla stiftung ear:\n1. **Oczekiwania dotyczące obecności w Norymberdze:** „Jak w praktyce wygląda praca mobilna – czy istnieje stały tygodniowy lub miesięczny wymóg obecności w biurze w Norymberdze?”\n2. **Równowaga między projektowaniem a QA:** „Ogłoszenie wspomina o wdrażaniu testów oprogramowania obok projektowania UX/UI. Jaki procent czasu pracy poświęcony jest na badania użytkowników/prototypowanie, a jaki na techniczną walidację oprogramowania i zapewnienie jakości (QA)?”\n3. **Narzędzia projektowe i przekazywanie prac programistom:** „Jakie systemy projektowe i narzędzia do prototypowania są obecnie używane oraz czy współpracujecie z wewnętrznym zespołem programistów, czy z zewnętrznymi dostawcami usług IT?”\n4. **Benchmark wynagrodzenia:** „Biorąc pod uwagę, że stiftung ear działa jako organ ustawowy pożytku publicznego, czy wynagrodzenie opiera się na konkretnej publicznej skali zbiorowej (takiej jak TVöD/TV-L), czy na wewnętrznej strukturze płac?”"
+      },
+      "message_4_thinking": {
+        "text": "**Analizowanie treści ogłoszeń o pracę**\n\nDobrze, zacząłem porównywać opisy stanowisk. Skupiam się na kluczowych obowiązkach i wymaganych umiejętnościach na stanowisku Senior Product Designer w Voize oraz UI/UX Designer w Stiftung EAR. Teraz przygotowuję podsumowanie kluczowych obowiązków i wymaganych umiejętności z obu ogłoszeń. Następnie ustalę, jakich dodatkowych informacji mogę potrzebować.\n\n\n**Analizowanie opisów stanowisk**\n\nDobrze, zagłębiam się teraz w szczegóły każdego ogłoszenia. Skupiam się na analizie języka użytego w opisach. Próbuję ustalić, na jakie kluczowe pytania należy odpowiedzieć, aby przygotować się do kontaktu z każdym pracodawcą. Na przykład w ogłoszeniu voize muszę dowiedzieć się więcej o ich produkcie – asystencie AI.\n\n\n**Ocena kluczowych szczegółów**\n\nSkupiam się teraz na ogłoszeniu voize i wyciągam najważniejsze wnioski. Jest to rola seniorska z dużą odpowiedzialnością, wymagająca kogoś, kto potrafi stawiać wyzwania menedżerom produktu. Model pracy jest elastyczny, z biurem w Berlinie i opcjami pracy zdalnej. Wynagrodzenie nie zostało podane, ale benefity obejmują przyzwoity wymiar urlopu i członkostwo w klubie sportowym. Głównym językiem jest angielski, mimo że kontekstem jest niemiecka służba zdrowia.\n\n\n**Określanie konkretnych wymagań**\n\nSkupiam się teraz na roli w Norymberdze. Podzieliłem kluczowe obszary: aspekt zgodności prawnej koncentruje się na przepisach ElektroG. Praca obejmuje rozwój aplikacji internetowych i działania UX, doradzanie interesariuszom. Biegła znajomość języka niemieckiego (minimum C1) jest obowiązkowa, doświadczenie w oprogramowaniu regulacyjnym jest atutem. Stanowisko jest stałe, z dużą elastycznością pracy zdalnej. Wynagrodzenie jest uzależnione od wyników.\n\n\n**Porównywanie atrybutów pracy**\n\nDokonuję teraz bezpośrednich porównań między stanowiskami. Podzieliłem je według domeny, kultury, wymaganych umiejętności i miejsca pracy. W szczególności przyglądam się voize w porównaniu z rolą w stiftung ear. Skupiam się na zestawieniu ich środowisk i priorytetów, od bezpośredniej opieki zdrowotnej po zgodność z przepisami dotyczącymi e-odpadów. Odnotowuję kluczowe różnice, takie jak wymagania językowe i poziom doświadczenia. Oceniam również różnice w ich politykach pracy zdalnej."
       },
       "follow_up_1": {
-        "text": "Szukaj ofert pracy zdalnej dla programistów w Göteborgu"
+        "text": "Szukaj więcej ofert pracy dla UI/UX designerów w Berlinie"
       },
       "follow_up_2": {
-        "text": "Porównaj wymagania na te stanowiska dla senior developerów"
+        "text": "Przygotuj projekt wiadomości do menedżera ds. rekrutacji w voize"
       },
       "follow_up_3": {
-        "text": "Szukaj ofert pracy dla frontend developerów w Sztokholmie"
+        "text": "Znajdź podobne role w sektorze technologii medycznych w Niemczech"
       },
       "follow_up_4": {
-        "text": "Wymień najpopularniejsze stosy technologiczne wspomniane w tych ogłoszeniach"
+        "text": "Porównaj zalety i wady pracy w startupach medycznych i instytucjach publicznych"
       },
       "follow_up_5": {
-        "text": "Szukaj ofert pracy dla junior developerów w Szwecji"
+        "text": "Szukaj ofert pracy w sektorze technologicznym w administracji publicznej w Norymberdze"
       },
       "follow_up_6": {
-        "text": "Podsumuj trendy dotyczące pracy zdalnej w szwedzkim sektorze technologicznym"
+        "text": "Wymień kluczowe kroki przygotowania do rozmowy kwalifikacyjnej na stanowisko Senior Product Designer"
       }
     },
     "launch_readiness_checklist_doc": {

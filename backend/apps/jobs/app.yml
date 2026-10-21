@@ -1,12 +1,12 @@
 landing:
   order: 8
   capability:
-    type: focus
-    id: career_insights
+    type: skill
+    id: search
   caption:
-    en: Help with career advice
-    de: Hilf mir bei Karrierefragen
-  example_chat_id: example-adjacent-career-portfolio-experiments
+    en: Find jobs in Germany
+    de: Finde Jobs in Deutschland
+  example_chat_id: example-jobs-in-germany
 
 name_translation_key: jobs
 description_translation_key: jobs.description

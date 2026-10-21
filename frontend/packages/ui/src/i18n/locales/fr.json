@@ -4935,6 +4935,104 @@
       "assistant_response": {
         "text": "Utilise la recherche d'événements pour trouver des cours et des rencontres près de chez toi. Choisis un lieu et un sujet pour voir ce qui se passe à proximité."
       }
+    },
+    "collective": {
+      "title": {
+        "text": "Comportement collectif des animaux"
+      },
+      "description": {
+        "text": "Comment les groupes d’animaux coordonnent leurs mouvements et leurs décisions."
+      },
+      "phrase": {
+        "text": "Des milliers d’animaux se déplacent ensemble, sans chef d’orchestre."
+      },
+      "assistant_response": {
+        "text": "Comment les groupes d’animaux coordonnent leurs mouvements et leurs décisions."
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "Bibliothèque d’Alexandrie"
+      },
+      "description": {
+        "text": "L’un des centres du savoir les plus célèbres de l’Antiquité."
+      },
+      "phrase": {
+        "text": "La plus célèbre bibliothèque antique était aussi un institut de recherche."
+      },
+      "assistant_response": {
+        "text": "L’un des centres du savoir les plus célèbres de l’Antiquité."
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "Tenségrité"
+      },
+      "description": {
+        "text": "Des structures stabilisées par l’équilibre entre tension et compression."
+      },
+      "phrase": {
+        "text": "Certaines structures semblent flotter grâce au rôle discret de la tension."
+      },
+      "assistant_response": {
+        "text": "Des structures stabilisées par l’équilibre entre tension et compression."
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "Citations de sources fiables"
+      },
+      "description": {
+        "text": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
+      },
+      "phrase": {
+        "text": "Besoin de vérifier une réponse ? Demande à OpenMates de citer sa source."
+      },
+      "assistant_response": {
+        "text": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "Détection d’images IA"
+      },
+      "description": {
+        "text": "Importe une image et examine les indices de génération par IA dans le chat."
+      },
+      "phrase": {
+        "text": "Cette image a-t-elle été générée par IA ? Importe-la pour examiner les indices."
+      },
+      "assistant_response": {
+        "text": "Importe une image et examine les indices de génération par IA dans le chat."
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "Chats incognito"
+      },
+      "description": {
+        "text": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
+      },
+      "phrase": {
+        "text": "Besoin d’une conversation temporaire ? Garde-la hors de ton historique enregistré."
+      },
+      "assistant_response": {
+        "text": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "Réglages de confidentialité"
+      },
+      "description": {
+        "text": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
+      },
+      "phrase": {
+        "text": "Découvre comment OpenMates protège tes données avant d’avoir besoin de ces réglages en urgence."
+      },
+      "assistant_response": {
+        "text": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
+      }
     }
   },
   "demo_chats": {
@@ -9690,36 +9788,48 @@
         "text": "Expliquer comment l'offre sur le marché du logement réagit au contrôle des prix"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "Emplois de développeur en Suède"
+        "text": "Emplois porteurs de sens en Allemagne"
       },
       "summary": {
-        "text": "Compare les offres d'emploi actuelles pour développeurs à Stockholm et Malmö avec les annonces originales et des détails vérifiés sur le lieu de travail."
+        "text": "Recherche des offres d'emploi en Allemagne sur quatre plateformes, puis compare les rôles en design et prépare des questions pour les employeurs."
       },
       "message_1": {
-        "text": "Trouve deux offres d'emploi actuelles de développeur logiciel à Stockholm et deux à Malmö via le service public de l'emploi suédois. Affiche une courte puce pour chacune avec le titre, l'employeur, la ville du lieu de travail et le lien vers l'annonce originale. Inclus un salaire ou une possibilité de télétravail uniquement si c'est explicitement mentionné dans l'annonce ; sinon, indique non précisé. Garde la réponse sous les 200 mots."
+        "text": "Je cherche un travail porteur de sens en Allemagne, particulièrement dans la recherche, le design ou l'ingénierie logicielle. Trouve-moi quelques offres actuelles en utilisant 80,000 Hours et Hard Problems ainsi qu'Arbeitnow et l'Agence fédérale pour l'emploi. Je suis ouvert à n'importe quelle ville en Allemagne. Donne-moi une courte sélection avec l'employeur, le lieu, la source et le lien de candidature, et ne suppose pas de télétravail ou de salaire si l'annonce ne le précise pas."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nOffres d'emploi actuelles pour développeurs de logiciels d'Arbetsförmedlingen (Platsbanken) :\n\n### Stockholm\n\n* **Intitulé :** Senior Systemutvecklare  \n  **Employeur :** NXT Interim Stockholm AB  \n  **Ville :** Stockholm  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Salaire :** Non précisé  \n  **Télétravail :** Propose des postes à distance (*remote-arbetsplatser*)\n\n* **Intitulé :** Javautvecklare  \n  **Employeur :** AFRY AB  \n  **Ville :** Stockholm  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Salaire :** Non précisé  \n  **Télétravail :** Possibilité de travail hybride (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Intitulé :** Senior AI Engineer  \n  **Employeur :** Iver Accelerate AB  \n  **Ville :** Malmö  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Salaire :** Non précisé  \n  **Télétravail :** Possibilité de travail hybride (*möjlighet till hybridarbete*)\n\n* **Intitulé :** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Employeur :** Jobbakuten Väst AB  \n  **Ville :** Malmö  \n  **Lien vers l'annonce originale :** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Salaire :** Non précisé (l'annonce mentionne un salaire au prix du marché sans montant précis)  \n  **Télétravail :** Travail hybride (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nVoici une liste restreinte de postes vacants actuels en Allemagne dans les domaines de la recherche, du design et de l'ingénierie logicielle, provenant de [80,000 Hours](wiki:80,000_Hours), **Hard Problems**, **Arbeitnow** et de l'**Agence fédérale pour l'emploi** (*Bundesagentur für Arbeit*). \n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Employeur :** voize (développe une IA de reconnaissance vocale pour simplifier la documentation dans les soins infirmiers et cliniques)\n  * **Lieu :** Berlin, Allemagne (indiqué comme éligible au télétravail)\n  * **Source :** Hard Problems\n  * **Salaire :** Non spécifié\n  * **Candidature :** [Postuler via voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (h/f/d)**\n  * **Employeur :** stiftung ear (registre national coordonnant l'élimination, la reprise et le suivi de l'économie circulaire des déchets électroniques)\n  * **Lieu :** Nuremberg, Bavière\n  * **Source :** Agence fédérale pour l'emploi\n  * **Modalités de travail et salaire :** Options de travail flexible/mobile mentionnées dans la description de l'offre, mais pas de classification formelle en télétravail complet ; salaire non spécifié\n  * **Candidature :** [Postuler via la Bundesagentur für Arbeit](embed:ui-ux-design-1Bm)\n\n---\n\n### Recherche\n\n* **Joint Fellowship Program (Politique de paix et de sécurité)**\n  * **Employeur :** [Université de Hambourg](wiki:University_of_Hamburg) & Institut de recherche sur la paix et la politique de sécurité (IFSH)\n  * **Lieu :** Hambourg, Allemagne\n  * **Source :** 80,000 Hours\n  * **Modalités de travail et salaire :** Non spécifiés\n  * **Candidature :** [Postuler via l'IFSH / 80,000 Hours](embed:joint-fellowship-program-iLH)\n\n* **Chargé de recherche (h/f/x) – Apprentissage automatique et prise de décision dans l'incertitude**\n  * **Employeur :** [Université de la Ruhr à Bochum](wiki:Ruhr_University_Bochum)\n  * **Lieu :** Bochum, Rhénanie-du-Nord-Westphalie\n  * **Source :** Agence fédérale pour l'emploi\n  * **Modalités de travail et salaire :** Temps plein (39,83 h/semaine) ; modalités de télétravail non spécifiées ; rémunéré selon la grille collective publique TV-L E13 (montant exact non publié dans l'annonce)\n  * **Candidature :** [Postuler via la Bundesagentur für Arbeit](embed:research-associate-m-79L)\n\n* **Ingénieur de recherche (f/h/d) – Décarbonation du réseau et technologies de base**\n  * **Employeur :** [Siemens Energy](wiki:Siemens_Energy)\n  * **Lieu :** Berlin\n  * **Source :** Agence fédérale pour l'emploi\n  * **Modalités de travail et salaire :** Options flexibles/mobiles mentionnées dans le texte, mais pas de statut de télétravail fixe établi ; salaire non spécifié\n  * **Candidature :** [Postuler via la Bundesagentur für Arbeit](embed:research-engineer-f-7ao)\n\n---\n\n### Ingénierie logicielle\n\n* **Senior Backend Engineer (h/f/d) – Java/Kotlin, AWS, Kafka**\n  * **Employeur :** idealo internet GmbH\n  * **Lieu :** Berlin, Allemagne\n  * **Source :** Arbeitnow\n  * **Modalités de travail et salaire :** Environnement de bureau sur site/hybride ; salaire non spécifié\n  * **Candidature :** [Postuler via Arbeitnow](embed:senior-backend-engineer-q7x)\n\n* **Étudiant salarié – Ingénierie logicielle (Vision par ordinateur / Systèmes autonomes)**\n  * **Employeur :** Quantum-Systems GmbH (plateformes aériennes autonomes et perception robotique)\n  * **Lieu :** Gilching, Bavière\n  * **Source :** Arbeitnow\n  * **Modalités de travail et salaire :** Sur site/hybride ; salaire non spécifié\n  * **Candidature :** [Postuler via Arbeitnow](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**Identification des opportunités en Allemagne**\n\nJe me concentre actuellement sur le repérage d'offres d'emploi pertinentes en Allemagne. J'ai commencé par compiler une liste de sources prometteuses : `80,000 Hours`, `Hard Problems`, `Arbeitnow` et l' `Agence fédérale pour l'emploi`. Mon intérêt principal porte sur les rôles en recherche, design et ingénierie logicielle, et je surveillerai de près l'aspect géographique.\n\n\n**Affinage des paramètres de recherche**\n\nJ'affine maintenant mon approche pour utiliser l'outil `jobs-search` efficacement. Je me concentre sur le tableau `requests` pour effectuer une série de requêtes et spécifier directement les prestataires, compte tenu de la limite de 5 requêtes. Je vérifie la définition de la fonction pour confirmer comment fournir explicitement une liste de prestataires et comment définir les critères de pertinence. Cela m'aidera à créer une liste restreinte comprenant l'employeur, le lieu, la source et le lien de candidature. Mon objectif est d'éviter toute supposition concernant le télétravail ou le salaire lorsqu'ils ne sont pas explicitement indiqués.\n\n\n**Examen des retours des prestataires**\n\nBien, j'ai un premier aperçu des prestataires retournés. Il semble que nous ayons « Hard Problems » et quelques offres d'Arbeitnow ; l'une est un poste de développeur backend senior (Java/Kotlin), et l'autre est un poste d'étudiant salarié. Je note les premières impressions et j'évalue l'impact potentiel de chaque annonce.\n\n\n**Analyse des opportunités actuelles**\n\nJe me concentre actuellement sur l'évaluation de deux opportunités prometteuses. La première est un « Joint Fellowship Program » à l'Institut de recherche sur la paix et la politique de sécurité de l'Université de Hambourg, et la seconde est un poste d'« Assistant étudiant » au sein du programme Interface Cybersecurity. J'examine attentivement leurs mérites respectifs dans le contexte de la recherche sur la paix et la sécurité, et de la cybersécurité.\n\n\n**Priorisation des nouvelles pistes**\n\nJ'ai déplacé mon attention vers la sélection d'une liste restreinte équilibrée. Je donne la priorité aux opportunités en design et en recherche, en me concentrant sur la pertinence et les publications récentes. Actuellement, j'examine un poste de Senior Product Designer chez voize à Berlin, et un poste de UI/UX Design chez stiftung ear. Pour la recherche, je passe en revue un rôle à la Ruhr-Universität Bochum, aux côtés du Joint Fellowship Program à Hambourg.\n\n\n**Évaluation des nouvelles possibilités**\n\nJe pèse maintenant les nouvelles pistes à la lumière de mes critères. J'ai découvert des options, comme un poste de Research Engineer chez Siemens Energy à Berlin, via l'Agence fédérale pour l'emploi, qui se concentre sur la recherche fondamentale. J'envisage également des rôles de Senior Backend et de Junior C++ Software Developer chez idealo internet GmbH (Berlin, Arbeitnow) et CT Software Engineering (Ingolstadt, Agence fédérale pour l'emploi) respectivement. Ceux-ci correspondent à mes intérêts pour l'ingénierie logicielle.\n\n\n**Affinage des critères de candidature**\n\nJe clarifie maintenant la manière de gérer les liens de candidature. Je dois me rappeler de privilégier des processus de candidature clairs, en vérifiant l'utilisation de `[texte affiché](embed:embed_ref)` ou de liens standards. De plus, je dois éviter de supposer le télétravail ou de divulguer le salaire à moins qu'il ne soit explicitement mentionné dans l'annonce.\n\n\n**Clarification des protocoles de candidature**\n\nJe me concentre maintenant sur les formats des liens de candidature. Je veille à assurer l'intégration directe des liens ou l'utilisation du format `(embed:embed_ref)`, en m'assurant de ne pas fournir les deux. J'examine attentivement les URL retournées par les compétences de l'application pour garantir la conformité. Mon but est de respecter la règle consistant à n'utiliser qu'un seul style de lien par lien de candidature.\n\n\n**Standardisation des liens de candidature**\n\nJe mets maintenant en œuvre la stratégie des liens de candidature. Mon objectif est de standardiser le format des offres d'emploi. Je n'utiliserai que la référence intégrée (embed ref) pour les liens de candidature. J'inclurai également le rôle, l'employeur, le lieu et la source pour chaque poste vacant, et j'utiliserai un lien intégré. Je veillerai à toujours utiliser un seul lien par poste.\n\n\n**Compilation des données sur les opportunités**\n\nJe rassemble maintenant les détails de plusieurs opportunités. J'ai des informations pour un poste de Senior Product Designer chez voize, un poste de UI/UX Design chez stiftung ear, et le Joint Fellowship Program à l'Université de Hambourg. Je note le rôle, l'employeur, le lieu et la source pour chacun, ainsi que les spécifications relatives au télétravail et au salaire. Je m'attache à garantir des formats de liens cohérents en utilisant des intégrations pour chaque candidature.\n\n\n**Intégration des nouvelles annonces**\n\nJ'intègre maintenant de nouvelles annonces dans l'ensemble de données. J'ai ajouté un poste de chercheur associé à la Ruhr-Universität Bochum, provenant de l'Agence fédérale pour l'emploi, en notant les détails sur le télétravail et le salaire. De plus, j'ai compilé des informations sur un poste de Research Engineer chez Siemens Energy, incluant des options flexibles. Je garantis la cohérence des formats de liens en utilisant des intégrations pour les liens de candidature.\n\n\n**Ajout de nouvelles annonces**\n\nJe viens d'ajouter deux nouvelles annonces : un poste de Senior Backend Engineer dans un lieu non spécifié et un poste d'étudiant salarié chez Quantum-Systems GmbH à Gilching. Je m'attache à saisir avec précision tous les détails, y compris le lieu, les options de télétravail, les informations salariales (si disponibles) et les liens de candidature au format standardisé. J'utilise le format `(embed:embed_ref)` pour le lien de candidature."
+      },
+      "message_3": {
+        "text": "Les deux postes de designer ont l'air les plus intéressants. Peux-tu comparer brièvement ce que disent les annonces enregistrées et me suggérer ce que je devrais demander à chaque employeur avant de postuler ?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nVoici une comparaison directe de ce qu'indique chaque annonce, suivie de questions ciblées que tu peux poser à chaque employeur avant ou pendant le processus de candidature.\n\n---\n\n### Comparaison des annonces\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Ce qu'il faut demander avant de postuler\n\n#### Pour voize :\n1. **Accès à la recherche utilisateur :** *« À quelle fréquence et par quels canaux les designers effectuent-ils des recherches sur le terrain ou des tests avec les infirmiers et le personnel soignant dans leur environnement clinique quotidien ? »*\n2. **Maturité et périmètre de l'équipe :** *« Comment l'équipe produit est-elle structurée, quel est le ratio actuel entre designers, PM et ingénieurs, et ce rôle est-il un poste de contributeur individuel ou est-il censé établir des systèmes de design ? »*\n3. **Rémunération et rythme de télétravail :** *« Quelle est la fourchette de rémunération visée pour ce niveau d'ancienneté, et y a-t-il des séminaires d'équipe obligatoires sur site ou des heures de présence obligatoires malgré la politique de télétravail ? »*\n\n#### Pour stiftung ear :\n1. **Attentes de présence sur site à Nuremberg :** *« Comment le travail mobile est-il structuré en pratique — y a-t-il une exigence hebdomadaire ou mensuelle fixe de présence au bureau de Nuremberg ? »*\n2. **Équilibre entre Design et QA :** *« L'annonce mentionne la mise en œuvre de tests logiciels parallèlement au design UX/UI. Quel pourcentage du rôle est axé sur la recherche utilisateur/le prototypage par rapport à la validation technique des logiciels et à l'assurance qualité ? »*\n3. **Outils de design et transfert au développement :** *« Quels systèmes de design et outils de prototypage sont actuellement en place, et travaillez-vous avec une équipe de développement interne ou des prestataires de services informatiques externes ? »*\n4. **Référence de rémunération :** *« Étant donné que stiftung ear exerce une mission d'intérêt public, la rémunération suit-elle une grille collective publique spécifique (comme TVöD/TV-L) ou une structure de classification interne ? »*"
+      },
+      "message_4_thinking": {
+        "text": "**Analyse du contenu des offres d'emploi**\n\nD'accord, j'ai commencé à comparer les descriptions de poste. Je me concentre sur les responsabilités clés et les compétences requises pour le rôle de Senior Product Designer chez Voize et le poste de UI/UX Design chez Stiftung EAR. Je prépare maintenant un résumé des responsabilités clés et des compétences requises pour les deux offres. Ensuite, je déterminerai les informations complémentaires dont je pourrais avoir besoin.\n\n\n**Analyse des descriptions de poste**\n\nD'accord, j'approfondis maintenant les spécificités de chaque offre. Je me concentre sur l'analyse du langage utilisé dans les descriptions. J'essaie de déterminer quelles questions clés nécessitent une réponse afin de me préparer pour chaque employeur. Par exemple, dans l'offre de voize, je dois me renseigner sur leur produit d'accompagnement par IA.\n\n\n**Évaluation des détails clés**\n\nJe me concentre maintenant sur l'offre de voize et j'en tire les points essentiels. Il s'agit d'un rôle senior avec une autonomie importante, nécessitant quelqu'un capable de challenger les chefs de produit. L'organisation est flexible, avec un bureau à Berlin et des options de télétravail. La rémunération n'est pas indiquée, mais les avantages incluent des congés corrects et une adhésion à un club de sport. L'anglais est la langue principale, même si le contexte est celui de la santé en Allemagne.\n\n\n**Identification des exigences spécifiques**\n\nJe me concentre maintenant sur le poste basé à Nuremberg. J'ai décomposé les domaines clés : l'aspect conformité légale se concentre sur les réglementations ElektroG. Mon travail inclut le développement d'applications web et des activités UX, ainsi que le conseil aux parties prenantes. La maîtrise de l'allemand (C1 minimum) est obligatoire, une expérience dans les logiciels réglementaires est un plus. Le poste est permanent avec une grande flexibilité de télétravail. La rémunération est basée sur la performance.\n\n\n**Comparaison des caractéristiques des postes**\n\nJe procède maintenant à des comparaisons directes entre les rôles. J'ai décomposé l'analyse par domaine, culture, compétences requises et lieu de travail. Plus précisément, je compare voize au rôle chez stiftung ear. Je me concentre sur le contraste entre leurs environnements et leurs priorités, de la santé de première ligne à la conformité des déchets électroniques. Je note les différences clés comme les exigences linguistiques et le niveau d'expérience. De plus, j'évalue les différences dans leurs politiques de télétravail."
       },
       "follow_up_1": {
-        "text": "Cherche des emplois de développeur logiciel en télétravail à Göteborg"
+        "text": "Rechercher d'autres emplois en design UI/UX à Berlin"
       },
       "follow_up_2": {
-        "text": "Compare les exigences pour ces rôles de développeur senior"
+        "text": "Rédiger un e-mail de prise de contact pour le responsable du recrutement chez voize"
       },
       "follow_up_3": {
-        "text": "Cherche des postes de développeur frontend à Stockholm"
+        "text": "Trouver des postes similaires dans la tech médicale en Allemagne"
       },
       "follow_up_4": {
-        "text": "Liste les piles technologiques les plus citées dans ces annonces"
+        "text": "Comparer les avantages et les inconvénients de travailler dans des startups de santé par rapport aux organismes publics"
       },
       "follow_up_5": {
-        "text": "Cherche des annonces pour développeur junior en Suède"
+        "text": "Rechercher des emplois tech dans le secteur public à Nuremberg"
       },
       "follow_up_6": {
-        "text": "Résume les tendances du télétravail dans les emplois tech en Suède"
+        "text": "Lister les étapes clés de préparation pour un entretien de senior product designer"
       }
     },
     "launch_readiness_checklist_doc": {

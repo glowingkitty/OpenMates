@@ -766,7 +766,10 @@ async function inspectChat(page: Page, chat: ExampleChat, appId: string, checkpo
     const rendered = history.locator(`[data-message-id="${message.id}"]`);
     await expect(rendered, `${checkpoint}: ${chat.slug} message ${message.id}`).toHaveCount(1);
     await expect(rendered).not.toHaveAttribute('data-status', /^(streaming|processing|sending)$/);
-    await expect(rendered.getByTestId('message-content').first()).not.toBeEmpty();
+    // ReadOnlyMessage initializes its editor when this message enters the viewport.
+    await rendered.scrollIntoViewIfNeeded();
+    await expect(rendered.getByTestId('message-content').first(),
+      `${checkpoint}: ${chat.slug} message ${message.id} renders after scrolling into view`).not.toBeEmpty();
     if (message.role === 'assistant') {
       await expect(rendered.getByTestId('chat-mate-name')).not.toHaveText('Assistant');
       const category = message.category || chat.category;
@@ -1027,7 +1030,11 @@ export async function admitLandingExample(
       await expect(prompt).toHaveAttribute('data-active-app', appId);
       if (appId === 'web') await expect(prompt).toHaveText('Search the web');
       if (appId === 'models3d') await expect(prompt).toHaveText('Find 3D models');
-      await expect(prompt).toHaveAttribute('href', `${new URL(page.url()).origin}/#chat-id=${encodeURIComponent(chat.chat_id)}`);
+      const expectedExampleUrl = new URL(`/#chat-id=${encodeURIComponent(chat.chat_id)}`, page.url());
+      const displayedLanguage = await page.getByTestId('landing-page').getAttribute('lang');
+      expect(displayedLanguage).toMatch(/^(en|de)$/);
+      expectedExampleUrl.searchParams.set('lang', displayedLanguage!);
+      await expect(prompt).toHaveAttribute('href', expectedExampleUrl.href);
       await expect(prompt).toHaveAttribute('target', '_blank');
       await expect(prompt).toHaveCSS('opacity', '1');
       const popupPromise = page.waitForEvent('popup');

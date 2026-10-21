@@ -5885,6 +5885,104 @@
       "assistant_response": {
         "text": "Nutze die Events-Suche, um Kurse und Treffen in deiner Nähe zu finden. Wähle einen Ort und ein Thema, um passende Veranstaltungen zu entdecken."
       }
+    },
+    "collective": {
+      "title": {
+        "text": "Kollektives Verhalten bei Tieren"
+      },
+      "description": {
+        "text": "Wie Tiergruppen ihre Bewegungen und Entscheidungen koordinieren."
+      },
+      "phrase": {
+        "text": "Tausende Tiere bewegen sich wie ein einziges Wesen. Ganz ohne Dirigenten."
+      },
+      "assistant_response": {
+        "text": "Fischschwärme, Vogelschwärme und Insektengruppen koordinieren sich durch lokale Wechselwirkungen. Einfache Reaktionen auf Nachbarn erzeugen große Muster, die choreografiert wirken. Entdecke, wie komplexes Verhalten aus einfachen Regeln entsteht."
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "Die Bibliothek von Alexandria"
+      },
+      "description": {
+        "text": "Eines der berühmtesten Wissenszentren der Antike."
+      },
+      "phrase": {
+        "text": "Die berühmteste Bibliothek der Antike war auch eine Forschungseinrichtung."
+      },
+      "assistant_response": {
+        "text": "Die Bibliothek von Alexandria gehörte zu einer größeren Gelehrtengemeinschaft am Museion. Sie sammelte Texte, beherbergte Forscher und wurde zum Sinnbild für die Bewahrung von Wissen. Entdecke, was Historiker über sie wissen und was Legende ist."
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "Tensegrität"
+      },
+      "description": {
+        "text": "Strukturen, die durch das Gleichgewicht von Zug und Druck stabil bleiben."
+      },
+      "phrase": {
+        "text": "Manche Bauwerke scheinen zu schweben. Zugkräfte leisten die verborgene Arbeit."
+      },
+      "assistant_response": {
+        "text": "Tensegritätsstrukturen verbinden einzelne Druckelemente durch ein durchgehendes Netz unter Spannung. Dadurch wirken sie erstaunlich leicht und bleiben dennoch stabil. Entdecke, warum dieses Prinzip Kunst, Architektur und Biologie beschäftigt."
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "Zitate aus verlässlichen Quellen"
+      },
+      "description": {
+        "text": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
+      },
+      "phrase": {
+        "text": "Du möchtest eine Antwort überprüfen? Bitte OpenMates um ein Zitat aus der Quelle."
+      },
+      "assistant_response": {
+        "text": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "KI-Bilder erkennen"
+      },
+      "description": {
+        "text": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
+      },
+      "phrase": {
+        "text": "Wurde ein Bild mit KI erzeugt? Lade es hoch und prüfe die Hinweise."
+      },
+      "assistant_response": {
+        "text": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "Inkognito-Chats"
+      },
+      "description": {
+        "text": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
+      },
+      "phrase": {
+        "text": "Du brauchst einen vorübergehenden Chat? Halte ihn aus deinem gespeicherten Verlauf heraus."
+      },
+      "assistant_response": {
+        "text": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "Datenschutzeinstellungen"
+      },
+      "description": {
+        "text": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
+      },
+      "phrase": {
+        "text": "Prüfe in Ruhe, wie OpenMates deine Daten schützt und welche Einstellungen du nutzen kannst."
+      },
+      "assistant_response": {
+        "text": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
+      }
     }
   },
   "demo_chats": {
@@ -11118,36 +11216,48 @@
         "text": "Erkläre, wie das Angebot auf dem Wohnungsmarkt auf Preiskontrollen reagiert"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "Entwickler-Jobs in Schweden"
+        "text": "Sinnstiftende Jobs in Deutschland"
       },
       "summary": {
-        "text": "Vergleiche aktuelle Entwickler-Jobs in Stockholm und Malmö mit Original-Ausschreibungen und quellenbasierten Details zum Arbeitsplatz."
+        "text": "Durchsuche vier Jobplattformen nach Stellenangeboten in Deutschland, vergleiche Design-Rollen und bereite Fragen für Arbeitgeber vor."
       },
       "message_1": {
-        "text": "Finde zwei aktuelle Software-Entwickler-Jobs in Stockholm und zwei in Malmö beim schwedischen Arbeitsamt. Zeige für jeden Job einen kurzen Stichpunkt mit Titel, Arbeitgeber, Arbeitsort und Link zur Original-Ausschreibung. Gib Gehaltsangaben oder Homeoffice-Regelungen nur an, wenn sie explizit in der Ausschreibung stehen; andernfalls schreibe „nicht angegeben“. Halte die Antwort unter 200 Wörtern."
+        "text": "Ich suche nach einer sinnstiftenden Arbeit in Deutschland, insbesondere in den Bereichen Forschung, Design oder Software-Engineering. Bitte finde ein paar aktuelle Stellenangebote über 80,000 Hours und Hard Problems sowie Arbeitnow und die Bundesagentur für Arbeit. Ich bin offen für jeden Ort in Deutschland. Erstelle mir eine kurze Liste mit Arbeitgeber, Standort, Quelle und Bewerbungslink. Triff keine Annahmen zu Remote-Arbeit oder Gehalt, wenn dies nicht in der Anzeige steht."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktuelle Stellenangebote für Softwareentwickler von Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Titel:** Senior Systemutvecklare  \n  **Arbeitgeber:** NXT Interim Stockholm AB  \n  **Arbeitsort:** Stockholm  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31589252](embed:senior-systemutvecklare-2ps)  \n  **Gehaltsangabe:** Nicht angegeben  \n  **Homeoffice-Regelung:** Bietet Remote-Arbeitsplätze an (*remote-arbetsplatser*)\n\n* **Titel:** Javautvecklare  \n  **Arbeitgeber:** AFRY AB  \n  **Arbeitsort:** Stockholm  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31588186](embed:javautvecklare-y47)  \n  **Gehaltsangabe:** Nicht angegeben  \n  **Homeoffice-Regelung:** Möglichkeit für hybrides Arbeiten (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Titel:** Senior AI Engineer  \n  **Arbeitgeber:** Iver Accelerate AB  \n  **Arbeitsort:** Malmö  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31588387](embed:senior-ai-engineer-Duw)  \n  **Gehaltsangabe:** Nicht angegeben  \n  **Homeoffice-Regelung:** Möglichkeit für hybrides Arbeiten (*möjlighet till hybridarbete*)\n\n* **Titel:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Arbeitgeber:** Jobbakuten Väst AB  \n  **Arbeitsort:** Malmö  \n  **Link zur Originalanzeige:** [Platsbanken-Anzeige 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Gehaltsangabe:** Nicht angegeben (Anzeige erwähnt marktübliches Gehalt ohne konkrete Zahl)  \n  **Homeoffice-Regelung:** Hybrides Arbeiten (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nHier ist eine Auswahl aktueller Stellen in Deutschland in Forschung, Design und Softwareentwicklung von [80,000 Hours](wiki:80,000_Hours), **Hard Problems**, **Arbeitnow** und der **Bundesagentur für Arbeit**.\n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Arbeitgeber:** voize (entwickelt KI zur Spracherkennung, um die Dokumentation in Pflege und Gesundheitsversorgung zu vereinfachen)\n  * **Standort:** Berlin, Deutschland (als für Remote-Arbeit geeignet gelistet)\n  * **Quelle:** Hard Problems\n  * **Gehalt:** Nicht angegeben\n  * **Bewerbung:** [Bei voize bewerben](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **Arbeitgeber:** stiftung ear (bundesweites Register, das Entsorgung, Rücknahme und die Erfassung von Elektroaltgeräten in der Kreislaufwirtschaft koordiniert)\n  * **Standort:** Nürnberg, Bayern\n  * **Quelle:** Bundesagentur für Arbeit\n  * **Arbeitsmodell und Gehalt:** Flexible bzw. mobile Arbeitsmöglichkeiten werden in der Stellenbeschreibung erwähnt, aber keine formale Einstufung als vollständig remote; Gehalt nicht angegeben\n  * **Bewerbung:** [Über die Bundesagentur für Arbeit bewerben](embed:ui-ux-design-1Bm)\n\n---\n\n### Forschung\n\n* **Gemeinsames Fellowship-Programm (Friedens- und Sicherheitspolitik)**\n  * **Arbeitgeber:** [Universität Hamburg](wiki:University_of_Hamburg) und Institut für Friedensforschung und Sicherheitspolitik (IFSH)\n  * **Standort:** Hamburg, Deutschland\n  * **Quelle:** 80,000 Hours\n  * **Arbeitsmodell und Gehalt:** Nicht angegeben\n  * **Bewerbung:** [Über IFSH / 80,000 Hours bewerben](embed:joint-fellowship-program-iLH)\n\n* **Wissenschaftliche Mitarbeit (m/f/x) – Maschinelles Lernen und Entscheidungsfindung unter Unsicherheit**\n  * **Arbeitgeber:** [Ruhr-Universität Bochum](wiki:Ruhr_University_Bochum)\n  * **Standort:** Bochum, Nordrhein-Westfalen\n  * **Quelle:** Bundesagentur für Arbeit\n  * **Arbeitsmodell und Gehalt:** Vollzeit (39,83 Stunden pro Woche); Remote-Regelung nicht angegeben; Vergütung nach TV-L E13 (genauer Betrag in der Anzeige nicht veröffentlicht)\n  * **Bewerbung:** [Über die Bundesagentur für Arbeit bewerben](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Dekarbonisierung des Stromnetzes und Basistechnologie**\n  * **Arbeitgeber:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Standort:** Berlin\n  * **Quelle:** Bundesagentur für Arbeit\n  * **Arbeitsmodell und Gehalt:** Flexible bzw. mobile Optionen werden im Text erwähnt, aber kein fester Remote-Status; Gehalt nicht angegeben\n  * **Bewerbung:** [Über die Bundesagentur für Arbeit bewerben](embed:research-engineer-f-7ao)\n\n---\n\n### Softwareentwicklung\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Arbeitgeber:** idealo internet GmbH\n  * **Standort:** Berlin, Deutschland\n  * **Quelle:** Arbeitnow\n  * **Arbeitsmodell und Gehalt:** Büroarbeit vor Ort bzw. hybrid; Gehalt nicht angegeben\n  * **Bewerbung:** [Über Arbeitnow bewerben](embed:senior-backend-engineer-q7x)\n\n* **Werkstudent – Softwareentwicklung (Computer Vision / autonome Systeme)**\n  * **Arbeitgeber:** Quantum-Systems GmbH (autonome Flugplattformen und robotische Wahrnehmung)\n  * **Standort:** Gilching, Bayern\n  * **Quelle:** Arbeitnow\n  * **Arbeitsmodell und Gehalt:** Vor Ort bzw. hybrid; Gehalt nicht angegeben\n  * **Bewerbung:** [Über Arbeitnow bewerben](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**Identifizierung deutscher Karrieremöglichkeiten**\n\nIch konzentriere mich derzeit darauf, relevante Stellenangebote in Deutschland zu finden. Zunächst habe ich eine Liste vielversprechender Quellen zusammengestellt: `80,000 Hours`, `Hard Problems`, `Arbeitnow` und die `Bundesagentur für Arbeit`. Mein Hauptinteresse gilt Rollen in den Bereichen Forschung, Design und Software-Engineering, wobei ich den Standort genau im Blick behalte.\n\n\n**Verfeinerung der Suchparameter**\n\nIch verfeinere nun meinen Ansatz, um das `jobs-search`-Tool effektiv zu nutzen. Dabei konzentriere ich mich auf das `requests`-Array, um eine Reihe von Abfragen zu erstellen und die Anbieter direkt anzugeben, da das Limit bei 5 Anfragen liegt. Ich prüfe die Funktionsdefinition, um zu bestätigen, wie Anbieter explizit als Liste angegeben und Relevanzkriterien definiert werden. Dies wird helfen, eine Shortlist mit Arbeitgeber, Standort, Quelle und Bewerbungslink zu erstellen. Mein Ziel ist es, Annahmen über Remote-Arbeit oder Gehalt zu vermeiden, sofern diese nicht explizit angegeben sind.\n\n\n**Prüfung der Anbieter-Ergebnisse**\n\nAlles klar, ich habe einen ersten Blick auf die zurückgegebenen Anbieter geworfen. Es scheint, dass wir „Hard Problems“ und ein paar von Arbeitnow haben; eine ist eine Senior-Rolle im Backend-Engineering (Java/Kotlin) und die andere eine Werkstudententätigkeit. Ich notiere die ersten Eindrücke und bewerte die potenziellen Auswirkungen jedes Eintrags.\n\n\n**Analyse aktueller Möglichkeiten**\n\nIch konzentriere mich derzeit auf die Bewertung von zwei vielversprechenden Möglichkeiten. Die erste ist ein „Joint Fellowship Program“ am Institut für Friedensforschung und Sicherheitspolitik der Universität Hamburg, die zweite eine Stelle als „Studentische Hilfskraft“ im Interface Cybersecurity Programme. Ich wäge ihre jeweiligen Vorzüge im Kontext der Friedens- und Sicherheitsforschung bzw. der Cybersicherheit sorgfältig ab.\n\n\n**Priorisierung neuer Leads**\n\nIch habe meine Aufmerksamkeit nun auf die Erstellung einer ausgewogenen Shortlist gerichtet. Dabei priorisiere ich Gelegenheiten in den Bereichen Design und Forschung und konzentriere mich auf Relevanz und aktuelle Ausschreibungen. Derzeit prüfe ich eine Stelle als Senior Product Designer bei voize in Berlin und eine UI/UX-Design-Position bei der stiftung ear. Für den Bereich Forschung sichte ich eine Stelle an der Ruhr-Universität Bochum sowie das Joint Fellowship Program in Hamburg.\n\n\n**Bewertung neuer Möglichkeiten**\n\nIch wäge nun neue Leads im Hinblick auf meine Kriterien ab. Dabei habe ich Optionen entdeckt, wie eine Stelle als Research Engineer bei Siemens Energy in Berlin über die Bundesagentur für Arbeit, die sich auf Grundlagenforschung konzentriert. Außerdem ziehe ich Rollen als Senior Backend und Junior C++ Software Developer bei der idealo internet GmbH (Berlin, Arbeitnow) bzw. CT Software Engineering (Ingolstadt, Bundesagentur für Arbeit) in Betracht. Diese passen zu meinen Interessen im Bereich Software-Engineering.\n\n\n**Verfeinerung der Bewerbungskriterien**\n\nIch kläre nun, wie mit Bewerbungslinks umzugehen ist. Ich muss daran denken, klare Bewerbungsprozesse zu priorisieren und die Verwendung von `[Anzeigetext](embed:embed_ref)` oder Standardlinks zu prüfen. Darüber hinaus sollte ich vermeiden, Remote-Arbeit vorauszusetzen oder das Gehalt offenzulegen, es sei denn, es ist in der Anzeige explizit angegeben.\n\n\n**Klärung der Bewerbungsprotokolle**\n\nIch konzentriere mich nun auf die Formate der Bewerbungslinks. Mein Fokus liegt darauf, eine direkte Link-Integration oder die Verwendung des Formats `(embed:embed_ref)` sicherzustellen, wobei ich darauf achte, nicht beides anzugeben. Ich überprüfe sorgfältig die von den App-Skills zurückgegebenen URLs, um die Konformität zu gewährleisten. Mein Ziel ist es, die Regel einzuhalten, nur einen Link-Stil pro Bewerbungslink zu verwenden.\n\n\n**Standardisierung von Bewerbungslinks**\n\nIch setze nun die Strategie für Bewerbungslinks um. Mein Ziel ist es, das Format für Stellenausschreibungen zu standardisieren. Ich werde für Bewerbungslinks ausschließlich die Embed-Referenz verwenden. Außerdem werde ich für jede freie Stelle Rolle, Arbeitgeber, Standort und Quelle angeben und einen eingebetteten Link verwenden. Ich werde darauf achten, immer nur einen Link pro Stelle zu verwenden.\n\n\n**Zusammenstellung der Opportunity-Daten**\n\nIch trage nun Details für mehrere Möglichkeiten zusammen. Ich habe Informationen für eine Stelle als Senior Product Designer bei voize, eine UI/UX-Design-Position bei der stiftung ear und das Joint Fellowship Program an der Universität Hamburg. Ich notiere jeweils Rolle, Arbeitgeber, Standort und Quelle sowie die Angaben zu Remote-Optionen und Gehalt. Ich konzentriere mich darauf, durch die Verwendung von Embeds für jede Bewerbung einheitliche Linkformate sicherzustellen.\n\n\n**Integration neuer Ausschreibungen**\n\nIch integriere nun neue Ausschreibungen in den Datensatz. Ich habe eine Stelle als wissenschaftlicher Mitarbeiter an der Ruhr-Universität Bochum hinzugefügt, die von der Bundesagentur für Arbeit stammt, und deren Remote- und Gehaltsdetails notiert. Außerdem habe ich Informationen zu einer Stelle als Research Engineer bei Siemens Energy zusammengestellt, einschließlich flexibler Optionen. Ich stelle die Konsistenz der Linkformate sicher, indem ich Embeds für Bewerbungslinks verwende.\n\n\n**Hinzufügen neuer Ausschreibungen**\n\nIch habe gerade zwei neue Ausschreibungen hinzugefügt: eine Stelle als Senior Backend Engineer an einem nicht näher bezeichneten Standort und eine Werkstudententätigkeit bei der Quantum-Systems GmbH in Gilching. Ich konzentriere mich darauf, alle Details wie Standort, Remote-Optionen, Gehaltsinformationen (sofern verfügbar) und Bewerbungslinks im standardisierten Format genau zu erfassen. Für den Bewerbungslink verwende ich das Format `(embed:embed_ref)`."
+      },
+      "message_3": {
+        "text": "Die beiden Design-Stellen klingen am interessantesten. Kannst du kurz vergleichen, was in den gespeicherten Anzeigen eigentlich steht, und mir vorschlagen, was ich die jeweiligen Arbeitgeber vor der Bewerbung fragen sollte?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nHier ist ein direkter Vergleich dessen, was die einzelnen Anzeigen aussagen, gefolgt von gezielten Fragen, die du den Arbeitgebern vor oder während des Bewerbungsprozesses stellen kannst.\n\n---\n\n### Vergleich der Stellenanzeigen\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Was du vor der Bewerbung fragen solltest\n\n#### Für voize:\n1. **Zugang zu User Research:** *\"Wie oft und über welche Kanäle führen Designer Feldforschung oder Tests mit Pflegekräften in ihrem täglichen klinischen Umfeld durch?\"*\n2. **Teamreife und Aufgabenbereich:** *\"Wie ist das Produktteam strukturiert, wie ist das aktuelle Verhältnis von Designern zu PMs und Engineers, und handelt es sich bei dieser Rolle um eine Individual-Contributor-Position oder wird erwartet, dass Design-Systeme etabliert werden?\"*\n3. **Vergütung und Remote-Rhythmus:** *\"In welchem Bereich liegt das Zielgehalt für dieses Senioritätslevel, und gibt es trotz der Remote-Policy verpflichtende Team-Offsites vor Ort oder Kernarbeitszeiten?\"*\n\n#### Für stiftung ear:\n1. **Präsenzerwartungen in Nürnberg:** *\"Wie ist das mobile Arbeiten in der Praxis strukturiert – gibt es eine feste wöchentliche oder monatliche Präsenzpflicht im Nürnberger Büro?\"*\n2. **Verhältnis zwischen Design und QA:** *\"In der Anzeige wird neben UX/UI-Design auch die Implementierung von Softwaretests erwähnt. Welcher Prozentsatz der Rolle entfällt auf User Research/Prototyping im Vergleich zur technischen Softwarevalidierung und Qualitätssicherung?\"*\n3. **Design-Tools und Übergabe an die Entwicklung:** *\"Welches Design-System und welche Prototyping-Tools sind derzeit im Einsatz, und arbeitet ihr mit einem internen Entwicklungsteam oder externen IT-Dienstleistern zusammen?\"*\n4. **Vergütungs-Benchmark:** *\"Da die stiftung ear eine öffentlich-rechtliche Aufgabe wahrnimmt: Orientiert sich die Vergütung an einem bestimmten öffentlichen Tarifvertrag (wie TVöD/TV-L) oder an einer internen Gehaltsstruktur?\"*"
+      },
+      "message_4_thinking": {
+        "text": "**Analyse der Stellenanzeigen-Inhalte**\n\nOkay, ich habe mit dem Vergleich der Stellenbeschreibungen begonnen. Ich konzentriere mich auf die Hauptverantwortlichkeiten und erforderlichen Fähigkeiten für die Rolle als Senior Product Designer bei Voize und die UI/UX-Design-Position bei der Stiftung EAR. Jetzt erstelle ich eine Zusammenfassung der wichtigsten Aufgaben und Qualifikationen beider Anzeigen. Danach werde ich feststellen, welche weiteren Informationen ich eventuell benötige.\n\n\n**Analyse der Stellenbeschreibungen**\n\nOkay, ich gehe jetzt tiefer in die Details jeder Anzeige. Mein Fokus liegt darauf, die verwendete Sprache in den Beschreibungen genau zu analysieren. Ich versuche herauszufinden, welche Kernfragen beantwortet werden müssen, um mich auf den jeweiligen Arbeitgeber vorzubereiten. Zum Beispiel muss ich bei der Voize-Anzeige mehr über deren KI-Begleiter-Produkt erfahren.\n\n\n**Bewertung der wichtigsten Details**\n\nIch konzentriere mich nun auf die Voize-Anzeige und arbeite die wichtigsten Punkte heraus. Es handelt sich um eine Senior-Rolle mit viel Eigenverantwortung, die jemanden erfordert, der Produktmanager auch mal herausfordern kann. Das Setup ist flexibel, mit einem Büro in Berlin und Remote-Optionen. Die Vergütung ist nicht angegeben, aber zu den Benefits gehören ordentlich Urlaubstage und eine Mitgliedschaft im Sportclub. Englisch ist die Hauptsprache, obwohl der Kontext das deutsche Gesundheitswesen ist.\n\n\n**Ermittlung spezifischer Anforderungen**\n\nIch schaue mir nun die Stelle in Nürnberg genauer an. Ich habe die Kernbereiche aufgeschlüsselt: Der Aspekt der Rechtskonformität konzentriert sich auf ElektroG-Vorschriften. Meine Arbeit umfasst die Entwicklung von Web-Apps und UX-Aktivitäten sowie die Beratung von Stakeholdern. Fließendes Deutsch (mindestens C1) ist zwingend erforderlich, Erfahrung mit regulatorischer Software ist ein Pluspunkt. Die Stelle ist unbefristet und bietet eine hohe Flexibilität für Remote-Arbeit. Die Vergütung ist leistungsorientiert.\n\n\n**Vergleich der Job-Attribute**\n\nIch ziehe nun direkte Vergleiche zwischen den Rollen. Ich habe sie nach Bereich, Kultur, erforderlichen Fähigkeiten und Arbeitsort aufgeschlüsselt. Konkret vergleiche ich Voize mit der Rolle bei der Stiftung EAR. Ich konzentriere mich darauf, ihre Umgebungen und Prioritäten gegenüberzustellen – von der direkten Gesundheitsversorgung bis hin zur E-Schrott-Compliance. Ich notiere wichtige Unterschiede wie die Sprachanforderungen und das Erfahrungsniveau. Außerdem bewerte ich die Unterschiede in ihren Remote-Work-Richtlinien."
       },
       "follow_up_1": {
-        "text": "Suche nach Remote-Softwareentwickler-Jobs in Göteborg"
+        "text": "Suche nach weiteren UI/UX-Design-Jobs in Berlin"
       },
       "follow_up_2": {
-        "text": "Vergleiche die Anforderungen für diese Senior-Entwickler-Rollen"
+        "text": "Entwirf eine E-Mail an den Hiring Manager bei voize"
       },
       "follow_up_3": {
-        "text": "Suche nach Frontend-Entwickler-Stellen in Stockholm"
+        "text": "Finde ähnliche Tech-Stellen im Gesundheitswesen in Deutschland"
       },
       "follow_up_4": {
-        "text": "Liste die wichtigsten Tech-Stacks in diesen Anzeigen auf"
+        "text": "Vergleiche die Vor- und Nachteile der Arbeit in Healthcare-Startups gegenüber öffentlichen Stellen"
       },
       "follow_up_5": {
-        "text": "Suche nach Junior-Entwickler-Stellenanzeigen in Schweden"
+        "text": "Suche nach Tech-Jobs im öffentlichen Sektor in Nürnberg"
       },
       "follow_up_6": {
-        "text": "Fasse die Remote-Work-Trends in schwedischen Tech-Jobs zusammen"
+        "text": "Liste die wichtigsten Schritte zur Vorbereitung auf ein Senior Product Design Interview auf"
       }
     },
     "launch_readiness_checklist_doc": {

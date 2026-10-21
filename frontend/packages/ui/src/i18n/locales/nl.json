@@ -4908,6 +4908,104 @@
       "assistant_response": {
         "text": "Gebruik de zoekfunctie voor evenementen om lessen en bijeenkomsten in de buurt te vinden. Kies een plaats en onderwerp om te zien wat er te doen is."
       }
+    },
+    "collective": {
+      "title": {
+        "text": "Collectief diergedrag"
+      },
+      "description": {
+        "text": "Hoe groepen dieren bewegingen en beslissingen coördineren."
+      },
+      "phrase": {
+        "text": "Duizenden dieren bewegen als één geheel, zonder dirigent."
+      },
+      "assistant_response": {
+        "text": "Hoe groepen dieren bewegingen en beslissingen coördineren."
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "Bibliotheek van Alexandrië"
+      },
+      "description": {
+        "text": "Een van de beroemdste kenniscentra uit de oudheid."
+      },
+      "phrase": {
+        "text": "De beroemdste bibliotheek uit de oudheid was ook een onderzoeksinstituut."
+      },
+      "assistant_response": {
+        "text": "Een van de beroemdste kenniscentra uit de oudheid."
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "Tensegriteit"
+      },
+      "description": {
+        "text": "Constructies die stabiel blijven door een evenwicht van trek en druk."
+      },
+      "phrase": {
+        "text": "Sommige constructies lijken te zweven doordat trekkrachten onzichtbaar hun werk doen."
+      },
+      "assistant_response": {
+        "text": "Constructies die stabiel blijven door een evenwicht van trek en druk."
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "Citaten uit betrouwbare bronnen"
+      },
+      "description": {
+        "text": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
+      },
+      "phrase": {
+        "text": "Wil je een antwoord controleren? Vraag OpenMates de bron te citeren."
+      },
+      "assistant_response": {
+        "text": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "AI-beelddetectie"
+      },
+      "description": {
+        "text": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
+      },
+      "phrase": {
+        "text": "Is een afbeelding met AI gemaakt? Upload hem en bekijk de aanwijzingen."
+      },
+      "assistant_response": {
+        "text": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "Incognitochats"
+      },
+      "description": {
+        "text": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
+      },
+      "phrase": {
+        "text": "Een tijdelijk gesprek nodig? Houd het buiten je opgeslagen chatgeschiedenis."
+      },
+      "assistant_response": {
+        "text": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "Privacyinstellingen"
+      },
+      "description": {
+        "text": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
+      },
+      "phrase": {
+        "text": "Bekijk hoe OpenMates je gegevens beschermt voordat je de instellingen dringend nodig hebt."
+      },
+      "assistant_response": {
+        "text": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
+      }
     }
   },
   "demo_chats": {
@@ -9663,36 +9761,48 @@
         "text": "Leg uit hoe het aanbod op de woningmarkt reageert op prijsbeheersing"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "Developer-banen in Zweden"
+        "text": "Zinvol werk in Duitsland"
       },
       "summary": {
-        "text": "Vergelijk actuele developer-banen in Stockholm en Malmö met originele vacatures en op bronnen gebaseerde werkplekdetails."
+        "text": "Doorzoek vier vacatureplatforms voor Duitse vacatures, vergelijk vervolgens design-rollen en bereid vragen voor werkgevers voor."
       },
       "message_1": {
-        "text": "Vind twee actuele software developer-banen in Stockholm en twee in Malmö via de Zweedse openbare arbeidsvoorziening. Toon voor elke baan een kort opsommingsteken met de titel, werkgever, stad van de werkplek en de link naar de originele vacature. Vermeld alleen een salarisindicatie of regeling voor thuiswerken als dit expliciet in die vacature staat; zeg anders 'niet vermeld'. Houd het antwoord onder de 200 woorden."
+        "text": "Ik ben op zoek naar zinvol werk in Duitsland, vooral in onderzoek, design of software engineering. Zoek een paar actuele vacatures via 80,000 Hours en Hard Problems, evenals Arbeitnow en het Bundesagentur für Arbeit. Ik sta open voor elke plek in Duitsland. Geef me een korte shortlist met de werkgever, locatie, bron en sollicitatielink, en ga niet uit van werken op afstand of een salaris als de vacature dit niet vermeldt."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nActuele vacatures voor softwareontwikkelaars van Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Functie:** Senior Systemutvecklare  \n  **Werkgever:** NXT Interim Stockholm AB  \n  **Stad werklocatie:** Stockholm  \n  **Link naar originele vacature:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Salarisindicatie:** Niet vermeld  \n  **Thuiswerkregeling:** Biedt externe werkplekken (*remote-arbetsplatser*)\n\n* **Functie:** Javautvecklare  \n  **Werkgever:** AFRY AB  \n  **Stad werklocatie:** Stockholm  \n  **Link naar originele vacature:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Salarisindicatie:** Niet vermeld  \n  **Thuiswerkregeling:** Mogelijkheid tot hybride werken (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Functie:** Senior AI Engineer  \n  **Werkgever:** Iver Accelerate AB  \n  **Stad werklocatie:** Malmö  \n  **Link naar originele vacature:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Salarisindicatie:** Niet vermeld  \n  **Thuiswerkregeling:** Mogelijkheid tot hybride werken (*möjlighet till hybridarbete*)\n\n* **Functie:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Werkgever:** Jobbakuten Väst AB  \n  **Stad werklocatie:** Malmö  \n  **Link naar originele vacature:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Salarisindicatie:** Niet vermeld (vacature vermeldt marktconform salaris zonder specifiek bedrag)  \n  **Thuiswerkregeling:** Hybride werken (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nHier is een shortlist van actuele vacatures in Duitsland op het gebied van onderzoek, design en software engineering van [80,000 Hours](wiki:80,000_Hours), **Hard Problems**, **Arbeitnow** en de **Federal Employment Agency** (*Bundesagentur für Arbeit*). \n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Werkgever:** voize (ontwikkelt spraakherkennings-AI om documentatie voor verpleging en klinische zorg te stroomlijnen)\n  * **Locatie:** Berlijn, Duitsland (vermeld als geschikt voor werken op afstand)\n  * **Bron:** Hard Problems\n  * **Salaris:** Niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/v/x)**\n  * **Werkgever:** stiftung ear (nationaal register dat de verwijdering, inname en tracking van de circulaire economie van elektronisch afval coördineert)\n  * **Locatie:** Neurenberg, Beieren\n  * **Bron:** Federal Employment Agency\n  * **Werkvorm & Salaris:** Flexibele/mobiele werkopties vermeld in de beschrijving, maar geen formele classificatie voor volledig op afstand; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via Bundesagentur für Arbeit](embed:ui-ux-design-1Bm)\n\n---\n\n### Onderzoek\n\n* **Joint Fellowship Program (Vredes- & Veiligheidsbeleid)**\n  * **Werkgever:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Locatie:** Hamburg, Duitsland\n  * **Bron:** 80,000 Hours\n  * **Werkvorm & Salaris:** Niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via IFSH / 80,000 Hours](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/v/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **Werkgever:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Locatie:** Bochum, Noordrijn-Westfalen\n  * **Bron:** Federal Employment Agency\n  * **Werkvorm & Salaris:** Fulltime (39,83 uur/week); regeling voor werken op afstand niet gespecificeerd; bezoldiging volgens de collectieve schaal voor de publieke sector TV-L E13 (exact bedrag niet vermeld in de vacature)\n  * **Sollicitatie:** [Solliciteer via Bundesagentur für Arbeit](embed:research-associate-m-79L)\n\n* **Research Engineer (v/m/d) – Grid Decarbonization & Basic Technology**\n  * **Werkgever:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Locatie:** Berlijn\n  * **Bron:** Federal Employment Agency\n  * **Werkvorm & Salaris:** Flexibele/mobiele opties vermeld in de tekst, maar geen vaste status voor werken op afstand vermeld; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via Bundesagentur für Arbeit](embed:research-engineer-f-7ao)\n\n---\n\n### Software Engineering\n\n* **Senior Backend Engineer (m/v/x) – Java/Kotlin, AWS, Kafka**\n  * **Werkgever:** idealo internet GmbH\n  * **Locatie:** Berlijn, Duitsland\n  * **Bron:** Arbeitnow\n  * **Werkvorm & Salaris:** Op locatie/hybride kantooromgeving; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via Arbeitnow](embed:senior-backend-engineer-q7x)\n\n* **Werkstudent – Software Engineering (Computer Vision / Autonome Systemen)**\n  * **Werkgever:** Quantum-Systems GmbH (autonome luchtplatforms en robotperceptie)\n  * **Locatie:** Gilching, Beieren\n  * **Bron:** Arbeitnow\n  * **Werkvorm & Salaris:** Op locatie/hybride; salaris niet gespecificeerd\n  * **Sollicitatie:** [Solliciteer via Arbeitnow](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**Duitse kansen identificeren**\n\nIk richt me momenteel op het vinden van relevante vacatures in Duitsland. Ik ben begonnen met het samenstellen van een lijst met veelbelovende bronnen: `80,000 Hours`, `Hard Problems`, `Arbeitnow` en de `Federal Employment Agency`. Mijn belangrijkste interesse gaat uit naar rollen in onderzoek, design en software engineering, waarbij ik de locatie nauwlettend in de gaten houd.\n\n\n**Zoekparameters verfijnen**\n\nIk verfijn nu mijn aanpak om de `jobs-search` tool effectief te gebruiken. Ik richt me op de `requests` array om een reeks zoekopdrachten uit te voeren en de aanbieders rechtstreeks te specificeren, gezien de limiet van 5 verzoeken. Ik controleer de functiedefinitie om te bevestigen hoe ik aanbieders expliciet als lijst kan opgeven en hoe ik relevantiecriteria definieer. Dit helpt bij het maken van een shortlist met werkgever, locatie, bron en sollicitatielink. Mijn doel is om aannames over werken op afstand of salaris te vermijden wanneer dit niet expliciet wordt vermeld.\n\n\n**Resultaten van aanbieders onderzoeken**\n\nOké, ik heb een eerste blik geworpen op de teruggekoppelde aanbieders. Het lijkt erop dat we \"Hard Problems\" hebben en een paar van Arbeitnow; de ene is een senior rol in backend engineering (Java/Kotlin) en de andere is een rol als werkstudent. Ik noteer de eerste indrukken en beoordeel de potentiële impact van elke vermelding.\n\n\n**Huidige kansen analyseren**\n\nIk richt me momenteel op het evalueren van twee veelbelovende kansen. De eerste is een \"Joint Fellowship Program\" bij het Institute for Peace Research and Security Policy van de Universiteit Hamburg, en de tweede is een positie als \"Student Assistant\" binnen het Interface Cybersecurity Programme. Ik weeg hun respectievelijke verdiensten zorgvuldig af in de context van respectievelijk vredes- en veiligheidsonderzoek en cybersecurity.\n\n\n**Nieuwe leads prioriteren**\n\nIk heb mijn aandacht verlegd naar het samenstellen van een evenwichtige shortlist. Ik geef prioriteit aan kansen in design en onderzoek, waarbij ik me richt op relevantie en recente plaatsingen. Momenteel bekijk ik een rol als Senior Product Designer bij voize in Berlijn en een UI/UX Design-positie bij stiftung ear. Voor onderzoek bekijk ik een rol bij de Ruhr-Universität Bochum, naast het Joint Fellowship Program in Hamburg.\n\n\n**Nieuwe mogelijkheden evalueren**\n\nIk weeg nu nieuwe leads af tegen mijn criteria. Ik heb opties ontdekt, zoals een rol als Research Engineer bij Siemens Energy in Berlijn via de Federal Employment Agency, die zich richt op fundamenteel onderzoek. Ik overweeg ook rollen als Senior Backend en Junior C++ Software Developer bij respectievelijk idealo internet GmbH (Berlijn, Arbeitnow) en CT Software Engineering (Ingolstadt, Federal Employment Agency). Deze sluiten aan bij mijn interesses in software engineering.\n\n\n**Sollicitatiecriteria verfijnen**\n\nIk verduidelijk nu hoe ik met sollicitatielinks omga. Ik moet eraan denken om prioriteit te geven aan duidelijke sollicitatieprocessen en te controleren op het gebruik van `[weergavetekst](embed:embed_ref)` of standaardlinks. Bovendien moet ik aannames over werken op afstand of het vermelden van salaris vermijden, tenzij dit expliciet in de vacature staat.\n\n\n**Sollicitatieprotocollen verduidelijken**\n\nIk concentreer me nu op de formaten van sollicitatielinks. Ik richt me op het waarborgen van directe linkintegratie of het gebruik van het `(embed:embed_ref)` formaat, waarbij ik ervoor zorg dat ik niet beide aanbied. Ik controleer zorgvuldig de URL's die door app-skills worden geretourneerd om naleving te garanderen. Ik streef ernaar de regel te volgen om slechts één linkstijl per sollicitatielink te gebruiken.\n\n\n**Sollicitatielinks standaardiseren**\n\nIk implementeer nu de strategie voor sollicitatielinks. Mijn doel is om het formaat voor vacatures te standaardiseren. Ik gebruik alleen de embed-ref voor sollicitatielinks. Ik neem ook de rol, werkgever, locatie en bron op voor elke vacature en gebruik een ingesloten link. Ik zorg ervoor dat ik altijd één link per vacature gebruik.\n\n\n**Gegevens over kansen verzamelen**\n\nIk verzamel nu details voor meerdere kansen. Ik heb informatie voor een rol als Senior Product Designer bij voize, een UI/UX Design-positie bij stiftung ear en het Joint Fellowship Program bij de Universiteit Hamburg. Ik noteer de rol, werkgever, locatie en bron voor elk, evenals de specificaties voor werken op afstand en salaris. Ik richt me op het waarborgen van consistente linkformaten door embeds te gebruiken voor elke sollicitatie.\n\n\n**Nieuwe vermeldingen integreren**\n\nIk integreer nu nieuwe vermeldingen in de dataset. Ik heb een positie als Research Associate bij de Ruhr-Universität Bochum toegevoegd, afkomstig van de Federal Employment Agency, met vermelding van de details over werken op afstand en salaris. Ook heb ik informatie verzameld over een rol als Research Engineer bij Siemens Energy, inclusief flexibele opties. Ik zorg voor consistentie in linkformaten door embeds te gebruiken voor sollicitatielinks.\n\n\n**Nieuwe vermeldingen toevoegen**\n\nIk heb zojuist twee nieuwe vermeldingen toegevoegd: een rol als Senior Backend Engineer op een niet nader genoemde locatie en een positie als werkstudent bij Quantum-Systems GmbH in Gilching. Ik richt me op het nauwkeurig vastleggen van alle details, inclusief locatie, opties voor werken op afstand, salarisinformatie (indien beschikbaar) and sollicitatielinks in het gestandaardiseerde formaat. Ik gebruik het `(embed:embed_ref)` formaat voor de sollicitatielink."
+      },
+      "message_3": {
+        "text": "De twee designrollen klinken het meest interessant. Kun je kort vergelijken wat er precies in de opgeslagen vacatures staat en suggesties geven voor wat ik elke werkgever zou moeten vragen voordat ik solliciteer?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nHier is een directe vergelijking van wat elke vacature vermeldt, gevolgd door gerichte vragen die je aan elke werkgever kunt stellen voor of tijdens het sollicitatieproces.\n\n---\n\n### Vergelijking van de vacatures\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Wat je kunt vragen voordat je solliciteert\n\n#### Voor voize:\n1. **Toegang tot gebruikersonderzoek:** *\"Hoe vaak en via welke kanalen voeren designers veldonderzoek of tests uit met verpleegkundigen en zorgpersoneel in hun dagelijkse klinische omgeving?\"*\n2. **Teamvolwassenheid en reikwijdte:** *\"Hoe is het productteam gestructureerd, wat is de huidige verhouding tussen designers, PM's en engineers, en is deze rol een individuele bijdrager of wordt er verwacht dat je design systems opzet?\"*\n3. **Compensatie en remote ritme:** *\"Wat is de beoogde salarisindicatie voor dit senioriteitsniveau, en zijn er verplichte on-site team-offsites of kernuren ondanks het remote beleid?\"*\n\n#### Voor stiftung ear:\n1. **On-site verwachtingen in Neurenberg:** *\"Hoe is mobiel werken in de praktijk gestructureerd — is er een vaste wekelijkse of maandelijkse verplichting om op kantoor in Neurenberg te zijn?\"*\n2. **Balans tussen Design en QA:** *\"De vacature vermeldt de implementatie van softwaretests naast UX/UI-design. Welk percentage van de rol is gericht op gebruikersonderzoek/prototyping versus technische softwarevalidatie en kwaliteitsborging?\"*\n3. **Design tooling en overdracht naar development:** *\"Welke design systems en prototyping-tools worden er momenteel gebruikt, en werken jullie met een intern developmentteam of externe IT-dienstverleners?\"*\n4. **Salarisbenchmark:** *\"Aangezien stiftung ear een publiekrechtelijke functie vervult, volgt de compensatie een specifieke publieke cao (zoals TVöD/TV-L) of een interne salarisstructuur?\"*"
+      },
+      "message_4_thinking": {
+        "text": "**Vacature-inhoud analyseren**\n\nOké, ik ben begonnen met het vergelijken van de functiebeschrijvingen. Ik richt me op de belangrijkste verantwoordelijkheden en vereiste vaardigheden voor de rol van Senior Product Designer bij Voize en de UI/UX Design-positie bij Stiftung EAR. Nu bereid ik een samenvatting voor van de belangrijkste verantwoordelijkheden en vereiste vaardigheden van beide vacatures. Daarna zal ik bepalen welke verdere informatie ik eventueel nodig heb.\n\n\n**Functiebeschrijvingen analyseren**\n\nOké, ik duik nu dieper in de details van elke vacature. Mijn focus ligt op het ontleden van het feitelijke taalgebruik in de beschrijvingen. Ik probeer te bepalen welke belangrijke vragen beantwoord moeten worden om me op elke werkgever voor te bereiden. Bij de voize-vacature moet ik bijvoorbeeld meer weten over hun AI-begeleidingsproduct.\n\n\n**Belangrijke details beoordelen**\n\nIk richt me nu specifiek op de voize-vacature en haal de belangrijkste punten eruit. Het is een senior rol met aanzienlijke verantwoordelijkheid, die iemand vereist die productmanagers kan uitdagen. De opzet is flexibel, met een kantoor in Berlijn en mogelijkheden om op afstand te werken. De vergoeding wordt niet vermeld, maar de extra's omvatten een behoorlijk aantal vakantiedagen en een lidmaatschap van een sportclub. Engels is de voertaal, ook al is de context de Duitse gezondheidszorg.\n\n\n**Specifieke vereisten vaststellen**\n\nIk richt me nu op de rol in Neurenberg. Ik heb de belangrijkste gebieden uitgesplitst: het aspect van wettelijke naleving richt zich op ElektroG-regelgeving. Mijn werk omvat de ontwikkeling van web-apps en UX-activiteiten, waarbij ik belanghebbenden adviseer. Vloeiend Duits (minimaal C1) is verplicht, ervaring met regelgevende software is een pluspunt. De functie is permanent met aanzienlijke flexibiliteit voor werken op afstand. De vergoeding is prestatiegericht.\n\n\n**Functiekenmerken vergelijken**\n\nIk maak nu directe vergelijkingen tussen de rollen. Ik heb het onderverdeeld naar domein, cultuur, vereiste vaardigheden en werklocatie. Specifiek kijk ik naar voize versus de rol bij stiftung ear. Ik richt me op het contrasteren van hun omgevingen en prioriteiten, van de frontlinie van de gezondheidszorg tot de naleving van regels voor e-waste. Ik noteer belangrijke verschillen zoals de taalvereisten en het ervaringsniveau. Ook beoordeel ik de verschillen in hun beleid voor werken op afstand."
       },
       "follow_up_1": {
-        "text": "Zoek naar remote software developer vacatures in Göteborg"
+        "text": "Zoek naar meer UI/UX design vacatures in Berlijn"
       },
       "follow_up_2": {
-        "text": "Vergelijk de vereisten voor deze senior developer rollen"
+        "text": "Schrijf een concept-e-mail naar de hiring manager bij voize"
       },
       "follow_up_3": {
-        "text": "Zoek naar frontend developer vacatures in Stockholm"
+        "text": "Vind vergelijkbare tech-functies in de gezondheidszorg in Duitsland"
       },
       "follow_up_4": {
-        "text": "Toon de meest genoemde technology stacks in deze vacatures"
+        "text": "Vergelijk de voor- en nadelen van werken bij startups in de gezondheidszorg versus overheidsinstanties"
       },
       "follow_up_5": {
-        "text": "Zoek naar junior developer vacatures in Zweden"
+        "text": "Zoek naar tech-vacatures in de publieke sector in Neurenberg"
       },
       "follow_up_6": {
-        "text": "Vat de trends voor werken op afstand samen voor Zweedse tech-banen"
+        "text": "Lijst met belangrijke stappen ter voorbereiding op een sollicitatiegesprek voor senior product design"
       }
     },
     "launch_readiness_checklist_doc": {

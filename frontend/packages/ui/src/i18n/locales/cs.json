@@ -4908,6 +4908,104 @@
       "assistant_response": {
         "text": "Použij vyhledávání akcí a najdi kurzy a setkání ve svém okolí. Vyber místo a téma a zjisti, co se děje poblíž."
       }
+    },
+    "collective": {
+      "title": {
+        "text": "Kolektivní chování zvířat"
+      },
+      "description": {
+        "text": "Jak skupiny zvířat koordinují pohyb a rozhodování."
+      },
+      "phrase": {
+        "text": "Tisíce zvířat se pohybují jako jedno, bez dirigenta."
+      },
+      "assistant_response": {
+        "text": "Jak skupiny zvířat koordinují pohyb a rozhodování."
+      }
+    },
+    "alexandria": {
+      "title": {
+        "text": "Alexandrijská knihovna"
+      },
+      "description": {
+        "text": "Jedno z nejslavnějších center vědění starověkého světa."
+      },
+      "phrase": {
+        "text": "Nejslavnější starověká knihovna byla také výzkumnou institucí."
+      },
+      "assistant_response": {
+        "text": "Jedno z nejslavnějších center vědění starověkého světa."
+      }
+    },
+    "tensegrity": {
+      "title": {
+        "text": "Tensegrita"
+      },
+      "description": {
+        "text": "Konstrukce stabilizované rovnováhou tahu a tlaku."
+      },
+      "phrase": {
+        "text": "Některé konstrukce jako by se vznášely díky skryté práci tahových sil."
+      },
+      "assistant_response": {
+        "text": "Konstrukce stabilizované rovnováhou tahu a tlaku."
+      }
+    },
+    "quotes": {
+      "title": {
+        "text": "Citace z důvěryhodných zdrojů"
+      },
+      "description": {
+        "text": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
+      },
+      "phrase": {
+        "text": "Chceš ověřit odpověď? Požádej OpenMates o citaci ze zdroje."
+      },
+      "assistant_response": {
+        "text": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
+      }
+    },
+    "image_detection": {
+      "title": {
+        "text": "Rozpoznávání obrázků AI"
+      },
+      "description": {
+        "text": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
+      },
+      "phrase": {
+        "text": "Zajímá tě, zda obrázek vytvořila AI? Nahraj ho a prozkoumej příznaky."
+      },
+      "assistant_response": {
+        "text": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
+      }
+    },
+    "incognito": {
+      "title": {
+        "text": "Anonymní chaty"
+      },
+      "description": {
+        "text": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
+      },
+      "phrase": {
+        "text": "Potřebuješ dočasnou konverzaci? Nech ji mimo uloženou historii chatů."
+      },
+      "assistant_response": {
+        "text": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
+      }
+    },
+    "privacy": {
+      "title": {
+        "text": "Nastavení soukromí"
+      },
+      "description": {
+        "text": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
+      },
+      "phrase": {
+        "text": "Prohlédni si ochranu OpenMates dřív, než budeš nastavení naléhavě potřebovat."
+      },
+      "assistant_response": {
+        "text": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
+      }
     }
   },
   "demo_chats": {
@@ -9663,36 +9761,48 @@
         "text": "Vysvětlit, jak nabídka na trhu s bydlením reaguje na cenovou regulaci"
       }
     },
-    "jobs_in_sweden": {
+    "jobs_in_germany": {
       "title": {
-        "text": "Práce pro vývojáře ve Švédsku"
+        "text": "Smysluplná práce v Německu"
       },
       "summary": {
-        "text": "Porovnej aktuální nabídky práce pro vývojáře ve Stockholmu a Malmö s původními inzeráty a ověřenými informacemi o pracovišti."
+        "text": "Prohledej čtyři pracovní portály s nabídkami v Německu, porovnej pozice v oblasti designu a připrav si otázky pro zaměstnavatele."
       },
       "message_1": {
-        "text": "Najdi dvě aktuální pracovní pozice pro softwarové vývojáře ve Stockholmu a dvě v Malmö ze švédských veřejných služeb zaměstnanosti. U každé uveď krátký bod s názvem, zaměstnavatelem, městem pracoviště a odkazem na původní inzerát. Údaj o platu nebo možnosti práce z domova uveď pouze tehdy, pokud je v daném inzerátu výslovně uveden; jinak uveď, že není uveden. Odpověď udrž pod 200 slov."
+        "text": "Hledám smysluplnou práci v Německu, zejména v oblasti výzkumu, designu nebo softwarového inženýrství. Najdi prosím několik aktuálních volných míst pomocí 80,000 Hours a Hard Problems a také Arbeitnow a Federal Employment Agency. Jsem otevřený jakékoli lokalitě v Německu. Dej mi stručný užší výběr se zaměstnavatelem, lokalitou, zdrojem a odkazem na přihlášku a nepředpokládej práci na dálku ani plat, pokud to v inzerátu není uvedeno."
       },
       "message_2": {
-        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"ea23f42b-6a8d-4faf-912d-988d2ba20cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"a9fafbeb-7f05-42d5-9dcd-cbc752f42ffd\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nAktuální nabídky práce pro softwarové vývojáře z Arbetsförmedlingen (Platsbanken):\n\n### Stockholm\n\n* **Pozice:** Senior Systemutvecklare  \n  **Zaměstnavatel:** NXT Interim Stockholm AB  \n  **Město pracoviště:** Stockholm  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31589252](embed:senior-systemutvecklare-2ps)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Nabízí vzdálená pracoviště (*remote-arbetsplatser*)\n\n* **Pozice:** Javautvecklare  \n  **Zaměstnavatel:** AFRY AB  \n  **Město pracoviště:** Stockholm  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31588186](embed:javautvecklare-y47)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Možnost hybridní práce (*möjlighet till hybridarbete*)\n\n---\n\n### Malmö\n\n* **Pozice:** Senior AI Engineer  \n  **Zaměstnavatel:** Iver Accelerate AB  \n  **Město pracoviště:** Malmö  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31588387](embed:senior-ai-engineer-Duw)  \n  **Plat:** Neuvedeno  \n  **Práce z domova:** Možnost hybridní práce (*möjlighet till hybridarbete*)\n\n* **Pozice:** Malmö: Systemutvecklare Affärssystem Hybrid  \n  **Zaměstnavatel:** Jobbakuten Väst AB  \n  **Město pracoviště:** Malmö  \n  **Odkaz na původní inzerát:** [Platsbanken annons 31574628](embed:malm-systemutvecklare-aff-umf)  \n  **Plat:** Neuvedeno (v inzerátu je uveden tržní plat bez konkrétní částky)  \n  **Práce z domova:** Hybridní práce (*Hybridarbete*)"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"efbb1860-b56b-4524-8a10-a91bdf0f1cf4\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"96cf7b58-2c5d-43d4-aacf-43367231fdef\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"d8ae81d2-05dc-42af-b5c6-0a3910241f30\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"371924e8-537a-4f48-9d10-58a516e29ff1\",\"app_id\":\"jobs\",\"skill_id\":\"search\"}\n```\n\nZde je užší výběr aktuálních volných pracovních míst v Německu v oblastech výzkumu, designu a softwarového inženýrství od [80,000 Hours](wiki:80,000_Hours), **Hard Problems**, **Arbeitnow** a **Spolkového úřadu práce** (*Bundesagentur für Arbeit*). \n\n---\n\n### Design\n\n* **Senior Product Designer**\n  * **Zaměstnavatel:** voize (vyvíjí AI pro rozpoznávání řeči pro zefektivnění dokumentace v ošetřovatelské a klinické péči)\n  * **Lokalita:** Berlín, Německo (uvedeno jako možnost práce na dálku)\n  * **Zdroj:** Hard Problems\n  * **Plat:** Neuvedeno\n  * **Přihláška:** [Přihlásit se přes voize](embed:senior-product-designer-Wid)\n\n* **UI/UX Design (m/w/d)**\n  * **Zaměstnavatel:** stiftung ear (národní registr koordinující likvidaci, zpětný odběr a sledování oběhového hospodářství u elektronického odpadu)\n  * **Lokalita:** Norimberk, Bavorsko\n  * **Zdroj:** Spolkový úřad práce\n  * **Pracovní režim a plat:** V popisu inzerátu jsou zmíněny flexibilní/mobilní možnosti práce, ale bez formální klasifikace jako plně na dálku; plat neuveden\n  * **Přihláška:** [Přihlásit se přes Bundesagentur für Arbeit](embed:ui-ux-design-1Bm)\n\n---\n\n### Výzkum\n\n* **Joint Fellowship Program (Peace & Security Policy)**\n  * **Zaměstnavatel:** [University of Hamburg](wiki:University_of_Hamburg) & Institute for Peace Research and Security Policy (IFSH)\n  * **Lokalita:** Hamburk, Německo\n  * **Zdroj:** 80,000 Hours\n  * **Pracovní režim a plat:** Neuvedeno\n  * **Přihláška:** [Přihlásit se přes IFSH / 80,000 Hours](embed:joint-fellowship-program-iLH)\n\n* **Research Associate (m/f/x) – Machine Learning & Decision-Making Under Uncertainty**\n  * **Zaměstnavatel:** [Ruhr University Bochum](wiki:Ruhr_University_Bochum)\n  * **Lokalita:** Bochum, Severní Porýní-Vestfálsko\n  * **Zdroj:** Spolkový úřad práce\n  * **Pracovní režim a plat:** Plný úvazek (39,83 hod./týden); možnost práce na dálku neuvedena; odměňování podle veřejné kolektivní tabulky TV-L E13 (přesná částka v inzerátu není zveřejněna)\n  * **Přihláška:** [Přihlásit se přes Bundesagentur für Arbeit](embed:research-associate-m-79L)\n\n* **Research Engineer (f/m/d) – Grid Decarbonization & Basic Technology**\n  * **Zaměstnavatel:** [Siemens Energy](wiki:Siemens_Energy)\n  * **Lokalita:** Berlín\n  * **Zdroj:** Spolkový úřad práce\n  * **Pracovní režim a plat:** V textu jsou zmíněny flexibilní/mobilní možnosti, ale není uveden pevný status práce na dálku; plat neuveden\n  * **Přihláška:** [Přihlásit se přes Bundesagentur für Arbeit](embed:research-engineer-f-7ao)\n\n---\n\n### Softwarové inženýrství\n\n* **Senior Backend Engineer (m/w/d) – Java/Kotlin, AWS, Kafka**\n  * **Zaměstnavatel:** idealo internet GmbH\n  * **Lokalita:** Berlín, Německo\n  * **Zdroj:** Arbeitnow\n  * **Pracovní režim a plat:** Na místě / hybridní kancelářské prostředí; plat neuveden\n  * **Přihláška:** [Přihlásit se přes Arbeitnow](embed:senior-backend-engineer-q7x)\n\n* **Working Student – Software Engineering (Computer Vision / Autonomous Systems)**\n  * **Zaměstnavatel:** Quantum-Systems GmbH (autonomní letecké platformy a robotické vnímání)\n  * **Lokalita:** Gilching, Bavorsko\n  * **Zdroj:** Arbeitnow\n  * **Pracovní režim a plat:** Na místě / hybridní; plat neuveden\n  * **Přihláška:** [Přihlásit se přes Arbeitnow](embed:working-student-software-VX8)"
+      },
+      "message_2_thinking": {
+        "text": "**Identifikace příležitostí v Německu**\n\nMomentálně se soustředím na vyhledávání relevantních pracovních nabídek v Německu. Začal jsem sestavením seznamu slibných zdrojů: `80,000 Hours`, `Hard Problems`, `Arbeitnow` a `Spolkový úřad práce`. Můj hlavní zájem spočívá v rolích v oblasti výzkumu, designu a softwarového inženýrství, přičemž budu bedlivě sledovat lokalitu.\n\n\n**Upřesnění parametrů vyhledávání**\n\nNyní ladím svůj přístup k efektivnímu využití nástroje `jobs-search`. Zaměřuji se na pole `requests`, abych vytvořil sérii dotazů a přímo specifikoval poskytovatele, vzhledem k limitu 5 požadavků. Kontroluji definici funkce, abych si potvrdil, jak explicitně zadat poskytovatele jako seznam a jak definovat kritéria relevance. To mi pomůže vytvořit užší výběr obsahující zaměstnavatele, lokalitu, zdroj a odkaz na přihlášku. Mým cílem je vyhnout se předpokladům o práci na dálku nebo platu, pokud nejsou výslovně uvedeny.\n\n\n**Zkoumání výsledků od poskytovatelů**\n\nDobře, mám první náhled na vrácené poskytovatele. Zdá se, že tu máme „Hard Problems“ a pár nabídek z Arbeitnow; jedna je na pozici senior backend inženýra (Java/Kotlin) a druhá na pozici pracujícího studenta. Zaznamenávám si první dojmy a posuzuji potenciální dopad každého inzerátu.\n\n\n**Analýza aktuálních příležitostí**\n\nMomentálně se soustředím na vyhodnocení dvou slibných příležitostí. První je „Joint Fellowship Program“ v Institutu pro výzkum míru a bezpečnostní politiku na Univerzitě v Hamburku a druhou je pozice „Student Assistant“ v rámci programu Interface Cybersecurity. Pečlivě zvažuji jejich přínosy v kontextu výzkumu míru a bezpečnosti, respektive kybernetické bezpečnosti.\n\n\n**Prioritizace nových tipů**\n\nPřesunul jsem svou pozornost na sestavení vyváženého užšího výběru. Prioritizuji příležitosti v oblasti designu a výzkumu se zaměřením na relevanci a aktuálnost nabídek. Právě zkoumám roli Senior Product Designer ve společnosti voize v Berlíně a pozici UI/UX Design ve stiftung ear. V oblasti výzkumu prověřuji roli na Ruhr-Universität Bochum spolu s programem Joint Fellowship v Hamburku.\n\n\n**Hodnocení nových možností**\n\nNyní zvažuji nové tipy ve světle svých kritérií. Objevil jsem možnosti, jako je role Research Engineer v Siemens Energy v Berlíně prostřednictvím Spolkového úřadu práce, která se zaměřuje na základní výzkum. Zvažuji také role Senior Backend a Junior C++ Software Developer ve společnostech idealo internet GmbH (Berlín, Arbeitnow) a CT Software Engineering (Ingolstadt, Spolkový úřad práce). Ty odpovídají mým zájmům v oblasti softwarového inženýrství.\n\n\n**Upřesnění kritérií pro přihlášky**\n\nNyní si ujasňuji, jak nakládat s odkazy na přihlášky. Musím pamatovat na prioritizaci jasných procesů podávání přihlášek a kontrolovat použití formátu `[zobrazovaný text](embed:embed_ref)` nebo standardních odkazů. Dále bych se měl vyvarovat předpokladů o práci na dálku nebo uvádění platu, pokud to není v inzerátu výslovně uvedeno.\n\n\n**Ujasnění protokolů pro přihlášky**\n\nNyní se zaměřuji na formáty odkazů pro přihlášení. Soustředím se na zajištění přímé integrace odkazů nebo použití formátu `(embed:embed_ref)` a dbám na to, abych neposkytoval obojí. Pečlivě kontroluji URL adresy vrácené z dovedností aplikace, abych zajistil soulad s pravidly. Mým cílem je dodržet pravidlo použití pouze jednoho stylu odkazu na každou pracovní přihlášku.\n\n\n**Standardizace odkazů na přihlášky**\n\nNyní implementuji strategii odkazů na přihlášky. Mým cílem je standardizovat formát pracovních inzerátů. Pro odkazy na přihlášky budu používat pouze embed ref. U každého volného místa také uvedu roli, zaměstnavatele, lokalitu a zdroj a použiji vložený odkaz. Dohlédnu na to, abych pro každou pozici vždy použil jeden odkaz.\n\n\n**Sestavování údajů o příležitostech**\n\nNyní shromažďuji podrobnosti o několika příležitostech. Mám informace o roli Senior Product Designer ve společnosti voize, pozici UI/UX Design ve stiftung ear a o programu Joint Fellowship na Univerzitě v Hamburku. U každé z nich si zaznamenávám roli, zaměstnavatele, lokalitu a zdroj, stejně jako specifikace práce na dálku a platu. Soustředím se na zajištění konzistentních formátů odkazů pomocí embedů pro každou přihlášku.\n\n\n**Integrace nových inzerátů**\n\nNyní integruji nové inzeráty do datové sady. Přidal jsem pozici Research Associate na Ruhr-Universität Bochum, kterou jsem čerpal ze Spolkového úřadu práce, a poznamenal jsem si podrobnosti o práci na dálku a platu. Také jsem sestavil informace o roli Research Engineer v Siemens Energy, včetně flexibilních možností. Zajišťuji konzistenci formátů odkazů a pro odkazy na přihlášky používám embedy.\n\n\n**Přidávání nových inzerátů**\n\nPrávě jsem přidal dva nové inzeráty: roli Senior Backend Engineer v nespecifikované lokalitě a pozici Working Student ve společnosti Quantum-Systems GmbH v Gilchingu. Soustředím se na přesné zachycení všech podrobností, včetně lokality, možností práce na dálku, informací o platu (pokud jsou k dispozici) a odkazů na přihlášky ve standardizovaném formátu. Pro odkaz na přihlášku používám formát `(embed:embed_ref)`."
+      },
+      "message_3": {
+        "text": "Ty dvě designérské pozice znějí nejzajímavěji. Můžeš stručně porovnat, co ty uložené inzeráty vlastně říkají, a navrhnout, na co bych se měl každého zaměstnavatele před podáním přihlášky zeptat?"
+      },
+      "message_4": {
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"282f2221-2e12-4878-9ec0-39baf6a8bbaf\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"9fadb5fc-9dc5-409a-b637-500fc703cbc0\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"934c0984-d738-4b4d-9c7c-557cc94ece00\",\"app_id\":\"web\",\"skill_id\":\"read\"}\n```\n\nZde je přímé srovnání toho, co uvádí jednotlivé inzeráty, a následně cílené otázky, které můžeš položit každému zaměstnavateli před podáním přihlášky nebo během výběrového řízení.\n\n---\n\n### Srovnání inzerátů\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"e20cbb64-b469-4c1f-89fe-c31e45ad5df4\"}\n```\n\n---\n\n### Na co se zeptat před podáním přihlášky\n\n#### Pro voize:\n1. **Přístup k uživatelskému výzkumu:** *\"Jak často a jakými kanály provádějí designéři terénní výzkum nebo testování se zdravotními sestrami a pečovatelským personálem v jejich každodenním klinickém prostředí?\"*\n2. **Vyspělost a rozsah týmu:** *\"Jak je strukturován produktový tým, jaký je aktuální poměr designérů k PM a inženýrům a jedná se o pozici samostatného přispěvatele (IC), nebo se očekává vytváření design systémů?\"*\n3. **Odměňování a režim práce na dálku:** *\"Jaké je cílové platové rozmezí pro tuto úroveň seniority a existují i přes možnost práce na dálku povinné týmové výjezdy (offsites) nebo pevně stanovená pracovní doba?\"*\n\n#### Pro stiftung ear:\n1. **Očekávání ohledně přítomnosti v Norimberku:** *\"Jak je v praxi strukturována mobilní práce – existuje pevný týdenní nebo měsíční požadavek na přítomnost v kanceláři v Norimberku?\"*\n2. **Poměr mezi designem a QA:** *\"Inzerát zmiňuje implementaci testování softwaru vedle UX/UI designu. Jaké procento náplně práce je zaměřeno na uživatelský výzkum/prototypování oproti technické validaci softwaru a zajištění kvality (QA)?\"*\n3. **Nástroje pro design a předávání vývoji:** *\"Jaké nástroje pro design systém a prototypování se aktuálně používají a spolupracujete s interním vývojovým týmem, nebo s externími poskytovateli IT služeb?\"*\n4. **Srovnání odměňování:** *\"Vzhledem k tomu, že stiftung ear působí jako veřejnoprávní subjekt, řídí se odměňování konkrétní veřejnou kolektivní smlouvou (jako TVöD/TV-L), nebo interní platovou strukturou?\"*"
+      },
+      "message_4_thinking": {
+        "text": "**Analýza obsahu pracovních nabídek**\n\nDobře, začal jsem porovnávat popisy pracovních pozic. Zaměřuji se na klíčové odpovědnosti a požadované dovednosti pro roli Senior Product Designer ve společnosti Voize a pozici UI/UX Design ve Stiftung EAR. Nyní připravuji shrnutí klíčových odpovědností a požadovaných dovedností obou pracovních nabídek. Poté zjistím, jaké další informace bych mohl potřebovat.\n\n\n**Analýza popisů práce**\n\nDobře, nyní se nořím hlouběji do specifik každé nabídky. Zaměřuji se na rozbor konkrétního jazyka použitého v popisech. Snažím se určit, na jaké klíčové otázky je třeba odpovědět, abych se mohl připravit na každého zaměstnavatele. Například u nabídky voize potřebuji vědět o jejich produktu AI společníka.\n\n\n**Posouzení klíčových detailů**\n\nNyní se zaměřuji na nabídku voize a vybírám z ní klíčové poznatky. Jedná se o seniorskou roli s významnou mírou odpovědnosti, která vyžaduje někoho, kdo dokáže být výzvou pro produktové manažery. Nastavení je flexibilní, s kanceláří v Berlíně a možností práce na dálku. Odměna není uvedena, ale mezi výhody patří slušná dovolená a členství ve sportovním klubu. Primárním jazykem je angličtina, i když kontextem je německé zdravotnictví.\n\n\n**Určení konkrétních požadavků**\n\nNyní se zaměřuji na roli se sídlem v Norimberku. Rozdělil jsem klíčové oblasti: aspekt právního souladu se zaměřuje na předpisy ElektroG. Moje práce zahrnuje vývoj webových aplikací a UX aktivity, poradenství zúčastněným stranám. Plynulá němčina (minimálně C1) je povinná, zkušenost s regulačním softwarem je výhodou. Pozice je trvalá s výraznou flexibilitou práce na dálku. Odměňování je založeno na výkonu.\n\n\n**Porovnání atributů práce**\n\nNyní provádím přímé srovnání napříč rolemi. Rozdělil jsem to podle oboru, kultury, požadovaných dovedností a místa výkonu práce. Konkrétně se dívám na voize versus roli ve stiftung ear. Zaměřuji se na kontrast jejich prostředí a priorit, od zdravotní péče v první linii až po dodržování předpisů o elektronickém odpadu. Všímám si klíčových rozdílů, jako jsou jazykové požadavky a úroveň zkušeností. Také posuzuji rozdíly v jejich zásadách pro práci na dálku."
       },
       "follow_up_1": {
-        "text": "Hledej remote pozice pro softwarové vývojáře v Göteborgu"
+        "text": "Hledat další pracovní pozice v UI/UX designu v Berlíně"
       },
       "follow_up_2": {
-        "text": "Porovnej požadavky na tyto pozice pro seniorní vývojáře"
+        "text": "Navrhnout oslovovací e-mail pro náborového manažera ve společnosti voize"
       },
       "follow_up_3": {
-        "text": "Hledej pozice pro frontend vývojáře ve Stockholmu"
+        "text": "Najít podobné pozice v oblasti zdravotnických technologií v Německu"
       },
       "follow_up_4": {
-        "text": "Vypiš nejčastější technologické stacky zmíněné v těchto inzerátech"
+        "text": "Porovnat výhody a nevýhody práce ve zdravotnických startupech oproti veřejným institucím"
       },
       "follow_up_5": {
-        "text": "Hledej inzeráty pro juniorní vývojáře ve Švédsku"
+        "text": "Hledat technologické pozice ve veřejném sektoru v Norimberku"
       },
       "follow_up_6": {
-        "text": "Shrň trendy v oblasti práce na dálku ve švédských technologických pozicích"
+        "text": "Seznam klíčových kroků přípravy na pohovor na pozici senior produktového designéra"
       }
     },
     "launch_readiness_checklist_doc": {

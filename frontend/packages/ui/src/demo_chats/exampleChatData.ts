@@ -49,7 +49,7 @@ import { communityGardenBudgetReviewChat } from "./data/example_chats/community-
 import { communityGardenVolunteerChimeChat } from "./data/example_chats/community-garden-volunteer-chime";
 import { onlineShopCheckoutFlowDiagramChat } from "./data/example_chats/online-shop-checkout-flow-diagram";
 import { findBrandNameAndDomainChat } from "./data/example_chats/find-brand-name-and-domain";
-import { jobsInSwedenChat } from "./data/example_chats/jobs-in-sweden";
+import { jobsInGermanyChat } from "./data/example_chats/jobs-in-germany";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -92,7 +92,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   communityGardenVolunteerChimeChat,
   onlineShopCheckoutFlowDiagramChat,
   findBrandNameAndDomainChat,
-  jobsInSwedenChat,
+  jobsInGermanyChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.
