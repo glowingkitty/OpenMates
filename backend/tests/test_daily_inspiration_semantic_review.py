@@ -116,6 +116,13 @@ async def test_opaque_singleton_projection_drops_all_labels_ids_records_and_retu
         assert kwargs["model_id"] == "google/gemini-3.8-flash"
         assert kwargs["fallback_models"] == [] and kwargs["allow_retries"] is False
         assert kwargs["single_attempt_timeout_seconds"] == 30
+        # Exercise the real dispatch boundary: a locally invented purpose raises
+        # before any provider call, even when all tool/request shape checks pass.
+        from backend.shared.python_utils.tracing.ai_observability import ai_provider_span
+
+        with ai_provider_span(kwargs["observability_purpose"]) as span:
+            assert span is not None
+        assert kwargs["observability_purpose"] == "inspiration"
         return response()
 
     monkeypatch.setattr(review, "call_semantic_model", call)

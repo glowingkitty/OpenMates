@@ -96491,57 +96491,57 @@ assertions:
       surface: rest_api
     - &id12396
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 152
+      line: 159
       name: test_complete_partition_and_codes_are_strict
       surface: rest_api
     - &id12397
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 197
+      line: 204
       name: test_complete_negative_or_uncertain_is_final_with_trusted_server_feedback
       surface: rest_api
     - &id12398
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 225
+      line: 232
       name: test_provider_and_schema_failures_use_only_bounded_chain_and_original_messages
       surface: rest_api
     - &id12399
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 255
+      line: 262
       name: test_repeated_provider_errors_exhaust_at_two_without_logging_arbitrary_prose
       surface: rest_api
     - &id12400
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 278
+      line: 285
       name: test_attempt_timeout_preserves_real_fallback_opportunity
       surface: rest_api
     - &id12401
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 298
+      line: 305
       name: test_external_cancellation_propagates_and_starts_no_recovery_call
       surface: rest_api
     - &id12402
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 324
+      line: 331
       name: test_global_deadline_retains_finished_originals_and_withholds_unresolved
       surface: rest_api
     - &id12403
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 355
+      line: 362
       name: test_malformed_review_neighbor_does_not_discard_complete_approved_cards
       surface: rest_api
     - &id12404
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 399
+      line: 406
       name: test_whole_partition_validation_precedes_all_provider_io
       surface: rest_api
     - &id12405
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 433
+      line: 440
       name: test_three_concurrent_singletons_maximum
       surface: rest_api
     - &id12406
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 453
+      line: 460
       name: test_single_transport_failure_retries_only_same_gemini_model
       surface: rest_api
     - &id12407
@@ -101594,57 +101594,57 @@ assertions:
       surface: rest_api
     - &id13009
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 152
+      line: 159
       name: test_complete_partition_and_codes_are_strict
       surface: rest_api
     - &id13010
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 197
+      line: 204
       name: test_complete_negative_or_uncertain_is_final_with_trusted_server_feedback
       surface: rest_api
     - &id13011
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 225
+      line: 232
       name: test_provider_and_schema_failures_use_only_bounded_chain_and_original_messages
       surface: rest_api
     - &id13012
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 255
+      line: 262
       name: test_repeated_provider_errors_exhaust_at_two_without_logging_arbitrary_prose
       surface: rest_api
     - &id13013
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 278
+      line: 285
       name: test_attempt_timeout_preserves_real_fallback_opportunity
       surface: rest_api
     - &id13014
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 298
+      line: 305
       name: test_external_cancellation_propagates_and_starts_no_recovery_call
       surface: rest_api
     - &id13015
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 324
+      line: 331
       name: test_global_deadline_retains_finished_originals_and_withholds_unresolved
       surface: rest_api
     - &id13016
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 355
+      line: 362
       name: test_malformed_review_neighbor_does_not_discard_complete_approved_cards
       surface: rest_api
     - &id13017
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 399
+      line: 406
       name: test_whole_partition_validation_precedes_all_provider_io
       surface: rest_api
     - &id13018
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 433
+      line: 440
       name: test_three_concurrent_singletons_maximum
       surface: rest_api
     - &id13019
       path: backend/tests/test_daily_inspiration_semantic_review.py
-      line: 453
+      line: 460
       name: test_single_transport_failure_retries_only_same_gemini_model
       surface: rest_api
     - &id13020

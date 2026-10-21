@@ -288,7 +288,7 @@ async def review_copy_candidates(
                             temperature=1.0,
                             max_output_tokens=4096,
                             single_attempt_timeout_seconds=ATTEMPT_TIMEOUT_SECONDS,
-                            observability_purpose="inspiration_semantic_review",
+                            observability_purpose="inspiration",
                         ),
                         timeout=ATTEMPT_TIMEOUT_SECONDS,
                     )
