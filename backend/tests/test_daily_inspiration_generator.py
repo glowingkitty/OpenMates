@@ -207,4 +207,7 @@ def test_partial_retry_keeps_approved_video_and_binds_repair_by_source_id(monkey
     assert [card.video.youtube_id for card in result] == identities
     assert reviewed == [identities[0], identities[1], identities[1]]
     assert len(calls) == 2
-    assert 'phrase.grounding:unsupported' in calls[1]["message_history"][-1]["content"]
+    assert 'phrase.grounding:unsupported' in calls[1]["message_history"][0]["content"]
+    assert calls[1]["message_history"][0]["role"] == "system"
+    assert calls[1]["message_history"][-1]["role"] == "user"
+    assert calls[1]["message_history"][-1] == calls[0]["message_history"][-1]

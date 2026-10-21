@@ -4,7 +4,14 @@ The approved follow-up implements per-field Jev grounding/language decisions,
 source-specific follow-up decisions and repair of only unresolved source IDs.
 The original pre-Jev/pre-Mercury workflow, not the later Gemini-only plus Jev
 control, is the cost baseline. Native qualification and final cost results are
-recorded below when complete; no production promotion is inferred from unit tests.
+recorded below; no production promotion is inferred from unit tests.
+
+**Decision:** retain the requested Mercury retry chain as the dev candidate.
+Its 34 admitted fresh cards had no material findings in the blinded automated
+review; Gemini-only had five material findings among 39. Production qualification
+remains open: Jev still withholds many faithful translations and admits a known
+Turkish causal-role regression. The end-to-end cost replay establishes no saving
+over the original architecture and neither setup completed a personal refresh.
 
 ## Implemented workflow
 
@@ -117,10 +124,20 @@ invented from the number of languages.
 
 ## Verification and measured results
 
-The initial granular candidate passed 152 focused local tests and isolated Jev
-boundary CI (`39573343486`) and public-feed browser CI (`39574090167`). Both Vercel
-projects succeeded for application commit `856c4b7`; runtime `docker-f54a3eb4`
-completed with all seventeen backend consumers healthy. Focused checks cover granular fail-closed decisions, source-bound repair union/order, malformed
+The final application is `76419cba88796db635c80e0c5218ece0783a581c`, deployed to
+dev with all seventeen affected backend consumers healthy (`docker-78d5bd31`)
+and both Vercel projects successful. The final focused local suite passed **163
+tests**; scoped lint passed. Isolated CI passed the Jev boundary
+([39573343486](https://github.com/glowingkitty/OpenMates/actions/runs/39573343486)),
+public-feed browser flows
+([39574090167](https://github.com/glowingkitty/OpenMates/actions/runs/39574090167)),
+corrected writer/Google conversion
+([39579556331](https://github.com/glowingkitty/OpenMates/actions/runs/39579556331))
+and source-bound generator integration
+([39582942072](https://github.com/glowingkitty/OpenMates/actions/runs/39582942072)).
+The earlier boundary/browser candidates contain the same relevant source; the
+later writer fix changes request construction only. Evidence commands were run
+and browser recordings uploaded. Focused checks cover granular fail-closed decisions, source-bound repair union/order, malformed
 neighbors, cancellation/deadlines, source/pixel proofs, localized static delivery,
 fresh-source exclusions and protected historical replay.
 
@@ -173,3 +190,148 @@ analysis preserves every raw receipt and separates unknown failed usage. A
 supplementary original-only replay with a declared thirty-second caller cap keeps
 the historical modules, roles, prompts and model; it is a timing sensitivity, not
 the original production timing or invoice.
+
+### Completed fresh paired comparison and blinded review
+
+Both arms completed all **78 nonempty writer batches** across twenty locales.
+The planned 400 slots contained 336 eligible locale/source slots (168 per arm)
+and 64 paired eligibility shortfalls (32 per arm). The shared cohort represents
+128 distinct source identities, so translated or repeated sources are not
+independent real-world discoveries. Provider order was randomized before writing;
+all 147 source identities from the previous day's run were excluded.
+
+| Result | Mercury twice, Gemini fallback | Gemini-only, up to three attempts |
+| --- | ---: | ---: |
+| First-draft admissions / eligible | 15 / 168 (8.9%) | 21 / 168 (12.5%) |
+| Final admissions / eligible | 34 / 168 (20.2%) | 39 / 168 (23.2%) |
+| Complete writer batches | 9 / 78 | 10 / 78 |
+| Median / p95 batch latency | 12.60s / 20.67s | 6.11s / 9.67s |
+| Admitted cards with material findings | 0 / 34 | 5 / 39 |
+| Additional minor / uncertain admitted cards | 0 / 0 | 3 / 1 |
+| Strictly clean under automated review | 34 | 30 |
+
+All 73 admitted cards and two sampled withheld drafts per locale (40 total) were
+mixed into three randomized packets hiding provider and admission status. Every
+case received a source-only review. All 21 non-allow flags received a second
+source-only adjudication; labels were frozen before the origin key was read.
+All initial labels were retained. The audit records packet/review hashes,
+field-level reasons and unblinding provenance in
+[blinded review](blinded-review-2026-10-21.json).
+
+Gemini's five admitted material findings change an arch modifier into a dam
+subtype (Arabic), reverse clock/rhythm control (German), add school newness
+(Vietnamese), replace a driving role with monitoring (Russian), or present a
+2022 sighting as recent (Dutch). Its uncertain Turkish case concerns branded
+source eligibility, not a demonstrated copy-language error. These are automated
+interpretations of the supplied source, not native-speaker certification or
+claims that every unsupported detail is factually false in the real world.
+
+Of the sampled withholds, 28 were allowed by independent review, four had minor
+advisories, six were material and two were uncertain. This is a deliberately small
+sample of rejected drafts, not a population false-rejection estimate. Together
+with the matched positive controls, it confirms a precision problem. Title-
+language checks failed or abstained on 285/431 Mercury reviewed drafts and
+293/449 Gemini reviewed drafts; repeated repairs are included in those counts.
+The exact internal cause of this field-binding/language failure is not proven.
+
+Both arms had zero source-identity or required-field structure errors. Word- and
+sentence-quota diagnostics flagged eleven Mercury and nineteen Gemini admitted cards;
+these are separate from material grounding/language findings. Independent Jev
+locale assessment passed all 34 Mercury cards and 38/39 Gemini cards, further
+showing that one automated pass is not an independent quality guarantee.
+
+The paired costs below include every writing attempt and unique production Jev
+review. Eleven unusable Mercury HTTP-200 responses lacked facade telemetry but
+had native usage: recovering that usage adds $0.01930285 at launch rates, counted
+once. One canceled Mercury request remains unpriced. Google input uses uncached
+upper estimates where cache telemetry is missing. Shared source acquisition and
+the separate locale assessment are excluded from these writer-arm figures.
+
+| Paired writing/review cost | Mercury chain, launch | Mercury chain, regular reprice | Gemini-only |
+| --- | ---: | ---: | ---: |
+| Estimated total | $0.345598104 | $0.503063644 | $0.437491362 |
+| Per admitted card | $0.01016465 | $0.01479599 | $0.01121773 |
+| Per strictly clean reviewed card | $0.01016465 | $0.01479599 | $0.01458305 |
+
+Mercury used 153 primary/retry requests and 71 Gemini fallbacks; Gemini-only used
+220 Gemini requests. Eleven Mercury responses were unusable by the writer and
+one timed out; Gemini had no recorded writer errors. The recovery chain retains
+valid source-bound cards while processing the remaining identities. Actual
+responses confirmed Mercury 3, Gemini 3.5 Flash-Lite and Jev 1.14.0. Full usage,
+native-response recovery and immutable receipt hashes are in
+[paired aggregate](granular-paired-aggregate-2026-10-21.json).
+
+Mercury's launch-price advantage is temporary: its regular-price workload and
+clean-card estimates are higher than Gemini's, and its median batch is
+roughly twice as slow. Gemini's five material admissions rule out selecting it
+on speed or admission count alone. Neither paired writer estimate includes the
+whole daily workflow or proves a saving against the original architecture.
+
+
+### Final historical-versus-current cost replay
+
+The corrected writer ran all four Gemini fallback calls successfully (zero Google
+ClientErrors), with observed models `mercury-3`, `gemini-3.5-flash-lite` and
+`jev-1.14.0`. Current generation made twelve writing calls and sixty-three native
+Jev requests across two refresh attempts. Details and immutable receipt hashes:
+[full-refresh cost aggregate](full-refresh-costs-2026-10-21.json).
+
+| Observed attempt | Video / wiki / static output | Inference estimate | Gross search | Total estimate |
+| --- | --- | ---: | ---: | ---: |
+| Original architecture, declared 30s cap, EN | 1 / 2 / 4 | $0.00390693 | $0.015 | $0.01890693 |
+| Original architecture, declared 30s cap, JA | 0 / 2 / 4 | $0.00463938 | $0.015 | $0.01963938 |
+| Current Mercury chain, launch pricing, EN | 1 / 0 / 4 | $0.01353472 | $0.015 | $0.02853472 |
+| Current Mercury chain, launch pricing, JA | 0 / 0 / 4 | $0.015628986 | $0.015 | $0.030628986 |
+
+Neither setup assembled a complete 3-video/3-wiki/4-tip refresh. These are candidate
+outputs; partial sets are not proof of successful personal replacement. The old
+architecture averaged **$0.019273155 per attempt** in the declared 30-second
+sensitivity. Current averaged **$0.029581853 at Mercury launch rates**, or
+**$0.034852118 repricing the same tokens at regular Mercury rates**. This is not a
+like-quality saving or a historical invoice. Exact historical five-second timing
+remains separately reported above; it incurred unknown canceled-request spend.
+
+| Component across two attempts | Original architecture / 30s | Current launch | Current regular reprice |
+| --- | ---: | ---: | ---: |
+| Mistral writing/classification/validation | $0.00854631 | — | — |
+| Mercury writing/recovery | — | $0.01054053 | $0.02108106 |
+| Gemini fallback writing estimate | — | $0.00789100 | $0.00789100 |
+| Jev source, copy and actual-image gates | — | $0.010732176 | $0.010732176 |
+| Six gross Brave requests | $0.03000000 | $0.03000000 | $0.03000000 |
+| Generation attempts | **$0.03854631** | **$0.059163706** | **$0.069704236** |
+
+The old replay admitted five generated cards, current one. Including both
+successful and unsuccessful attempts, gross cost per admitted generated card was
+$0.007709262 old versus $0.059163706 current at launch rates. Admission is not
+independent factual quality, so these denominators cannot establish an equal-
+quality value comparison. Static tips require no marginal inference.
+
+The additional shared-pool sample reviewed one current card for **$0.00014595**
+and retained none. The other locale had no external cards and made no review
+calls. This does not estimate a complete daily scan or a per-user pool charge.
+Cached page reads make no paid model calls in either architecture.
+
+Google supplied tokens but omitted cache-read telemetry in four records; the
+uncached tariff amounts are finite supplier upper estimates, not precise net
+spend. Jev is counted once per real native send, even where concurrent raw
+accounting slices overlap. Credits, invoices, invisible SDK retries, actual user
+volume and infrastructure/YouTube/Wikimedia charges remain unmeasured.
+
+### Qualification decision and next bounded check
+
+The requested implementation, measurements and scoped dev deployment are
+delivered. The Plan remains active for production qualification: passing unit,
+CI and static-recovery checks cannot override the failed positive controls,
+known causal-role miss or incomplete personal-refresh samples. No quality
+criterion was waived and no production deployment was performed.
+
+The next useful experiment is a scalar, one-field-at-a-time Jev language check
+against the pinned positive/negative controls, isolating generated text from
+English source metadata and other questions. This tests a specific binding/task-
+interference hypothesis; it is not a proven fix. Preserve the wrong-English-intro
+negative and the causal-role controls, and do not lower confidence thresholds.
+Only after those pass should a fresh multilingual writing cohort, natural-
+thumbnail holdout and complete personal refresh be repeated. Obtain targeted
+native-speaker review for ambiguous wording and confirm clean-card/full-set
+costs before any production decision. The two failed exploratory pilots are
+evidence against adopting a broad language-prompt relaxation.

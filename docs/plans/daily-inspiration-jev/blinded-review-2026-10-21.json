@@ -1,0 +1,1576 @@
+{
+  "provenance": {
+    "blinded_adjudication_sha256": "12ba98f3a10908e56d45808a056cc0236f98bdd2637fe18ef0a1232c90b41f77",
+    "reviewed_accepted": 73,
+    "reviewed_withheld": 40,
+    "blinding": "Labels and21flag adjudications frozen before reading origin key.",
+    "limitations": "Automated source-only review; no native/human gold. Sampled withholds not a population false-rejection estimate.",
+    "blind_packet_manifest_sha256": "9d87a4cdd914ab33445cc1ce7060d919970eeb996a02b89657983ddc52c5beb0"
+  },
+  "accepted_by_arm": {
+    "gemini_only": {
+      "allow": 30,
+      "minor": 3,
+      "material": 5,
+      "uncertain": 1
+    },
+    "mercury_chain": {
+      "allow": 34
+    }
+  },
+  "sampled_withheld": {
+    "allow": 28,
+    "uncertain": 2,
+    "minor": 4,
+    "material": 6
+  },
+  "labels": [
+    {
+      "id": "1686e1f871214fee",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Dutch copy preserves source seed travel, survival and diverse ecosystems; the open questions stay on the explicit seed/plant-life subject.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "nl-video-0-gemini_only.json",
+        "request_index": 0,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "6956147564200333",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Source explicitly names seeds travelling, surviving and thriving, explosive launches and hitchhiking on animals; English copy and questions preserve those concepts.",
+      "origin": {
+        "status": "accepted",
+        "row": "en-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "704f6398517af442",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Source says repeated processing shortens fibres and virgin fibre is frequently added to the pulp; the English frequency question names that explicit relationship without inventing an answer.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "en-wiki-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_001",
+        "arm": "gemini_only",
+        "identity": "en:Paper recycling"
+      }
+    },
+    {
+      "id": "95dc253978738a88",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Czech source explicitly covers wood/recycled paper, pulp/cellulose, chemical/mechanical fibres and the paper machine; generated Czech statements and questions stay within these topics.",
+      "origin": {
+        "status": "accepted",
+        "row": "cs-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "wAHJaQ0Q2Ko"
+      }
+    },
+    {
+      "id": "9781a5bb6c27b96d",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Chinese copy accurately names architectural arches, their parts and types, all explicit in the source title and query list; no construction mechanism is invented.",
+      "origin": {
+        "status": "accepted",
+        "row": "zh-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "idkxGJX822k"
+      }
+    },
+    {
+      "id": "2408da512a531005",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "German copy preserves source sorting, pulping, cleaning and transformation into new paper; environmental benefits are explicitly discussed in the source.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "ZuZJZccjI34"
+      }
+    },
+    {
+      "id": "e0e25c060c15fc6a",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic copy preserves polar colors and the source-listed aurora names; its open question concerns the explicit astronomical color phenomenon without asserting a new mechanism.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ar-wiki-0-mercury_chain.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "ar:شفق قطبي"
+      }
+    },
+    {
+      "id": "ac1025230338795c",
+      "verdict": "uncertain",
+      "field": "phrase",
+      "reason": "Copy combines มักเกิดขึ้น (usually occurs) with เสมอ (always): ปรากฏการณ์นี้มักเกิดขึ้นบริเวณขั้วโลกเสมอ. Source says only โดยมักจะขึ้นในบริเวณแถบขั้วโลก (usually in polar regions). Native adjudication is needed to decide whether this awkward combination materially strengthens usually into always.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "th-wiki-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "th:ออโรรา (ดาราศาสตร์)"
+      }
+    },
+    {
+      "id": "768d1ff8b10487df",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Turkish copy accurately preserves the source’s 21 arch components, structural behavior and terminology; all follow-ups ask about explicit topics.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "tr-video-3-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "pwAsxg-4XFE"
+      }
+    },
+    {
+      "id": "164309c148ae7524",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi source explicitly describes pressing then drying cellulose-pulp fibres from wood, grass, bamboo or rags; generated fields preserve this order and material scope.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "3rmevbMJmGg"
+      }
+    },
+    {
+      "id": "a84a645d6e4cb00d",
+      "verdict": "minor",
+      "field": "phrase",
+      "reason": "Explosiva utskjut is awkward/nonstandard Swedish nominal wording; the intended explosive seed launches remain clear and match source explosive launches. Animal hitchhiking, survival and comparison of the named methods remain source-anchored open questions.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "sv-video-0-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "f846bd4807fe70fd",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "German source explicitly asks whether auroras are more frequent in Germany and covers observation conditions, red color, myths and physics; generated copy preserves these topics without claiming increased frequency.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-0-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "khXcp_S3qT0"
+      }
+    },
+    {
+      "id": "3e19c928fd0facb9",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi source explicitly connects the 24-hour clock with sleep, waking, hunger, rest, temperature and hormone secretion; generated statements and open questions preserve these relationships.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-wiki-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "hi:सर्केडियन लय"
+      }
+    },
+    {
+      "id": "73b453a7c4f3d0c0",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi source locates auroras in the upper polar atmosphere, names Roman/Greek descriptions and states northern/southern similarities; generated copy faithfully preserves these facts.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-wiki-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "hi:ध्रुवीय ज्योति"
+      }
+    },
+    {
+      "id": "9ee4958dcc32ab3d",
+      "verdict": "minor",
+      "field": "assistant_response",
+      "reason": "इन ज्योति has a minor Hindi number/case agreement problem. Source clearly compares उत्तरी and दक्षिणी ज्योति; the generated comparison retains that meaning, and the short phrase’s omitted north/south referents are resolvable from source context.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-wiki-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "hi:ध्रुवीय ज्योति"
+      }
+    },
+    {
+      "id": "11982c080c577d87",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Japanese copy accurately preserves an internal approximately-24-hour sleep–wake process adjusted by light/temperature; age changes and disruption are explicit source chapter topics.",
+      "origin": {
+        "status": "accepted",
+        "row": "ja-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "a451ad47bcebee60",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "French copy preserves nocturnal colored atmospheric veils, green near the poles and northern/southern names; all three follow-up headings name explicit source concepts.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "fr-wiki-0-gemini_only.json",
+        "request_index": 2,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "fr:Aurore polaire"
+      }
+    },
+    {
+      "id": "6b049f6c6255ba6a",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "The short Hindi source title explicitly equates aurora borealis with ध्रुवीय ज्योति; generated copy adds no mechanism or location and asks only about this named phenomenon.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-video-0-mercury_chain.json",
+        "item_index": 1,
+        "arm": "mercury_chain",
+        "identity": "9VQbrD0SQfU"
+      }
+    },
+    {
+      "id": "cd182b4458f9d0cd",
+      "verdict": "minor",
+      "field": "assistant_response",
+      "reason": "Spanish gustaria is missing its accent (gustaría); meaning is intact. Source supports home recycling into colorful/textured sheets, alternative techniques, seed paper, materials and steps.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "es-video-0-mercury_chain.json",
+        "request_index": 7,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "DjbcxtEl-3o"
+      }
+    },
+    {
+      "id": "e44b2a02dd2af584",
+      "verdict": "material",
+      "field": "assistant_response",
+      "reason": "Copy asks about السدود الأفقية (horizontal dams), while source says قوس أفقي مثل سد القوس (a horizontal arch such as an arch dam). The adjective has moved from the arch to the dam, introducing a different structural subtype; the named follow-ups themselves remain source-anchored.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-wiki-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "ar:قوس (عمارة)"
+      }
+    },
+    {
+      "id": "c0456dca5bf742fb",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic copy preserves the source’s 21 components and structural behavior. Asking what makes the arch structure stand firm and how its parts work together stays on the explicit structural-behavior concept without asserting a mechanism.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "pwAsxg-4XFE"
+      }
+    },
+    {
+      "id": "ce2096353be48ea3",
+      "verdict": "material",
+      "field": "phrase",
+      "reason": "Copy asks วัฏจักรการนอนหลับควบคุมวงจรชีวิตของเราอย่างไร (how the sleep cycle controls our life cycle). Source instead says a natural internal circadian process regulates the sleep–wake cycle; it does not say the sleep cycle controls a life cycle. This adds a broader causal role and subject.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "th-video-3-mercury_chain.json",
+        "request_index": 5,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "409b25fe71ca45c6",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Japanese copy preserves approximately 24 hours, most organisms and adjustment by outside stimuli. The question whether every organism has a clock is open rather than an assertion overriding source most.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ja-wiki-3-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "ja:概日リズム"
+      }
+    },
+    {
+      "id": "fb1b07e9118ac91d",
+      "verdict": "material",
+      "field": "assistant_response",
+      "reason": "Copy adds the hypothetical 차이트게버가 없다면 생체 리듬은 어떻게 될까요? (what happens to biological rhythms if there are no zeitgebers). Source describes synchronization by existing external cues and their relative influence, but contains no cue-absence scenario. This is an added scenario, not merely an unanswered question about an explicit source relationship.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ko-wiki-3-mercury_chain.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "ko:활동일 주기"
+      }
+    },
+    {
+      "id": "aa8c1f8d35535a63",
+      "verdict": "material",
+      "field": "assistant_response",
+      "reason": "Copy asks 不同植物为何演化出多样的传播方式？ (why different plants evolved diverse dispersal methods). Source lists existing gravity, launch, animal, wind, water and human dispersal routes; it never introduces evolution or asserts that these routes evolved. The question adds that factual/evolutionary premise.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "zh-wiki-0-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_002",
+        "arm": "mercury_chain",
+        "identity": "zh:种子传播"
+      }
+    },
+    {
+      "id": "856ee2121da9f18b",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic source explicitly supplies colors at both poles, alternate names including الفلق and the beauty description; generated statements and open questions stay within those concepts.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ar-wiki-0-mercury_chain.json",
+        "request_index": 2,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "ar:شفق قطبي"
+      }
+    },
+    {
+      "id": "72ac61545555e794",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi copy faithfully describes a natural internal sleep–wake process repeating about 24 hours and adjusted by external factors; influence and age questions are explicit source topics.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "6244b79e42a8444b",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Italian copy preserves the source metaphor of an internal clock regulating body processes and the effects of its disturbances; no new biological mechanism is added.",
+      "origin": {
+        "status": "accepted",
+        "row": "it-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "kreKO0sRvG8"
+      }
+    },
+    {
+      "id": "5f809f57fe24f023",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic source reports observed European red/pink auroras caused by a G4 geomagnetic storm and possible continuation; generated copy preserves the event and cause, and asks about source-explicit locations and duration without supplying a definite future outcome.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "vDg9r5N4FdE"
+      }
+    },
+    {
+      "id": "6f64a6791a98917d",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "French source title names seeds/fruits and description names plants, wind, gravity and animals; generated copy and follow-ups preserve this dispersal subject and its explicit agents.",
+      "origin": {
+        "status": "accepted",
+        "row": "fr-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "G5vnEXYlPzA"
+      }
+    },
+    {
+      "id": "eafa021513dbd153",
+      "verdict": "material",
+      "field": "phrase",
+      "reason": "Copy states Der zirkadianer Rhythmus steuert unsere innere Uhr (the circadian rhythm controls our internal clock). Source describes the internal clock/SCN synchronizing the Tagesrhythmus and organizing sleep–wake processes, not the rhythm controlling that clock. This reverses the controlling role; the adjective ending is only a secondary grammar issue.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-3-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "MvV9UoCCHXo"
+      }
+    },
+    {
+      "id": "242f6b7bf881e7ed",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Indonesian copy preserves used-paper reprocessing and waste reduction; named countries, international promotion and impacts are all explicit source concepts, including the source’s broad alam semesta wording.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "id-wiki-0-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "id:Daur ulang kertas"
+      }
+    },
+    {
+      "id": "e980a252c4ed25d7",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic source explicitly supports easy home paper/cardboard recycling, saving expenses and protecting the environment; generated statements and follow-ups stay within that scope.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-video-0-mercury_chain.json",
+        "item_index": 1,
+        "arm": "mercury_chain",
+        "identity": "U4w1SQ8ooDg"
+      }
+    },
+    {
+      "id": "8fd27c5963446778",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Turkish copy preserves the source’s magnetic-field/solar-particle interaction, northern/southern labels and southern viewing regions; follow-ups ask about these explicit concepts rather than adding a new causal explanation.",
+      "origin": {
+        "status": "accepted",
+        "row": "tr-wiki-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "tr:Kutup ışıkları"
+      }
+    },
+    {
+      "id": "9a8703a93d6428e8",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Swedish copy faithfully preserves the approximately-24-hour internal process, light/temperature/redox cues and disturbance concept; age changes and circadian sleep disorder are explicitly named in the source.",
+      "origin": {
+        "status": "accepted",
+        "row": "sv-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "26504597fbb63c0c",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "German source explicitly explains two circular arcs, varying centers/radii, normal/depressed/raised pointed arches and Gothic windows; generated copy and questions faithfully preserve those relations.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "wo1n04kMtb0"
+      }
+    },
+    {
+      "id": "ebead1cba96a9eea",
+      "verdict": "material",
+      "field": "phrase; assistant_response",
+      "reason": "Both fields call the school mới (new), but source says only Aurora students can attend a dual-language magnet school in the former Sixth Avenue Elementary. No new opening or new-school temporal status is established. Trường nam châm is also a literal magnet-school rendering whose Vietnamese idiomatic status needs native review; the definite grounding flag here is the added newness claim.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "vi-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "rQvHCTVg40Q"
+      }
+    },
+    {
+      "id": "b487a55a27639925",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Korean source explicitly distinguishes recyclable from non-recyclable paper in resource-circulation education; generated statements and open questions stay on those source concepts without inventing which papers qualify.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ko-video-0-gemini_only.json",
+        "request_index": 5,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "lPi--14wsGY"
+      }
+    },
+    {
+      "id": "a81eab2516c9d0a7",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "French copy stays within the source title’s angles, arcs, builders’ geometry and first-episode scope; questions ask only about those concepts.",
+      "origin": {
+        "status": "accepted",
+        "row": "fr-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "AzdNtoDr7uA"
+      }
+    },
+    {
+      "id": "bb26e124e5bcef8b",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Korean sleep/wake and environmental-response account paraphrases the supplied circadian definition; follow-ups remain within the stated cycle and influences.",
+      "origin": {
+        "status": "accepted",
+        "row": "ko-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "472f1a3fb97301d1",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "German copy preserves the two circular arcs, varied radii/centres and Gothic window/door uses; each proposed arch subtype occurs in the source.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "wo1n04kMtb0"
+      }
+    },
+    {
+      "id": "39f9cfeb719e1b8f",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Swedish sorting obligation, possible fines and environmental benefits are explicitly stated; follow-ups concern the supplied recycling topic and vocabulary.",
+      "origin": {
+        "status": "accepted",
+        "row": "sv-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "qJA5BOG85-Y"
+      }
+    },
+    {
+      "id": "8533c23265f7327d",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Polish animal behaviour, plant physiology and internal biological-clock explanation follow the source; questions concern the named processes and physiology.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "pl-wiki-3-mercury_chain.json",
+        "request_index": 2,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "pl:Rytm dobowy"
+      }
+    },
+    {
+      "id": "e86d38a34f0fcfbe",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Thai coloured auroral curtain and solar-storm connection are stated by the source; beauty/fear framing also appears in it.",
+      "origin": {
+        "status": "accepted",
+        "row": "th-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "aP6FrzTfHuA"
+      }
+    },
+    {
+      "id": "de18712b25840beb",
+      "verdict": "minor",
+      "field": "phrase",
+      "reason": "“इस घटना का पूरा ज्ञान था” intensifies the source’s historical “इन घटनाओं का ज्ञान था” into complete knowledge. In context this can be emphatic awareness rather than a claim to a complete physical theory; retain a wording advisory, not a demonstrated new mechanism.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "hi-wiki-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "hi:ध्रुवीय ज्योति"
+      }
+    },
+    {
+      "id": "ea3af7adbe75ea9c",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Dutch approximate daily internal clock, sleep/wake cycle and light/temperature/redox zeitgebers are source-grounded; age and disturbance are named chapter topics.",
+      "origin": {
+        "status": "accepted",
+        "row": "nl-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "267881b5e94df099",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Portuguese copy describes reuse of non-functional paper to make recycled paper; the generic materials wording resolves to paper in the surrounding card and adds no specific mechanism.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "pt-wiki-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_001",
+        "arm": "gemini_only",
+        "identity": "pt:Reciclagem de papel"
+      }
+    },
+    {
+      "id": "767db3bd88a48aeb",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Czech clinical account preserves retrograde flow into the bladder and possible fertility effects. Causes and treatment are source topics; the text is medical education without erotic or graphic additions.",
+      "origin": {
+        "status": "accepted",
+        "row": "cs-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "u2MfX-J1_zo"
+      }
+    },
+    {
+      "id": "a6aff56d72e5b679",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Spanish approximately daily biological oscillations and regulatory role fit the extract and sleep/wake description; questions name explicit biological variables and rhythms.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "es-wiki-3-gemini_only.json",
+        "request_index": 2,
+        "candidate_id": "candidate_001",
+        "arm": "gemini_only",
+        "identity": "es:Ritmo circadiano"
+      }
+    },
+    {
+      "id": "118c0afa2f1260aa",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "German sorting, pulping, fresh paper, trees, landfill, water and energy claims are all in the supplied recycling description.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "ZuZJZccjI34"
+      }
+    },
+    {
+      "id": "8f209890d9a2bfd5",
+      "verdict": "uncertain",
+      "field": "source.channel_name; source.title",
+      "reason": "The title explicitly brands the documentary “Yatsan Mini Belgesel Serisi” and the channel is “Yatsan Yatak”. Copy is otherwise grounded, but the packet alone does not settle company-owned/brand-channel status under the public-feed exclusion. Do not certify ownership from outside knowledge; source/channel policy needs adjudication.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "tr-video-3-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "fGE8xshRxzY"
+      }
+    },
+    {
+      "id": "ef98beaf85791423",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Vietnamese solar-wind/atmosphere interaction and moving coloured ribbons preserve the source; the planet question explores its explicit planetary-atmosphere concept without asserting an absent specific planet.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "vi-wiki-0-gemini_only.json",
+        "request_index": 0,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "vi:Cực quang"
+      }
+    },
+    {
+      "id": "2e9bd2662cf84334",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Russian approximate 24-hour sleep/wake process and environmental adjustment are supported; age, disturbance causes and clinical disorder all appear in the source.",
+      "origin": {
+        "status": "accepted",
+        "row": "ru-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "e244b1b10683039f",
+      "verdict": "material",
+      "field": "assistant_response",
+      "reason": "“Эти процессы отслеживаются циркадными часами” assigns a tracking/monitoring role to the clock. The source instead says “These 24-hour rhythms are driven by a circadian clock.” Monitoring rather than driving changes the recorded causal role; it is not merely an unanswered question.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "ru-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "949a0fb50736415c",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Czech copy stays with the night-time polar-circle aurora and its formation; asking where to observe it explores the source’s explicit observation/location context without asserting a specific best site.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "cs-video-0-mercury_chain.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "4I_DIApk94A"
+      }
+    },
+    {
+      "id": "6bbab2278a19b84f",
+      "verdict": "material",
+      "field": "assistant_response",
+      "reason": "“was onlangs zichtbaar” presents the observed Dutch aurora as recent. The supplied description dates that event “27-02-2022”; the current 2026-10-21 review cannot recast that dated sighting as recent without new source evidence.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "nl-video-0-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "TxxkQicYW8s"
+      }
+    },
+    {
+      "id": "aea121e0953d8414",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Vietnamese internal sleep/wake process, roughly 24-hour repetition and biological-clock control preserve source relationships; age and influences are explicit chapter topics.",
+      "origin": {
+        "status": "accepted",
+        "row": "vi-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "a30787f61743e994",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Thai seed travel, survival, ecosystems, explosive dispersal and animal transport follow the source; plants travelling is contextually a seed-dispersal metaphor, not a new transport mechanism.",
+      "origin": {
+        "status": "accepted",
+        "row": "th-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "abdf7725527a2891",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "German dispersal strategies, ecosystem travel and seed survival are source topics; no particular absent mechanism is added.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-0-gemini_only.json",
+        "item_index": 2,
+        "arm": "gemini_only",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "dab030a004fcc9ad",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "English solar particles colliding with atmospheric atoms and coloured light paraphrase the supplied collision/emission chain; surrounding wording does not require a different emitting agent.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "en-wiki-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "en:Aurora"
+      }
+    },
+    {
+      "id": "170ede67074fbece",
+      "verdict": "minor",
+      "field": "phrase",
+      "reason": "“Processen bidrar till effektiv papperstillverkning” adds an unestablished efficiency evaluation. The source establishes reused fibre for papermaking, not measured efficiency; the core reuse account remains faithful and no new specific mechanism or quantified benefit is claimed.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "sv-wiki-0-mercury_chain.json",
+        "request_index": 2,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "sv:Returpapper"
+      }
+    },
+    {
+      "id": "3390ae91e7ebb46e",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Portuguese biological clock, internal regulation and organism effects translate the Spanish source faithfully; the open questions stay on those named relationships.",
+      "origin": {
+        "status": "accepted",
+        "row": "pt-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "kreKO0sRvG8"
+      }
+    },
+    {
+      "id": "786fec96ed64a4db",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Chinese formation/observation questions and Ontario footage date/location match the title and description exactly in substance.",
+      "origin": {
+        "status": "accepted",
+        "row": "zh-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "3tOPhqsg5t4"
+      }
+    },
+    {
+      "id": "95f171c0743124bd",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Thai night-time polar-region glow and northern/southern names preserve the source; asking how that explicit phenomenon occurs adds no asserted mechanism.",
+      "origin": {
+        "status": "accepted",
+        "row": "th-wiki-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "th:ออโรรา (ดาราศาสตร์)"
+      }
+    },
+    {
+      "id": "e8109271d0c060cd",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Hindi internal sleep/wake regulation and adjustment by light and temperature are explicit; the age-change question is anchored in the named chapter.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "c0d03076bc8cea64",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Thai colourful auroral curtain caused by solar storms follows the source; the evaluative beauty language mirrors its framing without a new factual premise.",
+      "origin": {
+        "status": "accepted",
+        "row": "th-video-0-mercury_chain.json",
+        "item_index": 1,
+        "arm": "mercury_chain",
+        "identity": "aP6FrzTfHuA"
+      }
+    },
+    {
+      "id": "9e858c191eba5867",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "French formation, colours, viewing and polar/austral comparison are explicit description/chapter topics; no additional physical explanation is asserted.",
+      "origin": {
+        "status": "accepted",
+        "row": "fr-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "kpMUVS9ZZM4"
+      }
+    },
+    {
+      "id": "c99eae6464139dda",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Czech 21 arch components, structural behaviour and construction terminology follow the supplied description; slight headline phrasing does not change the subject.",
+      "origin": {
+        "status": "accepted",
+        "row": "cs-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "pwAsxg-4XFE"
+      }
+    },
+    {
+      "id": "64a96339a78228e3",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Italian internal-clock account and effects of altered rhythms faithfully translate the Spanish source; questions explore the named internal regulation.",
+      "origin": {
+        "status": "accepted",
+        "row": "it-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "kreKO0sRvG8"
+      }
+    },
+    {
+      "id": "e2223a12ef7a68f8",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "German reuse of old paper/cardboard to create new paper products is explicit; the questions address dissolution, processing and the named recovered pulp.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "de-wiki-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_001",
+        "arm": "gemini_only",
+        "identity": "de:Papierrecycling"
+      }
+    },
+    {
+      "id": "68ca2a7c1e5263cd",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Turkish arch shapes, weight transfer to supports, Mesopotamian examples and Roman systematic use preserve the source’s roles and historical sequence.",
+      "origin": {
+        "status": "accepted",
+        "row": "tr-wiki-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "tr:Kemer (mimarlık)"
+      }
+    },
+    {
+      "id": "5dff5c22a36b1dba",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Japanese copy correctly concerns Aurora students and a bilingual magnet school in the former Sixth Avenue Elementary, not atmospheric aurora; questions remain on the actual school subject.",
+      "origin": {
+        "status": "accepted",
+        "row": "ja-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "rQvHCTVg40Q"
+      }
+    },
+    {
+      "id": "e4edb1544e83ee23",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Japanese school/location/eligibility wording follows the actual Aurora-school source and uses permissible source-name transliterations; open school-system questions introduce no absent factual claim.",
+      "origin": {
+        "status": "accepted",
+        "row": "ja-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "rQvHCTVg40Q"
+      }
+    },
+    {
+      "id": "ed4c3cd4eb21178d",
+      "verdict": "minor",
+      "field": "title; phrase; assistant_response",
+      "reason": "“体内時計は…内因性のプロセス” loosely identifies the clock with the circadian process, whereas the source calls the rhythm a process driven by a clock. The sleep/wake and environmental context resolves the intended topic; advise more precise rhythm/clock terminology rather than infer an additional mechanism.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "ja-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "6bb91b0d5f2d8c12",
+      "verdict": "allow",
+      "field": "all_generated_fields",
+      "reason": "Spanish monkey seed dispersal, Colombian forest fragmentation, regeneration and corridor connection remain within the supplied scientific account.",
+      "origin": {
+        "status": "accepted",
+        "row": "es-video-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "L68OtDCBQW4"
+      }
+    },
+    {
+      "id": "35263b3bc52c5ab1",
+      "verdict": "material",
+      "field": "phrase",
+      "reason": "“una nuova scuola magnetica bilingue” calls the school new; the supplied text only says Aurora students can attend a dual-language magnet school in the former Sixth Avenue Elementary. A former building does not establish a newly opened school. “scuola magnetica” is also an awkward literal rendering of magnet school, but the unsupported novelty is the material issue.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "it-video-0-gemini_only.json",
+        "request_index": 4,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "rQvHCTVg40Q"
+      }
+    },
+    {
+      "id": "cacd4499813b65a7",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Thai copy retains nighttime polar lights and their northern/southern names; follow-ups refer only to these source concepts.",
+      "origin": {
+        "status": "accepted",
+        "row": "th-wiki-0-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "th:ออโรรา (ดาราศาสตร์)"
+      }
+    },
+    {
+      "id": "116bdc12196ce002",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Dutch copy faithfully describes sorting, pulping and cleaning paper; all three follow-ups concern steps or benefits explicitly named in the source.",
+      "origin": {
+        "status": "accepted",
+        "row": "nl-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "ZuZJZccjI34"
+      }
+    },
+    {
+      "id": "7699e837ff3d8e30",
+      "verdict": "material",
+      "field": "assistant_response",
+      "reason": "The question \"Jakie inne elementy budowlane omawia ten materiał?\" presupposes the film covers other building elements. The supplied title concerns building arches, and the description only identifies an architecture documentary; neither supplies other elements. The historical qualifier \"dawniej\" is also not established.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "pl-video-3-gemini_only.json",
+        "request_index": 2,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "xLn41eWzNJY"
+      }
+    },
+    {
+      "id": "489a10960cbcde70",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic copy and follow-ups preserve the source’s home paper/cardboard recycling, simple steps, expense savings and environmental benefits.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-video-0-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "U4w1SQ8ooDg"
+      }
+    },
+    {
+      "id": "ba1db4e163337265",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "The source explicitly covers a 24-hour internal clock, light, the brain master clock, jetlag and evening screen light; German copy and questions remain within that scope.",
+      "origin": {
+        "status": "accepted",
+        "row": "de-video-3-mercury_chain.json",
+        "item_index": 1,
+        "arm": "mercury_chain",
+        "identity": "MvV9UoCCHXo"
+      }
+    },
+    {
+      "id": "53ee995956ed7040",
+      "verdict": "minor",
+      "field": "phrase",
+      "reason": "\"una strategia ingegnose\" has an Italian number/agreement error; \"una strategia ingegnosa\" would agree. Seed travel, survival and dispersal strategies otherwise match the source.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "it-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "b14e700aa9a6fcf3",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic copy preserves the curved arch, optional weight support and horizontal arch-dam pressure. Questions explore those explicit structural concepts without claiming a new answer.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-wiki-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "ar:قوس (عمارة)"
+      }
+    },
+    {
+      "id": "1a71fa5081957764",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Indonesian copy preserves the internal approximately 24-hour sleep/wake rhythm, endogenous oscillation, clock and observed organisms. Questions concern explicit mechanisms and observations.",
+      "origin": {
+        "status": "accepted",
+        "row": "id-wiki-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "id:Ritme sirkadian"
+      }
+    },
+    {
+      "id": "8caea3bd8ad1b1c9",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Dutch copy matches the upper-atmosphere geomagnetic phenomenon and both names. The short follow-ups remain relevant source-topic prompts.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "nl-wiki-0-mercury_chain.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "nl:Poollicht"
+      }
+    },
+    {
+      "id": "7e8ad9107a5eef2c",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Vietnamese copy preserves the endogenous sleep/wake rhythm and light, temperature and redox cues. Age changes and disturbances are explicitly listed in the source chapters.",
+      "origin": {
+        "status": "accepted",
+        "row": "vi-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "4013d2c910bca559",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Chinese copy faithfully describes the two-tone star-core origami module and step-by-step folding instructions; no recycling or other absent mechanism is invented.",
+      "origin": {
+        "status": "accepted",
+        "row": "zh-video-0-mercury_chain.json",
+        "item_index": 1,
+        "arm": "mercury_chain",
+        "identity": "WjXa8wuUObE"
+      }
+    },
+    {
+      "id": "52aa4db68ab35213",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Czech copy and follow-ups stay with paper production from wood or recycled paper, pulp/cellulose, machinery and recycling, all explicitly supplied.",
+      "origin": {
+        "status": "accepted",
+        "row": "cs-video-0-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "wAHJaQ0Q2Ko"
+      }
+    },
+    {
+      "id": "f3073aa74b54bcd8",
+      "verdict": "material",
+      "field": "phrase",
+      "reason": "The phrase \"Aus dem Altpapier entsteht zunächst Altpapierstoff als Halbstoff\" presents the intermediate-half-stock stage without qualification. The source explicitly limits that route with \"In geringem Umfang\". Although the introduction restores the limit, the standalone phrase broadens a limited process into the general account.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "de-wiki-0-mercury_chain.json",
+        "request_index": 1,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "de:Papierrecycling"
+      }
+    },
+    {
+      "id": "690edab8af79a90f",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Italian copy retains paper recycling as a waste-recycling sector and the Unicode symbols for recycled/partially recycled paper; questions ask about explicit source concepts.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "it-wiki-0-mercury_chain.json",
+        "request_index": 2,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "it:Riciclaggio della carta"
+      }
+    },
+    {
+      "id": "11282dec0fb9ae92",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi copy preserves pressing and drying cellulose-pulp fibres and the listed wood, grass, bamboo and rag inputs; follow-ups remain on those steps and materials.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "3rmevbMJmGg"
+      }
+    },
+    {
+      "id": "200a786ead218d1d",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Czech copy stays with a biological rhythm known since antiquity; Halberg, period length and biorythms are explicit source concepts. No unsupported mechanism is asserted.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "cs-wiki-3-gemini_only.json",
+        "request_index": 0,
+        "candidate_id": "candidate_001",
+        "arm": "gemini_only",
+        "identity": "cs:Cirkadiánní rytmus"
+      }
+    },
+    {
+      "id": "9480f9476f3d9935",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Vietnamese copy faithfully paraphrases solar-wind interaction with the upper atmosphere; location and atmosphere prompts refer to explicit source description/extract concepts.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "vi-wiki-0-gemini_only.json",
+        "request_index": 2,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "vi:Cực quang"
+      }
+    },
+    {
+      "id": "90b43b36ddc6416b",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "French copy preserves biological cycles of approximately 24 hours. Follow-ups explore those cycles and their duration without adding a concrete unsupported mechanism.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "fr-wiki-3-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "fr:Rythme circadien"
+      }
+    },
+    {
+      "id": "247e08fb3a28b056",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Japanese copy and prompts stay within post-collection used-paper processing and the significance of sorting, which the source title explicitly supplies.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ja-video-0-gemini_only.json",
+        "request_index": 5,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "TjXXCUa_deg"
+      }
+    },
+    {
+      "id": "5ffbd0e0e0b93122",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi copy remains a general introduction to aurora borealis/polar lights, matching the sparse source title rather than inventing a detailed physical explanation.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "hi-video-0-gemini_only.json",
+        "request_index": 7,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "9VQbrD0SQfU"
+      }
+    },
+    {
+      "id": "ad514e79856d747e",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Arabic copy retains the rare European red/pink aurora and G4 geomagnetic storm; location and possible continuation are explicit source topics.",
+      "origin": {
+        "status": "accepted",
+        "row": "ar-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "vDg9r5N4FdE"
+      }
+    },
+    {
+      "id": "1d4279c8a0ab8f70",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Hindi copy faithfully describes the natural daily biological clock and its control of sleeping, waking and hunger; follow-ups remain on the stated clock functions.",
+      "origin": {
+        "status": "accepted",
+        "row": "hi-wiki-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "hi:सर्केडियन लय"
+      }
+    },
+    {
+      "id": "dbab9a1486849a4a",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Korean copy preserves the source’s plasma-particle origin, stated magnetic interaction, high-latitude visibility and other planets. This assesses source fidelity, not independent accuracy of the source’s physics.",
+      "origin": {
+        "status": "accepted",
+        "row": "ko-wiki-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "ko:오로라"
+      }
+    },
+    {
+      "id": "cbae2a44b5dd9fc4",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Spanish copy preserves old-paper transformation into colored, textured and seeded sheets; materials, seeded paper and process steps are explicitly covered.",
+      "origin": {
+        "status": "accepted",
+        "row": "es-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "DjbcxtEl-3o"
+      }
+    },
+    {
+      "id": "ae3fb3e0a848358a",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Korean copy faithfully describes the curved stone/brick arch, upper loads and trapezoidal bricks; each question remains on those explicit concepts.",
+      "origin": {
+        "status": "accepted",
+        "row": "ko-video-3-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "Eba-AAe7jcE"
+      }
+    },
+    {
+      "id": "ecf2ada5a9b7e0d1",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Indonesian copy preserves the stated 21 arch components, structural behavior and construction terminology; questions stay within that evidence.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "id-video-3-mercury_chain.json",
+        "request_index": 5,
+        "candidate_id": "candidate_000",
+        "arm": "mercury_chain",
+        "identity": "pwAsxg-4XFE"
+      }
+    },
+    {
+      "id": "25806503852de668",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Russian copy paraphrases the source’s retired collection practices and old-newspaper recycling into material for printers; follow-ups concern those supplied recycling steps and destinations.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ru-video-0-gemini_only.json",
+        "request_index": 1,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "Gc25I3prrcQ"
+      }
+    },
+    {
+      "id": "ee80c95fe213a616",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Chinese copy preserves the mid-December 2009 attack, possible Chinese origin and malicious-file-path name. Questions concern supplied entities/path concepts, without operational attack instructions.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "zh-wiki-0-gemini_only.json",
+        "request_index": 0,
+        "candidate_id": "candidate_000",
+        "arm": "gemini_only",
+        "identity": "zh:极光行动"
+      }
+    },
+    {
+      "id": "a95dd935a67abd4b",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Portuguese copy faithfully describes seed movement away from the mother plant and colonization of new areas; the brief follow-ups name explicit source concepts.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "pt-wiki-0-gemini_only.json",
+        "request_index": 2,
+        "candidate_id": "candidate_002",
+        "arm": "gemini_only",
+        "identity": "pt:Dispersão de sementes"
+      }
+    },
+    {
+      "id": "6bc3f01c8527d34e",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Portuguese copy and follow-ups stay with simple paper/cardboard crafts, the walking paper figure, school/home use and recycling ideas explicitly listed.",
+      "origin": {
+        "status": "accepted",
+        "row": "pt-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "6H0oTLsL_0U"
+      }
+    },
+    {
+      "id": "5ac88bc4a31eed18",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Russian copy preserves day/night-associated biological fluctuations and the usually approximately 24-hour period. Follow-ups ask about those supplied relationships.",
+      "origin": {
+        "status": "rejected_draft",
+        "row": "ru-wiki-3-mercury_chain.json",
+        "request_index": 0,
+        "candidate_id": "candidate_001",
+        "arm": "mercury_chain",
+        "identity": "ru:Циркадный ритм"
+      }
+    },
+    {
+      "id": "09536f552479ba92",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Indonesian copy preserves the natural approximately daily sleep/wake process and internal clock across organisms; short follow-up ellipses remain intelligible in this context.",
+      "origin": {
+        "status": "accepted",
+        "row": "id-wiki-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "id:Ritme sirkadian"
+      }
+    },
+    {
+      "id": "cc51997f82aa21a1",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Korean copy reproduces the supplied recycling/carbon-retention statement and fibre shortening. Methane decomposition and added virgin fibre are explicit source concepts; no outside factual correction is imposed.",
+      "origin": {
+        "status": "accepted",
+        "row": "ko-wiki-0-gemini_only.json",
+        "item_index": 1,
+        "arm": "gemini_only",
+        "identity": "ko:종이 재활용"
+      }
+    },
+    {
+      "id": "eb77f2d9c4e62f14",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Polish copy retains the endogenous daily sleep/wake process and environmental zeitgebers. The introduction preserves the source’s internal/external distinction, and questions remain anchored.",
+      "origin": {
+        "status": "accepted",
+        "row": "pl-video-3-mercury_chain.json",
+        "item_index": 0,
+        "arm": "mercury_chain",
+        "identity": "dfnU1a6ShXE"
+      }
+    },
+    {
+      "id": "f21b96b98aec4578",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Turkish copy uses ordinary journey metaphors for the source’s traveling/surviving seeds and ecological dispersal strategies; no new specific dispersal mechanism is claimed.",
+      "origin": {
+        "status": "accepted",
+        "row": "tr-video-0-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "9lcfB0vmwrg"
+      }
+    },
+    {
+      "id": "8a442b23a7f16539",
+      "verdict": "allow",
+      "field": "all",
+      "reason": "Czech copy and questions preserve the source’s explicitly posed nutrition, day/night metabolism, possible health risks and night-shift menu topics; no particular medical outcome is invented.",
+      "origin": {
+        "status": "accepted",
+        "row": "cs-video-3-mercury_chain.json",
+        "item_index": 1,
+        "arm": "mercury_chain",
+        "identity": "Xk8jmYpcJBg"
+      }
+    },
+    {
+      "id": "82124602888b6988",
+      "verdict": "uncertain",
+      "field": "source.channel_name",
+      "reason": "Copy and follow-ups are source-faithful Turkish, but the branded \"Yatsan\" series and channel \"Yatsan Yatak\" raise a commercial-source eligibility question. The packet does not establish official ownership or promotional status sufficiently for a confident source-policy verdict; no external brand verification was used.",
+      "adjudication": "Retained after provider/admission-blind second source-only review.",
+      "origin": {
+        "status": "accepted",
+        "row": "tr-video-3-gemini_only.json",
+        "item_index": 0,
+        "arm": "gemini_only",
+        "identity": "fGE8xshRxzY"
+      }
+    }
+  ],
+  "initial_review_receipts": [
+    {
+      "packet": "packet-0.json",
+      "packet_sha256": "929feaee64cef15661f4f7f18c4c88550b604c2cf5ea093a381b41d9d9e870e2",
+      "review_sha256": "280589fce4e6320f5b265cb1739c9e6deb705f6000f38aa0d69806c1663686ad"
+    },
+    {
+      "packet": "packet-1.json",
+      "packet_sha256": "71755c0acee76a49e5e4f27ed8a6731c5255fe33aad1c21650edb9c19c28815b",
+      "review_sha256": "28429f5a4e9951cd0ac76c42ba11ff91ae61e1be2020c9dc41cc8fbea72824ec"
+    },
+    {
+      "packet": "packet-2.json",
+      "packet_sha256": "648cc17c3444a7163906b2ec8a91df55c7965d46d482532fb992e6edddc9e844",
+      "review_sha256": "3e663ba71973af01852237b35e3880a3a8b3ae108e79744006ca5a20b87f24aa"
+    }
+  ]
+}

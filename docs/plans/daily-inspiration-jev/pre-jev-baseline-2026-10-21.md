@@ -1,8 +1,12 @@
 # Original daily-inspiration baseline before Jev/Mercury
 
+Native follow-up: [granular qualification and cost results](granular-qualification-2026-10-21.md) records the exact-timing replay and a declared 30-second historical timing sensitivity. Both returned incomplete sets; no successful-refresh price or historical invoice is inferred. The sensitivity averaged $0.019273155 per attempted original-architecture refresh, versus $0.029581853 current at Mercury launch pricing.
+
 Reconstructed 2026-10-21 from repository history and retained benchmark receipts.
 This is an architectural and tariff baseline, not a measurement of historical
-production spend. No provider calls or user/pool writes were made for this report.
+production spend. The initial reconstruction made no provider calls or user/pool
+writes; the subsequent native replay is linked above and also performs no user
+or pool writes.
 
 ## Exact baseline
 
@@ -139,12 +143,14 @@ For a single complete set those denominators are 6 and 10 respectively. At
 20-locale scale, sum token counts per locale instead of assuming English token
 length, equal cache hits or equal rejection rates.
 
-## What existing native receipts do and do not measure
+## What earlier native receipts do and do not measure
 
-No retained receipt inspected here exercises the **complete original pre-Jev
-pipeline**, with its original three roles around video generation and original
-wiki ordering. Original production spend and original-native end-to-end latency
-are therefore **unmeasured**, not inferred from the later control arm.
+Before the linked native follow-up, no inspected receipt exercised the **complete
+original pre-Jev pipeline**, with its original three roles around video generation
+and original wiki ordering. The new replay now exercises those historical paths
+but yields incomplete sets. Original production spend and the cost/latency of a
+successful original refresh remain **unmeasured**, not inferred from a later
+writer-control arm.
 
 The retained `logs/daily-inspiration-jev/d115-inspiration-holdout/receipt.json`
 contains eight real direct Mistral writer responses, returned model

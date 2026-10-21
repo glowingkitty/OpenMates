@@ -38,29 +38,35 @@ decision_notes:
   - User explicitly approved the concrete granular-review, repair, rubric and qualification follow-up on 2026-10-21. Existing public-feed contracts exclude provider/prompt internals; no product contract expansion.
   - Independent automated multilingual labels are not native-speaker sign-off; no human review is fabricated.
 evidence:
-  implementation_commit: 1c753c461f9b97e1bc1e4c61c1d06b431e19bae1
-  granular_candidate: dcb0932f5711c075f95efb83984ae97993edc738
-  granular_local: 152 focused backend and benchmark tooling cases passed; scoped lint passed.
-  granular_boundary_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39573343486
-  retrieval_language_fix_commit: 0e235d47780b3082802fbb0d169dc45db7cd4cda
-  focused_tests: 148 focused inspiration cases and 19 frontend unit cases passed; fourteen search-locale cases also passed in isolated CI.
-  isolated_backend: https://github.com/glowingkitty/OpenMates/actions/runs/39471945379
-  isolated_component: https://github.com/glowingkitty/OpenMates/actions/runs/39471951724
-  isolated_public_feed: https://github.com/glowingkitty/OpenMates/actions/runs/39474468256
-  isolated_search_locales: https://github.com/glowingkitty/OpenMates/actions/runs/39483183607
-  application_source: 0bc10e895f172067491e06ecf6128d9ec697d4fa
-  harness: d2733343be7dbfa5cfcd2d8849f8742956f8b6aa
-  live_controls: 33 of 34 correct; all five image controls correct. One valid Japanese paraphrase was coherent but conservatively withheld for low grounding confidence.
-  deadline_fix_commit: 785f15a0a9237a96640927d1b5f6cf1e2d6c4005
-  deadline_adapter_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39483991623
-  deadline_adapter_result: 54 passed including all new deadline cases; two unchanged Google accounting expectations fail and qualify supplier cost estimates.
-  runtime: docker-434fef82 completed with all seventeen affected backend consumers healthy; exact frontend deployment succeeded.
-  paired_benchmark: 400 slots completed over twenty languages; Mercury-chain 110 first / 165 final admissions versus Gemini 112 first / 150 final, out of 200 each.
-  blinded_review: All 315 admitted cards reviewed and adjudicated before unblinding; 12 Mercury-chain and 7 Gemini material cards, with 1 and 3 additional uncertain cards.
-  qualification: Failed for both arms; keep qualification active and retain requested Mercury retry chain on dev. Proposed targets are unchanged.
-  experiment_delivery: Requested implementation, benchmark, comparison decision and scoped dev deployment complete; production qualification remains open.
-  aggregate_receipt: docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
-  current_report: docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+  implementation_commit: 76419cba88796db635c80e0c5218ece0783a581c
+  policy_version: daily-editorial-v6
+  public_cache_version: v15
+  focused_local: 163 focused backend and benchmark-tooling tests passed; scoped lint passed.
+  isolated_boundary_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39573343486
+  isolated_public_feed_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39574090167
+  isolated_writer_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39579556331
+  isolated_generator_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39582942072
+  evidence_delivery: Receipt evidence commands completed; latest DE, JA and static-fallback browser recordings uploaded successfully.
+  runtime: docker-78d5bd31 completed with all seventeen affected consumers healthy; both exact-source Vercel deployments succeeded.
+  text_controls: All sixty negatives withheld, but only ten of sixty valid multilingual positives admitted; zero unavailable decisions.
+  historical_regressions: Nineteen of twenty-three scored labels matched; one Turkish causal-role negative admitted, three positives withheld, one additional uncertain case unscored. Original valid Japanese paraphrase accepted.
+  thumbnail_controls: All one hundred actual JPEG-panel decisions matched; sixty honest and forty deceptive. Five translated templates, not one hundred independent natural thumbnails.
+  language_pilots: Two exploratory twenty-four-case pilots improved positive acceptance but each admitted a known wrong-English-introduction control; neither adopted.
+  fresh_paired: All twenty locales and one hundred fifty-six paired batches complete; two hundred planned slots per arm, one hundred sixty-eight eligible, thirty-two frozen source shortfalls. Mercury fifteen first / thirty-four final admissions; Gemini twenty-one / thirty-nine.
+  blinded_review: All seventy-three admitted cards and forty sampled withholds reviewed provider/admission-blind; twenty-one flags adjudicated before unblinding. Mercury zero material / zero uncertain among thirty-four; Gemini five material / one uncertain among thirty-nine. Automated review, not human/native gold.
+  recovery: Approved source-bound cards preserved; fallback request conversion fixed and all four Gemini full-refresh fallback calls succeeded. Neither sampled full-refresh architecture produced a complete personal set; localized ten-card public recovery verified in browser CI.
+  original_baseline: c94ebe85a14f87aa3223eacfe129aa85ec93d939
+  full_refresh_costs: Declared thirty-second original-architecture replay averaged USD0.019273155 per attempt; current USD0.029581853 launch / USD0.034852118 regular. No completed-set price, original production invoice or saving established.
+  qualification: Failed for production; language precision, known causal-role false admission and complete personal-refresh yield remain unresolved. Keep the Mercury retry chain as the preferred dev candidate; do not weaken thresholds or adopt failed pilots.
+  experiment_delivery: Authorized granular implementation, native comparison, source-only audit, historical cost overview and scoped dev deployment delivered. Production qualification remains active; no production deployment performed.
+  current_report: docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+  cost_aggregate: docs/plans/daily-inspiration-jev/full-refresh-costs-2026-10-21.json
+  paired_aggregate: docs/plans/daily-inspiration-jev/granular-paired-aggregate-2026-10-21.json
+  blind_audit: docs/plans/daily-inspiration-jev/blinded-review-2026-10-21.json
   historical_reports:
+    - docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+    - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
     - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
     - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md

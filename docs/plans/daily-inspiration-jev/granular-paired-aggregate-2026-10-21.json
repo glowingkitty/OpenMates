@@ -1,0 +1,1556 @@
+{
+  "root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v6-repaired-multilingual-20261021",
+  "analysis_tool_sha256": "e29ce0724ac5f8aa659115b3cf6b7b357f98f2953ad783f5da34c229725c07d5",
+  "normalized_labels_sha256": "0d3f875ef301b679bbd225cb69e9ebde9adf4c695bc4c5acb693995dca1c2e04",
+  "manifest_sha256": "fd5d1b781e8e1984fba37452f39d5028630a34869026f327e82376b15daa4d26",
+  "policy_version": "daily-editorial-v6",
+  "source_sha256": {
+    "config.py": "cabe20601fd3123152c016eb0a62c8c44c411d7f7b190ccc37f1bff8b59cf1f5",
+    "decisions.py": "be33c4be1ba8bce798d03018de25daef2fa2d2d9e4caec54a460b26fd9814a18",
+    "generator.py": "a4d4dd19fbc8596819c36bc048cc5a7b2c13c47406ee371e79dcaf46893ba56e",
+    "video_processor.py": "709c64f1633bd1d9226570442b530250e6239b2136d2d84c54a8af714f15f222",
+    "wiki_generator.py": "a96f8c077cafe1e3944cca3726557700a5195a5b9b977aa12237e64f872ed52d",
+    "writer.py": "9ebd39aca8da4d4f90268aad4027d99b3b62d85069c38e625f9c691c99f4d1a4",
+    "thumbnail_review.py": "6deb373d0dff206e88e02540e870a20c76cb761ad1ff7d8ba47f3b50f20bcc09",
+    "validator.py": "bde6b626083ee7c8bba9f080648b8fbe7e781342a5af4cbff686e35a0f3c097f",
+    "media_coherence.py": "c5d10166ae4a80f1dd596634e3020a20b41309f72661ab117d0f0af25d9dd850",
+    "llm_utils.py": "595f65c883f1d29412ccd02cdbab3f61e09564ec2fcea2a894540ecb386534ef"
+  },
+  "benchmark_sha256": "9fea1f61895d9dfd3ee45e80d26a18488cd73079a57f36639cca8d7bd74edd80",
+  "arm_order_seed": "daily-inspiration-v6-fresh-topics-v1",
+  "planned_slots_per_arm": 200,
+  "eligible_slots_per_arm": 168,
+  "initial_source_shortfalls_per_arm": 32,
+  "expected_batches_per_arm": 78,
+  "terminal_paired_rows": 156,
+  "source_counts_by_language": {
+    "en": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "de": {
+      "eligible": 10,
+      "planned": 10
+    },
+    "zh": {
+      "eligible": 10,
+      "planned": 10
+    },
+    "es": {
+      "eligible": 10,
+      "planned": 10
+    },
+    "fr": {
+      "eligible": 9,
+      "planned": 10
+    },
+    "pt": {
+      "eligible": 10,
+      "planned": 10
+    },
+    "ru": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "ja": {
+      "eligible": 9,
+      "planned": 10
+    },
+    "ko": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "it": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "tr": {
+      "eligible": 7,
+      "planned": 10
+    },
+    "vi": {
+      "eligible": 6,
+      "planned": 10
+    },
+    "id": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "pl": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "nl": {
+      "eligible": 10,
+      "planned": 10
+    },
+    "ar": {
+      "eligible": 8,
+      "planned": 10
+    },
+    "hi": {
+      "eligible": 7,
+      "planned": 10
+    },
+    "th": {
+      "eligible": 6,
+      "planned": 10
+    },
+    "cs": {
+      "eligible": 9,
+      "planned": 10
+    },
+    "sv": {
+      "eligible": 9,
+      "planned": 10
+    }
+  },
+  "distinct_source_ids": 128,
+  "frozen_source_provenance": {
+    "provenance_sha256": "150812aa95ed57b4c0bd0b1cb4a2c49067ccfd349258514abbce79bcec2a12e4",
+    "original_manifest_sha256": "6afcd23fa4e49322f1570a94e99585e51e66944656eaea7b56bd97e32c56ca7b",
+    "origin": "d115-v6-multilingual-20261021",
+    "source_slots": 200,
+    "eligible_sources": 168,
+    "terminal_shortfalls": 32,
+    "collection_bypassed": true
+  },
+  "native_jev_accounting_method": "One successful evaluate response per call_id, production and locale assessment separated. Raw transport failures retained as unknown; shared accounting slices never summed.",
+  "arms": {
+    "mercury_chain": {
+      "batches_by_exact_attempt_count": {
+        "3": 71,
+        "1": 3,
+        "2": 4
+      },
+      "completed_batches": 78,
+      "full_admission_batches": 9,
+      "eligible_writer_slots": 168,
+      "source_or_prewrite_shortfalls": 0,
+      "first_draft_admitted": 15,
+      "first_draft_rate_of_eligible": 0.08928571428571429,
+      "first_draft_rate_of_planned": 0.075,
+      "final_admitted": 34,
+      "final_rate_of_eligible": 0.20238095238095238,
+      "final_rate_of_planned": 0.17,
+      "post_source_writing_shortfall": 134,
+      "planned_total_shortfall": 166,
+      "final_source_owner_attempt_index": {
+        "2": 10,
+        "0": 15,
+        "1": 9
+      },
+      "recovery_batches": 75,
+      "gemini_fallback_attempts": 71,
+      "structure_issues": 0,
+      "source_identity_issues": 0,
+      "format_diagnostic_cards": 11,
+      "locale_assessment_failures_or_abstentions": 0,
+      "locale_assessment_answers": 34,
+      "locale_assessment_errors": 0,
+      "production_batch_latency": {
+        "n": 78,
+        "sum_seconds": 1030.9697053385898,
+        "p50_seconds": 12.600957836955786,
+        "p95_seconds": 20.670982389710844,
+        "max_seconds": 38.45443812478334
+      },
+      "locale_assessment_latency": {
+        "n": 28,
+        "sum_seconds": 7.072876485064626,
+        "p50_seconds": 0.2422101772390306,
+        "p95_seconds": 0.37838809192180634,
+        "max_seconds": 0.46748249884694815
+      },
+      "writer_cost_all_attempts_including_history": {
+        "attempts": 224,
+        "requested_models": {
+          "inception/mercury-3": 153,
+          "google/gemini-3.5-flash-lite": 71
+        },
+        "by_model": {
+          "inception/mercury-3": {
+            "attempts": 153,
+            "input_tokens": 425835,
+            "output_tokens": 348344,
+            "cached_input_tokens_reported": 78204,
+            "cache_unknown_records": 1,
+            "reasoning_output_tokens_subset": 284198,
+            "known_launch_usd": 0.15746554000000007,
+            "known_regular_usd": 0.3149310800000001,
+            "regular_reprice_unknown_records": 1
+          },
+          "google/gemini-3.5-flash-lite": {
+            "attempts": 71,
+            "input_tokens": 197866,
+            "output_tokens": 25229,
+            "cached_input_tokens_reported": 0,
+            "cache_unknown_records": 71,
+            "reasoning_output_tokens_subset": 0,
+            "known_launch_usd": 0.12243230000000001,
+            "known_regular_usd": 0.12243230000000001,
+            "regular_reprice_unknown_records": 0
+          }
+        },
+        "facade_latency_by_requested_model": {
+          "inception/mercury-3": {
+            "n": 153,
+            "sum_seconds": 773.8767141252756,
+            "p50_seconds": 4.469398380257189,
+            "p95_seconds": 9.061112687923014,
+            "max_seconds": 30.033069264143705
+          },
+          "google/gemini-3.5-flash-lite": {
+            "n": 71,
+            "sum_seconds": 109.44780431874096,
+            "p50_seconds": 1.4880437180399895,
+            "p95_seconds": 2.3286842070519924,
+            "max_seconds": 2.5359461177140474
+          }
+        },
+        "known_launch_usd": 0.27989784000000023,
+        "known_regular_usd": 0.43736338000000013,
+        "reported_upper_usd": 0.27989784000000023,
+        "missing_cost_attempts": 1,
+        "incomplete_cost_attempts": 72,
+        "missing_upper_bound_attempts": 1,
+        "provider_error_results": 11,
+        "attempt_exceptions": 1,
+        "native_recovered_usage_attempts": 11,
+        "usage_recovery_ledger": [
+          {
+            "row_file": "ar-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 3844,
+            "output_tokens": 3914,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.0017534899999999997,
+            "regular_supplier_usd": 0.0035069799999999994,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "hi-video-3-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 3845,
+            "output_tokens": 3932,
+            "cached_input_tokens": 1976,
+            "launch_supplier_usd": 0.00158286,
+            "regular_supplier_usd": 0.00316572,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "id-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 4752,
+            "output_tokens": 4038,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.00188769,
+            "regular_supplier_usd": 0.00377538,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "ko-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 4477,
+            "output_tokens": 4002,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.0018475899999999996,
+            "regular_supplier_usd": 0.0036951799999999993,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "nl-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 4936,
+            "output_tokens": 4038,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.0019060899999999998,
+            "regular_supplier_usd": 0.0038121799999999996,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "nl-wiki-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 1478,
+            "output_tokens": 3973,
+            "cached_input_tokens": 258,
+            "launch_supplier_usd": 0.00151513,
+            "regular_supplier_usd": 0.00303026,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "pl-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 6131,
+            "output_tokens": 4026,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.00202139,
+            "regular_supplier_usd": 0.00404278,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "ru-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 4389,
+            "output_tokens": 3945,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.00181884,
+            "regular_supplier_usd": 0.00363768,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "tr-video-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 4658,
+            "output_tokens": 3955,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.00184924,
+            "regular_supplier_usd": 0.00369848,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "vi-wiki-0-mercury_chain.json",
+            "attempt_index": 0,
+            "native_http_index": 0,
+            "model": "mercury-3",
+            "input_tokens": 1504,
+            "output_tokens": 3954,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.0015334899999999998,
+            "regular_supplier_usd": 0.0030669799999999995,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          },
+          {
+            "row_file": "vi-wiki-0-mercury_chain.json",
+            "attempt_index": 1,
+            "native_http_index": 1,
+            "model": "mercury-3",
+            "input_tokens": 1700,
+            "output_tokens": 4051,
+            "cached_input_tokens": 9,
+            "launch_supplier_usd": 0.00158704,
+            "regular_supplier_usd": 0.00317408,
+            "match": "Exact role/message equality after canonical Unicode NFC normalization matching native text sanitizer; consumed once. Existing facade costs are never re-added."
+          }
+        ]
+      },
+      "final_production_jev": {
+        "successful_evaluates": 360,
+        "input_tokens": 1564292,
+        "output_tokens": 385279,
+        "known_supplier_usd": 0.06570026400000005,
+        "missing_or_unpriced_usage": 0,
+        "providers": {
+          "typesafe": 360
+        }
+      },
+      "independent_locale_assessment_jev_excluded_from_product_cost": {
+        "successful_evaluates": 28,
+        "input_tokens": 21918,
+        "output_tokens": 1444,
+        "known_supplier_usd": 0.0009205560000000001,
+        "missing_or_unpriced_usage": 0,
+        "providers": {
+          "typesafe": 28
+        }
+      },
+      "known_product_launch_supplier_usd": 0.3455981040000003,
+      "known_product_regular_mercury_supplier_usd": 0.5030636440000001,
+      "product_usd_per_admitted_card_launch": 0.010164650117647068,
+      "product_usd_per_admitted_card_regular": 0.014795989529411769,
+      "independent_review": {
+        "status": "complete",
+        "labels_sha256": "0d3f875ef301b679bbd225cb69e9ebde9adf4c695bc4c5acb693995dca1c2e04",
+        "reviewed": 34,
+        "strict_clean": 34,
+        "minor_only": 0,
+        "material_free": 34,
+        "material": 0,
+        "uncertain": 0,
+        "unreviewed": 0,
+        "limits": "Explicit adjudicated dispositions only; absence of findings is not inferred clean. Automated review is not human/native-speaker sign-off."
+      },
+      "product_usd_per_strict_independently_clean_card_launch": 0.010164650117647068,
+      "product_usd_per_material_free_reviewed_card_launch": 0.010164650117647068,
+      "observed_provider_models_and_latency": {
+        "observed_models_and_captured_responses": {
+          "mercury-3": 152,
+          "gemini-3.5-flash-lite": 71,
+          "jev-1.14.0": 360
+        },
+        "captured_status_counts": {
+          "200": 152,
+          "SDK_no_HTTP_status": 71
+        },
+        "captured_errors": {},
+        "native_latency_available_by_model": {
+          "mercury-3": {
+            "n": 152,
+            "sum_seconds": 740.4663192182779,
+            "p50_seconds": 4.431883170735091,
+            "p95_seconds": 8.30818128399551,
+            "max_seconds": 29.456111897714436
+          }
+        },
+        "limits": "Google SDK entries may omit HTTP status and native latency. Writer facade latencies are separately available; no native Jev latency is recorded."
+      },
+      "gate_failures": {
+        "production_gate_answers": {
+          "policy": {
+            "decisions": 431,
+            "failed_or_abstained": 5,
+            "expected_choice_but_below_confidence": 5,
+            "nonexpected_choice": 0,
+            "choices": {
+              "allow": 431
+            }
+          },
+          "coherence": {
+            "decisions": 431,
+            "failed_or_abstained": 2,
+            "expected_choice_but_below_confidence": 2,
+            "nonexpected_choice": 0,
+            "choices": {
+              "coherent": 431
+            }
+          },
+          "card_title_grounding": {
+            "decisions": 431,
+            "failed_or_abstained": 43,
+            "expected_choice_but_below_confidence": 30,
+            "nonexpected_choice": 13,
+            "choices": {
+              "supported": 418,
+              "unsupported": 13
+            }
+          },
+          "card_title_language": {
+            "decisions": 431,
+            "failed_or_abstained": 285,
+            "expected_choice_but_below_confidence": 125,
+            "nonexpected_choice": 160,
+            "choices": {
+              "correct": 271,
+              "wrong": 147,
+              "uncertain": 13
+            }
+          },
+          "phrase_grounding": {
+            "decisions": 431,
+            "failed_or_abstained": 53,
+            "expected_choice_but_below_confidence": 32,
+            "nonexpected_choice": 21,
+            "choices": {
+              "supported": 410,
+              "unsupported": 19,
+              "uncertain": 2
+            }
+          },
+          "phrase_language": {
+            "decisions": 431,
+            "failed_or_abstained": 136,
+            "expected_choice_but_below_confidence": 120,
+            "nonexpected_choice": 16,
+            "choices": {
+              "correct": 415,
+              "wrong": 14,
+              "uncertain": 2
+            }
+          },
+          "assistant_response_grounding": {
+            "decisions": 431,
+            "failed_or_abstained": 82,
+            "expected_choice_but_below_confidence": 59,
+            "nonexpected_choice": 23,
+            "choices": {
+              "supported": 408,
+              "unsupported": 23
+            }
+          },
+          "assistant_response_language": {
+            "decisions": 431,
+            "failed_or_abstained": 144,
+            "expected_choice_but_below_confidence": 112,
+            "nonexpected_choice": 32,
+            "choices": {
+              "correct": 399,
+              "wrong": 31,
+              "uncertain": 1
+            }
+          },
+          "follow_up_0_grounding": {
+            "decisions": 431,
+            "failed_or_abstained": 18,
+            "expected_choice_but_below_confidence": 18,
+            "nonexpected_choice": 0,
+            "choices": {
+              "supported": 431
+            }
+          },
+          "follow_up_0_language": {
+            "decisions": 431,
+            "failed_or_abstained": 119,
+            "expected_choice_but_below_confidence": 100,
+            "nonexpected_choice": 19,
+            "choices": {
+              "correct": 412,
+              "wrong": 19
+            }
+          },
+          "follow_up_0_relevance": {
+            "decisions": 431,
+            "failed_or_abstained": 11,
+            "expected_choice_but_below_confidence": 10,
+            "nonexpected_choice": 1,
+            "choices": {
+              "relevant": 430,
+              "drift": 1
+            }
+          },
+          "follow_up_1_grounding": {
+            "decisions": 431,
+            "failed_or_abstained": 29,
+            "expected_choice_but_below_confidence": 28,
+            "nonexpected_choice": 1,
+            "choices": {
+              "supported": 430,
+              "uncertain": 1
+            }
+          },
+          "follow_up_1_language": {
+            "decisions": 431,
+            "failed_or_abstained": 179,
+            "expected_choice_but_below_confidence": 154,
+            "nonexpected_choice": 25,
+            "choices": {
+              "correct": 406,
+              "wrong": 25
+            }
+          },
+          "follow_up_1_relevance": {
+            "decisions": 431,
+            "failed_or_abstained": 24,
+            "expected_choice_but_below_confidence": 19,
+            "nonexpected_choice": 5,
+            "choices": {
+              "relevant": 426,
+              "drift": 5
+            }
+          },
+          "follow_up_2_grounding": {
+            "decisions": 431,
+            "failed_or_abstained": 64,
+            "expected_choice_but_below_confidence": 55,
+            "nonexpected_choice": 9,
+            "choices": {
+              "supported": 422,
+              "unsupported": 4,
+              "uncertain": 5
+            }
+          },
+          "follow_up_2_language": {
+            "decisions": 431,
+            "failed_or_abstained": 151,
+            "expected_choice_but_below_confidence": 126,
+            "nonexpected_choice": 25,
+            "choices": {
+              "correct": 406,
+              "wrong": 25
+            }
+          },
+          "follow_up_2_relevance": {
+            "decisions": 431,
+            "failed_or_abstained": 53,
+            "expected_choice_but_below_confidence": 30,
+            "nonexpected_choice": 23,
+            "choices": {
+              "relevant": 408,
+              "drift": 23
+            }
+          },
+          "visual": {
+            "decisions": 27,
+            "failed_or_abstained": 0,
+            "expected_choice_but_below_confidence": 0,
+            "nonexpected_choice": 0,
+            "choices": {
+              "suitable": 27
+            }
+          }
+        },
+        "transport_failure_or_missing_usage_records": [],
+        "scope": "Counts native gate answers across repeated drafts, not distinct rejected cards. Independent source/copy quality labels remain separate."
+      },
+      "archived_paid_rows": 0,
+      "by_language": {
+        "en": {
+          "first_admitted": 0,
+          "final_admitted": 0,
+          "eligible": 8,
+          "planned": 10
+        },
+        "de": {
+          "first_admitted": 2,
+          "final_admitted": 3,
+          "eligible": 10,
+          "planned": 10
+        },
+        "zh": {
+          "first_admitted": 0,
+          "final_admitted": 2,
+          "eligible": 10,
+          "planned": 10
+        },
+        "es": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 10,
+          "planned": 10
+        },
+        "fr": {
+          "first_admitted": 0,
+          "final_admitted": 2,
+          "eligible": 9,
+          "planned": 10
+        },
+        "pt": {
+          "first_admitted": 0,
+          "final_admitted": 0,
+          "eligible": 10,
+          "planned": 10
+        },
+        "ru": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "ja": {
+          "first_admitted": 1,
+          "final_admitted": 2,
+          "eligible": 9,
+          "planned": 10
+        },
+        "ko": {
+          "first_admitted": 0,
+          "final_admitted": 0,
+          "eligible": 8,
+          "planned": 10
+        },
+        "it": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "tr": {
+          "first_admitted": 0,
+          "final_admitted": 2,
+          "eligible": 7,
+          "planned": 10
+        },
+        "vi": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 6,
+          "planned": 10
+        },
+        "id": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "pl": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "nl": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 10,
+          "planned": 10
+        },
+        "ar": {
+          "first_admitted": 2,
+          "final_admitted": 4,
+          "eligible": 8,
+          "planned": 10
+        },
+        "hi": {
+          "first_admitted": 4,
+          "final_admitted": 5,
+          "eligible": 7,
+          "planned": 10
+        },
+        "th": {
+          "first_admitted": 0,
+          "final_admitted": 3,
+          "eligible": 6,
+          "planned": 10
+        },
+        "cs": {
+          "first_admitted": 1,
+          "final_admitted": 3,
+          "eligible": 9,
+          "planned": 10
+        },
+        "sv": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 9,
+          "planned": 10
+        }
+      }
+    },
+    "gemini_only": {
+      "batches_by_exact_attempt_count": {
+        "3": 70,
+        "1": 6,
+        "2": 2
+      },
+      "completed_batches": 78,
+      "full_admission_batches": 10,
+      "eligible_writer_slots": 168,
+      "source_or_prewrite_shortfalls": 0,
+      "first_draft_admitted": 21,
+      "first_draft_rate_of_eligible": 0.125,
+      "first_draft_rate_of_planned": 0.105,
+      "final_admitted": 39,
+      "final_rate_of_eligible": 0.23214285714285715,
+      "final_rate_of_planned": 0.195,
+      "post_source_writing_shortfall": 129,
+      "planned_total_shortfall": 161,
+      "final_source_owner_attempt_index": {
+        "0": 21,
+        "1": 9,
+        "2": 9
+      },
+      "recovery_batches": 72,
+      "gemini_fallback_attempts": 0,
+      "structure_issues": 0,
+      "source_identity_issues": 0,
+      "format_diagnostic_cards": 19,
+      "locale_assessment_failures_or_abstentions": 1,
+      "locale_assessment_answers": 39,
+      "locale_assessment_errors": 0,
+      "production_batch_latency": {
+        "n": 78,
+        "sum_seconds": 493.27254339307547,
+        "p50_seconds": 6.111154404003173,
+        "p95_seconds": 9.669098204001784,
+        "max_seconds": 10.569073840044439
+      },
+      "locale_assessment_latency": {
+        "n": 31,
+        "sum_seconds": 7.4294343665242195,
+        "p50_seconds": 0.23191092908382416,
+        "p95_seconds": 0.308415743522346,
+        "max_seconds": 0.3316170061007142
+      },
+      "writer_cost_all_attempts_including_history": {
+        "attempts": 220,
+        "requested_models": {
+          "google/gemini-3.5-flash-lite": 220
+        },
+        "by_model": {
+          "google/gemini-3.5-flash-lite": {
+            "attempts": 220,
+            "input_tokens": 574254,
+            "output_tokens": 78612,
+            "cached_input_tokens_reported": 0,
+            "cache_unknown_records": 220,
+            "reasoning_output_tokens_subset": 0,
+            "known_launch_usd": 0.36880620000000003,
+            "known_regular_usd": 0.36880620000000003,
+            "regular_reprice_unknown_records": 0
+          }
+        },
+        "facade_latency_by_requested_model": {
+          "google/gemini-3.5-flash-lite": {
+            "n": 220,
+            "sum_seconds": 342.3543220181018,
+            "p50_seconds": 1.5176685452461243,
+            "p95_seconds": 2.2097827829420567,
+            "max_seconds": 3.644788386300206
+          }
+        },
+        "known_launch_usd": 0.36880620000000003,
+        "known_regular_usd": 0.36880620000000003,
+        "reported_upper_usd": 0.36880620000000003,
+        "missing_cost_attempts": 0,
+        "incomplete_cost_attempts": 220,
+        "missing_upper_bound_attempts": 0,
+        "provider_error_results": 0,
+        "attempt_exceptions": 0,
+        "native_recovered_usage_attempts": 0,
+        "usage_recovery_ledger": []
+      },
+      "final_production_jev": {
+        "successful_evaluates": 381,
+        "input_tokens": 1635361,
+        "output_tokens": 401508,
+        "known_supplier_usd": 0.06868516200000005,
+        "missing_or_unpriced_usage": 0,
+        "providers": {
+          "typesafe": 381
+        }
+      },
+      "independent_locale_assessment_jev_excluded_from_product_cost": {
+        "successful_evaluates": 31,
+        "input_tokens": 23428,
+        "output_tokens": 1653,
+        "known_supplier_usd": 0.000983976,
+        "missing_or_unpriced_usage": 0,
+        "providers": {
+          "typesafe": 31
+        }
+      },
+      "known_product_launch_supplier_usd": 0.43749136200000005,
+      "known_product_regular_mercury_supplier_usd": 0.43749136200000005,
+      "product_usd_per_admitted_card_launch": 0.011217727230769232,
+      "product_usd_per_admitted_card_regular": 0.011217727230769232,
+      "independent_review": {
+        "status": "complete",
+        "labels_sha256": "0d3f875ef301b679bbd225cb69e9ebde9adf4c695bc4c5acb693995dca1c2e04",
+        "reviewed": 39,
+        "strict_clean": 30,
+        "minor_only": 3,
+        "material_free": 33,
+        "material": 5,
+        "uncertain": 1,
+        "unreviewed": 0,
+        "limits": "Explicit adjudicated dispositions only; absence of findings is not inferred clean. Automated review is not human/native-speaker sign-off."
+      },
+      "product_usd_per_strict_independently_clean_card_launch": 0.014583045400000001,
+      "product_usd_per_material_free_reviewed_card_launch": 0.013257314000000001,
+      "observed_provider_models_and_latency": {
+        "observed_models_and_captured_responses": {
+          "gemini-3.5-flash-lite": 220,
+          "jev-1.14.0": 381
+        },
+        "captured_status_counts": {
+          "SDK_no_HTTP_status": 220
+        },
+        "captured_errors": {},
+        "native_latency_available_by_model": {},
+        "limits": "Google SDK entries may omit HTTP status and native latency. Writer facade latencies are separately available; no native Jev latency is recorded."
+      },
+      "gate_failures": {
+        "production_gate_answers": {
+          "policy": {
+            "decisions": 449,
+            "failed_or_abstained": 7,
+            "expected_choice_but_below_confidence": 6,
+            "nonexpected_choice": 1,
+            "choices": {
+              "allow": 448,
+              "reject": 1
+            }
+          },
+          "coherence": {
+            "decisions": 449,
+            "failed_or_abstained": 0,
+            "expected_choice_but_below_confidence": 0,
+            "nonexpected_choice": 0,
+            "choices": {
+              "coherent": 449
+            }
+          },
+          "card_title_grounding": {
+            "decisions": 449,
+            "failed_or_abstained": 42,
+            "expected_choice_but_below_confidence": 29,
+            "nonexpected_choice": 13,
+            "choices": {
+              "supported": 436,
+              "unsupported": 13
+            }
+          },
+          "card_title_language": {
+            "decisions": 449,
+            "failed_or_abstained": 293,
+            "expected_choice_but_below_confidence": 128,
+            "nonexpected_choice": 165,
+            "choices": {
+              "correct": 284,
+              "wrong": 152,
+              "uncertain": 13
+            }
+          },
+          "phrase_grounding": {
+            "decisions": 449,
+            "failed_or_abstained": 60,
+            "expected_choice_but_below_confidence": 34,
+            "nonexpected_choice": 26,
+            "choices": {
+              "supported": 423,
+              "uncertain": 2,
+              "unsupported": 24
+            }
+          },
+          "phrase_language": {
+            "decisions": 449,
+            "failed_or_abstained": 135,
+            "expected_choice_but_below_confidence": 123,
+            "nonexpected_choice": 12,
+            "choices": {
+              "correct": 437,
+              "wrong": 11,
+              "uncertain": 1
+            }
+          },
+          "assistant_response_grounding": {
+            "decisions": 449,
+            "failed_or_abstained": 95,
+            "expected_choice_but_below_confidence": 60,
+            "nonexpected_choice": 35,
+            "choices": {
+              "supported": 414,
+              "unsupported": 35
+            }
+          },
+          "assistant_response_language": {
+            "decisions": 449,
+            "failed_or_abstained": 152,
+            "expected_choice_but_below_confidence": 108,
+            "nonexpected_choice": 44,
+            "choices": {
+              "correct": 405,
+              "wrong": 42,
+              "uncertain": 2
+            }
+          },
+          "follow_up_0_grounding": {
+            "decisions": 449,
+            "failed_or_abstained": 14,
+            "expected_choice_but_below_confidence": 13,
+            "nonexpected_choice": 1,
+            "choices": {
+              "supported": 448,
+              "uncertain": 1
+            }
+          },
+          "follow_up_0_language": {
+            "decisions": 449,
+            "failed_or_abstained": 120,
+            "expected_choice_but_below_confidence": 93,
+            "nonexpected_choice": 27,
+            "choices": {
+              "correct": 422,
+              "wrong": 27
+            }
+          },
+          "follow_up_0_relevance": {
+            "decisions": 449,
+            "failed_or_abstained": 8,
+            "expected_choice_but_below_confidence": 3,
+            "nonexpected_choice": 5,
+            "choices": {
+              "relevant": 444,
+              "drift": 5
+            }
+          },
+          "follow_up_1_grounding": {
+            "decisions": 449,
+            "failed_or_abstained": 28,
+            "expected_choice_but_below_confidence": 24,
+            "nonexpected_choice": 4,
+            "choices": {
+              "supported": 445,
+              "uncertain": 4
+            }
+          },
+          "follow_up_1_language": {
+            "decisions": 449,
+            "failed_or_abstained": 190,
+            "expected_choice_but_below_confidence": 143,
+            "nonexpected_choice": 47,
+            "choices": {
+              "correct": 402,
+              "wrong": 47
+            }
+          },
+          "follow_up_1_relevance": {
+            "decisions": 449,
+            "failed_or_abstained": 15,
+            "expected_choice_but_below_confidence": 9,
+            "nonexpected_choice": 6,
+            "choices": {
+              "relevant": 443,
+              "drift": 6
+            }
+          },
+          "follow_up_2_grounding": {
+            "decisions": 449,
+            "failed_or_abstained": 49,
+            "expected_choice_but_below_confidence": 36,
+            "nonexpected_choice": 13,
+            "choices": {
+              "supported": 436,
+              "unsupported": 4,
+              "uncertain": 9
+            }
+          },
+          "follow_up_2_language": {
+            "decisions": 449,
+            "failed_or_abstained": 163,
+            "expected_choice_but_below_confidence": 136,
+            "nonexpected_choice": 27,
+            "choices": {
+              "correct": 422,
+              "wrong": 27
+            }
+          },
+          "follow_up_2_relevance": {
+            "decisions": 449,
+            "failed_or_abstained": 44,
+            "expected_choice_but_below_confidence": 27,
+            "nonexpected_choice": 17,
+            "choices": {
+              "relevant": 432,
+              "drift": 17
+            }
+          },
+          "visual": {
+            "decisions": 32,
+            "failed_or_abstained": 0,
+            "expected_choice_but_below_confidence": 0,
+            "nonexpected_choice": 0,
+            "choices": {
+              "suitable": 32
+            }
+          }
+        },
+        "transport_failure_or_missing_usage_records": [],
+        "scope": "Counts native gate answers across repeated drafts, not distinct rejected cards. Independent source/copy quality labels remain separate."
+      },
+      "archived_paid_rows": 0,
+      "by_language": {
+        "en": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "de": {
+          "first_admitted": 4,
+          "final_admitted": 5,
+          "eligible": 10,
+          "planned": 10
+        },
+        "zh": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 10,
+          "planned": 10
+        },
+        "es": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 10,
+          "planned": 10
+        },
+        "fr": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 9,
+          "planned": 10
+        },
+        "pt": {
+          "first_admitted": 1,
+          "final_admitted": 2,
+          "eligible": 10,
+          "planned": 10
+        },
+        "ru": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "ja": {
+          "first_admitted": 2,
+          "final_admitted": 2,
+          "eligible": 9,
+          "planned": 10
+        },
+        "ko": {
+          "first_admitted": 3,
+          "final_admitted": 4,
+          "eligible": 8,
+          "planned": 10
+        },
+        "it": {
+          "first_admitted": 1,
+          "final_admitted": 2,
+          "eligible": 8,
+          "planned": 10
+        },
+        "tr": {
+          "first_admitted": 0,
+          "final_admitted": 2,
+          "eligible": 7,
+          "planned": 10
+        },
+        "vi": {
+          "first_admitted": 1,
+          "final_admitted": 2,
+          "eligible": 6,
+          "planned": 10
+        },
+        "id": {
+          "first_admitted": 1,
+          "final_admitted": 1,
+          "eligible": 8,
+          "planned": 10
+        },
+        "pl": {
+          "first_admitted": 0,
+          "final_admitted": 0,
+          "eligible": 8,
+          "planned": 10
+        },
+        "nl": {
+          "first_admitted": 1,
+          "final_admitted": 2,
+          "eligible": 10,
+          "planned": 10
+        },
+        "ar": {
+          "first_admitted": 3,
+          "final_admitted": 3,
+          "eligible": 8,
+          "planned": 10
+        },
+        "hi": {
+          "first_admitted": 1,
+          "final_admitted": 4,
+          "eligible": 7,
+          "planned": 10
+        },
+        "th": {
+          "first_admitted": 0,
+          "final_admitted": 2,
+          "eligible": 6,
+          "planned": 10
+        },
+        "cs": {
+          "first_admitted": 1,
+          "final_admitted": 2,
+          "eligible": 9,
+          "planned": 10
+        },
+        "sv": {
+          "first_admitted": 0,
+          "final_admitted": 1,
+          "eligible": 9,
+          "planned": 10
+        }
+      }
+    }
+  },
+  "raw_receipt_sha256": {
+    "manifest.json": "fd5d1b781e8e1984fba37452f39d5028630a34869026f327e82376b15daa4d26",
+    "sources/ar-video-0.json": "1e5ac3938c3d79852af2578b38422660ef1f436324abfb7d2b689e3b640dedc0",
+    "sources/ar-video-1.json": "b7822f661045517570e6c92b4c95b11cdec79ecbac0cb047fa1ca967d2074fd0",
+    "sources/ar-video-2.json": "56bce7ad83b36595b78cf5faa09641b8f971cb6004c7d26fd8c9c8b7981e1497",
+    "sources/ar-video-3.json": "c0a99066214a09275cf4ac275d143ec9a5d60c1544c73a523db6914a24dc7591",
+    "sources/ar-video-4.json": "5f8cf98486971f02add8559742e57ad360a005dab8cbfe9c2788edc0a81e9062",
+    "sources/ar-wiki-0.json": "27f530efb19bd73c9a77ee87c876aed46c6bd2261a259b5b1d3c1a35f14b53a4",
+    "sources/ar-wiki-1.json": "fb4c261ba3798d3890bf1754ef3184044dbee1e51b3e686415536d2a5af3d4a2",
+    "sources/ar-wiki-2.json": "94c28221f32ba3f27648b3f1b471c79924b8737bafeb7c71c8f500ece0f69b2b",
+    "sources/ar-wiki-3.json": "264a0f05f91393d3267d31172176ebac79b9cd07d3ed281d233cf351495ae890",
+    "sources/ar-wiki-4.json": "23a7f6b86c7c3ae4d078e40e92a7290bb57fcd50bc636a8a2a266f11a60c1aec",
+    "sources/cs-video-0.json": "4883aafd79b3bb7798ce701e18dfb56d139fa8c71503d8ce9eb3058fd21972ec",
+    "sources/cs-video-1.json": "5caaa1daebeb83d788200df54cbb7da319dc7f93561a31de7fdbdda36e2e838b",
+    "sources/cs-video-2.json": "280726ac95f4b7262176732bd03c7f3a25c1850a01473bf3260524b4de5f60c2",
+    "sources/cs-video-3.json": "b3904d7ba7bdaf949a44654df9e82691bfdf25d765576fd9031ae9e86bd8e441",
+    "sources/cs-video-4.json": "90256dcacce2f08e11a25654e499b0853ac660a73275f5769e5e679e2ee4bf82",
+    "sources/cs-wiki-0.json": "2a0f53b0be848c166ebee8d1262cbd07972d60640e55c93fc238d51ee98aba61",
+    "sources/cs-wiki-1.json": "cf0bab74dd1d27e215bbda5db7733402ca708cbac2f9a15915588dbdefa6d42b",
+    "sources/cs-wiki-2.json": "dc17438b37dbaf164d0d8170c91a85a0c8009d3d7163c1bb8c9100c07986c0f9",
+    "sources/cs-wiki-3.json": "976667421d2a20fc3cba0775926fa90e4a5103b4de0fc96dc263edd8f7785d92",
+    "sources/cs-wiki-4.json": "7bb3df733c579c3ae3d32bfe8c746150e5237da744a9e60de67d22dc086af92a",
+    "sources/de-video-0.json": "81270df48dbf918aaefba9817e04b7416b923f1e5a766a716b88c30670c2940f",
+    "sources/de-video-1.json": "a1588227efe4680f05c1ca5c44deca55554bd2e283aceb8beaa4a023c70ec1c1",
+    "sources/de-video-2.json": "6adc8aac981f5f8417e3baf4ad575f201a0834c6d5f2ad11be79d4fcf2d93b90",
+    "sources/de-video-3.json": "92c591073a662bae422bef4990719428038f9f4bd68d4f8f4e63b7f74de54061",
+    "sources/de-video-4.json": "7f6deb36306c7a87a5ce06b71d95b8b150128cac25ede76552e863fc0e21620b",
+    "sources/de-wiki-0.json": "bea8b15116b7424e591a5772e0e153e70c6eb23ef8130e7914f4de4ad5228d8e",
+    "sources/de-wiki-1.json": "17bd0a5fa48eedb92838deca0c63cd707759f0c7a867958a208e5c0feacd243c",
+    "sources/de-wiki-2.json": "f563a5c94b9b6f170bd6a294c34ae246f6d888474e11666d40d031b34b5f43c3",
+    "sources/de-wiki-3.json": "7ec88a1367f3fd29f8cc08190a0b1666bf96f80e3cbe566fa95a4b552d576f1f",
+    "sources/de-wiki-4.json": "accdb778066e8c39bb351066128d1294378143dab114c96eef44635dccd42922",
+    "sources/en-video-0.json": "80a458b7b95f96540478ed9db95bf304e8f2ccf88057b4e5f09c685e5590994b",
+    "sources/en-video-1.json": "348f0c13bad54e29d33eff5ef67ef10892355b9d504d2e990a54c0a00bae8313",
+    "sources/en-video-2.json": "a9a092d607a484ac31e21ee523f5df0c204409ac4bd863856bc19248ff8af5cb",
+    "sources/en-video-3.json": "c08e1cb0a132ed3d915cab0c6e560f064c6cd3f2d2863d1b3371006fa150b2c8",
+    "sources/en-video-4.json": "8e9b0479749c5c04e6b07a47391d3652c4360b6aa2465c1e1c5c3c3cb6c81c1e",
+    "sources/en-wiki-0.json": "d24532d33a692e482784d3ed609af3f9114fd1ec8c2ab23d914e141c6a988026",
+    "sources/en-wiki-1.json": "872c23f75d9f6ea3092f0be307fbef2c8dbefc6127270b98bf398652d7ee7723",
+    "sources/en-wiki-2.json": "4850f0005f7b241ef0f7c436677e1f27449676790b22166dc60e9d34208fc4e9",
+    "sources/en-wiki-3.json": "16b21047a140e815f9ee9e95d99cf37c9eb8027f67d8d0d22225835921947202",
+    "sources/en-wiki-4.json": "f41bf06e92383e269ea2d795c172b2293c46a8f0cda90455c715df70ca6ae143",
+    "sources/es-video-0.json": "5602f833da4c086bc3387296654c41938131fdf11b7f93eff1f36fef0220a232",
+    "sources/es-video-1.json": "4a3c44eaebb7045811f504b053188075568f7620fc7881eb2f8988f031edbb08",
+    "sources/es-video-2.json": "46b22ea4da873bcea9a2201a27257e5639dcdee4b26e3cf572babb66718df609",
+    "sources/es-video-3.json": "db30f414c33c794f87da45af1310b45e0415d2e856499c0e3423f7bedc80ded5",
+    "sources/es-video-4.json": "29c89009bcf06f6e22653a4fddb09bfffcf0cc41bc99fc6e51f1285d0e7839f7",
+    "sources/es-wiki-0.json": "d9f1dfb2d0daaa07c99ce5aacef425c84f9385befb62d4c1d2d296e3c12f30c0",
+    "sources/es-wiki-1.json": "be816fc58dcd0c55dd074a2400e7ff2cd1b55facc18eb102d8629e130251eac9",
+    "sources/es-wiki-2.json": "416f1b776e98af6ae3ba3b16a8a2405e551668969de0daa85028b952e493d1b2",
+    "sources/es-wiki-3.json": "fd5e9d7e903069ec0a07cf659a3e8fbe56951d89542837fc5fe3cb6ce51a88eb",
+    "sources/es-wiki-4.json": "b476e2abbfeb56d0d088ff1f0f6121c2604cb8f47888df7b5100450907f161db",
+    "sources/fr-video-0.json": "f473d321c211cd8ecd6e0a6041f7779b11594d71c274c1039d53997608bff3e6",
+    "sources/fr-video-1.json": "8080df61f6128a92a05ad6de87ab7a4efa649ee1833575b676770681a5e74b76",
+    "sources/fr-video-2.json": "f0e00921071e9a990da0c189a771c85dcd5cfd2dc7c92cd39773a7c16cf93fb8",
+    "sources/fr-video-3.json": "db125a572737a6e85660a428a232829948d227c89049ff247e96d740e7fb35ef",
+    "sources/fr-video-4.json": "aac22737d7011523f58a45ff7ffc33d0dc6d96abf5ee69dd5bd73d5ba2404468",
+    "sources/fr-wiki-0.json": "4c646c337759d8f91b25d2207a8cc123d36de00ca89118062e2aed988c2777d2",
+    "sources/fr-wiki-1.json": "c1a1652416d6435da5238ce07dbf426ef35356cb761b0bbbd29e4ce3a0d7d676",
+    "sources/fr-wiki-2.json": "5aa21f0dc4c67124a595961d66bc3a9a4ecee4155183e3c7c64ca9feb151283f",
+    "sources/fr-wiki-3.json": "365e6e80de2a8c5cd9c4979ef86bb6173d728f4f6c8aed1d0cc2c3430eb3f657",
+    "sources/fr-wiki-4.json": "b26538f1c723776c64cdf5887b464233008085bfd67fe21da7c42a597ecbf5af",
+    "sources/hi-video-0.json": "f0d5f2dd97ec59c521d3bb3f0ced0e524f89051c72db78bf0de6fdfb8bdbcf9d",
+    "sources/hi-video-1.json": "c440cd4abb7d2fee50deaba28127ce8d2f1d6ce13d602b13a9def7129928c4dd",
+    "sources/hi-video-2.json": "8e021919888a645ce39de431886796883904ad7f4a932d80204d976715265418",
+    "sources/hi-video-3.json": "ead431f20b5fe864b6a33ea2d3deff136a72f2d4a34b0a816cab4409137f9de4",
+    "sources/hi-video-4.json": "2c253a3b18f32cdda0f6e9bbc727260da71c97925137d84ff9a69917cd3b9f4a",
+    "sources/hi-wiki-0.json": "e1a3331b77cbd35ab47a98cb5f33c26e8c836c13e58163c91ef170521bd2d63e",
+    "sources/hi-wiki-1.json": "4a853f162e111c73140ba4cbeacb0aeb5ee86db0ca19f09719eb529a847d8dab",
+    "sources/hi-wiki-2.json": "95c1b448251a836589df8a3014cf1a98572f381c955ae153f951937fb01816c8",
+    "sources/hi-wiki-3.json": "00d44816ec93b3308ba8fbebf7ac2e288bf0c78dd973ecc3667116b0ef120e5e",
+    "sources/hi-wiki-4.json": "461a601bbc24f19969e8bfa428bae887c0c4767940c2766e8bd60451503dfde8",
+    "sources/id-video-0.json": "f56e17935de0ba72f3d5b3cabf39007e0e091a70bc1ecae2d2c2ec40f32ed9c4",
+    "sources/id-video-1.json": "fca0a7b6daa787f115493122eda55bd3e5da0d9e62e4df6ae567aa3c8ce25848",
+    "sources/id-video-2.json": "1f48230d9e5c8538d11de7f6de39fde2270f153a3d30c4b89646f8534eb0f6e7",
+    "sources/id-video-3.json": "cb54a77bf5e4c1a702f57be1ac90a1d4bb36950287aaed8c82cd4d4a1e2a419a",
+    "sources/id-video-4.json": "2798d1a48fb2e73e7b47ddf3e76e25cc6bccaa7b387c84808ac63dd839ede5ca",
+    "sources/id-wiki-0.json": "ccb0d57f0909ec0efe1089ae0c04455a37ee1c592229fa99372319ed83eb49cd",
+    "sources/id-wiki-1.json": "bf39857ae3dfd503f09a0e2341bcbcec9243a0e6f99ab5fa94d8e2072e263fa4",
+    "sources/id-wiki-2.json": "0511240694f33194aab6c378ddf7110a6132bec75526ab22bd9c2d1ceae594cc",
+    "sources/id-wiki-3.json": "7a9aa947f048cc5a6721cf282764485430a553f18e36e221a527338dd2b9c0e0",
+    "sources/id-wiki-4.json": "abaca05d9d5f6228d4028015566a53d96e90a177347d788fad6eda2ff1279f98",
+    "sources/it-video-0.json": "7ff50d536e6988aac8ab45478497432e884660fbb612603f8c3c07f2b51d11a4",
+    "sources/it-video-1.json": "67b78d46dc387c31d567d9f45dced7725f04efa3d0cde2caa3dc78a85e302c99",
+    "sources/it-video-2.json": "5d85bb290662dae19f253fdb401545711aeaba34810a2c7c7eae8e6b925c2972",
+    "sources/it-video-3.json": "fc5fba816a4247260ce51fcbc21619a87ad9fd26d90757bfff22db3e43959b2d",
+    "sources/it-video-4.json": "a396eb6eda650d07ea069e3c6b164a8b78d5225c4b8f860bb852ff50c46fb14b",
+    "sources/it-wiki-0.json": "08b8b266d97aef89b952dd62a5cfe9354f79b008036581f6a6be963e65e6c743",
+    "sources/it-wiki-1.json": "9190c73cc21962df7624cd618b15520a6cfc4f29b1a6f410d09c13e53071a530",
+    "sources/it-wiki-2.json": "30ac92f71ae0d01dc875bf26bbb4eff101754f329f7340e5772360b8d5353335",
+    "sources/it-wiki-3.json": "ad5d906738cc3ac0852d65557bfde163a8b3b038e436e06fa7b419c0b41be8cf",
+    "sources/it-wiki-4.json": "d31067703529bf238beb6378c1e8a2aa6fd8ea9105f7f5cbceafad9029454eb8",
+    "sources/ja-video-0.json": "82258dc2aa71b9d87433b7dddb2b374929bce9554e630f914de6b9a062b1d276",
+    "sources/ja-video-1.json": "7766c6c22ea58d92a363968c99c732ba71d9743af7afaf55f39cc3a0dd23ddcf",
+    "sources/ja-video-2.json": "ca6d432a8b82831b62a4826cfc60dfc0996f3b1be16cad9a1f8b14e31a66afe1",
+    "sources/ja-video-3.json": "7c8af49b0719c06a80b9e41c94d8c411135e91d58492177381eaa19680603e47",
+    "sources/ja-video-4.json": "72f8b4536f21151fb7d713257dc37f45b14c86e905dfbaff357addfe3881ac7a",
+    "sources/ja-wiki-0.json": "c2cc4e311b4e1be127643152714ac4d204551ab857b23c1ddd4d89c7bd43d59c",
+    "sources/ja-wiki-1.json": "1dcb7355169b5cb0ec78ffc05f624bd66ef50f1df6dc1eb65d137d6dbd2e5535",
+    "sources/ja-wiki-2.json": "f3f6f34f8722a8167488029d6279abdcc224efc43d6a75107da74559f7433146",
+    "sources/ja-wiki-3.json": "a45e27aea11bdae44610fa4a9bfaa9a0cf200ee2b686846eb4b5a93f27530473",
+    "sources/ja-wiki-4.json": "4f9652bbfc89e09734f8ecc5a18e9f29d0712a6f3b505abf4cd39df7937dc2ed",
+    "sources/ko-video-0.json": "8efb1e29584da85dee9bda4785d59bf8d0c80978a50d3ce7f90cb6f9727a7d7e",
+    "sources/ko-video-1.json": "459731c1438c62395a5575670510b9cdb653e3fc979a4289776d772b77d52082",
+    "sources/ko-video-2.json": "9406e622f5c02a5932cb9a6934a15e57062a4b4e57bf136534902d7e58b9e3a8",
+    "sources/ko-video-3.json": "5f8c5c58347a166095fb9fa258cca39a1997c4f77d97c14b064532b2e0e01be9",
+    "sources/ko-video-4.json": "c3932303faa9b88cd552dbe8cf99e56108097a4b2571780b42312e1791f45a1e",
+    "sources/ko-wiki-0.json": "b66b5e3d2f8dc01adf827c30105e166103166d9bf8b849b66cbb1559bfb6662a",
+    "sources/ko-wiki-1.json": "53b90be63c52ee212458023eaae6d660fe3d163a28a716ff9f06d84319e3bc36",
+    "sources/ko-wiki-2.json": "0afdfd02ef5ee0e1e0a94e728a6e64dd957b96cb80e62f03ac74b4a207c4b119",
+    "sources/ko-wiki-3.json": "83c8086a055d8a1c7e9f02a001731e40db6436174fa3ca61247ff9a17454a190",
+    "sources/ko-wiki-4.json": "f85f1fe550848939e6fb7944d1c9cb13fbd3531e7a228b98f3d79f6d7e073848",
+    "sources/nl-video-0.json": "ae2d4078518da747d1aef0da190bc225e4575cc1f634221122f0d0e526bee6a3",
+    "sources/nl-video-1.json": "e21eca84119157941b559c485852665e03ad402c83832374119d9b97a06ff3ec",
+    "sources/nl-video-2.json": "512ef69deb4ab9373b23c9013b074721e69924e4cd6f3efdf52f14d09995f159",
+    "sources/nl-video-3.json": "63e658678ee3a7707d8e2b7bf756b12bb8411057d7b95c958de285519a8662c9",
+    "sources/nl-video-4.json": "81471e12bb27cb24ac59b0021e13239cdee264e897e0c21da00d13a4d5012b27",
+    "sources/nl-wiki-0.json": "133b6064558f0c0dfb8c6d7e2ab66d90255a0da81226e7639849810780a013d1",
+    "sources/nl-wiki-1.json": "c9d91c1dad6bf9b7f167ecfb98043f949990cdd8f3827e1bfea4ab604ee3db9d",
+    "sources/nl-wiki-2.json": "0e546f5d34b92ba22febd6843f65eea6ef1a32f31684e395c08e1dd92c8f4b67",
+    "sources/nl-wiki-3.json": "fc39021e6b724e52d37193c8cb11eae50f259063000fb4c64a6f144905684d6b",
+    "sources/nl-wiki-4.json": "33a3103da53b8e06e6acb614fb3eb79661569b6e20ea984796d36eaa69b958e2",
+    "sources/pl-video-0.json": "598091124ffb48b95fd9504f8496685c19397413b946b4887ea30729eb3589a8",
+    "sources/pl-video-1.json": "96a5101bfdf61f9d2a861de21710401bbf7125e75fb9d85089df9e7bf5f3d2d7",
+    "sources/pl-video-2.json": "e3d9d46bbc725c3d007ad18932a0b97e5bcbacc38f58547b72ee796e133b1451",
+    "sources/pl-video-3.json": "5bff525813ed5db0252517ddd620b196b0da1be31753c3b1ca6483598fe0f4d0",
+    "sources/pl-video-4.json": "4a2078a2e843d517f236b63a5c7b3a0ef6c04ce73bf2f85bcd951e2f85e9f07c",
+    "sources/pl-wiki-0.json": "50d06d07cde0e98a79c0f9d8842037a2c307494d6493f33d336d732c70da8886",
+    "sources/pl-wiki-1.json": "ec0b30f3560662724115eb503e09b252b8e0d182aa2436c67cc0fe31915327f1",
+    "sources/pl-wiki-2.json": "e4f8c642027d59bcbddcc8d3923730b97a39c69178a723dceb4cb2c6edd00179",
+    "sources/pl-wiki-3.json": "60e5875e42f688a2482fe3c794e32236d0b741442a85dab9b35a2ca93ddd5b17",
+    "sources/pl-wiki-4.json": "91b63752e064c599f731e310c99064eb21a8c81fec5cd09f4539bc26b7a07fcb",
+    "sources/pt-video-0.json": "1ea6af0eaaec865021a70cf12ecbd463b44d9419be36e38a31f280cd17fe175d",
+    "sources/pt-video-1.json": "c1545d6b54855c065c7d5f8bd54438cef349dbabba79495b6c327bea7472f287",
+    "sources/pt-video-2.json": "8ad86d3038817f68229657b1d78f153b3b93a6fe8da9f74ae9559e0c00b70880",
+    "sources/pt-video-3.json": "7209d1d8b55fd620bec7301bbdc7b37b190c3620f3200040c50226d7e61b173a",
+    "sources/pt-video-4.json": "7912d7fa1f960f489b4b78956fc68fdd6d82b9acf57b7676a5add6bf9c40bf0c",
+    "sources/pt-wiki-0.json": "515e1bffb8705300d2a37fbc4a88dd0bcc0fc88531174dc828048088b13cfc7e",
+    "sources/pt-wiki-1.json": "59855d88b5e56cf647cbf73789a8b0ffef01e7ae5d5652f571a44c02997213c5",
+    "sources/pt-wiki-2.json": "af656c0a9d4fad35995f83130d34da2a68063485e835bf792888ec804a9e1f4a",
+    "sources/pt-wiki-3.json": "378d6bb528ce73a68184b3bbf14456cf1dbea0254e89b3d460a4ecab4635c230",
+    "sources/pt-wiki-4.json": "f09f0476b23da2dd97305dffaeffc9684fc8045158f348c48f4e7a9871e333fc",
+    "sources/ru-video-0.json": "404a170f61945ec950eb1d96d532af4ebe4b135c6939689f37eaa867387dfe29",
+    "sources/ru-video-1.json": "7138a359ac6d7c1bac9060f36dcc6a500a885dbf868a7585a9cfa3b914f94481",
+    "sources/ru-video-2.json": "78faa77f5cfaba4a9268f37c217f3493d22edab32a77e0e4b4eaf911aea1518f",
+    "sources/ru-video-3.json": "0aca3aa18911455f01058268a8ae6ebce5fd1121ae1c9cd850213e74890d32ab",
+    "sources/ru-video-4.json": "c88fb4688886a78a9ac4316933cd80398468de9033d4553b102cd2c4e246501e",
+    "sources/ru-wiki-0.json": "062c1001351de5d5d7f12ac84d8933dc3ba306e59fb26be06ab394c635b2636b",
+    "sources/ru-wiki-1.json": "1e17d42d5554018a6e07febdba5f86d4dde3a593444b09478c8be36b060845ad",
+    "sources/ru-wiki-2.json": "247f1ee042ede3fb1652beb710ad4418dcfd4eaea8efeb646611b7a6ec3a050d",
+    "sources/ru-wiki-3.json": "a42b83f746cee773e5d48c1ae92cf6d60a3f1ddc37e88f65cf262498f35e3605",
+    "sources/ru-wiki-4.json": "dc25d8f91bcb6ab85bb655381cad60a08efedb372f15940542aa4f0c3a2892bf",
+    "sources/sv-video-0.json": "23fc8bb6465de04df3fdeb8c3c5693f51f26fcd6ac7316c60f09ab5c4c7095a0",
+    "sources/sv-video-1.json": "2448cba2d2de91779192294a0ed442194eb78660b787c5a842fc90e7d64e6c9f",
+    "sources/sv-video-2.json": "ee45bcc6b09e8e1a4cee9ff64a0ce16148c3143690d63b2c489c3eb6f85001aa",
+    "sources/sv-video-3.json": "50fc56d4b4680aa62a9750176f885b79e42012e1de64c0bc2a7627406bc9f8fc",
+    "sources/sv-video-4.json": "9165c58ea925313c9a3eb7aff77f0dc7d0ccdc139ee96ce0ed6674b0c19c21a6",
+    "sources/sv-wiki-0.json": "7ac0838a57e46915a5df9d02f732e2ff752c85821ff539008908bfbaed5ab3f4",
+    "sources/sv-wiki-1.json": "af0e2f8384f7a737e00513ff4a376e478f66f0393c1527a07fa578fc24a01a04",
+    "sources/sv-wiki-2.json": "7fc042afbbefdf1ae2e807c1b4d809edd2d1a760cf8c527e06613abb37fae2d3",
+    "sources/sv-wiki-3.json": "dd46cc0dc77e1a899e94e9b13773b6d049f29173789cfb4142daecc551b2aa75",
+    "sources/sv-wiki-4.json": "c84a0dccc599f9b04890df84446cf2cb29505d9582141fcce7b2a4c8d5e1a5ad",
+    "sources/th-video-0.json": "79698916846972bfcad7d771bbe409fae3ac7c8e95dedfdcc1b9921f679f1256",
+    "sources/th-video-1.json": "78bfbb4039fdc31ba0f8d575a4382b30e4466a6b6a87b9f66fb46842595e84d5",
+    "sources/th-video-2.json": "a4804c6fbcceee6a21087441157d003e711e9402f83c55e4c89d8fdcbd92a37e",
+    "sources/th-video-3.json": "88ea97f5a7eaf7b5401d55d8c33247d7608d30f882cf1462a7e11f1d502c059a",
+    "sources/th-video-4.json": "cca6d1a15317aa8997df23b4b5f392ae2d0d7dbcbb239348b29cbd29898de68c",
+    "sources/th-wiki-0.json": "7b2db27d1b2c33f72a2fb781d0227394b3b08ac895448598df66e739721028c3",
+    "sources/th-wiki-1.json": "2b383f6bd17bbb8f7c7d421d8c24a1c9208bc5ff1a6115cda6fce672c5b5d96e",
+    "sources/th-wiki-2.json": "71007b8870a2867c832dc22aba1fa54b96bd5665ba052566dc286e2309d5ec5a",
+    "sources/th-wiki-3.json": "1295dcd9735a5d5ddae29253c930f3da33b6e5bde926f79015a446acce7cc1d5",
+    "sources/th-wiki-4.json": "224c3ff33b9df490c1e3c402aa2319081b70a268604b5371fbac258c64e8cc50",
+    "sources/tr-video-0.json": "75a4d40376c9b5499ef8b9f5c32ba6b21bcca08c2ffd4250b9621b1a6f3271da",
+    "sources/tr-video-1.json": "e32b86b4b34af0fea25fefedea90dce6c324f2d18e9564a408cdefd9a399b7cb",
+    "sources/tr-video-2.json": "8121db18bac65a0b8d404ff2c50d6e96550eae298452b458c64310a35f9c5158",
+    "sources/tr-video-3.json": "e7964bd60913a4e3aef22692d344ffdbf9f8092bd880fec1f97d8c306a2b4fa4",
+    "sources/tr-video-4.json": "56b5ec8938ac96477ab41b36a3aa1c5d8332c1adf97b004131241c8cb3eeec80",
+    "sources/tr-wiki-0.json": "a570908a742229e1ea785a518208c0ba14baa4c5c854867742207a4d0d02c2ab",
+    "sources/tr-wiki-1.json": "d8b35cbe617f3e9b5fe08a06d8071dcbd583470aef65b5457083392ea73e4bdd",
+    "sources/tr-wiki-2.json": "4b8798dca549a093989ba8e103c41fd85e316395235cabda6a7521f197da5e9c",
+    "sources/tr-wiki-3.json": "846a2002283035b26147d3255619d45b676b8b60909ef025a0c23c2f88d1d2dd",
+    "sources/tr-wiki-4.json": "03875cd59863d92a000e11bfb37d5756972e79877153a0cd6cd1b89eb195b2e7",
+    "sources/vi-video-0.json": "4bb2698d99a2ff5e50fe93b2ffe18d8c35007c5aabc181d63fb474deff4bee5c",
+    "sources/vi-video-1.json": "549a6d37fc4792a06bd4ca29e516985346a3c13731e5e12f05c6c9b80a50f2d3",
+    "sources/vi-video-2.json": "10ea0864f48e890739236df53dc237feff561cb8015d5148e67acade1b04618e",
+    "sources/vi-video-3.json": "b4d108e541347545673f396a30beadd4c4bf6aca2581beaa4731e46ae71ef67c",
+    "sources/vi-video-4.json": "5f51a06f86225a07a3bf5ddbc3d4b016156da90222cc00b969ac4d70581b9f4d",
+    "sources/vi-wiki-0.json": "c2c257809436f578a4f4c4697195970f97ad09597bd60df8287f3ca11149e49a",
+    "sources/vi-wiki-1.json": "9f11496c913b44d41cd88974453f06beea02e5281594c29851d21ec58e67e7f5",
+    "sources/vi-wiki-2.json": "72581a9401b42188863139140cdba3934a77a9f90959f0001792f429a5cc6d95",
+    "sources/vi-wiki-3.json": "c23cd4a3f0ba74517b95a75a6be69a0b8811f5ee4518f8935c669b537b593fef",
+    "sources/vi-wiki-4.json": "2e97d427763da5aa848bfd97c196665a1d3a9f6550c2f92173c6b4ed283d87a1",
+    "sources/zh-video-0.json": "de12f8bc4f55a49c88b2ba66c71c330e7845a8db49c1cbab106c4251d8eef982",
+    "sources/zh-video-1.json": "e5e9eeb63e00c0f3e5355c6a51bfaeccbc44e0ef0f55cc53d04c9407500c28f0",
+    "sources/zh-video-2.json": "7ebfc7c6911481c58af273ff6d110655901696e0a5e9bcb3ec5832a1b8d3af14",
+    "sources/zh-video-3.json": "623d4b25819af80e0cdadbd02132fa351309554b8040e9361adb94b99a2a9e9b",
+    "sources/zh-video-4.json": "bc7155c415ba645eaae177fef1e0461c5060d2713cb3167bd8f815fb8a15402c",
+    "sources/zh-wiki-0.json": "438ff67bfd55b704b9e7662220bf89f12240490806318472c8b1c340314ac011",
+    "sources/zh-wiki-1.json": "31dbc788b7ad4810bc5715bd7c8eb4638e0f443e14278e36841066785ae2c5e2",
+    "sources/zh-wiki-2.json": "6fa58c4703b412d5883fcf7758b429ab6df510c38a1d859690cbddd4c273bd0a",
+    "sources/zh-wiki-3.json": "2d7b30e437cf43ebec46f24dda4414bce3e8ea4ab08db0d2190f673d670d2fa0",
+    "sources/zh-wiki-4.json": "5b4828eaf5bcc31f2925cf57edbd7ff361fde78858c97dd8263004a8d336abfc",
+    "rows/ar-video-0-gemini_only.json": "1e348ddabfd6e868a911fee8958d117f8e2c5a12fa2aed0e38a640f648f3fecc",
+    "rows/ar-video-0-mercury_chain.json": "f9994aac1c34f2ac84dd165eb222058f0903c3b35300e5e8adaaae29f3948635",
+    "rows/ar-video-3-gemini_only.json": "32cf4d3c3474da10c6f17f64e52876887bee6f327ac2609fdd811e91d36a4ac1",
+    "rows/ar-video-3-mercury_chain.json": "413fd7e567c2867b5a2c3768701f294f47bf5bf625b4773d5fbfa950832c810f",
+    "rows/ar-wiki-0-gemini_only.json": "5d69eee07f3fcb5a862e602120115ca74c9272dac53fcef15b0e179ed9181e74",
+    "rows/ar-wiki-0-mercury_chain.json": "ba249e3d889e6f0a41013cf6d2d42b52d710e8ecc543aff8b01fcb277d1c2f6b",
+    "rows/ar-wiki-3-gemini_only.json": "53222cd7db22bffa465fedff1e064f3fe730c937f86b4a3d7375855c98f7766f",
+    "rows/ar-wiki-3-mercury_chain.json": "e4752bcd667aea1a48bbaa50c265fe5cd6cdb05ce667bcb25656573ae098af88",
+    "rows/cs-video-0-gemini_only.json": "c0f11a58dbbe192efea7f8fa1773708b52a916d591fa3cbcc5ebf5cddd090d65",
+    "rows/cs-video-0-mercury_chain.json": "bbbabddc4bb27f6109b0c8710258b02405e9a351a14368816e2b837eb0e2fda3",
+    "rows/cs-video-3-gemini_only.json": "04a69b435ff3789a35e2c7ef8fbd360abb65312e0765e26110ea1279a963f236",
+    "rows/cs-video-3-mercury_chain.json": "941859a1dba93ac3ecb2925dc8c64f26fe60a8e893f5724c68c91acbb6081958",
+    "rows/cs-wiki-0-gemini_only.json": "385f37b0e8a04cfc07db99a55cb0f2a9ab8ae420c2139cd75463c5ee9b891303",
+    "rows/cs-wiki-0-mercury_chain.json": "2009420347dc1e228f9407102daef3c8423497926a9210e0f8fa921738984692",
+    "rows/cs-wiki-3-gemini_only.json": "f0259acba06bd89701fb895f1287b85ccea403e45c622c997e51b11e475b6790",
+    "rows/cs-wiki-3-mercury_chain.json": "8caca1dda8e277750be72bd84e8578d0fae3413a2d6ddbd17e93b763645c5e4d",
+    "rows/de-video-0-gemini_only.json": "8ce9c67c8c618422a411eca87e96be37d39e6abf1b1320e6e246d99adb138abb",
+    "rows/de-video-0-mercury_chain.json": "2f0f7d4ca5666385d343baaa63916b68d4808a54feeef90d8e90a8bd78e12436",
+    "rows/de-video-3-gemini_only.json": "14917fe1d368077e5bf3eed733b9fda682cb0d484f0f96170e036190b76ec2e3",
+    "rows/de-video-3-mercury_chain.json": "1c2bff968e0c5a5f003a20916a658c37fb766aa94d3752080341a8853bab5fab",
+    "rows/de-wiki-0-gemini_only.json": "695619e47084586ca9bb5bdbe69443b6057c278e4497d45af2e704a3cb64455b",
+    "rows/de-wiki-0-mercury_chain.json": "d0e715210dc663ec68fd9495d4eb05d1c7c1a692ba8ec482fc515cfce4a71b6d",
+    "rows/de-wiki-3-gemini_only.json": "b62543bee280849e16783b324d92ceb1bc0788ff5faab666c0df390cb15c8642",
+    "rows/de-wiki-3-mercury_chain.json": "6e1f2c025f7421177d6dd4c05f4720f7aa2be61a75997b8eb3d8158fcd707794",
+    "rows/en-video-0-gemini_only.json": "57cd3671737c5fbce35cea164f6f9a739629e39d024a8cb741a36e7f4c767068",
+    "rows/en-video-0-mercury_chain.json": "32613def983adfc48e0612c112d8fe390a67e5f2ae2a339d017f4d5f7fd13ab6",
+    "rows/en-video-3-gemini_only.json": "6bc340623af88e4a704749bba37f27cfe7804ae2c9cada2784b9d09247930ea9",
+    "rows/en-video-3-mercury_chain.json": "b5039240ad987416850d14acf253fec4a154db065786968613c143f51ee92cbe",
+    "rows/en-wiki-0-gemini_only.json": "2abfca77ff157114e36d7db2926dbd4e5a68a59a71f22bbbba5bf17a34a2411b",
+    "rows/en-wiki-0-mercury_chain.json": "726d44f6751088b0d7c474f2142c28b3852162afca64bd304cc9e0b46a077522",
+    "rows/en-wiki-3-gemini_only.json": "bc6261e1c10a115ea452271db7cd88074f771a43b7372e707635cec64588a311",
+    "rows/en-wiki-3-mercury_chain.json": "fc2990ee4761a5531681e436dffd70db9008890c4ac8f410f7dbe526b2429102",
+    "rows/es-video-0-gemini_only.json": "c98db76753e488466f47c1257b4d41b2cea056f6e285547fb065c62b7790690f",
+    "rows/es-video-0-mercury_chain.json": "7c3d09c50130a7663e230a8334f2654ea00545f86b0762010b3873d53081de00",
+    "rows/es-video-3-gemini_only.json": "22f99b9f5e2ad8862a3aa269b7b086f1daa24e2faf41e49132be4655d3fc40fe",
+    "rows/es-video-3-mercury_chain.json": "f4ee26f6b49d905f3c1e6e4d76220833b9085b25fbd56ea62cd23a572577845a",
+    "rows/es-wiki-0-gemini_only.json": "231bd4f6aa678d2180ecbdaa8393e4f2452b9af4514700ef0f0360e045327504",
+    "rows/es-wiki-0-mercury_chain.json": "0782e9d9eafb343ab886d11af20779290b3c15456f2464754532ad90641eefc4",
+    "rows/es-wiki-3-gemini_only.json": "0008adf3591f56428324ccdf0ed5536c49a7fd698cc2b2dbb727ee8afdd80c03",
+    "rows/es-wiki-3-mercury_chain.json": "d37e8025afe594eabea497ffd25e989fe4a6011c16028355fe466f0a4e17f74c",
+    "rows/fr-video-0-gemini_only.json": "3523161e671556cce87d943583a213039392764ab42ad9e0d4a329a33f1cd7e3",
+    "rows/fr-video-0-mercury_chain.json": "81dfd5fd188b2b0377109a9d38dad3d810795a188eb2f4af83d832db29c46059",
+    "rows/fr-video-3-gemini_only.json": "ea97b42b95dc7f75a7d787f249a46551ac372cd177f68358a80d6358f2168e76",
+    "rows/fr-video-3-mercury_chain.json": "7167c2aa3d52d3061e3fc98fe716f47aa3cd8d1d5ced91e599ee2c11346b2fc5",
+    "rows/fr-wiki-0-gemini_only.json": "5ce830bbba99d8e92ef8c0ee1bd1c2ccff9222459fcf6e84606e1bd6b03893cb",
+    "rows/fr-wiki-0-mercury_chain.json": "eb92bf7e909a568b9b61ddcb4a55f42e5fd0e043aee680991943e70a1edc3ce4",
+    "rows/fr-wiki-3-gemini_only.json": "6599debf7ad705677fa27865eaaf578009ea0dba7a3384e2369c70c4f4321565",
+    "rows/fr-wiki-3-mercury_chain.json": "c76e1c97667a2d86fc3e2e1896763bd6c6f733302e852dfdd4d481f42a6bcfde",
+    "rows/hi-video-0-gemini_only.json": "90cc575a2378a2f85ea13d0c93ca2054dba3f42e1e4877b195d32cadb596f612",
+    "rows/hi-video-0-mercury_chain.json": "952e51c9a7305a0b112e606359ccbd46191e04e2cb43448db435c5e2d29f4926",
+    "rows/hi-video-3-gemini_only.json": "474e5f89a015031a67d076855b26ea741a02874e1549df0e6482f9356365d1c4",
+    "rows/hi-video-3-mercury_chain.json": "baa47ccbae3c55851986532b0c45ac8b93a978e621f9ac14ac7a4cfcafbfacbc",
+    "rows/hi-wiki-0-gemini_only.json": "616a959eef152d8755a8056148af2d01994ba931acecec2a53e13fd9386bebe1",
+    "rows/hi-wiki-0-mercury_chain.json": "a0090103057e1ebd1979178e0c558b48a85f2db57c71e28d81689ae09733042f",
+    "rows/hi-wiki-3-gemini_only.json": "48fc7bc599af88f9bef485b71504f82e589856752201865d39de169ef4b34281",
+    "rows/hi-wiki-3-mercury_chain.json": "5055f1f8420ff01358ad85120cc0de4f3e74a86beaa38a9e0555c49632d13b86",
+    "rows/id-video-0-gemini_only.json": "32b566c6aebfda49e84bd3d9adc90588b58772e10652d96eb53e12a229948da1",
+    "rows/id-video-0-mercury_chain.json": "65a0d5189ef58a8845fb8c8a0419817a5b4aab3b5b9328c4957a68eeac1f6c41",
+    "rows/id-video-3-gemini_only.json": "d7a313482eaf25a2c3023f183d5ede1198863ef93d18e890582d59c58d78888e",
+    "rows/id-video-3-mercury_chain.json": "5a2ed9057bcc7df49ef711211fe7db66f0fb81a66c645322f8209c798d9f6e9f",
+    "rows/id-wiki-0-gemini_only.json": "e1b274edc066d804cf1e0749c2980a8235123506da13ef7637c4d716573d10f7",
+    "rows/id-wiki-0-mercury_chain.json": "a6b9578011fbada1a2d39ff0a7b42434a0cbdd3f60c5e78cefb2d8b36e2b6834",
+    "rows/id-wiki-3-gemini_only.json": "ee4869b239438774f9bae57d9edc46510f2451da598b4426d43d63c354e5e30e",
+    "rows/id-wiki-3-mercury_chain.json": "00e5374c98ca719150991f91de41779b876502dda7f4b6edf77eb0f53af4d213",
+    "rows/it-video-0-gemini_only.json": "97127241488c591cad812a22d32640d4473df8c1a93c06fa357b6683b83f0d03",
+    "rows/it-video-0-mercury_chain.json": "477b63476241f79e3ed4a1cfc6e0ae302638a91f7edd83e0c3bce0056a6de5b4",
+    "rows/it-video-3-gemini_only.json": "520d750aad359e8ceb58f74e4ea0e54ffd6478de73f9b98883c8cf31f5b61838",
+    "rows/it-video-3-mercury_chain.json": "b5c53a56ba941d4fcb3e3e10e7cd298df7c11f0b405e7743966d7902745aa39b",
+    "rows/it-wiki-0-gemini_only.json": "c65cd270c05a3358d885fc6ff1d19d012be06d0f1aa796e4e57d07f3d2511f28",
+    "rows/it-wiki-0-mercury_chain.json": "0ed5d40640eb6487257a357f86eadc2eca17b65279961fa39aff8828b42cd0bd",
+    "rows/it-wiki-3-gemini_only.json": "8b2fcbc6e258540dd4da135522633664a058771dda6f7fb7d4e44d00da852ca7",
+    "rows/it-wiki-3-mercury_chain.json": "52fab84ecacb8ddfbd83f538d44a8b235b3f721f63edce9f969705ca754edc99",
+    "rows/ja-video-0-gemini_only.json": "2f5244aa8f8357d1f87aa1e9a1d63ff560abd7696c0b72250c6164a8843547c8",
+    "rows/ja-video-0-mercury_chain.json": "22b7e89bd42e64ccaaee6dad1173656a49c83913cdd7b62695ad237737d9c89d",
+    "rows/ja-video-3-gemini_only.json": "00204d04e55023b7f7874af911198528668c6061b61645ef46754cc8c2173d9e",
+    "rows/ja-video-3-mercury_chain.json": "084e97570f7af0e9928c52589eb409697bda20f531631182426a21bfa81f396c",
+    "rows/ja-wiki-0-gemini_only.json": "eee21c189bc941177240366af99d107f9ec32419cc57d14d2d4a3c21b9c84351",
+    "rows/ja-wiki-0-mercury_chain.json": "f1eb60faef3094c289688d722295c0de9304592651b8398535e6d01780feb6a5",
+    "rows/ja-wiki-3-gemini_only.json": "23ecb0c92f9d34792edfbc28ad91192b0b599ba6f24b5b8a1d4df8b65496bf22",
+    "rows/ja-wiki-3-mercury_chain.json": "8b246f45a9aecf6589c87b9999aff2c1badd69fd7b86ae97ab54d71928db8e55",
+    "rows/ko-video-0-gemini_only.json": "cd2cce1e90cd82a81c22cca2882827e762bab269a507e57181da22cc6d32f667",
+    "rows/ko-video-0-mercury_chain.json": "d23a1573b4e1d3162bf6989ec998af9277550c747665e9bd92c19ded6cc999e5",
+    "rows/ko-video-3-gemini_only.json": "80e395d0ba80c9de25533a186c603be2449581204b84450db65d6885fd5ec4a9",
+    "rows/ko-video-3-mercury_chain.json": "7f4515b9c8d6d007c77b6fef61f5c4bb797bea5337575e69ed593002977a0a75",
+    "rows/ko-wiki-0-gemini_only.json": "b75e547b8870483bda9b8cafa2f496bfd972e07bbd79941033a5c4e9131c3cae",
+    "rows/ko-wiki-0-mercury_chain.json": "d4ddf5b2f00e49beec3efdb57b8539d8d6d8c068ac598fe8b96646a4fd66477d",
+    "rows/ko-wiki-3-gemini_only.json": "02487db837e4b447ec1e7a494d7406c3c199fda05f21ef9d5a7775901d6d9822",
+    "rows/ko-wiki-3-mercury_chain.json": "d1c87023c83168df198669adc9fc46b5b2e79787f37d42f377ecb20e9e5417fd",
+    "rows/nl-video-0-gemini_only.json": "4003bebea01343457aa1a69aaf18b2ed523ee2020c763dd6e0c10775247beebb",
+    "rows/nl-video-0-mercury_chain.json": "a49fc1981dd96930ad1a85aedbc9beae3ed60c4e8456fe2660463e9d3a841c29",
+    "rows/nl-video-3-gemini_only.json": "81270dc777b69108cce726383588d05be68310fa4a62366e9baff380b4ae0c01",
+    "rows/nl-video-3-mercury_chain.json": "9822db1a19c4a0451cf4c22e531f58e88679ac038f3b55d31ceaf909f45868aa",
+    "rows/nl-wiki-0-gemini_only.json": "785e1831f578b357b23721c7082c158223f1843264083ba670630451aefc385f",
+    "rows/nl-wiki-0-mercury_chain.json": "3d864de4b3de924fe4c776f2806a955f4a3cb86b2ff829809acb74c38b904737",
+    "rows/nl-wiki-3-gemini_only.json": "55e86326900c4f5464d701e8c41e5d1fbbd512d50cdb7ff03786cc922589db42",
+    "rows/nl-wiki-3-mercury_chain.json": "2c34550d6c867c2b8a701330899395070d1216312a153742a15860fac722b208",
+    "rows/pl-video-0-gemini_only.json": "b28355d7f319303652570e08a9f27274b02f1d3e3debc47412e02a19310b74e7",
+    "rows/pl-video-0-mercury_chain.json": "7a408d10dfe372a62adbcf8de035637eda6c59ab70bdd7ede530a5a72622bf0b",
+    "rows/pl-video-3-gemini_only.json": "5de92ddd0835bfd29d63188b95e88bdfca5a985c317d4f22ff819b95cc12b31d",
+    "rows/pl-video-3-mercury_chain.json": "de269d9e6d183c41b11743a7bf11d9d5c97128b0dca6fd6aedeb84e6ba80c50a",
+    "rows/pl-wiki-0-gemini_only.json": "635fa8d19594105fd329c8c413db481269ea98d3c02cba0bf0a53d3f47f5a193",
+    "rows/pl-wiki-0-mercury_chain.json": "d24eaeddaa033701cfc47fa45e2e41053667f0e2df1b308fb09873bd892cd96f",
+    "rows/pl-wiki-3-gemini_only.json": "15cb186c3540be494673b3c25eaf98481db4bba11fbe43a18113c728adef59d5",
+    "rows/pl-wiki-3-mercury_chain.json": "fbb17b6dcd488a456b7b1d6ca848e1b93a1a8be12be7c5be14484542e61c814c",
+    "rows/pt-video-0-gemini_only.json": "8555d6221e9faef5da20a1673bb7f70e825c530da078f9a481b59b489f74722a",
+    "rows/pt-video-0-mercury_chain.json": "a33a3fb2848ddc3e7cc40679693ae131672de745442a0badf37e9f501f65d548",
+    "rows/pt-video-3-gemini_only.json": "9317808fe1c1eec786fe1ceec115695a264114d45eef7665ce7a16031238a351",
+    "rows/pt-video-3-mercury_chain.json": "30d7f17fde888a45498a5cc1d2030acd66eaabec60b77e2b861ae21356a62e68",
+    "rows/pt-wiki-0-gemini_only.json": "e7da284917f24500bd66a8adae83c57ba0ca0b1486a415b1fb80e8dd43cf6c64",
+    "rows/pt-wiki-0-mercury_chain.json": "1854c2ff2d8f4306d4bfee373ec591478f5134c95eb74bfa6188c7590d90999c",
+    "rows/pt-wiki-3-gemini_only.json": "c514c0258097deb6b4d9ef26660fd3206854cd1cdc6077af5e60ea519f53eb5c",
+    "rows/pt-wiki-3-mercury_chain.json": "bbe9da470e308c9df7dce36a8123c177696812d065facbabe556b503dd194711",
+    "rows/ru-video-0-gemini_only.json": "f2a00f631db2d24d2a8ec435e0ec22227f13a0bf68a806839a8d960aa993e83c",
+    "rows/ru-video-0-mercury_chain.json": "782e7b3ed63292500e08963b40f4570a5a090c4e44b29021e6527f6e64488956",
+    "rows/ru-video-3-gemini_only.json": "e3603b960219cc7293211e0f4fbe60577dfd155fc6f3d0fc07cfc95ac5fcc54e",
+    "rows/ru-video-3-mercury_chain.json": "1005aed935412a7c61e573552a1829ba46e5be34a79e24ac02984d43f84c0e02",
+    "rows/ru-wiki-0-gemini_only.json": "47d973b5dd2f670d5d04637194a1bbdddbd31c9cb35d90e9a7a2e408a02fd566",
+    "rows/ru-wiki-0-mercury_chain.json": "8064c4f7f8a373c67f501bb0522b9ceb771b95a0451496389919cfab8a535fe0",
+    "rows/ru-wiki-3-gemini_only.json": "f7a46b34eb1ae566934d464ac13ffd12034b162c0ed86e3541263e9af9b630a7",
+    "rows/ru-wiki-3-mercury_chain.json": "53c4edf96b0b5da726c1aeb80d22acc6125ebb19523300f814671ec252865a0c",
+    "rows/sv-video-0-gemini_only.json": "86a3b3ebba012faf6d81c0c4e21af29e1738cfadd96e7a326cf6bc12e1fa04ef",
+    "rows/sv-video-0-mercury_chain.json": "d7722d7454c7fbb853e7033c325baee6b39ba8852ecd45165f18620a2759e6d5",
+    "rows/sv-video-3-gemini_only.json": "388be2278bdc42bfb0e218d27ae5f977c34c715d16618eed5f4d9eaf045e7f7f",
+    "rows/sv-video-3-mercury_chain.json": "ccacacb00c04e50d11b631fd0a72a4828796e92fab6cfa6dda1f22990af7d961",
+    "rows/sv-wiki-0-gemini_only.json": "ab6d3a98906c88da10443fe38f5277bbdd2c73b741f17f40ca867598cae197a4",
+    "rows/sv-wiki-0-mercury_chain.json": "505cfa7d2dea9e51a753a9185470e780a5f89fec67a63c3a9f064f3a12a12559",
+    "rows/sv-wiki-3-gemini_only.json": "8bd5795e060b0bb4fa17c001893cf5598bbdbb51c7ed069081ab77ba1eab474c",
+    "rows/sv-wiki-3-mercury_chain.json": "b397272fd38a378ada85988933fcff32b3a0d15b1cafbfdb11276472f7a82163",
+    "rows/th-video-0-gemini_only.json": "a234a56076dbfe2f71e9445956481dacd68dbd394d5f1842ddc0924a03c61efa",
+    "rows/th-video-0-mercury_chain.json": "921904b69525db6cf6f10a9a82017cc15176238c1b43df4efe8995043a921572",
+    "rows/th-video-3-gemini_only.json": "9d9712f4e4ca2dd9217a9aff2d0b390fe1e49c467919a590e6fa1ad36e9b087e",
+    "rows/th-video-3-mercury_chain.json": "f6e0eb04146e8eb5a6c5450d5501a12058fe0cef75446c8f7d9c71c89e341f94",
+    "rows/th-wiki-0-gemini_only.json": "b0df97003db55bb70eeb3289202ecc901f0a932d24c364fcf2a1da773c3519c2",
+    "rows/th-wiki-0-mercury_chain.json": "a5e3c9df034e26c90e6bde541b3bc7959750a8059cdc15c4ca64bac5d3e819b1",
+    "rows/tr-video-0-gemini_only.json": "ef04ab60a3239484d8a679e111df7cd61ae0f1634ca4ef01106ffd6d7ed1c092",
+    "rows/tr-video-0-mercury_chain.json": "c8617fceb4ba6f7ffffd0aa6152d27441bc86eebd309d2e9c1dfa1f282438c4f",
+    "rows/tr-video-3-gemini_only.json": "8f112b62d085d95c8967defdf8d9b2c430fe4098c55634b46cf835df073197b1",
+    "rows/tr-video-3-mercury_chain.json": "930561b11743c24585f950e2c0a67761f36994a9c5dbf388d9ffc4faa8dc3c0b",
+    "rows/tr-wiki-0-gemini_only.json": "46cab6f504f40710ea86916cc4f0ef0e98ad0e5d2ea5475fe7688c2afb7b983a",
+    "rows/tr-wiki-0-mercury_chain.json": "41360916b6b91cac5afea44a8a35a3c82c0f1f4b78ba34229f3c09ac9491f02b",
+    "rows/tr-wiki-3-gemini_only.json": "e786a6f306de98c815fc6a088aad9bf44e8c8b64d04e617f003f60b0ed5158f7",
+    "rows/tr-wiki-3-mercury_chain.json": "89afe4d00e6805755874eb116b1460df84f6cfc83b731b4a714876b8aadfd27d",
+    "rows/vi-video-0-gemini_only.json": "bab8a4e22dc6b6ed57a1658f90a5ef12a4be18a03718fd358ec59fa4c2984452",
+    "rows/vi-video-0-mercury_chain.json": "101714b2b46789315ac1d4155f3f49059ea1adab2a2f952f3442aedf8a4ba3b5",
+    "rows/vi-video-3-gemini_only.json": "209703c2d7e4a684f4c35bb26116b42e2938a588b9581b9e4fd58e9ba0ec5d18",
+    "rows/vi-video-3-mercury_chain.json": "c94ab8b1634160e37ed6c10f2dc36109d188435493f705f4ee84f3df2bc4380b",
+    "rows/vi-wiki-0-gemini_only.json": "c75951b8621b04557a866839f77da80783b42021bc2cddc9e7d8771fa76ec650",
+    "rows/vi-wiki-0-mercury_chain.json": "3040dcce6cd02ec1323d268e1626b59444791c805295f64dfe907675c4ffe9a6",
+    "rows/zh-video-0-gemini_only.json": "ac06904d9a0649d612616241832f97b1306c7b743c4697b37042e8d46c6092de",
+    "rows/zh-video-0-mercury_chain.json": "f34c63ec7e013b22dbbe26810273cf31f1da81065412e3fa59e225e24de3aa70",
+    "rows/zh-video-3-gemini_only.json": "bb53c716a1737bd00d2ccdb883ee5edd9d6d65cf39553c055d4c4f20d07bcd56",
+    "rows/zh-video-3-mercury_chain.json": "9575465f4d1cf6289d62f49ea13cf66979cbfacdf84acbcdd16a9906b9732e86",
+    "rows/zh-wiki-0-gemini_only.json": "8c5b6233d84222e4fb160c420ecb4955a396afbe7ce4938d0b2b2e2474964539",
+    "rows/zh-wiki-0-mercury_chain.json": "9ecfe7f1baa63c748892d685ecb7b57115d013cd4f5288399728b794777fa0e8",
+    "rows/zh-wiki-3-gemini_only.json": "48368bc78d1bfb0e0ee4c7e048af1fd2e9fb3232a472cde3cff9224eb96fb00d",
+    "rows/zh-wiki-3-mercury_chain.json": "8ba688d3f7315439fbaef3da9568b51f1b9499e02d950ba89a537ec19ca6d149"
+  },
+  "recorded_frozen_source_acquisition_separate_not_new_replay_spend": {
+    "captured_native_calls": 692,
+    "input_tokens": 1071061,
+    "output_tokens": 128926,
+    "known_jev_supplier_usd": 0.04498456200000003,
+    "unpriced_or_missing_usage": 0,
+    "native_hosts": {
+      "api.typesafe.ai": 692
+    },
+    "brave_and_other_retrieval_cost_usd": null,
+    "limits": "Recorded original acquisition gates only; never add copies in frozen replay again. Complete search/enrichment request billing is not captured, so discovery cost is not assumed zero."
+  },
+  "limits": [
+    "Writer comparison on frozen source cohort is not an original pre-Jev architecture comparison.",
+    "Planned200 and eligible168 denominators differ; source32shortfalls are not writer failures.",
+    "Costs include all writer attempts and archived paid rows; exclude independent locale assessment and shared acquisition gates.",
+    "Google missing cache telemetry and failed/canceled requests can prevent precise billed cost; amounts are supplier tariff estimates before credits.",
+    "Gate-answer/format/locale diagnostics are automated and distinct from adjudicated independent quality labels.",
+    "No label is inferred clean from absence of findings; partial review denominators are explicit.",
+    "Native SDK captures may omit model latency; facade attempt timings are not pure provider service times.",
+    "Missing Mercury facade cost is recovered only from exact matched native HTTP200 usage, once; canceled requests with no usage remain unknown. Immutable raw summary may omit these billed adapter-error responses.",
+    "Repeated acquisition contexts can be genuinely billed separately; frozen copies are not added to new writing cost.",
+    "Raw evidence remains unchanged. No provider, account, pool, runtime or production mutation occurs."
+  ]
+}

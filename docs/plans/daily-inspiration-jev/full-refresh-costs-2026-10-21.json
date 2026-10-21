@@ -1,0 +1,630 @@
+{
+  "receipt_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v6-final-costs-20261021",
+  "comparison_exact_deadline_root": "/home/superdev/projects/.openmates-runtime/product-stack/test-results/d115-v6-original-vs-current-costs-20261021",
+  "raw_receipts_modified": false,
+  "refreshes": [
+    {
+      "mode": "original-deadline-30s",
+      "language": "en",
+      "status": "complete",
+      "counts": {
+        "video": 1,
+        "wiki": 2,
+        "feature": 4
+      },
+      "generated_cards_admitted": 3,
+      "input_count": null,
+      "output_count": null,
+      "seconds": 32.25492210127413,
+      "historical_deadlines": {
+        "request_seconds": 30,
+        "total_seconds": 30
+      },
+      "full_ten_card_refresh": false,
+      "logical_calls": 6,
+      "logical_requested_models": {
+        "mistral/mistral-small-latest": 6
+      },
+      "observed_models": [
+        "mistral-small-latest"
+      ],
+      "native_http_hosts": {
+        "api.mistral.ai": 6
+      },
+      "native_http_error_counts": {},
+      "native_http_status_counts": {
+        "200": 6
+      },
+      "google_sdk_requests": 0,
+      "google_sdk_error_counts": {},
+      "google_observed_models": [],
+      "facade_error_results": 0,
+      "writer_usage_records": 6,
+      "writer_input_tokens": 10483,
+      "writer_output_tokens": 4024,
+      "output_reasoning_tokens_subset": 0,
+      "writer_usage_incomplete_cost_records": 0,
+      "writer_unknown_cache_records": 0,
+      "native_jev_calls": 0,
+      "native_jev_input_tokens": 0,
+      "native_jev_output_tokens": 0,
+      "native_jev_missing_usage": 0,
+      "raw_jev_accounting_rows_never_summed": 0,
+      "writer_launch_usd": 0.00390693,
+      "writer_regular_mercury_reprice_usd": 0.00390693,
+      "native_jev_usd": 0,
+      "gross_brave_usd": 0.015,
+      "known_or_uncached_estimate_inference_launch_usd": 0.00390693,
+      "known_or_uncached_estimate_gross_launch_usd": 0.01890693,
+      "known_or_uncached_estimate_gross_regular_usd": 0.01890693,
+      "gross_launch_per_attempt_usd": 0.01890693,
+      "gross_launch_per_admitted_generated_card_usd": 0.006302309999999999,
+      "gross_regular_per_admitted_generated_card_usd": 0.006302309999999999,
+      "source_ids": [
+        "Dfvyoir_SCY",
+        "Laki",
+        "Buzz_pollination"
+      ]
+    },
+    {
+      "mode": "original-deadline-30s",
+      "language": "ja",
+      "status": "complete",
+      "counts": {
+        "video": 0,
+        "wiki": 2,
+        "feature": 4
+      },
+      "generated_cards_admitted": 2,
+      "input_count": null,
+      "output_count": null,
+      "seconds": 37.54544949345291,
+      "historical_deadlines": {
+        "request_seconds": 30,
+        "total_seconds": 30
+      },
+      "full_ten_card_refresh": false,
+      "logical_calls": 5,
+      "logical_requested_models": {
+        "mistral/mistral-small-latest": 5
+      },
+      "observed_models": [
+        "mistral-small-latest"
+      ],
+      "native_http_hosts": {
+        "api.mistral.ai": 5
+      },
+      "native_http_error_counts": {},
+      "native_http_status_counts": {
+        "200": 5
+      },
+      "google_sdk_requests": 0,
+      "google_sdk_error_counts": {},
+      "google_observed_models": [],
+      "facade_error_results": 0,
+      "writer_usage_records": 5,
+      "writer_input_tokens": 13258,
+      "writer_output_tokens": 4551,
+      "output_reasoning_tokens_subset": 0,
+      "writer_usage_incomplete_cost_records": 0,
+      "writer_unknown_cache_records": 0,
+      "native_jev_calls": 0,
+      "native_jev_input_tokens": 0,
+      "native_jev_output_tokens": 0,
+      "native_jev_missing_usage": 0,
+      "raw_jev_accounting_rows_never_summed": 0,
+      "writer_launch_usd": 0.004639379999999999,
+      "writer_regular_mercury_reprice_usd": 0.004639379999999999,
+      "native_jev_usd": 0,
+      "gross_brave_usd": 0.015,
+      "known_or_uncached_estimate_inference_launch_usd": 0.004639379999999999,
+      "known_or_uncached_estimate_gross_launch_usd": 0.019639379999999998,
+      "known_or_uncached_estimate_gross_regular_usd": 0.019639379999999998,
+      "gross_launch_per_attempt_usd": 0.019639379999999998,
+      "gross_launch_per_admitted_generated_card_usd": 0.009819689999999999,
+      "gross_regular_per_admitted_generated_card_usd": 0.009819689999999999,
+      "source_ids": [
+        "セント・ヘレンズ山",
+        "送粉者"
+      ]
+    },
+    {
+      "mode": "current",
+      "language": "en",
+      "status": "complete",
+      "counts": {
+        "video": 1,
+        "wiki": 0,
+        "feature": 4
+      },
+      "generated_cards_admitted": 1,
+      "input_count": null,
+      "output_count": null,
+      "seconds": 48.289288986474276,
+      "historical_deadlines": {
+        "request_seconds": 5.0,
+        "total_seconds": 12.0
+      },
+      "full_ten_card_refresh": false,
+      "logical_calls": 6,
+      "logical_requested_models": {
+        "inception/mercury-3": 4,
+        "google/gemini-3.5-flash-lite": 2
+      },
+      "observed_models": [
+        "gemini-3.5-flash-lite",
+        "jev-1.14.0",
+        "mercury-3"
+      ],
+      "native_http_hosts": {
+        "api.typesafe.ai": 27,
+        "api.inceptionlabs.ai": 4
+      },
+      "native_http_error_counts": {},
+      "native_http_status_counts": {
+        "200": 31
+      },
+      "google_sdk_requests": 2,
+      "google_sdk_error_counts": {},
+      "google_observed_models": [
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash-lite"
+      ],
+      "facade_error_results": 0,
+      "writer_usage_records": 6,
+      "writer_input_tokens": 16972,
+      "writer_output_tokens": 13830,
+      "output_reasoning_tokens_subset": 11000,
+      "writer_usage_incomplete_cost_records": 2,
+      "writer_unknown_cache_records": 2,
+      "native_jev_calls": 27,
+      "native_jev_input_tokens": 98005,
+      "native_jev_output_tokens": 22316,
+      "native_jev_missing_usage": 0,
+      "raw_jev_accounting_rows_never_summed": 41,
+      "writer_launch_usd": 0.00941851,
+      "writer_regular_mercury_reprice_usd": 0.01497652,
+      "native_jev_usd": 0.00411621,
+      "gross_brave_usd": 0.015,
+      "known_or_uncached_estimate_inference_launch_usd": 0.01353472,
+      "known_or_uncached_estimate_gross_launch_usd": 0.02853472,
+      "known_or_uncached_estimate_gross_regular_usd": 0.03409273,
+      "gross_launch_per_attempt_usd": 0.02853472,
+      "gross_launch_per_admitted_generated_card_usd": 0.02853472,
+      "gross_regular_per_admitted_generated_card_usd": 0.03409273,
+      "source_ids": [
+        "Dfvyoir_SCY"
+      ]
+    },
+    {
+      "mode": "current",
+      "language": "ja",
+      "status": "complete",
+      "counts": {
+        "video": 0,
+        "wiki": 0,
+        "feature": 4
+      },
+      "generated_cards_admitted": 0,
+      "input_count": null,
+      "output_count": null,
+      "seconds": 55.35625618696213,
+      "historical_deadlines": {
+        "request_seconds": 5.0,
+        "total_seconds": 12.0
+      },
+      "full_ten_card_refresh": false,
+      "logical_calls": 6,
+      "logical_requested_models": {
+        "inception/mercury-3": 4,
+        "google/gemini-3.5-flash-lite": 2
+      },
+      "observed_models": [
+        "gemini-3.5-flash-lite",
+        "jev-1.14.0",
+        "mercury-3"
+      ],
+      "native_http_hosts": {
+        "api.typesafe.ai": 36,
+        "api.inceptionlabs.ai": 4
+      },
+      "native_http_error_counts": {},
+      "native_http_status_counts": {
+        "200": 40
+      },
+      "google_sdk_requests": 2,
+      "google_sdk_error_counts": {},
+      "google_observed_models": [
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash-lite"
+      ],
+      "facade_error_results": 0,
+      "writer_usage_records": 6,
+      "writer_input_tokens": 17119,
+      "writer_output_tokens": 11910,
+      "output_reasoning_tokens_subset": 8621,
+      "writer_usage_incomplete_cost_records": 2,
+      "writer_unknown_cache_records": 2,
+      "native_jev_calls": 36,
+      "native_jev_input_tokens": 157523,
+      "native_jev_output_tokens": 29320,
+      "native_jev_missing_usage": 0,
+      "raw_jev_accounting_rows_never_summed": 56,
+      "writer_launch_usd": 0.00901302,
+      "writer_regular_mercury_reprice_usd": 0.01399554,
+      "native_jev_usd": 0.006615966,
+      "gross_brave_usd": 0.015,
+      "known_or_uncached_estimate_inference_launch_usd": 0.015628986,
+      "known_or_uncached_estimate_gross_launch_usd": 0.030628986,
+      "known_or_uncached_estimate_gross_regular_usd": 0.035611506,
+      "gross_launch_per_attempt_usd": 0.030628986,
+      "gross_launch_per_admitted_generated_card_usd": null,
+      "gross_regular_per_admitted_generated_card_usd": null,
+      "source_ids": []
+    }
+  ],
+  "pool_samples": [
+    {
+      "mode": "current-pool-review",
+      "language": "en",
+      "status": "complete",
+      "counts": {},
+      "generated_cards_admitted": 0,
+      "input_count": 1,
+      "output_count": 0,
+      "seconds": 0.2656912375241518,
+      "historical_deadlines": null,
+      "full_ten_card_refresh": false,
+      "logical_calls": 0,
+      "logical_requested_models": {},
+      "observed_models": [
+        "jev-1.14.0"
+      ],
+      "native_http_hosts": {
+        "api.typesafe.ai": 1
+      },
+      "native_http_error_counts": {},
+      "native_http_status_counts": {
+        "200": 1
+      },
+      "google_sdk_requests": 0,
+      "google_sdk_error_counts": {},
+      "google_observed_models": [],
+      "facade_error_results": 0,
+      "writer_usage_records": 0,
+      "writer_input_tokens": 0,
+      "writer_output_tokens": 0,
+      "output_reasoning_tokens_subset": 0,
+      "writer_usage_incomplete_cost_records": 0,
+      "writer_unknown_cache_records": 0,
+      "native_jev_calls": 1,
+      "native_jev_input_tokens": 3475,
+      "native_jev_output_tokens": 811,
+      "native_jev_missing_usage": 0,
+      "raw_jev_accounting_rows_never_summed": 1,
+      "writer_launch_usd": 0,
+      "writer_regular_mercury_reprice_usd": 0,
+      "native_jev_usd": 0.00014595000000000002,
+      "gross_brave_usd": 0.0,
+      "known_or_uncached_estimate_inference_launch_usd": 0.00014595000000000002,
+      "known_or_uncached_estimate_gross_launch_usd": 0.00014595000000000002,
+      "known_or_uncached_estimate_gross_regular_usd": 0.00014595000000000002,
+      "gross_launch_per_attempt_usd": 0.00014595000000000002,
+      "gross_launch_per_admitted_generated_card_usd": null,
+      "gross_regular_per_admitted_generated_card_usd": null,
+      "source_ids": []
+    },
+    {
+      "mode": "current-pool-review",
+      "language": "ja",
+      "status": "complete",
+      "counts": {},
+      "generated_cards_admitted": 0,
+      "input_count": 0,
+      "output_count": 0,
+      "seconds": 6.184075027704239e-05,
+      "historical_deadlines": null,
+      "full_ten_card_refresh": false,
+      "logical_calls": 0,
+      "logical_requested_models": {},
+      "observed_models": [],
+      "native_http_hosts": {},
+      "native_http_error_counts": {},
+      "native_http_status_counts": {},
+      "google_sdk_requests": 0,
+      "google_sdk_error_counts": {},
+      "google_observed_models": [],
+      "facade_error_results": 0,
+      "writer_usage_records": 0,
+      "writer_input_tokens": 0,
+      "writer_output_tokens": 0,
+      "output_reasoning_tokens_subset": 0,
+      "writer_usage_incomplete_cost_records": 0,
+      "writer_unknown_cache_records": 0,
+      "native_jev_calls": 0,
+      "native_jev_input_tokens": 0,
+      "native_jev_output_tokens": 0,
+      "native_jev_missing_usage": 0,
+      "raw_jev_accounting_rows_never_summed": 0,
+      "writer_launch_usd": 0,
+      "writer_regular_mercury_reprice_usd": 0,
+      "native_jev_usd": 0,
+      "gross_brave_usd": 0.0,
+      "known_or_uncached_estimate_inference_launch_usd": 0,
+      "known_or_uncached_estimate_gross_launch_usd": 0.0,
+      "known_or_uncached_estimate_gross_regular_usd": 0.0,
+      "gross_launch_per_attempt_usd": 0.0,
+      "gross_launch_per_admitted_generated_card_usd": null,
+      "gross_regular_per_admitted_generated_card_usd": null,
+      "source_ids": []
+    }
+  ],
+  "source_receipt_sha256": {
+    "original-deadline-30s/en.json": "a6a71f0c57f6c46cb22e4e4cf594a02b261a7a50ef6f1651edfa754ded153fdc",
+    "original-deadline-30s/ja.json": "4cf5aa12f26dac410ca252d968d5fcb06faa99761e63bee3578bf45f556a0542",
+    "current/en.json": "4faaab7b1a8a6e4d10fd361933efd4cf246b5299bae1e737a3b8d6768fece2ba",
+    "current/ja.json": "9e88c2124d5454b80d345be85922c2cdddc487c3e80d5565740a8b404509249b",
+    "current-pool-review/en.json": "6c06770c6e6d7a19448d674338b553ca3fb41ebd3258db5f3f4f0f1430cc2a49",
+    "current-pool-review/ja.json": "d16e84448342167404e22d88449a8af6a78c352a79b107b131d7af1d0e6edd75"
+  },
+  "component_aggregates": [
+    {
+      "arm": "original-deadline-30s",
+      "component": "channel_classifier",
+      "model": "mistral-small-latest",
+      "calls": 6,
+      "input_tokens": 10039,
+      "output_tokens": 5958,
+      "cached_input_tokens_known": 1184,
+      "launch_supplier_usd": 0.004920809999999999,
+      "regular_mercury_reprice_usd": 0.004920809999999999
+    },
+    {
+      "arm": "original-deadline-30s",
+      "component": "video_writer",
+      "model": "mistral-small-latest",
+      "calls": 2,
+      "input_tokens": 11672,
+      "output_tokens": 1413,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.0025986000000000004,
+      "regular_mercury_reprice_usd": 0.0025986000000000004
+    },
+    {
+      "arm": "original-deadline-30s",
+      "component": "video_adversarial_validator",
+      "model": "mistral-small-latest",
+      "calls": 1,
+      "input_tokens": 860,
+      "output_tokens": 40,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.000153,
+      "regular_mercury_reprice_usd": 0.000153
+    },
+    {
+      "arm": "original-deadline-30s",
+      "component": "wiki_writer",
+      "model": "mistral-small-latest",
+      "calls": 2,
+      "input_tokens": 1170,
+      "output_tokens": 1164,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.0008738999999999999,
+      "regular_mercury_reprice_usd": 0.0008738999999999999
+    },
+    {
+      "arm": "current",
+      "component": "video_writer",
+      "model": "mercury-3",
+      "calls": 4,
+      "input_tokens": 16761,
+      "output_tokens": 12405,
+      "cached_input_tokens_known": 27,
+      "launch_supplier_usd": 0.00601542,
+      "regular_mercury_reprice_usd": 0.01203084
+    },
+    {
+      "arm": "current",
+      "component": "video_writer",
+      "model": "gemini-3.5-flash-lite",
+      "calls": 2,
+      "input_tokens": 8254,
+      "output_tokens": 1023,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.0050337,
+      "regular_mercury_reprice_usd": 0.0050337
+    },
+    {
+      "arm": "current",
+      "component": "wiki_writer",
+      "model": "mercury-3",
+      "calls": 4,
+      "input_tokens": 6035,
+      "output_tokens": 11534,
+      "cached_input_tokens_known": 1281,
+      "launch_supplier_usd": 0.00452511,
+      "regular_mercury_reprice_usd": 0.00905022
+    },
+    {
+      "arm": "current",
+      "component": "wiki_writer",
+      "model": "gemini-3.5-flash-lite",
+      "calls": 2,
+      "input_tokens": 3041,
+      "output_tokens": 778,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.0028573,
+      "regular_mercury_reprice_usd": 0.0028573
+    },
+    {
+      "arm": "current",
+      "component": "jev_source_screening",
+      "model": "jev-1.14.0",
+      "calls": 8,
+      "input_tokens": 91982,
+      "output_tokens": 20262,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.0038632440000000005,
+      "regular_mercury_reprice_usd": 0.0038632440000000005
+    },
+    {
+      "arm": "current",
+      "component": "jev_thumbnail_pixels",
+      "model": "jev-1.14.0",
+      "calls": 34,
+      "input_tokens": 51032,
+      "output_tokens": 1496,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.002143344,
+      "regular_mercury_reprice_usd": 0.002143344
+    },
+    {
+      "arm": "current",
+      "component": "jev_completed_copy",
+      "model": "jev-1.14.0",
+      "calls": 21,
+      "input_tokens": 112514,
+      "output_tokens": 29878,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.004725588,
+      "regular_mercury_reprice_usd": 0.004725588
+    },
+    {
+      "arm": "current-pool-review",
+      "component": "public_pool_jev_completed_copy",
+      "model": "jev-1.14.0",
+      "calls": 1,
+      "input_tokens": 3475,
+      "output_tokens": 811,
+      "cached_input_tokens_known": 0,
+      "launch_supplier_usd": 0.00014595000000000002,
+      "regular_mercury_reprice_usd": 0.00014595000000000002
+    }
+  ],
+  "totals": {
+    "original-deadline-30s": {
+      "attempts": 2,
+      "counts": {
+        "video": 1,
+        "wiki": 4,
+        "feature": 8
+      },
+      "full_ten_card_refreshes": 0,
+      "admitted_generated_cards": 5,
+      "logical_calls": 11,
+      "seconds": 69.80037159472704,
+      "writer_launch_usd": 0.00854631,
+      "writer_regular_mercury_reprice_usd": 0.00854631,
+      "native_jev_usd": 0,
+      "gross_brave_usd": 0.03,
+      "gross_launch_usd": 0.03854631,
+      "gross_regular_usd": 0.03854631,
+      "gross_launch_per_attempt_usd": 0.019273155,
+      "gross_regular_per_attempt_usd": 0.019273155,
+      "gross_launch_per_admitted_generated_card_usd": 0.007709262,
+      "gross_regular_per_admitted_generated_card_usd": 0.007709262,
+      "arithmetic_1000_same_mix_attempts_launch_usd": 19.273155,
+      "arithmetic_1000_same_mix_attempts_regular_usd": 19.273155
+    },
+    "current": {
+      "attempts": 2,
+      "counts": {
+        "video": 1,
+        "wiki": 0,
+        "feature": 8
+      },
+      "full_ten_card_refreshes": 0,
+      "admitted_generated_cards": 1,
+      "logical_calls": 12,
+      "seconds": 103.6455451734364,
+      "writer_launch_usd": 0.01843153,
+      "writer_regular_mercury_reprice_usd": 0.02897206,
+      "native_jev_usd": 0.010732176,
+      "gross_brave_usd": 0.03,
+      "gross_launch_usd": 0.059163705999999996,
+      "gross_regular_usd": 0.069704236,
+      "gross_launch_per_attempt_usd": 0.029581852999999998,
+      "gross_regular_per_attempt_usd": 0.034852118,
+      "gross_launch_per_admitted_generated_card_usd": 0.059163705999999996,
+      "gross_regular_per_admitted_generated_card_usd": 0.069704236,
+      "arithmetic_1000_same_mix_attempts_launch_usd": 29.581853,
+      "arithmetic_1000_same_mix_attempts_regular_usd": 34.852118000000004
+    }
+  },
+  "pool_totals": {
+    "input_entries": 1,
+    "retained_entries": 0,
+    "native_jev_calls": 1,
+    "native_jev_usd": 0.00014595000000000002,
+    "meaning": "One EN entry reviewed, no JA entry available; not two representative nonempty pool batches and not a per-user default fee."
+  },
+  "exact_historical_timing_comparator": {
+    "requested_calls": 10,
+    "native_cancelled_requests": 8,
+    "counts": {
+      "video": 0,
+      "wiki": 2,
+      "feature": 8
+    },
+    "known_inference_usd": 0.00141675,
+    "known_gross_usd_plus_unknown_cancellations": 0.03141675,
+    "limit": "Original5s cap censored8native requests.30s supplement changes only caller request/total budget, not architecture/model/content roles; compare as timing sensitivity, not exact historical production spend."
+  },
+  "method": {
+    "jev": "Use one native_http ledger entry per actual Jev send, response.usage.input_tokens*0.042/1e6; output free. Never sum overlapping raw accounting slices or deduplicate separately billed identical sends.",
+    "writer": "Sum per-attempt facade supplier telemetry once; SDK/native receipts establish actual models/usage, not extra addends. Mercury regular-price sensitivity reprices same tokens at0.20uncached/0.02cached/0.70output perM instead oflaunch0.10/0.01/0.35.",
+    "google": "4SDKsuccesses,4observed gemini-3.5-flash-lite,0ClientError now vs4ClientError in earlier run. All4 costs incomplete because cache-read count omitted; reported supplier upper bounds are finite underuncached pricing. No assumption of zero requestcost or billinginvoice completeness.",
+    "brave": "Gross catalog $5/1000 successful HTTP requests, before account credits;3searches/attempt. Source retrieval differs between setups."
+  },
+  "limits": [
+    "No complete10cardset in either setup; use attempted-refresh and actual-admitted-generated-card denominators only.",
+    "Admitted does not mean independently reviewed source-grounded quality; original and current gates differ and source selection is not paired.",
+    "1000attempt figures are arithmetic rescaling of oneEN+oneJA attempt per setup, not1000measurements,monthlyspend,forecast or savingsclaim.",
+    "Original supplement received11HTTP200 responses with complete token telemetry but only1of6requested videos admitted, so only1validator roleexecuted.",
+    "Current12writer requests allcompleted but still1video/0wiki across2attempts; provider availability is no longer the observed Google obstacle.",
+    "Missing Google cache telemetry, possible invisible internal SDKbilling,retrievalquota,credits andinfra/YouTube/Wikimedia monetarycosts prevent invoice/productiontotal claims."
+  ],
+  "baseline_ref": "c94ebe85a14f87aa3223eacfe129aa85ec93d939",
+  "root_manifest_sha256": "ae780a9b6cde24415a48a5de9dc367e162a5b23af3b64944d6e86c553ee1589f",
+  "tariffs_usd_per_million": {
+    "mistral_small_latest": {
+      "uncached_input": 0.15,
+      "cached_input": 0.015,
+      "output": 0.6
+    },
+    "mercury_launch": {
+      "uncached_input": 0.1,
+      "cached_input": 0.01,
+      "output": 0.35
+    },
+    "mercury_regular": {
+      "uncached_input": 0.2,
+      "cached_input": 0.02,
+      "output": 0.7
+    },
+    "gemini_3_5_flash_lite": {
+      "uncached_input": 0.3,
+      "cached_input": 0.03,
+      "output": 2.5
+    },
+    "jev_1_14": {
+      "input": 0.042,
+      "output": 0
+    }
+  },
+  "current_global_error_summary": {
+    "native_http_errors": 0,
+    "native_http_non_200": 0,
+    "google_sdk_errors": 0,
+    "facade_error_results": 0,
+    "google_successful_native_sdk_responses": 4,
+    "google_returned_model_versions": [
+      "gemini-3.5-flash-lite"
+    ]
+  },
+  "comparison_to_previous_google_failures": {
+    "prior_sdk_clienterrors": 4,
+    "final_sdk_clienterrors": 0,
+    "interpretation": "Final Google SDK calls now return actual model_version and parsed successful facade results. This removes the observed ClientError obstacle; it does not imply editorial admission or invoice completeness."
+  }
+}
