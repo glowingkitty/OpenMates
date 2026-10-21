@@ -21,6 +21,7 @@ import math
 import statistics
 from pathlib import Path
 import time
+import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -505,7 +506,8 @@ def summarize(root, options):
         selected = [row for row in rows if row['arm'] == arm and row.get('status') == 'complete']
         billed_rows = [row for row in [*rows, *prior_rows] if row['arm'] == arm]
         usage = [attempt['result'].get('usage_telemetry') or {} for row in billed_rows for attempt in row['attempts'] if 'result' in attempt]
-        accounting = [item for row in billed_rows for item in row.get('decision_accounting', [])[:row.get('production_decision_count', len(row.get('decision_accounting', [])))]]
+        accounting = [item for row in billed_rows for item in unique_jev_usage(row)]
+        unknown_jev = sum(unknown_jev_attempts(row) for row in billed_rows)
         latencies = sorted(row.get('production_seconds', row['seconds']) for row in selected)
         admitted = sum(len(row['items']) for row in selected)
         summary['arms'][arm] = {
@@ -537,17 +539,119 @@ def summarize(root, options):
                 for row in selected for native in row.get('native_http', [])}),
             'known_supplier_usd_estimate': sum(item.get('supplier_cost_usd') or 0 for item in usage) + sum((item.get('input_tokens') or 0) * .042 / 1e6 for item in accounting),
             'usage_telemetry': usage, 'jev_accounting': accounting,
+            'unknown_jev_usage_attempts': unknown_jev,
+            'jev_transport_accounting': [entry for row in billed_rows for entry in row.get('decision_accounting', [])],
             'unknown_writer_usage_attempts': sum('result' not in attempt for row in billed_rows for attempt in row['attempts']),
-            'cost_complete': len(usage) == sum(len(row['attempts']) for row in billed_rows) and bool(usage) and all(item.get('supplier_cost_complete') for item in usage) and bool(accounting) and all(item.get('input_tokens') is not None for item in accounting),
+            'cost_complete': len(usage) == sum(len(row['attempts']) for row in billed_rows) and bool(usage) and all(item.get('supplier_cost_complete') for item in usage) and bool(accounting) and not unknown_jev and all(item.get('input_tokens') is not None for item in accounting),
             'cost_limit': 'Estimate from observed writer telemetry and Jev input at $0.042/M; missing usage and failed transports can undercount.',
         }
     atomic_json(root / 'summary.json', summary)
     return summary
 
 
-async def run(options):
-    root = Path(options.output_dir).resolve()
-    root.mkdir(parents=True, exist_ok=True)
+def validate_frozen_sources(root, provenance_path, manifest):
+    """Verify the complete immutable retrieval cohort before any billable work."""
+    root = Path(root).resolve()
+    provenance_path = Path(provenance_path).resolve()
+    provenance_bytes = provenance_path.read_bytes()
+    provenance = json.loads(provenance_bytes)
+    origin_name = provenance.get('frozen_input_root')
+    if (not isinstance(origin_name, str) or Path(origin_name).name != origin_name
+            or origin_name in {'', '.', '..'}):
+        raise ValueError('Frozen origin must be a sibling benchmark basename')
+    origin = root.parent / origin_name
+    if origin.resolve() == root:
+        raise ValueError('Frozen origin must differ from the new writer output root')
+    original_bytes = (origin / 'manifest.json').read_bytes()
+    if hashlib.sha256(original_bytes).hexdigest() != provenance.get('original_manifest_sha256'):
+        raise ValueError('Frozen origin manifest SHA mismatch')
+    original = json.loads(original_bytes)
+    for field in ('policy_version', 'languages', 'limit', 'topics', 'exclusions'):
+        if manifest.get(field) != original.get(field):
+            raise ValueError('Frozen source context differs: ' + field)
+    previous_gate = {key: value for key, value in original['source_sha256'].items() if key != 'writer.py'}
+    current_gate = {key: value for key, value in manifest['source_sha256'].items() if key != 'writer.py'}
+    if current_gate != previous_gate:
+        raise ValueError('Frozen source gate application hashes changed')
+    inputs = provenance.get('inputs')
+    if not isinstance(inputs, dict) or not inputs:
+        raise ValueError('Frozen provenance has no pinned inputs')
+    for relative, expected in inputs.items():
+        path = Path(relative)
+        if (path.is_absolute() or '..' in path.parts or len(path.parts) != 2
+                or path.parts[0] not in {'sources', 'thumbnails'}):
+            raise ValueError('Invalid frozen input path')
+        for directory in (root, origin):
+            actual = directory / path
+            if not actual.resolve().is_relative_to(directory.resolve()):
+                raise ValueError('Frozen input escapes its benchmark root')
+            if not actual.is_file() or hashlib.sha256(actual.read_bytes()).hexdigest() != expected:
+                raise ValueError('Frozen input SHA mismatch: ' + relative)
+    actual_inputs = {str(path.relative_to(root)) for directory in ('sources', 'thumbnails')
+                     for path in (root / directory).rglob('*') if path.is_file()}
+    if actual_inputs != set(inputs):
+        raise ValueError('Frozen source/image inventory differs from provenance')
+    required = {f'sources/{language}-{kind}-{index}.json'
+                for language in manifest['languages'] for kind in ('video', 'wiki')
+                for index in range(manifest['limit'])}
+    if {key for key in inputs if key.startswith('sources/')} != required:
+        raise ValueError('Frozen source inventory must contain every requested slot')
+    excluded = {source_identity_key(identity) for identity in manifest['exclusions']['source_ids']}
+    images, complete, shortfalls = set(), 0, 0
+    for relative in sorted(required):
+        source = json.loads((root / relative).read_text())
+        if source.get('status') == 'source_eligibility_shortfall':
+            shortfalls += 1
+            continue
+        if source.get('status') != 'complete':
+            raise ValueError('Frozen source status is not terminal: ' + relative)
+        complete += 1
+        identity = source.get('identity')
+        if not isinstance(identity, str) or source_identity_key(identity) in excluded:
+            raise ValueError('Frozen source has an invalid or excluded identity')
+        if '-video-' in relative:
+            image = source.get('image') or {}
+            image_path = image.get('path')
+            if (not isinstance(image_path, str) or not image_path.startswith('thumbnails/')
+                    or image_path not in inputs or inputs[image_path] != image.get('sha256')):
+                raise ValueError('Frozen video thumbnail is not hash-pinned: ' + relative)
+            images.add(image_path)
+    if images != {key for key in inputs if key.startswith('thumbnails/')}:
+        raise ValueError('Frozen thumbnail inventory has unreferenced or missing images')
+    return {'provenance_sha256': hashlib.sha256(provenance_bytes).hexdigest(),
+            'original_manifest_sha256': provenance['original_manifest_sha256'],
+            'origin': origin_name, 'source_slots': len(required),
+            'eligible_sources': complete, 'terminal_shortfalls': shortfalls,
+            'collection_bypassed': True}
+
+
+def is_locale_decision(receipt):
+    return (receipt.get('phase') == 'locale_assessment'
+            or any(key.endswith('_locale') for key in receipt.get('request', {}).get('questions', {})))
+
+
+def unique_jev_usage(row):
+    """Each recorded Jev response owns one usage value, independent of shared slices."""
+    seen, usage = set(), []
+    for index, receipt in enumerate(row.get('jev', [])):
+        identity = receipt.get('call_id') or ('receipt', index)
+        if identity in seen or is_locale_decision(receipt):
+            continue
+        seen.add(identity)
+        values = receipt.get('response', {}).get('usage') or {}
+        usage.append({'call_id': identity, 'input_tokens': values.get('input_tokens'),
+                      'output_tokens': values.get('output_tokens')})
+    return usage
+
+
+def unknown_jev_attempts(row):
+    # Raw transports retain failed fallback attempts and missing native usage.
+    return sum(not entry.get('success') or entry.get('input_tokens') is None
+               for entry in row.get('decision_accounting', [])
+               if entry.get('phase') != 'locale_assessment')
+
+
+def build_manifest(options):
     manifest = {'comparison': 'writer_and_fresh_final_review_on_shared_live_approved_sources',
                 'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
@@ -559,7 +663,22 @@ async def run(options):
     manifest['arm_order_seed'] = ARM_ORDER_SEED
     manifest['paired_arm_orders'] = arm_order_manifest(options)
     validate_source_manifest(manifest['source_sha256'], options.expected_source_manifest)
+    return manifest
+
+
+async def run(options):
+    root = Path(options.output_dir).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    manifest = build_manifest(options)
+    frozen = getattr(options, 'frozen_source_manifest', None)
+    if frozen:
+        manifest['frozen_sources'] = validate_frozen_sources(root, frozen, manifest)
+    exclusions = manifest['exclusions']
     manifest_path = root / 'manifest.json'
+    if frozen and not manifest_path.exists() and (
+        any((root / 'rows').glob('*.json')) or any((root / 'history' / 'rows').glob('*.json'))
+    ):
+        raise ValueError('Frozen source adoption must start without previous writer rows')
     if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
         raise ValueError('Output manifest differs; use the original code/options or another output directory')
     atomic_json(manifest_path, manifest)
@@ -589,22 +708,28 @@ async def run(options):
 
     class RecordedJev:
         def __init__(self, **kwargs):
-            self.accounting = []
-            self.client = JevDecisionClient(**{**kwargs, 'max_retries': 0, 'accounting': self.accounting})
+            self.options = kwargs
 
         async def evaluate(self, **kwargs):
-            offset = len(self.accounting)
+            call_id, accounting = str(uuid.uuid4()), []
+            phase = ('locale_assessment' if self.options.get('telemetry_task_id', '').endswith('_locale_assessment')
+                     else 'production')
+            # Each concurrent visual review owns its native transport accounting.
+            client = JevDecisionClient(**{**self.options, 'max_retries': 0, 'accounting': accounting})
             try:
-                result = await self.client.evaluate(**kwargs)
-                record('jev', {'request': kwargs, 'response': result.model_dump(mode='json')})
+                result = await client.evaluate(**kwargs)
+                record('jev', {'call_id': call_id, 'phase': phase,
+                               'request': kwargs, 'response': result.model_dump(mode='json')})
                 return result
             finally:
-                for entry in self.accounting[offset:]:
-                    record('decision_accounting', entry)
+                for entry in accounting:
+                    record('decision_accounting', {**entry, 'call_id': call_id, 'phase': phase})
 
     try:
         try:
-            collected = await asyncio.wait_for(collect(options, root, manager, excluded_ids=exclusions['source_ids']), timeout=options.phase_minutes * 60)
+            collected = (True if frozen else await asyncio.wait_for(
+                collect(options, root, manager, excluded_ids=exclusions['source_ids']),
+                timeout=options.phase_minutes * 60))
         except asyncio.TimeoutError:
             return summarize(root, options)
         if not collected:
@@ -701,12 +826,17 @@ def main():
     parser.add_argument('--limit', type=int, choices=range(1, 6), default=5)
     parser.add_argument('--phase-minutes', type=int, choices=range(1, 31), default=30)
     parser.add_argument('--exclude-source-root', help='Previous benchmark root or sources directory; exclude every completed source ID')
+    parser.add_argument('--frozen-source-manifest', help='Pin a complete terminal retrieval cohort and bypass all collection I/O')
     parser.add_argument('--expected-source-manifest', help='Require these reviewed application source hashes before paid calls')
     options = parser.parse_args()
     if not options.execute:
+        frozen_check = None
+        if options.frozen_source_manifest:
+            load_runtime()
+            frozen_check = validate_frozen_sources(Path(options.output_dir), options.frozen_source_manifest, build_manifest(options))
         print(json.dumps({'execute': False, 'languages': options.languages,
                           'planned_cards': len(options.languages) * options.limit * 4,
-                          'logical_concurrency': 1, 'output_dir': options.output_dir,
+                          'logical_concurrency': 1, 'output_dir': options.output_dir, 'frozen_sources': frozen_check,
                           'exclusions': exclusion_manifest(options.exclude_source_root),
                           'arm_order_seed': ARM_ORDER_SEED, 'paired_arm_orders': arm_order_manifest(options)}))
         return

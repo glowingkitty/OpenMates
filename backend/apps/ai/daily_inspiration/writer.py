@@ -79,7 +79,7 @@ async def write_reviewed_cards(
             attempt_request["message_history"] = deepcopy(request["message_history"])
         if index:
             history = attempt_request.get("message_history", [])
-            history.append({"role": "system", "content": (
+            repair_instruction = (
                 "Trusted repair instruction: generate exactly " + str(len(pending))
                 + " cards, one for EACH pending source ID below, and no other cards. "
                 "This remaining count overrides earlier count requirements. Do not regenerate "
@@ -89,7 +89,13 @@ async def write_reviewed_cards(
                 + json.dumps({"pending_source_ids": pending,
                               "rejection_codes": {identity: failures[identity] for identity in pending}},
                              ensure_ascii=True)
-            )})
+            )
+            # Google extracts only the first system message. Keep trusted repair
+            # guidance there so the original user source passage stays the final turn.
+            if history and history[0].get("role") == "system":
+                history[0]["content"] += "\n\n" + repair_instruction
+            else:
+                history.insert(0, {"role": "system", "content": repair_instruction})
             attempt_request["message_history"] = history
         try:
             result = await asyncio.wait_for(writer_call(

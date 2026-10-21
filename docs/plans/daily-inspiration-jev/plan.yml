@@ -39,6 +39,9 @@ decision_notes:
   - Independent automated multilingual labels are not native-speaker sign-off; no human review is fabricated.
 evidence:
   implementation_commit: 1c753c461f9b97e1bc1e4c61c1d06b431e19bae1
+  granular_candidate: dcb0932f5711c075f95efb83984ae97993edc738
+  granular_local: 152 focused backend and benchmark tooling cases passed; scoped lint passed.
+  granular_boundary_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39573343486
   retrieval_language_fix_commit: 0e235d47780b3082802fbb0d169dc45db7cd4cda
   focused_tests: 148 focused inspiration cases and 19 frontend unit cases passed; fourteen search-locale cases also passed in isolated CI.
   isolated_backend: https://github.com/glowingkitty/OpenMates/actions/runs/39471945379

@@ -2,6 +2,7 @@
 # contract-test-file: infrastructure
 import hashlib
 import asyncio
+from contextlib import ExitStack
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -60,6 +61,25 @@ def test_modes_always_use_separate_fresh_process_commands(tmp_path):
     assert current[current.index('--mode') + 1] == 'current'
     assert '--worker' in original and '--worker' in current
     assert original[0] == sys.executable
+    assert '--historical-deadline-seconds' not in original
+    assert benchmark.mode_output_name('original') == 'original'
+    options.historical_deadline_seconds = 30
+    supplement = benchmark.child_command(options, 'original')
+    assert supplement[supplement.index('--historical-deadline-seconds') + 1] == '30'
+    assert benchmark.mode_output_name('original', 30) == 'original-deadline-30s'
+    assert benchmark.mode_output_name('current', 30) == 'current'
+    utility = SimpleNamespace(PREPROCESSING_TIMEOUT_SECONDS=5, PREPROCESSING_TOTAL_TIMEOUT_SECONDS=12)
+    with ExitStack() as stack:
+        benchmark.install_deadline_overrides(stack, 'original', None, utility)
+        assert utility.PREPROCESSING_TIMEOUT_SECONDS == 5
+    with ExitStack() as stack:
+        benchmark.install_deadline_overrides(stack, 'current', 30, utility)
+        assert utility.PREPROCESSING_TIMEOUT_SECONDS == 5
+    with ExitStack() as stack:
+        benchmark.install_deadline_overrides(stack, 'original', 30, utility)
+        assert utility.PREPROCESSING_TIMEOUT_SECONDS == utility.PREPROCESSING_TOTAL_TIMEOUT_SECONDS == 30
+    assert utility.PREPROCESSING_TIMEOUT_SECONDS == 5
+    assert utility.PREPROCESSING_TOTAL_TIMEOUT_SECONDS == 12
     with pytest.raises(ValueError, match='exactly one mode'):
         benchmark.child_command(options, 'both')
 
@@ -79,14 +99,18 @@ def test_cost_accounting_does_not_double_count_native_usage_or_hide_shortfalls()
     row = {'counts': {'video': 1, 'wiki': 0, 'feature': 4}, 'items': [{}] * 5,
         'calls': [{}, {}],
         'facade_attempt_usage': [{'supplier_cost_usd': .01, 'supplier_cost_complete': True}],
-        'jev_accounting': [{'supplier_cost_usd': .002, 'supplier_cost_complete': True}],
-        'native_http': [{'status': 200, 'response': {'usage': {'cost': 999}}}, {'error': 'TimeoutError'}],
+        'jev_accounting': [{'input_tokens': 1000}, {'input_tokens': 1000}, {'input_tokens': 2000}],
+        'native_http': [{'status': 200, 'response': {'usage': {'cost': 999}}}, {'error': 'TimeoutError'},
+                        {'host': 'api.typesafe.ai', 'status': 200, 'response': {'model': 'jev-1.14.0', 'usage': {'input_tokens': 1000, 'output_tokens': 50}}},
+                        {'host': 'api.typesafe.ai', 'status': 200, 'response': {'model': 'jev-1.14.0', 'usage': {'input_tokens': 2000, 'output_tokens': 50}}}],
         'retrieval_http': [{'host': 'api.search.brave.com', 'status': 200},
                            {'host': 'api.search.brave.com', 'status': 429}]}
     benchmark.summarize_row(row)
-    assert row['cost']['known_inference_supplier_usd'] == pytest.approx(.012)
-    assert row['cost']['known_inference_plus_search_gross_usd'] == pytest.approx(.017)
-    assert row['cost']['known_gross_per_admitted_generated_card_usd'] == pytest.approx(.017)
+    assert row['cost']['known_inference_supplier_usd'] == pytest.approx(.010126)
+    assert row['cost']['known_inference_plus_search_gross_usd'] == pytest.approx(.015126)
+    assert row['cost']['known_gross_per_admitted_generated_card_usd'] == pytest.approx(.015126)
+    assert row['cost']['jev_attempts'] == 2
+    assert row['cost']['raw_jev_accounting_rows_not_summed'] == 3
     assert row['cost']['all_transport_spend_complete'] is False
     assert row['cost']['failed_native_http_attempts'] == 1
 

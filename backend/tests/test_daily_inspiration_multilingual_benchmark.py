@@ -249,3 +249,120 @@ async def test_instrumentation_tracks_targeted_attempt_admissions_and_final_unio
     assert row['final_source_owners'] == {'b': 1, 'a': 0}
     assert [attempt['admitted_source_ids'] for attempt in row['attempts']] == [['a'], ['b']]
     assert row['attempts'][0]['rejection_feedback'] == {'b': ['phrase.grounding:unsupported']}
+
+
+def frozen_fixture(tmp_path):
+    import hashlib
+    original = tmp_path / 'original'
+    output = tmp_path / 'new'
+    manifest = {'languages': ['en'], 'limit': 1, 'policy_version': 'v6',
+                'topics': {'en': ['Aurora']}, 'exclusions': {'source_ids': []},
+                'source_sha256': {'gate.py': 'unchanged', 'writer.py': 'old'}}
+    original.mkdir()
+    (original / 'manifest.json').write_text(json.dumps(manifest))
+    image = b'frozen thumbnail'
+    image_sha = hashlib.sha256(image).hexdigest()
+    video = {'status': 'complete', 'identity': 'FreshVideo1', 'english_retrieval_fallback': False,
+             'image': {'path': 'thumbnails/video.jpg', 'sha256': image_sha}}
+    inputs = {}
+    for name, content in {'sources/en-video-0.json': json.dumps(video).encode(),
+                          'sources/en-wiki-0.json': b'{"status":"source_eligibility_shortfall"}',
+                          'thumbnails/video.jpg': image}.items():
+        for directory in (original, output):
+            path = directory / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        inputs[name] = hashlib.sha256(content).hexdigest()
+    provenance = {'frozen_input_root': original.name,
+                  'original_manifest_sha256': hashlib.sha256((original / 'manifest.json').read_bytes()).hexdigest(),
+                  'inputs': inputs}
+    path = output / 'frozen.json'
+    path.write_text(json.dumps(provenance))
+    current = json.loads(json.dumps(manifest))
+    current['source_sha256']['writer.py'] = 'approved-format-fix'
+    return output, path, current
+
+
+def test_frozen_pin_preserves_complete_and_terminal_shortfalls_with_writer_only_change(tmp_path):
+    output, provenance, manifest = frozen_fixture(tmp_path)
+    result = benchmark.validate_frozen_sources(output, provenance, manifest)
+    assert result['source_slots'] == 2
+    assert result['eligible_sources'] == result['terminal_shortfalls'] == 1
+    assert result['collection_bypassed'] is True
+    assert len(result['provenance_sha256']) == 64
+    manifest['source_sha256']['gate.py'] = 'changed'
+    with pytest.raises(ValueError, match='gate application hashes changed'):
+        benchmark.validate_frozen_sources(output, provenance, manifest)
+
+
+@pytest.mark.parametrize('mutation', ['image', 'source', 'missing_slot', 'origin', 'context'])
+def test_frozen_validation_rejects_changed_or_incomplete_inputs_before_billing(tmp_path, mutation):
+    output, provenance, manifest = frozen_fixture(tmp_path)
+    if mutation == 'image':
+        (output / 'thumbnails/video.jpg').write_bytes(b'changed pixels')
+    elif mutation == 'source':
+        (output / 'sources/en-video-0.json').write_text('{}')
+    elif mutation == 'missing_slot':
+        (output / 'sources/en-wiki-0.json').unlink()
+    elif mutation == 'origin':
+        (tmp_path / 'original/manifest.json').write_text('{}')
+    else:
+        manifest['topics']['en'] = ['Different topic']
+    with pytest.raises(ValueError, match='Frozen'):
+        benchmark.validate_frozen_sources(output, provenance, manifest)
+
+
+@pytest.mark.asyncio
+async def test_frozen_run_never_collects_or_retries_terminal_shortfalls(monkeypatch, tmp_path):
+    output, provenance, manifest = frozen_fixture(tmp_path)
+    before = (output / 'sources/en-wiki-0.json').read_bytes()
+
+    async def forbidden_collect(*_args, **_kwargs):
+        raise AssertionError('frozen run entered collection')
+
+    class Manager:
+        async def initialize(self):
+            pass
+
+        async def aclose(self):
+            pass
+
+    async def no_cards(*_args, **_kwargs):
+        return []
+
+    monkeypatch.setattr(benchmark, 'collect', forbidden_collect)
+    monkeypatch.setattr(benchmark, 'build_manifest', lambda _options: dict(manifest))
+    monkeypatch.setattr(benchmark, 'SecretsManager', Manager, raising=False)
+    monkeypatch.setattr(benchmark, 'httpx', SimpleNamespace(AsyncClient=SimpleNamespace(send=None)), raising=False)
+    monkeypatch.setattr(benchmark, 'AsyncModels', SimpleNamespace(generate_content=None), raising=False)
+    monkeypatch.setattr(benchmark, 'decisions', SimpleNamespace(JevDecisionClient=None), raising=False)
+    monkeypatch.setattr(benchmark, 'qualify_batch', no_cards)
+    await benchmark.run(options(output, languages=['en'], frozen_source_manifest=str(provenance)))
+    assert (output / 'sources/en-wiki-0.json').read_bytes() == before
+    saved = json.loads((output / 'manifest.json').read_text())
+    assert saved['frozen_sources']['terminal_shortfalls'] == 1
+    assert len(list((output / 'rows').glob('*.json'))) == 2
+
+
+def test_jev_usage_counts_unique_responses_not_shared_transport_slices_or_locale_calls():
+    success = {'call_id': 'one', 'request': {'questions': {'visual': {}}},
+               'response': {'usage': {'input_tokens': 100, 'output_tokens': 2}}}
+    locale = {'call_id': 'locale', 'request': {'questions': {'card_0_locale': {}}},
+              'response': {'usage': {'input_tokens': 999, 'output_tokens': 8}}}
+    row = {'jev': [success, success, locale,
+                   {'call_id': 'two', 'response': {'usage': {'input_tokens': 200, 'output_tokens': 4}}}],
+           'decision_accounting': [{'input_tokens': 10000, 'success': True},
+                                   {'input_tokens': None, 'success': False},
+                                   {'phase': 'locale_assessment', 'input_tokens': None, 'success': False}]}
+    assert sum(item['input_tokens'] for item in benchmark.unique_jev_usage(row)) == 300
+    assert benchmark.unknown_jev_attempts(row) == 1
+
+
+@pytest.mark.asyncio
+async def test_new_frozen_adoption_rejects_existing_writer_rows_before_billing(monkeypatch, tmp_path):
+    output, provenance, manifest = frozen_fixture(tmp_path)
+    (output / 'rows').mkdir()
+    (output / 'rows/old.json').write_text('{"status":"complete"}')
+    monkeypatch.setattr(benchmark, 'build_manifest', lambda _options: dict(manifest))
+    with pytest.raises(ValueError, match='without previous writer rows'):
+        await benchmark.run(options(output, languages=['en'], frozen_source_manifest=str(provenance)))

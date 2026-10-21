@@ -146,6 +146,20 @@ def verify_historical(root):
     return root
 
 
+def mode_output_name(mode, historical_deadline_seconds=None):
+    if mode == 'original' and historical_deadline_seconds is not None:
+        return f'original-deadline-{historical_deadline_seconds}s'
+    return mode
+
+
+def install_deadline_overrides(stack, mode, seconds, llm_utils):
+    if mode == 'original' and seconds is not None:
+        # Supplementary timing sensitivity only; leave model/content/role and
+        # retry/fallback policy unchanged. ExitStack restores both globals.
+        stack.enter_context(patch.object(llm_utils, 'PREPROCESSING_TIMEOUT_SECONDS', seconds))
+        stack.enter_context(patch.object(llm_utils, 'PREPROCESSING_TOTAL_TIMEOUT_SECONDS', seconds))
+
+
 def install_historical(root):
     """Replace the package search path, never mix old and current daily modules."""
     root = verify_historical(root)
@@ -189,9 +203,43 @@ def event(kind, data):
         atomic_json(path, row)
 
 
+def native_jev_usage(row):
+    """One ledger entry per actual native transport, not shared-list slices.
+
+    Equal payloads can be separately billed retries, so do not hash/deduplicate
+    identical responses. Async HTTP capture already appends each send exactly once.
+    """
+    ledger = []
+    for index, item in enumerate(row.get('native_http', [])):
+        if item.get('host') != 'api.typesafe.ai' and not (
+            item.get('host') == 'openrouter.ai' and item.get('path') == '/api/alpha/decisions'
+        ):
+            continue
+        response = item.get('response') or {}
+        usage = response.get('usage') or {}
+        inputs = usage.get('input_tokens', usage.get('prompt_tokens'))
+        outputs = usage.get('output_tokens', usage.get('completion_tokens'))
+        valid_input = isinstance(inputs, (int, float)) and not isinstance(inputs, bool) and inputs >= 0
+        cost = None
+        source = None
+        if item.get('host') == 'api.typesafe.ai' and valid_input:
+            cost, source = inputs * .042 / 1_000_000, 'typesafe_input_$0.042_per_million_output_free'
+        elif item.get('host') == 'openrouter.ai':
+            reported = usage.get('cost')
+            if isinstance(reported, (int, float)) and not isinstance(reported, bool) and reported >= 0:
+                cost, source = reported, 'openrouter_reported_usage_cost_usd'
+        ledger.append({'native_http_index': index, 'host': item.get('host'),
+            'status': item.get('status'), 'error': item.get('error'),
+            'model': response.get('model'), 'input_tokens': inputs, 'output_tokens': outputs,
+            'supplier_cost_usd': cost, 'supplier_cost_complete': cost is not None,
+            'supplier_cost_source': source})
+    return ledger
+
+
 def summarize_row(row):
     usage = row.get('facade_attempt_usage', [])
-    jev = row.get('jev_accounting', [])
+    jev = native_jev_usage(row)
+    row['native_jev_usage'] = jev
     native = row.get('native_http', [])
     searches = [item for item in row.get('retrieval_http', [])
                 if item['host'] == 'api.search.brave.com' and item['status'] < 400]
@@ -204,9 +252,12 @@ def summarize_row(row):
         'brave_gross_catalog_usd': len(searches) * .005,
         'known_inference_plus_search_gross_usd': known + len(searches) * .005,
         'facade_attempt_usage_records': len(usage), 'jev_attempts': len(jev),
+        'raw_jev_accounting_rows_not_summed': len(row.get('jev_accounting', [])),
+        'known_jev_supplier_usd': sum(item.get('supplier_cost_usd') or 0 for item in jev),
+        'jev_accounting_method': 'One captured native HTTP send per ledger entry; raw shared accounting slices retained but never summed because concurrent image reviews can duplicate them.',
         'native_http_attempts': len(native),
         'failed_native_http_attempts': sum(item.get('status', 0) >= 400 or 'error' in item for item in native),
-        'accounted_inference_complete': bool(usage) and all(item.get('supplier_cost_complete') for item in [*usage, *jev]),
+        'accounted_inference_complete': bool(usage or jev) and all(item.get('supplier_cost_complete') for item in [*usage, *jev]),
         'all_transport_spend_complete': False,
         'limits': 'Known telemetry estimate before credits; SDK retries/timeouts can lack usage. Native captures are not double-counted. No invoice, infra or YouTube/Wikimedia monetary cost is available. Brave $5/1000 successful HTTP requests is a gross catalog estimate, not verified billable net requests.',
     }
@@ -223,6 +274,7 @@ def summarize_row(row):
 async def worker(options):
     logging.disable(logging.CRITICAL)  # Receipts carry errors, not arbitrary SDK log strings.
     source_preflight = current_source_preflight(options.reviewed_source_manifest)
+    output_mode = mode_output_name(options.mode, options.historical_deadline_seconds)
     if options.mode == 'original':
         install_historical(options.historical_source_dir)
     import httpx
@@ -392,12 +444,13 @@ async def worker(options):
             summarize_row(row)
             row['cost']['known_inference_per_input_entry_usd'] = row['cost']['known_inference_supplier_usd'] / len(entries) if entries else None
             row['cost']['known_inference_per_retained_entry_usd'] = row['cost']['known_inference_supplier_usd'] / row['output_count'] if row.get('output_count') else None
-            row['cost']['accounted_inference_complete'] = all(item.get('supplier_cost_complete') for item in row.get('jev_accounting', [])) and (not entries or bool(row.get('jev_accounting')))
+            row['cost']['accounted_inference_complete'] = all(item.get('supplier_cost_complete') for item in row['native_jev_usage']) and (not entries or bool(row['native_jev_usage']))
             atomic_json(path, row)
             ACTIVE.reset(token)
 
     try:
         with ExitStack() as stack:
+            install_deadline_overrides(stack, options.mode, options.historical_deadline_seconds, llm_utils)
             stack.enter_context(patch.object(httpx.AsyncClient, 'send', send))
             stack.enter_context(patch.object(AsyncModels, 'generate_content', google))
             stack.enter_context(patch.object(llm_utils, '_auxiliary_usage_telemetry', telemetry))
@@ -438,17 +491,22 @@ async def worker(options):
                 stack.enter_context(patch.object(module, name, recorded_io()))
             await manager.initialize()
             for language in options.languages:
-                path = root / options.mode / f'{language}.json'
+                path = root / output_mode / f'{language}.json'
                 if path.exists():
                     prior = json.loads(path.read_text())
                     if prior.get('status') == 'complete':
                         await measure_pool_review(language, prior)
                         continue
-                    history = root / 'history' / options.mode / f'{language}-{time.time_ns()}.json'
+                    history = root / 'history' / output_mode / f'{language}-{time.time_ns()}.json'
                     history.parent.mkdir(parents=True, exist_ok=True)
                     path.replace(history)
-                row = {'mode': options.mode, 'language': language, 'status': 'running', 'items': [],
+                row = {'mode': output_mode, 'language': language, 'status': 'running', 'items': [],
                        **source_preflight,
+                       'historical_declared_deadline_seconds': options.historical_deadline_seconds if options.mode == 'original' else None,
+                       'deadline_scope': ('Supplementary original architecture with declared extended caller deadlines; not exact historical timing.'
+                           if options.mode == 'original' and options.historical_deadline_seconds is not None else 'Unmodified caller deadlines.'),
+                       'effective_preprocessing_deadlines': {'request_seconds': llm_utils.PREPROCESSING_TIMEOUT_SECONDS,
+                                                           'total_seconds': llm_utils.PREPROCESSING_TOTAL_TIMEOUT_SECONDS},
                        'historical_ref': BASELINE_REF if options.mode == 'original' else None,
                        'source_sha256': {name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
                                          for name, module in modules.items()},
@@ -493,6 +551,8 @@ def child_command(options, mode):
     if getattr(options, 'reviewed_source_manifest', None):
         command.extend(['--reviewed-source-manifest', str(Path(options.reviewed_source_manifest).resolve())])
     command.extend(['--pool-review-max-seconds', str(getattr(options, 'pool_review_max_seconds', 180))])
+    if getattr(options, 'historical_deadline_seconds', None) is not None:
+        command.extend(['--historical-deadline-seconds', str(options.historical_deadline_seconds)])
     if not getattr(options, 'measure_pool_review', True):
         command.append('--no-measure-pool-review')
     return command
@@ -505,6 +565,8 @@ def main():
     parser.add_argument('--historical-source-dir', required=True)
     parser.add_argument('--reviewed-source-manifest', help='Optional source_sha256 mapping; compare recognized current application files before native calls')
     parser.add_argument('--mode', choices=('both', 'original', 'current'), default='both')
+    parser.add_argument('--historical-deadline-seconds', type=int, choices=(30,),
+                        help='Opt-in original-only timing supplement: keep architecture unchanged but extend request and total caller deadlines to 30s; separate variant output')
     parser.add_argument('--languages', choices=TOPICS, nargs='+', default=['en', 'ja'])
     parser.add_argument('--max-seconds', type=int, choices=range(30, 901), default=600)
     parser.add_argument('--measure-pool-review', action=argparse.BooleanOptionalAction, default=True,
@@ -518,6 +580,7 @@ def main():
     if not options.execute:
         print(json.dumps({'execute': False, 'refreshes_per_setup': len(options.languages),
                           'setups': modes, 'historical_ref': BASELINE_REF,
+                          'output_variants': [mode_output_name(mode, options.historical_deadline_seconds) for mode in modes],
                           'separate_current_pool_review': options.measure_pool_review,
                           'historical_staging_files': list(HISTORICAL_HASHES),
                           'commands': [child_command(options, mode) for mode in modes]}))
@@ -531,6 +594,7 @@ def main():
     manifest = {'historical_ref': BASELINE_REF, 'historical_hashes': HISTORICAL_HASHES,
                 **source_preflight,
                 'languages': options.languages, 'modes': modes, 'max_seconds': options.max_seconds,
+                'historical_declared_deadline_seconds': options.historical_deadline_seconds,
                 'measure_pool_review': options.measure_pool_review, 'pool_review_max_seconds': options.pool_review_max_seconds,
                 'benchmark_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'scope': 'Fresh live discovery per setup; current wrappers/tariffs; direct generation only; no account or delivery writes.'}
@@ -546,7 +610,8 @@ def main():
         except subprocess.TimeoutExpired:
             results.append({'mode': mode, 'error': 'worker_deadline'})
     atomic_json(root / 'processes.json', results)
-    rows = [json.loads(path.read_text()) for mode in modes for path in (root / mode).glob('*.json')]
+    rows = [json.loads(path.read_text()) for mode in modes
+            for path in (root / mode_output_name(mode, options.historical_deadline_seconds)).glob('*.json')]
     pool_rows = [json.loads(path.read_text()) for path in (root / 'current-pool-review').glob('*.json')]
     atomic_json(root / 'summary.json', {'processes': results, 'refreshes': [
         {key: row.get(key) for key in ('mode', 'language', 'status', 'counts', 'full_ten_card_refresh', 'logical_facade_calls', 'logical_search_calls', 'observed_models', 'seconds', 'cost', 'source_ids')}

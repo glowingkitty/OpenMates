@@ -117,7 +117,59 @@ invented from the number of languages.
 
 ## Verification and measured results
 
-Pending native results and isolated CI completion. Focused local checks currently
-cover granular fail-closed decisions, source-bound repair union/order, malformed
+The initial granular candidate passed 152 focused local tests and isolated Jev
+boundary CI (`39573343486`) and public-feed browser CI (`39574090167`). Both Vercel
+projects succeeded for application commit `856c4b7`; runtime `docker-f54a3eb4`
+completed with all seventeen backend consumers healthy. Focused checks cover granular fail-closed decisions, source-bound repair union/order, malformed
 neighbors, cancellation/deadlines, source/pixel proofs, localized static delivery,
 fresh-source exclusions and protected historical replay.
+
+
+### Controlled native results and language precision
+
+| Control cohort | Native result | Limit |
+| --- | --- | --- |
+| Historical regressions plus original Japanese paraphrase | 19/23 scored labels matched; one automated-label negative admitted, three positives withheld, one unscored uncertain case | 24 total; known regressions, not fresh holdout |
+| Twenty-language matched text controls | All 60 negatives withheld; 10/60 positives admitted | Three disclosed semantic templates; translated copy over English evidence |
+| Twenty-language thumbnail controls | 100/100 matched: 60 honest accepted, 40 deceptive rejected | Five rendered-panel templates, not 100 natural thumbnails |
+
+The original valid Japanese paraphrase was accepted. An independent source-only
+review retained the Turkish reef/colony role reversal as material; Swedish
+technical wording was allowed and two Arabic/Thai wording cases remained
+uncertain. No labels were silently changed after observing decisions. A bounded
+audit of fifteen multilingual positives found eleven withholds with title-language
+blockers despite recognizable translated headings. Native-speaker sign-off remains
+unavailable. This is a substantial precision limitation even though all sixty
+controlled negatives were withheld.
+
+Two exploratory 24-case language pilots (explicit language anchoring, and separate
+generated-only language evidence) each accepted eight of twelve positives rather
+than two, but each admitted a known English-introduction negative. Neither pilot
+was adopted. Their requests/results remain separate from the deployed setup and
+final paired comparison; confidence thresholds were not lowered.
+
+### Retry integration correction and frozen sources
+
+The first paired run exposed a request-format bug in the new repair instruction:
+Google extracts the initial system message and interpreted a trailing system
+message as a model turn, returning HTTP 400. The corrected writer places the
+trusted repair instruction in the initial system prompt, retains original user
+source passages, and never ends a repair request with a system/model turn. The
+32-case writer suite includes Google's actual message conversion, mutation
+isolation and all retry/fallback paths.
+
+The interrupted run and every paid receipt were retained. Source collection had
+completed all 200 slots: 168 eligible and 32 eligibility shortfalls. Only the
+source snapshots and frozen JPEGs are reused in a new output directory, with
+byte-verified provenance; old writer rows/drafts are not copied. Both writer arms
+produce new drafts and undergo fresh final review. Source shortfalls stay frozen.
+
+Initial exact-timing historical replay had eight cancellations near the original
+five-second cap and no complete sets. Initial current costs include the now-fixed
+Google repair failures and are not the final cost basis. Native Jev spend must be
+counted once per actual response: shared accounting-list slices overlapped during
+concurrent images and raw summaries omitted supplier charges. Corrected companion
+analysis preserves every raw receipt and separates unknown failed usage. A
+supplementary original-only replay with a declared thirty-second caller cap keeps
+the historical modules, roles, prompts and model; it is a timing sensitivity, not
+the original production timing or invoice.

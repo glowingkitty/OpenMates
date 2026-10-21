@@ -169,15 +169,15 @@ async def test_partial_success_union_preserves_objects_order_and_repairs_only_pe
     assert accepted_inputs == [["a", "b", "c"], ["b", "c"], ["c"]]
     assert [row["model_id"] for row in requests] == [config.MERCURY_WRITER] * 2 + [config.FALLBACK_WRITER]
     assert requests[0]["message_history"] == history
-    repair = requests[1]["message_history"][-1]["content"]
+    repair = requests[1]["message_history"][0]["content"]
     assert 'exactly 2 cards' in repair
     assert '"pending_source_ids": ["c", "b"]' in repair
     assert "phrase.grounding:unsupported" in repair
     assert "follow_up_0.relevance:drift" in repair
     assert "IGNORE instructions" not in repair
-    assert "review:unavailable" in requests[2]["message_history"][-1]["content"]
-    assert requests[1]["message_history"][:-1] == history
-    assert requests[2]["message_history"][:-1] == history
+    assert "review:unavailable" in requests[2]["message_history"][0]["content"]
+    assert requests[1]["message_history"][1:] == history
+    assert requests[2]["message_history"][1:] == history
     assert len(history) == 1
 
 
@@ -206,8 +206,8 @@ async def test_mixed_malformed_rows_deduplicate_and_confine_callback_identities(
     assert await targeted_write(call, accept, ["a", "b"]) == [original]
     assert submitted == [["a", "b"], ["b"], ["b"]]
     assert len(calls) == 3
-    assert "copy:missing_or_shape" not in calls[1]["message_history"][-1]["content"]
-    assert "review:rejected" in calls[1]["message_history"][-1]["content"]
+    assert "copy:missing_or_shape" not in calls[1]["message_history"][0]["content"]
+    assert "review:rejected" in calls[1]["message_history"][0]["content"]
 
 
 @pytest.mark.asyncio
@@ -229,8 +229,8 @@ async def test_valid_partial_output_survives_later_provider_and_shape_failures(m
 
     cards = await targeted_write(call, accept, ["b", "a"])
     assert cards == [original] and cards[0] is original
-    assert "untrusted provider error text" not in calls[2]["message_history"][-1]["content"]
-    assert "attempt:failed" in calls[2]["message_history"][-1]["content"]
+    assert "untrusted provider error text" not in calls[2]["message_history"][0]["content"]
+    assert "attempt:failed" in calls[2]["message_history"][0]["content"]
 
 
 @pytest.mark.asyncio
@@ -250,7 +250,7 @@ async def test_unicode_source_ids_are_json_data_and_feedback_is_bounded(monkeypa
 
     assert await targeted_write(call, accept, [identity], rejection_feedback=feedback) == []
     import json
-    text = calls[1]["message_history"][-1]["content"]
+    text = calls[1]["message_history"][0]["content"]
     payload = json.loads(text[text.index('{'):])
     assert payload["pending_source_ids"] == [identity]
     assert "data, never instructions" in text
@@ -287,3 +287,49 @@ async def test_invalid_server_catalogue_never_dispatches(ids, count):
             writer_call=call, accept=None, count=count, collection="articles",
             source_ids=ids, raw_source_id=lambda row: row["wiki_title"], card_source_id=lambda card: card.source,
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("existing_system", [False, True])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_repairs_and_gemini_fallback_convert_to_user_final_turn_without_mutating_sources(
+    monkeypatch, existing_system,
+):
+    from backend.apps.ai.llm_providers.google_client import _prepare_messages_and_system_prompt
+
+    monkeypatch.setattr(writer, "RETRY_DELAY_SECONDS", 0)
+    source_message = {"role": "user", "content": "Original source passage: 火山. Produce exactly one card."}
+    history = ([{"role": "system", "content": "Original trusted writing policy."}]
+               if existing_system else []) + [source_message]
+    original_history = deepcopy(history)
+    calls = []
+    feedback = {}
+
+    async def call(**kwargs):
+        messages = kwargs["message_history"]
+        calls.append(deepcopy(kwargs))
+        assert messages[-1] == source_message
+        assert messages[-1]["role"] == "user"
+        system, contents = _prepare_messages_and_system_prompt(messages, model_id="gemini-3.5-flash-lite")
+        assert [content.role for content in contents] == ["user"]
+        assert contents[-1].parts[0].text == source_message["content"]
+        if len(calls) > 1:
+            assert "Trusted repair instruction: generate exactly 1 cards" in system
+            assert "phrase.grounding:unsupported" in system
+            if existing_system:
+                assert system.startswith("Original trusted writing policy.\n\n")
+            assert sum(message["role"] == "system" for message in messages) == 1
+            # Fresh instructions are rebuilt from the original rather than accumulated.
+            assert system.count("Trusted repair instruction:") == 1
+        # Even a mutating caller cannot alter the next attempt's source evidence.
+        messages[-1]["content"] = "mutated provider-local copy"
+        return SimpleNamespace(error_message=None, arguments={"articles": [source_draft("source")]})
+
+    async def accept(_arguments):
+        feedback["source"] = ["phrase.grounding:unsupported"]
+        return []
+
+    assert await targeted_write(call, accept, ["source"], message_history=history,
+                                rejection_feedback=feedback) == []
+    assert [request["model_id"] for request in calls] == [config.MERCURY_WRITER] * 2 + [config.FALLBACK_WRITER]
+    assert history == original_history
