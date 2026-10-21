@@ -174,7 +174,7 @@
    */
   let colWidths = $derived.by(() => {
     return parsedTable.headers.map((header, i) => {
-      const headerLen = header.content.length;
+      const headerLen = stripEmbedLinks(header.content).length;
       const maxDataLen = previewRows.reduce((max, row) => {
         const len = row[i]?.content?.length ?? 0;
         return len > max ? len : max;
@@ -311,7 +311,7 @@
             <thead>
               <tr>
                 {#each visibleHeaders as header}
-                  <th>{header.content}</th>
+                  <th>{stripEmbedLinks(header.content)}</th>
                 {/each}
                 {#if hiddenColCount > 0}
                   <th class="more-cols-header">+{hiddenColCount}</th>

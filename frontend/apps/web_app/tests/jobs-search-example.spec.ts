@@ -140,6 +140,10 @@ async function inspectDesignComparison(page: Page): Promise<void> {
 	await expect(fullscreen).toContainText('voize');
 	await expect(fullscreen).toContainText('stiftung ear');
 	await expect(fullscreen).toContainText('C1');
+	await expect(fullscreen.locator('thead')).not.toContainText('embed:');
+	await expect(fullscreen.locator('.col-header-text')).toHaveText([
+		'Aspect', 'voize – Senior Product Designer', 'stiftung ear – UI/UX Design (m/w/d)'
+	]);
 	await closeFullscreen(page, fullscreen);
 	// This example has no published speech fixture; guests must not see a broken action.
 	await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);

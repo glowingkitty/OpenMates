@@ -70,6 +70,12 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+	/** Citation targets remain in saved data; headings show their readable labels. */
+	citationHeaders: {
+		data: sheetData('Employer comparison', `| [Employer](embed:employer-search-result-reference) | [Location](embed:location-search-result-reference) |\n|---|---|\n| voize | Berlin |\n| stiftung ear | Nürnberg |`, 2, 2),
+		onClose: () => {}
+	},
+
 	/** Wide 8-column sales table — exercises auto col widths on numeric data */
 	salesReport: {
 		data: sheetData('Sales Report Q4 2025', salesReportTable, 10, 8),

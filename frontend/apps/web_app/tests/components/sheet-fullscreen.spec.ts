@@ -6,6 +6,39 @@ const PREVIEW = '/dev/preview/embeds/sheets/SheetEmbedFullscreen';
 
 for (const width of [390, 1000]) {
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  test(`sheet citation headings stay readable in preview and fullscreen at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 800 });
+    const query = `?theme=light&background=%23dbeafe&width=${width}&chrome=0&variant=citationHeaders`;
+    await page.goto(`/dev/preview/embeds/sheets/SheetEmbedPreview${query}`);
+    await waitForComponentPreview(page);
+    const preview = page.locator('table.preview-table');
+    await expect(preview.locator('thead th').first()).toHaveText('Employer');
+    await expect(preview).not.toContainText('embed:');
+    await expect(preview.locator('tbody tr').first()).toContainText('voize');
+    await expect(preview.locator('thead th').first()).toBeVisible();
+    await testInfo.attach(`sheet-citation-preview-${width}`, {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png'
+    });
+
+    await page.goto(`${PREVIEW}${query}`);
+    await waitForComponentPreview(page);
+    const table = page.locator('table.spreadsheet');
+    await expect(table.locator('.col-header-text')).toHaveText(['Employer', 'Location']);
+    await expect(table).not.toContainText('embed:');
+    await expect(table.locator('tbody tr')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Toggle column filters', exact: true }).click();
+    const employerFilter = page.getByPlaceholder('Employer', { exact: true });
+    await expect(employerFilter).toBeVisible();
+    await expect(page.getByPlaceholder('Location', { exact: true })).toBeVisible();
+    await employerFilter.fill('voize');
+    await expect(table.locator('tbody tr')).toHaveCount(1);
+    await expect(table.locator('tbody tr').first()).toContainText('voize');
+    await testInfo.attach(`sheet-citation-fullscreen-${width}`, {
+      body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png'
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
   test(`sheet gutter filter stays compact and sorting/filtering work at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto(`${PREVIEW}?theme=light&background=%23dbeafe&width=${width}&chrome=0`);

@@ -57,6 +57,16 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+	/** Citation targets remain in saved data; headings show their readable labels. */
+	citationHeaders: {
+		...defaultProps,
+		id: 'preview-sheet-citation-headers',
+		title: 'Employer comparison',
+		rowCount: 2,
+		colCount: 2,
+		tableContent: `| [Employer](embed:employer-search-result-reference) | [Location](embed:location-search-result-reference) |\n|---|---|\n| voize | Berlin |\n| stiftung ear | Nürnberg |`
+	},
+
 	/** Processing state — shows loading animation */
 	processing: {
 		id: 'preview-sheet-processing',
