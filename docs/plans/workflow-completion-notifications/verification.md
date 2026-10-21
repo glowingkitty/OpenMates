@@ -311,3 +311,54 @@ UI/device evidence. Current source and unit tests do not close those gaps.
 The installed Mac remains the earlier TestFlight build until a new delivery
 and installed-binary check establish otherwise. TASK-2444 remains in progress
 and is **not yet natively verified**.
+
+
+## Native and publication checkpoint — 21 October 2026, 13:24 Berlin
+
+TASK-2444 remains **in progress and not yet natively verified**. The managed
+Apple integration is published to dev as
+`c8e7d4f6f09bcb077cd9c940a27a52888853c17d`; its normal deployment and
+wait-deploy checks pass. This establishes source publication and web deployment,
+not Apple notification delivery or TestFlight availability.
+
+Native509 passes all 78 requested iOS Simulator notification regressions:
+AppDeepLinkRoutingTests (33), NotificationPreviewCryptoTests (9), and
+WorkflowsParityTests (36). Its broader run has 597 passes, two failures and one
+skip; it is not an overall pass. The two Project/Watch failures were repaired
+and the focused native522 run passes 191 tests with one opt-in skip. Neither
+run is a macOS unit result: the current Mac route has no unit-test runner;
+retained Mac qualification is compile-only.
+
+Native544 successfully builds the iOS/embedded Watch test product, with no
+changed captured inputs. Its frozen shipping identity is
+`c3be49edbbeb4a9f46046a4adad8eb2ded6fc330c557c8769c65916ab5c5b026`
+(1,842 release inputs; 2,151 release/test inputs), mapped to original immutable
+candidate `2add06a357e046b8d4b2edacfad64b9ed9d594f6`. The active archive uses
+that frozen source. Published dev `c8e7d4f6…` separately includes upstream
+reconciliation and auxiliary publication differences: derived locale and
+Specification artifacts, the exact upstream lockfile, and Whistle packaging
+test classification/lint fixes. These identities are not interchangeable;
+publication does not prove every published auxiliary byte was in the archive.
+
+Native545 UI execution stopped at the disk reserve (exit 143) without an
+accepted proof clip. The query/activity/Loaded Memories corrections from the
+native537 investigation are applied, but no final passing UI run establishes
+their visible result. In particular, expanded notification editing, sole-Send
+interaction, real APNs receipt, native taps, competing-device/duplicate/privacy
+behavior and completion-email Universal Link destinations remain open.
+
+At this checkpoint, the third release attempt (release557), version **0.28.0
+(99)**, is still compiling. **No accepted upload, processing completion,
+TestFlight availability or installed-binary verification is claimed.** The
+release owner must append the final iOS/iPadOS/Watch result, then Mac result,
+with accepted upload/processing receipts and the installed versions. This
+checkpoint deliberately leaves those outcomes pending.
+
+
+## Release-owner delivery checkpoint
+
+At **21 October 2026, 13:39 Berlin**, release557 is still compiling the iOS production application after the embedded Watch app linked and signed. No iOS or Mac archive/upload completion receipt exists yet. **No new TestFlight upload, processing completion, availability or installed build is claimed.** The last confirmed installed/delivered release remains **0.27.0 (98)**. The requested new release is **0.28.0 (99)** for iOS/iPadOS/Watch followed by macOS, minimum OS26.2.
+
+Two earlier attempts stopped at the unchanged12GiB free-space reserve; their logs and source checks are retained. This third attempt remains active with the same frozen native source. Its normal serial release helper will validate/upload iOS before building/uploading Mac. Signed archives, account data and recovery evidence are preserved.
+
+The exact running stage and any subsequent accepted-upload outcome must be read from the release receipts and final release-owner report. This dated checkpoint is not a claim that the session's delivery objective is complete.
