@@ -71,7 +71,7 @@ Runs in `app-ai-worker` Celery container:
 4. **Jev editorial decisions** -- pinned Jev 1.14 screens eligibility, ranks educational relevance and assigns categories. Conspiracy promotion, misleading clickbait and instruction injection are prohibited. Evidence-based debunking and honest curiosity are allowed. Uncertain or failed decisions withhold new candidates.
 5. **Video writing** -- Mercury 3 LOW writes the exact preselected sources. Failed, malformed or editorially rejected drafts get one second Mercury attempt, then one Gemini 3.5 Flash-Lite attempt. Approved source-bound card objects are retained. Each repair requests only unresolved source IDs, with bounded machine rejection codes; it cannot replace approved cards or invent targets. Every new draft is assembled and reviewed against the same public evidence.
 6. **Wikipedia discovery and writing** -- search real localized article titles, validate them and fetch summaries/Wikidata before Jev selection. The writer paraphrases only the selected public summaries; it cannot invent article targets.
-7. **Final review** -- Jev checks policy/coherence and gives each generated title, phrase, introduction and follow-up its own grounding and language decision. Each follow-up also receives an independent source-relevance decision. Qualifiers, entity scope, causal roles and temporal status must survive paraphrasing; new facts inferred from background knowledge are off-source. Open questions about explicit source concepts need no supplied answer. Missing/failed/uncertain decisions withhold the card. Video review includes actual bounded JPEG pixels, with no text-only visual approval fallback.
+7. **Final review** -- Jev checks policy and semantic subject coherence. English/German copy then uses Gemini 3.8 Flash to review all six fields for language, grounding, qualifiers/causal roles and follow-up relevance. The other eighteen languages retain granular Jev grounding/language checks and independent follow-up relevance decisions. Qualifiers, entity scope, causal roles and temporal status must survive paraphrasing; new facts inferred from background knowledge are off-source. Open questions about explicit source concepts need no supplied answer. Missing/failed/uncertain decisions withhold the card. Video review includes actual bounded JPEG pixels, with no text-only visual approval fallback.
 8. **Feature tips** -- four static feature cards, no inference.
 9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
 10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
@@ -144,8 +144,14 @@ The primary writer is restricted to `inception/mercury-3`; Mistral is no longer 
 
 ### Multilingual and visual editorial admission
 
-Jev 1.14 separately checks source policy, educational fit/category, factual grounding,
-semantic subject coherence, follow-up source relevance and the requested copy language.
+Jev 1.14 checks source policy, educational fit/category and semantic subject
+coherence. English/German completed copy uses a separate Gemini 3.8 Flash review
+of the title, phrase, introduction and three follow-ups for source fidelity,
+requested language and relevance. Other eighteen locales retain granular Jev
+copy checks. A rejected/uncertain review is final for that draft; only transport
+or malformed response permits one same-model retry. Each reviewer attempt has a
+30-second limit, the review group has a 180-second limit and concurrency is at
+most three. No reviewer can override a failed Jev policy/coherence or image gate.
 Semantic checks accept translations and unspaced Japanese; lexical overlap is not an
 admission rule. Every follow-up must use an explicit source concept. A merely related
 scenario, such as wind for a source mentioning only bridge compression/tension, is rejected.
@@ -173,7 +179,7 @@ Wikipedia cards carry their actual retrieval edition. The card copy remains loca
 
 ### Granular recovery and cost accounting (2026-10-21)
 
-The review proof is versioned `daily-editorial-v6`; public cache keys use `v15`.
+The review proof is versioned `daily-editorial-v7`; public cache keys use `v16`.
 Older video/wiki approvals cannot satisfy the stronger gate. Jev confidence remains an
 abstention heuristic at the existing threshold, not a calibrated correctness
 probability. Field-level repair codes contain no arbitrary provider prose and
@@ -186,13 +192,13 @@ flowchart TD
     B --> C[Source identity, age and deterministic policy checks]
     C --> D[Jev source policy, fit and categories; video pixels]
     D --> E[Mercury LOW writes source-backed card fields]
-    E --> F[Jev per-field grounding/language and each follow-up]
+    E --> F[Jev policy/coherence; Gemini EN/DE copy or Jev other locales]
     F --> G[Retain approved source-bound cards]
     F --> H[Repair only unresolved source IDs]
     H --> I[Second Mercury attempt, then Gemini Flash-Lite]
     I --> F
     G --> J[Personal complete set / reviewed public pool]
-    J --> K[Background Jev review and shared defaults selection]
+    J --> K[Background source/copy review and shared defaults selection]
     K --> L[Cached public delivery; localized static recovery]
 ```
 
@@ -218,3 +224,10 @@ opt-in native replay uses exact historical application sources with explicitly
 recorded current provider wrappers/tariffs. Supplier estimates precede provider
 credits and omit unmeasured infrastructure/third-party charges. Generation yield
 is reported separately from accepted-copy quality and ten-card fallback delivery.
+
+The scoped English/German release and corrected live measurements are documented
+in [the release overview](../../plans/daily-inspiration-jev/english-german-release-2026-10-21.md).
+English produced a complete ten-card sample; German had two missing video slots
+and retained the existing localized/public and personalized recovery behavior.
+This is a practical English/German release, not a claim of universal multilingual
+classification or a lower full-pipeline cost than the original architecture.

@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: daily-inspiration-jev
 title: Finish reliable English and German inspirations with bounded semantic review
-status: implementing
+status: verified
 goal: >-
   Finish and deploy a practical English/German quality improvement, preserving
   Jev source and thumbnail screening, bounded writing recovery and all twenty
@@ -46,6 +46,26 @@ decision_notes:
   - Independent automated multilingual labels are not native-speaker sign-off; no human review is fabricated.
   - User requested continued optimization on 2026-10-21; continue in TASK-1531 and session d115. First isolate language/field interference and the known causal-role reversal, then measure resulting quality, latency and cost.
 evidence:
+  implementation_commit: be96267b0894c144e54aec6d914946067a06251e
+  core_implementation_commit: 3e33b8c5d1d57d6bdd6ee5edb688f7ba6edbf6c2
+  policy_version: daily-editorial-v7
+  public_cache_version: v16
+  focused_local: 227 focused backend tests and 29 benchmark-accounting checks passed in their respective selections; counts overlap and are not summed.
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39595728586
+  isolated_ci_source: 4193f508d19f8d795f67de231379a51b315e77df
+  isolated_ci_result: 226 selected tests passed; receipt retrieved and evidence command completed with no unit-test recording inventory. Core implementation matched the tested candidate; the follow-up tracing-label correction passed 36 focused local tests with the real provider-span validator and scoped Ruff.
+  english_german_controls: Fourteen of fourteen fixed real-provider labels matched; seven valid cards accepted and seven negative cards withheld. One timeout succeeded on its allowed retry. Automated controls, not native-speaker gold.
+  independent_review: No blocking code issues found; independent automated inspection of all ten corrected-sample admissions against retained source projections found no obvious material copy/relevance blocker.
+  current_report: docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
+  runtime: Corrected-source reload docker-0d806d4a completed with all seventeen consumers healthy. Both exact-source Vercel checks passed for be96267b0894c144e54aec6d914946067a06251e; twelve runtime module hashes verified before paid calls.
+  integration_regression: Initial EN/DE live diagnostic exposed an unregistered tracing label before Gemini dispatch. Corrected to the existing inspiration purpose and covered with the real provider-span validator; no prompt/model/threshold changes.
+  final_refresh: Corrected English sample delivered three video, three wiki and four static cards in 202.66 seconds; German delivered one video, three wiki and four static cards in 60.94 seconds. German source shortage retains localized public fallback and prior personal set. Both samples observed all four intended models; no account/pool writes.
+  german_shortfall: Two generated German videos were excluded by the existing five-year science age cap (2017 and 2019 publications), despite successful retrieval, thumbnail checks and writer fallback. Improve replacement discovery rather than weaken that policy.
+  final_refresh_receipt: /app/test-results/d115-v7-corrected-refresh-20261021/summary.json
+  release_costs: Original English incomplete attempt USD0.018906930; corrected English complete ten USD0.059215606 captured-response estimate plus three unpriced cancellations; German incomplete eight USD0.042219968. Google cache counters absent; captured Google responses use uncached upper estimates. No savings claim or historical German comparison.
+  release_cost_aggregate: docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.json
+  accepted_scope_result: Practical English/German dev rollout delivered with strict source/copy/thumbnail gates and complete localized public recovery. German recent-video discovery and other-locale copy precision remain bounded follow-ups; no claim of full twenty-language production qualification or production-server deployment.
+previous_v6_evidence:
   implementation_commit: 76419cba88796db635c80e0c5218ece0783a581c
   policy_version: daily-editorial-v6
   public_cache_version: v15
