@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: daily-inspiration-jev
 title: Use one Jev decision model and one Gemini writer for active-user inspirations
-status: implementing
+status: verified
 goal: Implement the approved Jev 1.14 plus Gemini 3.8 Flash setup with one LLM writing stage, no second
   LLM reviewer or cross-model fallback, verify English/German quality and active-user generation gates,
   and deploy the scoped dev changes.
@@ -44,7 +44,31 @@ evidence:
   policy_version: daily-editorial-v8
   public_cache_version: v17
   current_report: docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
-  status: Focused checks and scoped comparison/deployment in progress.
+  status: Approved single-LLM dev workflow implemented, tested and deployed; bounded native comparison
+    completed with conservative Jev admission limitations recorded.
+  implementation_commit: 1c60de459e0a4e828f6c886e8e8cf68bc23fa710
+  focused_local: 264 relevant backend/tooling tests passed; scoped Ruff passed.
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39644743177
+  isolated_ci_source: d85a8207a65847aec978da593fa0d44271ba6d52
+  isolated_ci_result: 264 selected tests passed; exact receipt retrieved and evidence command completed
+    with empty unit-recording inventory. All 26 scoped deployment paths matched the tested candidate; local
+    dispatcher-adoption files were excluded from deployment.
+  independent_review: No material blocker in core writer, decisions, source binding, activity guard or
+    proof/cache version review.
+  runtime: Coordinated docker-4120c7ff reload completed with all seventeen consumers healthy. Exact-source
+    frontend readiness passed for implementation commit 1c60de459e0a4e828f6c886e8e8cf68bc23fa710. Thirteen
+    runtime module hashes matched before native calls.
+  paired_comparison: Four planned EN/DE source slots, three eligible, one frozen English-video source
+    shortfall. Each model made three writing calls with no retry, fallback or LLM review. Gemini admitted
+    one card, Mercury zero under the same Jev gates; all six drafts had valid structures and source identities.
+  paired_report: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.md
+  paired_aggregate: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.json
+  source_only_audit: Independent automated review of all six drafts against retained source evidence
+    found no obvious material copy blocker. Gemini holds were correct-choice language/grounding answers
+    below the existing confidence threshold. Not native-speaker gold or a writer-quality ranking.
+  remaining_work: Medium-priority EN/DE Jev false-rejection calibration and recent German-video discovery
+    can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
+    cover incomplete results. No additional paid sweeps or production-server deployment.
 previous_v7_evidence:
   implementation_commit: be96267b0894c144e54aec6d914946067a06251e
   core_implementation_commit: 3e33b8c5d1d57d6bdd6ee5edb688f7ba6edbf6c2
