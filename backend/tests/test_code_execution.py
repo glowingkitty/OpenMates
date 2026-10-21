@@ -431,6 +431,7 @@ async def test_code_run_completion_withholds_error_text_when_terminal_scan_is_un
 # contract-test: direct surface=rest_api assertions=code-run.artifacts.encrypted-indexed,code-run.artifacts.child-renderer-routing
 @pytest.mark.anyio
 async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENMATES_API_URL", "https://api.dev.openmates.org")
     plaintext = b"name,value\nAlice,1\n"
     uploads: list[dict[str, object]] = []
     indexed: list[dict[str, object]] = []

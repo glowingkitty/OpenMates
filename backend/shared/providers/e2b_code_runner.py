@@ -34,6 +34,7 @@ MAX_TOTAL_ARTIFACT_BYTES = 20_000_000
 E2B_SECRET_PATH = "kv/data/providers/e2b"
 E2B_SECRET_KEY = "api_key"
 E2B_ENV_VAR = "SECRET__E2B__API_KEY"
+CODE_RUN_TEMPLATE_ENV = "E2B_CODE_RUN_TEMPLATE"
 OUTPUTS_DIR = "outputs"
 OUTPUT_MANIFEST = "openmates_outputs.json"
 ALLOWED_ARTIFACT_EXTENSIONS = {
@@ -146,7 +147,7 @@ def _run_command_for_file(file: CodeRunFile) -> str:
     if language in {"javascript", "js", "node"} or file.path.endswith((".js", ".mjs", ".cjs")):
         return f"node {path}"
     if language in {"typescript", "ts"} or file.path.endswith(".ts"):
-        return f"npx --yes tsx {path}"
+        return f"if command -v tsx >/dev/null; then tsx {path}; else npx --yes tsx {path}; fi"
     if language in {"bash", "sh", "shell"} or file.path.endswith(".sh"):
         return f"bash {path}"
     if language in {"c"} or file.path.endswith(".c"):
@@ -154,7 +155,7 @@ def _run_command_for_file(file: CodeRunFile) -> str:
     if language in {"cpp", "c++", "cplusplus"} or file.path.endswith((".cc", ".cpp", ".cxx")):
         return f"command -v g++ >/dev/null || {{ echo 'C++ execution is not available in this sandbox yet.' >&2; exit 127; }}; g++ {path} -std=c++17 -o /tmp/openmates-run-bin && /tmp/openmates-run-bin"
     if language in {"rust", "rs"} or file.path.endswith(".rs"):
-        return f"command -v rustc >/dev/null || {{ echo 'Rust execution is not available in this sandbox yet.' >&2; exit 127; }}; rustc {path} -o /tmp/openmates-run-bin && /tmp/openmates-run-bin"
+        return f"command -v rustc >/dev/null || {{ echo 'Rust execution is not available in this sandbox yet.' >&2; exit 127; }}; rustc --edition=2021 {path} -o /tmp/openmates-run-bin && /tmp/openmates-run-bin"
     if language in {"go", "golang"} or file.path.endswith(".go"):
         return f"command -v go >/dev/null || {{ echo 'Go execution is not available in this sandbox yet.' >&2; exit 127; }}; go run {path}"
     raise ValueError(f"Unsupported executable language for {file.path}")
@@ -469,7 +470,9 @@ def run_code_in_e2b(
 
     try:
         _emit(on_output, "status", "Starting sandbox...\n")
+        template_options = {"template": os.environ[CODE_RUN_TEMPLATE_ENV]} if os.getenv(CODE_RUN_TEMPLATE_ENV) else {}
         sandbox = Sandbox.create(
+            **template_options,
             api_key=api_key,
             secure=True,
             allow_internet_access=enable_internet,
@@ -479,11 +482,9 @@ def run_code_in_e2b(
         if should_cancel and should_cancel():
             raise CodeRunCancelled("Code run cancelled by user")
 
-        sandbox.commands.run(f"mkdir -p {shlex.quote(WORKSPACE_DIR)}")
         _emit(on_output, "status", f"Uploading {len(files)} files...\n")
-        dirs = sorted({file.path.rsplit("/", 1)[0] for file in files if "/" in file.path})
-        for directory in dirs:
-            sandbox.commands.run(f"mkdir -p {shlex.quote(f'{WORKSPACE_DIR}/{directory}')}")
+        dirs = sorted({f"{WORKSPACE_DIR}/{file.path.rsplit('/', 1)[0]}" for file in files if "/" in file.path})
+        sandbox.commands.run("mkdir -p " + " ".join(shlex.quote(path) for path in [WORKSPACE_DIR, *dirs]))
         sandbox.files.write_files([
             {"path": f"{WORKSPACE_DIR}/{file.path}", "data": _file_payload(file)}
             for file in files

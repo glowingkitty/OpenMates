@@ -13,14 +13,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import shlex
 import time
+from pathlib import Path
 
 from e2b import Template
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.e2b_application_preview import APPLICATION_CAPTURE_DIRECTORY
+from backend.shared.providers.e2b_application_preview import APPLICATION_CAPTURE_DIRECTORY, PREPARED_PREVIEW_DEPENDENCIES
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
 
 
@@ -38,6 +40,8 @@ def main() -> None:
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--name", required=True, help="New versioned template alias")
     parser.add_argument("--capture-directory", default=APPLICATION_CAPTURE_DIRECTORY)
+    parser.add_argument("--warm", action="store_true", help="Snapshot public tooling and a blank browser already running")
+    parser.add_argument("--runtime-source", type=Path, default=Path(__file__).resolve().parents[1] / "shared/providers/application_preview_runtime.mjs")
     args = parser.parse_args()
     if not args.execute:
         parser.error("--execute is required to publish a provider template")
@@ -50,15 +54,25 @@ def main() -> None:
                  "npm install --no-audit --no-fund playwright@1.60.0 && "
                  "npx playwright install --with-deps chromium")
         .set_workdir("/home/user")
-        .run_cmd("npm init -y && npm install --ignore-scripts --no-audit --no-fund "
-                 "svelte@5.55.7 vite@5.4.21 @sveltejs/vite-plugin-svelte@4.0.4 typescript@5.9.2")
+        .run_cmd("npm init -y && npm install --ignore-scripts --no-audit --no-fund " +
+                 " ".join(shlex.quote(f"{name}@{version}") for name, version in PREPARED_PREVIEW_DEPENDENCIES.items()))
     )
+    if args.warm:
+        encoded = base64.b64encode(args.runtime_source.read_bytes()).decode()
+        runtime_path = f"{args.capture_directory}/runtime.mjs"
+        template = template.run_cmd(
+            "printf %s " + shlex.quote(encoded) + " | base64 -d > " + shlex.quote(runtime_path)
+        ).set_start_cmd(
+            "cd /home/user && node " + shlex.quote(runtime_path),
+            "test -f /tmp/openmates-preview-template-ready",
+        )
     started = time.monotonic()
-    result = Template.build(template, name=args.name, api_key=asyncio.run(_api_key()))
+    result = Template.build(template, name=args.name, api_key=asyncio.run(_api_key()), cpu_count=2, memory_mb=1024)
     print(json.dumps({
         "template_id": result.template_id,
         "alias": args.name,
         "build_seconds": round(time.monotonic() - started, 3),
+        "warm": args.warm, "cpu_count": 2, "memory_mb": 1024,
     }))
 
 

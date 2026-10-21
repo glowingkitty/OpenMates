@@ -546,3 +546,193 @@ def test_preview_exposes_ready_runtime_before_screenshot_capture(monkeypatch, te
         entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="python3 -m http.server 5173", port=5173)],
         api_key="fixture", on_runtime_ready=ready)
     assert result.latest_screenshot_bytes == PNG_BYTES
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('variation,expected', [
+    ('prepared', True), ('unknown-package', False), ('wrong-version', False),
+    ('lockfile', False), ('custom-config', False), ('nested-manifest', False),
+    ('override', False), ('binary', False), ('supplied-node-modules', False),
+])
+def test_prepared_fast_path_preserves_dependency_and_custom_config_fallbacks(variation, expected):
+    from backend.shared.providers import e2b_application_preview as provider
+    dependencies = {name: '^' + version for name, version in provider.PREPARED_PREVIEW_DEPENDENCIES.items()}
+    manifest = {'dependencies': dependencies, 'scripts': {'dev': 'vite'}}
+    extra = []
+    if variation == 'unknown-package':
+        dependencies['some-other-library'] = '^1.0.0'
+    if variation == 'wrong-version':
+        dependencies['svelte'] = '^4.0.0'
+    if variation == 'override':
+        manifest['overrides'] = {'vite': '^4.0.0'}
+    if variation == 'lockfile':
+        extra = [ApplicationPreviewFile(path='package-lock.json', content='{}')]
+    if variation == 'custom-config':
+        extra = [ApplicationPreviewFile(path='vite.config.ts', content='export default {}')]
+    if variation == 'nested-manifest':
+        extra = [ApplicationPreviewFile(path='other/package.json', content='{}')]
+    if variation == 'binary':
+        extra = [ApplicationPreviewFile(path='asset.png', content_base64='AA==')]
+    if variation == 'supplied-node-modules':
+        extra = [ApplicationPreviewFile(path='node_modules/vite/package.json', content='{}')]
+    plan = provider.plan_application_preview_startup(files=[
+        ApplicationPreviewFile(path='package.json', content=json.dumps(manifest)),
+        ApplicationPreviewFile(path='src/App.svelte', content='<h1>Current revision</h1>'), *extra,
+    ], entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)])
+    assert provider._can_batch_prepared_vite_preview(plan) is expected
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_prepared_batch_keeps_current_source_exact_hosts_and_install_fallback():
+    import base64
+    import re
+    from backend.shared.providers import e2b_application_preview as provider
+    commands = []
+    uploaded = []
+    plan = provider.plan_application_preview_startup(files=[
+        ApplicationPreviewFile(path='package.json', content=json.dumps({'dependencies': provider.PREPARED_PREVIEW_DEPENDENCIES})),
+        ApplicationPreviewFile(path='src/App.svelte', content='<h1>Current revision</h1>'),
+    ], entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)])
+    sandbox = SimpleNamespace(commands=SimpleNamespace(run=lambda command, **kwargs: commands.append((command, kwargs))),
+                              files=SimpleNamespace(write_files=uploaded.extend))
+    provider._start_batched_vite_preview(sandbox, plan, ['5173-this-sandbox.e2b.app'])
+    assert len(commands) == 1
+    encoded = re.search(r"Buffer.from\('([A-Za-z0-9+/=]+)', 'base64'\)", commands[0][0]).group(1)
+    setup = json.loads(base64.b64decode(encoded))
+    files = {entry['path']: entry['data'] for entry in uploaded}
+    assert files['src/App.svelte'] == '<h1>Current revision</h1>'
+    assert '5173-this-sandbox.e2b.app' in files[provider.VITE_OPENMATES_CONFIG_PATH]
+    assert 'allowedHosts: true' not in files[provider.VITE_OPENMATES_CONFIG_PATH]
+    assert setup['install'] == plan.install_commands
+    assert setup['expected'] == provider.PREPARED_PREVIEW_DEPENDENCIES
+    assert 'files' not in setup
+    assert 'Current revision' not in commands[0][0]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('cache_matches', [True, False])
+def test_batched_setup_executes_cached_or_install_fallback_and_waits_for_server(tmp_path, cache_matches):
+    import os
+    import shutil
+    import signal
+    import socket
+    import subprocess
+    from backend.shared.providers import e2b_application_preview as provider
+    if shutil.which('node') is None:
+        pytest.skip('Node is needed to exercise the sandbox bootstrap program')
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', 0))
+        port = probe.getsockname()[1]
+    for name, version in provider.PREPARED_PREVIEW_DEPENDENCIES.items():
+        package = tmp_path / 'node_modules' / name / 'package.json'
+        package.parent.mkdir(parents=True, exist_ok=True)
+        package.write_text(json.dumps({'version': version if cache_matches else '0.0.0'}))
+    server = "require('fs').writeFileSync('server.pid', String(process.pid)); require('http').createServer((req,res)=>res.end('ok')).listen(%d,'127.0.0.1');" % port
+    plan = provider.ApplicationPreviewPlan(files=[
+        ApplicationPreviewFile(path='server.cjs', content=server),
+        ApplicationPreviewFile(path='package.json', content=json.dumps({'dependencies': provider.PREPARED_PREVIEW_DEPENDENCIES})),
+    ], install_commands=['node -e "require(\'fs\').writeFileSync(\'installed\', \'yes\')"'],
+       start_commands=[{'name': 'frontend', 'command': 'node server.cjs', 'port': port}])
+    def upload(entries):
+        for entry in entries:
+            target = tmp_path / entry['path']
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(entry['data'])
+    def execute(command, **kwargs):
+        result = subprocess.run(['bash', '-lc', command], cwd=tmp_path, capture_output=True, timeout=10)
+        return SimpleNamespace(exit_code=result.returncode)
+    sandbox = SimpleNamespace(files=SimpleNamespace(write_files=upload), commands=SimpleNamespace(run=execute))
+    try:
+        provider._start_batched_vite_preview(sandbox, plan, ['127.0.0.1'])
+        assert (tmp_path / 'installed').exists() is (not cache_matches)
+        assert (tmp_path / 'server.pid').exists()
+    finally:
+        if (tmp_path / 'server.pid').exists():
+            os.kill(int((tmp_path / 'server.pid').read_text()), signal.SIGTERM)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('dev,eligible', [('vite', True), ('vite --host 0.0.0.0', True), ('vite && echo custom', False), (['vite'], False)])
+def test_warm_template_preserves_custom_dev_scripts(dev, eligible):
+    from backend.shared.providers import e2b_application_preview as p
+    plan = p.plan_application_preview_startup(files=[
+        ApplicationPreviewFile(path='package.json', content=json.dumps({'scripts': {'dev': dev}, 'dependencies': p.PREPARED_PREVIEW_DEPENDENCIES})),
+        ApplicationPreviewFile(path='src/App.svelte', content='<h1>New revision</h1>'),
+    ], entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)])
+    assert p._can_warm_start_preview(plan) is eligible
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_warm_activation_uploads_source_and_exact_hosts_before_content_free_signal():
+    import hashlib
+    from backend.shared.providers import e2b_application_preview as p
+    uploads = []
+    plan = p.plan_application_preview_startup(files=[
+        ApplicationPreviewFile(path='package.json', content=json.dumps({'scripts': {'dev': 'vite'}, 'dependencies': p.PREPARED_PREVIEW_DEPENDENCIES})),
+        ApplicationPreviewFile(path='src/App.svelte', content='<h1>New revision</h1>'),
+    ], entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)])
+    sandbox = SimpleNamespace(files=SimpleNamespace(write_files=uploads.append))
+    revision = p._activate_warm_preview(sandbox, plan, ['5173-exact.e2b.app'])
+    assert len(uploads) == 1
+    source = {file['path']: file['data'] for file in uploads[0]}
+    assert source['src/App.svelte'] == '<h1>New revision</h1>'
+    assert "allowedHosts: ['5173-exact.e2b.app']" in source[p.VITE_OPENMATES_CONFIG_PATH]
+    activation = json.loads(source.pop('/tmp/openmates-preview-request.json'))
+    assert activation['revision'] == revision
+    assert activation['port'] == 5173
+    assert activation['files'] == {path: hashlib.sha256(content.encode()).hexdigest() for path, content in source.items()}
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('actual,expected', [('older-revision', 503), ('current-revision', 200)])
+def test_warm_readiness_requires_current_revision_header(monkeypatch, actual, expected):
+    from backend.shared.providers import e2b_application_preview as p
+    class Response:
+        status = 200
+        headers = {'X-OpenMates-Preview-Ready': actual}
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return None
+    monkeypatch.setattr(p, 'urlopen', lambda *_args, **_kwargs: Response())
+    sandbox = SimpleNamespace(files=SimpleNamespace(read=lambda _path: '{"status":"running"}'))
+    assert p._fetch_warm_preview_status(sandbox, 'https://5173-example.e2b.app', 'current-revision') == expected
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('custom', ['entrypoint', 'predev', 'postdev'])
+def test_warm_start_keeps_custom_bootstrap_and_lifecycle_on_normal_path(custom):
+    from backend.shared.providers import e2b_application_preview as p
+    scripts = {'dev': 'vite'}
+    if custom in {'predev', 'postdev'}:
+        scripts[custom] = 'node setup.js'
+    files = [ApplicationPreviewFile(path='package.json', content=json.dumps({'scripts': scripts, 'dependencies': p.PREPARED_PREVIEW_DEPENDENCIES})),
+             ApplicationPreviewFile(path='src/App.svelte', content='<h1>App</h1>')]
+    if custom == 'entrypoint':
+        files.append(ApplicationPreviewFile(path='index.html', content='<script type="module" src="/custom.js"></script>'))
+    plan = p.plan_application_preview_startup(files=files, entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)])
+    assert p._can_warm_start_preview(plan) is False
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+@pytest.mark.parametrize('paths', [
+    ['vite.config.openmates.mjs'],
+    ['./vite.config.openmates.mjs'],
+    ['.cache/openmates-application-capture'],
+    ['.cache/openmates-application-capture/runtime.mjs'],
+    [r'.cache\openmates-application-capture\runtime.mjs'],
+    ['src/App.svelte', './src/App.svelte'],
+    ['src/App.svelte', r'src\App.svelte'],
+])
+# contract-test: supporting surface=gui.web assertions=app-skills.media.application-screenshot
+def test_preview_rejects_reserved_and_duplicate_paths_before_sandbox_creation(monkeypatch, paths):
+    from backend.shared.providers import e2b_application_preview as p
+    def unexpected_create(**_kwargs):
+        pytest.fail('Unsafe input must be rejected before sandbox creation')
+    monkeypatch.setitem(sys.modules, 'e2b', SimpleNamespace(Sandbox=SimpleNamespace(create=unexpected_create)))
+    with pytest.raises(p.ApplicationPreviewPlanningError):
+        p.start_application_preview_in_e2b(
+            files=[ApplicationPreviewFile(path=path, content='untrusted source') for path in paths],
+            entrypoints=[ApplicationPreviewEntrypoint(name='frontend', command='npm run dev', port=5173)],
+            api_key='test-key',
+        )

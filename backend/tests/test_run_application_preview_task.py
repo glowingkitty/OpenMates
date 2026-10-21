@@ -141,6 +141,7 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     cache = FakeCache()
     stopped: list[dict[str, str]] = []
     charges: list[dict[str, object]] = []
+    scheduled: list[tuple[str, str]] = []
 
     await create_application_preview_session(
         cache_service=cache,
@@ -183,8 +184,16 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
         },
         provider_start=fake_provider,
         provider_stop=fake_provider_stop,
+        deadline_scheduler=lambda session, sandbox: scheduled.append((session, sandbox)),
     )
 
+    assert scheduled == [("session-1", "sandbox-1")]
+    assert stopped == []
+    assert charges == []
+    await worker._stop_unopened_auto_started_session_after_deadline(
+        cache_service=cache, session_id="session-1", sandbox_id="sandbox-1",
+        api_key="e2b-key", provider_stop=fake_provider_stop,
+    )
     stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
     assert stored["status"] == "timeout"
     assert stored["stop_reason"] == "auto_unopened_timeout"
@@ -711,3 +720,70 @@ async def test_runtime_is_visible_before_screenshot_storage_completes() -> None:
         provider_start=provider, thumbnail_store=thumbnail, now=2030)
     data = json.loads(await cache.redis.get(application_preview_session_key("session-1")))
     assert data["status"] == "stopped" and data["latest_screenshot_url"].endswith("screenshot")
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
+def test_unopened_preview_deadline_dispatch_contains_no_secrets_and_does_not_sleep(monkeypatch):
+    worker = _load_worker_module()
+    dispatches = []
+    monkeypatch.setattr(worker, 'app', SimpleNamespace(send_task=lambda *args, **kwargs: dispatches.append((args, kwargs))))
+    worker._dispatch_unopened_preview_deadline('session-1', 'sandbox-1')
+    assert dispatches == [(('code.expire_unopened_application_preview',), {
+        'args': ['session-1', 'sandbox-1'], 'queue': 'app_code', 'countdown': 60,
+    })]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
+@pytest.mark.anyio
+@pytest.mark.parametrize('change', [{'auto_opened_at': 2040}, {'sandbox_id': 'replacement-sandbox'}, {'auto_started': False}])
+async def test_old_deadline_preserves_opened_or_replaced_previews(change):
+    worker = _load_worker_module()
+    cache = FakeCache()
+    state = {'auto_started': True, 'sandbox_id': 'sandbox-1', 'status': 'running', **change}
+    await cache.redis.set(application_preview_session_key('session-1'), json.dumps(state))
+    reclaimed = []
+    async def unexpected_stop(**_kwargs):
+        assert change.get('sandbox_id') == 'replacement-sandbox'
+        assert _kwargs['sandbox_id'] == 'sandbox-1'
+        reclaimed.append(_kwargs['sandbox_id'])
+        return True
+    await worker._stop_unopened_auto_started_session_after_deadline(
+        cache_service=cache, session_id='session-1', sandbox_id='sandbox-1',
+        api_key='test-key', provider_stop=unexpected_stop,
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key('session-1'))).decode())
+    assert stored == state
+    assert reclaimed == (['sandbox-1'] if change.get('sandbox_id') else [])
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
+@pytest.mark.anyio
+async def test_cleanup_dispatch_failure_stops_runtime_instead_of_leaking_it(monkeypatch):
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache, session_id='session-1', application_embed_id='app-embed-1',
+        body=ApplicationPreviewStartRequest(chat_id='chat-1', auto_started=True, source_message_id='assistant-message-1'),
+        current_user=_user('alice-user'), preview_origin='https://openmatesusercontent.org', now=2000,
+    )
+    stopped = []
+    async def provider(**_kwargs):
+        return ApplicationPreviewRuntime(sandbox_id='sandbox-1', upstream_base_url='https://5173-fixture.e2b.app', ports={'frontend': 5173})
+    async def stop(**kwargs):
+        stopped.append(kwargs['sandbox_id'])
+        return True
+    async def charge(**_kwargs):
+        return None
+    def unavailable_scheduler(*_args):
+        raise RuntimeError('Cleanup scheduling unavailable')
+    monkeypatch.setattr(worker, '_charge_preview_credits', charge)
+    await worker.run_application_preview_session(
+        cache_service=cache, session_id='session-1', payload={
+            'api_key': 'test-key', 'files': [{'path': 'index.html', 'content': '<main>Test</main>'}],
+            'entrypoints': [{'name': 'frontend', 'command': 'python -m http.server 5173', 'port': 5173}],
+        }, provider_start=provider, provider_stop=stop, deadline_scheduler=unavailable_scheduler,
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key('session-1'))).decode())
+    assert stopped == ['sandbox-1']
+    assert stored['status'] == 'failed'
+    assert stored['sandbox_stopped_at']

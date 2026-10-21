@@ -2,8 +2,8 @@
 /**
  * Application embed live-preview E2E coverage.
  *
- * Runs against app.dev.openmates.org through scripts/run_tests.py. Do not run
- * locally; Playwright specs require deployed code and shared test accounts.
+ * Runs through the isolated GitHub CI coordinator with its provisioned preview
+ * gateway and E2B executor. Do not run against the shared development stack.
  */
 export {};
 
@@ -106,8 +106,7 @@ test('generated application embed starts explicit isolated live preview', async 
 	await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10_000 });
 	await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10_000 });
 	const liveScreenshot = applicationEmbed.getByTestId('application-preview-screenshot-image');
-	await expect(liveScreenshot).toBeVisible({ timeout: 180_000 });
-	await expect.poll(() => liveScreenshot.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
+	// Open from the placeholder: live readiness must not wait for its thumbnail.
 
 	const fullscreenOverlay = await openFullscreen(page, applicationEmbed);
 	await expect(fullscreenOverlay.getByTestId('application-preview-panel')).toBeVisible({ timeout: 10_000 });
@@ -121,17 +120,20 @@ test('generated application embed starts explicit isolated live preview', async 
 	}
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
-	const previewStartResponse = page.waitForResponse(
-		(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
-		{ timeout: 90_000 }
-	);
-	await dismissVisibleNotifications(page);
-	await fullscreenOverlay.getByTestId('application-start-preview').click();
-	const startResponse = await previewStartResponse;
-	expect(startResponse.ok(), `preview start failed with ${startResponse.status()}`).toBe(true);
+	const startButton = fullscreenOverlay.getByTestId('application-start-preview');
+	if (await startButton.isVisible()) {
+		const previewStartResponse = page.waitForResponse(
+			(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
+			{ timeout: 30_000 }
+		);
+		await dismissVisibleNotifications(page);
+		await startButton.click();
+		const startResponse = await previewStartResponse;
+		expect(startResponse.ok(), `preview start failed with ${startResponse.status()}`).toBe(true);
+	}
 
 	const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
-	await expect(iframe).toBeVisible({ timeout: 180_000 });
+	await expect(iframe).toBeVisible({ timeout: 30_000 });
 	const iframeSrc = await iframe.getAttribute('src');
 	expect(iframeSrc, 'preview iframe src missing').toBeTruthy();
 	expect(iframeSrc).toContain('/t/');
@@ -160,6 +162,8 @@ test('generated application embed starts explicit isolated live preview', async 
 	await expect(fullscreenOverlay.getByTestId('application-preview-logs')).toBeVisible({ timeout: 10_000 });
 
 	await closeFullscreen(page, fullscreenOverlay);
+	await expect(liveScreenshot).toBeVisible({ timeout: 60_000 });
+	await expect.poll(() => liveScreenshot.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), { timeout: 30_000 }).toBe(true);
 	const reloadAutoStarts: string[] = [];
 	page.on('request', (request: any) => {
 		if (request.method() === 'POST' && request.url().includes('/preview/start') && request.postDataJSON()?.auto_started === true) reloadAutoStarts.push(request.url());

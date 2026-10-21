@@ -8,12 +8,14 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import os
 import re
 import shlex
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -39,7 +41,7 @@ SVELTE_PREVIEW_DEFAULT_MAIN_TS = (
     "mount(App, { target });\n"
 )
 PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
-PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
+PREVIEW_READINESS_INTERVAL_SECONDS = 0.1
 PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
 PREVIEW_READINESS_REQUIRED_SUCCESSES = 2
 APPLICATION_CAPTURE_DIRECTORY = "/home/user/.cache/openmates-application-capture"
@@ -48,6 +50,12 @@ APPLICATION_CAPTURE_TIMEOUT_SECONDS = 100
 APPLICATION_CAPTURE_BROWSER_TIMEOUT_SECONDS = 90
 APPLICATION_SANDBOX_TIMEOUT_SECONDS = 30 * 60
 APPLICATION_PREVIEW_TEMPLATE_ENV = "E2B_APPLICATION_PREVIEW_TEMPLATE"
+APPLICATION_PREVIEW_WARM_TEMPLATE_ENV = "E2B_APPLICATION_PREVIEW_WARM_TEMPLATE"
+# Only public toolchains are cached; each sandbox starts with fresh user state.
+PREPARED_PREVIEW_DEPENDENCIES = {
+    "svelte": "5.55.7", "vite": "5.4.21",
+    "@sveltejs/vite-plugin-svelte": "4.0.4", "typescript": "5.9.2",
+}
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 VITE_CONFIG_FILENAMES = {
     "vite.config.js",
@@ -116,6 +124,8 @@ def plan_application_preview_startup(
     normalized_files = [_normalize_file(file) for file in files]
     if not normalized_files:
         raise ApplicationPreviewPlanningError("Application preview requires at least one file")
+    if len({file.path for file in normalized_files}) != len(normalized_files):
+        raise ApplicationPreviewPlanningError("Application preview file paths must be unique")
     normalized_files = _complete_svelte_preview_scaffold(normalized_files)
 
     return ApplicationPreviewPlan(
@@ -181,7 +191,10 @@ def _safe_application_path(path: str) -> str:
     pure_path = PurePosixPath(raw)
     if pure_path.is_absolute() or any(part in {"", ".", ".."} for part in pure_path.parts):
         raise ApplicationPreviewPlanningError("Application preview file path is unsafe")
-    return pure_path.as_posix()
+    normalized = pure_path.as_posix()
+    if normalized == VITE_OPENMATES_CONFIG_PATH or normalized == ".cache/openmates-application-capture" or normalized.startswith(".cache/openmates-application-capture/"):
+        raise ApplicationPreviewPlanningError("Application preview file path is reserved for sandbox tooling")
+    return normalized
 
 
 def _looks_like_secret(value: str) -> bool:
@@ -238,7 +251,7 @@ def start_application_preview_in_e2b(
     enable_internet: bool = True,
     on_runtime_ready: Callable[[ApplicationPreviewRuntime], None] | None = None,
 ) -> ApplicationPreviewRuntime:
-    """Start a generated application preview in E2B and return proxy metadata."""
+    """Start untrusted app code in E2B; never compile or render it on this host."""
     try:
         from e2b import Sandbox
     except ImportError as exc:  # pragma: no cover - deployment dependency guard
@@ -248,7 +261,8 @@ def start_application_preview_in_e2b(
         raise RuntimeError("E2B API key is not configured")
 
     plan = plan_application_preview_startup(files=files, entrypoints=entrypoints)
-    template = os.getenv(APPLICATION_PREVIEW_TEMPLATE_ENV) or None
+    warm_template = os.getenv(APPLICATION_PREVIEW_WARM_TEMPLATE_ENV) if _can_warm_start_preview(plan) else None
+    template = warm_template or os.getenv(APPLICATION_PREVIEW_TEMPLATE_ENV) or None
     sandbox = Sandbox.create(
         template=template,
         envs={"PLAYWRIGHT_BROWSERS_PATH": f"{APPLICATION_CAPTURE_DIRECTORY}/browsers"} if template else None,
@@ -258,23 +272,42 @@ def start_application_preview_in_e2b(
         allow_internet_access=enable_internet,
         network={"allow_public_traffic": True},
     )
-    _write_files(sandbox, plan.files)
-    for command in plan.install_commands:
-        sandbox.commands.run(command, timeout=180)
-
     ports = {str(command["name"]): int(command["port"]) for command in plan.start_commands}
     upstream_base_urls = {name: _sandbox_host(sandbox, port) for name, port in ports.items()}
     vite_allowed_hosts = _vite_allowed_hosts(upstream_base_urls)
-    vite_config_path = _write_vite_allowed_hosts_config(sandbox, plan.files, vite_allowed_hosts)
-    for command in plan.start_commands:
-        sandbox.commands.run(
-            _with_vite_preview_settings(str(command["command"]), vite_allowed_hosts, vite_config_path),
-            background=True,
-            timeout=30,
-        )
-
     primary_name = "frontend" if "frontend" in upstream_base_urls else next(iter(upstream_base_urls))
-    _wait_for_preview_ready(upstream_base_urls[primary_name])
+    try:
+        if warm_template:
+            revision = _activate_warm_preview(sandbox, plan, vite_allowed_hosts)
+            attempts = 0
+            def fetch_warm(url: str) -> int:
+                nonlocal attempts
+                attempts += 1
+                return _fetch_warm_preview_status(sandbox, url, revision, inspect_failure=attempts % 3 == 0)
+            _wait_for_preview_ready(upstream_base_urls[primary_name], required_successes=1,
+                                    fetch_status=fetch_warm)
+        elif template and _can_batch_prepared_vite_preview(plan):
+            _start_batched_vite_preview(sandbox, plan, vite_allowed_hosts)
+            # Two local successes already established server stability. Verify
+            # public reachability as well before publishing running status.
+            _wait_for_preview_ready(upstream_base_urls[primary_name], required_successes=1)
+        else:
+            _write_files(sandbox, plan.files)
+            for command in plan.install_commands:
+                sandbox.commands.run(command, timeout=180)
+            vite_config_path = _write_vite_allowed_hosts_config(sandbox, plan.files, vite_allowed_hosts)
+            for command in plan.start_commands:
+                sandbox.commands.run(
+                    _with_vite_preview_settings(str(command["command"]), vite_allowed_hosts, vite_config_path),
+                    background=True, timeout=30,
+                )
+            _wait_for_preview_ready(upstream_base_urls[primary_name])
+    except Exception:
+        try:
+            Sandbox.kill(sandbox_id=str(getattr(sandbox, "sandbox_id", "")), api_key=api_key)
+        except Exception:
+            logger.warning("Could not stop failed application startup sandbox", exc_info=True)
+        raise
     runtime = ApplicationPreviewRuntime(
         sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
         upstream_base_url=upstream_base_urls[primary_name],
@@ -283,7 +316,7 @@ def start_application_preview_in_e2b(
     try:
         if on_runtime_ready:
             on_runtime_ready(runtime)
-        screenshot_bytes = _sandbox_screenshot_bytes(sandbox, ports[primary_name])
+        screenshot_bytes = _warm_preview_screenshot(sandbox) if warm_template else _sandbox_screenshot_bytes(sandbox, ports[primary_name])
     except Exception:
         # A capture failure is a failed preview, not a successfully rendered
         # thumbnail. Release the sandbox so a failed browser install cannot
@@ -302,6 +335,164 @@ def start_application_preview_in_e2b(
         latest_screenshot_bytes=screenshot_bytes,
         latest_screenshot_mime_type="image/png",
     )
+
+
+def _can_batch_prepared_vite_preview(plan: ApplicationPreviewPlan) -> bool:
+    if len(plan.start_commands) != 1 or not _is_vite_dev_command(str(plan.start_commands[0]["command"])):
+        return False
+    if any(file.content_base64 is not None or file.path.startswith("node_modules/") for file in plan.files):
+        return False
+    if any(file.path.rsplit("/", 1)[-1] in (DEPENDENCY_FILENAMES - {"package.json"}) | VITE_CONFIG_FILENAMES for file in plan.files):
+        return False
+    manifests = [file for file in plan.files if file.path.rsplit("/", 1)[-1] == "package.json"]
+    if len(manifests) != 1 or manifests[0].path != "package.json":
+        return False
+    try:
+        manifest = json.loads(manifests[0].content)
+        if not isinstance(manifest, dict) or set(manifest) - {
+            "name", "version", "private", "type", "scripts", "dependencies", "devDependencies",
+        }:
+            return False
+        fields = [manifest.get(name, {}) for name in ("dependencies", "devDependencies")]
+        if not all(isinstance(field, dict) for field in fields):
+            return False
+        dependencies = {name: version for field in fields for name, version in field.items()}
+        return {"svelte", "vite", "@sveltejs/vite-plugin-svelte"}.issubset(dependencies) and all(
+            name in PREPARED_PREVIEW_DEPENDENCIES and isinstance(version, str) and version in {
+                PREPARED_PREVIEW_DEPENDENCIES[name], "^" + PREPARED_PREVIEW_DEPENDENCIES[name],
+                "~" + PREPARED_PREVIEW_DEPENDENCIES[name],
+            }
+            for name, version in dependencies.items()
+        )
+    except (ValueError, TypeError):
+        return False
+
+
+def _can_warm_start_preview(plan: ApplicationPreviewPlan) -> bool:
+    if not _can_batch_prepared_vite_preview(plan):
+        return False
+    by_path = {file.path: file.content for file in plan.files}
+    if ("src/App.svelte" not in by_path or by_path.get("index.html") != SVELTE_PREVIEW_DEFAULT_INDEX_HTML
+            or by_path.get("src/main.ts") != SVELTE_PREVIEW_DEFAULT_MAIN_TS):
+        return False
+    # Programmatic Vite startup must not replace a custom npm dev script.
+    manifest = json.loads(next(file.content for file in plan.files if file.path == "package.json"))
+    scripts = manifest.get("scripts", {})
+    if isinstance(scripts, dict) and {"predev", "postdev"}.intersection(scripts):
+        return False
+    dev = scripts.get("dev") if isinstance(scripts, dict) else None
+    return isinstance(dev, str) and dev in {"vite", "vite --host 0.0.0.0"} and str(plan.start_commands[0]["command"]) in {
+        "npm run dev", "npm run dev -- --host 0.0.0.0",
+    }
+
+
+def _activate_warm_preview(sandbox: Any, plan: ApplicationPreviewPlan, allowed_hosts: list[str]) -> str:
+    revision = uuid.uuid4().hex
+    # Upload may write files concurrently. The restored runtime verifies every
+    # content digest before activation; a partially uploaded revision cannot run.
+    _upload_prepared_vite_files(sandbox, plan.files, allowed_hosts,
+                               activation={"revision": revision, "port": plan.start_commands[0]["port"]})
+    return revision
+
+
+def _fetch_warm_preview_status(sandbox: Any, url: str, revision: str, *, inspect_failure: bool = True) -> int:
+    request = Request(url, headers={"User-Agent": "OpenMates application preview readiness"}, method="GET")
+    try:
+        with urlopen(request, timeout=PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS) as response:
+            if response.headers.get("X-OpenMates-Preview-Ready") == revision:
+                return int(response.status)
+    except (HTTPError, URLError, TimeoutError, OSError):
+        pass
+    if inspect_failure:
+        status = json.loads(sandbox.files.read("/tmp/openmates-preview-status.json"))
+        if status.get("status") == "failed":
+            raise RuntimeError("Application preview warm startup failed")
+    return 503
+
+
+def _warm_preview_screenshot(sandbox: Any) -> bytes:
+    deadline = time.monotonic() + APPLICATION_CAPTURE_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        status = json.loads(sandbox.files.read("/tmp/openmates-preview-status.json"))
+        if status.get("status") == "failed":
+            raise RuntimeError("Application preview warm capture failed")
+        if status.get("status") == "captured":
+            image = bytes(sandbox.files.read("/tmp/openmates-preview-capture.png", format="bytes"))
+            if not _is_png(image):
+                raise RuntimeError("Application preview warm capture returned invalid PNG")
+            return image
+        time.sleep(0.1)
+    raise RuntimeError("Application preview warm capture timed out")
+
+
+def _upload_prepared_vite_files(sandbox: Any, files: list[ApplicationPreviewFile], allowed_hosts: list[str], *, activation: dict[str, Any] | None = None) -> str | None:
+    payload = [{"path": file.path, "data": file.content} for file in files]
+
+    class ConfigCollector:
+        def write_files(self, entries: list[dict[str, str]]) -> None:
+            payload.extend(entries)
+
+    class CollectorSandbox:
+        files = ConfigCollector()
+
+    config = _write_vite_allowed_hosts_config(CollectorSandbox(), files, allowed_hosts)
+    if activation:
+        request = {**activation, "files": {file["path"]: hashlib.sha256(file["data"].encode()).hexdigest() for file in payload}}
+        payload.append({"path": "/tmp/openmates-preview-request.json", "data": json.dumps(request)})
+    # Keep private source on the existing file-upload surface. Embedding it in a
+    # shell command could expose it through process/audit metadata at E2B.
+    sandbox.files.write_files(payload)
+    return config
+
+
+def _start_batched_vite_preview(sandbox: Any, plan: ApplicationPreviewPlan, allowed_hosts: list[str]) -> None:
+    config = _upload_prepared_vite_files(sandbox, plan.files, allowed_hosts)
+    command = plan.start_commands[0]
+    setup = {
+        "expected": PREPARED_PREVIEW_DEPENDENCIES,
+        "install": plan.install_commands,
+        "command": _with_vite_preview_settings(str(command["command"]), allowed_hosts, config),
+        "port": command["port"],
+    }
+    encoded = base64.b64encode(json.dumps(setup).encode()).decode()
+    script = r"""
+const fs = require('fs');
+const { spawn, spawnSync } = require('child_process');
+const setup = JSON.parse(Buffer.from('__SETUP__', 'base64').toString('utf8'));
+let prepared = true;
+try {
+  for (const [name, version] of Object.entries(setup.expected)) {
+    if (JSON.parse(fs.readFileSync('node_modules/' + name + '/package.json', 'utf8')).version !== version)
+      prepared = false;
+  }
+} catch (_) { prepared = false; }
+if (!prepared) {
+  for (const command of setup.install) {
+    const result = spawnSync('bash', ['-lc', command], { stdio: 'inherit', timeout: 180000 });
+    if (result.error || result.status !== 0) throw new Error('Application dependency installation failed');
+  }
+}
+const log = fs.openSync('/tmp/openmates-preview-startup.log', 'a');
+const child = spawn('bash', ['-lc', setup.command], { detached: true, stdio: ['ignore', log, log] });
+child.unref();
+(async () => {
+  let successes = 0;
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch('http://127.0.0.1:' + setup.port + '/', { signal: AbortSignal.timeout(3000) });
+      await response.text();
+      successes = response.ok ? successes + 1 : 0;
+      if (successes >= 2) return;
+    } catch (_) { successes = 0; }
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Application local readiness timed out');
+})().catch(error => { console.error(error.message); process.exitCode = 1; });
+""".replace("__SETUP__", encoded)
+    result = sandbox.commands.run("node - <<'OPENMATES_PREVIEW_SETUP'\n" + script + "\nOPENMATES_PREVIEW_SETUP", timeout=300)
+    if getattr(result, "exit_code", 0) not in (0, None):
+        raise RuntimeError("Application batched startup failed")
 
 
 def kill_application_preview_sandbox_in_e2b(*, sandbox_id: str, api_key: str) -> bool:

@@ -7,6 +7,10 @@ goal: |
   go ahead and debug
   and reproduce the issue and confirm startup is happening within seconds
   (as fast as possible)
+  drastically improve the processing time (but warn me / ask for consent if the
+  optimizations have impact on costs or user privacy), and also ensure we can't
+  only execute python code on e2b but also various other common languages like
+  rust and others.
 notes: |
   Complete the supported two-file Svelte bundle at the shared
   startup-planning boundary, preserving supplied entry pages and source files.
@@ -24,3 +28,24 @@ notes: |
   locally and backend integration checks in isolated GitHub CI. The full
   application-preview browser spec is held by existing CI executor/gateway
   provisioning; report that separately from real E2B provider proof.
+  Follow-up uses batched setup and exact prepared dependency validation, preserving
+  installation fallback and exact host checks. Free startup workers from the
+  unopened-session wait while retaining the deadline and current-session checks.
+  Verify existing Python, JavaScript, TypeScript, shell, C, C++, Rust and Go paths.
+  Do not add idle sandbox pools, larger allocations, user-state snapshots,
+  regional transfers or increased retention without explicit cost/privacy consent.
+  User authorized E2B build/test spending on 2026-10-21. Continue testing without
+  further cost confirmation; report user privacy and user cost effects at completion.
+  Preserve current runtime allocations and fresh per-execution user state.
+  A warm template snapshots only public Vite/Svelte tooling and a blank browser,
+  with the same 2 CPU / 1024 MB preview allocation. Upload source privately and
+  activate only after every file matches its revision digest. Custom bootstraps,
+  npm lifecycle hooks and unsupported dependencies retain the ordinary path.
+  Real original-app checks passed browser interactions: warm runs ranged from
+  5.465 to 7.368 seconds for HTTP readiness and 7.539 to 11.256 seconds for the
+  screenshot. These are individual samples, not a percentile guarantee.
+  A separate 2 CPU / 512 MB public-toolchain template passed all eight language
+  smoke programs with internet disabled. No user state is baked into either image.
+  Treat all app code as malicious. Dependency installation, compilation,
+  execution and browser rendering must remain inside E2B; the OpenMates host
+  only validates, hashes and transfers data and coordinates disposable sandboxes.
