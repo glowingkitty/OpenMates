@@ -52,6 +52,16 @@ action_routing:
     action: open
     expect: {unread_by_chat: {chat-4: 0, chat-5: 3}, app_badge: 3}
 
+direct_reply:
+  - id: expanded-message-opens-response-editor
+    given: Alice is signed in on her unlocked iPhone and receives an eligible message notification for an accessible chat in her acknowledged account and workspace.
+    when: She presses and holds the message notification, types a reply and presses Send.
+    then: The expanded notification immediately focuses the response editor and offers only Send. Opening the editor sends nothing; pressing Send durably records her exact reply before handing it to the app, and an interrupted or repeated handoff produces at most one encrypted message in that same chat. If registration is later revoked, a reply already admitted to the app outbox still requires the same authenticated owner, server, exact workspace and accessible message before sending; revocation does not turn it into a new editor authorization.
+  - id: changed-recipient-cannot-reply-to-another-scope
+    given: Alice received a message notification before signing out, switching account or server, losing access to the target, or revoking that registration; alternatively the notification lacks a valid exact recipient and workspace binding.
+    when: She expands the old notification or attempts to send from an editor whose binding is no longer valid.
+    then: No reply is sent into the replacement account or workspace. An invalid or locked notification has no enabled reply editor, and the safe notification remains available without exposing another recipient's data. Workflow notifications do not acquire an inline reply action.
+
 delivery_idempotency:
   - id: duplicate-provider-task-one-success
     given: {notification_id: notif-apple-5, worker_executions: 2, provider_acceptances: 1}

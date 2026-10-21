@@ -125,6 +125,28 @@ assertions:
     type: behavior
     must: An authorized chat notification opened from foreground, background, or terminated state selects the target chat through normal authenticated sync and hydration; an inline reply persists at most one client-encrypted user message with a stable id in that chat; a client already visibly viewing the chat does not show duplicate system and in-app presentation; and opening the chat clears only its unread count while recomputing the application badge from remaining unread chats.
     depends_on: [models.AppleNotificationAction, examples.action_routing]
+  - id: apple-notifications.action.direct-reply
+    type: behavior
+    must: >
+      Expanding an eligible message notification on iPhone or iPad immediately
+      presents its response editor with keyboard focus and Send as its only
+      action; no additional Reply button or alternate action is required.
+      Expansion alone never sends a message. The editor and explicit Send are
+      bound to the acknowledged device registration, authenticated recipient,
+      server profile, exact chat and message, and explicit Personal or Team
+      workspace. Locked, signed-out, revoked, stale, deleted or mismatched
+      targets cannot submit into another scope. An explicit Send is durably
+      retained before the extension hands it to the app and uses the existing
+      authenticated client-encrypted reply path with stable identity across
+      duplicate actions and interrupted handoffs. Registration revocation stops
+      new editor authorization and submission imports; an explicit reply already
+      admitted to the app's durable outbox remains subject to the normal exact
+      owner, server, workspace, message and deletion checks during later sending.
+      Missing or invalid binding
+      retains the safe notification without an enabled reply editor. Workflow
+      notifications remain excluded until their authorized destination resolves;
+      macOS keeps its operating-system text-input reply action.
+    depends_on: [models.AppleNotificationAction, examples.direct_reply]
   - id: apple-notifications.delivery.idempotent-visible
     type: invariant
     must: Provider retries, duplicate worker execution, repeated notification actions, and reconnects preserve one logical Apple notification and at most one successful provider delivery or encrypted reply message, while terminal failure remains visible and retryable only where safe.
@@ -153,4 +175,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [registration_lifecycle, payload_privacy, action_routing, delivery_idempotency]
+  required_groups: [registration_lifecycle, payload_privacy, action_routing, direct_reply, delivery_idempotency]

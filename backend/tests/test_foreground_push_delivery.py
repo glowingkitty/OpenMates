@@ -56,12 +56,12 @@ def test_completion_dispatches_push_when_only_stale_foreground_viewer_remains(so
     app = SimpleNamespace(state=SimpleNamespace(cache_service=SimpleNamespace(add_pending_reminder_delivery=pending_delivery)))
     notify = notification_pipeline(events, push, email, sleep)
 
-    asyncio.run(notify(app, manager, user, chat, "synthetic response", task_id="synthetic-message", max_attempts=1))
+    asyncio.run(notify(app, manager, user, chat, "synthetic response", task_id="synthetic-processing-task", message_id="synthetic-message", max_attempts=1))
 
     assert push.await_count == expected_pushes
     assert events.await_count == expected_pushes
     if expected_pushes:
-        push.assert_awaited_once_with(app=app, user_id=user, chat_id=chat, response_preview="synthetic response")
+        push.assert_awaited_once_with(app=app, user_id=user, chat_id=chat, response_preview="synthetic response", message_id="synthetic-message")
         events.assert_awaited_once_with(user_id=user, chat_id=chat, has_encrypted_preview=False)
     # The same retained session still owns completion recovery. Notification
     # visibility must not change that storage decision or duplicate the queue.

@@ -660,6 +660,7 @@ async def _check_user_offline_and_send_email(
     delay_seconds: int = 5,
     model_name: Optional[str] = None,
     category: Optional[str] = None,
+    message_id: Optional[str] = None,
 ) -> None:
     """
     Check if user is offline with retries, then notify via push notification and/or email.
@@ -678,7 +679,8 @@ async def _check_user_offline_and_send_email(
         user_id: The user's UUID
         chat_id: The chat ID where the AI response was delivered
         response_preview: Preview of the AI response for the email
-        task_id: The AI task ID (message_id) for deduplication
+        task_id: Processing task identity; continuations can have a different message ID
+        message_id: Exact completed assistant message identity from the stream event
         max_attempts: Number of connection check attempts (default 3)
         delay_seconds: Delay between attempts in seconds (default 5)
     """
@@ -710,7 +712,7 @@ async def _check_user_offline_and_send_email(
             delivery_payload = {
                 "type": "ai_response",  # Distinguishes from "reminder" system messages
                 "chat_id": chat_id,
-                "message_id": task_id or str(uuid.uuid4()),
+                "message_id": message_id or task_id or str(uuid.uuid4()),
                 "content": response_preview,  # Full AI response plaintext
                 "user_id": user_id,
                 "fired_at": int(time.time()),
@@ -746,6 +748,7 @@ async def _check_user_offline_and_send_email(
             user_id=user_id,
             chat_id=chat_id,
             response_preview=response_preview,
+            message_id=message_id,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -757,6 +760,7 @@ async def _send_push_notification_if_enabled(
     user_id: str,
     chat_id: str,
     response_preview: str,
+    message_id: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -824,6 +828,19 @@ async def _send_push_notification_if_enabled(
     if await has_active_human(cache_service, user_id, chat_id):
         return False
 
+    # Load workspace from durable chat authority, never infer Personal from
+    # absent metadata or use a client profile URL supplied in a push envelope.
+    workspace = None
+    directus_service = getattr(app.state, "directus_service", None)
+    if message_id and directus_service is not None:
+        try:
+            from backend.core.api.app.services.push_reply_context import reply_workspace
+
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+            workspace = reply_workspace(metadata, user_id, chat_id)
+        except Exception:
+            logger.warning("[PUSH_NOTIFY] Reply routing metadata unavailable; sending legacy alert")
+
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
 
@@ -838,6 +855,8 @@ async def _send_push_notification_if_enabled(
                 "chat_id": chat_id,
                 "category": "OPENMATES_CHAT_MESSAGE",
                 "user_id": user_id,
+                "message_id": message_id,
+                "workspace": workspace,
             },
             queue="push",
         )
@@ -1579,6 +1598,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     chat_id=chat_id_from_payload,
                                     response_preview=redis_payload.get("full_content_so_far", ""),
                                     task_id=redis_payload.get("task_id"),
+                                    message_id=redis_payload.get("message_id"),
                                     max_attempts=3,
                                     delay_seconds=5,
                                     model_name=redis_payload.get("model_name"),

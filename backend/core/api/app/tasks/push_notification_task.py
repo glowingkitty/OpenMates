@@ -40,6 +40,8 @@ def send_push_notification(
     chat_id: Optional[str] = None,
     category: str = "OPENMATES_CHAT_MESSAGE",
     user_id: Optional[str] = None,
+    message_id: Optional[str] = None,
+    workspace: Optional[dict] = None,
 ) -> bool:
     """
     Celery task to send a browser push notification.
@@ -89,6 +91,9 @@ def send_push_notification(
         chat_id=chat_id,
         category=category,
         on_expired_web_target=mark_expired_web_target,
+        recipient_account_id=user_id,
+        message_id=message_id,
+        workspace=workspace,
     )
 
     if not success:

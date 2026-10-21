@@ -16,7 +16,7 @@ See docs/architecture/notifications.md for the full notification flow.
 
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 from typing import Optional
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_directus_service, get_cache_service
@@ -61,6 +61,11 @@ class PushSubscribeResponse(BaseModel):
     message: str
 
 
+class NativeDeviceRegisterResponse(PushSubscribeResponse):
+    """Echo a reply binding only after this server durably stores it."""
+    reply_context_id: Optional[str] = None
+
+
 class NativeDeviceRegisterRequest(BaseModel):
     """Native Apple push token registration from the iOS/macOS/watchOS app."""
     token: str
@@ -70,6 +75,8 @@ class NativeDeviceRegisterRequest(BaseModel):
     encryption_version: Optional[str] = None
     device_id: Optional[str] = None
     alerts_enabled: Optional[bool] = None
+    reply_context_id: Optional[str] = None
+    preview_enabled: Optional[StrictBool] = None
 
 
 class NativeDeviceUnregisterRequest(BaseModel):
@@ -263,7 +270,8 @@ async def unsubscribe_push(
 
 @notifications_router.post(
     "/register-device",
-    response_model=PushSubscribeResponse,
+    response_model=NativeDeviceRegisterResponse,
+    response_model_exclude_none=True,
     dependencies=[Depends(verify_auth_client)],
 )
 async def register_native_device(
@@ -296,6 +304,17 @@ async def register_native_device(
     if platform == "watchos" and body.environment not in {"sandbox", "production"}:
         raise HTTPException(status_code=400, detail="Unsupported Watch push environment")
 
+    # First-party authenticated device surface (verify_auth_client + session).
+    # Owner is always current_user; no caller account/profile selector is accepted.
+    # This stores routing only: no inference, credits, or expanded REST access.
+    if getattr(body, "reply_context_id", None) is not None:
+        from backend.core.api.app.services.push_reply_context import valid_reply_registration
+
+        if not valid_reply_registration(
+            body.reply_context_id, body.notification_public_key, body.encryption_version, body.device_id,
+        ):
+            raise HTTPException(status_code=400, detail="Invalid notification reply registration")
+
     target = {
         "type": "apns",
         "token": token,
@@ -305,7 +324,11 @@ async def register_native_device(
         "notification_public_key": body.notification_public_key,
         "encryption_version": body.encryption_version,
         "device_id": (body.device_id or "").strip() or None,
+        "preview_enabled": getattr(body, "preview_enabled", None) is not False,
     }
+    if getattr(body, "reply_context_id", None) is not None:
+        target["reply_context_id"] = body.reply_context_id
+        target["reply_context_owner_id"] = user_id
     try:
         async with push_subscription_write_lock(cache_service, user_id) as lock:
             existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
@@ -325,7 +348,10 @@ async def register_native_device(
                 "push_notification_subscription": subscription_json,
             })
         logger.info(f"[PushRoutes] Saved native APNs token for user {user_id[:6]}...")
-        return PushSubscribeResponse(success=True, message="Device registered")
+        return NativeDeviceRegisterResponse(
+            success=True, message="Device registered",
+            reply_context_id=getattr(body, "reply_context_id", None),
+        )
     except HTTPException:
         raise
     except PushSubscriptionLockUnavailable as exc:

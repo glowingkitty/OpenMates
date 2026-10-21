@@ -349,7 +349,7 @@ specifications:
     version: 1
     status: draft
     path: features/apple-notifications
-    fingerprint: 3094934c6d5d40f2b36985673e53a8d2dec797295721b1570e5624e8ec9d5271
+    fingerprint: 42e16638702991c169b369b267c131ca9798944499e1988853bd068d675d436d
     required_applies_to:
     - rest_api
     - gui.apple
@@ -4613,7 +4613,7 @@ assertions:
     specification: feature.apple-notifications@1
     specification_id: feature.apple-notifications
     type: behavior
-    fingerprint: b63788ce019d2fbf464a03788f85581bc02d581981a81ec727d1f7dc2504c4b9
+    fingerprint: bb8298369f02a2603c0b763bc0d19052e3428c8a1e34926feb6c1e28cbef8a43
     required_applies_to:
     - rest_api
     - gui.apple
@@ -4646,6 +4646,14 @@ assertions:
     specification_id: feature.apple-notifications
     type: behavior
     fingerprint: 8bbd96575b0027e9d2bd49aa3ea4e8ac677af9030afb0f7974b9fe2f0aabb199
+    required_applies_to:
+    - rest_api
+    - gui.apple
+  apple-notifications.action.direct-reply:
+    specification: feature.apple-notifications@1
+    specification_id: feature.apple-notifications
+    type: behavior
+    fingerprint: e7c766083d41e0b410f82e15094d46d6eab7302225b0513253cb1b92fe40bc0f
     required_applies_to:
     - rest_api
     - gui.apple

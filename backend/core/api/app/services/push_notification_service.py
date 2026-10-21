@@ -293,6 +293,9 @@ class PushNotificationService:
         workflow_routing: Optional[dict] = None,
         encrypted_title: Optional[str] = None,
         on_apns_result: Optional[Callable[[str], None]] = None,
+        recipient_account_id: Optional[str] = None,
+        message_id: Optional[str] = None,
+        workspace: Optional[dict] = None,
     ) -> bool:
         """
         Send a Web Push notification to a stored subscription.
@@ -334,6 +337,9 @@ class PushNotificationService:
                 workflow_routing=workflow_routing,
                 encrypted_title=encrypted_title,
                 on_apns_result=on_apns_result,
+                recipient_account_id=recipient_account_id,
+                message_id=message_id,
+                workspace=workspace,
             )
         if subscription_type == "apns":
             return self._send_apns_notification(
@@ -346,6 +352,9 @@ class PushNotificationService:
                 workflow_routing=workflow_routing,
                 encrypted_title=encrypted_title,
                 on_apns_result=on_apns_result,
+                recipient_account_id=recipient_account_id,
+                message_id=message_id,
+                workspace=workspace,
             )
 
         if not self.is_ready():
@@ -413,6 +422,9 @@ class PushNotificationService:
         workflow_routing: Optional[dict] = None,
         encrypted_title: Optional[str] = None,
         on_apns_result: Optional[Callable[[str], None]] = None,
+        recipient_account_id: Optional[str] = None,
+        message_id: Optional[str] = None,
+        workspace: Optional[dict] = None,
     ) -> bool:
         """Fan out one notification to all stored browser/APNs targets."""
         targets = subscription_info.get("targets")
@@ -439,6 +451,9 @@ class PushNotificationService:
                     workflow_routing=workflow_routing,
                     encrypted_title=encrypted_title,
                     on_apns_result=on_apns_result,
+                    recipient_account_id=recipient_account_id,
+                    message_id=message_id,
+                    workspace=workspace,
                 )
                 any_success = any_success or target_success
             except Exception as exc:
@@ -456,6 +471,9 @@ class PushNotificationService:
         workflow_routing: Optional[dict] = None,
         encrypted_title: Optional[str] = None,
         on_apns_result: Optional[Callable[[str], None]] = None,
+        recipient_account_id: Optional[str] = None,
+        message_id: Optional[str] = None,
+        workspace: Optional[dict] = None,
     ) -> bool:
         """
         Send an APNs alert notification to a native Apple device token.
@@ -527,13 +545,20 @@ class PushNotificationService:
                             if key in {"workflow_id", "run_id", "notification_id", "chat_id", "message_id", "delivery_id"}
                             and isinstance(value, str) and value})
             payload["type"] = "workflow.run_completed"
+        from backend.core.api.app.services.push_reply_context import build_reply_context
+
+        reply_context = None
+        if category == APNS_CHAT_CATEGORY and platform != "watchos":
+            reply_context = build_reply_context(subscription_info, recipient_account_id, chat_id, message_id, workspace)
         # Watch has no notification service extension; always retain generic text.
         if category == "OPENMATES_WORKFLOW_COMPLETED" and encrypted_title and platform != "watchos":
             encrypted_payload = self._build_encrypted_apns_payload(
                 subscription_info, body, title=encrypted_title,
             )
         else:
-            encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
+            encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(
+                subscription_info, body, reply_context=reply_context,
+            )
         if (category == APNS_CHAT_CATEGORY or category == "OPENMATES_WORKFLOW_COMPLETED") and encrypted_payload:
             payload["aps"]["mutable-content"] = 1
             payload["encrypted_notification"] = encrypted_payload
@@ -548,6 +573,7 @@ class PushNotificationService:
                     candidate = self._build_encrypted_apns_payload(
                         subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""),
                         title=encrypted_title if category == "OPENMATES_WORKFLOW_COMPLETED" else None,
+                        reply_context=reply_context,
                     )
                     payload["encrypted_notification"] = candidate
                     size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
@@ -605,12 +631,15 @@ class PushNotificationService:
                 on_apns_result("uncertain")
             return False
 
-    def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str, *, title: str | None = None) -> Optional[dict]:
+    def _build_encrypted_apns_payload(
+        self, subscription_info: dict, preview_text: str, *,
+        title: str | None = None, reply_context: dict | None = None,
+    ) -> Optional[dict]:
         """Encrypt optional Apple notification preview text to the device public key."""
-        preview_text = notification_preview_text(preview_text)
+        preview_text = notification_preview_text(preview_text) if subscription_info.get("preview_enabled") is not False else ""
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
         encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()
-        if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or not preview_text:
+        if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or (not preview_text and reply_context is None):
             return None
 
         try:
@@ -631,8 +660,13 @@ class PushNotificationService:
                 info=APNS_ENCRYPTION_INFO,
             ).derive(shared_secret)
             nonce = os.urandom(12)
+            # The context stays byte-for-byte identical when preview is truncated.
+            # Consent off still allows an encrypted route-only envelope.
+            content = ({"title": title[:200], "body": preview_text} if title else {"preview": preview_text}) if preview_text else {}
+            if reply_context is not None:
+                content["reply_context"] = reply_context
             plaintext = json.dumps(
-                {"title": title[:200], "body": preview_text} if title else {"preview": preview_text},
+                content,
                 separators=(",", ":"), ensure_ascii=False,
             ).encode("utf-8")
             ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)

@@ -1,6 +1,13 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "native_push_registration": {
+      "execution": "e2e",
+      "enabling_work": "Use two fresh runner-private authenticated accounts and the isolated core API/CMS. Native tokens and X25519 keys are synthetic; inspect only allowlisted synthetic owners' persisted target JSON. No APNs delivery, external provider, or real AI inference.",
+      "specs": [
+        "push-subscription-lifecycle.spec.ts"
+      ]
+    },
     "telemetry_proxy_boundary": {
       "execution": "e2e",
       "enabling_work": "Use the isolated internal-network API, synthetic collector credentials, a disposable primary admin and a normal secondary account. The collector is absent; verify authorization, interrupted uploads, proxy availability and the unchanged per-IP quota without real provider credentials or shared endpoints.",
