@@ -2430,7 +2430,7 @@
       "get_transcript": {
         "text": "Get Transcript",
         "description": {
-          "text": "Get the transcript of a YouTube video."
+          "text": "Get the transcript of a YouTube / media.ccc.de video."
         },
         "how_to_use": {
           "1": {
@@ -2658,6 +2658,57 @@
       },
       "activism": {
         "text": "Which everyday choice has a bigger social impact than it seems?"
+      }
+    },
+    "recording_transcription": {
+      "title": {
+        "text": "Recording transcription"
+      },
+      "whistle": {
+        "text": "Whistle"
+      },
+      "included": {
+        "text": "Included with this app"
+      },
+      "unavailable": {
+        "text": "Unavailable in this build"
+      },
+      "bundled_size": {
+        "text": "Included model size"
+      },
+      "memory": {
+        "text": "After first use, Whistle can remain in memory until the app closes. Turning transcription off stops further processing."
+      },
+      "blocked_by_call": {
+        "text": "Finish the voice call before recording."
+      },
+      "choice": {
+        "automatic": {
+          "text": "Automatic (Whisper or online)"
+        },
+        "whisper": {
+          "text": "Whisper on this device"
+        },
+        "whistle": {
+          "text": "Whistle on this device"
+        },
+        "False": {
+          "text": "Off"
+        }
+      },
+      "description": {
+        "automatic": {
+          "text": "Uses downloaded Whisper when available. Otherwise uses online transcription."
+        },
+        "whisper": {
+          "text": "Uses downloaded Whisper on this device. If unavailable, transcription fails locally."
+        },
+        "whistle": {
+          "text": "Runs on this device using the model included with the app. No download is needed."
+        },
+        "False": {
+          "text": "No live transcription. You can still attach your audio recording."
+        }
       }
     }
   },
@@ -11142,16 +11193,46 @@
     },
     "furnished_apartments_berlin": {
       "title": {
-        "text": "Furnished apartments in Berlin"
+        "text": "Berlin apartments with balconies"
       },
       "summary": {
-        "text": "Search current furnished apartment listings in Berlin and compare practical options."
+        "text": "Compare real Berlin apartment listings, full photo galleries, balcony evidence and map locations, with unconfirmed costs and water access clearly labelled."
       },
       "message_1": {
-        "text": "Find furnished apartments available in Berlin."
+        "text": "I am looking for an apartment to rent in Berlin with a balcony, ideally near a river or lake, for up to 1,800 EUR per month and at least two rooms. Can you compare a few listings with their photo galleries and map locations? Please distinguish what the listings actually confirm from what is unknown, including rent, lease dates and water access. If a provider only gives an approximate location or incomplete photos, say so. Clearly labelled possibilities are welcome when some details are missing."
       },
       "message_2": {
-        "text": "```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"f266a349-f41f-4af3-950f-91c464fe6f29\", \"app_id\": \"home\", \"skill_id\": \"search\", \"query\": \"Berlin\", \"provider\": \"Multi\", \"providers\": [\"ImmoScout24\", \"Kleinanzeigen\", \"WG-Gesucht\"]}\n```\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"e92eb735-8d47-491a-8d7f-18b0ae3ed444\", \"app_id\": \"images\", \"skill_id\": \"search\", \"query\": \"furnished apartment Berlin interior\", \"provider\": \"Brave Search\"}\n```\n\nI found several furnished living options currently available in [Berlin](wiki:Berlin), ranging from private one-room apartments to upscale shared rooms in popular districts.\n\n### Featured Furnished Apartment\nThe most direct match for a private furnished apartment is this unit in [Weissensee](wiki:Weißensee_(Berlin)):\n\n[!](embed:m-bliertes-einzimmerapartment-pDA)\n\n### Furnished Rooms & Shared Living\nIf you are open to high-end shared housing (WGs) which often include all utilities and designer furniture, these options in [Friedrichshain](wiki:Friedrichshain) and [Prenzlauer Berg](wiki:Prenzlauer_Berg) are available:\n\n*   **[Urban Elite Luxury Room - Friedrichshain](embed:urbanelite-com-no-5OK):** €999/month, all-inclusive, close to metro.\n*   **[Urban Elite Luxury Room - Prenzlauer Berg](embed:urbanelite-com-no-WkT):** €999/month, located near [Schönhauser Allee](wiki:Schönhauser_Allee).\n*   **[Spacious WG Room in Wedding](embed:ruhiges-wg-zimmer-usg):** €680/month for a 28 sqm room in Wedding.\n*   **[Central Girls WG Room](embed:girls-wg-with-xxC):** €690/month in Prenzlauer Berg with two balconies.\n\n### Visual Preview of Berlin Furnished Interiors\nTo give you an idea of the typical style and layout of modern furnished rentals in the city, here is a gallery of current listings and interiors:\n\n[!](embed:e-homes.de-zw3)\n[!](embed:e-homes.de-2Vt)\n[!](embed:theblueground.com-ocO)\n[!](embed:gettyimages.com-LBA)\n[!](embed:theblueground.com-IAO)\n[!](embed:rentberry.com-V29)\n\n### Specialized Platforms\nFor fully furnished \"business\" or short-term apartments, you might also want to check platforms like:\n*   Wunderflats — Specialized in mid-to-long term furnished rentals.\n*   Blueground — Offers designer-furnished apartments with flexible leases.\n*   Coming Home — A local Berlin agency for high-end furnished housing.\n\n**Note:** Furnished apartments in Berlin move very quickly. It is recommended to have your [SCHUFA](wiki:Schufa) and proof of income ready before applying. You can [search for more specific areas](/#settings/apps/home) if you have a preferred district in mind.\n\nDo you have a specific budget range or a preferred neighborhood (e.g., near Mitte or [Kreuzberg](wiki:Kreuzberg))?"
+        "text": "```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"c3c6da1a-bd32-48ba-a6fe-26896dd9853c\",\"app_id\":\"home\",\"skill_id\":\"search\"}\n```\n\nHere is a comparative breakdown of 2-room rental apartments in Berlin under €1,800/month with balcony evidence and proximity or claims of nearby water, highlighting confirmed facts versus ambiguities:\n\nBerlin 2-room rental apartments with balconies\n\n---\n\n### Summary Comparison\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"97630344-2e97-47bd-bfd7-7b82aa76820d\"}\n```\n\n---\n\n### Detailed Listing Profiles\n\n#### 1. [2-room loft apartment with balcony, near Ringbahn](embed:2-room-loft-DBH)\n[!](embed:2-room-loft-DBH)\n* **Rent & Costs**: Total warm rent is explicitly stated as **€1,350/month**, comprising a cold rent of €1,200 and €150 in unspecified additional costs. Heating inclusion is not explicitly broken down. Deposit is €2,000.\n* **Lease Terms**: Fixed-term sublet. Structured data lists 01.11.2026 to 01.04.2027, but the listing description clarifies that the guaranteed fixed period is **November 1 to December 28, 2026**, with flexible monthly extensions up to April 1, 2027 subject to mutual agreement.\n* **Balcony Evidence**: Confirmed. Explicitly listed in features and text (\"Sunny balcony with Fennpfuhlpark view\"). The visual assessment sampled 3 of the 14 available gallery photos, confirming a visible balcony in photo index 0.\n* **Water Access & Location**: Located on Anton-Saefkow-Platz in Lichtenberg. Geocoding matched at the street level (no specific building number). OpenStreetMap data confirms a water feature (**Fennpfuhl**, a park lake), but only as a representative point coordinate; exact shoreline distance and pedestrian walking minutes are uncalculated and therefore unverified.\n\n---\n\n#### 2. [Möblierte 2-Zimmer-Wohnung mit zwei Balkonen am Maybachufer](embed:m-blierte-2-fME)\n[!](embed:m-blierte-2-fME)\n* **Rent & Costs**: Advertised as a flat **€1,800/month** all-inclusive (both cold and warm rent are entered as €1,800). Utilities, heating costs, and electricity are not itemized. Deposit is €1,000.\n* **Lease Terms & Scope Discrepancies**:\n  * *Date conflict*: Structured fields show availability from 21.10.2026 to 03.05.2027. However, the German text explicitly states availability starting November 11 for 2 months, whereas the English translation lower in the listing states \"from 6 November, 4–6 months\".\n  * *Room restriction*: The listing notes an internal owner's room (*Sperrraum*) remains locked and excluded from the rental, though the remaining accessible space is described as two rooms across 85 m².\n* **Balcony Evidence**: Confirmed. Advertised with two balconies (one facing the courtyard, one facing the water). Sampled photos (3 of 15) confirmed balconies in photos 0 and 14.\n* **Water Access & Location**: The address is listed as Maybachufer in [Neukölln](wiki:Neukölln). Geocoding returned an ambiguous result and fell back to general Berlin city coordinates. While the listing text explicitly claims a direct view of the [Landwehr Canal](wiki:Landwehr_Canal), neighborhood distance and walking routes could not be verified geometrically due to the coordinate fallback.\n\n---\n\n#### 3. [2-Zimmer Wohnungen mit exklusiven Gemeinschaftsflächen (Momento Berlin)](embed:2-zimmer-wohnungen-pAk)\n[!](embed:2-zimmer-wohnungen-pAk)\n* **Rent & Costs**: Warm rent is listed from **€1,372/month**, with €130 operating costs and €105 heating costs itemized. The cold base rent is omitted, and the description notes that this is a minimum starting rent for a promotional tier. Electricity must be contracted independently by the tenant.\n* **Lease Terms**: Advertised by a commercial operator for a new residential quarter (*Erstbezug* 2026). Requires a **minimum lease duration of 12 months** (*Mindestmietdauer*). Start dates are open (rolling viewings every Wednesday/Thursday).\n* **Balcony Evidence**: Confirmed in description specifications (\"einen Balkon\") and advertised attributes. Visual sampling of 3 out of 27 photos confirmed an exterior balcony structure in photo index 26.\n* **Water Access & Location**: Located at Buschkrugallee 64 in Neukölln/[Britz](wiki:Britz). Position is based on provider-supplied coordinates without independent street verification. The description states the complex borders a canal (the Neukölln Ship Canal), but precise shoreline distance and walking access points were not geometrically computed.\n\n---\n\n#### 4. [2-Zimmer Wohnung in Charlottenburg zur Untermiete](embed:2-zimmer-wohnung-tXe)\n[!](embed:2-zimmer-wohnung-tXe)\n* **Rent & Costs**: Warm rent is advertised at **€980/month**. The description mentions \"Nebenkosten: 270 € pro Monat\", but does not reconcile whether this is already included in the €980 or charged on top. Deposit is €1,500.\n* **Crucial Whole-Flat vs. Room Ambiguity**: The title states \"2-Zimmer Wohnung... zur Untermiete\", but the text begins: *\"Wir vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon...\"*. It is unclear whether the entire 50 m² 2-room flat is being sublet or only an individual room within it.\n* **Balcony Evidence**: Unconfirmed visually. While advertised as having a balcony in the title and text, only 1 photo was provided by the poster, and no balcony is visible in that photo.\n* **Water Access & Location**: Located in 14057 [Charlottenburg](wiki:Charlottenburg). The provider did not specify a street name or house number (postcode-level precision only). The description notes walking proximity to Lietzenseepark (which contains the Lietzensee lake), but exact route time and shoreline meters cannot be calculated without a street address.\n* **Lease Terms**: Fixed-term sublet from 01.11.2026 to maximum 01.11.2027 (shorter periods negotiable).\n\n---\n\n### Key Takeaways Before Inquiring\n1. **Water Verification**: Only the Maybachufer flat explicitly overlooks an open waterway from the apartment itself, but its geocode is approximate and dates conflict. The Anton-Saefkow-Platz flat has confirmed park proximity to Fennpfuhl, though exact shoreline distance is unmeasured.\n2. **Lease Types**: None of the WG-Gesucht listings offer open-ended (*unbefristet*) leases; they are all fixed-term sublets. Momento Berlin offers longer-term tenancy starting with a 12-month minimum.\n3. **Photo Sampling Limitations**: The visual assessment examined a bounded sample of 1 to 3 images per listing. Additional features may appear in the full galleries accessible via each listing card.\n\n```embeds_results_view\ntitle: Mapped results\nsources: c3c6da1a-bd32-48ba-a6fe-26896dd9853c, home-search-c3c6da\nhighlight: 2-room-loft-DBH, m-blierte-2-fME, 2-zimmer-wohnungen-pAk, 2-zimmer-wohnung-tXe\n```"
+      },
+      "message_2_thinking": {
+        "text": "**Defining Apartment Search Parameters**\n\nI'm now zeroing in on defining the precise search parameters for Berlin rentals. I've specified Berlin as the city, and restricted the listing type to \"rent\" and the property type to \"apartment\". A balcony is a firm requirement, which I will ensure is included in the search criteria.\n\n\n**Refining Search Criteria**\n\nI've just refined the search parameters further. I've translated \"ideally near a river or lake\" into a preference for proximity to water, categorized as \"neighborhood_categories: ['water']\". The budget of \"up to 1,800 EUR per month\" is now specified as `max_warm_rent_eur: 1800`, as I'm assuming that it is the warm rent. Moreover, since I'm told \"Clearly labelled possibilities are welcome when some details are missing\", I'll now explicitly include unconfirmed listings with `include_unconfirmed: true`.\n\n\n**Analyzing Search Requirements**\n\nI'm now carefully analyzing the guidelines of this home-search tool. I'm focusing on how to best translate my preferences into the correct structured filters and `relevance_criteria`. I need to ensure my requirements for water proximity, balcony evidence, and budget constraints are all properly encoded. I'm also ensuring that I distinguish between what is \"required,\" \"excluded,\" and \"preferred\" in my search.\n\n\n**Assessing Listing Data Integrity**\n\nI'm now deeply concerned with data integrity. I must avoid over-claiming visual evidence and specify limitations from each provider. Proximity to water must be solidly grounded in evidence, reporting as \"unverified\" when enrichment is unavailable or timed-out. It must be clear that a visible balcony does not guarantee that it belongs to the apartment, and I can only report lease specifics when explicitly stated.\n\n\n**Analyzing Listing Data**\n\nI'm deep in the returned listings now, meticulously cross-referencing against the provided rules. My focus is on clearly delineating confirmed data points from uncertainties. I'm paying close attention to specifics like rent, lease dates and water access, flagging any ambiguities. The goal is pinpoint precision.\n\n\n**Clarifying Proximity Criteria**\n\nI'm now integrating the nuanced proximity requirements. I am carefully documenting any limitations in evidence. I'm focusing on transparently separating validated claims from unverified information. I'm prioritizing accuracy in my documentation. I am being clear about what constitutes verified water access and what does not. I'm emphasizing the need for explicit labeling of uncertain data.\n\n\n**Refining Ambiguity Rules**\n\nI am now focusing on refining the rules around uncertain data points. If there's no mention of a water feature, I'll report it as unknown; I won't infer proximity. I'll separate photo visibility of a balcony from text confirmation. Lease terms are reported explicitly only when stated. Conflicts in dates and rent breakdowns are prioritized. I will use the embed preview cards as a view.\n```embeds_results_view\ntitle: Rental apartments with balconies in Berlin\nembeds:\n  - 2-room-loft-DBH\n  - m-\n```\n\n\n**Interpreting Result Format**\n\nI'm now focusing on the structure of the \"embeds\\_results\\_view\" response. I noticed the absence of a \"source\\_ref,\" which influences the correct use of either \"sources\" or \"embeds.\" I'll be sure to use the \"embeds\" field when no source\\_ref is available, specifically referencing the returned child embed\\_ref values. Also, I'll pay attention to the \"title\" field as a descriptive element.\n\n\n**Examining Listing Details**\n\nI am now closely examining individual listings, specifically focusing on \"2-room loft apartment with balcony, near Ringbahn.\" I'm cross-referencing this listing with the embed data. I'm noting the unverified water proximity due to unknown distances and access, even though a lake view is mentioned. My focus is on clearly noting what's confirmed vs unverified. I am carefully documenting all uncertainties.\n\n\n**Evaluating Listing Details**\n\nI've just finished evaluating another listing. I confirmed a balcony's visibility through photo analysis. The lease term offers a fixed period followed by flexible extensions, which I've documented. I am focused on the specifics. Now, I'm working to fully understand all the relevant listing information.\n```\n```\n\n**Detailing Specific Attributes**\n\nI'm now detailing this specific listing. The street geocode is vague; I note this impacts water proximity verification. The textual claim of a Landwehrkanal view can't be geometrically validated. I confirm balcony presence via textual and visual checks. I am explicitly flagging the lease date conflict between structured data and descriptive text.\n\n\n**Assessing Listing Data**\n\nI'm now diving into the latest listing. I've flagged the missing cold rent and the imprecise rent breakdown. The advertised rent is a starting point, so I've noted the unknown minimum. The range of apartment sizes within the project requires clarity, as the listing's size falls within this. I have flagged the uncertain canal proximity due to the unverified location precision.\n\n\n**Interpreting Lease Details**\n\nI'm now focusing on the latest listing's lease information and balcony verification. I confirmed balcony visibility via text and sampled visuals. I've noted a 12-month minimum lease and the absence of clear end dates in the data. The listing is for a furnished room with a balcony, but the title says 2-room apartment, so I'm investigating the potential room versus apartment ambiguity. I am paying close attention to all the details.\n\n\n**Analyzing Listing Details**\n\nI'm now carefully analyzing a new listing, which states a furnished room with a balcony. The phrase \"vermieten unser schönes, ruhiges und möbliertes Zimmer mit Balkon\" adds crucial ambiguity; the provided listing's single photo lacks balcony confirmation, which I have flagged. The address, district-level geocode makes water proximity vague. The lease spans from November 1st, 2026, to November 1st, 2027.\n\n\n**Comparing Water Mentions**\n\nI'm now comparing listings mentioning water features like Maybachufer and others to discern the precision of their claims and any inherent data distinctions. I'm reviewing their evidence and coverage. I am focused on the precise details requested by the user. I'll flag any uncertainties and limitations in the data.\n\n\n**Verifying Rent Breakdowns**\n\nI'm now focusing on discrepancies in rent figures. I'm prioritizing reconciliation of contradictory figures, reporting unitemized costs, and explicitly noting unknown heating inclusions. Also, I'm examining inline embed references to make sure that display text is never the embed\\_ref. Furthermore, I will only use large or small cards for embed refs, based on the syntax. Finally, I will be appending a suggested follow-up message at the very end of this update."
+      },
+      "message_3": {
+        "text": "I am most interested in the loft and the Maybachufer flat. Based on the saved listings, is the 1,800 EUR rent really all-inclusive, or are some bills still unknown? Also, can you clarify how many photos the search returned versus how many were actually checked, and which balcony and water details are supported directly by the listings? I would rather keep unverified details marked as unknown."
+      },
+      "message_4": {
+        "text": "Here is an exact breakdown of what the listing data actually confirms versus what remains unverified or unknown for the **Maybachufer flat** and the **Anton-Saefkow-Platz loft**.\n\n---\n\n### 1. Maybachufer Rent: Is €1,800 Truly All-Inclusive?\n\n* **What the listing specifies**: Both the cold rent (*Kaltmiete*) and total rent (*Warmmiete*) are entered as flat **€1,800**. The security deposit is set at €1,000.\n* **What remains UNKNOWN**:\n  * **Utilities Breakdown**: The listing provides **no itemized cost breakdown** for operating costs (*Betriebskosten/Nebenkosten*) or heating (*Heizkosten*).\n  * **Electricity & Internet**: The host does not explicitly confirm in the structured fields whether household electricity (*Haushaltsstrom*) or Wi-Fi are included in the €1,800 or whether usage caps apply.\n  * **Broadcasting Fee**: Whether the mandatory German broadcasting fee (*Rundfunkbeitrag*) is included or must be registered separately is unstated.\n* **Conclusion**: While marketed as a lump-sum monthly amount typical for furnished short-term sublets, it **cannot be verified as strictly all-inclusive** until the host provides a written breakdown confirming electricity, heating overages, and internet coverage.\n\n---\n\n### 2. Photo Gallery Scope: Returned vs. Checked\n\nThe search tool retrieved listing metadata with full gallery counts, but the automated visual analysis evaluated only a targeted sample of photos per listing to identify core features:\n\n```json\n{\"type\": \"sheet\", \"embed_id\": \"c524ed20-2be0-4348-ae66-d63968a523de\"}\n```\n\n*Note: You can open the listing cards directly to browse all 14–15 high-resolution photos manually.*\n\n---\n\n### 3. Balcony & Water Details: Confirmed vs. Unknown\n\n#### Maybachufer Flat\n* **Balcony**:\n  * *Confirmed by listing text*: Features **two balconies** — one claimed facing the courtyard (*Innenhof*) and one claimed facing the canal/street.\n  * *Confirmed by photo check*: Visible balcony structures were confirmed in inspected photo indices 0 and 14.\n  * *Unknown*: Exact balcony dimensions, orientation/sun exposure hours, and whether outdoor furniture is provided.\n* **Water Access**:\n  * *Confirmed by listing text*: Located directly on Maybachufer along the [Landwehr Canal](wiki:Landwehr_Canal) in [Neukölln](wiki:Neukölln). The description explicitly asserts water-facing views.\n  * *Unknown / Unverified by tool*: The geocoding system flagged the street address query as ambiguous and defaulted to a Berlin-wide center point rather than an exact parcel pin. As a result, the listing’s exact distance to pedestrian canal crossings or dock access could not be measured independently from the data payload.\n\n#### Anton-Saefkow-Platz Loft\n* **Balcony**:\n  * *Confirmed by listing text*: Explicitly advertises a \"sunny balcony with view over Fennpfuhlpark\".\n  * *Confirmed by photo check*: A balcony structure was confirmed in inspected photo index 0.\n  * *Unknown*: Balcony square footage and floor level (the listing specifies loft style on the upper floors, but not the exact story).\n* **Water Access**:\n  * *Confirmed by listing text & OpenStreetMap*: Located at Anton-Saefkow-Platz in Lichtenberg, adjacent to Fennpfuhlpark, which contains the **Fennpfuhl** (a historic lake).\n  * *Unknown / Unverified by tool*: The listing does **not** sit directly on a river or canal bank; the water feature is an inland park lake. Furthermore, while the park itself is across the street, the precise pedestrian walking time to the water's edge and whether the water is directly visible over tree canopies from the balcony remain unverified.\n\n---\n\n### Questions to Ask the Hosts Before Viewing\n\n1. **For Maybachufer**:\n   * *\"Does the €1,800 monthly flat rate cover heating, electricity, and internet in full, or is there a separate utility settlement (*Nebenkostenabrechnung*) at the end of the stay?\"*\n   * *\"Could you confirm the exact sublease dates (the summary says 2 months, but the English description mentions 4–6 months)?\"*\n2. **For the Loft**:\n   * *\"Is the €150 additional fee fixed (*Pauschale*) including heating and internet, or an advance payment (*Vorauszahlung*)?\"*\n   * *\"Is an extension past December 28, 2026 guaranteed in the contract if needed?\"*"
+      },
+      "message_4_thinking": {
+        "text": "**Clarifying Property Details**\n\nI'm currently focused on the user's questions concerning \"the loft\" and \"the Maybachufer flat\". Specifically, I'm digging deeper into the 1,800 EUR rent for the Maybachufer property. I need to definitively determine if it's truly all-inclusive, or if there are potential additional costs. Also, I'm now clarifying the number of photos available for the search.\n\n\n**Verifying Inclusion Details**\n\nI'm now diving into the specifics of the Maybachufer flat's rent, particularly the \"all-inclusive\" claim. My goal is to extract the exact breakdown of what's included and exclude. I need to distinguish whether the 1800 EUR covers utilities, internet, heating, and the broadcasting fee. The initial data shows conflicting information, so I must pinpoint what the data *actually* confirms.\n\n\n**Pinpointing Inclusion Gaps**\n\nI'm now clarifying the specifics regarding utilities. The initial data is unconfirmed whether GEZ fees, electricity, or heating overages are included. I need to clearly define the total photo count and ensure all relevant ones are analyzed for each property. The Maybachufer has two balconies, and the loft has one, although the dimensions remain unstated. Also, I'm verifying the location of the Maybachufer property."
+      },
+      "follow_up_1": {
+        "text": "Search for other 2-room apartments near water in Berlin"
+      },
+      "follow_up_2": {
+        "text": "Draft an inquiry message in German for the Maybachufer landlord"
+      },
+      "follow_up_3": {
+        "text": "Search public transport routes from Anton-Saefkow-Platz to Alexanderplatz"
+      },
+      "follow_up_4": {
+        "text": "Compare the security deposits and cancellation terms of both apartments"
+      },
+      "follow_up_5": {
+        "text": "Check current weather forecast for Berlin Lichtenberg"
+      },
+      "follow_up_6": {
+        "text": "List key questions to ask landlords during Berlin apartment viewings"
       }
     },
     "germany_historic_film_industry": {
@@ -14287,6 +14368,14 @@
               "text": "YouTube is queried when you ask OpenMates to retrieve a transcript for a YouTube video. YouTube receives video URLs and requested transcript language preferences without an OpenMates user identifier."
             }
           },
+          "media_ccc": {
+            "heading": {
+              "text": "media.ccc.de (video captions)"
+            },
+            "description": {
+              "text": "When you request a media.ccc.de transcript, OpenMates retrieves published captions from media.ccc.de and its subtitle CDN mirrors. These services receive the public talk slug, selected caption file URL and our server's network information, without your OpenMates identifier, chat text, cookies or client IP address."
+            }
+          },
           "google_lens": {
             "heading": {
               "text": "Google Lens"
@@ -15611,9 +15700,6 @@
         },
         "col_last_checked": {
           "text": "Last checked"
-        },
-        "status_no_training": {
-          "text": "No"
         },
         "status_no_training_opt_out": {
           "text": "No (opted out)"
@@ -21294,6 +21380,9 @@
       },
       "context_unavailable": {
         "text": "Original context unavailable"
+      },
+      "summary_availability_unavailable": {
+        "text": "This server cannot check for older usage yet. You can still request an older time window."
       }
     },
     "apps": {

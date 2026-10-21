@@ -7,6 +7,8 @@ import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleCh
 import type { ExampleChat, ExampleChatEmbed } from '../../../packages/ui/src/demo_chats/types';
 import englishMessages from '../../../packages/ui/src/i18n/locales/en.json';
 import { getModelDisplayName } from '../../../packages/ui/src/utils/modelDisplayName';
+import { parseMarkdownTable } from '../../../packages/ui/src/components/embeds/sheets/sheetEmbedContent';
+import { waitForComponentMotion } from './helpers/component-preview';
 import { dismissComposerFocus } from './helpers/composer-focus';
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -105,6 +107,13 @@ function embedField(embed: ExampleChatEmbed, field: string): string | undefined 
   return value?.replace(/^"|"$/g, '');
 }
 
+/** Current persisted TOON flattens primitive galleries to a pipe-separated scalar. */
+function savedHomeGallery(embed: ExampleChatEmbed): string[] {
+  const gallery = embedField(embed, 'image_urls')?.split('|').map(url => url.trim()).filter(Boolean) ?? [];
+  const primary = embedField(embed, 'image_url');
+  return [...new Set([...(primary ? [primary] : []), ...gallery])];
+}
+
 export type FixtureImageProxyObservation = {
   url: string;
   resourceType: string;
@@ -123,6 +132,9 @@ export async function configureFixtureImageProxy(
       'cover_url', 'cover_image_url', 'thumbnail', 'channel_thumbnail', 'avatar_url']) {
       const url = embedField(embed, field);
       if (url?.startsWith('https://')) imageUrls.add(url);
+    }
+    if (embed.type === 'listing' && embedField(embed, 'app_id') === 'home') {
+      for (const url of savedHomeGallery(embed)) if (url.startsWith('https://')) imageUrls.add(url);
     }
     const videoId = embedField(embed, 'video_id');
     if (videoId && /^[A-Za-z0-9_-]{11}$/.test(videoId)) {
@@ -359,6 +371,135 @@ async function inspectReportedHeaderRegressions(page: Page, history: Locator, ch
 }
 
 async function inspectSavedResultGraph(page: Page, history: Locator, chat: ExampleChat, appId: string): Promise<void> {
+  if (appId === 'home' && chat.slug === 'furnished-apartments-berlin') {
+    const parents = chat.embeds.filter(embed => embed.type === 'app_skill_use'
+      && embedField(embed, 'app_id') === 'home' && embedField(embed, 'skill_id') === 'search'
+      && embedField(embed, 'status') === 'finished');
+    expect(parents.length, `${chat.slug}: genuine finished home search output`).toBeGreaterThan(0);
+    const parent = parents.find(candidate => chat.embeds.some(embed => embed.type === 'listing'
+      && embed.parent_embed_id === candidate.embed_id && savedHomeGallery(embed).length > 1));
+    expect(parent, `${chat.slug}: real search must include a multi-photo apartment`).toBeDefined();
+    const listings = chat.embeds.filter(embed => embed.type === 'listing' && embed.parent_embed_id === parent!.embed_id);
+    expect(parent!.embed_ids, `${chat.slug}: saved parent retains listing references`).toEqual(expect.arrayContaining(listings.map(listing => listing.embed_id)));
+    const hasCoordinates = (listing: ExampleChatEmbed): boolean => {
+      const lat = embedField(listing, 'latitude'); const lon = embedField(listing, 'longitude');
+      return lat !== undefined && lon !== undefined && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon)) && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lon)) <= 180;
+    };
+    const located = listings.filter(hasCoordinates);
+    expect(located.length, `${chat.slug}: actual listings supply overview map pins`).toBeGreaterThan(0);
+    await expandCompletedActivity(history, `${chat.slug}: home results`);
+    const searchPreview = await selectInlineEmbedPreview(history, parent!, `${chat.slug}: activate home search result slide`);
+    const search = await openFullscreen(page, searchPreview);
+    await waitForComponentMotion(search);
+    const cards = search.getByTestId('search-template-grid').getByTestId('embed-preview');
+    const markers = search.locator('.leaflet-marker-icon[data-marker-ref]');
+    await expect(cards).toHaveCount(listings.length);
+    await expect(markers).toHaveCount(located.length);
+    for (const listing of located) await expect(search.locator(`.leaflet-marker-icon[data-marker-ref="${listing.embed_id}"]`)).toHaveCount(1);
+    const launcher = search.getByTestId('search-template-filter-button');
+    const panel = search.getByTestId('search-template-filter-menu');
+    await expect(launcher).toHaveAttribute('aria-expanded', 'false');
+    await expect(search.getByTestId('home-filter-max-price')).toHaveCount(0);
+    await launcher.click();
+    await expect(panel).toBeVisible();
+    await expect(launcher).toHaveAttribute('data-icon', 'close');
+    // Compute the advertised-price boundary from source data, never from DOM or mocked output.
+    const priced = listings.filter(listing => embedField(listing, 'price') !== undefined && Number.isFinite(Number(embedField(listing, 'price'))));
+    expect(priced.length, `${chat.slug}: actual advertised numeric prices`).toBeGreaterThan(0);
+    const minimum = Math.min(...priced.map(listing => Number(embedField(listing, 'price'))));
+    const affordable = priced.filter(listing => Number(embedField(listing, 'price')) <= minimum);
+    await search.getByTestId('home-filter-max-price').fill(String(minimum));
+    await expect(cards).toHaveCount(affordable.length);
+    await expect(markers).toHaveCount(affordable.filter(hasCoordinates).length);
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(search).toBeVisible();
+    await expect(launcher).toHaveAttribute('aria-expanded', 'false');
+    await launcher.click();
+    await search.getByTestId('search-template-clear-filters').click();
+    await launcher.click();
+    await expect(cards).toHaveCount(listings.length);
+    await expect(markers).toHaveCount(located.length);
+    // City fallbacks may share coordinates; the topmost rendered pin remains selectable.
+    const selectedMarker = markers.last();
+    const markerRef = await selectedMarker.getAttribute('data-marker-ref');
+    const markerListing = located.find(listing => listing.embed_id === markerRef)!;
+    expect(markerListing, `${chat.slug}: clicked pin references a saved apartment`).toBeDefined();
+    await selectedMarker.click();
+    let child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
+    await expect(child.getByTestId('home-location-evidence')).toBeVisible();
+    await expect(child).toContainText(embedField(markerListing, 'title')!);
+    await closeFullscreen(page, child);
+    const listing = listings.find(item => savedHomeGallery(item).length > 1)!;
+    const photos = savedHomeGallery(listing);
+    const title = embedField(listing, 'title')!;
+    await search.getByTestId('search-template-filter').fill(title);
+    const titleMatches = listings.filter(item => embedField(item, 'title')?.includes(title));
+    await expect(cards).toHaveCount(titleMatches.length);
+    await expect(markers).toHaveCount(titleMatches.filter(hasCoordinates).length);
+    await search.locator(`[data-testid="embed-preview"][data-embed-id="${listing.embed_id}"]`).click();
+    child = page.locator('.child-embed-overlay .unified-embed-fullscreen-overlay').last();
+    const gallery = child.getByTestId('home-gallery');
+    const counter = child.getByTestId('home-gallery-counter');
+    const image = child.getByTestId('home-gallery-image');
+    await expect(counter).toHaveText(`1 / ${photos.length}`);
+    await expect(gallery.getByRole('group').getByRole('button')).toHaveCount(photos.length);
+    const thumbnailSources = await gallery.getByRole('group').locator('img').evaluateAll((images: HTMLImageElement[]) => images.map(image => new URL(image.src).searchParams.get('url')));
+    expect(thumbnailSources, `${chat.slug}: every supplied gallery URL remains in source order`).toEqual(photos);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    await gallery.getByRole('button', {name: 'Next photo', exact: true}).click();
+    await expect(counter).toHaveText(`2 / ${photos.length}`);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    expect(new URL((await image.getAttribute('src'))!, page.url()).searchParams.get('url')).toBe(photos[1]);
+    await gallery.getByRole('button', {name: 'Previous photo', exact: true}).click();
+    await expect(counter).toHaveText(`1 / ${photos.length}`);
+    await gallery.getByRole('group').getByRole('button').last().click();
+    await expect(counter).toHaveText(`${photos.length} / ${photos.length}`);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    const description = embedField(listing, 'description');
+    expect(description?.trim().length, `${chat.slug}: source apartment description`).toBeGreaterThan(0);
+    await expect(child.locator('.description')).toHaveText(description!);
+    for (const id of ['home-listing-facts', 'home-amenities', 'home-match-evidence', 'home-visual-evidence', 'home-location-evidence', 'home-neighborhood-evidence']) {
+      await child.getByTestId(id).scrollIntoViewIfNeeded();
+      await expect(child.getByTestId(id), `${chat.slug}: rich listing section ${id}`).not.toBeEmpty();
+    }
+    expect(embedField(listing, 'match_evidence_status'), `${chat.slug}: persisted match evidence`).toBeDefined();
+    expect(embedField(listing, 'visual_assessment_status'), `${chat.slug}: persisted visual assessment`).toBeDefined();
+    expect(embedField(listing, 'neighborhood_source'), `${chat.slug}: sourced neighborhood evidence`).toBeDefined();
+    await expect(child.getByTestId('home-match-evidence')).toContainText(sourceMessage(`home_listing.status_${embedField(listing, 'match_evidence_status')}`));
+    await expect(child.getByTestId('home-visual-evidence')).toContainText(`${embedField(listing, 'visual_assessment_photo_count') ?? 0} / ${embedField(listing, 'visual_assessment_total_photo_count') ?? photos.length}`);
+    await expect(child.getByTestId('home-neighborhood-evidence')).toContainText(embedField(listing, 'neighborhood_source')!);
+    await closeFullscreen(page, child);
+    await search.getByTestId('search-template-filter').fill('');
+    await closeFullscreen(page, search);
+    // Compare bounded real summary Sheets as well as the housing result graph.
+    for (const sheet of chat.embeds.filter(embed => embed.type === 'sheet').slice(0, 2)) {
+      const markdown = embedField(sheet, 'table') ?? embedField(sheet, 'code');
+      expect(markdown?.trim().length, `${chat.slug}: saved Sheet contains its actual table`).toBeGreaterThan(0);
+      const expectedTable = parseMarkdownTable(markdown!);
+      expect(expectedTable.rowCount, `${chat.slug}: saved Sheet data rows`).toBeGreaterThan(0);
+      expect(expectedTable.colCount, `${chat.slug}: saved Sheet columns`).toBeGreaterThan(0);
+      const sheetPreview = await selectInlineEmbedPreview(history, sheet, `${chat.slug}: activate apartment summary Sheet`);
+      const sheetFullscreen = await openFullscreen(page, sheetPreview);
+      await waitForComponentMotion(sheetFullscreen);
+      const table = sheetFullscreen.locator('table.spreadsheet');
+      await expect(table).toBeVisible();
+      const visibleLabel = (content: string): string => content.replace(/\[([^\]]*)\]\((?:embed|wiki):[^)]+\)/g, '$1');
+      await expect(table.locator('thead .col-header-text')).toHaveText(expectedTable.headers.map(header => visibleLabel(header.content)));
+      const rows = table.locator('tbody tr');
+      await expect(rows).toHaveCount(expectedTable.rowCount);
+      await expect(rows.first().locator('td:not(.row-num)')).toHaveCount(expectedTable.colCount);
+      // Up to 48 real source cells per Sheet; counts above still cover the full table.
+      for (let row = 0; row < Math.min(expectedTable.rowCount, 6); row++) {
+        const cells = rows.nth(row).locator('td:not(.row-num)');
+        for (let column = 0; column < Math.min(expectedTable.colCount, 8); column++) {
+          await expect(cells.nth(column), `${chat.slug}: saved Sheet row ${row + 1}, column ${column + 1}`)
+            .toHaveText(visibleLabel(expectedTable.rows[row][column].content));
+        }
+      }
+      await closeFullscreen(page, sheetFullscreen);
+    }
+  }
   if (appId === 'shopping' && chat.slug === 'air-fryers-amazon-germany') {
     const parents = chat.embeds.filter(embed => embed.type === 'app_skill_use'
       && embedField(embed, 'app_id') === 'shopping'
