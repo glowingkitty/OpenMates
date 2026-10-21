@@ -40,7 +40,7 @@ existing-style late-import lint annotation; Python AST equivalence was checked.
 | Final combined CLI/TUI harness | Passed; run 39533813153. The wrapper runs the focused 286-test CLI/TUI harness and requires its contract markers. An unchanged home-expiry wall-clock test retried once; the CLI source is identical to the earlier clean passing run 39513858037. |
 | Automatic chat handoff focus and supplied-context lifecycle | Passed, 18 focused cases (14 handoff and 4 URL/send cases), plus 5 send-readiness cases. Accepted auto-sends do not acquire editing focus; rejected drafts stay editable. Context-only URLs remain literal data across immediate/deferred/retried sends, while explicit request links keep ordinary behavior and context keeps PII processing. |
 | Draft writes preserve first-send key headers | A deterministic real-handler regression pauses a stale raw draft snapshot, commits the first-send header, and resumes the draft write. Both missing-key and older-key snapshots fail with the old whole-row writer and pass with the atomic draft-only update. Conditional cleanup rechecks the current chat and messages in the same transaction. Rejected stale text remains unsaved and a later save advances beyond the clear watermark. The six focused suites pass 116 cases; sender key and durable-preflight guards remain unchanged. |
-| Deployed laptop/mobile visual smoke | Passed visual review of Web and Travel at both sizes on `b5504108e70d16a40154686c483f36bea3422bd5`. Four HTTP 200 captures have no page, console, request or overflow errors. Circular controls, map zoom and the compact composer are visible and bounded. Guest example cards and horizontal clipping are intentional. Credentialed execution remains blocked by the separate Caddy activation step below. |
+| Deployed laptop/mobile visual smoke | Passed visual review of Web and Travel at both sizes on `b5504108e70d16a40154686c483f36bea3422bd5`. Four HTTP 200 captures have no page, console, request or overflow errors. Circular controls, map zoom and the compact composer are visible and bounded. Guest example cards and horizontal clipping are intentional. At the initial rollout, credentialed execution was blocked by the proxy; the applied correction and personal-account checks are recorded below. |
 
 Selected recordings are maintained in the CI evidence inventories. Only the
 latest successful recording for each requested flow is linked in the final chat.
@@ -110,11 +110,43 @@ views, typed News article navigation, an always-visible fullscreen filter and
 centered save/workflow actions with an active pink saved heart. Text action links
 never use underlines. Failures use the shared notification system.
 
-The reconciled source preserves newer domain-filter behavior. Its four focused
-component suites pass 39 cases without retries/skips; the focused service,
-registry, settings and child-navigation unit suites pass 68 cases. Full-route
-verification found a same-owner profile publication remounting the fullscreen
-composer and losing a followup draft. The loader now tracks primitive owner and
-readiness values; three mounted regressions pass, including the draft-preservation
-case that failed against the previous source. Independent review found no issue. Final full-route and deployed personal-account UI evidence are still
-required before marking this repair complete.
+The reconciled source preserves newer domain-filter behavior. Four focused
+component suites pass 39 cases without retries/skips. The focused frontend unit
+suites pass 71 cases, including the mounted fullscreen lifetime regressions; the
+two focused Workflow schema/stream boundary checks pass. The broader local Python
+file has one unchanged Redis import-stub failure (38 pass); no unrelated backend
+behavior was changed.
+
+The final full-route run 39592405474 passes all 28 cases on source
+`877f3efe2f495ab44a89e8f62aa46dbf32acad58`. One Health-to-chat case retries after
+an explicit shared privacy-freshness rejection; the complete delivered draft
+remains intact and the retry passes. The artifacts do not expose the backend
+rejection reason. Workflow handoff and News navigation pass on their first
+attempts. The isolated run verifies account/container/volume cleanup.
+
+The 50-file repair is published as
+`374c43a1a5733a14fbcabb034f97ac7efde1e107`. The reviewed candidate
+`2138d523ea9f43e70b3468ca8389881f4feaa7b5` preserves the tested product files
+byte-for-byte. Post-test reconciliation retains an unrelated upstream test-registry
+group and adds missing contract annotations to two unit files; TypeScript scanner
+comparison confirms identical executable test tokens. Specification, embed
+registry, changed-file lint and translation checks pass during deployment.
+
+The exact frontend deployment is ready. The actual personal dev account confirms
+Web/News library HTTP 200, 240 px desktop / 190 px mobile headers, no document or
+app-home vertical overflow, and bounded sidebar rows through the existing global
+hamburger. Restored canonical app/skill settings expose Pricing and Providers.
+The retained search shows working header filtering, save state and two action
+links without underlines.
+
+The actual UI Create workflow action sends 11,236 characters and returns HTTP 200
+with one new draft workflow. Its mutation list contains only one create-workflow
+operation; product undo removes that exact test-created draft with HTTP 200.
+No new native search, workflow execution, existing-workflow mutation, or model /
+provider override was used. A subsequent lookup returns HTTP 404 for the removed
+test draft. The selected News preview has a nonempty title matching its article
+header, retains News identity, and opens without the parent search grid. Saved
+search counts and daily-search preferences match their pretest values.
+Personal screenshots and account data remain private. All six selected
+synthetic UI flow recordings uploaded successfully; their source/run identities
+and S3 object identities remain in the evidence inventories.

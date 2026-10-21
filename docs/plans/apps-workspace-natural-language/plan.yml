@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: apps-workspace-natural-language
 title: Natural-language Apps workspace on web and TUI
-status: implementing
+status: verified
 task: TASK-7174
 specification_refs:
   - id: feature.apps-workspace
