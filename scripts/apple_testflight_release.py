@@ -966,8 +966,10 @@ def normalize_ios_onnx_packaging(path: Path, log_path: Path) -> dict[str, object
                             capture_output=True, text=True, check=False)
     minima = re.findall(r"(?m)^\s*minos ([0-9.]+)\s*$", result.stdout)
     platforms = re.findall(r"(?m)^\s*platform (\S+)\s*$", result.stdout)
-    if result.returncode or platforms != ["IOS"] or minima != ["17.0"]:
-        raise ReleaseError("ONNX iOS packaging minimum is not the supported Mach-O iOS 17.0")
+    app_minimum = load_plist(app / "Info.plist").get("MinimumOSVersion")
+    supported_minimum = minima == ["17.0"] or (minima == ["26.2"] and app_minimum == "26.2")
+    if result.returncode or platforms != ["IOS"] or not supported_minimum:
+        raise ReleaseError("ONNX iOS packaging minimum is not the supported Mach-O iOS 17.0 or app-matched 26.2")
     sections = {"runtime": macho_section_identity(binary), "app": macho_section_identity(app / "OpenMates")}
     before_entitlements = signed_entitlements(app)
     before_identity = archive_identity(path, "ios")

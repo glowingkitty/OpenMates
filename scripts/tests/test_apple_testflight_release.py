@@ -974,11 +974,15 @@ def test_compiled_section_identity_ignores_signature_and_detects_code(tmp_path: 
 
 
 @pytest.mark.parametrize("fat_runtime", [False, True])
-def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path, monkeypatch, fat_runtime: bool) -> None:
+@pytest.mark.parametrize("minimum", ["17.0", "26.2"])
+def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path, monkeypatch, fat_runtime: bool, minimum: str) -> None:
     from types import SimpleNamespace
     release = load_module()
     archive = make_archive(tmp_path, "ios")
     app = archive / "Products/Applications/OpenMates.app"
+    app_info = release.load_plist(app / "Info.plist")
+    app_info["MinimumOSVersion"] = minimum
+    write_plist(app / "Info.plist", app_info)
     framework = app / "Frameworks/onnxruntime.framework"
     info = framework / "Info.plist"
     write_plist(info, {"CFBundleExecutable": "onnxruntime", "CFBundleIdentifier": "com.microsoft.onnxruntime"})
@@ -986,7 +990,7 @@ def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path
         data = thin_macho_fixture()
         binary.write_bytes(fat_macho_fixture(data) if fat_runtime and binary.name == "onnxruntime" else data)
     monkeypatch.setattr(release.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
-        returncode=0, stdout="platform IOS\nminos 17.0\n"))
+        returncode=0, stdout=f"platform IOS\nminos {minimum}\n"))
     monkeypatch.setattr(release, "signed_entitlements", lambda path: {"application-identifier": "TEAM.org.openmates.app"})
     calls = []
     def run(command, log_path, timeout):
@@ -996,7 +1000,7 @@ def test_ios_onnx_packaging_repairs_minimum_and_preserves_signing(tmp_path: Path
             Path(prefix + "0").write_bytes(b"original certificate")
     monkeypatch.setattr(release, "run_logged", run)
     receipt = release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log")
-    assert release.load_plist(info)["MinimumOSVersion"] == "17.0"
+    assert release.load_plist(info)["MinimumOSVersion"] == minimum
     assert receipt["app_entitlements_unchanged"] and receipt["deep_signature_verified"]
     assert receipt["before_archive_identity"] != receipt["after_archive_identity"]
     assert len(list(tmp_path.glob("onnx-ios-packaging-*/framework-Info-original.plist"))) == 1
@@ -1043,18 +1047,36 @@ def test_fat_runtime_normalization_rejects_changed_code_or_entitlements(tmp_path
     assert not list(tmp_path.glob("onnx-ios-packaging-*/repair-receipt.json"))
 
 
-@pytest.mark.parametrize("build_info", ["platform MACOS\nminos 17.0\n", "platform IOS\nminos 16.0\n"])
-def test_ios_onnx_packaging_rejects_unknown_runtime_before_mutation(tmp_path: Path, monkeypatch, build_info: str) -> None:
+@pytest.mark.parametrize("build_info,app_minimum", [
+    ("platform MACOS\nminos 17.0\n", "17.0"),
+    ("platform IOS\nminos 16.0\n", "17.0"),
+    ("platform IOS\nminos 26.2\n", "17.0"),
+    ("platform IOS\nminos 26.2\n", None),
+    ("platform IOS\nminos 26.2\n", "26.3"),
+    ("platform MACOS\nminos 26.2\n", "26.2"),
+    ("platform IOS\nminos 26.2\nplatform IOS\nminos 17.0\n", "26.2"),
+    ("platform IOS\nminos 26.3\n", "26.2"),
+])
+def test_ios_onnx_packaging_rejects_unknown_runtime_before_mutation(tmp_path: Path, monkeypatch, build_info: str, app_minimum: str | None) -> None:
     from types import SimpleNamespace
     release = load_module()
     archive = make_archive(tmp_path, "ios")
-    info = archive / "Products/Applications/OpenMates.app/Frameworks/onnxruntime.framework/Info.plist"
+    app = archive / "Products/Applications/OpenMates.app"
+    app_info = release.load_plist(app / "Info.plist")
+    if app_minimum is None:
+        app_info.pop("MinimumOSVersion", None)
+    else:
+        app_info["MinimumOSVersion"] = app_minimum
+    write_plist(app / "Info.plist", app_info)
+    info = app / "Frameworks/onnxruntime.framework/Info.plist"
     write_plist(info, {"CFBundleExecutable": "onnxruntime"})
     before = info.read_bytes()
     monkeypatch.setattr(release.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=build_info))
+    monkeypatch.setattr(release, "run_logged", lambda *args, **kwargs: pytest.fail("Rejected minimum must not sign or extract certificates"))
     with pytest.raises(release.ReleaseError, match="supported Mach-O"):
         release.normalize_ios_onnx_packaging(archive, tmp_path / "normalization.log")
     assert info.read_bytes() == before
+    assert not list(tmp_path.glob("onnx-ios-packaging-*"))
 
 
 @pytest.mark.parametrize("key,value,error", [
