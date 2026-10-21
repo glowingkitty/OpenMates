@@ -3,8 +3,9 @@
 """Real caption retrieval and summary check, exclusively on dev with isolated CLI state.
 
 First log in with scripts/openmates_cli_test_account.mjs using a temporary
-OPENMATES_STATE_DIR. Run this script inside scripts/cli_video_capture.py to retain
-actual terminal evidence. Uses the global CLI and automatic model routing.
+OPENMATES_STATE_DIR, or explicitly authorize the existing personal dev login.
+The script records actual product CLI commands in graphical terminals and uses
+automatic model routing.
 """
 
 import argparse
@@ -31,7 +32,30 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     def cli(*parts, timeout=180, expected_error=None):
-        result = subprocess.run(["openmates", "--api-url", API, *parts, "--json"], capture_output=True, text=True, timeout=timeout)
+        command = ["openmates", "--api-url", API, *parts, "--json"]
+        recording = "summary-recording" if parts[:2] == ("chats", "new") else "transcript-recording" if parts[:2] == ("apps", "videos") and not expected_error else None
+        if recording:
+            directory = args.output_dir / recording
+            result = subprocess.run([
+                "python3", "scripts/cli_video_capture.py", "--output-dir", str(directory),
+                "--target-environment", API, "--classification", "media_ccc_transcript_real_dev",
+                "--display-number", "224", "--timeout-seconds", str(timeout), "--no-response-media",
+                "--", *command,
+            ], capture_output=True, text=True, timeout=timeout + 90)
+            (args.output_dir / f"{recording}.log").write_text(result.stdout + "\n" + result.stderr)
+            if result.returncode:
+                raise RuntimeError(f"Recorded CLI command failed; inspect {recording}.log")
+            # PTY evidence merges stderr progress with stdout. Decode the real
+            # JSON object, preserving the original terminal recording unchanged.
+            output = (directory / "command-output.txt").read_text()
+            for match in re.finditer(r"(?m)^\{", output):
+                try:
+                    value, _ = json.JSONDecoder().raw_decode(output[match.start():])
+                    return value
+                except json.JSONDecodeError:
+                    continue
+            raise AssertionError("Recorded CLI command did not return JSON")
+        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
         if expected_error:
             assert result.returncode != 0 and expected_error in result.stderr, "CLI must report the expected skill failure"
             return
