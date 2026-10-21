@@ -129,8 +129,8 @@ def test_daily_inspiration_quotas_share_the_ten_card_3_3_4_contract() -> None:
     assert "DAILY_INSPIRATION_COUNT = DAILY_VIDEO_COUNT + DAILY_WIKI_COUNT + DAILY_FEATURE_COUNT" in personalized_source
     assert "_DEFAULT_FEATURE_COUNT = 4" in route_source
     assert 'build_feature_inspirations(\n            _DEFAULT_FEATURE_COUNT,' in route_source
-    assert 'public:default_inspirations:v15:' in route_source
-    assert 'public:default_inspirations:v15:' in selector_source
+    assert 'public:default_inspirations:v16:' in route_source
+    assert 'public:default_inspirations:v16:' in selector_source
     assert "_limit_default_type(" in route_source
 
 
@@ -190,3 +190,17 @@ def test_default_selection_and_endpoint_filter_video_text_media_mismatches() -> 
 
     assert "is_inspiration_media_coherent" in selector_source
     assert "is_inspiration_media_coherent" in route_source
+
+
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+def test_anonymous_defaults_have_no_paid_review_entry_points() -> None:
+    import ast
+    source = (REPO_ROOT / "backend/core/api/app/routes/default_inspirations.py").read_text()
+    forbidden = {"review_candidates", "review_copy_candidates", "call_semantic_model", "call_preprocessing_llm"}
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = node.func.id if isinstance(node.func, ast.Name) else (
+                node.func.attr if isinstance(node.func, ast.Attribute) else "")
+            assert name not in forbidden
+    assert "is_inspiration_media_coherent(record)" in source

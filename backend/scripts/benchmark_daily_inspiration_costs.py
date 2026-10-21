@@ -56,10 +56,11 @@ PUBLIC_HOSTS = {'api.search.brave.com', 'www.googleapis.com', 'i.ytimg.com', 'ww
 ACTIVE = ContextVar('full_refresh_cost_receipt', default=None)
 CALL = ContextVar('full_refresh_logical_call', default=None)
 TOPICS = {'en': ['Volcano', 'Pollination', 'Solar eclipse'],
+          'de': ['Vulkan', 'Bestäubung', 'Sonnenfinsternis'],
           'ja': ['火山', '受粉', '日食']}
 CURRENT_SOURCE_PATHS = [f'backend/apps/ai/daily_inspiration/{name}.py' for name in (
     'decisions', 'writer', 'generator', 'wiki_generator', 'video_processor',
-    'validator', 'thumbnail_review', 'config', 'media_coherence',
+    'validator', 'thumbnail_review', 'config', 'media_coherence', 'semantic_review',
 )] + ['backend/apps/ai/utils/llm_utils.py',
       'backend/core/api/app/tasks/default_inspiration_tasks.py']
 
@@ -236,18 +237,98 @@ def native_jev_usage(row):
     return ledger
 
 
+async def recorded_semantic_call(original, kwargs, row, flush, context):
+    """Record the dedicated review seam without adding a writer attempt."""
+    attempts = row.setdefault('semantic_review_attempts', [])
+    identity = 'semantic:' + str(len(attempts))
+    entry = {'call_id': identity, 'requested_model': kwargs.get('model_id'),
+             'request': kwargs.get('message_history'), 'tool': kwargs.get('tool_definition')}
+    attempts.append(entry)
+    token = context.set(identity)
+    stamp = time.monotonic()
+    try:
+        result = await original(**kwargs)
+        entry['result'] = {'arguments': result.arguments,
+            'error_message_present': bool(result.error_message), 'usage_telemetry': result.usage_telemetry}
+        return result
+    except BaseException as error:
+        entry['error'] = type(error).__name__
+        raise
+    finally:
+        entry['seconds'] = time.monotonic() - stamp
+        flush()
+        context.reset(token)
+
+
+def semantic_native_usage(row):
+    """Raw native Google review usage once; facade events are not extra charges.
+
+    Introductory standard Gemini 3.8 prices verified 2026-10-21 against the
+    catalog and https://ai.google.dev/gemini-api/docs/pricing (through 2026-12-31).
+    Absent cache telemetry gives an uncached upper bound, never exact cost.
+    """
+    ledger, seen, captured = [], set(), set()
+    # SDK and HTTP may capture the same physical response; response IDs join them.
+    for native in [*row.get('google_sdk', []), *row.get('native_http', [])]:
+        identity = native.get('logical_call')
+        if not isinstance(identity, str) or not identity.startswith('semantic:'):
+            continue
+        response = native.get('response') or {}
+        usage = response.get('usage_metadata', response.get('usageMetadata')) or {}
+        response_id = response.get('response_id', response.get('responseId'))
+        if not usage:
+            continue
+        key = (identity, response_id) if response_id else None
+        if key is not None and key in seen:
+            continue
+        if key is not None:
+            seen.add(key)
+        captured.add(identity)
+        model = response.get('model_version', response.get('modelVersion')) or native.get('requested_model')
+        inputs = usage.get('prompt_token_count', usage.get('promptTokenCount'))
+        cached = usage.get('cached_content_token_count', usage.get('cachedContentTokenCount'))
+        candidates = usage.get('candidates_token_count', usage.get('candidatesTokenCount'))
+        thoughts = usage.get('thoughts_token_count', usage.get('thoughtsTokenCount')) or 0
+        valid = (str(model).startswith('gemini-3.8-flash') and isinstance(inputs, int)
+                 and isinstance(candidates, int) and (cached is None or isinstance(cached, int)))
+        upper = ((inputs - (cached or 0)) * .75 + (cached or 0) * .075
+                 + (candidates + thoughts) * 3.75) / 1e6 if valid else None
+        ledger.append({'call_id': identity, 'response_id': response_id, 'model': model,
+            'input_tokens': inputs, 'cached_input_tokens': cached,
+            'output_tokens_including_thoughts': candidates + thoughts if isinstance(candidates, int) else None,
+            'supplier_cost_usd': upper if cached is not None else None,
+            'supplier_cost_upper_bound_usd': upper,
+            'supplier_cost_complete': valid and cached is not None,
+            'supplier_upper_bound_complete': valid,
+            'tariff': 'Gemini3.8_standard_intro_2026-12-31_input0.75_cached0.075_output3.75_perM'})
+    for attempt in row.get('semantic_review_attempts', []):
+        if attempt['call_id'] not in captured:
+            ledger.append({'call_id': attempt['call_id'], 'model': attempt['requested_model'],
+                'supplier_cost_usd': None, 'supplier_cost_upper_bound_usd': None,
+                'supplier_cost_complete': False, 'supplier_upper_bound_complete': False})
+    return ledger
+
+
 def summarize_row(row):
-    usage = row.get('facade_attempt_usage', [])
+    usage = [item for item in row.get('facade_attempt_usage', [])
+             if not str(item.get('logical_call', '')).startswith('semantic:')]
+    semantic = semantic_native_usage(row)
+    row['native_semantic_review_usage'] = semantic
     jev = native_jev_usage(row)
     row['native_jev_usage'] = jev
     native = row.get('native_http', [])
     searches = [item for item in row.get('retrieval_http', [])
                 if item['host'] == 'api.search.brave.com' and item['status'] < 400]
-    known = sum(item.get('supplier_cost_usd') or 0 for item in [*usage, *jev])
+    known = sum(item.get('supplier_cost_usd') or 0 for item in [*usage, *jev, *semantic])
     # HTTP and SDK captures may overlap. They prove attempts/model identities; their
     # usage must not be added again to the facade/Jev supplier accounting ledger.
     row['cost'] = {
         'known_inference_supplier_usd': known,
+        'semantic_review_attempts': len(row.get('semantic_review_attempts', [])),
+        'known_semantic_review_supplier_usd': sum(item.get('supplier_cost_usd') or 0 for item in semantic),
+        'semantic_review_supplier_upper_bound_usd': sum(item.get('supplier_cost_upper_bound_usd') or 0 for item in semantic),
+        'semantic_review_cost_complete': all(item.get('supplier_cost_complete') for item in semantic),
+        'inference_supplier_upper_bound_usd': sum(item.get('supplier_cost_upper_bound_usd', item.get('supplier_cost_usd')) or 0 for item in [*usage, *jev, *semantic]),
         'successful_brave_http_requests': len(searches),
         'brave_gross_catalog_usd': len(searches) * .005,
         'known_inference_plus_search_gross_usd': known + len(searches) * .005,
@@ -257,7 +338,7 @@ def summarize_row(row):
         'jev_accounting_method': 'One captured native HTTP send per ledger entry; raw shared accounting slices retained but never summed because concurrent image reviews can duplicate them.',
         'native_http_attempts': len(native),
         'failed_native_http_attempts': sum(item.get('status', 0) >= 400 or 'error' in item for item in native),
-        'accounted_inference_complete': bool(usage or jev) and all(item.get('supplier_cost_complete') for item in [*usage, *jev]),
+        'accounted_inference_complete': bool(usage or jev or semantic) and all(item.get('supplier_cost_complete') for item in [*usage, *jev, *semantic]),
         'all_transport_spend_complete': False,
         'limits': 'Known telemetry estimate before credits; SDK retries/timeouts can lack usage. Native captures are not double-counted. No invoice, infra or YouTube/Wikimedia monetary cost is available. Brave $5/1000 successful HTTP requests is a gross catalog estimate, not verified billable net requests.',
     }
@@ -444,7 +525,8 @@ async def worker(options):
             summarize_row(row)
             row['cost']['known_inference_per_input_entry_usd'] = row['cost']['known_inference_supplier_usd'] / len(entries) if entries else None
             row['cost']['known_inference_per_retained_entry_usd'] = row['cost']['known_inference_supplier_usd'] / row['output_count'] if row.get('output_count') else None
-            row['cost']['accounted_inference_complete'] = all(item.get('supplier_cost_complete') for item in row['native_jev_usage']) and (not entries or bool(row['native_jev_usage']))
+            pool_usage = [*row['native_jev_usage'], *row['native_semantic_review_usage']]
+            row['cost']['accounted_inference_complete'] = all(item.get('supplier_cost_complete') for item in pool_usage) and (not entries or bool(pool_usage))
             atomic_json(path, row)
             ACTIVE.reset(token)
 
@@ -459,6 +541,15 @@ async def worker(options):
                     stack.enter_context(patch.object(module, 'call_preprocessing_llm', call))
             if options.mode == 'current':
                 decisions = importlib.import_module(PACKAGE + '.decisions')
+                semantic_review = importlib.import_module(PACKAGE + '.semantic_review')
+                original_semantic = semantic_review.call_semantic_model
+
+                async def semantic_call(**kwargs):
+                    row, path = ACTIVE.get()
+                    return await recorded_semantic_call(original_semantic, kwargs, row,
+                        lambda: atomic_json(path, row), CALL)
+
+                stack.enter_context(patch.object(semantic_review, 'call_semantic_model', semantic_call))
                 stack.enter_context(patch.object(decisions, 'JevDecisionClient', RecordedJev))
             for module_name, operation, name in (
                 ('video_processor', 'video_search', 'search_videos'),
@@ -501,6 +592,7 @@ async def worker(options):
                     history.parent.mkdir(parents=True, exist_ok=True)
                     path.replace(history)
                 row = {'mode': output_mode, 'language': language, 'status': 'running', 'items': [],
+                       'accounting_version': 'semantic-review-separated-v1',
                        **source_preflight,
                        'historical_declared_deadline_seconds': options.historical_deadline_seconds if options.mode == 'original' else None,
                        'deadline_scope': ('Supplementary original architecture with declared extended caller deadlines; not exact historical timing.'

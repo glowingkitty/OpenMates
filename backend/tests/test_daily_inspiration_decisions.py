@@ -18,6 +18,10 @@ def source_only_tests(monkeypatch):
     async def visual(rows, _client):
         return rows
     monkeypatch.setattr(decisions, "review_thumbnails", visual)
+    # The real semantic-review model boundary has its own focused offline suite.
+    async def semantic(rows, *_args, **_kwargs):
+        return rows
+    monkeypatch.setattr(decisions, "review_copy_candidates", semantic)
 
 
 class Secrets:
@@ -271,7 +275,7 @@ async def test_one_failed_field_withholds_card_and_returns_source_bound_repair_c
                  "card_title": "Pollen transfer", "phrase": "Pollen moves between plants.",
                  "assistant_response": "Pollen moves between plants. What is pollination?",
                  "follow_up_suggestions": ["What is pollen?", "How does pollen move?", "Which plants?"],
-                 "language": "en", "_review_identity": "server-source"}
+                 "language": "fr", "_review_identity": "server-source"}
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         result = await decisions.review_candidates([candidate], Secrets(), rejection_feedback=feedback,
             client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
@@ -288,7 +292,7 @@ async def test_copy_partitions_keep_each_field_question_with_its_source():
                    "card_title": "Water cycle", "phrase": "Water evaporates.",
                    "assistant_response": "Vapor condenses. How does water evaporate?",
                    "follow_up_suggestions": ["What is vapor?", "How does water evaporate?", "What condenses?"],
-                   "language": "en"} for index in range(10)]
+                   "language": "fr"} for index in range(10)]
     calls = []
     async def handler(request):
         body = json.loads(request.content)
@@ -302,3 +306,129 @@ async def test_copy_partitions_keep_each_field_question_with_its_source():
             client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
     assert len(result) == 10 and len(calls) > 1
     assert sum(len(call["state"]["candidates"]) for call in calls) == 10
+
+
+def completed_card(language, identity):
+    return {"title": "Cloud formation", "description": "Water evaporates and condenses.",
+            "card_title": "Water cycle", "phrase": "Water evaporates. What condenses?",
+            "assistant_response": "Water evaporates. Vapor condenses. What happens next?",
+            "follow_up_suggestions": ["What evaporates?", "What is vapor?", "What condenses?"],
+            "language": language, "_review_identity": identity, "record": object()}
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,language-preferences.content-language
+async def test_focus_review_routes_only_completed_english_german_and_preserves_other_jev_gates(monkeypatch):
+    rows = [completed_card('en', 'english'), completed_card('de-DE', 'german'),
+            completed_card('ja', 'japanese'), {'title': 'Public source', 'language': 'en'}]
+    seen = []
+
+    async def semantic(candidates, *_args, **_kwargs):
+        seen.extend(candidates)
+        return candidates
+
+    async def handler(request):
+        body = json.loads(request.content)
+        questions = body['questions']
+        for index in (0, 1):
+            prefix = f'candidate_{index:03d}_'
+            assert prefix + 'policy' in questions and prefix + 'coherence' in questions
+            assert not any(key.startswith(prefix) and key.endswith(('_grounding', '_language', '_relevance'))
+                           for key in questions)
+        assert 'candidate_002_card_title_language' in questions
+        assert 'candidate_002_follow_up_2_relevance' in questions
+        assert 'candidate_003_policy' in questions
+        assert 'candidate_003_coherence' not in questions
+        return httpx.Response(200, json={'model': 'jev-1.14.0', 'answers': native_answers(questions)})
+
+    monkeypatch.setattr(decisions, 'review_copy_candidates', semantic)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        admitted = await decisions.review_candidates(rows, Secrets(), client=JevDecisionClient(
+            secrets_manager=Secrets(), http_client=http, provider='typesafe', max_retries=0))
+    assert len(admitted) == 4
+    assert [row['_review_identity'] for row in seen] == ['english', 'german']
+    assert admitted[0] is seen[0] and admitted[1] is seen[1]
+    assert admitted[0]['record'] is rows[0]['record']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failed_gate', ['policy', 'coherence', 'thumbnail'])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_gemini_never_overrides_failed_jev_policy_coherence_or_pixels(monkeypatch, failed_gate):
+    calls = []
+    row = completed_card('en', 'server-only')
+    row.update(youtube_id='DOH-HNotTaE', content_type='video')
+
+    async def semantic(candidates, *_args, **_kwargs):
+        calls.append(candidates)
+        return candidates
+
+    async def visual(candidates, _client):
+        return [] if failed_gate == 'thumbnail' else candidates
+
+    async def handler(request):
+        body = json.loads(request.content)
+        answers = native_answers(body['questions'])
+        if failed_gate != 'thumbnail':
+            choice = 'reject' if failed_gate == 'policy' else 'mismatch'
+            answers['candidate_000_' + failed_gate] = {'type': 'choice', 'choice': choice,
+                'probabilities': {choice: 1.0}, 'confidence': 1.0}
+        return httpx.Response(200, json={'model': 'jev-1.14.0', 'answers': answers})
+
+    monkeypatch.setattr(decisions, 'review_copy_candidates', semantic)
+    monkeypatch.setattr(decisions, 'review_thumbnails', visual)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        assert await decisions.review_candidates([row], Secrets(), client=JevDecisionClient(
+            secrets_manager=Secrets(), http_client=http, provider='typesafe', max_retries=0)) == []
+    assert calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('result', ['outage', 'negative', 'forged'])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,language-preferences.content-language
+async def test_focus_failure_withholds_only_focus_rows_and_never_accepts_forged_objects(monkeypatch, result):
+    rows = [completed_card('en', 'focus'), completed_card('fr', 'nonfocus')]
+    feedback = {}
+
+    async def semantic(candidates, *_args, **kwargs):
+        if result == 'outage':
+            raise ConnectionError('must not leak public copy')
+        if result == 'negative':
+            kwargs['rejection_feedback']['focus'] = ['phrase.grounding:causal_role']
+            return []
+        return [dict(candidates[0])]
+
+    async def handler(request):
+        questions = json.loads(request.content)['questions']
+        return httpx.Response(200, json={'model': 'jev-1.14.0', 'answers': native_answers(questions)})
+
+    monkeypatch.setattr(decisions, 'review_copy_candidates', semantic)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        admitted = await decisions.review_candidates(rows, Secrets(), rejection_feedback=feedback,
+            client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider='typesafe', max_retries=0))
+    assert len(admitted) == 1 and admitted[0]['_review_identity'] == 'nonfocus'
+    if result == 'outage':
+        assert feedback == {'focus': ['review:unavailable']}
+    elif result == 'negative':
+        assert feedback == {'focus': ['phrase.grounding:causal_role']}
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_source_only_discovery_never_calls_semantic_reviewer(monkeypatch):
+    calls = []
+
+    async def semantic(*_args, **_kwargs):
+        calls.append(True)
+        return []
+
+    async def handler(request):
+        body = json.loads(request.content)
+        return httpx.Response(200, json={'model': 'jev-1.14.0', 'answers': native_answers(body['questions'])})
+
+    monkeypatch.setattr(decisions, 'review_copy_candidates', semantic)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        admitted = await decisions.review_candidates([{'title': 'Cloud', 'language': 'en'},
+            {'title': 'Wolke', 'language': 'de'}], Secrets(), rank=True,
+            client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider='typesafe', max_retries=0))
+    assert len(admitted) == 2 and calls == []

@@ -1,7 +1,7 @@
-"""Bounded Jev editorial decisions over untrusted public source evidence.
+"""Bounded editorial decisions over untrusted public source evidence.
 
-No generative model classifies, ranks or repairs failed decisions. Only reviewed
-items proceed; an outage leaves callers on the existing static feed fallback.
+Jev screens sources and pixels; focused English/German copy gets semantic review.
+Only reviewed items proceed; outages retain the existing static feed fallback.
 """
 from __future__ import annotations
 
@@ -13,10 +13,12 @@ from backend.apps.ai.daily_inspiration.category_age_policy import CATEGORY_MAX_A
 from backend.shared.providers.typesafe.batching import DecisionRequest, evaluate_batches, pack_batches
 from backend.shared.providers.typesafe.client import JevDecisionClient
 from backend.apps.ai.daily_inspiration.thumbnail_review import review_thumbnails
+from backend.apps.ai.daily_inspiration.semantic_review import review_copy_candidates
 from backend.shared.providers.typesafe.models import ChoiceAnswer, ScoreAnswer
 
 logger = logging.getLogger(__name__)
-POLICY_VERSION = "daily-editorial-v6"
+POLICY_VERSION = "daily-editorial-v7"
+SEMANTIC_REVIEW_LANGUAGES = frozenset({"en", "de"})
 EDITORIAL_POLICY = (
     "Public educational feed. Reject conspiracy theories promoted as fact, pseudoscience, "
     "miracle cures, unsupported sensational claims and obvious misleading clickbait. "
@@ -69,11 +71,20 @@ def _copy_fields(candidate):
     return fields
 
 
+def _uses_semantic_review(candidate):
+    language = candidate.get("language")
+    return (isinstance(language, str)
+            and language.lower().replace("_", "-").split("-")[0] in SEMANTIC_REVIEW_LANGUAGES
+            and bool(_copy_fields(candidate)))
+
+
 def _required_choices(candidate):
     required = {"policy": "allow"}
     fields = _copy_fields(candidate)
     if fields:
         required["coherence"] = "coherent"
+        if _uses_semantic_review(candidate):
+            return required
         for field in fields:
             required[field + "_grounding"] = "supported"
             if candidate.get("language"):
@@ -133,7 +144,7 @@ def build_review_batches(candidates: list[dict[str, Any]], *, topic: str = "", r
                              "mismatch": "Different subjects or an unrelated hook.",
                              "uncertain": "Insufficient evidence."},
             }
-            for field in fields:
+            for field in (() if _uses_semantic_review(candidate) else fields):
                 questions[f"{key}_{field}_grounding"] = {
                     "type": "choice",
                     "instructions": (f"Assess only {key}.evidence.{field} against its source title, "
@@ -252,6 +263,24 @@ async def review_candidates(
                         for index, row in enumerate(reviewed) if index not in video_indices or index in allowed]
             for row in reviewed:
                 row.pop("_thumbnail_index", None)
+        focused = [row for row in reviewed if _uses_semantic_review(row)]
+        if focused:
+            try:
+                allowed_copy = await review_copy_candidates(
+                    focused, secrets_manager, task_id=task_id,
+                    rejection_feedback=rejection_feedback,
+                )
+            except Exception as error:
+                for row in focused:
+                    _record_rejection(row, ["review:unavailable"], rejection_feedback)
+                logger.warning("Daily semantic review unavailable: failure=%s", type(error).__name__)
+                allowed_copy = []
+            # The semantic reviewer may only return the exact server-owned rows
+            # it received. Never let an echoed/model-invented identity publish copy.
+            allowed_objects = {id(row) for row in allowed_copy}
+            focused_objects = {id(row) for row in focused}
+            reviewed = [row for row in reviewed
+                        if id(row) not in focused_objects or id(row) in allowed_objects]
         if rank:
             reviewed.sort(key=lambda row: row["editorial_score"], reverse=True)
         return reviewed

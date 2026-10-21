@@ -120,13 +120,61 @@ def test_reviewed_current_hash_mismatch_fails_before_provider_imports(tmp_path):
     actual = benchmark.current_source_preflight()['current_source_sha256']
     assert {'decisions.py', 'writer.py', 'generator.py', 'wiki_generator.py',
             'video_processor.py', 'validator.py', 'thumbnail_review.py', 'config.py',
-            'llm_utils.py', 'media_coherence.py'} <= actual.keys()
+            'llm_utils.py', 'media_coherence.py', 'semantic_review.py'} <= actual.keys()
     manifest.write_text(json.dumps({'source_sha256': actual}))
     verified = benchmark.current_source_preflight(manifest)
     assert verified['reviewed_source_comparison']['unreviewed_keys'] == []
     manifest.write_text(json.dumps({'source_sha256': {**actual, 'validator.py': '0' * 64}}))
     with pytest.raises(ValueError, match='validator.py'):
         benchmark.current_source_preflight(manifest)
+
+
+def test_semantic_native_usage_prices_all_paid_responses_once_separate_from_writer():
+    def response(identity, cache):
+        usage = {'prompt_token_count': 1000, 'candidates_token_count': 100,
+                 'thoughts_token_count': 20}
+        if cache is not None:
+            usage['cached_content_token_count'] = cache
+        return {'logical_call': 'semantic:0', 'response': {'response_id': identity,
+                'model_version': 'gemini-3.8-flash', 'usage_metadata': usage}}
+    paid = response('paid-parse-failure', 400)
+    uncached_upper = response('paid-retry', None)
+    row = {'calls': [{'requested_model': 'inception/mercury-3'}],
+        'semantic_review_attempts': [{'call_id': 'semantic:0', 'requested_model': 'google/gemini-3.8-flash'}],
+        'google_sdk': [paid, uncached_upper], 'native_http': [paid],
+        'facade_attempt_usage': [{'logical_call': 'semantic:0', 'supplier_cost_usd': 99},
+                                 {'logical_call': 0, 'supplier_cost_usd': .01,
+                                  'supplier_cost_complete': True}]}
+    benchmark.summarize_row(row)
+    ledger = row['native_semantic_review_usage']
+    assert len(ledger) == 2  # SDK/HTTP overlap is one send; retry is still paid.
+    assert ledger[0]['supplier_cost_usd'] == pytest.approx(.00093)
+    assert ledger[1]['supplier_cost_usd'] is None
+    assert ledger[1]['supplier_cost_upper_bound_usd'] == pytest.approx(.0012)
+    assert row['cost']['known_inference_supplier_usd'] == pytest.approx(.01093)
+    assert row['cost']['semantic_review_supplier_upper_bound_usd'] == pytest.approx(.00213)
+    assert row['logical_facade_calls'] == 1 and row['cost']['semantic_review_attempts'] == 1
+    assert not row['cost']['semantic_review_cost_complete']
+
+
+@pytest.mark.asyncio
+async def test_semantic_seam_records_cancellation_without_writer_attempt_or_lost_context():
+    from contextvars import ContextVar
+    context = ContextVar('offline-semantic-test', default=None)
+    row = {'calls': [{'writer': True}]}
+    flushes = []
+
+    async def canceled(**_kwargs):
+        assert context.get() == 'semantic:0'
+        raise asyncio.CancelledError()
+
+    with pytest.raises(asyncio.CancelledError):
+        await benchmark.recorded_semantic_call(canceled, {'model_id': 'google/gemini-3.8-flash'},
+            row, lambda: flushes.append(True), context)
+    assert context.get() is None and flushes == [True]
+    assert len(row['calls']) == 1 and len(row['semantic_review_attempts']) == 1
+    assert row['semantic_review_attempts'][0]['error'] == 'CancelledError'
+    assert benchmark.semantic_native_usage(row)[0]['supplier_cost_upper_bound_usd'] is None
 
 
 def test_pool_conversion_preserves_public_source_edition_and_strips_private_fields():

@@ -164,7 +164,7 @@ async def test_resumed_completed_excluded_source_fails_before_retrieval(tmp_path
 
 @pytest.mark.asyncio
 async def test_candidate_manifest_mismatch_fails_before_vault_or_provider_setup(monkeypatch, tmp_path):
-    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils'):
+    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'semantic_review', 'llm_utils'):
         monkeypatch.setattr(benchmark, name, SimpleNamespace(__file__=benchmark.__file__, POLICY_VERSION='test'), raising=False)
     expected = tmp_path / 'expected.json'
     expected.write_text(json.dumps({'wrong.py': 'wrong-hash'}))
@@ -183,7 +183,7 @@ async def test_changed_exclusion_manifest_prevents_resuming_old_writing_before_b
     write_source(previous / 'sources', 'one', 'OldVideo001')
     output = tmp_path / 'run'
     output.mkdir()
-    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils'):
+    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'semantic_review', 'llm_utils'):
         monkeypatch.setattr(benchmark, name, SimpleNamespace(__file__=benchmark.__file__, POLICY_VERSION='test'), raising=False)
 
     def forbidden_manager():
@@ -336,6 +336,7 @@ async def test_frozen_run_never_collects_or_retries_terminal_shortfalls(monkeypa
     monkeypatch.setattr(benchmark, 'httpx', SimpleNamespace(AsyncClient=SimpleNamespace(send=None)), raising=False)
     monkeypatch.setattr(benchmark, 'AsyncModels', SimpleNamespace(generate_content=None), raising=False)
     monkeypatch.setattr(benchmark, 'decisions', SimpleNamespace(JevDecisionClient=None), raising=False)
+    monkeypatch.setattr(benchmark, 'semantic_review', SimpleNamespace(call_semantic_model=None), raising=False)
     monkeypatch.setattr(benchmark, 'qualify_batch', no_cards)
     await benchmark.run(options(output, languages=['en'], frozen_source_manifest=str(provenance)))
     assert (output / 'sources/en-wiki-0.json').read_bytes() == before

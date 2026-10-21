@@ -31,7 +31,7 @@ def test_unreviewed_and_old_policy_videos_are_withheld_without_lexical_exemption
     row = reviewed_japanese()
     row.pop("editorial_review")
     assert not is_inspiration_media_coherent(row)
-    row["editorial_review"] = editorial_review_digest(row).replace("daily-editorial-v6:", "daily-editorial-v5:")
+    row["editorial_review"] = editorial_review_digest(row).replace("daily-editorial-v7:", "daily-editorial-v5:")
     assert not is_inspiration_media_coherent(row)
 
 
@@ -93,7 +93,7 @@ def test_wiki_output_and_type_are_bound(field):
 
 
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-@pytest.mark.parametrize("proof", [None, "daily-editorial-v5:legacy", "daily-editorial-v6:wrong"])
+@pytest.mark.parametrize("proof", [None, "daily-editorial-v5:legacy", "daily-editorial-v7:wrong"])
 def test_old_or_missing_dynamic_wiki_proof_is_withheld(proof):
     row = reviewed_wiki()
     row["editorial_review"] = proof
@@ -194,3 +194,15 @@ async def test_missing_wiki_source_cannot_be_reviewed_as_generated_copy():
     assert await scope["_review_pool_entries"]([missing, no_edition, feature], None, "test") == [feature]
     assert captured == []
     assert scope["_is_public_default_candidate"](feature)
+
+
+@pytest.mark.parametrize('builder', [reviewed_japanese, reviewed_wiki])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+def test_current_proof_and_policy_versions_invalidate_previous_v6_reviews(builder):
+    from backend.apps.ai.daily_inspiration.decisions import POLICY_VERSION
+    from backend.apps.ai.daily_inspiration.media_coherence import REVIEW_VERSION
+    assert POLICY_VERSION == REVIEW_VERSION == 'daily-editorial-v7'
+    row = builder()
+    assert is_inspiration_media_coherent(row)
+    row['editorial_review'] = row['editorial_review'].replace('daily-editorial-v7:', 'daily-editorial-v6:')
+    assert not is_inspiration_media_coherent(row)

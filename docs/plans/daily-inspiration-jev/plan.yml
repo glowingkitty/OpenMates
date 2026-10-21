@@ -1,14 +1,15 @@
 schema_version: 2
 profile: concise
 id: daily-inspiration-jev
-title: Qualify granular inspiration review, targeted recovery and historical costs
+title: Finish reliable English and German inspirations with bounded semantic review
 status: implementing
 goal: >-
-  Implement the approved granular Jev review and targeted retry changes, run the
-  aligned multilingual and thumbnail qualification, and explain the implemented
-  workflow and before/after costs using the original pre-Jev/pre-Mercury baseline.
+  Finish and deploy a practical English/German quality improvement, preserving
+  Jev source and thumbnail screening, bounded writing recovery and all twenty
+  localized static feeds. Explain the workflow, measured costs and remaining
+  improvements without requiring exhaustive multilingual perfection.
 scope_notes:
-  - Jev separately reviews source policy and coherence, plus grounding and language for every copy field and relevance for every follow-up.
+  - Jev retains source policy, coherence, ranking and actual thumbnail decisions. English/German completed copy uses a focused Gemini 3.8 Flash semantic review; other locales retain the deployed granular Jev copy review.
   - Align validation and review to source-preserving paraphrases and open questions about explicit concepts; reject added specific facts, qualifiers, roles, causes, dates and absent scenarios.
   - Retain source-bound approved cards across attempts; request only unresolved identities with bounded trusted rejection codes and review every repair.
   - Re-adjudicate nineteen historical material cards and four uncertain cases transparently; retain human/native-speaker review limitations.
@@ -22,21 +23,28 @@ scope_notes:
   - Freeze real approved public sources across writer arms; every generated draft still receives fresh native Jev review.
   - Select the writer using source-grounded quality before latency or estimated supplier cost; do not weaken admission thresholds to improve scores.
   - Keep retrieval shortages, source re-review variation, writer failures and independent automated review distinct.
+  - Optimize Jev precision by testing isolated one-field language and source-grounding requests before changing served admission behavior; preserve confidence thresholds and negative controls.
+  - Use de/ar/hi/ja and disclosed retained regressions for development, then freeze the candidate before validation across the remaining locale controls and public-source drafts.
+  - After three failed Jev field-review variants, test a focused LLM semantic reviewer while retaining Jev source policy, coherence, ranking and actual thumbnail decisions; never override a failed Jev gate.
+  - Keep fixture labels and caller identities outside all provider inputs; invalidate label-revealing diagnostics and preserve their usage receipts.
 checks:
   - Focused backend regressions for semantic decisions, source identities, thumbnail transport, pool proof, retry bounds and all static locales.
   - Frontend fallback/store unit checks and isolated CI component/public-feed browser coverage, including Japanese source navigation and all twenty endpoint locales.
   - Real provider paired benchmark with actual model identity, drafts, Jev decisions, usage, latency and blinded automated source-grounded review.
-  - Publication qualification requires no known material unsupported/wrong-language or unsafe accepted holdout, faithful positive controls and complete localized delivery; report observed limits and failures honestly.
+  - Release acceptance focuses on English/German source fidelity, wrong-language and follow-up controls, deterministic failure recovery and localized delivery; report wider multilingual limitations without claiming exhaustive qualification.
   - Historical 95 percent first-draft and 99 percent final generation-admission targets remain reported as yield metrics, not standalone safety gates.
-  - Fresh randomized-order paired writing benchmark, balanced multilingual positive/negative controls, expanded translated thumbnail controls and full ten-card refresh recovery.
+  - Reuse the completed multilingual paired benchmark and thumbnail evidence; finish with fourteen fixed English/German controls and a small live refresh check instead of another broad benchmark.
   - Before/after cost analysis includes the actual pre-Jev/Mercury workflow; never relabel the Gemini-only plus Jev control as the original baseline.
 decision_notes:
+  - User narrowed acceptance on 2026-10-21 to practical reliability with English/German focus, requested completion and deployment, and explicitly allowed Gemini if Mercury is insufficient. Stop broader experiments; remaining multilingual perfection is not a release gate.
+  - Keep Mercury LOW, Mercury LOW retry and Gemini 3.5 Flash-Lite as the existing writer chain. Use stronger Gemini 3.8 Flash for scoped final semantic review because cheap reviewer variants missed known errors; do not use Gemini 3.5 as a semantic-review fallback.
   - User rejected Mistral as a current writer option; it remains excluded from the candidate and appears only in the historical baseline.
   - User authorized implementation, real-provider benchmarking, the resulting writer decision and scoped dev deployment.
   - Existing public-safe feed and language Specifications apply; ordinary model routing is outside this work.
   - Gemini Batch and a general shared-pool redesign remain outside scope.
   - User explicitly approved the concrete granular-review, repair, rubric and qualification follow-up on 2026-10-21. Existing public-feed contracts exclude provider/prompt internals; no product contract expansion.
   - Independent automated multilingual labels are not native-speaker sign-off; no human review is fabricated.
+  - User requested continued optimization on 2026-10-21; continue in TASK-1531 and session d115. First isolate language/field interference and the known causal-role reversal, then measure resulting quality, latency and cost.
 evidence:
   implementation_commit: 76419cba88796db635c80e0c5218ece0783a581c
   policy_version: daily-editorial-v6

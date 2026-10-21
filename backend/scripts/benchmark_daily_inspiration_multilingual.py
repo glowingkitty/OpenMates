@@ -30,12 +30,12 @@ def load_runtime():
     global httpx, AsyncModels, config, decisions, generator, thumbnail_review
     global video_processor, wiki_generator, writer, validator, call_preprocessing_llm
     global SecretsManager, JevDecisionClient, wikipedia
-    global llm_utils, media_coherence
+    global llm_utils, media_coherence, semantic_review
     import httpx
     from google.genai.models import AsyncModels
     
     from backend.apps.ai.daily_inspiration import (
-        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence,
+        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence, semantic_review,
     )
     from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
     from backend.apps.ai.utils import llm_utils
@@ -126,6 +126,7 @@ def validate_source_manifest(actual, expected_path):
 
 
 ACTIVE = ContextVar('daily_multilingual_receipt', default=None)
+SEMANTIC_CALL = ContextVar('daily_multilingual_semantic_call', default=None)
 
 
 def atomic_json(path, value):
@@ -506,6 +507,8 @@ def summarize(root, options):
         selected = [row for row in rows if row['arm'] == arm and row.get('status') == 'complete']
         billed_rows = [row for row in [*rows, *prior_rows] if row['arm'] == arm]
         usage = [attempt['result'].get('usage_telemetry') or {} for row in billed_rows for attempt in row['attempts'] if 'result' in attempt]
+        from backend.scripts.benchmark_daily_inspiration_costs import semantic_native_usage
+        semantic_usage = [item for row in billed_rows for item in semantic_native_usage(row)]
         accounting = [item for row in billed_rows for item in unique_jev_usage(row)]
         unknown_jev = sum(unknown_jev_attempts(row) for row in billed_rows)
         latencies = sorted(row.get('production_seconds', row['seconds']) for row in selected)
@@ -537,13 +540,18 @@ def summarize(root, options):
             } for language in options.languages},
             'observed_native_models': sorted({str(native.get('response', {}).get('model') or native.get('response', {}).get('model_version') or native.get('response', {}).get('modelVersion'))
                 for row in selected for native in row.get('native_http', [])}),
-            'known_supplier_usd_estimate': sum(item.get('supplier_cost_usd') or 0 for item in usage) + sum((item.get('input_tokens') or 0) * .042 / 1e6 for item in accounting),
+            'semantic_review_attempts': sum(len(row.get('semantic_review_attempts', [])) for row in billed_rows),
+            'semantic_review_usage': semantic_usage,
+            'known_semantic_review_supplier_usd': sum(item.get('supplier_cost_usd') or 0 for item in semantic_usage),
+            'semantic_review_supplier_upper_bound_usd': sum(item.get('supplier_cost_upper_bound_usd') or 0 for item in semantic_usage),
+            'known_supplier_usd_estimate': sum(item.get('supplier_cost_usd') or 0 for item in [*usage, *semantic_usage]) + sum((item.get('input_tokens') or 0) * .042 / 1e6 for item in accounting),
+            'supplier_upper_bound_usd_estimate': sum(item.get('supplier_cost_upper_bound_usd', item.get('supplier_cost_usd')) or 0 for item in [*usage, *semantic_usage]) + sum((item.get('input_tokens') or 0) * .042 / 1e6 for item in accounting),
             'usage_telemetry': usage, 'jev_accounting': accounting,
             'unknown_jev_usage_attempts': unknown_jev,
             'jev_transport_accounting': [entry for row in billed_rows for entry in row.get('decision_accounting', [])],
             'unknown_writer_usage_attempts': sum('result' not in attempt for row in billed_rows for attempt in row['attempts']),
-            'cost_complete': len(usage) == sum(len(row['attempts']) for row in billed_rows) and bool(usage) and all(item.get('supplier_cost_complete') for item in usage) and bool(accounting) and not unknown_jev and all(item.get('input_tokens') is not None for item in accounting),
-            'cost_limit': 'Estimate from observed writer telemetry and Jev input at $0.042/M; missing usage and failed transports can undercount.',
+            'cost_complete': len(usage) == sum(len(row['attempts']) for row in billed_rows) and bool(usage) and all(item.get('supplier_cost_complete') for item in [*usage, *semantic_usage]) and bool(accounting) and not unknown_jev and all(item.get('input_tokens') is not None for item in accounting),
+            'cost_limit': 'Writer telemetry plus once-only native semantic-review usage and Jev input at $0.042/M; missing cache counters give a separate Google uncached upper bound; failed transports can undercount.',
         }
     atomic_json(root / 'summary.json', summary)
     return summary
@@ -653,9 +661,10 @@ def unknown_jev_attempts(row):
 
 def build_manifest(options):
     manifest = {'comparison': 'writer_and_fresh_final_review_on_shared_live_approved_sources',
+                'accounting_version': 'semantic-review-separated-v1',
                 'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
-                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, llm_utils)}}
+                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, semantic_review, llm_utils)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     exclusions = exclusion_manifest(options.exclude_source_root)
     manifest['exclusions'] = exclusions
@@ -692,6 +701,7 @@ async def run(options):
         if request.url.host in {'api.inceptionlabs.ai', 'generativelanguage.googleapis.com'}:
             await response.aread()
             record('native_http', {'host': request.url.host, 'status': response.status_code,
+                                  'logical_call': SEMANTIC_CALL.get(),
                                   'request': json.loads(request.content), 'response': response.json(),
                                   'seconds': time.monotonic() - stamp})
             if request.url.host == 'api.inceptionlabs.ai' and response.status_code < 400 and response.json().get('model') != 'mercury-3':
@@ -701,10 +711,20 @@ async def run(options):
     async def google(client, **kwargs):
         response = await original_google(client, **kwargs)
         record('native_http', {'transport': 'google_sdk', 'requested_model': kwargs.get('model'),
+                               'logical_call': SEMANTIC_CALL.get(),
                                'response': response.model_dump(mode='json', exclude_none=True)})
-        if not (response.model_version or '').startswith('gemini-3.5-flash-lite'):
+        expected = 'gemini-3.8-flash' if SEMANTIC_CALL.get() else 'gemini-3.5-flash-lite'
+        if not (response.model_version or '').startswith(expected):
             raise ValueError('Unexpected observed Gemini model')
         return response
+
+    original_semantic = semantic_review.call_semantic_model
+
+    async def semantic_call(**kwargs):
+        from backend.scripts.benchmark_daily_inspiration_costs import recorded_semantic_call
+        row, path = ACTIVE.get()
+        return await recorded_semantic_call(original_semantic, kwargs, row,
+            lambda: atomic_json(path, row), SEMANTIC_CALL)
 
     class RecordedJev:
         def __init__(self, **kwargs):
@@ -739,6 +759,7 @@ async def run(options):
             stack.enter_context(patch.object(httpx.AsyncClient, 'send', send))
             stack.enter_context(patch.object(AsyncModels, 'generate_content', google))
             stack.enter_context(patch.object(decisions, 'JevDecisionClient', RecordedJev))
+            stack.enter_context(patch.object(semantic_review, 'call_semantic_model', semantic_call))
             for language in options.languages:
                 for kind in ('video', 'wiki'):
                     for offset in range(0, options.limit, DISCOVERY_BATCH_SIZE):
