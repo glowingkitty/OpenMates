@@ -423,6 +423,7 @@
         "components/landing-section-replay.spec.ts",
         "components/landing-mobile-stories.spec.ts",
         "components/chat-message-voice-transcript-status.spec.ts",
+        "components/video-transcript-media-ccc.spec.ts",
         "components/voice-call-privacy.spec.ts",
         "components/workspace-pane-motion.spec.ts",
         "components/assistant-generated-media-activity.spec.ts",

@@ -41,6 +41,7 @@
    */
   interface VideoTranscriptResult {
     url?: string;
+    provider?: string;
     metadata?: {
       title?: string;
       channel_name?: string;
@@ -189,6 +190,12 @@
     urlProp || 
     ''
   );
+  let transcriptProvider = $derived.by(() => {
+    try {
+      if (new URL(effectiveUrl).hostname === 'media.ccc.de') return 'media.ccc.de';
+    } catch { /* A processing embed may not have a URL yet. */ }
+    return 'YouTube';
+  });
   
   // ===========================================
   // YouTube Metadata Fetching
@@ -204,6 +211,8 @@
   let needsMetadataFetch = $derived.by(() => {
     // Need a URL to fetch
     if (!effectiveUrl) return false;
+    // CCC URLs must never be sent to the YouTube metadata service.
+    if (transcriptProvider === 'media.ccc.de') return false;
     // If we already have channel info from results, no need to fetch
     if (firstResult?.metadata?.channel_name && firstResult?.metadata?.channel_thumbnail) {
       return false;
@@ -321,7 +330,7 @@
   let effectiveTitle = $derived(
     firstResult?.metadata?.title || 
     fetchedTitle || 
-    'YouTube Video'
+    (transcriptProvider === 'media.ccc.de' ? 'media.ccc.de' : 'YouTube Video')
   );
   
   // Effective channel name: results > fetched > fallback
@@ -360,9 +369,9 @@
   let subtitleText = $derived.by(() => {
     const wordCount = totalWordCount;
     if (wordCount > 0) {
-      return `via YouTube:\n${wordCount.toLocaleString()} words`;
+      return `via ${transcriptProvider}:\n${wordCount.toLocaleString()} words`;
     }
-    return 'via YouTube';
+    return `via ${transcriptProvider}`;
   });
   
   // Debug logging to help trace data flow issues

@@ -31,6 +31,18 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  mediaCCC: {
+    ...defaultProps,
+    id: 'preview-video-transcript-media-ccc',
+    url: 'https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet',
+    results: [{
+      url: 'https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet',
+      provider: 'media.ccc.de',
+      metadata: { title: 'A post-American, enshittification-resistant internet' },
+      transcript: '[00:00:01.250] Public caption preview.',
+      word_count: 4
+    }]
+  },
 	/** Processing state — shows loading while fetching transcript */
 	processing: {
 		id: 'preview-video-transcript-processing',

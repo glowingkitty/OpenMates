@@ -64,6 +64,7 @@ export const privacyPolicyLinks = {
   geoapify: "https://www.geoapify.com/privacy-policy/", // verified 2026-07-30
   wikimedia: "https://foundation.wikimedia.org/wiki/Policy:Privacy_policy", // verified 2026-08-28
   youtube: "https://www.youtube.com/howyoutubeworks/privacy/",
+  mediaCCC: "https://media.ccc.de/about.html#privacy", // verified 2026-10-21
   googleLens: "https://policies.google.com/privacy",
 
   // Group G — Travel

@@ -7996,6 +7996,26 @@ providers.web_and_search.youtube.heading:
   he: YouTube (תמלולי סרטונים)
   cs: YouTube (přepisy videí)
   verified_by_human: []
+providers.web_and_search.media_ccc.heading:
+  context: Public conference video caption provider
+  en: media.ccc.de (video captions)
+  de: media.ccc.de (Videountertitel)
+  verified_by_human: []
+providers.web_and_search.media_ccc.description:
+  context: Data disclosed when retrieving published media.ccc.de captions
+  en: >-
+    When you request a media.ccc.de transcript, OpenMates retrieves published
+    captions from media.ccc.de and its subtitle CDN mirrors. These services
+    receive the public talk slug, selected caption file URL and our server's
+    network information, without your OpenMates identifier, chat text, cookies
+    or client IP address.
+  de: >-
+    Wenn du ein Transkript von media.ccc.de anforderst, ruft OpenMates veröffentlichte
+    Untertitel von media.ccc.de und dessen Untertitel-CDN-Spiegelservern ab. Diese
+    Dienste erhalten die öffentliche Vortragskennung, die ausgewählte Untertitel-URL
+    und Netzwerkinformationen unseres Servers, ohne deine OpenMates-Kennung,
+    Chattexte, Cookies oder deine IP-Adresse.
+  verified_by_human: []
 providers.web_and_search.youtube.description:
   context: YouTube description
   en: >-

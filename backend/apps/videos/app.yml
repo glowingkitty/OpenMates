@@ -327,17 +327,22 @@ skills:
     description_translation_key: videos.get_transcript.description
     icon_image: transcript.svg
     preprocessor_hint: >
-      Get the transcript/content of a specific YouTube video URL.
+      Get published captions/transcript content for a specific YouTube or
+      media.ccc.de video URL. Use this for summaries of media.ccc.de talks.
+      Some talks have no published captions; report that limitation honestly
+      instead of treating the page description as a transcript.
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
     providers:
       - YouTube
+      - media.ccc.de
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
     # These fields are removed before adding to message history for LLM processing
     # but remain in the full response stored in chat history for proper UI rendering
     exclude_fields_for_llm:
       - "type"
       - "hash"
+      - "metadata"
     tool_schema:
       type: object
       properties:
@@ -350,7 +355,8 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single transcript.
             Example for single transcript: {"requests": [{"url": "https://youtube.com/watch?v=abc123"}]}
             Example for multiple transcripts: {"requests": [{"url": "https://youtube.com/watch?v=abc123"}, {"url": "https://youtube.com/watch?v=def456"}]}
-            Each object must contain 'url' (YouTube video URL), and can include optional parameters (languages).
+            Each object must contain 'url' (YouTube or media.ccc.de video URL), and can include optional parameters (languages).
+            media.ccc.de example: {"requests": [{"url": "https://media.ccc.de/v/39c3-a-post-american-enshittification-resistant-internet"}]}
             Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
@@ -360,7 +366,7 @@ skills:
                   basic: true
                 type: string
                 format: uri
-                description: YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)
+                description: YouTube watch/youtu.be URL or https://media.ccc.de/v/<slug>. Retrieves published captions only; some talks have none.
               languages:
                 x-ui:
                   basic: true

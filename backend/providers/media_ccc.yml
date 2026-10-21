@@ -1,0 +1,11 @@
+provider_id: media_ccc
+name: media.ccc.de
+description: Published conference talk captions through the official media.ccc.de API.
+logo_svg: icons/videos.svg
+region: EU
+privacy_policy: https://media.ccc.de/about.html#privacy # verified 2026-10-21
+no_api_key: true
+rate_limits:
+  default:
+    requests_per_second: 2 # Conservative client guidance; no published quota.
+    requests_per_day: null

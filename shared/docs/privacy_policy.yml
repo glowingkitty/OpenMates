@@ -785,6 +785,14 @@ provider_groups:
           - The article query and language typed after explicit @wiki activation
           - The canonical article title selected for summary retrieval
           - Note: Requests are sent server-side without OpenMates user identifiers, chat IDs, or client IP addresses
+      media_ccc:
+        privacy_policy: https://media.ccc.de/about.html#privacy # verified 2026-10-21
+        location: EU
+        used_for:
+          - Published conference talk captions through videos get-transcript
+        data_shared:
+          - Public talk slug and selected caption file URL
+          - Note: Server-side requests to media.ccc.de and its subtitle CDN mirrors; no OpenMates user identifiers, chat text, cookies, or client IP address
       youtube:
         privacy_policy: https://www.youtube.com/howyoutubeworks/privacy/
         location: US

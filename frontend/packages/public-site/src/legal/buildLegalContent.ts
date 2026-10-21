@@ -358,6 +358,7 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.web_and_search.geoapify", privacyPolicyLinks.geoapify);
   renderProvider("legal.privacy.providers.web_and_search.wikimedia", privacyPolicyLinks.wikimedia);
   renderProvider("legal.privacy.providers.web_and_search.youtube", privacyPolicyLinks.youtube);
+  renderProvider("legal.privacy.providers.web_and_search.media_ccc", privacyPolicyLinks.mediaCCC);
   renderProvider("legal.privacy.providers.web_and_search.google_lens", privacyPolicyLinks.googleLens);
 
   // Group F — Travel

@@ -1,7 +1,6 @@
 # backend/apps/videos/skills/transcript_skill.py
 #
-# YouTube transcript skill implementation.
-# Provides functionality to fetch YouTube video transcripts via Webshare proxy.
+# Published video captions from YouTube (Webshare) and media.ccc.de (public API).
 #
 # This skill:
 # 1. Extracts video ID from YouTube URL
@@ -34,6 +33,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragment
+from backend.shared.providers.media_ccc import MediaCCCClient, extract_media_ccc_slug
 
 # YouTube transcript API imports
 try:
@@ -62,7 +62,7 @@ TRANSCRIPT_FETCH_TIMEOUT_SECONDS = 45.0
 class TranscriptRequestItem(BaseModel):
     """
     Individual transcript request item with URL validation.
-    Validates that the URL is a valid YouTube URL that can have its video ID extracted.
+    Accepts YouTube watch/short-link URLs and canonical media.ccc.de talk URLs.
     
     NOTE: YouTube Shorts URLs are NOT supported and will be rejected at validation time.
     """
@@ -72,7 +72,7 @@ class TranscriptRequestItem(BaseModel):
             "Auto-generated as a sequential integer if not provided.",
     )
 
-    url: str = Field(..., description="YouTube video URL (supports watch and youtu.be formats only - Shorts URLs are not supported)")
+    url: str = Field(..., description="YouTube watch/youtu.be URL or https://media.ccc.de/v/<slug>. YouTube Shorts are not supported.")
     languages: Optional[List[str]] = Field(
         default=None,
         description="List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language."
@@ -80,14 +80,15 @@ class TranscriptRequestItem(BaseModel):
     
     @field_validator('url')
     @classmethod
-    def validate_youtube_url(cls, v: str) -> str:
+    def validate_video_url(cls, v: str) -> str:
         """
-        Validate that the URL is a valid YouTube URL from which we can extract a video ID.
+        Validate a supported YouTube URL or canonical media.ccc.de talk URL.
         
         Supports:
         - https://www.youtube.com/watch?v=VIDEO_ID
         - https://youtu.be/VIDEO_ID
         - https://m.youtube.com/watch?v=VIDEO_ID
+        - https://media.ccc.de/v/TALK_SLUG
         
         REJECTS:
         - https://www.youtube.com/shorts/VIDEO_ID (Shorts URLs are not supported)
@@ -103,6 +104,8 @@ class TranscriptRequestItem(BaseModel):
         """
         if not v or not isinstance(v, str):
             raise ValueError("URL must be a non-empty string")
+        if extract_media_ccc_slug(v):
+            return v
         
         # Extract video ID using the same logic as _extract_video_id
         try:
@@ -128,7 +131,7 @@ class TranscriptRequestItem(BaseModel):
                     return v
             
             # If we get here, we couldn't extract a valid video ID
-            raise ValueError(f"Invalid YouTube URL: '{v}' - could not extract video ID. Supported formats: youtube.com/watch?v=VIDEO_ID, youtu.be/VIDEO_ID. YouTube Shorts URLs are not supported.")
+            raise ValueError(f"Invalid video URL: '{v}'. Supported formats: youtube.com/watch?v=VIDEO_ID, youtu.be/VIDEO_ID, https://media.ccc.de/v/<slug>. YouTube Shorts URLs are not supported.")
             
         except ValueError:
             # Re-raise ValueError (our validation error)
@@ -146,7 +149,7 @@ class TranscriptRequest(BaseModel):
     # Multiple video URLs (standard format per REST API architecture)
     requests: List[TranscriptRequestItem] = Field(
         ...,
-        description="Array of transcript request objects. Each object must contain 'url' (YouTube video URL) and can include optional parameters (languages) with defaults from schema."
+        description="Array of transcript requests. Each object contains a YouTube or media.ccc.de video 'url' and optional language preferences."
     )
 
 
@@ -170,7 +173,7 @@ class TranscriptResponse(BaseModel):
     )
     provider: str = Field(
         default="YouTube",
-        description="The provider used (e.g., 'YouTube')"
+        description="Providers used: YouTube, media.ccc.de, or both for a mixed batch."
     )
     suggestions_follow_up_requests: Optional[List[str]] = Field(
         None,
@@ -180,7 +183,8 @@ class TranscriptResponse(BaseModel):
     ignore_fields_for_inference: Optional[List[str]] = Field(
         default_factory=lambda: [
             "type",
-            "hash"
+            "hash",
+            "metadata"
         ],
         description="List of field paths (supports dot notation) that should be excluded from LLM inference to reduce token usage. These fields are preserved in chat history for UI rendering but filtered out before sending to LLM."
     )
@@ -193,7 +197,7 @@ class TranscriptResponse(BaseModel):
 
 class TranscriptSkill(BaseSkill):
     """
-    YouTube transcript skill that fetches video transcripts via Webshare proxy with anti-detection features.
+    Published captions from YouTube via Webshare or the public media.ccc.de API.
 
     Supports multiple video URLs in a single request, processing them in parallel.
     Each video is processed independently and results are combined.
@@ -791,18 +795,30 @@ class TranscriptSkill(BaseSkill):
         languages = req.get("languages")
         
         try:
-            # Extract video ID from URL
-            video_id = self._extract_video_id(video_url)
-            if not video_id:
-                return (request_id, [], f"Invalid YouTube URL: '{video_url}' - could not extract video ID")
-            
-            # Fetch transcript with retry logic using different IPs
-            result = await self._fetch_transcript(
-                video_id=video_id,
-                url=video_url,
-                secrets_manager=secrets_manager,
-                languages=languages
-            )
+            ccc_slug = extract_media_ccc_slug(video_url)
+            if ccc_slug:
+                video_id = ccc_slug
+                captions = await MediaCCCClient().fetch_transcript(video_url, languages)
+                plain_text = " ".join(caption.text for caption in captions.captions)
+                result = {
+                    "success": True,
+                    "transcript": self._format_transcript_with_timestamps(
+                        [caption.model_dump() for caption in captions.captions]
+                    ),
+                    "word_count": len(plain_text.split()),
+                    "characters_count": len(plain_text),
+                    "language": captions.language,
+                }
+            else:
+                video_id = self._extract_video_id(video_url)
+                if not video_id:
+                    return (request_id, [], "Invalid video URL. Use a YouTube watch/youtu.be URL or https://media.ccc.de/v/<slug>.")
+                result = await self._fetch_transcript(
+                    video_id=video_id,
+                    url=video_url,
+                    secrets_manager=secrets_manager,
+                    languages=languages
+                )
             
             if not result.get("success"):
                 error_msg = result.get("error", "Unknown error")
@@ -849,6 +865,11 @@ class TranscriptSkill(BaseSkill):
                 "language": result.get("language"),
                 "hash": self._generate_result_hash(video_url)
             }
+            if ccc_slug:
+                transcript_result["provider"] = "media.ccc.de"
+                # Do not send externally supplied title text to inference without
+                # sanitization. Metadata remains available to transcript embeds.
+                transcript_result["metadata"] = {"title": captions.title}
             
             logger.debug(f"Transcript fetch completed for video {video_id}")
             
@@ -858,7 +879,7 @@ class TranscriptSkill(BaseSkill):
             from backend.core.api.app.utils.server_mode import is_payment_enabled
             payment_enabled = is_payment_enabled()
             
-            if payment_enabled:
+            if payment_enabled and not ccc_slug:
                 try:
                     asyncio.create_task(
                         self._create_creator_income_for_video(
@@ -872,7 +893,7 @@ class TranscriptSkill(BaseSkill):
                 except Exception as e:
                     # Log but don't fail - income tracking failure shouldn't break skill execution
                     logger.warning(f"Failed to create creator income entry for video '{video_id}': {e}")
-            else:
+            elif not ccc_slug:
                 logger.debug(f"Payment disabled (self-hosted mode). Skipping creator income entry for video '{video_id}'")
             
             return (request_id, [transcript_result], None)
@@ -1061,6 +1082,12 @@ class TranscriptSkill(BaseSkill):
             else:
                 # Try to convert to dict
                 requests_as_dicts.append(dict(req))
+
+        providers = dict.fromkeys(
+            "media.ccc.de" if extract_media_ccc_slug(req.get("url", "")) else "YouTube"
+            for req in requests_as_dicts if req.get("url")
+        )
+        provider = ", ".join(providers) or "YouTube"
         
         validated_requests, invalid_grouped_results, validation_errors, error = self._partition_requests_by_required_fields(
             requests=requests_as_dicts,
@@ -1076,7 +1103,7 @@ class TranscriptSkill(BaseSkill):
                 response_class=TranscriptResponse,
                 grouped_results=invalid_grouped_results,
                 errors=validation_errors,
-                provider="YouTube",
+                provider=provider,
                 suggestions=getattr(self, 'suggestions_follow_up_requests', None),
                 logger=logger
             )
@@ -1117,7 +1144,7 @@ class TranscriptSkill(BaseSkill):
             response_class=TranscriptResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="YouTube",
+            provider=provider,
             suggestions=getattr(self, 'suggestions_follow_up_requests', None),
             logger=logger
         )
