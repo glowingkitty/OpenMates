@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 import json
 import logging
 import math
+import posixpath
 import re
 import time
 from typing import Any, Awaitable, Callable
@@ -137,6 +138,8 @@ def defaults(listing: dict[str, Any]) -> dict[str, Any]:
 def _listing_photo(url: str) -> bool:
     """Reject known advertiser avatars even if a provider embeds one in images."""
     parsed = urlsplit(url)
+    if parsed.hostname in {'www.wg-gesucht.de', 'wg-gesucht.de'} and posixpath.normpath(parsed.path) == '/img/d.gif':
+        return False
     return not (parsed.hostname == 'img.kleinanzeigen.de' and '/prod-user/' in parsed.path)
 
 
@@ -146,6 +149,7 @@ def _photo_identity(url: str) -> str:
     host = parsed.hostname or ''
     path = parsed.path
     if host == 'img.wg-gesucht.de':
+        path = posixpath.normpath(path)  # provider supplies /./media on sized URLs
         path = re.sub(r'\.(?:small|sized|large)(?=\.(?:jpe?g|png|webp)$)', '', path, flags=re.I)
         return f'{host}{path}'
     if host == 'img.kleinanzeigen.de':
@@ -304,6 +308,7 @@ class DetailHTML(HTMLParser):
                 'galleryimage-element', 'galleryimage-large',
                 'viewad-image', 'viewad-gallery', 'vip-gallery', 'vip-image-gallery',
                 'offer_images', 'offer-images', 'offer-image-gallery',
+                'gallery_slides',  # WG-Gesucht public listing SliderPro slides
             })
 
         def unrelated(attributes: dict[str, str]) -> bool:
@@ -322,7 +327,11 @@ class DetailHTML(HTMLParser):
         if tag == 'meta':
             self.metadata[attr.get('property', attr.get('itemprop', attr.get('name', '')))] = attr.get('content', '')
         if gallery and tag in {'img', 'a', 'source', 'div', 'meta'}:
-            for key in ('data-imgsrc', 'data-large', 'data-src', 'src', 'href', 'content'):
+            lazy_keys = ('data-imgsrc', 'data-large', 'data-src', 'data-medium', 'data-small')
+            has_lazy_photo = any(photo_url(urljoin(self.base_url, attr[key])) for key in lazy_keys if attr.get(key))
+            for key in (*lazy_keys, 'src', 'href', 'content'):
+                if key == 'src' and has_lazy_photo:
+                    continue  # SliderPro uses img/d.gif until its data-src loads
                 if key in attr:
                     url = photo_url(urljoin(self.base_url, attr[key]))
                     cdn_photo = bool(url and urlsplit(url).hostname == 'img.kleinanzeigen.de' and '/prod-ads/images/' in urlsplit(url).path)
@@ -449,8 +458,18 @@ def html_details(listing: dict[str, Any], html: str) -> None:
     if listing.get('price') is not None:
         suffix = 'EUR' if listing.get('listing_type') == 'buy' else 'EUR/month'
         listing['price_label'] = f"{listing['price']:,.0f} {suffix}".replace(',', '.')
-    gallery = photos(structured.get('image')) + parsed.images
-    merge_gallery(listing, gallery, complete=parsed.gallery_seen or 'image' in structured)
+    structured_images = structured.get('image')
+    structured_photos = photos(structured_images)
+    gallery_photos = [url for url in parsed.images if photo_url(url) and _listing_photo(url)]
+    # A recognized but empty/lazy wrapper is no evidence that all photos were
+    # obtained. JSON-LD's single image is often only the search cover. A typed
+    # image array supplies an explicit collection; otherwise require photos
+    # actually extracted from the listing's gallery container.
+    structured_collection = isinstance(structured_images, list) and len({
+        _photo_identity(url) for url in structured_photos if _listing_photo(url)
+    }) > 1
+    merge_gallery(listing, structured_photos + gallery_photos,
+                  complete=bool(gallery_photos) or structured_collection)
     if not listing['description'] and not parsed.gallery_seen and not structured:
         raise ValueError('Unrecognized housing detail page')
     listing['detail_status'] = 'available'

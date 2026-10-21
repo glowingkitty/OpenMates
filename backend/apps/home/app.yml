@@ -188,14 +188,17 @@ instructions:
         representative water points and missing routes cannot establish a precise proximity requirement.
       - Explain match_evidence, visual_assessment coverage and provider/gallery limitations. Never claim all
         photos were analyzed or infer amenity absence from unseen photos. The UI gallery retains all supplied photos.
-      - Ground every numerical water distance, walking time and geocoding claim in the returned evidence.
+      - Ground both qualitative and numerical water proximity, walking time and geocoding claims in returned evidence.
         A street name or general knowledge about a neighborhood cannot establish proximity. If enrichment
         is unavailable, timed out or candidate-limited, state that water proximity is unverified. A city
         fallback coordinate is only an approximate area marker, never a street or building match.
+        If no water feature was returned and the listing text does not mention water, report unknown;
+        do not describe the apartment as near a river or lake. Explain geocode failure only from its status.
       - A visible balcony in a sampled photo does not establish that it belongs to this apartment.
         Separate photo visibility from advertised/text confirmation and retain conflicts or uncertainty.
       - Report a fixed or open-ended lease only when the listing explicitly states it. A missing end date
-        does not establish an open-ended lease. Preserve conflicting dates and whole-flat versus room ambiguity.
+        does not establish an open-ended lease. Explicitly surface conflicts between description dates and
+        structured available_from/available_to (including the year), and whole-flat versus room ambiguity.
         Do not present rent components as a complete breakdown unless they reconcile with the stated total;
         label any unitemized amount and unknown heating inclusion explicitly.
       - WG-Gesucht only has rental listings — it is automatically skipped for "buy" searches.

@@ -259,3 +259,87 @@ def test_avatar_only_recognized_gallery_is_unavailable_with_no_primary():
     assert listing['image_urls'] == []
     assert listing['image_url'] is None
     assert listing['gallery_status'] == 'unavailable'
+
+
+@pytest.mark.parametrize('photo_count', [11, 15])
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_captured_wg_sliderpro_shape_retains_every_photo_and_skips_lazy_placeholder(photo_count):
+    # Attribute/container shape captured from public WG listing HTML on
+    # 2026-10-21. Only identifiers, titles and image asset names are fabricated.
+    # The two audited sources supplied 11 and 15 sp-slide images respectively.
+    prefix = 'https://img.wg-gesucht.de/media/up/2026/42/'
+    listing = details.defaults({'provider': 'WG-Gesucht', 'url': 'https://www.wg-gesucht.de/wohnungen-in-Berlin.12345.html', 'image_url': prefix + 'sanitized-photo-0.small.JPEG'})
+    slides = ''.join(f'''<div class="sp-slide">
+      <img class="sp-image" src="img/d.gif"
+        data-small="{prefix.replace('/media/', '/./media/')}sanitized-photo-{index}.sized.JPEG"
+        data-medium="{prefix.replace('/media/', '/./media/')}sanitized-photo-{index}.sized.JPEG"
+        data-src="{prefix}sanitized-photo-{index}.large.JPEG"
+        data-large="{prefix}sanitized-photo-{index}.large.JPEG"
+        alt="Sanitized listing image" title="Sanitized listing image"/>
+      <p class="sp-description sp-white sp-padding text-center display-none gallery_image_caption">Sanitized caption</p>
+    </div>''' for index in range(photo_count))
+    html = f'''<div class="gallery_section_panel">
+      <div id="gallery_ad_container" class="position-relative" style="top: 7%;">
+        <div id="gallery_slides" class="sp-slides">{slides}</div>
+      </div>
+    </div>
+    <img class="img-responsive similar_ads_image" src="{prefix}other-offer.large.JPEG" alt="Anzeigenbild"/>
+    <section class="recommended-offers"><div id="gallery_slides" class="sp-slides"><img src="{prefix}other-offer.large.JPEG"></div></section>'''
+    details.html_details(listing, html)
+    assert listing['image_urls'] == [prefix + f'sanitized-photo-{index}.large.JPEG' for index in range(photo_count)]
+    assert listing['image_url'] == listing['image_urls'][0]
+    assert listing['gallery_status'] == 'complete'
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_captured_kleinanzeigen_vip_gallery_shape_keeps_all_five_listing_photos():
+    # Container hierarchy and lazy img attributes captured from public detail
+    # HTML on 2026-10-21; all asset identifiers and advert text are fabricated.
+    prefix = 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/sanitized-'
+    listing = details.defaults({'provider': 'Kleinanzeigen', 'url': 'https://www.kleinanzeigen.de/s-anzeige/test/123-203', 'image_url': prefix + '0?rule=$_1.AUTO'})
+    elements = ''.join(f'''<div class="galleryimage-element{' current' if index == 0 else ''}" data-ix="{index}">
+      <div class="galleryimage-large--cover j-ad-image-selected" style="background-image: url('{prefix}{index}?rule=$_59.AUTO');"></div>
+      <img src="{prefix}{index}?rule=$_59.AUTO" data-imgsrc="{prefix}{index}?rule=$_59.AUTO"
+        alt="Sanitized apartment" title="Sanitized apartment" itemprop="image" data-inlinepreload="true" id="viewad-image"
+        data-title="" fetchpriority="{'high' if index == 0 else 'low'}" loading="{'eager' if index == 0 else 'lazy'}" decoding="async"/>
+    </div>''' for index in range(5))
+    html = f'''<main id="main"><section id="viewad-main" class="l-container-row">
+      <section id="viewad-cntnt" class="l-row a-double-margin l-container-row"><section class="a-span-16 l-col">
+        <article id="viewad-product" class="l-container-row no-overflow">
+          <div class="vip-image-gallery galleryimage-large l-container-row j-gallery-image">{elements}
+            <div data-liberty-position-name="vip-gallery-carrousel" class="galleryimage-element" aria-hidden="true"></div>
+          </div>
+        </article>
+      </section></section>
+      <aside class="seller-profile"><img itemprop="image" src="https://img.kleinanzeigen.de/api/v1/prod-user/images/sanitized-avatar?rule=$_12.JPG"></aside>
+      <section class="recommendations"><div class="galleryimage-element"><img itemprop="image" src="{prefix}other-ad?rule=$_59.AUTO"></div></section>
+    </section></main>'''
+    details.html_details(listing, html)
+    assert listing['image_urls'] == [prefix + f'{index}?rule=$_59.AUTO' for index in range(5)]
+    assert listing['image_url'] == listing['image_urls'][0]
+    assert listing['gallery_status'] == 'complete'
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery,home-search.output.safe-and-truthful
+def test_wg_lazy_placeholder_alone_does_not_establish_a_complete_gallery():
+    cover = 'https://img.wg-gesucht.de/media/up/sanitized-cover.large.jpg'
+    listing = details.defaults({'provider': 'WG-Gesucht', 'url': 'https://www.wg-gesucht.de/wohnungen-in-Berlin.12345.html', 'image_url': cover})
+    details.html_details(listing, '<div id="gallery_slides" class="sp-slides"><img class="sp-image" src="img/d.gif"></div>')
+    assert listing['image_urls'] == [cover]
+    assert listing['gallery_status'] == 'partial'
+
+
+@pytest.mark.parametrize('structured_cover', ['https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/sanitized-cover?rule=$_59.AUTO', ['https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/sanitized-cover?rule=$_59.AUTO']])
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_empty_gallery_wrapper_and_structured_cover_remain_partial(structured_cover):
+    import json
+    cover = 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/sanitized-cover?rule=$_1.AUTO'
+    listing_url = 'https://www.kleinanzeigen.de/s-anzeige/test/123-203'
+    listing = details.defaults({'provider': 'Kleinanzeigen', 'url': listing_url, 'image_url': cover})
+    structured = {'@type': 'Product', 'url': listing_url, 'image': structured_cover, 'description': 'Sanitized apartment description'}
+    html = '<div class="vip-image-gallery galleryimage-large"><div class="galleryimage-element" data-ix="0"></div></div>' + '<script type="application/ld+json">' + json.dumps(structured) + '</script>'
+    details.html_details(listing, html)
+    assert len(listing['image_urls']) == 1
+    assert listing['image_url'] == 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/sanitized-cover?rule=$_59.AUTO'
+    assert listing['gallery_status'] == 'partial'
+    assert listing['detail_status'] == 'available'
