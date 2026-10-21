@@ -320,7 +320,7 @@
 </script>
 
 {#snippet appMapHeader()}
-  <div class="app-map-header" data-testid="apps-map-header"><EmbedLeafletMap center={{ lat: 20, lon: 0 }} zoom={2} /></div>
+  <div class="app-map-header" data-testid="apps-map-header"><EmbedLeafletMap center={{ lat: 20, lon: 0 }} zoom={2} minHeight="0" zoomControlPosition="bottomleft" /></div>
 {/snippet}
 <svelte:window bind:innerWidth={viewportWidth} />
 <div class="apps-workspace" class:with-sidebar={showSidebar} data-testid="apps-workspace">
@@ -463,10 +463,12 @@
   .apps-detail-layer, .apps-result-layer { position: absolute; inset: 0; z-index: var(--z-index-overlay, 100); }
   .apps-result-layer { z-index: calc(var(--z-index-overlay, 100) + 1); }
   .app-map-header { width: 100%; height: 20rem; border-radius: var(--radius-6); overflow: hidden; }
+  .app-map-header :global(.leaflet-bottom.leaflet-left .leaflet-control-zoom) { display: flex; margin: var(--spacing-8) !important; border-radius: var(--radius-full); overflow: hidden; }
+  .app-map-header :global(.leaflet-control-zoom a) { width: 2.5rem !important; height: 2.5rem !important; line-height: 2.5rem; border-radius: 0 !important; }
   .app-home { min-width: 0; padding: var(--spacing-8) 0 var(--spacing-16); }
   .app-actions { display: flex; justify-content: space-between; padding: 0 var(--spacing-8); }
   .app-actions > div { display: flex; gap: var(--spacing-6); }
-  .circle-action { border: 0; border-radius: var(--radius-full); width: 2.5rem; height: 2.5rem; background: var(--color-grey-0); box-shadow: var(--shadow-md); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .circle-action { border: 0; border-radius: var(--radius-full); width: 2.5rem; min-width: 0; height: 2.5rem; flex: 0 0 2.5rem; padding: 0; margin: 0; filter: none; box-sizing: border-box; background: var(--color-grey-0); box-shadow: var(--shadow-md); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
   .icon_calendar { mask-image: url('@openmates/ui/static/icons/calendar.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg'); }
   .icon_heart { mask-image: url('@openmates/ui/static/icons/heart.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg'); }
   .icon_history { mask-image: url('@openmates/ui/static/icons/time.svg'); -webkit-mask-image: url('@openmates/ui/static/icons/time.svg'); }
@@ -480,7 +482,7 @@
   .library-tabs button { display: inline-flex; align-items: center; gap: var(--spacing-4); font: inherit; color: var(--color-font-secondary); background: transparent; border: 0; cursor: pointer; padding: var(--spacing-4); }
   .library-tabs .clickable-icon { background-color: currentColor; }
   .library-tabs button[aria-pressed='true'] { color: var(--color-primary); }
-  .apps-composer-dock { width: min(100%, 42rem); margin: 0 auto; box-sizing: border-box; padding: var(--spacing-8) var(--spacing-12); }
+  .apps-composer-dock { width: min(100%, 42rem); margin: 0 auto; box-sizing: border-box; padding: var(--spacing-8) 0; }
   .apps-composer-dock p { text-align: center; font-size: var(--font-size-small); }
   .app-settings { width: min(100%, 44rem); margin: 0 auto; padding: var(--spacing-12); box-sizing: border-box; }
   .library-state { text-align: center; color: var(--color-font-secondary); font-size: var(--font-size-small); }

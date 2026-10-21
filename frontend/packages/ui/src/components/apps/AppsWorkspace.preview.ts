@@ -15,6 +15,7 @@ export const variants = {
   allApps: { hash: '#apps/all', onNavigate, onSignup, onSettings },
   allFocusApps: { hash: '#apps/all&filter=focus_modes', onNavigate, onSignup, onSettings },
   app: { hash: '#apps/health', onNavigate, onSignup, onSettings },
+  appTravel: { hash: '#apps/travel', onNavigate, onSignup, onSettings },
   appCode: { hash: '#apps/code', onNavigate, onSignup, onSettings },
   appFocus: { hash: '#apps/health&tab=focus_modes', onNavigate, onSignup, onSettings },
   appPolitics: { hash: '#apps/politics', onNavigate, onSignup, onSettings },

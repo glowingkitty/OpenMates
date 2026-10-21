@@ -373,6 +373,11 @@ test.describe('Apps bare component previews', () => {
       for(const id of ['apps-settings-open','apps-sidebar-toggle','apps-request-add-files','apps-request-mic']) {
         const control=page.getByTestId(id);await expect(control).toBeVisible();await expectContainedInPreview(page,control);
       }
+      for (const id of ['apps-settings-open', 'apps-sidebar-toggle']) {
+        const bounds = await page.getByTestId(id).boundingBox();
+        expect(bounds!.width).toBeCloseTo(bounds!.height, 0);
+        expect(bounds!.width).toBeLessThanOrEqual(44);
+      }
       const submit=page.getByTestId('apps-request-submit');
       await expect(submit).toHaveCount(0);
       await page.getByTestId('apps-request-textarea').fill('Find dermatologists in Berlin');
@@ -398,6 +403,44 @@ test.describe('Apps bare component previews', () => {
       await expectNoHorizontalOverflow(page);
       const navigated=page.evaluate(()=>new Promise<string>(resolve=>window.addEventListener('apps-preview-navigate',event=>resolve((event as CustomEvent<string>).detail),{once:true})));
       await page.getByTestId('apps-detail-close').click();expect(await navigated).toBe('#apps');
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.presentation.shared-detail-and-recency,apps.results.shared-fullscreen
+  test('Travel map zoom and round controls remain reachable below header overlays on laptop and phone', async ({ page }: { page: Page }) => {
+    await fixturePublicApps(page);
+    await page.route('https://*.tile.openstreetmap.org/**', route => route.fulfill({
+      contentType: 'image/png',
+      body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64'),
+    }));
+    for (const width of [1180, 390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview('apps/AppsWorkspace', width, 'appTravel'), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const header = page.getByTestId('apps-map-header');
+      await expect(header.getByTestId('embed-leaflet-map')).toHaveAttribute('data-map-ready', 'true');
+      const zoom = header.getByTestId('embed-map-zoom-controls');
+      const zoomButtons = zoom.getByRole('button');
+      await expect(zoomButtons).toHaveCount(2);
+      for (const control of [...await zoomButtons.all(), page.getByTestId('apps-detail-close'), page.getByTestId('apps-map-toggle'), page.getByTestId('apps-settings-open')]) {
+        await expect(control).toBeVisible();
+        await expectContainedInPreview(page, control);
+        expect(await control.evaluate(element => {
+          const rect = element.getBoundingClientRect();
+          return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+        })).toBe(true);
+      }
+      const headerBounds = await header.boundingBox();
+      const zoomBounds = await zoom.boundingBox();
+      expect(zoomBounds!.y).toBeGreaterThan(headerBounds!.y + 44);
+      expect(zoomBounds!.y + zoomBounds!.height).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height);
+      const composer = page.getByTestId('apps-request-composer');
+      await expectContainedInPreview(page, composer);
+      expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(88);
+      await zoomButtons.first().click();
+      await zoomButtons.last().click();
+      await expectNoHorizontalOverflow(page);
+      await attachWorkspaceScreenshot(page, `apps-travel-controls-${width}.png`);
     }
   });
 
