@@ -29,8 +29,10 @@ notes: |
   application-preview browser spec is held by existing CI executor/gateway
   provisioning; report that separately from real E2B provider proof.
   Follow-up uses batched setup and exact prepared dependency validation, preserving
-  installation fallback and exact host checks. Free startup workers from the
-  unopened-session wait while retaining the deadline and current-session checks.
+  installation fallback and exact host checks. Release startup workers promptly
+  once a preview is opened, while enforcing the unopened deadline in the startup
+  task so a busy cleanup queue cannot extend billed time or source retention.
+  A credential-free delayed cleanup task remains a recovery backstop.
   Verify existing Python, JavaScript, TypeScript, shell, C, C++, Rust and Go paths.
   Do not add idle sandbox pools, larger allocations, user-state snapshots,
   regional transfers or increased retention without explicit cost/privacy consent.

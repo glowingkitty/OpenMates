@@ -162,6 +162,11 @@ async def run_application_preview_session(
                 sandbox_id=runtime.sandbox_id,
                 schedule=deadline_scheduler or _dispatch_unopened_preview_deadline,
             )
+            await _guard_unopened_preview_deadline(
+                cache_service=cache_service, session_id=session_id,
+                sandbox_id=runtime.sandbox_id, api_key=str(payload.get("api_key") or ""),
+                provider_stop=provider_stop,
+            )
     except Exception as exc:
         if runtime is not None:
             # A failed thumbnail store or deadline dispatch must not leave a
@@ -339,7 +344,7 @@ async def _stop_unopened_auto_started_session_after_deadline(
         return
 
     data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    # Runs as a delayed task; never hold a startup worker while awaiting time.
+    # Re-check ownership and opening state when either deadline path executes.
     # A replaced runtime or an opened preview must survive an old timer.
     if data.get("sandbox_id") != sandbox_id:
         # Reclaim only the superseded VM; never mutate or bill the replacement
@@ -370,6 +375,34 @@ async def _stop_unopened_auto_started_session_after_deadline(
         api_key=api_key,
         provider_stop=provider_stop,
         now=stopped_at,
+    )
+
+
+async def _guard_unopened_preview_deadline(
+    *, cache_service: Any, session_id: str, sandbox_id: str, api_key: str,
+    provider_stop: ProviderStop | None,
+) -> None:
+    """Release opened previews promptly; preserve the unopened deadline locally.
+
+    The delayed task is a recovery backstop. Relying only on its queue could
+    extend billed time and source retention behind long code executions.
+    """
+    deadline = time.monotonic() + APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS
+    client = await cache_service.client
+    while time.monotonic() < deadline:
+        raw = await client.get(application_preview_session_key(session_id))
+        data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
+        if data.get("sandbox_id") != sandbox_id:
+            if data:
+                await _stop_runtime(provider_stop, sandbox_id=sandbox_id, api_key=api_key)
+            return
+        if (data.get("auto_started") is not True or data.get("auto_opened_at") is not None
+                or data.get("status") not in {"queued", "starting", "running"}):
+            return
+        await asyncio.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
+    await _stop_unopened_auto_started_session_after_deadline(
+        cache_service=cache_service, session_id=session_id, sandbox_id=sandbox_id,
+        api_key=api_key, provider_stop=provider_stop,
     )
 
 

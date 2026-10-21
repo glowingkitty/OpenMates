@@ -142,6 +142,7 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     stopped: list[dict[str, str]] = []
     charges: list[dict[str, object]] = []
     scheduled: list[tuple[str, str]] = []
+    elapsed = [0.0]
 
     await create_application_preview_session(
         cache_service=cache,
@@ -154,8 +155,8 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
         preview_token="token-abc",
     )
 
-    async def fake_sleep(_seconds: float) -> None:
-        return None
+    async def fake_sleep(seconds: float) -> None:
+        elapsed[0] += seconds
 
     async def fake_provider(**_kwargs):
         return ApplicationPreviewRuntime(
@@ -172,6 +173,7 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
         charges.append(kwargs)
 
     monkeypatch.setattr(worker.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(worker, "time", SimpleNamespace(time=lambda: 2000 + elapsed[0], monotonic=lambda: elapsed[0]))
     monkeypatch.setattr(worker, "_charge_preview_credits", fake_charge_preview_credits)
 
     await worker.run_application_preview_session(
@@ -188,8 +190,10 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     )
 
     assert scheduled == [("session-1", "sandbox-1")]
-    assert stopped == []
-    assert charges == []
+    assert elapsed == [60]
+    assert stopped == [{"sandbox_id": "sandbox-1", "api_key": "e2b-key"}]
+    assert len(charges) == 1
+    # The delayed recovery task cannot stop or charge the completed session again.
     await worker._stop_unopened_auto_started_session_after_deadline(
         cache_service=cache, session_id="session-1", sandbox_id="sandbox-1",
         api_key="e2b-key", provider_stop=fake_provider_stop,
@@ -787,3 +791,56 @@ async def test_cleanup_dispatch_failure_stops_runtime_instead_of_leaking_it(monk
     assert stopped == ['sandbox-1']
     assert stored['status'] == 'failed'
     assert stored['sandbox_stopped_at']
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits,code-run.execution.stream-status-visible
+@pytest.mark.anyio
+@pytest.mark.parametrize('opened', ['immediately', 'next_check', 'never'])
+async def test_startup_preserves_unopened_deadline_even_when_cleanup_queue_is_busy(monkeypatch, opened):
+    import asyncio
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache, session_id='session-1', application_embed_id='app-embed-1',
+        body=ApplicationPreviewStartRequest(chat_id='chat-1', auto_started=True, source_message_id='assistant-message-1'),
+        current_user=_user('alice-user'), preview_origin='https://openmatesusercontent.org', now=1000,
+    )
+    elapsed = [0.0]
+    stopped = []
+    dispatches = []
+    charges = []
+    async def mark_opened():
+        state = json.loads(await cache.redis.get(application_preview_session_key('session-1')))
+        state['auto_opened_at'] = 1000 + elapsed[0]
+        await cache.redis.set(application_preview_session_key('session-1'), json.dumps(state))
+    async def advance(seconds):
+        elapsed[0] += seconds
+        if opened == 'next_check':
+            await mark_opened()
+    monkeypatch.setattr(worker, 'time', SimpleNamespace(time=lambda: 1000 + elapsed[0], monotonic=lambda: elapsed[0]))
+    monkeypatch.setattr(worker, 'asyncio', SimpleNamespace(sleep=advance, iscoroutine=asyncio.iscoroutine))
+    async def provider(**_kwargs):
+        return ApplicationPreviewRuntime(sandbox_id='sandbox-1', upstream_base_url='https://5173-fixture.e2b.app', ports={'frontend': 5173})
+    async def thumbnail(**_kwargs):
+        if opened == 'immediately':
+            await mark_opened()
+    async def stop(**kwargs):
+        stopped.append((kwargs['sandbox_id'], elapsed[0]))
+        return True
+    async def charge(**kwargs):
+        charges.append(kwargs['credits'])
+    monkeypatch.setattr(worker, '_charge_preview_credits', charge)
+    # Dispatch is deliberately never executed: the startup guard owns the deadline.
+    await worker.run_application_preview_session(
+        cache_service=cache, session_id='session-1', payload={
+            'api_key': 'test-key', 'files': [{'path': 'index.html', 'content': '<main>Test</main>'}],
+            'entrypoints': [{'name': 'frontend', 'command': 'python -m http.server 5173', 'port': 5173}],
+        }, provider_start=provider, provider_stop=stop, thumbnail_store=thumbnail,
+        deadline_scheduler=lambda *args: dispatches.append(args),
+    )
+    stored = json.loads(await cache.redis.get(application_preview_session_key('session-1')))
+    assert elapsed[0] == {'immediately': 0, 'next_check': 1, 'never': 60}[opened]
+    assert stored['status'] == ('timeout' if opened == 'never' else 'running')
+    assert stopped == ([('sandbox-1', 60)] if opened == 'never' else [])
+    assert charges == ([5] if opened == 'never' else [])
+    assert len(dispatches) == (0 if opened == 'immediately' else 1)
