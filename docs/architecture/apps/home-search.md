@@ -12,6 +12,8 @@ gallery yields `gallery_status: complete`; failed or unrecognized details retain
 the cover and disclose partial/unavailable coverage. This describes the retrieved
 provider response, not a guarantee that a blocked or changed platform exposed
 every photo.
+Provider size variants share one photo slot, upgraded to the best supplied
+rendition. Gallery extraction excludes advertiser avatars and recommended ads.
 
 ## Criteria and selection
 
@@ -40,6 +42,9 @@ image inference while preserving text and advertised evidence.
 Requested geographic evidence is gathered before final ranking. The requested
 result limit still controls emitted results and embeds; provider-page coverage
 and enrichment shortfalls are disclosed.
+Hard amenity conflicts are removed before geocoding. Supported matches receive
+priority, and coordinates are resolved before optional neighborhood lookups
+consume the shared request and time budget.
 
 ## Location and neighborhood evidence
 
@@ -48,6 +53,8 @@ existing Geoapify connection for address lookup, with match type, confidence,
 precision, source and retrieval timestamp. The final city fallback is clearly
 approximate. Intentional provider approximation is never upgraded to a precise
 apartment location.
+Root and nested location metadata use the same fallback provenance so persisted
+embeds cannot turn a city-center marker into a street-level match.
 
 Water, parks, transit, groceries and schools are requested on demand through the
 existing cached and quota-guarded Geoapify wrapper. A bounded empty result is not

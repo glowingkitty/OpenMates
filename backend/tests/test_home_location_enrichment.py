@@ -326,3 +326,57 @@ async def test_raw_provider_approximate_declaration_without_coordinates_survives
     await run([item])
     assert item["location"]["approximate"] is True
     assert item["location_approximate"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
+async def test_known_city_fallback_does_not_block_source_grounded_street_geocoding(provider):
+    item = listing(address="Witzlebenstraße, 14057, Charlottenburg", location_precision="street",
+                   longitude=13.405, location_approximate=True, location_source="city_lookup",
+                   location={"status": "candidate_limit", "precision": "street", "source": "WG-Gesucht", "method": "unknown"})
+    provider.geocode_address.return_value = GeoapifyPlacesSearchResult(
+        status="ok", places=[point(lon=13.29, lat=52.51, result_type="street", rank={"confidence": 0.99, "match_type": "match_by_street"})],
+    )
+    await run([item])
+    provider.geocode_address.assert_awaited_once()
+    assert item["latitude"] == 52.51 and item["longitude"] == 13.29
+    assert item["location"]["method"] == "address_geocode"
+    assert item["location_precision"] == item["location"]["precision"] == "street"
+    assert item["location_source"] == item["location"]["source"] == home.GEOAPIFY_SOURCE_LABEL
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
+async def test_city_fallback_outside_candidate_budget_keeps_city_provenance(provider, monkeypatch):
+    monkeypatch.setattr(home, "MAX_LOCATION_CANDIDATES", 0)
+    item = listing(location_precision="street", location_source="city_lookup", location_approximate=True,
+                   location={"precision": "street", "source": "WG-Gesucht", "method": "unknown"})
+    await run([item], {"neighborhood_categories": ["water"]})
+    assert item["location_precision"] == item["location"]["precision"] == "city"
+    assert item["location_source"] == item["location"]["source"] != "WG-Gesucht"
+    assert item["location"]["method"] == "city_fallback"
+    assert item["location"]["approximate"] is True
+    provider.geocode_address.assert_not_awaited()
+    provider.search_places.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision
+async def test_real_provider_point_at_city_center_is_never_guessed_to_be_fallback(provider):
+    item = listing(longitude=13.405, location_precision="district", location_approximate=True, location_source="WG-Gesucht")
+    await run([item])
+    assert item["longitude"] == 13.405
+    assert item["location_source"] == "WG-Gesucht"
+    assert item["location_precision"] == "district"
+    provider.geocode_address.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+async def test_coordinates_use_finite_budget_before_optional_category_calls(provider, monkeypatch):
+    monkeypatch.setattr(home, "MAX_LOCATION_REQUESTS", 3)
+    provider.geocode_address.return_value = GeoapifyPlacesSearchResult(
+        status="ok", places=[point(result_type="building", rank={"confidence": 0.99, "match_type": "full_match"})],
+    )
+    items = [{"address": f"Example Street {i}"} for i in range(3)]
+    await run(items, {"neighborhood_categories": list(home.CATEGORIES)})
+    assert provider.geocode_address.await_count == 3
+    provider.search_places.assert_not_awaited()
+    assert all(item["location"]["method"] == "address_geocode" for item in items)
+    assert all(item["neighborhood"]["coverage"]["park"]["status"] == "request_limit" for item in items)

@@ -15,7 +15,7 @@ import math
 import re
 import time
 from typing import Any, Awaitable, Callable
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import httpx
 
@@ -134,26 +134,65 @@ def defaults(listing: dict[str, Any]) -> dict[str, Any]:
     return listing
 
 
+def _listing_photo(url: str) -> bool:
+    """Reject known advertiser avatars even if a provider embeds one in images."""
+    parsed = urlsplit(url)
+    return not (parsed.hostname == 'img.kleinanzeigen.de' and '/prod-user/' in parsed.path)
+
+
+def _photo_identity(url: str) -> str:
+    """Identify supplied renditions using the provider's stable photo asset path."""
+    parsed = urlsplit(url)
+    host = parsed.hostname or ''
+    path = parsed.path
+    if host == 'img.wg-gesucht.de':
+        path = re.sub(r'\.(?:small|sized|large)(?=\.(?:jpe?g|png|webp)$)', '', path, flags=re.I)
+        return f'{host}{path}'
+    if host == 'img.kleinanzeigen.de':
+        if '/prod-ads/images/' in path:
+            return f'{host}{path}'  # rule=$_1.AUTO and $_59.AUTO are renditions
+        return url.split('/$_')[0]
+    if host.endswith(('.is24.de', '.immobilienscout24.de')):
+        return url.split('/ORIG/')[0]
+    return url
+
+
+def _photo_quality(url: str) -> int:
+    """Prefer known supplied larger renditions; never invent an original URL."""
+    parsed = urlsplit(url)
+    if parsed.hostname == 'img.wg-gesucht.de':
+        variant = re.search(r'\.(small|sized|large)\.(?:jpe?g|png|webp)$', parsed.path, re.I)
+        return {'small': 1, 'sized': 2, 'large': 3}.get(variant.group(1).lower(), 0) if variant else 0
+    if parsed.hostname == 'img.kleinanzeigen.de':
+        rule = parse_qs(parsed.query).get('rule', [''])[0]
+        # These are the search-thumbnail and detail-gallery rules observed in
+        # the provider response. Other numeric rule IDs do not imply a size.
+        return 2 if rule.startswith('$_59.') else 1 if rule.startswith('$_1.') else 0
+    if (parsed.hostname or '').endswith(('.is24.de', '.immobilienscout24.de')):
+        dimensions = re.search(r'/resize/(\d+)x(\d+)', parsed.path)
+        return int(dimensions.group(1)) * int(dimensions.group(2)) if dimensions else 0
+    return 0
+
+
 def merge_gallery(listing: dict[str, Any], urls: list[str], complete: bool = False) -> None:
-    """Keep the search cover and every distinct detail image in supplied order."""
+    """Keep photo identity order, upgrading each slot to its best supplied URL."""
     supplied = filter(None, [listing.get('image_url'), *listing.get('image_urls', []), *urls])
-    seen: set[str] = set()
+    positions: dict[str, int] = {}
     unique: list[str] = []
     for url in supplied:
-        # IS24 and Kleinanzeigen offer multiple renditions of a single photo.
-        # Compare their documented stable asset path, but retain the supplied URL.
-        host = urlsplit(url).hostname or ''
-        identity = url
-        if host.endswith(('is24.de', 'immobilienscout24.de')):
-            identity = url.split('/ORIG/')[0]
-        elif host == 'img.kleinanzeigen.de':
-            identity = url.split('/$_')[0]
-        if identity not in seen:
-            seen.add(identity)
+        if not photo_url(url) or not _listing_photo(url):
+            continue
+        identity = _photo_identity(url)
+        if identity not in positions:
+            positions[identity] = len(unique)
             unique.append(url)
+        else:
+            index = positions[identity]
+            if _photo_quality(url) > _photo_quality(unique[index]):
+                unique[index] = url
     listing['image_urls'] = unique
-    listing['image_url'] = listing.get('image_url') or next(iter(listing['image_urls']), None)
-    listing['gallery_status'] = 'complete' if complete else 'partial' if listing['image_urls'] else 'unavailable'
+    listing['image_url'] = next(iter(unique), None)
+    listing['gallery_status'] = ('complete' if complete else 'partial') if unique else 'unavailable'
 
 
 def location(listing: dict[str, Any], address: dict[str, Any], coordinates: dict[str, Any] | None = None) -> None:
@@ -257,8 +296,22 @@ class DetailHTML(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr = {k: v or '' for k, v in attrs}
         identity = ' '.join((attr.get('id', ''), attr.get('class', ''), attr.get('data-testid', ''))).lower()
-        in_gallery = any('gallery' in ' '.join(a.values()).lower() or a.get('id') in {'viewad-image', 'offer_images'} for _, a in self.stack)
-        gallery = in_gallery or 'gallery' in identity or attr.get('id') in {'viewad-image', 'offer_images'}
+        def gallery_container(attributes: dict[str, str]) -> bool:
+            identifiers = {attributes.get('id', '').lower(), attributes.get('data-testid', '').lower(), *attributes.get('class', '').lower().split()}
+            return bool(identifiers & {
+                'gallery', 'image-gallery', 'imagegallery', 'gallery-container',
+                'gallery-wrapper', 'galleryimage', 'gallery-image', 'gallery-item',
+                'galleryimage-element', 'galleryimage-large',
+                'viewad-image', 'viewad-gallery', 'vip-gallery', 'vip-image-gallery',
+                'offer_images', 'offer-images', 'offer-image-gallery',
+            })
+
+        def unrelated(attributes: dict[str, str]) -> bool:
+            labels = ' '.join(attributes.get(key, '').lower() for key in ('id', 'class', 'data-testid'))
+            return bool(re.search(r'(?:^|[\s_-])(?:recommendations?|recommended|related|similar|avatar|profile|seller|user-gallery)(?:[\s_-]|$)', labels))
+
+        ancestry = [attributes for _, attributes in self.stack] + [attr]
+        gallery = any(gallery_container(attributes) for attributes in ancestry) and not any(unrelated(attributes) for attributes in ancestry)
         self.gallery_seen |= gallery
         if tag == 'script' and attr.get('type') == 'application/ld+json':
             self._script = []
@@ -268,13 +321,19 @@ class DetailHTML(HTMLParser):
                     self.metadata[key] = attr[f'data-{key}']
         if tag == 'meta':
             self.metadata[attr.get('property', attr.get('itemprop', attr.get('name', '')))] = attr.get('content', '')
-        if (gallery and tag in {'img', 'a', 'source', 'div'}) or attr.get('itemprop') == 'image':
+        if gallery and tag in {'img', 'a', 'source', 'div', 'meta'}:
             for key in ('data-imgsrc', 'data-large', 'data-src', 'src', 'href', 'content'):
                 if key in attr:
                     url = photo_url(urljoin(self.base_url, attr[key]))
-                    if url and (tag != 'a' or re.search(r'\.(?:jpe?g|png|webp)(?:[?/#]|$)', url, re.I)):
+                    cdn_photo = bool(url and urlsplit(url).hostname == 'img.kleinanzeigen.de' and '/prod-ads/images/' in urlsplit(url).path)
+                    if url and (tag != 'a' or cdn_photo or re.search(r'\.(?:jpe?g|png|webp)(?:[?/#]|$)', url, re.I)):
                         self.images.append(url)
-                        break
+            for key in ('srcset', 'data-srcset'):
+                for candidate in attr.get(key, '').split(','):
+                    parts = candidate.strip().split()
+                    url = photo_url(urljoin(self.base_url, parts[0])) if parts else None
+                    if url:
+                        self.images.append(url)
         if tag not in {'img', 'meta', 'link', 'source', 'input', 'br', 'hr', 'wbr', 'area', 'embed', 'param'}:
             self.stack.append((tag, attr))
         if tag in {'br', 'li', 'p', 'div', 'span', 'dt', 'dd'}:
@@ -310,21 +369,31 @@ class DetailHTML(HTMLParser):
             self.description.append(data)
 
     def listing_json(self) -> dict[str, Any]:
-        """Return only real-estate/product listing nodes, excluding recommendations."""
-        def walk(value: Any) -> dict[str, Any]:
+        """Prefer the current listing JSON-LD node; ignore other listing URLs."""
+        candidates: list[dict[str, Any]] = []
+        page = urlsplit(self.base_url)
+        def current_url(value: Any) -> bool:
+            candidate = urlsplit(urljoin(self.base_url, str(value)))
+            return (candidate.hostname or '').removeprefix('www.') == (page.hostname or '').removeprefix('www.') and candidate.path.rstrip('/') == page.path.rstrip('/')
+        def walk(value: Any) -> None:
             if isinstance(value, list):
                 for item in value:
-                    found = walk(item)
-                    if found:
-                        return found
+                    walk(item)
             if isinstance(value, dict):
                 types = value.get('@type', [])
                 types = types if isinstance(types, list) else [types]
                 if set(types) & {'Apartment', 'House', 'Residence', 'Accommodation', 'RealEstateListing', 'Product', 'Offer'}:
-                    return value
-                return walk(value.get('@graph', []))
-            return {}
-        return walk(self.jsonld)
+                    candidates.append(value)
+                # mainEntity and @graph describe the current page. ItemList and
+                # offers/recommendation collections are not listing galleries.
+                walk(value.get('@graph', []))
+                walk(value.get('mainEntity', []))
+        walk(self.jsonld)
+        for candidate in candidates:
+            if candidate.get('url') and current_url(candidate['url']):
+                return candidate
+        unspecified = [candidate for candidate in candidates if not candidate.get('url') and (not candidate.get('@id') or current_url(candidate['@id']))]
+        return unspecified[0] if len(unspecified) == 1 else {}
 
 
 def html_details(listing: dict[str, Any], html: str) -> None:

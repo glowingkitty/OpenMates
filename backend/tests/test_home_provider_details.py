@@ -174,7 +174,9 @@ def test_gallery_deduplicates_supplied_renditions_and_keeps_cover():
     cover = 'https://pictures.is24.de/pic/asset.jpg/ORIG/resize/100x100/format/jpg'
     listing = details.defaults({'image_url': cover})
     details.merge_gallery(listing, ['https://pictures.is24.de/pic/asset.jpg/ORIG/resize/1000x1000/format/jpg', 'https://pictures.is24.de/pic/second.jpg/ORIG/resize/1000x1000/format/jpg'], complete=True)
-    assert len(listing['image_urls']) == 2 and listing['image_urls'][0] == cover
+    assert len(listing['image_urls']) == 2
+    assert listing['image_urls'][0] == 'https://pictures.is24.de/pic/asset.jpg/ORIG/resize/1000x1000/format/jpg'
+    assert listing['image_url'] == listing['image_urls'][0]
 
 
 # contract-test: direct surface=rest_api assertions=home-search.location.precision
@@ -184,3 +186,76 @@ def test_declared_approximation_survives_missing_provider_coordinates():
     assert listing['location_approximation_declared'] is True
     assert listing['latitude'] is None
     assert listing['location_precision'] == 'city'
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_wg_real_shape_renditions_upgrade_cover_without_reordering_or_cap():
+    prefix = 'https://img.wg-gesucht.de/media/up/2026/42/'
+    cover = prefix + 'sanitized-cover.small.JPEG'
+    listing = details.defaults({'provider': 'WG-Gesucht', 'url': 'https://www.wg-gesucht.de/wohnungen-in-Berlin.12345.html', 'image_url': cover})
+    # Supplied small/sized/large filename suffixes mirror the audited response;
+    # photo IDs and document text are fabricated, not copied from the advert.
+    supplied = ''.join(f'<a href="{prefix}photo-{index}.large.jpg"><img src="{prefix}photo-{index}.sized.jpg"></a>' for index in range(24))
+    html = f'''<main class="listing-page" data-gallery-config="gallery-ready">
+      <div id="gallery"><a href="{prefix}sanitized-cover.large.JPEG"><img src="{prefix}sanitized-cover.sized.JPEG"></a>{supplied}</div>
+      <div class="profile"><img itemprop="image" src="{prefix}avatar.large.jpg"></div>
+      <section id="recommended-offers"><div class="gallery"><img src="{prefix}other-ad.large.jpg"></div></section>
+    </main>'''
+    details.html_details(listing, html)
+    expected = [prefix + 'sanitized-cover.large.JPEG', *[prefix + f'photo-{index}.large.jpg' for index in range(24)]]
+    assert listing['image_urls'] == expected
+    assert listing['image_url'] == expected[0] and listing['gallery_status'] == 'complete'
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_kleinanzeigen_real_shape_rule_variants_exclude_avatar_and_recommendations():
+    prefix = 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/'
+    cover = prefix + 'aa/sanitized-cover?rule=$_1.AUTO'
+    first = prefix + 'aa/sanitized-cover?rule=$_59.AUTO'
+    second = prefix + 'bb/sanitized-second?rule=$_59.AUTO'
+    avatar = 'https://img.kleinanzeigen.de/api/v1/prod-user/images/cc/sanitized-avatar?rule=$_12.JPG'
+    unrelated = prefix + 'dd/other-ad?rule=$_59.AUTO'
+    listing = details.defaults({'provider': 'Kleinanzeigen', 'url': 'https://www.kleinanzeigen.de/s-anzeige/test/123-203', 'image_url': cover})
+    # Parent attributes containing gallery config used to mark the entire page
+    # as a gallery. Only actual gallery containers own apartment photos.
+    html = f'''<main data-gallery-config="gallery-enabled">
+      <div class="galleryimage-element"><a href="{first}"><img id="viewad-image" src="{cover}"></a></div>
+      <div class="galleryimage-element"><img data-src="{second}"></div>
+      <div class="galleryimage-element"><img src="{avatar}"></div>
+      <aside class="seller-profile"><img itemprop="image" src="{avatar}"></aside>
+      <section class="recommendations"><div class="gallery"><img itemprop="image" src="{unrelated}"></div></section>
+      <a href="/s-anzeige/other/999-203"><img itemprop="image" src="{unrelated}"></a>
+    </main>'''
+    details.html_details(listing, html)
+    assert listing['image_urls'] == [first, second]
+    assert listing['image_url'] == first
+    assert listing['gallery_status'] == 'complete'
+    # Subsequent lower-quality discoveries cannot downgrade the cover.
+    details.merge_gallery(listing, [cover], complete=True)
+    assert listing['image_url'] == first and listing['image_urls'] == [first, second]
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_structured_images_belong_to_current_listing_not_recommended_product():
+    listing_url = 'https://www.kleinanzeigen.de/s-anzeige/test/123-203'
+    listing = details.defaults({'provider': 'Kleinanzeigen', 'url': listing_url})
+    html = '''<script type="application/ld+json">{"@graph":[
+      {"@type":"Product","url":"https://www.kleinanzeigen.de/s-anzeige/other/999-203","image":"https://img.kleinanzeigen.de/api/v1/prod-ads/images/other"},
+      {"@type":"Product","url":"https://www.kleinanzeigen.de/s-anzeige/test/123-203","description":"A supplied apartment description.","image":[
+        "https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/first?rule=$_59.AUTO",
+        "https://img.kleinanzeigen.de/api/v1/prod-user/images/avatar",
+        "https://img.kleinanzeigen.de/api/v1/prod-ads/images/bb/second?rule=$_59.AUTO"]}
+    ]}</script><img itemprop="image" src="https://img.kleinanzeigen.de/api/v1/prod-ads/images/other">'''
+    details.html_details(listing, html)
+    assert listing['image_urls'] == ['https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/first?rule=$_59.AUTO', 'https://img.kleinanzeigen.de/api/v1/prod-ads/images/bb/second?rule=$_59.AUTO']
+    assert listing['gallery_status'] == 'complete'
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.images.complete-gallery
+def test_avatar_only_recognized_gallery_is_unavailable_with_no_primary():
+    avatar = 'https://img.kleinanzeigen.de/api/v1/prod-user/images/aa/sanitized-avatar?rule=$_12.JPG'
+    listing = details.defaults({'provider': 'Kleinanzeigen', 'url': 'https://www.kleinanzeigen.de/s-anzeige/test/123-203', 'image_url': avatar})
+    details.html_details(listing, f'<div class="galleryimage-element"><img src="{avatar}"></div>')
+    assert listing['image_urls'] == []
+    assert listing['image_url'] is None
+    assert listing['gallery_status'] == 'unavailable'

@@ -138,3 +138,67 @@ async def test_city_fallback_never_upgrades_provider_coordinates():
     await object.__new__(home.SearchSkill)._geocode_listings(listings, "Berlin")
     assert listings[0]["latitude"] == 52.4 and listings[0]["location_precision"] == "district"
     assert listings[1]["location_precision"] == "city" and listings[1]["location_approximate"] is True
+
+
+# contract-test: direct surface=rest_api assertions=home-search.location.precision
+@pytest.mark.asyncio
+async def test_final_city_fallback_updates_nested_fields_that_embed_flattening_uses():
+    item = {"provider": "WG-Gesucht", "location_precision": "street", "location_source": "WG-Gesucht",
+            "location": {"precision": "street", "source": "WG-Gesucht", "method": "unknown", "status": "candidate_limit"}}
+    await object.__new__(home.SearchSkill)._geocode_listings([item], "Berlin")
+    assert item["latitude"] == 52.52 and item["longitude"] == 13.405
+    assert item["location_precision"] == item["location"]["precision"] == "city"
+    assert item["location_source"] == item["location"]["source"] != "WG-Gesucht"
+    assert item["location_approximate"] == item["location"]["approximate"] is True
+    assert item["location"]["method"] == "city_fallback"
+    assert item["location"]["geocode_status"] == "candidate_limit"
+
+
+# contract-test: direct surface=rest_api assertions=home-search.enrichment.bounded-and-reusable,home-search.neighborhood.sourced-facts
+@pytest.mark.asyncio
+async def test_final_amenity_matches_receive_geo_budget_instead_of_cheaper_conflicts(monkeypatch):
+    from backend.apps.home import location_enrichment as geo
+    from backend.shared.providers.geoapify.places import GeoapifyPlacesSearchResult
+
+    rows = [{"id": str(i), "provider": "Example", "price": 500 + i, "balcony": i >= 35,
+             "address": f"Example Street {i}, Berlin"} for i in range(40)]
+    first = AsyncMock(return_value=rows[:20])
+    second = AsyncMock(return_value=rows[20:])
+    monkeypatch.setattr(home, "PROVIDER_MAP", {"Kleinanzeigen": first, "WG-Gesucht": second})
+    monkeypatch.setattr(home, "relevance_candidate_target", lambda _: 40)
+    monkeypatch.setattr(home, "assess_home_evidence", AsyncMock(return_value=[]))
+    monkeypatch.setattr(geo, "MAX_LOCATION_CANDIDATES", 5)
+    provider = type("Provider", (), {})()
+    provider.geocode_address = AsyncMock(return_value=GeoapifyPlacesSearchResult(status="ok", places=[{
+        "properties": {"lat": 52.51, "lon": 13.29, "result_type": "street",
+                       "rank": {"confidence": 0.99, "match_type": "match_by_street"}},
+    }]))
+    provider.search_places = AsyncMock(return_value=GeoapifyPlacesSearchResult(status="ok"))
+    monkeypatch.setattr(geo, "GeoapifyPlacesProvider", lambda **kwargs: provider)
+
+    async def rank(**kwargs):
+        assert len(kwargs["candidates"]) == 5
+        assert all(item["location"]["method"] == "address_geocode" for item in kwargs["candidates"])
+        return SearchRelevanceRankingResult(candidates=kwargs["candidates"], applied=True)
+
+    monkeypatch.setattr(home, "rank_search_candidates", rank)
+    _, items, error, _ = await object.__new__(home.SearchSkill)._process_single_request({
+        "query": "Berlin", "required_amenities": ["balcony"], "max_price_eur": 1000,
+        "neighborhood_categories": ["water"], "max_results": 5,
+    }, "request")
+    assert error is None
+    assert [item["id"] for item in items] == [str(i) for i in range(35, 40)]
+    assert provider.geocode_address.await_count == 5
+    assert all(item["location_precision"] == "street" and item["longitude"] == 13.29 for item in items)
+    assert all(item["location"]["status"] != "candidate_limit" for item in items)
+
+
+# contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
+def test_optional_geocoding_prioritizes_supported_preferences_preserving_price_ties():
+    items = [
+        {"id": "unknown", "match_evidence": {"unconfirmed_requirements": ["balcony"]}},
+        {"id": "cheap"}, {"id": "supported", "balcony": True}, {"id": "expensive"},
+    ]
+    prioritized = home.prioritize_location_candidates(items, {"preferred_amenities": ["balcony"]})
+    assert [item["id"] for item in prioritized] == ["supported", "cheap", "expensive", "unknown"]
+    assert [item["id"] for item in items] == ["unknown", "cheap", "supported", "expensive"]

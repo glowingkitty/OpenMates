@@ -86,12 +86,16 @@ async def enrich_home_locations(
             fallback_task = asyncio.create_task(geocode_address(None, city=city))
         return await fallback_task
 
-    async def enrich(listing: dict[str, Any]) -> None:
+    async def locate(listing: dict[str, Any]) -> None:
         async with semaphore:
             await _locate(listing, city, call, provider, fallback)
             location = listing["location"]
             if location["status"] not in {"ok", "provider"} or location["approximate"]:
                 warnings.add("Some home locations are approximate or unavailable; precise proximity is unknown.")
+
+    async def enrich(listing: dict[str, Any]) -> None:
+        async with semaphore:
+            location = listing["location"]
             if not categories:
                 return
             neighborhood = listing["neighborhood"]
@@ -152,6 +156,8 @@ async def enrich_home_locations(
             neighborhood["checked_at"] = datetime.now(timezone.utc).isoformat()
 
     for index, listing in enumerate(listings):
+        if _is_city_fallback(listing):
+            set_city_fallback(listing, _coords(listing.get("latitude"), listing.get("longitude")))
         if categories:
             listing["neighborhood"] = {
                 "status": "pending" if index < MAX_LOCATION_CANDIDATES else "candidate_limit",
@@ -160,9 +166,13 @@ async def enrich_home_locations(
                 "coverage": {category: {"status": "not_checked", "exhaustive": False} for category in categories},
                 "features": {category: [] for category in categories},
             }
-    tasks = [asyncio.create_task(enrich(listing)) for listing in listings[:MAX_LOCATION_CANDIDATES]]
+    tasks = [asyncio.create_task(locate(listing)) for listing in listings[:MAX_LOCATION_CANDIDATES]]
     try:
         async with asyncio.timeout(LOCATION_TIMEOUT_SECONDS):
+            await asyncio.gather(*tasks)
+            # Locate all prioritized candidates before spending the remaining
+            # shared budget on optional category searches for a few addresses.
+            tasks = [asyncio.create_task(enrich(listing)) for listing in listings[:MAX_LOCATION_CANDIDATES]]
             await asyncio.gather(*tasks)
     except TimeoutError:
         warnings.add("Home location enrichment reached its time limit; coverage is partial.")
@@ -192,7 +202,8 @@ async def enrich_home_locations(
 
 async def _locate(listing: dict[str, Any], city: str, call: Any, provider: Any, fallback: Any) -> None:
     """Preserve provider coordinates; never upgrade a declared approximation."""
-    if _coords(listing.get("latitude"), listing.get("longitude")):
+    was_city_fallback = _is_city_fallback(listing)
+    if _coords(listing.get("latitude"), listing.get("longitude")) and not was_city_fallback:
         _provider_location(listing)
         return
     address = listing.get("address")
@@ -223,7 +234,7 @@ async def _locate(listing: dict[str, Any], city: str, call: Any, provider: Any, 
         if not ambiguous and confidence is not None and confidence >= 0.8:
             lat, lon = _feature_coords(first)
             declared = _precision(listing.get("location_precision"))
-            if declared in {"city", "district"}:
+            if declared in {"city", "district"} and not was_city_fallback:
                 precision = declared
             approximate = precision != "building" or _declared_approximation(listing)
             listing.update(latitude=lat, longitude=lon, location_precision=precision, location_approximate=approximate, location_source=GEOAPIFY_SOURCE_LABEL)
@@ -240,12 +251,7 @@ async def _locate(listing: dict[str, Any], city: str, call: Any, provider: Any, 
         status = result.status if result.status != "ok" else "no_match"
     coords = await fallback()
     if coords and _coords(*coords):
-        listing.update(latitude=coords[0], longitude=coords[1], location_precision="city", location_approximate=True, location_source="OpenMates city lookup / OpenStreetMap Nominatim")
-        listing["location"] = {
-            "status": "approximate", "precision": "city", "approximate": True,
-            "source": "OpenMates city lookup / OpenStreetMap Nominatim",
-            "method": "city_fallback", "checked_at": None, "geocode_status": status,
-        }
+        set_city_fallback(listing, coords, geocode_status=status)
     else:
         _provider_location(listing, status=status)
 
@@ -431,4 +437,31 @@ def _declared_approximation(listing: dict[str, Any]) -> bool:
         return True
     if location.get("approximate") is True and location.get("method") not in {"unknown", "city_fallback"}:
         return True
-    return listing.get("location_approximate") is True and bool(listing.get("location_source"))
+    return listing.get("location_approximate") is True and bool(listing.get("location_source")) and not _is_city_fallback(listing)
+
+
+def _is_city_fallback(listing: dict[str, Any]) -> bool:
+    """Recognize provenance, never guess a centroid from coordinate equality."""
+    location = _mapping(listing.get("location"))
+    return location.get("method") == "city_fallback" or any(
+        str(source or "").lower() in {"city_lookup", "openmates city lookup", "openmates city lookup / openstreetmap nominatim"}
+        for source in (listing.get("location_source"), location.get("source"))
+    )
+
+
+def set_city_fallback(
+    listing: dict[str, Any], coords: tuple[float, float] | None, *,
+    source: str = "OpenMates city lookup / OpenStreetMap Nominatim",
+    geocode_status: str | None = None,
+) -> None:
+    """Keep root and nested city provenance consistent through embed flattening."""
+    previous = _mapping(listing.get("location"))
+    listing.update(
+        latitude=coords[0] if coords else None, longitude=coords[1] if coords else None,
+        location_precision="city", location_approximate=True, location_source=source,
+    )
+    listing["location"] = {
+        "status": "approximate" if coords else "unavailable", "precision": "city",
+        "approximate": True, "source": source, "method": "city_fallback", "checked_at": None,
+        "geocode_status": geocode_status or previous.get("geocode_status") or previous.get("status") or "not_checked",
+    }

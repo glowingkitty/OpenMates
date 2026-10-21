@@ -165,3 +165,22 @@ def test_home_rest_unknown_amenity_returns_grouped_validation_error_before_provi
     assert group["results"] == []
     assert "required_amenities" in group["error"] and "swimming_pool" in group["error"]
     assert calls["providers"] == [] and calls["priced"] == []
+
+
+# contract-test: direct surface=rest_api assertions=home-search.location.precision,home-search.output.safe-and-truthful
+def test_home_rest_city_fallback_cannot_retain_nested_provider_street_precision(home_rest):
+    client, _, _, base = home_rest
+    base.update(latitude=None, longitude=None, location_precision="street",
+                location={"status": "candidate_limit", "precision": "street", "approximate": True,
+                          "source": "Kleinanzeigen", "method": "unknown"})
+    response = client.post("/v1/apps/home/skills/search", json={"requests": [{
+        "query": "Berlin", "providers": ["Kleinanzeigen"], "required_amenities": ["balcony"],
+        "max_results": 1, "visual_analysis": False,
+    }]})
+    assert response.status_code == 200, response.text
+    listing = response.json()["data"]["results"][0]["results"][0]
+    assert listing["id"] == "ka_confirmed"
+    assert listing["location_precision"] == listing["location"]["precision"] == "city"
+    assert listing["location_approximate"] is listing["location"]["approximate"] is True
+    assert listing["location_source"] == listing["location"]["source"]
+    assert listing["location_source"] != "Kleinanzeigen"

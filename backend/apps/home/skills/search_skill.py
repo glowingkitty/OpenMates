@@ -35,7 +35,7 @@ from backend.apps.home.providers.wg_gesucht import search_listings as wg_search
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.geo_utils import lookup_city
 from backend.apps.home.evidence import assess_home_evidence, resolve_home_preferences
-from backend.apps.home.location_enrichment import enrich_home_locations, requested_categories
+from backend.apps.home.location_enrichment import enrich_home_locations, requested_categories, set_city_fallback
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
     normalize_relevance_criteria,
@@ -296,6 +296,28 @@ def filter_home_listings(listings: List[Dict[str, Any]], request: Dict[str, Any]
     return kept, warnings
 
 
+def prioritize_location_candidates(listings: List[Dict[str, Any]], request: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Spend finite geocoding on supported, affordable matches before unknowns.
+
+    Keep the existing price/newest ordering for equal evidence. This only orders
+    optional enrichment, and does not replace final geographic relevance ranking.
+    """
+    preferred = request.get("preferred_amenities") or []
+
+    def priority(listing: Dict[str, Any]) -> tuple[int, int]:
+        evidence = listing.get("match_evidence") or {}
+        assessments = evidence.get("amenities") or {}
+        supported = 0
+        for feature in preferred:
+            fact = (listing.get("amenities") or {}).get(feature, listing.get(feature))
+            assessment = assessments.get(feature) or {}
+            if fact is True or assessment.get("status") == "confirmed" or assessment.get("text_status") == "present":
+                supported += 1
+        return bool(evidence.get("unconfirmed_requirements")), -supported
+
+    return sorted(listings, key=priority)
+
+
 def _listing_identity(listing: Dict[str, Any]) -> str:
     # Provider identity avoids merging unrelated flats with generic titles and district-only addresses.
     url = normalize_url_for_deduplication(listing.get("url"))
@@ -444,8 +466,7 @@ class SearchSkill(BaseSkill):
             if _number(listing.get("latitude")) is not None and _number(listing.get("longitude")) is not None:
                 continue
             if coords:
-                listing.update(latitude=coords[0], longitude=coords[1], location_precision="city",
-                               location_approximate=True, location_source="city_lookup")
+                set_city_fallback(listing, coords, source="OpenMates city lookup")
 
 
     async def _process_single_request(
@@ -580,9 +601,14 @@ class SearchSkill(BaseSkill):
             warnings.extend(await assess_home_evidence(
                 merged, request=req, secrets_manager=kwargs.get("secrets_manager"),
                 cache_service=kwargs.get("cache_service")))
+        # Remove authoritative amenity conflicts and unresolved hard requirements
+        # after assessment, before they consume the optional location budget.
+        merged, amenity_warnings = filter_home_listings(merged, req, geographic=False)
+        warnings.extend(amenity_warnings)
         if geographic_search:
+            prioritized = prioritize_location_candidates(merged, req)
             warnings.extend(await enrich_home_locations(
-                merged, city=query, request=req, secrets_manager=kwargs.get("secrets_manager"),
+                prioritized, city=query, request=req, secrets_manager=kwargs.get("secrets_manager"),
                 cache_service=kwargs.get("cache_service")))
 
         merged, evidence_warnings = filter_home_listings(merged, req)
