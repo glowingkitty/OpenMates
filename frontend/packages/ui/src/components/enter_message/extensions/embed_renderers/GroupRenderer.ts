@@ -2716,6 +2716,8 @@ export class GroupRenderer implements EmbedRenderer {
             providers,
             status,
             results,
+            resultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

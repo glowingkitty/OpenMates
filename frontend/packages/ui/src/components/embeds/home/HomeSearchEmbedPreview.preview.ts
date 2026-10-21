@@ -54,6 +54,17 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  savedParentMetadata: {
+    ...defaultProps, id: 'legacy-home-parent-metadata', results: undefined,
+    previewData: {query: 'Berlin', provider: 'Multi', status: 'finished', result_count: 6,
+      embed_ids: 'one|two|three|four|five|six', preview_results: [
+        {title: 'Canal apartment', image_url: '/store-examples/home-1.webp'},
+        {title: 'Park loft', image_url: '/store-examples/home-2.webp'},
+        {title: 'Garden flat', image_url: '/store-examples/home-3.webp'}]}
+  },
+  metadataOnly: {...defaultProps, id: 'legacy-home-count-only', results: [], resultCount: 6, childEmbedIds: 'one|two|three|four|five|six'},
+  knownZero: {...defaultProps, id: 'legacy-home-known-zero', results: [], resultCount: 0},
+  unknownResults: {...defaultProps, id: 'legacy-home-unknown', results: []},
 	/** Processing state — shows loading animation */
 	processing: {
 		id: 'preview-home-search-processing',

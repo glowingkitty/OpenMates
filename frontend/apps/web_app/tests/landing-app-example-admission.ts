@@ -389,6 +389,9 @@ async function inspectSavedResultGraph(page: Page, history: Locator, chat: Examp
     expect(located.length, `${chat.slug}: actual listings supply overview map pins`).toBeGreaterThan(0);
     await expandCompletedActivity(history, `${chat.slug}: home results`);
     const searchPreview = await selectInlineEmbedPreview(history, parent!, `${chat.slug}: activate home search result slide`);
+    await expect(searchPreview.getByTestId('search-no-results-message')).toHaveCount(0);
+    await expect(searchPreview.getByTestId('home-search-result-count')).toHaveAttribute('data-count', String(listings.length));
+    await expect(searchPreview.locator('img.listing-thumbnail')).toHaveCount(Math.min(3, listings.filter(listing => embedField(listing, 'image_url')).length));
     const search = await openFullscreen(page, searchPreview);
     await waitForComponentMotion(search);
     const cards = search.getByTestId('search-template-grid').getByTestId('embed-preview');

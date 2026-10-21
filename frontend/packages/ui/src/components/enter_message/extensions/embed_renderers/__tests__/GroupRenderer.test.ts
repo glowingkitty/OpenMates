@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
 import WebsiteEmbedPreview from "../../../../embeds/web/WebsiteEmbedPreview.svelte";
+import HomeSearchEmbedPreview from '../../../../embeds/home/HomeSearchEmbedPreview.svelte';
 import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.svelte';
 import InteractiveQuestionContainer from '../../../../interactive_questions/InteractiveQuestionContainer.svelte';
 import EmbedsMapView from '../../../../embeds/EmbedsMapView.svelte';
@@ -543,4 +544,24 @@ describe('GroupRenderer', () => {
       }),
     );
   });
+  // contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.output.safe-and-truthful
+  it.each(['single', 'grouped'] as const)('passes bounded saved Home metadata through the %s mount', async path => {
+    const previewResults = [{title: 'Canal flat', image_url: '/store-examples/home-1.webp'}];
+    const decodedContent = {app_id: 'home', skill_id: 'search', status: 'finished', query: 'Berlin',
+      result_count: 6, embed_ids: 'a|b|c|d|e|f', preview_results: previewResults};
+    const embedData = {embed_id: 'home-parent', type: 'app_skill_use', status: 'finished', content: 'home-parent-content', embed_ids: ['a', 'b', 'c', 'd', 'e', 'f']};
+    embedResolverMocks.resolveEmbed.mockResolvedValue(embedData);
+    embedResolverMocks.decodeToonContent.mockResolvedValue(decodedContent);
+    const container = document.createElement('div');
+    const content = document.createElement('div');container.append(content);
+    if (path === 'single') {
+      await new AppSkillUseRenderer().render({attrs: {id: 'home-parent', type: 'app-skill-use', contentRef: 'embed:home-parent', status: 'finished', app_id: 'home', skill_id: 'search'}, container, content, embedData, decodedContent});
+    } else {
+      await new GroupRenderer().render({attrs: {id: 'home-group', type: 'app-skill-use-group', status: 'finished', contentRef: '', groupCount: 1, groupedItems: [{id: 'home-parent', type: 'app-skill-use', contentRef: 'embed:home-parent', status: 'finished', app_id: 'home', skill_id: 'search'}]}, container, content});
+    }
+    expect(svelteMountMocks.mount).toHaveBeenCalledWith(HomeSearchEmbedPreview, expect.objectContaining({props: expect.objectContaining({
+      results: previewResults, resultCount: 6, childEmbedIds: ['a', 'b', 'c', 'd', 'e', 'f'],
+    })}));
+  });
+
 });

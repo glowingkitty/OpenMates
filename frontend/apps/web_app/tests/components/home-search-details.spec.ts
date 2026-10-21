@@ -271,3 +271,40 @@ test('home persisted flattened TOON fields hydrate rich evidence and the complet
   await expect(page.getByTestId('home-visual-evidence')).toContainText('2 / 3 photos assessed');
   await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Landwehr Canal');
 });
+
+for (const width of [390, 1280]) {
+  // contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.output.safe-and-truthful
+  test(`saved Home search preview preserves parent metadata at ${width}px`, async ({page}, testInfo) => {
+    await page.setViewportSize({width, height: 900});
+    const path = '/dev/preview/embeds/home/HomeSearchEmbedPreview';
+    await page.goto(`${path}?${capture(width, 'savedParentMetadata')}`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('home-search-result-count')).toHaveText('6 listings found');
+    const thumbnails = page.locator('img.listing-thumbnail');
+    await expect(thumbnails).toHaveCount(3);
+    await expect.poll(() => thumbnails.evaluateAll((images: HTMLImageElement[]) => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
+    const preview = page.getByTestId('embed-preview').first();
+    const bounds = await preview.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(900);
+    await expect(page.getByTestId('search-no-results-message')).toHaveCount(0);
+    await testInfo.attach(`home-preview-${width}-savedParentMetadata`, {body: await page.screenshot(), contentType: 'image/png'});
+    await page.goto(`${path}?${capture(width, 'metadataOnly')}`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('home-search-result-count')).toHaveText('6 listings found');
+    await expect(page.getByTestId('search-no-results-message')).toHaveCount(0);
+    await testInfo.attach(`home-preview-${width}-metadataOnly`, {body: await page.screenshot(), contentType: 'image/png'});
+    await page.goto(`${path}?${capture(width, 'knownZero')}`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('search-no-results-message')).toBeVisible();
+    await testInfo.attach(`home-preview-${width}-knownZero`, {body: await page.screenshot(), contentType: 'image/png'});
+    await page.goto(`${path}?${capture(width, 'unknownResults')}`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('search-no-results-message')).toHaveCount(0);
+    await expect(page.getByTestId('search-preview-metadata-missing-message')).toBeVisible();
+    await testInfo.attach(`home-preview-${width}-unknownResults`, {body: await page.screenshot(), contentType: 'image/png'});
+  });
+}

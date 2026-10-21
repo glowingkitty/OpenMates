@@ -76,6 +76,7 @@ import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPr
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import DesignIconSearchEmbedPreview from "../../../embeds/design/DesignIconSearchEmbedPreview.svelte";
 import DesignIconResultEmbedPreview from "../../../embeds/design/DesignIconResultEmbedPreview.svelte";
+import { extractSearchResultsFromContent } from "../../../embeds/embedPreviewHydration";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
@@ -2528,7 +2529,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
+    const results = extractSearchResultsFromContent(decodedContent);
+    const resultCount = typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined;
+    const childEmbedIds = normalizeEmbedIdList(decodedContent?.embed_ids || embedData?.embed_ids);
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -2562,6 +2565,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           providers,
           status: status as "processing" | "finished" | "error",
           results,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId,
           isMobile: false,
