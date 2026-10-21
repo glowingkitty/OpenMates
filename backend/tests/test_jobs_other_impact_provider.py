@@ -22,6 +22,13 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def no_live_detail_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def details(*args: Any) -> dict[str, str]:
+        return {"detail_status": "complete"}
+    monkeypatch.setattr(hard_problems, "fetch_role_details", details)
+
+
 def _item(
     *,
     title: str = "Product Designer at Climate Lab",
@@ -32,7 +39,7 @@ def _item(
     age_days: int = 0,
 ) -> str:
     published = format_datetime(datetime.now(timezone.utc) - timedelta(days=age_days))
-    description = escape(f"<p>Long text is never returned.</p><p>{location}</p>")
+    description = escape(f"<p>A useful role summary from the public feed.</p><p>{location}</p>")
     return (
         f"<item><title>{escape(title)}</title><link>{escape(url)}</link>"
         f"<guid>{escape(original)}</guid><pubDate>{published}</pubDate>"
@@ -45,7 +52,7 @@ def _feed(*items: str) -> bytes:
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
-async def test_country_verified_normalization_and_minimal_output(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_country_verified_normalization_and_description(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
     async def fake_fetch(client: Any, country_name: str) -> bytes:
@@ -65,7 +72,8 @@ async def test_country_verified_normalization_and_minimal_output(monkeypatch: py
     assert job["apply_url"] == "https://climatelab.example/jobs/123"
     assert job["country"] == "DE" and job["location"] == "Berlin, Germany"
     assert job["remote"] is True
-    assert job["description"] is None and job["salary_min"] is None
+    assert job["description"] == "A useful role summary from the public feed."
+    assert job["salary_min"] is None
     assert job["employment_type"] is None and job["provider"] == "hard_problems"
 
 

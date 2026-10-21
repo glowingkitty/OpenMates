@@ -1,13 +1,13 @@
 """Bounded first-party RSS adapter for Hard Problems' impact design job board.
 
-The board explicitly publishes a country-filterable subscription feed at
-https://www.hardproblems.com/jobs/feed.xml. This adapter returns only short
-listing metadata with links back to the board; it does not republish feed bodies.
+The board publishes a country-filterable RSS feed. Matching listings are enriched
+from bounded first-party role pages, retaining source and employer attribution.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import timezone
 from email.utils import parsedate_to_datetime
 import re
@@ -23,6 +23,7 @@ from backend.shared.providers.jobs.common import (
     within_days,
 )
 from backend.shared.providers.jobs.models import JobListing
+from backend.shared.providers.jobs.hard_problems_details import fetch_role_details
 
 
 FEED_URL = "https://www.hardproblems.com/jobs/feed.xml"
@@ -33,6 +34,8 @@ MAX_ITEMS = 100
 MAX_QUERY_CHARS = 400
 REQUEST_TIMEOUT = httpx.Timeout(8.0, connect=3.0)
 _PARAGRAPH = re.compile(r"<p(?:\s[^>]*)?>(.*?)</p>", re.IGNORECASE | re.DOTALL)
+logger = logging.getLogger(__name__)
+DETAIL_CONCURRENCY = 3
 
 
 def _country_code(requested: str) -> str | None:
@@ -80,6 +83,7 @@ def _normalize(item: ET.Element, country_code: str) -> tuple[JobListing, list[st
     # verified fully remote status. Nor does absence of Remote mean on-site.
     remote = True if "remote" in work_style else None
     categories = [clean_text(node.text, max_length=120) for node in item.findall("category")]
+    paragraphs = [clean_text(value, max_length=5000) for value in _PARAGRAPH.findall(item.findtext("description") or "")]
     listing: JobListing = {
         "id": f"hard_problems:{source_url.rsplit('/', 1)[-1]}",
         "title": title,
@@ -91,7 +95,9 @@ def _normalize(item: ET.Element, country_code: str) -> tuple[JobListing, list[st
         "remote": remote,
         "employment_type": None,
         "published_at": published_at,
-        "description": None,
+        "description": "\n\n".join(paragraphs[:-1])[:5000] or None,
+        "impact": paragraphs[2] if len(paragraphs) >= 4 else None,
+        "detail_status": "summary",
         "salary_min": None,
         "salary_max": None,
         "salary_currency": None,
@@ -99,6 +105,17 @@ def _normalize(item: ET.Element, country_code: str) -> tuple[JobListing, list[st
         "provider": "hard_problems",
     }
     return listing, categories
+
+
+async def _enrich_listing(client: httpx.AsyncClient, semaphore: asyncio.Semaphore, listing: JobListing) -> JobListing:
+    async with semaphore:
+        try:
+            details = await fetch_role_details(client, listing["url"])
+        except ProviderError as exc:
+            # Keep the usable RSS listing, but expose its incomplete detail state.
+            logger.warning("Hard Problems role details unavailable (%s): %s", exc.code, listing["url"])
+            return listing
+        return {**listing, **details}
 
 
 async def _fetch_feed(client: httpx.AsyncClient, country_name: str) -> bytes:
@@ -136,7 +153,7 @@ async def search_jobs(
     impact_area: str | None = None,
     radius_km: int | None = None,
 ) -> list[JobListing]:
-    """Search current DE/SE impact design roles with one country-filtered RSS request."""
+    """Search country-filtered RSS and enrich only the bounded matching roles."""
     country_code = _country_code(country)
     if country_code is None or limit <= 0:
         return []
@@ -178,4 +195,8 @@ async def search_jobs(
         results.append(listing)
         if len(results) >= requested_limit:
             break
-    return results
+    if not results:
+        return results
+    semaphore = asyncio.Semaphore(DETAIL_CONCURRENCY)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(4.0, connect=2.0), follow_redirects=False) as client:
+        return list(await asyncio.gather(*(_enrich_listing(client, semaphore, listing) for listing in results)))

@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Açıklama"
+          },
+          "sector": {
+            "text": "Sektör"
+          },
+          "role": {
+            "text": "Görev alanı"
+          },
+          "seniority": {
+            "text": "Deneyim düzeyi"
+          },
+          "organization_type": {
+            "text": "Kuruluş türü"
+          },
+          "work_arrangement": {
+            "text": "Çalışma düzeni"
+          },
+          "valid_through": {
+            "text": "Son başvuru tarihi"
+          },
+          "impact": {
+            "text": "Bu iş neden önemli"
+          },
+          "details_unavailable": {
+            "text": "Ek ayrıntılar kullanılamıyor. Güncel bilgiler için başvuru sayfasını açın."
           }
         }
       }

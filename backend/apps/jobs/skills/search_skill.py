@@ -56,6 +56,8 @@ JOB_FIELDS = (
     "id", "title", "company", "url", "apply_url", "location", "country",
     "remote", "employment_type", "published_at", "description", "salary_min",
     "salary_max", "salary_currency", "salary_period", "provider",
+    "sector", "role", "seniority", "organization_type", "work_arrangement",
+    "salary_text", "valid_through", "impact", "detail_status",
 )
 
 

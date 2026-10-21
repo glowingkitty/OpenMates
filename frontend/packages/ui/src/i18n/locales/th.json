@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "คำอธิบาย"
+          },
+          "sector": {
+            "text": "สาขา"
+          },
+          "role": {
+            "text": "บทบาท"
+          },
+          "seniority": {
+            "text": "ระดับประสบการณ์"
+          },
+          "organization_type": {
+            "text": "ประเภทองค์กร"
+          },
+          "work_arrangement": {
+            "text": "รูปแบบการทำงาน"
+          },
+          "valid_through": {
+            "text": "วันปิดรับสมัคร"
+          },
+          "impact": {
+            "text": "ความสำคัญของงานนี้"
+          },
+          "details_unavailable": {
+            "text": "ไม่มีรายละเอียดเพิ่มเติม โปรดเปิดหน้าสมัครงานเพื่อดูข้อมูลล่าสุด"
           }
         }
       }

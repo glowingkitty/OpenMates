@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "説明"
+          },
+          "sector": {
+            "text": "業界"
+          },
+          "role": {
+            "text": "職種"
+          },
+          "seniority": {
+            "text": "経験レベル"
+          },
+          "organization_type": {
+            "text": "組織形態"
+          },
+          "work_arrangement": {
+            "text": "勤務形態"
+          },
+          "valid_through": {
+            "text": "応募締切"
+          },
+          "impact": {
+            "text": "この仕事の意義"
+          },
+          "details_unavailable": {
+            "text": "追加の詳細は現在利用できません。最新情報は応募ページをご確認ください。"
           }
         }
       }

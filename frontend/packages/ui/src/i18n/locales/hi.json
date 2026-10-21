@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "विवरण"
+          },
+          "sector": {
+            "text": "क्षेत्र"
+          },
+          "role": {
+            "text": "भूमिका"
+          },
+          "seniority": {
+            "text": "अनुभव का स्तर"
+          },
+          "organization_type": {
+            "text": "संगठन का प्रकार"
+          },
+          "work_arrangement": {
+            "text": "काम की व्यवस्था"
+          },
+          "valid_through": {
+            "text": "आवेदन की अंतिम तिथि"
+          },
+          "impact": {
+            "text": "यह काम क्यों महत्वपूर्ण है"
+          },
+          "details_unavailable": {
+            "text": "अतिरिक्त विवरण उपलब्ध नहीं हैं। नवीनतम जानकारी के लिए आवेदन पृष्ठ खोलें।"
           }
         }
       }

@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Deskripsi"
+          },
+          "sector": {
+            "text": "Sektor"
+          },
+          "role": {
+            "text": "Peran"
+          },
+          "seniority": {
+            "text": "Tingkat pengalaman"
+          },
+          "organization_type": {
+            "text": "Jenis organisasi"
+          },
+          "work_arrangement": {
+            "text": "Pengaturan kerja"
+          },
+          "valid_through": {
+            "text": "Batas lamaran"
+          },
+          "impact": {
+            "text": "Mengapa pekerjaan ini penting"
+          },
+          "details_unavailable": {
+            "text": "Detail tambahan tidak tersedia. Buka halaman lamaran untuk informasi terbaru."
           }
         }
       }

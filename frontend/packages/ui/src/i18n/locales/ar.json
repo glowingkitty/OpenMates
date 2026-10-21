@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "الوصف"
+          },
+          "sector": {
+            "text": "القطاع"
+          },
+          "role": {
+            "text": "الدور الوظيفي"
+          },
+          "seniority": {
+            "text": "مستوى الخبرة"
+          },
+          "organization_type": {
+            "text": "نوع المؤسسة"
+          },
+          "work_arrangement": {
+            "text": "نظام العمل"
+          },
+          "valid_through": {
+            "text": "آخر موعد للتقديم"
+          },
+          "impact": {
+            "text": "أهمية هذا العمل"
+          },
+          "details_unavailable": {
+            "text": "التفاصيل الإضافية غير متاحة. افتح صفحة التقديم للاطلاع على أحدث المعلومات."
           }
         }
       }

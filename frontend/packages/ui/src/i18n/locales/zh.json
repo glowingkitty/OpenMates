@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "描述"
+          },
+          "sector": {
+            "text": "行业"
+          },
+          "role": {
+            "text": "职能"
+          },
+          "seniority": {
+            "text": "资历级别"
+          },
+          "organization_type": {
+            "text": "组织类型"
+          },
+          "work_arrangement": {
+            "text": "工作安排"
+          },
+          "valid_through": {
+            "text": "申请截止日期"
+          },
+          "impact": {
+            "text": "这份工作的重要性"
+          },
+          "details_unavailable": {
+            "text": "暂无更多详情。请打开申请页面查看最新信息。"
           }
         }
       }

@@ -4970,6 +4970,87 @@ export const APP_SKILL_METADATA = [
                         "basic": false
                       }
                     },
+                    "sector": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "role": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "seniority": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "organization_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "work_arrangement": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "salary_text": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "valid_through": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "impact": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
+                    "detail_status": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "x-ui": {
+                        "basic": false
+                      }
+                    },
                     "salary_min": {
                       "type": [
                         "number",

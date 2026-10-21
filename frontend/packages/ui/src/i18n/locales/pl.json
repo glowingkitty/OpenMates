@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Opis"
+          },
+          "sector": {
+            "text": "Branża"
+          },
+          "role": {
+            "text": "Rola"
+          },
+          "seniority": {
+            "text": "Poziom doświadczenia"
+          },
+          "organization_type": {
+            "text": "Typ organizacji"
+          },
+          "work_arrangement": {
+            "text": "Tryb pracy"
+          },
+          "valid_through": {
+            "text": "Termin zgłoszeń"
+          },
+          "impact": {
+            "text": "Dlaczego ta praca jest ważna"
+          },
+          "details_unavailable": {
+            "text": "Dodatkowe informacje są niedostępne. Otwórz stronę aplikacji, aby sprawdzić aktualne szczegóły."
           }
         }
       }

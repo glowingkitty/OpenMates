@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "설명"
+          },
+          "sector": {
+            "text": "분야"
+          },
+          "role": {
+            "text": "직무"
+          },
+          "seniority": {
+            "text": "경력 수준"
+          },
+          "organization_type": {
+            "text": "조직 유형"
+          },
+          "work_arrangement": {
+            "text": "근무 방식"
+          },
+          "valid_through": {
+            "text": "지원 마감일"
+          },
+          "impact": {
+            "text": "이 일이 중요한 이유"
+          },
+          "details_unavailable": {
+            "text": "추가 정보를 확인할 수 없습니다. 최신 정보는 지원 페이지에서 확인하세요."
           }
         }
       }

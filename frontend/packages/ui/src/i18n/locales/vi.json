@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Mô tả"
+          },
+          "sector": {
+            "text": "Lĩnh vực"
+          },
+          "role": {
+            "text": "Vai trò"
+          },
+          "seniority": {
+            "text": "Cấp độ kinh nghiệm"
+          },
+          "organization_type": {
+            "text": "Loại tổ chức"
+          },
+          "work_arrangement": {
+            "text": "Hình thức làm việc"
+          },
+          "valid_through": {
+            "text": "Hạn ứng tuyển"
+          },
+          "impact": {
+            "text": "Ý nghĩa của công việc này"
+          },
+          "details_unavailable": {
+            "text": "Chưa có thêm chi tiết. Hãy mở trang ứng tuyển để xem thông tin mới nhất."
           }
         }
       }

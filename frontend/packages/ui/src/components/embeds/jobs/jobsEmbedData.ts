@@ -18,6 +18,15 @@ export interface JobResult {
   salary_currency?: string | null;
   salary_period?: string | null;
   provider?: string;
+  sector?: string | null;
+  role?: string | null;
+  seniority?: string | null;
+  organization_type?: string | null;
+  work_arrangement?: string | null;
+  salary_text?: string | null;
+  valid_through?: string | null;
+  impact?: string | null;
+  detail_status?: string | null;
 }
 
 export function stringValue(value: unknown): string | undefined {
@@ -93,6 +102,15 @@ export function normalizeJob(embedId: string, content: Record<string, unknown>):
     salary_currency: stringValue(content.salary_currency),
     salary_period: stringValue(content.salary_period),
     provider: stringValue(content.provider),
+    sector: stringValue(content.sector),
+    role: stringValue(content.role),
+    seniority: stringValue(content.seniority),
+    organization_type: stringValue(content.organization_type),
+    work_arrangement: stringValue(content.work_arrangement),
+    salary_text: stringValue(content.salary_text),
+    valid_through: stringValue(content.valid_through),
+    impact: stringValue(content.impact),
+    detail_status: stringValue(content.detail_status),
   };
 }
 

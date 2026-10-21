@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "תיאור"
+          },
+          "sector": {
+            "text": "תחום"
+          },
+          "role": {
+            "text": "תפקיד"
+          },
+          "seniority": {
+            "text": "רמת ניסיון"
+          },
+          "organization_type": {
+            "text": "סוג הארגון"
+          },
+          "work_arrangement": {
+            "text": "מתכונת העבודה"
+          },
+          "valid_through": {
+            "text": "מועד אחרון להגשה"
+          },
+          "impact": {
+            "text": "למה העבודה הזאת חשובה"
+          },
+          "details_unavailable": {
+            "text": "פרטים נוספים אינם זמינים. פתחו את עמוד הגשת המועמדות למידע העדכני ביותר."
           }
         }
       }

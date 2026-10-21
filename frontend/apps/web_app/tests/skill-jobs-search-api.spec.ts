@@ -30,6 +30,11 @@ type Job = {
 	salary_currency: string | null;
 	salary_period: string | null;
 	provider: string;
+	sector?: string | null;
+	role?: string | null;
+	seniority?: string | null;
+	organization_type?: string | null;
+	detail_status?: string | null;
 };
 
 function dataOf(payload: any): any {
@@ -95,6 +100,15 @@ function assertGermanGroup(payload: any, id: string, query: string, provider: st
 		expect(job.title.length).toBeGreaterThan(0);
 		expect(job.url).toMatch(sourceUrl);
 		if (job.apply_url != null) expect(job.apply_url).toMatch(/^https:\/\//);
+		if (provider === 'hard_problems') {
+			expect(job.detail_status).toBe('complete');
+			expect(job.description!.length).toBeGreaterThan(300);
+			expect(job.sector).toEqual(expect.any(String));
+			expect(job.role).toEqual(expect.any(String));
+			expect(job.seniority).toEqual(expect.any(String));
+			expect(job.organization_type).toEqual(expect.any(String));
+			expect(job.description).not.toContain('<script');
+		}
 	}
 }
 

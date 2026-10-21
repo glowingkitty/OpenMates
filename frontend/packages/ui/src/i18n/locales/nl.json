@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Beschrijving"
+          },
+          "sector": {
+            "text": "Sector"
+          },
+          "role": {
+            "text": "Functie"
+          },
+          "seniority": {
+            "text": "Ervaringsniveau"
+          },
+          "organization_type": {
+            "text": "Type organisatie"
+          },
+          "work_arrangement": {
+            "text": "Werkregeling"
+          },
+          "valid_through": {
+            "text": "Solliciteren vóór"
+          },
+          "impact": {
+            "text": "Waarom dit werk belangrijk is"
+          },
+          "details_unavailable": {
+            "text": "Aanvullende details zijn niet beschikbaar. Open de sollicitatiepagina voor de nieuwste informatie."
           }
         }
       }

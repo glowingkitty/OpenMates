@@ -606,6 +606,9 @@ def test_jobs_skill_metadata_declares_bounded_workflow_contract() -> None:
         "company": "string", "apply_url": "string", "location": "string",
         "remote": "boolean", "employment_type": "string", "published_at": "string",
         "description": "string", "salary_min": "number", "salary_max": "number",
+        "sector": "string", "role": "string", "seniority": "string", "organization_type": "string",
+        "work_arrangement": "string", "salary_text": "string", "valid_through": "string",
+        "impact": "string", "detail_status": "string",
         "salary_currency": "string", "salary_period": "string",
     }.items():
         assert listing[field]["type"] == [value_type, "null"]
@@ -634,3 +637,14 @@ def test_jobs_skill_metadata_declares_bounded_workflow_contract() -> None:
     assert "default" not in request_item["properties"]["country"]
     assert request_item["properties"]["country"]["x-ui"]["basic"] is False
     assert request_item["properties"]["countries"]["x-ui"]["basic"] is False
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
+def test_rich_job_details_survive_skill_normalization() -> None:
+    details = {"sector": "Healthcare", "role": "Product design", "seniority": "Senior",
+               "organization_type": "For-profit", "work_arrangement": "Hybrid",
+               "salary_text": None, "valid_through": "2026-11-14T00:00:00Z",
+               "impact": "Improve patient care.", "detail_status": "complete"}
+    normalized = jobs_search._normalized_job(_job("details", **details), "hard_problems", "DE")
+    assert normalized is not None
+    assert {key: normalized[key] for key in details} == details

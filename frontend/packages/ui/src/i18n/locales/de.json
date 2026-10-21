@@ -9494,6 +9494,30 @@
           },
           "description": {
             "text": "Beschreibung"
+          },
+          "sector": {
+            "text": "Branche"
+          },
+          "role": {
+            "text": "Tätigkeitsbereich"
+          },
+          "seniority": {
+            "text": "Erfahrungsstufe"
+          },
+          "organization_type": {
+            "text": "Organisationstyp"
+          },
+          "work_arrangement": {
+            "text": "Arbeitsmodell"
+          },
+          "valid_through": {
+            "text": "Bewerbungsfrist"
+          },
+          "impact": {
+            "text": "Warum diese Arbeit wichtig ist"
+          },
+          "details_unavailable": {
+            "text": "Weitere Details sind nicht verfügbar. Aktuelle Informationen findest du auf der Bewerbungsseite."
           }
         }
       }

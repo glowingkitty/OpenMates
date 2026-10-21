@@ -39,6 +39,65 @@ test('Jobs fullscreen opens a listing and keeps unknown remote and salary claims
   await expect(detail.getByTestId('jobs-salary')).toHaveCount(0);
 });
 
+for (const width of [1280, 390]) {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,public-example-chats.surface.semantic-parity
+  test(`Jobs details preserve source facts and put orange application actions only in the header at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: width < 600 ? 844 : 900 });
+    for (const theme of ['light', 'dark']) {
+      await page.goto(`/dev/preview/embeds/jobs/JobsResultEmbedFullscreen?chrome=0&theme=${theme}&width=${width}&variant=richDetails`);
+      await waitForComponentPreview(page);
+      await page.mouse.move(0, 0);
+      const detail = page.getByTestId('jobs-result-fullscreen');
+      const body = detail.getByTestId('jobs-detail-body');
+      await expect(body.locator('a, button')).toHaveCount(0);
+      await expect(body.getByTestId('jobs-sector-value')).toHaveText('Healthcare');
+      await expect(body.getByTestId('jobs-role-value')).toHaveText('Product design');
+      await expect(body.getByTestId('jobs-seniority-value')).toHaveText('Senior');
+      await expect(body.getByTestId('jobs-organization-type-value')).toHaveText('For-profit');
+      await expect(body.getByTestId('jobs-work-arrangement')).toHaveText('Hybrid');
+      await expect(body.getByTestId('jobs-description')).toContainText('30 days of annual leave');
+      await expect(body.getByTestId('jobs-impact')).toContainText('healthcare professionals');
+      await expect(body.getByTestId('jobs-salary')).toHaveCount(0);
+      const header = detail.locator('.header-cta-area');
+      const apply = header.getByTestId('jobs-apply-link');
+      await expect(apply).toHaveAttribute('href', 'https://example.com/jobs/climate-data/apply');
+      await expect(apply).toHaveAttribute('target', '_blank');
+      await expect(apply).toHaveAttribute('rel', 'noopener noreferrer');
+      await expect(apply).toHaveClass(/embed-header-cta primary/);
+      await expect(apply).toHaveCSS('background-color', 'rgb(255, 85, 59)');
+      await expect(header.getByTestId('jobs-source-link')).toHaveAttribute('href', 'https://example.com/jobs/climate-data');
+      expect(await body.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      const bounds = (await apply.boundingBox())!;
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width + 1);
+      const sourceBounds = (await header.getByTestId('jobs-source-link').boundingBox())!;
+      expect(sourceBounds.x).toBeGreaterThanOrEqual(0);
+      expect(sourceBounds.x + sourceBounds.width).toBeLessThanOrEqual(width + 1);
+      const firstFact = (await body.locator('.facts > div').first().boundingBox())!;
+      expect(Math.max(bounds.y + bounds.height, sourceBounds.y + sourceBounds.height)).toBeLessThanOrEqual(firstFact.y);
+      await testInfo.attach(`jobs-rich-details-${theme}-${width}`, {
+        body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png'
+      });
+      await page.context().route('https://example.com/jobs/climate-data/apply', (route) => route.fulfill({ contentType: 'text/html', body: '<h1>Application page</h1>' }));
+      const popupPromise = page.waitForEvent('popup');
+      await apply.click();
+      const popup = await popupPromise;
+      await expect(popup).toHaveURL('https://example.com/jobs/climate-data/apply');
+      await popup.close();
+    }
+    await page.goto(`/dev/preview/embeds/jobs/JobsResultEmbedFullscreen?chrome=0&theme=light&width=${width}&variant=sameUrl`);
+    await waitForComponentPreview(page);
+    await expect(page.locator('.header-cta-area .embed-header-cta.primary')).toHaveCount(1);
+    await expect(page.getByTestId('jobs-source-link')).toHaveCount(0);
+    await expect(page.getByTestId('jobs-apply-link')).toHaveAttribute('href', 'https://example.com/jobs/climate-data');
+    await page.goto(`/dev/preview/embeds/jobs/JobsResultEmbedFullscreen?chrome=0&theme=light&width=${width}&variant=summaryOnly`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('jobs-details-warning')).toContainText('Additional details are unavailable');
+    await expect(page.getByTestId('jobs-description')).toContainText('Analyse public climate datasets');
+  });
+}
+
 // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
 test('Jobs child detail validates external actions and fits a phone width', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

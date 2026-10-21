@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Popis"
+          },
+          "sector": {
+            "text": "Odvětví"
+          },
+          "role": {
+            "text": "Role"
+          },
+          "seniority": {
+            "text": "Úroveň zkušeností"
+          },
+          "organization_type": {
+            "text": "Typ organizace"
+          },
+          "work_arrangement": {
+            "text": "Pracovní režim"
+          },
+          "valid_through": {
+            "text": "Uzávěrka přihlášek"
+          },
+          "impact": {
+            "text": "Proč je tato práce důležitá"
+          },
+          "details_unavailable": {
+            "text": "Další podrobnosti nejsou k dispozici. Aktuální informace najdeš na stránce přihlášky."
           }
         }
       }

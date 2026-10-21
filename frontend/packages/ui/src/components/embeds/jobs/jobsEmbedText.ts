@@ -7,7 +7,7 @@ function source(value: unknown): string {
 }
 
 /** jobs-job-result — copy a listing with its source and application URL. */
-export function renderJobResult(content: Record<string, unknown>): string {
+export function renderJobResult(content: Record<string, unknown>, includeDetails = true): string {
   const title = str(content.title) ?? 'Job listing';
   const company = str(content.company);
   const location = str(content.location);
@@ -18,6 +18,16 @@ export function renderJobResult(content: Record<string, unknown>): string {
   if (company) lines.push(company);
   if (location) lines.push(location);
   if (content.remote === true) lines.push('Remote');
+  if (includeDetails) {
+    for (const [field, label] of [['sector', 'Sector'], ['role', 'Role'], ['seniority', 'Seniority'],
+      ['organization_type', 'Organization type'], ['work_arrangement', 'Working arrangements'],
+      ['valid_through', 'Apply by'], ['impact', 'Why this work matters']] as const) {
+      const value = str(content[field]);
+      if (value) lines.push(`${label}: ${value}`);
+    }
+    const description = str(content.description);
+    if (description) lines.push('', description);
+  }
   if (provider) lines.push(`Source: ${provider}`);
   if (url) lines.push(url);
   if (applyUrl && applyUrl !== url) lines.push(`Apply: ${applyUrl}`);
@@ -37,7 +47,7 @@ export function renderJobsSearch(
   const listings = children?.length ? children : preview;
   for (const listing of listings.slice(0, 5)) {
     if (!listing || typeof listing !== 'object' || Array.isArray(listing)) continue;
-    lines.push('', renderJobResult(listing as Record<string, unknown>));
+    lines.push('', renderJobResult(listing as Record<string, unknown>, false));
   }
   if (listings.length > 5) lines.push(`+ ${listings.length - 5} more`);
   return lines.join('\n');

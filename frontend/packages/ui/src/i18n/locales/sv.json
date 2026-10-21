@@ -8046,6 +8046,30 @@
           },
           "description": {
             "text": "Beskrivning"
+          },
+          "sector": {
+            "text": "Bransch"
+          },
+          "role": {
+            "text": "Roll"
+          },
+          "seniority": {
+            "text": "Erfarenhetsnivå"
+          },
+          "organization_type": {
+            "text": "Organisationstyp"
+          },
+          "work_arrangement": {
+            "text": "Arbetsform"
+          },
+          "valid_through": {
+            "text": "Sista ansökningsdag"
+          },
+          "impact": {
+            "text": "Varför det här arbetet är viktigt"
+          },
+          "details_unavailable": {
+            "text": "Ytterligare information saknas. Öppna ansökningssidan för aktuell information."
           }
         }
       }

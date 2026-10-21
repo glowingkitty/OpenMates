@@ -8073,6 +8073,30 @@
           },
           "description": {
             "text": "Descrição"
+          },
+          "sector": {
+            "text": "Setor"
+          },
+          "role": {
+            "text": "Função"
+          },
+          "seniority": {
+            "text": "Nível de experiência"
+          },
+          "organization_type": {
+            "text": "Tipo de organização"
+          },
+          "work_arrangement": {
+            "text": "Modalidade de trabalho"
+          },
+          "valid_through": {
+            "text": "Prazo de candidatura"
+          },
+          "impact": {
+            "text": "Por que este trabalho importa"
+          },
+          "details_unavailable": {
+            "text": "Não há mais detalhes disponíveis. Abre a página de candidatura para consultar as informações mais recentes."
           }
         }
       }

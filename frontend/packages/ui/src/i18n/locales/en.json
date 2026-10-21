@@ -9539,6 +9539,30 @@
           },
           "description": {
             "text": "Description"
+          },
+          "sector": {
+            "text": "Sector"
+          },
+          "role": {
+            "text": "Role"
+          },
+          "seniority": {
+            "text": "Seniority"
+          },
+          "organization_type": {
+            "text": "Organization type"
+          },
+          "work_arrangement": {
+            "text": "Working arrangements"
+          },
+          "valid_through": {
+            "text": "Apply by"
+          },
+          "impact": {
+            "text": "Why this work matters"
+          },
+          "details_unavailable": {
+            "text": "Additional details are unavailable. Open the application page for the latest information."
           }
         }
       }

@@ -61,6 +61,15 @@ embed_types:
       - {name: employment_type, type: string}
       - {name: published_at, type: string}
       - {name: description, type: string}
+      - {name: sector, type: string}
+      - {name: role, type: string}
+      - {name: seniority, type: string}
+      - {name: organization_type, type: string}
+      - {name: work_arrangement, type: string}
+      - {name: salary_text, type: string}
+      - {name: valid_through, type: string}
+      - {name: impact, type: string}
+      - {name: detail_status, type: string}
       - {name: salary_min, type: number}
       - {name: salary_max, type: number}
       - {name: salary_currency, type: string}
@@ -254,6 +263,15 @@ skills:
                 employment_type: {type: [string, 'null'], x-ui: {basic: false}}
                 published_at: {type: [string, 'null'], x-ui: {basic: false}}
                 description: {type: [string, 'null'], x-ui: {basic: false}}
+                sector: {type: [string, 'null'], x-ui: {basic: false}}
+                role: {type: [string, 'null'], x-ui: {basic: false}}
+                seniority: {type: [string, 'null'], x-ui: {basic: false}}
+                organization_type: {type: [string, 'null'], x-ui: {basic: false}}
+                work_arrangement: {type: [string, 'null'], x-ui: {basic: false}}
+                salary_text: {type: [string, 'null'], x-ui: {basic: false}}
+                valid_through: {type: [string, 'null'], x-ui: {basic: false}}
+                impact: {type: [string, 'null'], x-ui: {basic: false}}
+                detail_status: {type: [string, 'null'], x-ui: {basic: false}}
                 salary_min: {type: [number, 'null'], x-ui: {basic: false}}
                 salary_max: {type: [number, 'null'], x-ui: {basic: false}}
                 salary_currency: {type: [string, 'null'], x-ui: {basic: false}}

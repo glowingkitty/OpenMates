@@ -243,30 +243,40 @@ for (const [viewport, size] of [
 				}
 				if (
 					field(child.content, 'salary_min') === null &&
-					field(child.content, 'salary_max') === null
+					field(child.content, 'salary_max') === null &&
+					field(child.content, 'salary_text') === null
 				) {
 					await expect(detail.getByTestId('jobs-salary')).toHaveCount(0);
 				}
-				const sourceLink = detail.getByTestId('jobs-source-link');
-				await sourceLink.scrollIntoViewIfNeeded();
-				await expect(sourceLink).toBeVisible();
-				await expect(sourceLink).toHaveAttribute('rel', 'noopener noreferrer');
-				await expect(detail.getByTestId('jobs-source-link')).toHaveAttribute(
-					'href',
-					httpsUrl(field(child.content, 'url'))
-				);
+				const applyUrl = field(child.content, 'apply_url');
+				const header = detail.locator('.header-cta-area');
+				const primary = header.locator('.embed-header-cta.primary');
+				await primary.scrollIntoViewIfNeeded();
+				await expect(primary).toBeVisible();
+				await expect(primary).toHaveAttribute('rel', 'noopener noreferrer');
+				await expect(primary).toHaveAttribute('href', httpsUrl(applyUrl || field(child.content, 'url')));
+				await expect(detail.getByTestId('jobs-detail-body').locator('a, button')).toHaveCount(0);
+				if (field(child.content, 'provider') === 'hard_problems') {
+					await expect(detail.getByTestId('jobs-sector-value')).toHaveText('Healthcare');
+					await expect(detail.getByTestId('jobs-role-value')).toHaveText('Product design');
+					await expect(detail.getByTestId('jobs-seniority-value')).toHaveText('Senior');
+					await expect(detail.getByTestId('jobs-description')).toContainText('Urban Sports Club');
+					await expect(detail.getByTestId('jobs-details-warning')).toHaveCount(0);
+				}
 				await testInfo.attach(`jobs-example-${viewport}-${parent.embed_id}-${childId}-detail`, {
 					body: await page.screenshot(),
 					contentType: 'image/png'
 				});
-				const applyUrl = field(child.content, 'apply_url');
-				if (applyUrl && httpsUrl(applyUrl) !== httpsUrl(field(child.content, 'url'))) {
+				if (applyUrl) {
 					await expect(detail.getByTestId('jobs-apply-link')).toHaveAttribute(
 						'href',
 						httpsUrl(applyUrl)
 					);
 				} else {
 					await expect(detail.getByTestId('jobs-apply-link')).toHaveCount(0);
+				}
+				if (!applyUrl || httpsUrl(applyUrl) !== httpsUrl(field(child.content, 'url'))) {
+					await expect(header.getByTestId('jobs-source-link')).toHaveAttribute('href', httpsUrl(field(child.content, 'url')));
 				}
 				await closeFullscreen(page, detail);
 				await expect(parentOverlay).toBeVisible();
