@@ -8,7 +8,7 @@
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v13:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v15:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -43,7 +43,7 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v13:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v15:"
 _CACHE_TTL = 3600  # 1 hour
 _DEFAULT_INSPIRATION_COUNT = 10
 _DEFAULT_WIKI_COUNT = 3
@@ -293,8 +293,8 @@ async def get_default_inspirations(
     result: List[Dict[str, Any]] = []
 
     for record in defaults or []:
-        is_video_default = (record.get("content_type") or "video") == "video"
-        if is_video_default and not is_inspiration_media_coherent(record):
+        is_external_default = (record.get("content_type") or "video") in {"video", "wiki"}
+        if is_external_default and not is_inspiration_media_coherent(record):
             logger.warning(
                 "[DefaultInspirations] Skipping media-mismatched default %s "
                 "(title=%r, video=%r)",

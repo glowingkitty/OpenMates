@@ -69,9 +69,9 @@ Runs in `app-ai-worker` Celery container:
 2. **Brave Video Search** -- localized YouTube discovery, strict SafeSearch, up to 20 candidates per video slot.
 3. **Source enrichment** -- retain descriptions, publication dates and audience metadata; reject made-for-kids and over-age videos.
 4. **Jev editorial decisions** -- pinned Jev 1.14 screens eligibility, ranks educational relevance and assigns categories. Conspiracy promotion, misleading clickbait and instruction injection are prohibited. Evidence-based debunking and honest curiosity are allowed. Uncertain or failed decisions withhold new candidates.
-5. **Video writing** -- Mercury 3 LOW writes the exact preselected sources. Failed, malformed or editorially rejected drafts get one second Mercury attempt, then one Gemini 3.5 Flash-Lite attempt. Every attempt is assembled and reviewed against the same public evidence; accepted HTTP alone is insufficient.
+5. **Video writing** -- Mercury 3 LOW writes the exact preselected sources. Failed, malformed or editorially rejected drafts get one second Mercury attempt, then one Gemini 3.5 Flash-Lite attempt. Approved source-bound card objects are retained. Each repair requests only unresolved source IDs, with bounded machine rejection codes; it cannot replace approved cards or invent targets. Every new draft is assembled and reviewed against the same public evidence.
 6. **Wikipedia discovery and writing** -- search real localized article titles, validate them and fetch summaries/Wikidata before Jev selection. The writer paraphrases only the selected public summaries; it cannot invent article targets.
-7. **Final review** -- Jev separately checks editorial policy and material factual grounding for both content types, including follow-ups. Missing/failed/uncertain reviews withhold the card. A material grounding check targets invented specific claims while allowing ordinary explanatory paraphrases.
+7. **Final review** -- Jev checks policy/coherence and gives each generated title, phrase, introduction and follow-up its own grounding and language decision. Each follow-up also receives an independent source-relevance decision. Qualifiers, entity scope, causal roles and temporal status must survive paraphrasing; new facts inferred from background knowledge are off-source. Open questions about explicit source concepts need no supplied answer. Missing/failed/uncertain decisions withhold the card. Video review includes actual bounded JPEG pixels, with no text-only visual approval fallback.
 8. **Feature tips** -- four static feature cards, no inference.
 9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
 10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
@@ -83,7 +83,7 @@ The primary writer is restricted to `inception/mercury-3`; Mistral is no longer 
 | Trigger | When | Count | File |
 |---------|------|-------|------|
 | First paid request | After first paid request post-processing | 10 | `daily_inspiration_tasks.py` |
-| Scheduled daily | 06:00 UTC Celery Beat | 10 if viewed_count > 0 | `daily_inspiration_tasks.py` |
+| Scheduled daily | 06:00 UTC Celery Beat | 10 for paid activity in the last 24h and viewed_count > 0 | `daily_inspiration_tasks.py` |
 | Default selection | 06:30 UTC Celery Beat | Mixed top 10 per language | `default_inspiration_tasks.py` |
 
 ### Delivery
@@ -118,7 +118,7 @@ The primary writer is restricted to `inception/mercury-3`; Mistral is no longer 
 | Table | Purpose |
 |-------|---------|
 | `daily_inspiration_pool` | Shared cleartext public-source pool, capped at 500 |
-| `daily_inspiration_defaults` | Top 3 per language per day |
+| `daily_inspiration_defaults` | Up to 10 reviewed public defaults per language per day |
 | `user_daily_inspirations` | Per-user encrypted records |
 
 ### Cache Keys (Redis via `cache_inspiration_mixin.py`)
@@ -133,8 +133,8 @@ The primary writer is restricted to `inception/mercury-3`; Mistral is no longer 
 ## Edge Cases
 
 - **Editorial decision failure:** Withhold new external candidates; preserve existing feed recovery instead of publishing unreviewed cards
-- **Video cost remains capped:** existing 3-video/day budget is unchanged
-- **Wiki cost:** one writing call, bounded Jev decisions and free Wikimedia API requests
+- **Video output budget:** targets three generated videos; each writing batch has at most three provider attempts, independent of source/thumbnail decision calls
+- **Wiki cost:** one initial writing call with up to two bounded repair calls, source/final Jev decisions and Wikimedia API traffic; do not conflate supplier usage with measured total infrastructure cost
 - **Feature cost:** static/no external API calls
 
 ## Related Docs
@@ -159,7 +159,7 @@ not. Image support is experimental; this is a daily metadata/image screen, not v
 of watched video content or a guarantee against a thumbnail changing after review.
 
 Daily public selection re-reviews legacy pool rows, then stores a versioned hash binding
-approved video copy, language, source metadata and thumbnail identity. The anonymous
+approved video/wiki copy, language, source metadata and thumbnail identity. Wiki proof additionally binds the actual canonical article, retrieval edition and complete fetched metadata; missing evidence is withheld. The anonymous
 endpoint verifies this hash and never invokes a paid model. Modified/unreviewed rows
 use static recovery. Semantic uncertainty does not delete historical pool data.
 
@@ -169,3 +169,52 @@ are covered (plus Hebrew in the UI catalog). Missing native-language stock uses 
 static cards instead of relabeled English pool rows. Static Wikipedia cards retain English
 canonical article IDs and explicitly mark their source edition as English; generated
 Wikipedia cards carry their actual retrieval edition. The card copy remains localized.
+
+
+### Granular recovery and cost accounting (2026-10-21)
+
+The review proof is versioned `daily-editorial-v6`; public cache keys use `v15`.
+Older video/wiki approvals cannot satisfy the stronger gate. Jev confidence remains an
+abstention heuristic at the existing threshold, not a calibrated correctness
+probability. Field-level repair codes contain no arbitrary provider prose and
+are never part of the public response. Repairs bind to source IDs rather than
+array positions, so a single pending video can be repaired safely.
+
+```mermaid
+flowchart TD
+    A[Recent topics or generic seeds] --> B[Brave videos / localized Wikipedia discovery]
+    B --> C[Source identity, age and deterministic policy checks]
+    C --> D[Jev source policy, fit and categories; video pixels]
+    D --> E[Mercury LOW writes source-backed card fields]
+    E --> F[Jev per-field grounding/language and each follow-up]
+    F --> G[Retain approved source-bound cards]
+    F --> H[Repair only unresolved source IDs]
+    H --> I[Second Mercury attempt, then Gemini Flash-Lite]
+    I --> F
+    G --> J[Personal complete set / reviewed public pool]
+    J --> K[Background Jev review and shared defaults selection]
+    K --> L[Cached public delivery; localized static recovery]
+```
+
+The retry arrow is bounded to three total writing attempts; it is not an
+unlimited loop. No fresh generation occurs on anonymous page loads. Shared
+background review cost depends on actual eligible pool rows, whereas personal
+generation depends on eligible users/first-run events. Twenty display languages
+do not imply twenty new daily generation jobs.
+
+The original pre-Jev/Mercury baseline is commit
+`c94ebe85a14f87aa3223eacfe129aa85ec93d939`: normal successful personal generation
+used three Mistral channel-classification calls, one video writer, three video
+validators and one wiki writer; static tips and public pool selection required
+no inference. Original validation failed open on errors and wiki copy preceded
+source-summary fetching. The new source, grounding and image checks add work as
+well as changing writer prices. Cost comparisons must therefore include actual
+source selection, all retries, visual review and shared revalidation, not just
+compare one Mercury call with one historical Mistral call.
+
+See the historical baseline and qualification receipts in
+`docs/plans/daily-inspiration-jev/`. Historical production spend is unmeasured;
+opt-in native replay uses exact historical application sources with explicitly
+recorded current provider wrappers/tariffs. Supplier estimates precede provider
+credits and omit unmeasured infrastructure/third-party charges. Generation yield
+is reported separately from accepted-copy quality and ten-card fallback delivery.

@@ -22,6 +22,10 @@ test(`${language} public inspirations remain localized through carousel navigati
     // Editorial decisions stay internal; the public feed retains its source-backed shape.
     expect(item).not.toHaveProperty('editorial_score');
     expect(item).not.toHaveProperty('editorial_category');
+    // Granular rejection codes and source-repair metadata remain server-internal.
+    expect(item).not.toHaveProperty('rejection_feedback');
+    expect(item).not.toHaveProperty('_review_identity');
+    expect(item).not.toHaveProperty('pending_source_ids');
     if (item.content_type === 'wiki') expect(item.wiki.wiki_title.trim()).not.toBe('');
     if (item.content_type === 'video') expect(item.video.youtube_id).toMatch(/^[\w-]{11}$/);
   }

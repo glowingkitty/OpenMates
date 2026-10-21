@@ -1,14 +1,19 @@
 schema_version: 2
 profile: concise
 id: daily-inspiration-jev
-title: Qualify multilingual daily inspirations and thumbnail screening
+title: Qualify granular inspiration review, targeted recovery and historical costs
 status: implementing
 goal: >-
-  Fix Japanese coherence using Jev instead of word overlap, tighten follow-up
-  relevance, localize static cards for all twenty feed languages, review actual
-  video thumbnails, benchmark against Gemini-only writing, and deploy to dev.
+  Implement the approved granular Jev review and targeted retry changes, run the
+  aligned multilingual and thumbnail qualification, and explain the implemented
+  workflow and before/after costs using the original pre-Jev/pre-Mercury baseline.
 scope_notes:
-  - Jev separately reviews source policy, grounding, semantic coherence, explicit source-concept follow-ups and copy language.
+  - Jev separately reviews source policy and coherence, plus grounding and language for every copy field and relevance for every follow-up.
+  - Align validation and review to source-preserving paraphrases and open questions about explicit concepts; reject added specific facts, qualifiers, roles, causes, dates and absent scenarios.
+  - Retain source-bound approved cards across attempts; request only unresolved identities with bounded trusted rejection codes and review every repair.
+  - Re-adjudicate nineteen historical material cards and four uncertain cases transparently; retain human/native-speaker review limitations.
+  - Treat generation yield as an efficiency metric; publication quality and complete localized static recovery determine release readiness.
+  - Compare full pipeline costs against original commit c94ebe85a14f87aa3223eacfe129aa85ec93d939, separating historical estimates, new measurements, search fees, provider credits and shared/personal scheduling.
   - Review bounded actual YouTube thumbnail pixels through direct Jev; withhold failed, unavailable or uncertain image decisions.
   - Persist versioned review proof; anonymous feed requests make no paid provider calls.
   - Localize all fifteen backend static cards using the shared YAML catalog and preserve canonical Wikipedia source editions.
@@ -21,12 +26,17 @@ checks:
   - Focused backend regressions for semantic decisions, source identities, thumbnail transport, pool proof, retry bounds and all static locales.
   - Frontend fallback/store unit checks and isolated CI component/public-feed browser coverage, including Japanese source navigation and all twenty endpoint locales.
   - Real provider paired benchmark with actual model identity, drafts, Jev decisions, usage, latency and blinded automated source-grounded review.
-  - Proposed qualification targets are zero known unsafe/material unsupported admissions, 95 percent first-draft admission and 99 percent final admission; report failures honestly.
+  - Publication qualification requires no known material unsupported/wrong-language or unsafe accepted holdout, faithful positive controls and complete localized delivery; report observed limits and failures honestly.
+  - Historical 95 percent first-draft and 99 percent final generation-admission targets remain reported as yield metrics, not standalone safety gates.
+  - Fresh randomized-order paired writing benchmark, balanced multilingual positive/negative controls, expanded translated thumbnail controls and full ten-card refresh recovery.
+  - Before/after cost analysis includes the actual pre-Jev/Mercury workflow; never relabel the Gemini-only plus Jev control as the original baseline.
 decision_notes:
-  - User rejected Mistral because its output was less reliable; it remains excluded.
+  - User rejected Mistral as a current writer option; it remains excluded from the candidate and appears only in the historical baseline.
   - User authorized implementation, real-provider benchmarking, the resulting writer decision and scoped dev deployment.
   - Existing public-safe feed and language Specifications apply; ordinary model routing is outside this work.
   - Gemini Batch and a general shared-pool redesign remain outside scope.
+  - User explicitly approved the concrete granular-review, repair, rubric and qualification follow-up on 2026-10-21. Existing public-feed contracts exclude provider/prompt internals; no product contract expansion.
+  - Independent automated multilingual labels are not native-speaker sign-off; no human review is fabricated.
 evidence:
   implementation_commit: 1c753c461f9b97e1bc1e4c61c1d06b431e19bae1
   retrieval_language_fix_commit: 0e235d47780b3082802fbb0d169dc45db7cd4cda

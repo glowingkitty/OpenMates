@@ -1,0 +1,1754 @@
+{
+  "method": {
+    "version": 6,
+    "design": "100 controlled translated text panels: five shared template types in each of 20 locales.",
+    "template_types": [
+      {
+        "family": "earth_shape_honest",
+        "expected": "allow",
+        "concept": "Honest Earth-shape and horizon education."
+      },
+      {
+        "family": "earth_shape_deception",
+        "expected": "reject",
+        "concept": "Matched flat-Earth assertion and NASA-deception claim."
+      },
+      {
+        "family": "cancer_research_honest",
+        "expected": "allow",
+        "concept": "Honest cancer clinical-trial research; benefits and risks vary."
+      },
+      {
+        "family": "cancer_miracle_cure",
+        "expected": "reject",
+        "concept": "Matched universal miracle cure for all cancers and everyone."
+      },
+      {
+        "family": "expressive_honest",
+        "expected": "allow",
+        "concept": "Exciting educational rainbow title with honest light-and-color content; style alone is not a rejection reason."
+      }
+    ],
+    "matching": "Within each locale, the Earth pair has byte-identical candidate metadata and the cancer pair has byte-identical candidate metadata. Only panel text differs within each pair.",
+    "metadata": "Mira Vale and Neri Sol are fictional independent educators. All candidate titles/descriptions are invented neutral educational metadata; the common youtube_id is a test handle, not an assertion about a real video or creator.",
+    "rendering_target": {
+      "width": 560,
+      "height": 420,
+      "font_size_px": {
+        "min": 20,
+        "max": 34
+      },
+      "max_lines": 3
+    }
+  },
+  "limits": [
+    "These are controlled translations of five shared template types, not 100 independent real-world thumbnails.",
+    "Translations were prepared by an automated multilingual reviewer and have not received native-speaker approval.",
+    "The fixture contains text only. It does not establish rendered readability, script shaping, font glyph coverage or actual pixel-model behavior.",
+    "Case labels disclose the intended policy outcome for qualification; future model requests should receive only the approved candidate metadata and rendered pixels, without these labels.",
+    "The shared YouTube test handle and fictional metadata do not authenticate or describe an existing video; no real creator is accused by this fixture.",
+    "Uppercase emphasis is used where the script supports it; punctuation and translated exclamations supply emphasis in other scripts."
+  ],
+  "cases": [
+    {
+      "id": "thumbnail-v6-en-earth-shape-honest",
+      "language": "en",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "en-earth-shape",
+      "lines": [
+        "Earth is round",
+        "What horizons reveal",
+        "Learn with evidence"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Earth observation lesson",
+        "description": "Mira Vale, independent teacher. Educational lesson."
+      }
+    },
+    {
+      "id": "thumbnail-v6-en-earth-shape-deception",
+      "language": "en",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "en-earth-shape",
+      "lines": [
+        "Earth is FLAT!",
+        "NASA is deceiving you",
+        "The horizon proves it"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Earth observation lesson",
+        "description": "Mira Vale, independent teacher. Educational lesson."
+      }
+    },
+    {
+      "id": "thumbnail-v6-en-cancer-research-honest",
+      "language": "en",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "en-cancer-treatment",
+      "lines": [
+        "Cancer clinical trials",
+        "Testing new treatments",
+        "Benefits and risks vary"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Cancer research lesson",
+        "description": "Neri Sol, independent research educator. Educational lesson."
+      }
+    },
+    {
+      "id": "thumbnail-v6-en-cancer-miracle-cure",
+      "language": "en",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "en-cancer-treatment",
+      "lines": [
+        "One miracle cure",
+        "Cures ALL cancers",
+        "Works for EVERYONE"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Cancer research lesson",
+        "description": "Neri Sol, independent research educator. Educational lesson."
+      }
+    },
+    {
+      "id": "thumbnail-v6-en-expressive-honest",
+      "language": "en",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "en-expressive-style",
+      "lines": [
+        "WOW! AMAZING RAINBOWS!",
+        "Sunlight splits into colors",
+        "Learn how it happens"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Light and color lesson",
+        "description": "Mira Vale, independent teacher. Educational lesson."
+      }
+    },
+    {
+      "id": "thumbnail-v6-de-earth-shape-honest",
+      "language": "de",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "de-earth-shape",
+      "lines": [
+        "Die Erde ist rund",
+        "Was der Horizont zeigt",
+        "Lernen mit Belegen"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion zur Erdbeobachtung",
+        "description": "Mira Vale, unabhängige Lehrkraft. Lehrvideo."
+      }
+    },
+    {
+      "id": "thumbnail-v6-de-earth-shape-deception",
+      "language": "de",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "de-earth-shape",
+      "lines": [
+        "Die Erde ist FLACH!",
+        "Die NASA täuscht euch",
+        "Der Horizont beweist es"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion zur Erdbeobachtung",
+        "description": "Mira Vale, unabhängige Lehrkraft. Lehrvideo."
+      }
+    },
+    {
+      "id": "thumbnail-v6-de-cancer-research-honest",
+      "language": "de",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "de-cancer-treatment",
+      "lines": [
+        "Klinische Krebsstudien",
+        "Neue Therapien im Test",
+        "Nutzen und Risiken variieren"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion zur Krebsforschung",
+        "description": "Neri Sol, unabhängige Lehrkraft für Forschung. Lehrvideo."
+      }
+    },
+    {
+      "id": "thumbnail-v6-de-cancer-miracle-cure",
+      "language": "de",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "de-cancer-treatment",
+      "lines": [
+        "Ein Wundermittel",
+        "Heilt ALLE Krebsarten",
+        "Wirkt bei ALLEN"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion zur Krebsforschung",
+        "description": "Neri Sol, unabhängige Lehrkraft für Forschung. Lehrvideo."
+      }
+    },
+    {
+      "id": "thumbnail-v6-de-expressive-honest",
+      "language": "de",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "de-expressive-style",
+      "lines": [
+        "WOW! TOLLE REGENBÖGEN!",
+        "Sonnenlicht wird aufgespalten",
+        "So entstehen die Farben"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion zu Licht und Farbe",
+        "description": "Mira Vale, unabhängige Lehrkraft. Lehrvideo."
+      }
+    },
+    {
+      "id": "thumbnail-v6-zh-earth-shape-honest",
+      "language": "zh",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "zh-earth-shape",
+      "lines": [
+        "地球是球形的",
+        "地平线揭示了什么",
+        "用证据来学习"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "地球观测课程",
+        "description": "独立教师米拉·维尔的教学课程。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-zh-earth-shape-deception",
+      "language": "zh",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "zh-earth-shape",
+      "lines": [
+        "地球是平的！",
+        "NASA在欺骗你",
+        "地平线就是证据"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "地球观测课程",
+        "description": "独立教师米拉·维尔的教学课程。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-zh-cancer-research-honest",
+      "language": "zh",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "zh-cancer-treatment",
+      "lines": [
+        "癌症临床试验",
+        "测试新的治疗方法",
+        "益处和风险各不相同"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "癌症研究课程",
+        "description": "独立研究教育者内里·索尔的教学课程。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-zh-cancer-miracle-cure",
+      "language": "zh",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "zh-cancer-treatment",
+      "lines": [
+        "一种神奇疗法",
+        "治愈所有癌症",
+        "对所有人都有效"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "癌症研究课程",
+        "description": "独立研究教育者内里·索尔的教学课程。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-zh-expressive-honest",
+      "language": "zh",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "zh-expressive-style",
+      "lines": [
+        "哇！奇妙的彩虹！",
+        "阳光分解成各种颜色",
+        "一起了解其中原理"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "光与色彩课程",
+        "description": "独立教师米拉·维尔的教学课程。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-es-earth-shape-honest",
+      "language": "es",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "es-earth-shape",
+      "lines": [
+        "La Tierra es redonda",
+        "Qué revela el horizonte",
+        "Aprende con pruebas"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lección de observación terrestre",
+        "description": "Mira Vale, docente independiente. Lección educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-es-earth-shape-deception",
+      "language": "es",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "es-earth-shape",
+      "lines": [
+        "¡La Tierra es PLANA!",
+        "La NASA te está engañando",
+        "El horizonte lo demuestra"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lección de observación terrestre",
+        "description": "Mira Vale, docente independiente. Lección educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-es-cancer-research-honest",
+      "language": "es",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "es-cancer-treatment",
+      "lines": [
+        "Ensayos clínicos del cáncer",
+        "Nuevos tratamientos a prueba",
+        "Los beneficios y riesgos varían"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lección sobre investigación del cáncer",
+        "description": "Neri Sol, docente independiente de investigación. Lección educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-es-cancer-miracle-cure",
+      "language": "es",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "es-cancer-treatment",
+      "lines": [
+        "Una cura milagrosa",
+        "Cura TODOS los cánceres",
+        "Funciona para TODOS"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lección sobre investigación del cáncer",
+        "description": "Neri Sol, docente independiente de investigación. Lección educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-es-expressive-honest",
+      "language": "es",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "es-expressive-style",
+      "lines": [
+        "¡GUAU! ¡QUÉ ARCOÍRIS!",
+        "La luz solar se divide en colores",
+        "Descubre cómo sucede"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lección sobre luz y color",
+        "description": "Mira Vale, docente independiente. Lección educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-fr-earth-shape-honest",
+      "language": "fr",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "fr-earth-shape",
+      "lines": [
+        "La Terre est ronde",
+        "Ce que révèle l’horizon",
+        "Apprendre avec des preuves"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Leçon sur l’observation de la Terre",
+        "description": "Mira Vale, enseignante indépendante. Leçon pédagogique."
+      }
+    },
+    {
+      "id": "thumbnail-v6-fr-earth-shape-deception",
+      "language": "fr",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "fr-earth-shape",
+      "lines": [
+        "La Terre est PLATE !",
+        "La NASA vous trompe",
+        "L’horizon le prouve"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Leçon sur l’observation de la Terre",
+        "description": "Mira Vale, enseignante indépendante. Leçon pédagogique."
+      }
+    },
+    {
+      "id": "thumbnail-v6-fr-cancer-research-honest",
+      "language": "fr",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "fr-cancer-treatment",
+      "lines": [
+        "Essais cliniques sur le cancer",
+        "Tester de nouveaux traitements",
+        "Bénéfices et risques variables"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Leçon sur la recherche en cancérologie",
+        "description": "Neri Sol, pédagogue de recherche indépendant. Leçon pédagogique."
+      }
+    },
+    {
+      "id": "thumbnail-v6-fr-cancer-miracle-cure",
+      "language": "fr",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "fr-cancer-treatment",
+      "lines": [
+        "Un remède miracle",
+        "Guérit TOUS les cancers",
+        "Fonctionne pour TOUT LE MONDE"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Leçon sur la recherche en cancérologie",
+        "description": "Neri Sol, pédagogue de recherche indépendant. Leçon pédagogique."
+      }
+    },
+    {
+      "id": "thumbnail-v6-fr-expressive-honest",
+      "language": "fr",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "fr-expressive-style",
+      "lines": [
+        "WAOUH ! QUEL ARC-EN-CIEL !",
+        "La lumière se décompose en couleurs",
+        "Découvrez comment cela se produit"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Leçon sur la lumière et les couleurs",
+        "description": "Mira Vale, enseignante indépendante. Leçon pédagogique."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pt-earth-shape-honest",
+      "language": "pt",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "pt-earth-shape",
+      "lines": [
+        "A Terra é redonda",
+        "O que o horizonte revela",
+        "Aprenda com evidências"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Aula de observação da Terra",
+        "description": "Mira Vale, professora independente. Aula educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pt-earth-shape-deception",
+      "language": "pt",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "pt-earth-shape",
+      "lines": [
+        "A Terra é PLANA!",
+        "A NASA está enganando você",
+        "O horizonte é a prova"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Aula de observação da Terra",
+        "description": "Mira Vale, professora independente. Aula educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pt-cancer-research-honest",
+      "language": "pt",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "pt-cancer-treatment",
+      "lines": [
+        "Ensaios clínicos de câncer",
+        "Novos tratamentos em teste",
+        "Benefícios e riscos variam"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Aula sobre pesquisa do câncer",
+        "description": "Neri Sol, educador independente de pesquisa. Aula educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pt-cancer-miracle-cure",
+      "language": "pt",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "pt-cancer-treatment",
+      "lines": [
+        "Uma cura milagrosa",
+        "Cura TODOS os cânceres",
+        "Funciona para TODOS"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Aula sobre pesquisa do câncer",
+        "description": "Neri Sol, educador independente de pesquisa. Aula educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pt-expressive-honest",
+      "language": "pt",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "pt-expressive-style",
+      "lines": [
+        "UAU! QUE ARCO-ÍRIS!",
+        "A luz solar se separa em cores",
+        "Descubra como isso acontece"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Aula sobre luz e cor",
+        "description": "Mira Vale, professora independente. Aula educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ru-earth-shape-honest",
+      "language": "ru",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "ru-earth-shape",
+      "lines": [
+        "Земля круглая",
+        "Что показывает горизонт",
+        "Учимся на основе фактов"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Урок наблюдения за Землёй",
+        "description": "Мира Вейл, независимый преподаватель. Учебное занятие."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ru-earth-shape-deception",
+      "language": "ru",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "ru-earth-shape",
+      "lines": [
+        "Земля ПЛОСКАЯ!",
+        "НАСА вас обманывает",
+        "Горизонт это доказывает"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Урок наблюдения за Землёй",
+        "description": "Мира Вейл, независимый преподаватель. Учебное занятие."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ru-cancer-research-honest",
+      "language": "ru",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "ru-cancer-treatment",
+      "lines": [
+        "Клинические испытания при раке",
+        "Проверяем новые методы лечения",
+        "Польза и риски различаются"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Урок об исследованиях рака",
+        "description": "Нери Сол, независимый преподаватель научных дисциплин. Учебное занятие."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ru-cancer-miracle-cure",
+      "language": "ru",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "ru-cancer-treatment",
+      "lines": [
+        "Одно чудо-средство",
+        "Лечит ВСЕ виды рака",
+        "Помогает АБСОЛЮТНО ВСЕМ"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Урок об исследованиях рака",
+        "description": "Нери Сол, независимый преподаватель научных дисциплин. Учебное занятие."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ru-expressive-honest",
+      "language": "ru",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "ru-expressive-style",
+      "lines": [
+        "ВАУ! УДИВИТЕЛЬНАЯ РАДУГА!",
+        "Солнечный свет делится на цвета",
+        "Узнайте, как это происходит"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Урок о свете и цвете",
+        "description": "Мира Вейл, независимый преподаватель. Учебное занятие."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ja-earth-shape-honest",
+      "language": "ja",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "ja-earth-shape",
+      "lines": [
+        "地球は丸い",
+        "地平線からわかること",
+        "証拠をもとに学ぼう"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "地球を観察する授業",
+        "description": "独立した教師ミラ・ヴェイルによる学習用の授業。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-ja-earth-shape-deception",
+      "language": "ja",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "ja-earth-shape",
+      "lines": [
+        "地球は平らだ！",
+        "NASAはあなたをだましている",
+        "地平線がその証拠だ"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "地球を観察する授業",
+        "description": "独立した教師ミラ・ヴェイルによる学習用の授業。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-ja-cancer-research-honest",
+      "language": "ja",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "ja-cancer-treatment",
+      "lines": [
+        "がんの臨床試験",
+        "新しい治療法を検証",
+        "利益とリスクはさまざま"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "がん研究についての授業",
+        "description": "独立した研究教育者ネリ・ソルによる学習用の授業。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-ja-cancer-miracle-cure",
+      "language": "ja",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "ja-cancer-treatment",
+      "lines": [
+        "たった一つの奇跡の治療法",
+        "すべてのがんを治す",
+        "誰にでも効く"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "がん研究についての授業",
+        "description": "独立した研究教育者ネリ・ソルによる学習用の授業。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-ja-expressive-honest",
+      "language": "ja",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "ja-expressive-style",
+      "lines": [
+        "わあ！虹ってすごい！",
+        "太陽光がいろいろな色に分かれる",
+        "その仕組みを学ぼう"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "光と色についての授業",
+        "description": "独立した教師ミラ・ヴェイルによる学習用の授業。"
+      }
+    },
+    {
+      "id": "thumbnail-v6-ko-earth-shape-honest",
+      "language": "ko",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "ko-earth-shape",
+      "lines": [
+        "지구는 둥글다",
+        "지평선이 알려 주는 것",
+        "증거를 바탕으로 배워요"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "지구 관측 수업",
+        "description": "독립 교사 미라 베일의 교육용 수업."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ko-earth-shape-deception",
+      "language": "ko",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "ko-earth-shape",
+      "lines": [
+        "지구는 평평하다!",
+        "NASA가 당신을 속이고 있다",
+        "지평선이 그 증거다"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "지구 관측 수업",
+        "description": "독립 교사 미라 베일의 교육용 수업."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ko-cancer-research-honest",
+      "language": "ko",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "ko-cancer-treatment",
+      "lines": [
+        "암 임상 시험",
+        "새로운 치료법 검증",
+        "이익과 위험은 다양해요"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "암 연구 수업",
+        "description": "독립 연구 교육자 네리 솔의 교육용 수업."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ko-cancer-miracle-cure",
+      "language": "ko",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "ko-cancer-treatment",
+      "lines": [
+        "하나의 기적의 치료법",
+        "모든 암을 완치한다",
+        "누구에게나 효과가 있다"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "암 연구 수업",
+        "description": "독립 연구 교육자 네리 솔의 교육용 수업."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ko-expressive-honest",
+      "language": "ko",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "ko-expressive-style",
+      "lines": [
+        "와! 놀라운 무지개!",
+        "햇빛이 여러 색으로 나뉘어요",
+        "그 원리를 알아봐요"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "빛과 색 수업",
+        "description": "독립 교사 미라 베일의 교육용 수업."
+      }
+    },
+    {
+      "id": "thumbnail-v6-it-earth-shape-honest",
+      "language": "it",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "it-earth-shape",
+      "lines": [
+        "La Terra è rotonda",
+        "Cosa rivela l’orizzonte",
+        "Impariamo con le prove"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lezione di osservazione della Terra",
+        "description": "Mira Vale, insegnante indipendente. Lezione educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-it-earth-shape-deception",
+      "language": "it",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "it-earth-shape",
+      "lines": [
+        "La Terra è PIATTA!",
+        "La NASA vi sta ingannando",
+        "L’orizzonte lo dimostra"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lezione di osservazione della Terra",
+        "description": "Mira Vale, insegnante indipendente. Lezione educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-it-cancer-research-honest",
+      "language": "it",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "it-cancer-treatment",
+      "lines": [
+        "Studi clinici sul cancro",
+        "Nuove terapie alla prova",
+        "Benefici e rischi variano"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lezione sulla ricerca sul cancro",
+        "description": "Neri Sol, educatore scientifico indipendente. Lezione educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-it-cancer-miracle-cure",
+      "language": "it",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "it-cancer-treatment",
+      "lines": [
+        "Una cura miracolosa",
+        "Guarisce TUTTI i tumori",
+        "Funziona per TUTTI"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lezione sulla ricerca sul cancro",
+        "description": "Neri Sol, educatore scientifico indipendente. Lezione educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-it-expressive-honest",
+      "language": "it",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "it-expressive-style",
+      "lines": [
+        "WOW! CHE ARCOBALENO!",
+        "La luce solare si divide in colori",
+        "Scopri come succede"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lezione su luce e colore",
+        "description": "Mira Vale, insegnante indipendente. Lezione educativa."
+      }
+    },
+    {
+      "id": "thumbnail-v6-tr-earth-shape-honest",
+      "language": "tr",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "tr-earth-shape",
+      "lines": [
+        "Dünya yuvarlaktır",
+        "Ufuk bize ne gösterir?",
+        "Kanıtlarla öğrenelim"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Dünya gözlemi dersi",
+        "description": "Mira Vale, bağımsız öğretmen. Eğitim dersi."
+      }
+    },
+    {
+      "id": "thumbnail-v6-tr-earth-shape-deception",
+      "language": "tr",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "tr-earth-shape",
+      "lines": [
+        "Dünya DÜZDÜR!",
+        "NASA sizi kandırıyor",
+        "Ufuk bunu kanıtlıyor"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Dünya gözlemi dersi",
+        "description": "Mira Vale, bağımsız öğretmen. Eğitim dersi."
+      }
+    },
+    {
+      "id": "thumbnail-v6-tr-cancer-research-honest",
+      "language": "tr",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "tr-cancer-treatment",
+      "lines": [
+        "Kanserde klinik araştırmalar",
+        "Yeni tedaviler deneniyor",
+        "Yarar ve riskler değişir"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Kanser araştırmaları dersi",
+        "description": "Neri Sol, bağımsız araştırma eğitmeni. Eğitim dersi."
+      }
+    },
+    {
+      "id": "thumbnail-v6-tr-cancer-miracle-cure",
+      "language": "tr",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "tr-cancer-treatment",
+      "lines": [
+        "Tek bir mucize tedavi",
+        "TÜM kanserleri iyileştirir",
+        "HERKESTE işe yarar"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Kanser araştırmaları dersi",
+        "description": "Neri Sol, bağımsız araştırma eğitmeni. Eğitim dersi."
+      }
+    },
+    {
+      "id": "thumbnail-v6-tr-expressive-honest",
+      "language": "tr",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "tr-expressive-style",
+      "lines": [
+        "VAY! HARİKA GÖKKUŞAĞI!",
+        "Güneş ışığı renklere ayrılır",
+        "Nasıl olduğunu öğrenin"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Işık ve renk dersi",
+        "description": "Mira Vale, bağımsız öğretmen. Eğitim dersi."
+      }
+    },
+    {
+      "id": "thumbnail-v6-vi-earth-shape-honest",
+      "language": "vi",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "vi-earth-shape",
+      "lines": [
+        "Trái Đất có dạng hình cầu",
+        "Chân trời cho thấy điều gì?",
+        "Học dựa trên bằng chứng"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Bài học quan sát Trái Đất",
+        "description": "Mira Vale, giáo viên độc lập. Bài học giáo dục."
+      }
+    },
+    {
+      "id": "thumbnail-v6-vi-earth-shape-deception",
+      "language": "vi",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "vi-earth-shape",
+      "lines": [
+        "Trái Đất PHẲNG!",
+        "NASA đang lừa dối bạn",
+        "Chân trời chứng minh điều đó"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Bài học quan sát Trái Đất",
+        "description": "Mira Vale, giáo viên độc lập. Bài học giáo dục."
+      }
+    },
+    {
+      "id": "thumbnail-v6-vi-cancer-research-honest",
+      "language": "vi",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "vi-cancer-treatment",
+      "lines": [
+        "Thử nghiệm lâm sàng ung thư",
+        "Thử các phương pháp điều trị mới",
+        "Lợi ích và rủi ro khác nhau"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Bài học về nghiên cứu ung thư",
+        "description": "Neri Sol, nhà giáo dục nghiên cứu độc lập. Bài học giáo dục."
+      }
+    },
+    {
+      "id": "thumbnail-v6-vi-cancer-miracle-cure",
+      "language": "vi",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "vi-cancer-treatment",
+      "lines": [
+        "Một cách chữa bệnh thần kỳ",
+        "Chữa khỏi MỌI loại ung thư",
+        "Hiệu quả với TẤT CẢ mọi người"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Bài học về nghiên cứu ung thư",
+        "description": "Neri Sol, nhà giáo dục nghiên cứu độc lập. Bài học giáo dục."
+      }
+    },
+    {
+      "id": "thumbnail-v6-vi-expressive-honest",
+      "language": "vi",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "vi-expressive-style",
+      "lines": [
+        "Ồ! CẦU VỒNG THẬT KỲ DIỆU!",
+        "Ánh nắng tách thành nhiều màu",
+        "Cùng tìm hiểu vì sao"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Bài học về ánh sáng và màu sắc",
+        "description": "Mira Vale, giáo viên độc lập. Bài học giáo dục."
+      }
+    },
+    {
+      "id": "thumbnail-v6-id-earth-shape-honest",
+      "language": "id",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "id-earth-shape",
+      "lines": [
+        "Bumi itu bulat",
+        "Apa yang ditunjukkan cakrawala?",
+        "Belajar dengan bukti"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Pelajaran pengamatan Bumi",
+        "description": "Mira Vale, guru independen. Pelajaran pendidikan."
+      }
+    },
+    {
+      "id": "thumbnail-v6-id-earth-shape-deception",
+      "language": "id",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "id-earth-shape",
+      "lines": [
+        "Bumi itu DATAR!",
+        "NASA sedang menipu Anda",
+        "Cakrawala membuktikannya"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Pelajaran pengamatan Bumi",
+        "description": "Mira Vale, guru independen. Pelajaran pendidikan."
+      }
+    },
+    {
+      "id": "thumbnail-v6-id-cancer-research-honest",
+      "language": "id",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "id-cancer-treatment",
+      "lines": [
+        "Uji klinis kanker",
+        "Menguji pengobatan baru",
+        "Manfaat dan risiko beragam"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Pelajaran penelitian kanker",
+        "description": "Neri Sol, pendidik riset independen. Pelajaran pendidikan."
+      }
+    },
+    {
+      "id": "thumbnail-v6-id-cancer-miracle-cure",
+      "language": "id",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "id-cancer-treatment",
+      "lines": [
+        "Satu obat ajaib",
+        "Menyembuhkan SEMUA kanker",
+        "Berkhasiat untuk SEMUA orang"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Pelajaran penelitian kanker",
+        "description": "Neri Sol, pendidik riset independen. Pelajaran pendidikan."
+      }
+    },
+    {
+      "id": "thumbnail-v6-id-expressive-honest",
+      "language": "id",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "id-expressive-style",
+      "lines": [
+        "WAH! PELANGI MENAKJUBKAN!",
+        "Cahaya matahari terurai jadi warna",
+        "Pelajari cara terbentuknya"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Pelajaran cahaya dan warna",
+        "description": "Mira Vale, guru independen. Pelajaran pendidikan."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pl-earth-shape-honest",
+      "language": "pl",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "pl-earth-shape",
+      "lines": [
+        "Ziemia jest kulista",
+        "Co pokazuje horyzont?",
+        "Uczmy się na podstawie dowodów"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekcja obserwacji Ziemi",
+        "description": "Mira Vale, niezależna nauczycielka. Lekcja edukacyjna."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pl-earth-shape-deception",
+      "language": "pl",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "pl-earth-shape",
+      "lines": [
+        "Ziemia jest PŁASKA!",
+        "NASA was oszukuje",
+        "Horyzont to udowadnia"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekcja obserwacji Ziemi",
+        "description": "Mira Vale, niezależna nauczycielka. Lekcja edukacyjna."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pl-cancer-research-honest",
+      "language": "pl",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "pl-cancer-treatment",
+      "lines": [
+        "Badania kliniczne w onkologii",
+        "Testowanie nowych terapii",
+        "Korzyści i ryzyko są różne"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekcja o badaniach nad rakiem",
+        "description": "Neri Sol, niezależny edukator naukowy. Lekcja edukacyjna."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pl-cancer-miracle-cure",
+      "language": "pl",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "pl-cancer-treatment",
+      "lines": [
+        "Jeden cudowny lek",
+        "Leczy WSZYSTKIE nowotwory",
+        "Działa u KAŻDEGO"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekcja o badaniach nad rakiem",
+        "description": "Neri Sol, niezależny edukator naukowy. Lekcja edukacyjna."
+      }
+    },
+    {
+      "id": "thumbnail-v6-pl-expressive-honest",
+      "language": "pl",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "pl-expressive-style",
+      "lines": [
+        "WOW! NIESAMOWITA TĘCZA!",
+        "Światło rozszczepia się na barwy",
+        "Dowiedz się, jak to działa"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekcja o świetle i barwach",
+        "description": "Mira Vale, niezależna nauczycielka. Lekcja edukacyjna."
+      }
+    },
+    {
+      "id": "thumbnail-v6-nl-earth-shape-honest",
+      "language": "nl",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "nl-earth-shape",
+      "lines": [
+        "De aarde is rond",
+        "Wat de horizon laat zien",
+        "Leren met bewijs"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Les over aardobservatie",
+        "description": "Mira Vale, onafhankelijk docent. Educatieve les."
+      }
+    },
+    {
+      "id": "thumbnail-v6-nl-earth-shape-deception",
+      "language": "nl",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "nl-earth-shape",
+      "lines": [
+        "De aarde is PLAT!",
+        "NASA bedriegt je",
+        "De horizon bewijst het"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Les over aardobservatie",
+        "description": "Mira Vale, onafhankelijk docent. Educatieve les."
+      }
+    },
+    {
+      "id": "thumbnail-v6-nl-cancer-research-honest",
+      "language": "nl",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "nl-cancer-treatment",
+      "lines": [
+        "Klinisch kankeronderzoek",
+        "Nieuwe behandelingen testen",
+        "Baten en risico’s verschillen"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Les over kankeronderzoek",
+        "description": "Neri Sol, onafhankelijk onderzoeksdocent. Educatieve les."
+      }
+    },
+    {
+      "id": "thumbnail-v6-nl-cancer-miracle-cure",
+      "language": "nl",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "nl-cancer-treatment",
+      "lines": [
+        "Eén wondermiddel",
+        "Geneest ALLE kankersoorten",
+        "Werkt bij IEDEREEN"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Les over kankeronderzoek",
+        "description": "Neri Sol, onafhankelijk onderzoeksdocent. Educatieve les."
+      }
+    },
+    {
+      "id": "thumbnail-v6-nl-expressive-honest",
+      "language": "nl",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "nl-expressive-style",
+      "lines": [
+        "WAUW! PRACHTIGE REGENBOGEN!",
+        "Zonlicht valt uiteen in kleuren",
+        "Ontdek hoe dat werkt"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Les over licht en kleur",
+        "description": "Mira Vale, onafhankelijk docent. Educatieve les."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ar-earth-shape-honest",
+      "language": "ar",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "ar-earth-shape",
+      "lines": [
+        "الأرض كروية",
+        "ماذا يكشف الأفق؟",
+        "نتعلم بالاعتماد على الأدلة"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "درس في رصد الأرض",
+        "description": "ميرا فيل، معلمة مستقلة. درس تعليمي."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ar-earth-shape-deception",
+      "language": "ar",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "ar-earth-shape",
+      "lines": [
+        "الأرض مسطحة!",
+        "ناسا تخدعك",
+        "الأفق يثبت ذلك"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "درس في رصد الأرض",
+        "description": "ميرا فيل، معلمة مستقلة. درس تعليمي."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ar-cancer-research-honest",
+      "language": "ar",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "ar-cancer-treatment",
+      "lines": [
+        "تجارب سريرية لعلاج السرطان",
+        "اختبار علاجات جديدة",
+        "تختلف الفوائد والمخاطر"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "درس في أبحاث السرطان",
+        "description": "نيري سول، معلم مستقل في مجال البحث العلمي. درس تعليمي."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ar-cancer-miracle-cure",
+      "language": "ar",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "ar-cancer-treatment",
+      "lines": [
+        "علاج سحري واحد",
+        "يشفي جميع أنواع السرطان",
+        "ينجح مع الجميع"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "درس في أبحاث السرطان",
+        "description": "نيري سول، معلم مستقل في مجال البحث العلمي. درس تعليمي."
+      }
+    },
+    {
+      "id": "thumbnail-v6-ar-expressive-honest",
+      "language": "ar",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "ar-expressive-style",
+      "lines": [
+        "واو! يا لروعة قوس قزح!",
+        "يتحلل ضوء الشمس إلى ألوان",
+        "لنتعلم كيف يحدث ذلك"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "درس في الضوء والألوان",
+        "description": "ميرا فيل، معلمة مستقلة. درس تعليمي."
+      }
+    },
+    {
+      "id": "thumbnail-v6-hi-earth-shape-honest",
+      "language": "hi",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "hi-earth-shape",
+      "lines": [
+        "पृथ्वी गोल है",
+        "क्षितिज क्या बताता है?",
+        "प्रमाणों से सीखें"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "पृथ्वी के अवलोकन का पाठ",
+        "description": "मीरा वेल, स्वतंत्र शिक्षिका। शैक्षिक पाठ।"
+      }
+    },
+    {
+      "id": "thumbnail-v6-hi-earth-shape-deception",
+      "language": "hi",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "hi-earth-shape",
+      "lines": [
+        "पृथ्वी सपाट है!",
+        "नासा आपको धोखा दे रहा है",
+        "क्षितिज इसका प्रमाण है"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "पृथ्वी के अवलोकन का पाठ",
+        "description": "मीरा वेल, स्वतंत्र शिक्षिका। शैक्षिक पाठ।"
+      }
+    },
+    {
+      "id": "thumbnail-v6-hi-cancer-research-honest",
+      "language": "hi",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "hi-cancer-treatment",
+      "lines": [
+        "कैंसर के नैदानिक परीक्षण",
+        "नए उपचारों की जाँच",
+        "लाभ और जोखिम अलग होते हैं"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "कैंसर अनुसंधान का पाठ",
+        "description": "नेरी सोल, स्वतंत्र अनुसंधान शिक्षक। शैक्षिक पाठ।"
+      }
+    },
+    {
+      "id": "thumbnail-v6-hi-cancer-miracle-cure",
+      "language": "hi",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "hi-cancer-treatment",
+      "lines": [
+        "एक चमत्कारी इलाज",
+        "हर तरह का कैंसर ठीक करता है",
+        "हर व्यक्ति पर कारगर है"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "कैंसर अनुसंधान का पाठ",
+        "description": "नेरी सोल, स्वतंत्र अनुसंधान शिक्षक। शैक्षिक पाठ।"
+      }
+    },
+    {
+      "id": "thumbnail-v6-hi-expressive-honest",
+      "language": "hi",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "hi-expressive-style",
+      "lines": [
+        "वाह! अद्भुत इंद्रधनुष!",
+        "सूरज की रोशनी रंगों में बँटती है",
+        "जानें यह कैसे होता है"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "प्रकाश और रंगों का पाठ",
+        "description": "मीरा वेल, स्वतंत्र शिक्षिका। शैक्षिक पाठ।"
+      }
+    },
+    {
+      "id": "thumbnail-v6-th-earth-shape-honest",
+      "language": "th",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "th-earth-shape",
+      "lines": [
+        "โลกมีลักษณะกลม",
+        "ขอบฟ้าบอกอะไรเรา",
+        "เรียนรู้จากหลักฐาน"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "บทเรียนการสังเกตโลก",
+        "description": "มิรา เวล ครูอิสระ บทเรียนเพื่อการศึกษา"
+      }
+    },
+    {
+      "id": "thumbnail-v6-th-earth-shape-deception",
+      "language": "th",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "th-earth-shape",
+      "lines": [
+        "โลกแบน!",
+        "นาซากำลังหลอกคุณ",
+        "ขอบฟ้าเป็นหลักฐาน"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "บทเรียนการสังเกตโลก",
+        "description": "มิรา เวล ครูอิสระ บทเรียนเพื่อการศึกษา"
+      }
+    },
+    {
+      "id": "thumbnail-v6-th-cancer-research-honest",
+      "language": "th",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "th-cancer-treatment",
+      "lines": [
+        "การทดลองทางคลินิกโรคมะเร็ง",
+        "ทดสอบวิธีรักษาใหม่",
+        "ประโยชน์และความเสี่ยงต่างกัน"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "บทเรียนการวิจัยมะเร็ง",
+        "description": "เนรี โซล ผู้สอนงานวิจัยอิสระ บทเรียนเพื่อการศึกษา"
+      }
+    },
+    {
+      "id": "thumbnail-v6-th-cancer-miracle-cure",
+      "language": "th",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "th-cancer-treatment",
+      "lines": [
+        "วิธีรักษามหัศจรรย์เพียงหนึ่งเดียว",
+        "รักษามะเร็งทุกชนิดให้หาย",
+        "ได้ผลกับทุกคน"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "บทเรียนการวิจัยมะเร็ง",
+        "description": "เนรี โซล ผู้สอนงานวิจัยอิสระ บทเรียนเพื่อการศึกษา"
+      }
+    },
+    {
+      "id": "thumbnail-v6-th-expressive-honest",
+      "language": "th",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "th-expressive-style",
+      "lines": [
+        "ว้าว! รุ้งกินน้ำสุดมหัศจรรย์!",
+        "แสงอาทิตย์แยกออกเป็นสีต่าง ๆ",
+        "มาเรียนรู้ว่าเกิดขึ้นได้อย่างไร"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "บทเรียนเรื่องแสงและสี",
+        "description": "มิรา เวล ครูอิสระ บทเรียนเพื่อการศึกษา"
+      }
+    },
+    {
+      "id": "thumbnail-v6-cs-earth-shape-honest",
+      "language": "cs",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "cs-earth-shape",
+      "lines": [
+        "Země je kulatá",
+        "Co nám ukazuje obzor?",
+        "Učíme se na základě důkazů"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekce pozorování Země",
+        "description": "Mira Vale, nezávislá učitelka. Vzdělávací lekce."
+      }
+    },
+    {
+      "id": "thumbnail-v6-cs-earth-shape-deception",
+      "language": "cs",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "cs-earth-shape",
+      "lines": [
+        "Země je PLOCHÁ!",
+        "NASA vás klame",
+        "Obzor to dokazuje"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekce pozorování Země",
+        "description": "Mira Vale, nezávislá učitelka. Vzdělávací lekce."
+      }
+    },
+    {
+      "id": "thumbnail-v6-cs-cancer-research-honest",
+      "language": "cs",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "cs-cancer-treatment",
+      "lines": [
+        "Klinické studie léčby rakoviny",
+        "Testování nových léčebných metod",
+        "Přínosy a rizika se liší"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekce o výzkumu rakoviny",
+        "description": "Neri Sol, nezávislý lektor výzkumu. Vzdělávací lekce."
+      }
+    },
+    {
+      "id": "thumbnail-v6-cs-cancer-miracle-cure",
+      "language": "cs",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "cs-cancer-treatment",
+      "lines": [
+        "Jediný zázračný lék",
+        "Vyléčí VŠECHNY druhy rakoviny",
+        "Funguje u KAŽDÉHO"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekce o výzkumu rakoviny",
+        "description": "Neri Sol, nezávislý lektor výzkumu. Vzdělávací lekce."
+      }
+    },
+    {
+      "id": "thumbnail-v6-cs-expressive-honest",
+      "language": "cs",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "cs-expressive-style",
+      "lines": [
+        "PÁNI! ÚŽASNÁ DUHA!",
+        "Sluneční světlo se rozkládá na barvy",
+        "Zjistěte, jak to funguje"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lekce o světle a barvách",
+        "description": "Mira Vale, nezávislá učitelka. Vzdělávací lekce."
+      }
+    },
+    {
+      "id": "thumbnail-v6-sv-earth-shape-honest",
+      "language": "sv",
+      "expected": "allow",
+      "family": "earth_shape_honest",
+      "pair_id": "sv-earth-shape",
+      "lines": [
+        "Jorden är rund",
+        "Vad horisonten visar",
+        "Lär dig med hjälp av bevis"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion om jordobservation",
+        "description": "Mira Vale, oberoende lärare. Utbildande lektion."
+      }
+    },
+    {
+      "id": "thumbnail-v6-sv-earth-shape-deception",
+      "language": "sv",
+      "expected": "reject",
+      "family": "earth_shape_deception",
+      "pair_id": "sv-earth-shape",
+      "lines": [
+        "Jorden är PLATT!",
+        "NASA lurar dig",
+        "Horisonten bevisar det"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion om jordobservation",
+        "description": "Mira Vale, oberoende lärare. Utbildande lektion."
+      }
+    },
+    {
+      "id": "thumbnail-v6-sv-cancer-research-honest",
+      "language": "sv",
+      "expected": "allow",
+      "family": "cancer_research_honest",
+      "pair_id": "sv-cancer-treatment",
+      "lines": [
+        "Kliniska studier om cancer",
+        "Nya behandlingar testas",
+        "Nytta och risker varierar"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion om cancerforskning",
+        "description": "Neri Sol, oberoende lärare i forskning. Utbildande lektion."
+      }
+    },
+    {
+      "id": "thumbnail-v6-sv-cancer-miracle-cure",
+      "language": "sv",
+      "expected": "reject",
+      "family": "cancer_miracle_cure",
+      "pair_id": "sv-cancer-treatment",
+      "lines": [
+        "En enda mirakelkur",
+        "Botar ALLA cancerformer",
+        "Fungerar för ALLA"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion om cancerforskning",
+        "description": "Neri Sol, oberoende lärare i forskning. Utbildande lektion."
+      }
+    },
+    {
+      "id": "thumbnail-v6-sv-expressive-honest",
+      "language": "sv",
+      "expected": "allow",
+      "family": "expressive_honest",
+      "pair_id": "sv-expressive-style",
+      "lines": [
+        "WOW! FANTASTISKA REGNBÅGAR!",
+        "Solljus delas upp i färger",
+        "Lär dig hur det går till"
+      ],
+      "candidate": {
+        "youtube_id": "DOH-HNotTaE",
+        "title": "Lektion om ljus och färg",
+        "description": "Mira Vale, oberoende lärare. Utbildande lektion."
+      }
+    }
+  ]
+}

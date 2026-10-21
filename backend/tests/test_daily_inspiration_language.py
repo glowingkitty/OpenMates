@@ -18,6 +18,7 @@ from backend.apps.ai.daily_inspiration.feature_suggestions import (
     feature_requires_authentication,
 )
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
+from backend.apps.ai.daily_inspiration.media_coherence import editorial_review_digest, is_inspiration_media_coherent
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -61,7 +62,7 @@ def _load_route():
         "feature_requires_authentication": feature_requires_authentication,
         "build_feature_inspirations": build_feature_inspirations,
         "build_wiki_inspirations": build_wiki_inspirations,
-        "is_inspiration_media_coherent": lambda record: True,
+        "is_inspiration_media_coherent": is_inspiration_media_coherent,
     }
     exec(
         compile(ast.Module(body=nodes, type_ignores=[]), str(source), "exec"), namespace
@@ -117,6 +118,10 @@ async def test_german_defaults_remove_english_fill_even_when_stamped_german():
         "content_type": "wiki",
         "category": "science",
     }
+    german["wiki_metadata"] = {"wiki_title": "Biolumineszenz", "source_language": "de",
+        "title": "Biolumineszenz", "description": "Natürliches Leuchten",
+        "extract": "Tiere erzeugen durch chemische Reaktionen Licht."}
+    german["editorial_review"] = editorial_review_digest(german)
     directus = SimpleNamespace(
         inspiration_defaults=SimpleNamespace(
             get_defaults_for_date=AsyncMock(return_value=[english, german])
@@ -138,7 +143,7 @@ async def test_german_defaults_remove_english_fill_even_when_stamped_german():
     assert all(item["language"] == "de" for item in items)
     assert not any(item["phrase"] == english["phrase"] for item in items)
     assert any(item["phrase"] == german["phrase"] for item in items)
-    assert redis.set.call_args.args[0] == "public:default_inspirations:v13:de"
+    assert redis.set.call_args.args[0] == "public:default_inspirations:v15:de"
 
 
 @pytest.mark.asyncio
@@ -183,3 +188,37 @@ async def test_every_public_locale_recovers_ten_localized_cards(language):
         english_phrases = {card.phrase for card in build_wiki_inspirations(10)}
         english_phrases.update(card.phrase for card in build_feature_inspirations(20))
         assert not english_phrases.intersection(card["phrase"] for card in cards)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("language", ["en", "de"])
+@pytest.mark.parametrize("legacy", ["missing_proof", "old_proof", "changed_source", "missing_source"])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_legacy_dynamic_wiki_defaults_are_withheld_and_static_ten_recover(language, legacy):
+    row = {"pool_entry_id": "legacy-wiki", "language": language, "content_type": "wiki",
+           "phrase": "LEGACY_UNREVIEWED_COPY", "title": "Legacy generated title",
+           "assistant_response": "Legacy generated intro", "follow_up_suggestions": [],
+           "wiki_metadata": {"wiki_title": "Cloud", "source_language": "en", "title": "Cloud",
+                             "description": "Atmospheric droplets", "extract": "Clouds contain droplets."}}
+    if legacy != "missing_proof":
+        row["editorial_review"] = editorial_review_digest(row)
+    if legacy == "old_proof":
+        row["editorial_review"] = row["editorial_review"].replace("daily-editorial-v6:", "daily-editorial-v5:")
+    elif legacy == "changed_source":
+        row["wiki_metadata"]["extract"] = "A changed source passage."
+    elif legacy == "missing_source":
+        row.pop("wiki_metadata")
+    directus = SimpleNamespace(
+        inspiration_defaults=SimpleNamespace(get_defaults_for_date=AsyncMock(return_value=[row])),
+        inspiration_pool=SimpleNamespace(get_pool_entries_by_language=AsyncMock(return_value=[{"id": "legacy-wiki"}]))
+    )
+    class Cache:
+        @property
+        async def client(self):
+            return None
+    response = await _load_route()(None, language, directus, Cache())
+    cards = response["inspirations"]
+    assert len(cards) == 10
+    assert not any(card["phrase"] == row["phrase"] for card in cards)
+    assert all(card["content_type"] in {"wiki", "feature"} for card in cards)
+    assert all(card["language"] == language for card in cards)

@@ -27,14 +27,14 @@ from unittest.mock import patch
 def load_runtime():
     """Keep planning/dry-run usable without provider dependencies or credentials."""
     global httpx, AsyncModels, config, decisions, generator, thumbnail_review
-    global video_processor, wiki_generator, writer, call_preprocessing_llm
+    global video_processor, wiki_generator, writer, validator, call_preprocessing_llm
     global SecretsManager, JevDecisionClient, wikipedia
-    global llm_utils
+    global llm_utils, media_coherence
     import httpx
     from google.genai.models import AsyncModels
     
     from backend.apps.ai.daily_inspiration import (
-        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer,
+        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence,
     )
     from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
     from backend.apps.ai.utils import llm_utils
@@ -45,29 +45,85 @@ def load_runtime():
 
 
 LANGUAGES = ('en de zh es fr pt ru ja ko it tr vi id pl nl ar hi th cs sv').split()
-# Fresh topics, separate from the existing recovery benchmark's fixture catalogue.
+# Fresh qualification catalogue; each column denotes the same concept in all locales.
 TOPICS = {
-    'en': 'Volcano|Pollination|Solar eclipse|Coral reef|Gear',
-    'de': 'Vulkan|Bestäubung|Sonnenfinsternis|Korallenriff|Zahnrad',
-    'zh': '火山|授粉|日食|珊瑚礁|齿轮',
-    'es': 'Volcán|Polinización|Eclipse solar|Arrecife de coral|Engranaje',
-    'fr': 'Volcan|Pollinisation|Éclipse solaire|Récif corallien|Engrenage',
-    'pt': 'Vulcão|Polinização|Eclipse solar|Recife de coral|Engrenagem',
-    'ru': 'Вулкан|Опыление|Солнечное затмение|Коралловый риф|Зубчатое колесо',
-    'ja': '火山|受粉|日食|サンゴ礁|歯車',
-    'ko': '화산|수분|일식|산호초|톱니바퀴',
-    'it': 'Vulcano|Impollinazione|Eclissi solare|Barriera corallina|Ingranaggio',
-    'tr': 'Yanardağ|Tozlaşma|Güneş tutulması|Mercan resifi|Dişli çark',
-    'vi': 'Núi lửa|Thụ phấn|Nhật thực|Rạn san hô|Bánh răng',
-    'id': 'Gunung berapi|Penyerbukan|Gerhana matahari|Terumbu karang|Roda gigi',
-    'pl': 'Wulkan|Zapylanie|Zaćmienie Słońca|Rafa koralowa|Koło zębate',
-    'nl': 'Vulkaan|Bestuiving|Zonsverduistering|Koraalrif|Tandwiel',
-    'ar': 'بركان|تلقيح|كسوف الشمس|شعاب مرجانية|ترس',
-    'hi': 'ज्वालामुखी|परागण|सूर्य ग्रहण|प्रवाल भित्ति|गियर',
-    'th': 'ภูเขาไฟ|การถ่ายเรณู|สุริยุปราคา|พืดหินปะการัง|เฟือง',
-    'cs': 'Sopka|Opylení|Zatmění Slunce|Korálový útes|Ozubené kolo',
-    'sv': 'Vulkan|Pollinering|Solförmörkelse|Korallrev|Kugghjul',
+    'en': 'Aurora|Paper recycling|Seed dispersal|Arch (architecture)|Circadian rhythm',
+    'de': 'Polarlicht|Papierrecycling|Samenausbreitung|Bogen (Architektur)|Zirkadianer Rhythmus',
+    'zh': '极光|废纸回收|种子传播|拱 (建筑)|昼夜节律',
+    'es': 'Aurora polar|Reciclaje de papel|Dispersión de semillas|Arco (arquitectura)|Ritmo circadiano',
+    'fr': 'Aurore polaire|Recyclage du papier|Dissémination des graines|Arc (architecture)|Rythme circadien',
+    'pt': 'Aurora polar|Reciclagem de papel|Dispersão de sementes|Arco (arquitetura)|Ritmo circadiano',
+    'ru': 'Полярное сияние|Переработка бумаги|Распространение семян|Арка|Циркадный ритм',
+    'ja': 'オーロラ|紙のリサイクル|種子散布|アーチ (建築)|概日リズム',
+    'ko': '오로라|종이 재활용|종자 산포|아치 (건축)|일주기 리듬',
+    'it': 'Aurora polare|Riciclaggio della carta|Dispersione dei semi|Arco (architettura)|Ritmo circadiano',
+    'tr': 'Kutup ışıkları|Kâğıt geri dönüşümü|Tohum yayılması|Kemer (mimarlık)|Sirkadiyen ritim',
+    'vi': 'Cực quang|Tái chế giấy|Phát tán hạt|Vòm (kiến trúc)|Nhịp sinh học ngày đêm',
+    'id': 'Aurora|Daur ulang kertas|Penyebaran biji|Pelengkung (arsitektur)|Ritme sirkadian',
+    'pl': 'Zorza polarna|Recykling papieru|Rozsiewanie nasion|Łuk (architektura)|Rytm okołodobowy',
+    'nl': 'Poollicht|Papierrecycling|Zaadverspreiding|Boog (architectuur)|Circadiaan ritme',
+    'ar': 'الشفق القطبي|إعادة تدوير الورق|انتشار البذور|قوس (عمارة)|إيقاع يوماوي',
+    'hi': 'ध्रुवीय ज्योति|कागज का पुनर्चक्रण|बीज प्रकीर्णन|मेहराब|सर्केडियन लय',
+    'th': 'แสงออโรรา|การรีไซเคิลกระดาษ|การกระจายเมล็ด|ซุ้มโค้ง (สถาปัตยกรรม)|จังหวะเซอร์เคเดียน',
+    'cs': 'Polární záře|Recyklace papíru|Šíření semen|Oblouk (architektura)|Cirkadiánní rytmus',
+    'sv': 'Polarsken|Pappersåtervinning|Fröspridning|Båge (arkitektur)|Dygnsrytm',
 }
+ARMS = ('mercury_chain', 'gemini_only')
+ARM_ORDER_SEED = 'daily-inspiration-v6-fresh-topics-v1'
+DISCOVERY_BATCH_SIZE = 3
+
+
+def source_identity_key(identity):
+    """Preserve case-sensitive video IDs; canonicalize edition-qualified Wiki titles."""
+    if ':' not in identity:
+        return identity
+    language, title = identity.split(':', 1)
+    return language.lower() + ':' + ' '.join(title.replace('_', ' ').split()).casefold()
+
+
+def exclusion_manifest(source_root=None):
+    """Load previous completed source IDs without touching writing or arm identities."""
+    identities = set()
+    if source_root:
+        directory = Path(source_root).resolve()
+        if directory.name != 'sources':
+            directory = directory / 'sources'
+        if not directory.is_dir():
+            raise ValueError('Excluded source root must contain a sources directory')
+        for path in sorted(directory.glob('*.json')):
+            entry = json.loads(path.read_text())
+            if entry.get('status') == 'complete':
+                identity = entry.get('identity')
+                if not isinstance(identity, str) or not identity.strip():
+                    raise ValueError('Excluded completed source has no valid identity')
+                identities.add(identity)
+        if not identities:
+            raise ValueError('Excluded source root has no completed source identities')
+    ids = sorted(identities)
+    encoded = json.dumps(ids, ensure_ascii=False, separators=(',', ':')).encode()
+    return {'source_ids': ids, 'sha256': hashlib.sha256(encoded).hexdigest()}
+
+
+def paired_arm_order(language, kind, offset):
+    """A fixed independent seed for every paired discovery batch survives resume."""
+    seed = hashlib.sha256(json.dumps([ARM_ORDER_SEED, language, kind, offset]).encode()).hexdigest()
+    order = list(ARMS)
+    random.Random(seed).shuffle(order)
+    return {'seed': seed, 'order': order}
+
+
+def arm_order_manifest(options):
+    return {f'{language}:{kind}:{offset}': paired_arm_order(language, kind, offset)
+            for language in options.languages for kind in ('video', 'wiki')
+            for offset in range(0, options.limit, DISCOVERY_BATCH_SIZE)}
+
+
+def validate_source_manifest(actual, expected_path):
+    """Fail before Vault/provider initialization if the reviewed candidate differs."""
+    if expected_path and actual != json.loads(Path(expected_path).read_text()):
+        raise ValueError('Runtime sources differ from the reviewed benchmark candidate')
+
+
 ACTIVE = ContextVar('daily_multilingual_receipt', default=None)
 
 
@@ -156,7 +212,7 @@ async def video_snapshot(query, language, manager, used, gate_receipts):
     candidates = []
     for result in response.get('results', []):
         identity = video_processor._extract_youtube_id(result.get('url', ''))
-        if not identity or identity in used or result.get('family_friendly') is False:
+        if not identity or source_identity_key(identity) in used or result.get('family_friendly') is False:
             continue
         video = result.get('video') or {}
         candidates.append({
@@ -170,6 +226,8 @@ async def video_snapshot(query, language, manager, used, gate_receipts):
     enriched = video_processor._filter_made_for_kids(enriched, 'benchmark', query)
     enriched = video_processor._filter_by_hard_age_cutoff(enriched, 'benchmark', query)
     for item in enriched[:6]:
+        if source_identity_key(item['youtube_id']) in used:
+            continue
         if video_processor.check_video_metadata(item['title'], item.get('channel_name')):
             continue
         try:
@@ -207,10 +265,13 @@ async def wiki_snapshot(query, language, manager, used, gate_receipts):
     )
     for item in valid[:6]:
         identity = f'{language}:{item.wiki_title}'
-        if identity in used:
+        if source_identity_key(identity) in used:
             continue
         summary = await wikipedia.fetch_page_summary(item.wiki_title.replace(' ', '_'), language=language)
         if summary and summary.get('extract'):
+            canonical_identity = f"{language}:{summary.get('title') or item.wiki_title}"
+            if source_identity_key(canonical_identity) in used:
+                continue
             entity = await wikipedia.fetch_wikidata_entity(item.wikidata_id) if item.wikidata_id else None
             metadata = {'title': summary.get('title') or item.wiki_title,
                         'description': summary.get('description') or item.description,
@@ -232,17 +293,21 @@ async def wiki_snapshot(query, language, manager, used, gate_receipts):
     return None
 
 
-async def collect(options, root, manager):
+async def collect(options, root, manager, *, excluded_ids=()):
     started = time.monotonic()
+    excluded = {source_identity_key(identity) for identity in excluded_ids}
     for language in options.languages:
-        used = {'video': set(), 'wiki': set()}
+        used = {'video': set(excluded), 'wiki': set(excluded)}
         for index, query in enumerate(TOPICS[language].split('|')[:options.limit]):
             for kind in ('video', 'wiki'):
                 path = root / 'sources' / f'{language}-{kind}-{index}.json'
                 if path.exists():
                     existing = json.loads(path.read_text())
                     if existing.get('status') == 'complete':
-                        used[kind].add(existing['identity'])
+                        identity = source_identity_key(existing['identity'])
+                        if identity in excluded:
+                            raise ValueError('Resumed source is excluded by the previous source catalogue')
+                        used[kind].add(source_identity_key(identity))
                         continue
                     retain_incomplete(path, root, 'sources')
                 if time.monotonic() - started > options.phase_minutes * 60:
@@ -283,11 +348,38 @@ async def collect(options, root, manager):
                     image_path.write_bytes(image)
                     snapshot['image'] = {'path': str(image_path.relative_to(root)), 'bytes': len(image),
                                          'sha256': hashlib.sha256(image).hexdigest()}
-                used[kind].add(identity)
+                used[kind].add(source_identity_key(identity))
                 atomic_json(path, snapshot)
                 print(json.dumps({'phase': 'retrieval', 'language': language, 'kind': kind,
                                   'index': index, 'identity': identity}), flush=True)
     return True
+
+
+async def instrumented_write(original_write, *, row, language, **kwargs):
+    """Record each new admission and the retained union's original attempt owners."""
+    row['eligible_count'] = kwargs['count']
+    row['eligible_source_ids'] = list(kwargs['source_ids'])
+    accept = kwargs['accept']
+    card_source_id = kwargs['card_source_id']
+
+    async def recorded_accept(arguments):
+        cards = await accept(arguments)
+        attempt = row['attempts'][-1]
+        attempt['admitted'] = len(cards)
+        attempt['admitted_source_ids'] = [card_source_id(card) for card in cards]
+        attempt['admitted_items'] = [card.model_dump(mode='json') for card in cards]
+        attempt['format_issues'] = [copy_format_issues(card, language) for card in cards]
+        attempt['rejection_feedback'] = copy.deepcopy(kwargs.get('rejection_feedback') or {})
+        return cards
+
+    cards = await original_write(**{**kwargs, 'accept': recorded_accept})
+    row['final_source_ids'] = [card_source_id(card) for card in cards]
+    row['final_source_owners'] = {
+        identity: next(index for index, attempt in enumerate(row['attempts'])
+                       if identity in attempt.get('admitted_source_ids', []))
+        for identity in row['final_source_ids']
+    }
+    return cards
 
 
 async def qualify_batch(sources, kind, language, arm, row, manager, root):
@@ -310,17 +402,7 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
             atomic_json(ACTIVE.get()[1], row)
 
     async def reviewed_write(**kwargs):
-        row['eligible_count'] = kwargs['count']
-        accept = kwargs['accept']
-
-        async def recorded_accept(arguments):
-            cards = await accept(arguments)
-            row['attempts'][-1]['admitted'] = len(cards)
-            row['attempts'][-1]['admitted_items'] = [card.model_dump(mode='json') for card in cards]
-            row['attempts'][-1]['format_issues'] = [copy_format_issues(card, language) for card in cards]
-            return cards
-
-        return await original_write(**{**kwargs, 'accept': recorded_accept})
+        return await instrumented_write(original_write, row=row, language=language, **kwargs)
 
     async def frozen_video(query, *_args, **kwargs):
         source = next(item for item in sources if item['query'] == query)
@@ -419,7 +501,7 @@ def summarize(root, options):
                'source_language_note': 'Video language is undetermined unless verified; retrieval locale is not native source-language proof.',
                'quality_scope': 'Production automated Jev review; no blind human or native-language reviewer qualification.',
                'arms': {}}
-    for arm in ('mercury_chain', 'gemini_only'):
+    for arm in ARMS:
         selected = [row for row in rows if row['arm'] == arm and row.get('status') == 'complete']
         billed_rows = [row for row in [*rows, *prior_rows] if row['arm'] == arm]
         usage = [attempt['result'].get('usage_telemetry') or {} for row in billed_rows for attempt in row['attempts'] if 'result' in attempt]
@@ -469,12 +551,14 @@ async def run(options):
     manifest = {'comparison': 'writer_and_fresh_final_review_on_shared_live_approved_sources',
                 'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
-                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, llm_utils)}}
+                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, llm_utils)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
-    if options.expected_source_manifest:
-        expected = json.loads(Path(options.expected_source_manifest).read_text())
-        if manifest['source_sha256'] != expected:
-            raise ValueError('Runtime sources differ from the reviewed benchmark candidate')
+    exclusions = exclusion_manifest(options.exclude_source_root)
+    manifest['exclusions'] = exclusions
+    manifest['topics'] = {language: TOPICS[language].split('|')[:options.limit] for language in options.languages}
+    manifest['arm_order_seed'] = ARM_ORDER_SEED
+    manifest['paired_arm_orders'] = arm_order_manifest(options)
+    validate_source_manifest(manifest['source_sha256'], options.expected_source_manifest)
     manifest_path = root / 'manifest.json'
     if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
         raise ValueError('Output manifest differs; use the original code/options or another output directory')
@@ -520,7 +604,7 @@ async def run(options):
 
     try:
         try:
-            collected = await asyncio.wait_for(collect(options, root, manager), timeout=options.phase_minutes * 60)
+            collected = await asyncio.wait_for(collect(options, root, manager, excluded_ids=exclusions['source_ids']), timeout=options.phase_minutes * 60)
         except asyncio.TimeoutError:
             return summarize(root, options)
         if not collected:
@@ -532,14 +616,15 @@ async def run(options):
             stack.enter_context(patch.object(decisions, 'JevDecisionClient', RecordedJev))
             for language in options.languages:
                 for kind in ('video', 'wiki'):
-                    for offset in range(0, options.limit, 3):
+                    for offset in range(0, options.limit, DISCOVERY_BATCH_SIZE):
                         snapshots = [root / 'sources' / f'{language}-{kind}-{index}.json'
-                                     for index in range(offset, min(offset + 3, options.limit))]
+                                     for index in range(offset, min(offset + DISCOVERY_BATCH_SIZE, options.limit))]
                         sources = [json.loads(path.read_text()) for path in snapshots if path.exists()]
                         sources = [source for source in sources if source.get('status') == 'complete']
                         if not sources:
                             continue
-                        for arm in ('mercury_chain', 'gemini_only'):
+                        arm_order = paired_arm_order(language, kind, offset)
+                        for arm in arm_order['order']:
                             path = root / 'rows' / f'{language}-{kind}-{offset}-{arm}.json'
                             if path.exists():
                                 if json.loads(path.read_text()).get('status') == 'complete':
@@ -548,6 +633,8 @@ async def run(options):
                             if time.monotonic() - started > options.phase_minutes * 60:
                                 return summarize(root, options)
                             row = {'language': language, 'kind': kind, 'arm': arm, 'offset': offset,
+                                   'paired_arm_order': arm_order['order'], 'paired_arm_order_seed': arm_order['seed'],
+                                   'paired_arm_position': arm_order['order'].index(arm),
                                    'source_ids': [item['identity'] for item in sources], 'attempts': [],
                                    'requested_count': len(sources), 'status': 'running'}
                             token = ACTIVE.set((row, path))
@@ -613,12 +700,15 @@ def main():
     parser.add_argument('--languages', nargs='+', choices=LANGUAGES, default=LANGUAGES)
     parser.add_argument('--limit', type=int, choices=range(1, 6), default=5)
     parser.add_argument('--phase-minutes', type=int, choices=range(1, 31), default=30)
+    parser.add_argument('--exclude-source-root', help='Previous benchmark root or sources directory; exclude every completed source ID')
     parser.add_argument('--expected-source-manifest', help='Require these reviewed application source hashes before paid calls')
     options = parser.parse_args()
     if not options.execute:
         print(json.dumps({'execute': False, 'languages': options.languages,
                           'planned_cards': len(options.languages) * options.limit * 4,
-                          'logical_concurrency': 1, 'output_dir': options.output_dir}))
+                          'logical_concurrency': 1, 'output_dir': options.output_dir,
+                          'exclusions': exclusion_manifest(options.exclude_source_root),
+                          'arm_order_seed': ARM_ORDER_SEED, 'paired_arm_orders': arm_order_manifest(options)}))
         return
     load_runtime()
     logging.basicConfig(level=logging.ERROR)

@@ -38,7 +38,7 @@ def native_answers(questions, policy=None):
         elif key.endswith("_language"):
             answers[key] = {"type": "choice", "choice": "correct",
                             "probabilities": {"correct": 1.0}, "confidence": 1.0}
-        elif key.endswith(("_coherence", "_followups")):
+        elif key.endswith(("_coherence", "_relevance")):
             choice = "coherent" if key.endswith("_coherence") else "relevant"
             answers[key] = {"type": "choice", "choice": choice,
                             "probabilities": {choice: 1.0}, "confidence": 1.0}
@@ -158,9 +158,9 @@ async def test_unsupported_claim_is_withheld_even_with_high_policy_and_fit_score
     async def handler(request):
         body = json.loads(request.content)
         answers = native_answers(body["questions"])
-        answers["candidate_000_grounding"] = {"type": "choice", "choice": "unsupported",
+        answers["candidate_000_assistant_response_grounding"] = {"type": "choice", "choice": "unsupported",
             "probabilities": {"unsupported": 1.0}, "confidence": 1.0}
-        assert "outside knowledge" in body["questions"]["candidate_000_grounding"]["instructions"]
+        assert "outside knowledge" in body["state"]["grounding_rubric"]
         return httpx.Response(200, json={"model": "jev-1.14.0", "answers": answers})
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         assert await decisions.review_candidates([{"title": "Cloud formation",
@@ -200,23 +200,38 @@ async def test_legacy_pool_review_does_not_invent_a_source_identity(content_type
     async def review(rows, *_args, **_kwargs):
         captured.extend(rows)
         return rows
-    scope = {"json": json, "review_candidates": review}
+    from backend.apps.ai.daily_inspiration.media_coherence import (
+        canonical_wiki_review_source, editorial_review_digest, is_inspiration_media_coherent,
+    )
+    scope = {"json": json, "review_candidates": review,
+             "canonical_wiki_review_source": canonical_wiki_review_source,
+             "editorial_review_digest": editorial_review_digest}
     exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), "exec"), scope)
-    record = {"id": "legacy", "content_type": content_type, "title": "Cloud formation",
-              "phrase": "How do clouds form?", "assistant_response": "Vapor condenses into droplets."}
-    assert await scope["_review_pool_entries"]([record], Secrets(), "test") == [record]
+    record = {"id": "legacy", "content_type": content_type, "title": "Generated title",
+              "language": "en", "phrase": "How do clouds form?",
+              "assistant_response": "Vapor condenses into droplets."}
+    if content_type == "wiki":
+        record["wiki_metadata"] = {"wiki_title": "Cloud", "source_language": "en",
+            "title": "Cloud formation", "extract": "Vapor condenses into droplets."}
+    reviewed = await scope["_review_pool_entries"]([record], Secrets(), "test")
+    assert len(reviewed) == 1
+    assert reviewed[0]["editorial_review"] == editorial_review_digest(reviewed[0])
+    if content_type == "wiki":
+        assert is_inspiration_media_coherent(reviewed[0])
+        assert captured[0]["title"] == record["wiki_metadata"]["title"]
+        assert captured[0]["extract"] == record["wiki_metadata"]["extract"]
     assert captured[0]["channel_name"] == expected_channel
     assert captured[0]["content_type"] == content_type
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("failed_decision", [None, "coherence", "followups"])
+@pytest.mark.parametrize("failed_decision", [None, "coherence", "follow_up_0_relevance"])
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 async def test_japanese_paraphrase_and_source_followups_use_separate_semantic_decisions(failed_decision):
     async def handler(request):
         body = json.loads(request.content)
         assert "never require word overlap" in body["questions"]["candidate_000_coherence"]["instructions"]
-        assert "wind" in body["questions"]["candidate_000_followups"]["instructions"]
+        assert "wind" in body["questions"]["candidate_000_follow_up_0_relevance"]["instructions"]
         answers = native_answers(body["questions"])
         if failed_decision:
             choice = "mismatch" if failed_decision == "coherence" else "drift"
@@ -230,3 +245,60 @@ async def test_japanese_paraphrase_and_source_followups_use_separate_semantic_de
             "follow_up_suggestions": ["六角形になる理由は？"]}], Secrets(),
             client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
     assert bool(rows) == (failed_decision is None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failed_field,verdict", [
+    ("phrase_grounding", "unsupported"),
+    ("card_title_language", "wrong"),
+    ("assistant_response_grounding", "uncertain"),
+    ("follow_up_1_relevance", "drift"),
+    ("follow_up_2_language", "wrong"),
+])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,language-preferences.content-language
+async def test_one_failed_field_withholds_card_and_returns_source_bound_repair_code(failed_field, verdict):
+    feedback = {}
+    async def handler(request):
+        body = json.loads(request.content)
+        assert "_review_identity" not in json.dumps(body["state"])
+        answers = native_answers(body["questions"])
+        key = "candidate_000_" + failed_field
+        assert key in answers
+        answers[key] = {"type": "choice", "choice": verdict,
+                        "probabilities": {verdict: 1.0}, "confidence": .95}
+        return httpx.Response(200, json={"model": "jev-1.14.0", "answers": answers})
+    candidate = {"title": "Pollination", "description": "Pollen moves between different plants.",
+                 "card_title": "Pollen transfer", "phrase": "Pollen moves between plants.",
+                 "assistant_response": "Pollen moves between plants. What is pollination?",
+                 "follow_up_suggestions": ["What is pollen?", "How does pollen move?", "Which plants?"],
+                 "language": "en", "_review_identity": "server-source"}
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        result = await decisions.review_candidates([candidate], Secrets(), rejection_feedback=feedback,
+            client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
+    assert result == []
+    assert list(feedback) == ["server-source"]
+    assert len(feedback["server-source"]) == 1
+    assert feedback["server-source"][0].endswith(":" + verdict)
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_copy_partitions_keep_each_field_question_with_its_source():
+    candidates = [{"title": f"Source {index}", "description": "Water evaporates and vapor condenses.",
+                   "card_title": "Water cycle", "phrase": "Water evaporates.",
+                   "assistant_response": "Vapor condenses. How does water evaporate?",
+                   "follow_up_suggestions": ["What is vapor?", "How does water evaporate?", "What condenses?"],
+                   "language": "en"} for index in range(10)]
+    calls = []
+    async def handler(request):
+        body = json.loads(request.content)
+        calls.append(body)
+        ids = {row["candidate_id"] for row in body["state"]["candidates"]}
+        for key in body["questions"]:
+            assert any(key.startswith(identity + "_") for identity in ids)
+        return httpx.Response(200, json={"model": "jev-1.14.0", "answers": native_answers(body["questions"])})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        result = await decisions.review_candidates(candidates, Secrets(), rank=True,
+            client=JevDecisionClient(secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
+    assert len(result) == 10 and len(calls) > 1
+    assert sum(len(call["state"]["candidates"]) for call in calls) == 10

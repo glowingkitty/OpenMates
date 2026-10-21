@@ -166,3 +166,45 @@ def test_generation_rejects_text_media_topic_mismatch(monkeypatch):
     )
 
     assert inspirations == []
+
+
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+def test_partial_retry_keeps_approved_video_and_binds_repair_by_source_id(monkeypatch):
+    monkeypatch.setitem(sys.modules, "backend.apps.ai.utils.llm_utils", fake_llm_utils)
+    generator = importlib.import_module("backend.apps.ai.daily_inspiration.generator")
+    from backend.apps.ai.daily_inspiration import writer
+    monkeypatch.setattr(writer, "RETRY_DELAY_SECONDS", 0)
+    monkeypatch.setattr(generator.random, "sample", lambda values, count: list(values)[:count])
+    identities = ["DOH-HNotTaE", "L_w8lHaDP0E"]
+    calls, reviewed = [], []
+    async def find(topic, *_args, **_kwargs):
+        index = ["Clouds", "Water"].index(topic)
+        return [{"youtube_id": identities[index], "title": "Water and clouds",
+                 "description": "Water evaporates and vapor condenses into clouds.",
+                 "channel_name": "Independent teacher", "editorial_category": "science",
+                 "published_at": "2026-01-01T00:00:00Z"}]
+    def row(identity):
+        return {"selected_video_youtube_id": identity, "title": "Water and clouds",
+                "phrase": "Water evaporates. Vapor condenses.", "category": "science",
+                "assistant_response": "Water evaporates. Vapor condenses. How do clouds form?",
+                "follow_up_suggestions": ["What evaporates?", "What condenses?", "How do clouds form?"]}
+    async def call(**kwargs):
+        calls.append(kwargs)
+        selected = identities if len(calls) == 1 else identities[1:]
+        return SimpleNamespace(error_message=None, arguments={"inspirations": [row(i) for i in selected]})
+    async def validate(**kwargs):
+        identity = kwargs["review_identity"]
+        reviewed.append(identity)
+        if identity == identities[1] and reviewed.count(identity) == 1:
+            kwargs["rejection_feedback"][identity] = ["phrase.grounding:unsupported"]
+            return False
+        return True
+    monkeypatch.setattr(generator, "find_video_candidates", find)
+    monkeypatch.setattr(generator, "call_preprocessing_llm", call)
+    monkeypatch.setattr(generator, "validate_inspiration", validate)
+    result = asyncio.run(generator.generate_inspirations("public-test", 2, ["Clouds", "Water"],
+                                                         SimpleNamespace(), language="en"))
+    assert [card.video.youtube_id for card in result] == identities
+    assert reviewed == [identities[0], identities[1], identities[1]]
+    assert len(calls) == 2
+    assert 'phrase.grounding:unsupported' in calls[1]["message_history"][-1]["content"]

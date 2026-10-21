@@ -29,6 +29,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
 from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.apps.ai.daily_inspiration.media_coherence import (
+    canonical_wiki_review_source,
     editorial_review_digest,
     is_inspiration_media_coherent,
 )
@@ -36,7 +37,7 @@ from backend.apps.ai.daily_inspiration.media_coherence import (
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v13:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v15:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
@@ -75,19 +76,21 @@ async def _review_pool_entries(entries, secrets_manager, task_id):
         if entry.get("content_type") == "feature":
             features.append(entry)
             continue
-        wiki = entry.get("wiki_metadata") or {}
         suggestions = entry.get("follow_up_suggestions") or []
         try:
-            wiki = json.loads(wiki) if isinstance(wiki, str) else wiki
+            # Wiki source identity and edition must come from fetched metadata,
+            # never from generated copy or the destination feed language.
+            wiki = canonical_wiki_review_source(entry) if entry.get("content_type") == "wiki" else {}
             suggestions = json.loads(suggestions) if isinstance(suggestions, str) else suggestions
             external.append({
-                "title": entry.get("video_title") or wiki.get("title") or entry.get("title", ""),
+                "title": (wiki["title"] if wiki else entry.get("video_title") or entry.get("title", "")),
+                **({"wiki_title": wiki["wiki_title"]} if wiki else {}),
                 "channel_name": ("Wikipedia" if entry.get("content_type") == "wiki"
                                  else entry.get("video_channel_name") or ""),
                 "content_type": entry.get("content_type") or "video",
                 **({"language": entry["language"]} if entry.get("language") else {}),
                 "youtube_id": entry.get("youtube_id") if (entry.get("content_type") or "video") == "video" else None,
-                "description": entry.get("video_description") or wiki.get("description") or "",
+                "description": (wiki.get("description") or "") if wiki else entry.get("video_description") or "",
                 "extract": wiki.get("extract") or "", "card_title": entry.get("title") or "",
                 "phrase": entry.get("phrase") or "",
                 "assistant_response": entry.get("assistant_response") or "",
@@ -101,6 +104,7 @@ async def _review_pool_entries(entries, secrets_manager, task_id):
         record = dict(row["record"])
         if row.get("youtube_id"):
             record["video_thumbnail_url"] = row["thumbnail_url"]
+        if (record.get("content_type") or "video") in {"video", "wiki"}:
             record["editorial_review"] = editorial_review_digest(record)
         records.append(record)
     return records + features
@@ -125,7 +129,7 @@ def _feature_metadata(entry: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _is_public_default_candidate(entry: Dict[str, Any]) -> bool:
-    if (entry.get("content_type") or "video") == "video":
+    if (entry.get("content_type") or "video") in {"video", "wiki"}:
         return is_inspiration_media_coherent(entry)
 
     if (entry.get("content_type") or "video") != "feature":

@@ -168,20 +168,28 @@ async def generate_wiki_inspirations(
     )}]
 
     messages.insert(0, {"role": "system", "content": WRITER_INSTRUCTIONS})
+    rejection_feedback = {}
+
     async def accept(arguments):
         return await _assemble_wiki_inspirations(
             arguments["articles"], selected_by_title, sources, count, secrets_manager, task_id, language=lang_base,
+            rejection_feedback=rejection_feedback,
         )
 
     return await write_reviewed_cards(
         writer_call=call_preprocessing_llm, accept=accept, count=len(selected),
         collection="articles", task_id=task_id, message_history=messages,
+        source_ids=list(selected_by_title),
+        raw_source_id=lambda raw: _canonical_title_key(raw.get("wiki_title", "")),
+        card_source_id=lambda card: _canonical_title_key(card.wiki.wiki_title),
+        rejection_feedback=rejection_feedback,
         tool_definition=_build_wiki_tool_definition(language), secrets_manager=secrets_manager,
     )
 
 
 async def _assemble_wiki_inspirations(
     raw_articles, selected_by_title, sources, count, secrets_manager, task_id, *, language="en",
+    rejection_feedback=None,
 ):
     """Review each copy attempt against the already fetched Wikipedia evidence."""
     now_ts = int(time.time())
@@ -277,9 +285,10 @@ async def _assemble_wiki_inspirations(
         "content_type": "wiki", "language": language, "card_title": item.title, "phrase": item.phrase,
         "assistant_response": item.assistant_response or "",
         "follow_up_suggestions": item.follow_up_suggestions,
-        "record": item,
+        "record": item, "_review_identity": _canonical_title_key(item.wiki.wiki_title),
     } for item in inspirations if item.wiki]
-    reviewed = await review_candidates(candidates, secrets_manager, rank=True, task_id=task_id)
+    reviewed = await review_candidates(candidates, secrets_manager, rank=True, task_id=task_id,
+                                       rejection_feedback=rejection_feedback)
     inspirations = [row["record"].model_copy(update={"category": row["editorial_category"]})
                     for row in reviewed]
     logger.info("[DailyInspiration][%s] Generated %d/%d reviewed wiki inspirations", task_id, len(inspirations), count)

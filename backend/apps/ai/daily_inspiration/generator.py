@@ -534,21 +534,29 @@ async def generate_inspirations(
     messages.insert(0, {"role": "system", "content": WRITER_INSTRUCTIONS})
     tool_def = _build_tool_definition(language)
 
+    rejection_feedback = {}
+
     async def accept(arguments):
         return await _assemble_inspirations(
             arguments["inspirations"], video_candidates_per_slot, count,
             secrets_manager, task_id, user_id, language=language,
+            rejection_feedback=rejection_feedback,
         )
 
     return await write_reviewed_cards(
         writer_call=call_preprocessing_llm, accept=accept, count=count,
         collection="inspirations", task_id=task_id, message_history=messages,
+        source_ids=[slot[0]["youtube_id"] for slot in video_candidates_per_slot],
+        raw_source_id=lambda raw: raw.get("selected_video_youtube_id", "").strip(),
+        card_source_id=lambda card: card.video.youtube_id,
+        rejection_feedback=rejection_feedback,
         tool_definition=tool_def, secrets_manager=secrets_manager,
     )
 
 
 async def _assemble_inspirations(
     raw_inspirations, video_candidates_per_slot, count, secrets_manager, task_id, user_id, *, language="en",
+    rejection_feedback=None,
 ):
     """Assemble and review copy against the unchanged selected public sources."""
     # Step 4: Assemble DailyInspiration objects
@@ -556,7 +564,7 @@ async def _assemble_inspirations(
     inspirations: List[DailyInspiration] = []
     used_youtube_ids: set = set()
 
-    for slot_idx, raw in enumerate(raw_inspirations[:count]):
+    for raw in raw_inspirations[:count]:
         phrase = raw.get("phrase", "").strip()
         title = raw.get("title", "").strip()
         assistant_response = raw.get("assistant_response", "").strip() or None
@@ -588,21 +596,15 @@ async def _assemble_inspirations(
             )
             continue
 
-        slot_candidates = (
-            video_candidates_per_slot[slot_idx]
-            if slot_idx < len(video_candidates_per_slot)
-            else []
-        )
-        slot_candidate_map = {
-            candidate_item.get("youtube_id"): candidate_item
-            for candidate_item in slot_candidates
-            if candidate_item.get("youtube_id")
-        }
-        candidate = slot_candidate_map.get(youtube_id)
+        # Repairs contain only pending rows, so row position no longer identifies
+        # the original slot. Bind to the fixed server-approved source catalogue.
+        candidate = next((candidate_item for slot in video_candidates_per_slot
+                          for candidate_item in slot
+                          if candidate_item.get("youtube_id") == youtube_id), None)
         if not candidate:
             logger.warning(
-                f"[DailyInspiration][{task_id}] LLM selected youtube_id '{youtube_id}' "
-                f"outside slot {slot_idx + 1} candidates — skipping"
+                "[DailyInspiration][%s] Selected source outside the approved catalogue: %r",
+                task_id, youtube_id,
             )
             continue
 
@@ -695,6 +697,8 @@ async def _assemble_inspirations(
                     ),
                     follow_up_suggestions=inspiration.follow_up_suggestions,
                     language=language,
+                    review_identity=inspiration.video.youtube_id,
+                    rejection_feedback=rejection_feedback,
                 )
                 if is_valid:
                     validated_inspirations.append(inspiration)
