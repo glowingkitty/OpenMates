@@ -17,6 +17,7 @@
 -->
 
 <script lang="ts">
+  import { text } from '../../../i18n/translations';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -34,6 +35,8 @@
     rooms?: number;
     /** Address (city + district/street) */
     address?: string;
+    location_precision?: string;
+    location_approximate?: boolean;
     /** First listing image URL */
     image_url?: string;
     /** Direct link to listing on platform */
@@ -58,6 +61,8 @@
     rooms,
     address,
     image_url,
+    location_precision,
+    location_approximate = true,
     provider,
     listing_type: _listingType,
     available_from,
@@ -122,7 +127,7 @@
           {/if}
 
           {#if address}
-            <div class="listing-address">{address}</div>
+            <div class="listing-address">{address}{location_approximate || location_precision !== 'building' ? ` · ${$text('home_listing.approximate')}` : ''}</div>
           {/if}
 
           {#if metadataItems.length > 0}

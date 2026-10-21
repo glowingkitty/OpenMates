@@ -740,6 +740,8 @@ async def test_home_ranked_search_geocodes_and_returns_only_max_results(monkeypa
                     "address": f"Street {offset + index}, Berlin",
                     "price": 800 + offset + index,
                     "rooms": 2,
+                    "balcony": True,
+                    "amenities": {"balcony": True},
                     "size_sqm": 50,
                     "url": f"https://housing.example/{name}/{index}",
                 }
@@ -776,7 +778,7 @@ async def test_home_ranked_search_geocodes_and_returns_only_max_results(monkeypa
             "relevance_criteria": "quiet two-room apartment with explicit evidence of a balcony",
         },
         "home",
-        secrets_manager=object(),
+        secrets_manager=None,
     )
 
     assert error is None
@@ -793,7 +795,7 @@ async def test_home_ranked_search_geocodes_and_returns_only_max_results(monkeypa
             "relevance_criteria": "quiet two-room apartment with explicit evidence of a balcony",
         },
         "home-fallback",
-        secrets_manager=object(),
+        secrets_manager=None,
     )
     assert error is None
     assert provider_limits == [14, 14, 14, 14, 14, 14]
@@ -858,7 +860,7 @@ async def test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback(
             "osmEnrichment": "disabled",
         },
         "maps-ranked",
-        secrets_manager=object(),
+        secrets_manager=None,
         cache_service=object(),
     )
     assert error is None
@@ -874,7 +876,7 @@ async def test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback(
             "osmEnrichment": "disabled",
         },
         "maps-fallback",
-        secrets_manager=object(),
+        secrets_manager=None,
         cache_service=object(),
     )
     assert error is None
@@ -884,7 +886,7 @@ async def test_maps_relevance_uses_one_twenty_candidate_call_and_clips_fallback(
     _, plain, error, _metadata = await skill._process_single_search_request(
         {"query": "cafes in Berlin", "pageSize": 3, "osmEnrichment": "disabled"},
         "maps-plain",
-        secrets_manager=object(),
+        secrets_manager=None,
         cache_service=object(),
     )
     assert error is None and len(plain) == 3
@@ -942,7 +944,7 @@ async def test_shopping_relevance_uses_forty_candidates_without_extra_page(monke
             "relevance_criteria": "high protein with low added sugar based on explicit product facts",
         },
         "shopping-fallback",
-        secrets_manager=object(),
+        secrets_manager=None,
     )
     assert error is None
     assert provider_sizes == [40]
@@ -951,7 +953,7 @@ async def test_shopping_relevance_uses_forty_candidates_without_extra_page(monke
     _, plain, error = await skill._process_single_request(
         {"query": "protein snack", "category": "grocery", "max_results": 3},
         "shopping-plain",
-        secrets_manager=object(),
+        secrets_manager=None,
     )
     assert error is None and len(plain) == 3
     assert provider_sizes == [40, 3]
@@ -1011,7 +1013,7 @@ async def test_stay_relevance_keeps_serpapi_to_one_twenty_result_request(monkeyp
             "relevance_criteria": "quiet work-friendly stay with explicit desk and Wi-Fi evidence",
         },
         "stay-fallback",
-        secrets_manager=object(),
+        secrets_manager=None,
     )
     assert error is None
     assert provider_sizes == [20]
@@ -1025,7 +1027,7 @@ async def test_stay_relevance_keeps_serpapi_to_one_twenty_result_request(monkeyp
             "max_results": 3,
         },
         "stay-plain",
-        secrets_manager=object(),
+        secrets_manager=None,
     )
     assert error is None and len(plain) == 3
     assert provider_sizes == [20, 3]
@@ -1077,7 +1079,7 @@ async def test_video_relevance_uses_one_forty_result_brave_call_and_clips_fallba
             "relevance_criteria": "hands-on advanced tutorial for an experienced Python developer",
         },
         "videos-fallback",
-        secrets_manager=object(),
+        secrets_manager=None,
         cache_service=object(),
     )
     assert error is None
@@ -1087,7 +1089,7 @@ async def test_video_relevance_uses_one_forty_result_brave_call_and_clips_fallba
     _, plain, error = await skill._process_single_search_request(
         {"query": "advanced local AI tutorial", "count": 3},
         "videos-plain",
-        secrets_manager=object(),
+        secrets_manager=None,
         cache_service=object(),
     )
     assert error is None and len(plain) == 3
@@ -1167,7 +1169,7 @@ async def test_fitness_relevance_uses_existing_forty_candidate_pool_and_clips_fa
 
     plain_response = await skill.execute(
         {"requests": [{"query": "yoga", "city": "Berlin", "limit": 3}]},
-        secrets_manager=object(),
+        secrets_manager=None,
     )
     assert provider_sizes == [40, 3]
     assert plain_response["results"][0]["result_count"] == 3

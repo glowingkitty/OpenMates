@@ -1,0 +1,90 @@
+schema_version: 1
+id: feature.app-skill.home-search
+version: 1
+status: draft
+title: Apartment Search, Listing Galleries and Location Evidence
+summary: Home search combines richer evidence from the existing housing platforms, complete supplied galleries, bounded visual matching and sourced neighborhood facts to produce useful, filterable apartment results and maps.
+inherits: [architecture.app-skill-execution@1]
+
+scope:
+  includes:
+    - Existing ImmoScout24, Kleinanzeigen and WG-Gesucht apartment and shared-room searches, retaining supported rent and purchase behavior.
+    - Provider search and detail extraction, complete supplied galleries, structured housing facts, explicit constraints and natural-language relevance.
+    - Jev assessment of listing text and a bounded subset of supplied photos, with evidence and truthful unknown states.
+    - Location precision, requested water and neighborhood enrichment using the existing Geoapify connection, reusable API-response caches and bounded walking-route requests.
+    - Web listing galleries, details, filters and synchronized result maps; equivalent structured results through REST, CLI and SDKs.
+    - Verification that shopping and home analysis downloads remain transient and do not create persistent image copies.
+  excludes:
+    - New listing platforms, contacting advertisers, submitting applications, purchases or authenticated scraping.
+    - A locally cached spatial index, bulk geodata ingestion or a new geospatial database.
+    - Recovering intentionally hidden addresses, guaranteed listing authenticity, comprehensive photo verification or inferred neighborhood safety.
+    - Changing retention of owner-uploaded originals or the existing public UI image-proxy cache.
+
+assertions:
+  - id: home-search.listings.rich-provider-evidence
+    type: invariant
+    must: Preserve relevant available provider details including description, address components, advertised location precision, price basis and known rent components, area, rooms, floor, availability, deposit and amenity flags. Provider adapters obtain available listing details within bounded discovery and keep missing, explicit false and conflicting facts distinct. Every listing retains its provider identity and usable source URL.
+    depends_on: [examples.details]
+  - id: home-search.images.complete-gallery
+    type: behavior
+    must: Discover and return all available provider-supplied listing photos from the supported listing response and detail gallery, in stable deduplicated order, retaining the primary photo. The web listing exposes every returned photo through an accessible gallery with a counter and navigation. Image-analysis limits never truncate the displayed gallery; failed detail or image retrieval is disclosed without inventing photos or claiming a complete gallery.
+    depends_on: [examples.gallery]
+  - id: home-search.filters.explicit-and-unknown
+    type: behavior
+    must: Validate and apply supported explicit price, area, room, availability and amenity constraints before final selection, preserving the meaning of cold versus warm rent and unsupported provider fields. Unknown evidence never satisfies a confirmed hard requirement and remains distinguishable from an explicit conflict. Broader preferences rank results rather than silently becoming hard requirements; zero confirmed matches and unavailable assessments are explained.
+    depends_on: [examples.filters]
+  - id: home-search.relevance.natural-language
+    type: behavior
+    must: Carry user-stated material requirements and preferences into the housing search independently of the city query. Rank using available description, structured amenities, photo findings and requested geographic facts without inventing unstated requirements. Relevant candidates are considered before the final result limit; text-unknown candidates are not discarded before requested visual evidence can be evaluated.
+    depends_on: [examples.relevance]
+  - id: home-search.vision.evidence-and-conflicts
+    type: behavior
+    must: When visually assessable requirements are present, evaluate bounded listing photos and text through direct TypeSafe Jev without requiring a user reference image. Return separate advertised and visual evidence, assessed-photo coverage and confirmed, possible, conflicting, unknown or unavailable outcomes. Unseen features are unknown; an exterior balcony does not establish that it belongs to the advertised apartment. Provider failure never produces a visually verified claim.
+    depends_on: [examples.vision]
+  - id: home-search.location.precision
+    type: invariant
+    must: Retain available provider coordinates and declared approximation; geocode missing coordinates with match precision and provenance. Building, street, district and city locations remain distinguishable. A city or district fallback is not presented as an exact apartment pin or used to claim apartment-level distance or walking time.
+    depends_on: [examples.precision]
+  - id: home-search.neighborhood.sourced-facts
+    type: behavior
+    must: Enrich the bounded candidate pool with user-requested nearby water, transit, parks, groceries or other supported amenities using existing provider capabilities before geographic ranking and final selection. Facts include their source, freshness, location precision and availability. Missing provider configuration, incomplete coverage or ambiguous locations remain visible unknowns; neither an empty bounded place search nor an approximate point proves that no nearby feature exists.
+    depends_on: [examples.neighborhood]
+  - id: home-search.water.distance-and-access
+    type: behavior
+    must: Distinguish distance to a water shoreline from walking distance or time to a reachable public waterfront. Use available geometry for shoreline measurements rather than a water feature's representative point; when geometry or access evidence is unavailable, disclose the weaker evidence instead of claiming a precise shoreline or access measurement. Explicit numeric distance or time limits are deterministic constraints, while an unspecified close-to-water preference ranks sourced proximity evidence without inventing a hidden cutoff.
+    depends_on: [examples.water]
+  - id: home-search.web.map-and-filter
+    type: parity
+    must: Web search results expose an overview map and readable listing cards, with markers linked to the corresponding listing and consistent visible filtering. Precise and approximate locations are clearly differentiated; missing locations do not hide otherwise useful listings. Users can inspect rich details, all returned photos and why a listing matches or remains uncertain on phone and laptop layouts.
+    depends_on: [examples.map]
+  - id: home-search.enrichment.bounded-and-reusable
+    type: invariant
+    must: Bound candidate discovery, concurrent detail requests, image bytes and decoded pixels, visual decisions, location requests and total optional-enrichment latency. Reuse source-labelled listing and API-response caches without creating a spatial index or persisting downloaded analysis images. Apply authoritative constraints before optional expensive work, preserve the requested final limit and report partial coverage or provider shortfall rather than silently asserting exhaustive search.
+    depends_on: [examples.bounds]
+  - id: home-search.images.transient-analysis
+    type: privacy
+    must: Shopping and home analysis fetch public images into bounded memory, decode and resize there, strip metadata and create no temporary files, persistent raw-image cache or new stored upload. Release references after completion, cancellation or failure. Existing owner-encrypted uploads and the separate expiring public display-proxy cache keep their existing lifecycle. Public downloads reject private networks, credentials and unsafe redirects and preserve validated transport boundaries.
+    depends_on: [examples.transient]
+  - id: home-search.output.safe-and-truthful
+    type: security
+    must: Provider text and image contents are untrusted evidence and cannot alter instructions or trigger actions. Send Jev only necessary public listing facts and prepared photos without chat history, owner identifiers, keys or transport metadata; image decisions never use the text-only fallback. Enrichment failures retain usable listings with accurate assessment statuses and source warnings across REST, CLI, SDKs and web. Inherited external-output safety still applies to the enriched results before exposure.
+    depends_on: [examples.safety]
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+
+examples:
+  file: examples.yml
+  required_groups: [details, gallery, filters, relevance, vision, precision, neighborhood, water, map, bounds, transient, safety]

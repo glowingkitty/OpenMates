@@ -24,6 +24,9 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from backend.apps.home.providers.results import ProviderListings
+from backend.shared.providers.housing.details import MAX_CANDIDATES, defaults, enrich, html_details, response_text
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -205,7 +208,7 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
         size_sqm = _extract_size(block_html)
         rooms = _extract_rooms(block_html)
 
-        listings.append({
+        listings.append(defaults({
             "id": f"ka_{ad_id}",
             "title": title,
             "price": price,
@@ -217,7 +220,7 @@ def _parse_listings_from_html(html: str, listing_type: str, city: str) -> List[D
             "url": listing_url,
             "provider": "Kleinanzeigen",
             "listing_type": listing_type,
-        })
+        }))
 
     return listings
 
@@ -336,4 +339,10 @@ async def search_listings(
         "Kleinanzeigen search city=%s type=%s -> %d listings",
         city, listing_type, len(listings),
     )
-    return listings[:max_results]
+    listings = listings[:min(max(0, max_results), MAX_CANDIDATES)]
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+        async def fetch_detail(listing: Dict[str, Any]) -> None:
+            detail_html = await response_text(client, listing["url"], {"User-Agent": BROWSER_USER_AGENT, "Accept": "text/html"})
+            html_details(listing, detail_html)
+        warnings = await enrich(listings, fetch_detail)
+    return ProviderListings(listings, warnings)

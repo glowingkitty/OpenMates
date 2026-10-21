@@ -1,97 +1,14 @@
-/**
- * Preview mock data for HomeSearchEmbedFullscreen.
- *
- * This file provides sample props and named variants for the component preview system.
- * Access at: /dev/preview/embeds/home
- */
-
-const sampleListings = [
-	{
-		title: 'Schöne 2-Zimmer-Wohnung in Kreuzberg',
-		price_label: '850 EUR/month',
-		size_sqm: 55,
-		rooms: 2,
-		address: 'Bergmannstr., 10961 Berlin',
-		image_url: '',
-		url: 'https://www.immobilienscout24.de/expose/12345',
-		provider: 'ImmoScout24',
-		listing_type: 'rent'
-	},
-	{
-		title: 'WG-Zimmer in Prenzlauer Berg — möbliert, ab sofort',
-		price_label: '500 EUR/month',
-		size_sqm: 18,
-		rooms: 1,
-		address: 'Schönhauser Allee, 10439 Berlin',
-		image_url: '',
-		url: 'https://www.wg-gesucht.de/wg-zimmer-in-Berlin.12345.html',
-		provider: 'WG-Gesucht',
-		listing_type: 'rent'
-	},
-	{
-		title: 'Helle 3-Zimmer-Altbauwohnung mit Balkon',
-		price_label: '1.200 EUR/month',
-		size_sqm: 85,
-		rooms: 3,
-		address: 'Friedrichshain, 10245 Berlin',
-		image_url: '',
-		url: 'https://www.kleinanzeigen.de/s-anzeige/67890',
-		provider: 'Kleinanzeigen',
-		listing_type: 'rent'
-	},
-	{
-		title: 'Großzügiges Loft in Mitte mit Dachterrasse',
-		price_label: '2.100 EUR/month',
-		size_sqm: 120,
-		rooms: 4,
-		address: 'Rosenthaler Str., 10119 Berlin',
-		image_url: '',
-		url: 'https://www.immobilienscout24.de/expose/99999',
-		provider: 'ImmoScout24',
-		listing_type: 'rent'
-	}
+import { listing, variants as listingVariants } from './HomeListingEmbedFullscreen.preview';
+const results = [
+  {...listing, title: 'Canal apartment with balcony', price: 1250, price_type: 'warm', garden: false, location_precision: 'building', location_approximate: false},
+  {...listing, title: 'District loft', price_label: '1,500 EUR cold / month', price: 1500, price_type: 'cold', cold_rent_eur: 1500, warm_rent_eur: null, rooms: 3, size_sqm: 85, balcony: null, garden: null, match_evidence: {amenities: {balcony: {status: 'unknown', advertised: null}, terrace: {status: 'confirmed', advertised: true}}}, location_precision: 'district', location_approximate: true},
+  {...listing, title: 'Garden apartment without coordinates', price: 900, cold_rent_eur: 750, warm_rent_eur: 900, rooms: 1, size_sqm: 40, balcony: false, garden: true, match_evidence: {amenities: {balcony: {status: 'conflicting', advertised: false}, garden: {status: 'confirmed', advertised: true}}}, address: 'Berlin', latitude: null, longitude: null, image_url: '/store-examples/home-3.webp'}
 ];
-
-/** Default props — shows fullscreen search results */
-const defaultProps = {
-	query: 'Berlin',
-	provider: 'Multi',
-	status: 'finished' as const,
-	results: sampleListings,
-	onClose: () => {},
-	hasPreviousEmbed: false,
-	hasNextEmbed: false
-};
-
+const defaultProps = {data: {decodedContent: {query: 'Berlin apartments', provider: 'Multi', results, status: 'finished'}}, onClose: () => {}};
 export default defaultProps;
-
-/** Named variants for different component states */
 export const variants = {
-	/** Processing state */
-	processing: {
-		query: 'Berlin',
-		provider: 'Multi',
-		status: 'processing' as const,
-		results: [],
-		onClose: () => {}
-	},
-
-	/** With navigation arrows */
-	withNavigation: {
-		...defaultProps,
-		hasPreviousEmbed: true,
-		hasNextEmbed: true,
-		onNavigatePrevious: () => {},
-		onNavigateNext: () => {}
-	},
-
-	/** Error state */
-	error: {
-		query: 'Berlin',
-		provider: 'Multi',
-		status: 'error' as const,
-		errorMessage: 'All providers failed. Please try again.',
-		results: [],
-		onClose: () => {}
-	}
+  persistedFlattened: {data: {decodedContent: {query: 'Berlin', status: 'finished', results: [listingVariants.persistedFlattened.data.decodedContent]}}},
+  noConfirmedMatches: {data: {decodedContent: {query: 'Berlin apartments', status: 'finished', results: [], warnings: JSON.stringify(['No confirmed matches: balcony and warm rent below 1500 EUR could not both be established.', 'Some listing photos could not be assessed.'])}}},
+  processing: {data: {decodedContent: {query: 'Berlin', status: 'processing', results: []}}},
+  error: {data: {decodedContent: {query: 'Berlin', status: 'error', error: 'Providers unavailable', results: []}}}
 };

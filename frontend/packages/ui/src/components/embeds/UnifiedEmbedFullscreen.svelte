@@ -140,6 +140,8 @@
     /** Optional embed-specific actions in the standard header menu. */
     fixedBottom?: import('svelte').Snippet;
     embedHeaderContent?: import('svelte').Snippet;
+    /** An open child panel may consume Escape before this fullscreen closes. */
+    escapeScope?: { consume: () => boolean };
     headerActions?: import('svelte').Snippet;
     headerActionCount?: number;
 
@@ -386,6 +388,7 @@
     content,
     fixedBottom,
     embedHeaderContent,
+    escapeScope,
     headerActions,
     headerActionCount = 1,
     embedHeaderCta,
@@ -1387,7 +1390,11 @@
 
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape' && isAnimatingIn) handleClose(); }} />
+<svelte:window onkeydown={(event) => {
+  if (event.key !== 'Escape' || !isAnimatingIn || event.defaultPrevented) return;
+  if (escapeScope?.consume()) { event.preventDefault(); return; }
+  handleClose();
+}} />
 
 <div
   class="unified-embed-fullscreen-overlay"

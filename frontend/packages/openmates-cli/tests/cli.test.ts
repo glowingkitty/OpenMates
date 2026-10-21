@@ -2387,6 +2387,16 @@ async function withSkillFormattingMockApi<T>(
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const server = createServer(async (request, response) => {
     try {
+      if (request.method === "POST" && request.url === "/v1/apps/home/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: { results: [{ id: 1, results: [] }], provider: "Kleinanzeigen" },
+          credits_charged: 0,
+        });
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
         const body = await readJsonBody(request);
         const firstRequest = (body.requests as Array<{ query?: string }> | undefined)?.[0];
@@ -3774,6 +3784,34 @@ describe("apps metadata commands", () => {
         url: "/v1/apps/tasks/skills/create",
         body: { tasks: [{ title: "Draft checklist" }] },
       });
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=home-search.filters.explicit-and-unknown,home-search.neighborhood.sourced-facts,home-search.water.distance-and-access
+  it("forwards home amenity rent and water constraints through generated typed flags", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests, runCli: runCliAsync }) => {
+      await runCliAsync([
+        "--api-url", apiUrl, "apps", "home", "search", "Berlin",
+        "--required-amenities", "balcony,elevator",
+        "--excluded-amenities", "furnished",
+        "--preferred-amenities", "garden,terrace",
+        "--max-warm-rent-eur", "1500", "--max-cold-rent-eur", "1200",
+        "--available-by", "2026-12-01", "--include-unconfirmed", "true",
+        "--visual-analysis", "false", "--neighborhood-categories", "water,park,transit",
+        "--neighborhood-radius-m", "2000", "--max-water-distance-m", "500",
+        "--max-water-walk-minutes", "10", "--max-results", "3", "--json",
+      ]);
+      assert.deepEqual(requests, [{
+        url: "/v1/apps/home/skills/search",
+        body: { requests: [{
+          query: "Berlin", required_amenities: ["balcony", "elevator"],
+          excluded_amenities: ["furnished"], preferred_amenities: ["garden", "terrace"],
+          max_warm_rent_eur: 1500, max_cold_rent_eur: 1200, available_by: "2026-12-01",
+          include_unconfirmed: true, visual_analysis: false,
+          neighborhood_categories: ["water", "park", "transit"], neighborhood_radius_m: 2000,
+          max_water_distance_m: 500, max_water_walk_minutes: 10, max_results: 3,
+        }] },
+      }]);
     });
   });
 

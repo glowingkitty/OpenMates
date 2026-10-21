@@ -27,9 +27,10 @@
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
-  import { onDestroy, getContext } from 'svelte';
+  import { onDestroy, getContext, tick } from 'svelte';
   import { saveAppsSearchWithNotice } from '../../services/appsWorkspaceLibraryService';
   import { searchResultMapMarkers } from './searchResultMapMarkers';
+  import { getLucideIcon } from '../../utils/categoryUtils';
   import EmbedLeafletMap from './EmbedLeafletMap.svelte';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import AppsRequestComposer from '../apps/AppsRequestComposer.svelte';
@@ -46,6 +47,8 @@
     setChildFullscreenRouteFromParent,
   } from '../../services/embedFullscreenController';
   import type { Snippet } from 'svelte';
+
+  const DeleteFilterIcon = getLucideIcon('trash-2');
 
   /**
    * Navigation context passed to childFullscreen snippet so the consumer
@@ -114,6 +117,8 @@
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Original search query string. Kept for callers that also display it elsewhere. */
     query?: string;
+    /** Domain controls share one predicate across cards and overview markers. */
+    filters?: { controls: Snippet; notices?: Snippet; reset?: () => void; matches: (result: T) => boolean };
 
     // ── Consumer snippets ──
     /** Render a single result preview card. Receives the result and a click handler. */
@@ -162,6 +167,7 @@
     emptyTestId = 'search-template-empty',
     status = 'finished',
     query,
+    filters,
 
     // Snippets
     resultCard,
@@ -183,6 +189,33 @@
     return () => { cancelled = true; };
   });
   let resultFilter = $state('');
+  let filtersOpen = $state(false);
+  let filterButton = $state<HTMLButtonElement>();
+  let filterPanel = $state<HTMLDivElement>();
+  const filterId = $props.id();
+  const filterPanelId = `${filterId}-filters`;
+  let filterPanelHeight = $state(535);
+  function closeFilters(returnFocus = true) {
+    filtersOpen = false;
+    if (returnFocus) filterButton?.focus();
+  }
+  async function toggleFilters() {
+    if (filtersOpen) { closeFilters(); return; }
+    filtersOpen = true;
+    await tick();
+    updateFilterPanelHeight();
+    filterPanel?.querySelector<HTMLInputElement>('input, select')?.focus();
+  }
+  function updateFilterPanelHeight() {
+    if (filtersOpen && filterPanel) {
+      const scrollport = filterPanel.closest('.content-area');
+      const bottom = Math.min(window.innerHeight, scrollport?.getBoundingClientRect().bottom ?? window.innerHeight);
+      filterPanelHeight = Math.max(160, Math.min(535, bottom - filterPanel.getBoundingClientRect().top - 16));
+    }
+  }
+  function dismissFilters(event: PointerEvent) {
+    if (filtersOpen && event.target instanceof Node && !filterPanel?.contains(event.target) && !filterButton?.contains(event.target)) closeFilters(false);
+  }
   let submittingRequest = $state(false);
   let requestError = $state(false);
   function requestContext(): AppsRequestContext {
@@ -201,6 +234,7 @@
     catch { requestError = true; }
   }
   function matchesFilter(result: T): boolean {
+    if (filters && !filters.matches(result)) return false;
     if (!resultFilter.trim()) return true;
     // Search only actual preview data; no speculative category/price filters.
     const values = Object.entries(result).filter(([key]) => !['embed_id', 'embed_type'].includes(key));
@@ -223,7 +257,7 @@
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
-  const mapMarkers = $derived(searchResultMapMarkers(allResults));
+  const mapMarkers = $derived(searchResultMapMarkers(allResults.filter(matchesFilter)));
   let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);
@@ -394,7 +428,10 @@
       {#if requestError}<p role="alert">{$text('apps_workspace.request_error')}</p>{/if}
   {/snippet}
 
+<svelte:window onresize={updateFilterPanelHeight} onpointerdown={dismissFilters} />
+
 <UnifiedEmbedFullscreen
+  escapeScope={{ consume: () => { if (!filtersOpen) return false; closeFilters(); return true; } }}
   {testId}
   {closeTestId}
   {appId}
@@ -434,13 +471,32 @@
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
-    {#if !initialChildEmbedId && results.length > 0}
-      <div class="search-template-toolbar" data-testid="search-template-toolbar">
-        <input type="search" bind:value={resultFilter} placeholder={$text('apps_workspace.filter_results')} aria-label={$text('apps_workspace.filter_results')} data-testid="search-template-filter" />
-        {#if skillId && (parentContent.input || query)}<button type="button" onclick={saveSearch}>{$text('apps_workspace.save_search')}</button>{/if}
-        <button type="button" onclick={createWorkflow}>{$text('apps_workspace.create_workflow')}</button>
+    {#if !initialChildEmbedId && (results.length > 0 || filters)}
+      <div class="search-template-filter-shell">
+        <div class="search-template-toolbar" data-testid="search-template-toolbar">
+          <input type="search" bind:value={resultFilter} placeholder={$text('apps_workspace.filter_results')} aria-label={$text('apps_workspace.filter_results')} data-testid="search-template-filter" />
+          {#if skillId && (parentContent.input || query)}<button type="button" onclick={saveSearch}>{$text('apps_workspace.save_search')}</button>{/if}
+          <button type="button" onclick={createWorkflow}>{$text('apps_workspace.create_workflow')}</button>
+          {#if filters}
+            <div class="filter-menu-wrapper">
+              <button bind:this={filterButton} type="button" class="filter-button" data-testid="search-template-filter-button" data-icon={filtersOpen ? 'close' : 'filter'} aria-label={$text('embeds.results_view.filter')} aria-controls={filterPanelId} aria-expanded={filtersOpen} onclick={toggleFilters}>
+                <span class:filter-icon={!filtersOpen} class:close-icon={filtersOpen} aria-hidden="true"></span>
+              </button>
+            </div>
+          {/if}
+        </div>
+        {#if filters && filtersOpen}
+          <div bind:this={filterPanel} id={filterPanelId} class="filter-menu" style:height={`${filterPanelHeight}px`} data-testid="search-template-filter-menu" data-layout="results-panel" role="region" aria-label={$text('embeds.results_view.filter')}>
+            <div class="filter-menu-summary">
+              <p class="filter-summary" data-testid="search-template-filter-summary">{$text('embeds.results_view.remaining', {values: {visible: results.filter(matchesFilter).length, total: results.length}})}</p>
+              <button type="button" class="clear-results-filters" data-testid="search-template-clear-filters" onclick={() => { resultFilter = ''; filters?.reset?.(); }}><DeleteFilterIcon size={17} />{$text('embeds.results_view.clear_filters')}</button>
+            </div>
+            <div class="filter-controls">{@render filters.controls()}</div>
+          </div>
+        {/if}
       </div>
     {/if}
+    {#if filters?.notices && !initialChildEmbedId}{@render filters.notices()}{/if}
 
     {#if isOpeningInitialChild || isDirectInitialChildOpen}
       <div class="search-template-child-transition" data-testid="search-template-child-transition" aria-busy="true"></div>
@@ -474,6 +530,7 @@
       <div
         class="search-template-grid"
         data-testid="search-template-grid"
+        inert={filtersOpen}
         data-selected-index={selectedIndex}
         style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};"
       >
@@ -506,9 +563,24 @@
 {/if}
 
 <style>
-  .search-template-toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 64px 12px 20px; background: var(--color-grey-20); }
+  .search-template-filter-shell { position: sticky; top: 0; z-index: var(--z-index-dropdown); }
+  .search-template-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 72px 12px 20px; background: var(--color-grey-20); }
   .search-template-toolbar input { flex: 1; min-width: 140px; border: 1px solid var(--color-grey-30); border-radius: 12px; padding: 10px 12px; background: var(--color-grey-10); color: var(--color-font-primary); }
-  .search-template-toolbar button { border: 0; border-radius: 12px; padding: 10px; color: var(--color-font-primary); background: var(--color-grey-10); cursor: pointer; }
+  .search-template-toolbar > button { font-size: var(--font-size-small); border: 0; border-radius: 12px; padding: 10px; color: var(--color-font-primary); background: var(--color-grey-10); cursor: pointer; }
+  /* Established EmbedsMapView filter menu (also used by calendar result views). */
+  .filter-menu-wrapper { position: absolute; top: 12px; right: 20px; }
+  .filter-button { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 42px; min-width: 42px; max-width: 42px; height: 42px; flex: 0 0 42px; border: 0; border-radius: 999px; background: var(--color-grey-0); color: var(--color-font-primary); padding: 0; font: inherit; cursor: pointer; box-shadow: var(--shadow-sm); transform: translateY(-10px); }
+  .filter-icon, .close-icon { width: 22px; height: 22px; background: var(--gradient-primary); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+  .filter-icon { -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg'); mask-image: url('@openmates/ui/static/icons/filter.svg'); }
+  .close-icon { -webkit-mask-image: url('@openmates/ui/static/icons/close.svg'); mask-image: url('@openmates/ui/static/icons/close.svg'); }
+  .filter-button:hover, .filter-button:active { background: var(--color-grey-0); filter: none; scale: 1; }
+  .filter-menu { position: absolute; top: calc(100% - 10px); right: 0; display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 1.2fr); gap: 24px; width: 100%; height: min(535px, calc(100dvh - 180px)); overflow: hidden; box-sizing: border-box; border: 0; border-radius: 23px; background: var(--color-grey-10); padding: 30px 18px 18px; box-shadow: var(--shadow-sm); }
+  .filter-menu-summary { align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-width: 0; text-align: center; }
+  .filter-summary { margin: 0; color: var(--color-font-secondary); font-size: var(--font-size-h3-mobile); font-weight: 650; line-height: 1.35; }
+  .clear-results-filters { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; padding: 0; background: transparent; box-shadow: none; color: var(--color-primary-start); font: inherit; font-size: var(--font-size-xs); cursor: pointer; }
+  .filter-controls { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 25px; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin; padding: 0 4px 20px 0; }
+  .filter-button:focus-visible, .filter-menu button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
+  @container fullscreen (max-width: 520px) { .filter-menu { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 20px; padding: 25px 16px 16px; } .filter-menu-summary { gap: 7px; } .filter-summary { font-size: var(--font-size-small); } }
   /* Results grid -- responsive auto-fill columns */
   .search-template-grid {
     display: grid;

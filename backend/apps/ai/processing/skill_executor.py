@@ -46,6 +46,10 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # Public class search spans up to fourteen dates plus venue enrichment.
     if (app_id, skill_id) == ("fitness", "search_classes"):
         return 60.0
+    # Housing combines bounded provider details, visual evidence and optional
+    # location enrichment. The ordinary 20s envelope can cancel valid results.
+    if (app_id, skill_id) == ("home", "search"):
+        return 75.0
     if (app_id, skill_id) != ("shopping", "search_products") or not isinstance(arguments, dict):
         return DEFAULT_SKILL_TIMEOUT
     requests = arguments.get("requests", [arguments])

@@ -12,9 +12,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Optional
 
 import httpx
@@ -58,6 +60,7 @@ class GeoapifyPlacesSearchResult:
     error: Optional[str] = None
     unsupported_conditions: list[str] = field(default_factory=list)
     cache_hit: bool = False
+    checked_at: str | None = None
 
 
 @dataclass(slots=True)
@@ -143,6 +146,7 @@ class GeoapifyPlacesProvider:
             return GeoapifyPlacesSearchResult(
                 status="ok", places=cached["features"],
                 unsupported_conditions=unsupported_conditions, cache_hit=True,
+                checked_at=cached.get("checked_at"),
             )
         budget_status = await reserve_credit(self.cache_service, api_key)
         if budget_status != "ok":
@@ -186,23 +190,44 @@ class GeoapifyPlacesProvider:
         if not isinstance(features, list):
             return GeoapifyPlacesSearchResult(status="unavailable", error="Invalid Geoapify response")
         places = features
-        await self._cache_set(cache_key, {"features": places}, SEARCH_TTL_SECONDS)
+        checked_at = datetime.now(timezone.utc).isoformat()
+        await self._cache_set(cache_key, {"features": places, "checked_at": checked_at}, SEARCH_TTL_SECONDS)
         return GeoapifyPlacesSearchResult(
             status="ok",
             places=places,
             unsupported_conditions=unsupported_conditions,
+            checked_at=checked_at,
         )
 
     async def geocode_area(self, name: str, language: str = "en") -> GeoapifyPlacesSearchResult:
-        """Resolve a named area; return two candidates so callers can reject ambiguity."""
+        """Resolve a named area; two candidates let callers reject ambiguity."""
+        return await self._geocode(name, language, locality_only=True)
+
+    async def geocode_address(self, address: str, language: str = "en") -> GeoapifyPlacesSearchResult:
+        """Return address matches with provider result_type, rank and provenance.
+
+        Unlike geocode_area this does not restrict results to localities. Callers
+        must inspect match precision; successful geocoding is not proof of an
+        apartment-level location. Shared cache and fail-closed quota apply.
+        """
+        return await self._geocode(address, language, locality_only=False)
+
+    async def _geocode(self, name: str, language: str, *, locality_only: bool) -> GeoapifyPlacesSearchResult:
+        if not isinstance(name, str) or not name.strip():
+            return GeoapifyPlacesSearchResult(status="no_match")
         api_key = await self.get_api_key()
         if not api_key:
             return GeoapifyPlacesSearchResult(status="not_configured", error="Geoapify API key is not configured")
-        params = {"apiKey": api_key, "text": name.strip(), "lang": language, "limit": 2, "type": "locality"}
+        params = {"apiKey": api_key, "text": name.strip()[:500], "lang": language, "limit": 2}
+        if locality_only:
+            params["type"] = "locality"
         key = _request_cache_key("geocode", params)
         cached = await self._cache_get(key)
         if isinstance(cached, dict) and isinstance(cached.get("features"), list):
-            return GeoapifyPlacesSearchResult(status="ok", places=cached["features"], cache_hit=True)
+            return GeoapifyPlacesSearchResult(
+                status="ok", places=cached["features"], cache_hit=True,
+                checked_at=cached.get("checked_at"),
+            )
         status = await reserve_credit(self.cache_service, api_key)
         if status != "ok":
             return GeoapifyPlacesSearchResult(status=status, error=_budget_error(status))
@@ -217,12 +242,65 @@ class GeoapifyPlacesProvider:
             places = payload.get("features") if isinstance(payload, dict) else None
             if not isinstance(places, list):
                 raise ValueError("Invalid features")
-            await self._cache_set(key, {"features": places}, GEOCODE_TTL_SECONDS if places else 3600)
-            return GeoapifyPlacesSearchResult(status="ok", places=places)
+            checked_at = datetime.now(timezone.utc).isoformat()
+            await self._cache_set(
+                key, {"features": places, "checked_at": checked_at},
+                GEOCODE_TTL_SECONDS if places else 3600,
+            )
+            return GeoapifyPlacesSearchResult(status="ok", places=places, checked_at=checked_at)
         except httpx.TimeoutException:
-            return GeoapifyPlacesSearchResult(status="timed_out", error="Geoapify area lookup timed out")
+            return GeoapifyPlacesSearchResult(status="timed_out", error="Geoapify geocoding timed out")
         except (httpx.RequestError, ValueError, AttributeError):
-            return GeoapifyPlacesSearchResult(status="unavailable", error="Geoapify area lookup failed")
+            return GeoapifyPlacesSearchResult(status="unavailable", error="Geoapify geocoding failed")
+
+    async def walking_route(
+        self, *, origin: tuple[float, float], target: tuple[float, float],
+    ) -> GeoapifyPlacesSearchResult:
+        """Two-waypoint walking route; callers must establish public access.
+
+        Local targets only, default output only: one basic routing credit.
+        Return provider time/distance, never a straight-line walking estimate.
+        """
+        for lat, lon in (origin, target):
+            if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+                return GeoapifyPlacesSearchResult(status="no_match")
+        # Constrain routing to neighborhood work, avoiding long-distance calls.
+        dlat = math.radians(target[0] - origin[0])
+        dlon = math.radians(target[1] - origin[1])
+        a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(origin[0])) * math.cos(math.radians(target[0])) * math.sin(dlon / 2) ** 2
+        if 12742000 * math.asin(min(1, math.sqrt(a))) > 5000:
+            return GeoapifyPlacesSearchResult(status="out_of_range")
+        api_key = await self.get_api_key()
+        if not api_key:
+            return GeoapifyPlacesSearchResult(status="not_configured")
+        params = {
+            "apiKey": api_key, "mode": "walk", "units": "metric",
+            "waypoints": f"{origin[0]},{origin[1]}|{target[0]},{target[1]}",
+        }
+        key = _request_cache_key("walking_route", params)
+        cached = await self._cache_get(key)
+        if isinstance(cached, dict) and isinstance(cached.get("features"), list):
+            return GeoapifyPlacesSearchResult(
+                status="ok", places=cached["features"], cache_hit=True, checked_at=cached.get("checked_at"),
+            )
+        status = await reserve_credit(self.cache_service, api_key)
+        if status != "ok":
+            return GeoapifyPlacesSearchResult(status=status, error=_budget_error(status))
+        try:
+            response = await self._http_get("https://api.geoapify.com/v1/routing", params, self.timeout_seconds)
+            if response.status_code >= 400:
+                return GeoapifyPlacesSearchResult(status="rate_limited" if response.status_code == 429 else "unavailable")
+            payload = response.json()
+            features = payload.get("features") if isinstance(payload, dict) else None
+            if not isinstance(features, list):
+                return GeoapifyPlacesSearchResult(status="unavailable")
+            checked_at = datetime.now(timezone.utc).isoformat()
+            await self._cache_set(key, {"features": features, "checked_at": checked_at}, SEARCH_TTL_SECONDS)
+            return GeoapifyPlacesSearchResult(status="ok", places=features, checked_at=checked_at)
+        except httpx.TimeoutException:
+            return GeoapifyPlacesSearchResult(status="timed_out")
+        except (httpx.RequestError, ValueError):
+            return GeoapifyPlacesSearchResult(status="unavailable")
 
     async def get_place_details(
         self,

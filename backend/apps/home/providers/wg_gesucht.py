@@ -15,7 +15,7 @@ Provider: WG-Gesucht (wg-gesucht.de)
 No API key required.
 """
 
-import asyncio
+import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -23,6 +23,10 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from backend.apps.home.providers.results import ProviderListings
+from backend.shared.providers.housing.details import (
+    MAX_CANDIDATES, defaults, enrich, flag, html_details, location,
+    merge_gallery, number, photos, response_text, text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +156,14 @@ def _extract_listings_from_html(html: str) -> List[Dict[str, Any]]:
         )
         image_url = img_match.group(1) if img_match else None
 
-        listings.append({"id": offer_id, "image_url": image_url})
+        link = re.search(r'href=["\']([^"\']*\.' + re.escape(offer_id) + r'\.html)["\']', block_html)
+        listing = {"id": offer_id, "image_url": image_url}
+        if link:
+            from urllib.parse import urljoin, urlsplit
+            candidate = urljoin(BASE_URL, link.group(1))
+            if urlsplit(candidate).hostname in {"www.wg-gesucht.de", "wg-gesucht.de"}:
+                listing["url"] = candidate
+        listings.append(listing)
 
     return listings
 
@@ -174,93 +185,35 @@ def _normalize_listing(
         image_url: Thumbnail image URL extracted from search HTML (the API
                    does not return images, but the search page does).
     """
-    title = data.get("offer_title", "")
-
-    # Price: rent_costs is Kaltmiete, total_costs is Warmmiete
-    price: Optional[float] = None
-    total_costs = data.get("total_costs")
-    rent_costs = data.get("rent_costs")
-    price_source = total_costs or rent_costs
-    if price_source is not None:
-        try:
-            price = float(price_source)
-        except (ValueError, TypeError):
-            pass
-
-    if price is not None:
-        price_label = f"{price:,.0f} EUR/month".replace(",", ".")
-    else:
-        price_label = "Price on request"
-
-    # Size
-    size_sqm: Optional[float] = None
-    property_size = data.get("property_size")
-    if property_size is not None:
-        try:
-            size_sqm = float(property_size)
-        except (ValueError, TypeError):
-            pass
-
-    # Rooms
-    rooms: Optional[float] = None
-    num_rooms = data.get("number_of_rooms")
-    if num_rooms is not None:
-        try:
-            rooms = float(num_rooms)
-        except (ValueError, TypeError):
-            pass
-
-    # Address
-    street = data.get("street", "")
-    postcode = data.get("postcode", "")
-    district = data.get("district_custom", "")
-    address_parts = [p for p in [street, postcode] if p]
-    address = ", ".join(address_parts)
-    if district:
-        address = f"{address} ({district})" if address else district
-
-    # Build listing URL from category and district
-    category = data.get("category", "0")
-    category_slugs = {"0": "wg-zimmer", "1": "1-zimmer-wohnungen", "2": "wohnungen", "3": "haeuser"}
-    slug = category_slugs.get(str(category), "wg-zimmer")
-    district_slug = district.replace(" ", "-").replace("/", "-") if district else "listing"
-    listing_url = f"{BASE_URL}/{slug}-in-{district_slug}.{offer_id}.html"
-
-    # Available from/to dates
-    available_from = data.get("available_from_date", "")
-    if available_from == "00.00.0000":
-        available_from = ""
-
-    # Deposit (bond_costs)
-    deposit: Optional[float] = None
-    bond_costs = data.get("bond_costs")
-    if bond_costs is not None:
-        try:
-            deposit = float(bond_costs)
-            if deposit == 0:
-                deposit = None
-        except (ValueError, TypeError):
-            pass
-
-    # Amenities as boolean flags (API returns 0/1)
-    furnished = bool(data.get("furnished", 0))
-
-    return {
-        "id": f"wg_{offer_id}",
-        "title": title,
-        "price": price,
-        "price_label": price_label,
-        "size_sqm": size_sqm,
-        "rooms": rooms,
-        "address": address,
+    district = text(data.get("district_custom"))
+    category = str(data.get("category", "0"))
+    slug = {"0": "wg-zimmer", "1": "1-zimmer-wohnungen", "2": "wohnungen", "3": "haeuser"}.get(category, "wg-zimmer")
+    listing = defaults({
+        "id": f"wg_{offer_id}", "title": text(data.get("offer_title")),
+        "price": number(data.get("total_costs")) if number(data.get("total_costs")) is not None else number(data.get("rent_costs")),
+        "size_sqm": number(data.get("property_size")), "rooms": number(data.get("number_of_rooms")),
+        "address": ", ".join(text(data[key]) for key in ("street", "postcode", "district_custom") if data.get(key)),
         "image_url": image_url,
-        "url": listing_url,
-        "provider": "WG-Gesucht",
-        "listing_type": "rent",
-        "available_from": available_from if available_from else None,
-        "deposit": deposit,
-        "furnished": furnished,
-    }
+        "url": f"{BASE_URL}/{slug}-in-{district.replace(' ', '-').replace('/', '-') or 'listing'}.{offer_id}.html",
+        "provider": "WG-Gesucht", "listing_type": "rent",
+    })
+    for source, target in {"rent_costs": "cold_rent_eur", "total_costs": "warm_rent_eur", "additional_costs": "utilities_eur", "heating_costs": "heating_costs_eur", "bond_costs": "deposit"}.items():
+        listing[target] = number(data.get(source))
+    listing["price_type"] = "warm" if listing["warm_rent_eur"] is not None else "cold" if listing["cold_rent_eur"] is not None else "unknown"
+    listing["price_label"] = f"{listing['price']:,.0f} EUR/month".replace(",", ".") if listing['price'] is not None else "Price on request"
+    for source, target in {"available_from_date": "available_from", "available_to_date": "available_to", "floor": "floor", "house_number": "house_number"}.items():
+        listing[target] = data.get(source) if data.get(source) not in (None, "", "00.00.0000", "0000-00-00") else None
+    descriptions = [text(data[key]) for key in ("offer_description", "description", "room_description", "property_description", "location_description", "flatshare_description", "miscellaneous_description", "freetext_property_description", "freetext_location", "freetext_flatshare", "freetext_other") if data.get(key)]
+    listing["description"] = "\n\n".join(dict.fromkeys(descriptions)) or None
+    for source, target in {"balcony": "balcony", "furnished": "furnished", "elevator": "elevator", "garden": "garden", "terrace": "terrace", "parking": "parking", "pets_allowed": "pets_allowed"}.items():
+        listing["amenities"][target] = flag(data.get(source))
+        listing[target] = listing["amenities"][target]
+    location(listing, data)
+    gallery_present = any(key in data for key in ("images", "pictures", "gallery"))
+    gallery = [url for key in ("images", "pictures", "gallery") for url in photos(data.get(key))]
+    merge_gallery(listing, gallery, complete=gallery_present)
+    listing["detail_status"] = "available" if data else "unavailable"
+    return listing
 
 
 async def search_listings(
@@ -314,35 +267,38 @@ async def search_listings(
 
             logger.info("WG-Gesucht found %d listing IDs for city=%s", len(html_listings), city)
 
-            # Step 3: Fetch details for top N listings in parallel
-            to_fetch = html_listings[:max_results]
+            # Keep search cards even when the API or optional gallery fails.
+            entries = html_listings[:min(max(0, max_results), MAX_CANDIDATES)]
+            listings = [_normalize_listing(entry["id"], {}, entry.get("image_url")) for entry in entries]
+            for listing in listings:
+                listing["city"] = city
+            for listing, entry in zip(listings, entries):
+                if entry.get("url"):
+                    listing["url"] = entry["url"]
 
-            detail_warnings: List[str] = []
-
-            async def fetch_detail(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-                offer_id = entry["id"]
+            async def fetch_detail(listing: Dict[str, Any]) -> None:
+                offer_id = listing["id"][3:]
+                api_error = None
                 try:
-                    resp = await client.get(
-                        f"{DETAIL_API_BASE}/{offer_id}",
-                        headers=API_HEADERS,
-                        timeout=DETAIL_TIMEOUT_SECONDS,
-                    )
-                    if resp.status_code == 200:
-                        return _normalize_listing(offer_id, resp.json(), image_url=entry.get("image_url"))
-                    logger.debug("WG-Gesucht detail API status=%d for offer=%s", resp.status_code, offer_id)
-                    detail_warnings.append(f"WG-Gesucht listing details unavailable (HTTP {resp.status_code})")
-                except Exception as e:
-                    logger.debug("WG-Gesucht detail fetch failed offer=%s: %s", offer_id, e)
-                    detail_warnings.append("WG-Gesucht listing detail request failed")
-                return None
+                    raw = await response_text(client, f"{DETAIL_API_BASE}/{offer_id}", API_HEADERS)
+                    data = json.loads(raw)
+                    if not isinstance(data, dict) or not data.get("offer_title"):
+                        raise ValueError("Unrecognized WG-Gesucht offer payload")
+                    source_url = listing["url"]
+                    listing.update(_normalize_listing(offer_id, data, image_url=listing.get("image_url")))
+                    listing["url"] = source_url
+                    listing["city"] = listing.get("city") or city
+                except Exception as exc:
+                    logger.debug("WG-Gesucht API unavailable offer=%s: %s", offer_id, exc)
+                    api_error = exc
+                # API often omits the photo collection: the public listing owns it.
+                if listing["gallery_status"] != "complete" or api_error:
+                    html = await response_text(client, listing["url"], BROWSER_HEADERS)
+                    html_details(listing, html)
 
-            results = await asyncio.gather(*[fetch_detail(e) for e in to_fetch])
-            listings = [r for r in results if r is not None]
-
-            logger.info("WG-Gesucht search city=%s -> %d listings (from %d IDs)", city, len(listings), len(html_listings))
-            if not listings and detail_warnings:
-                raise RuntimeError("All WG-Gesucht listing detail requests failed")
-            return ProviderListings(listings, sorted(set(detail_warnings)))
+            detail_warnings = await enrich(listings, fetch_detail)
+            logger.info("WG-Gesucht search city=%s -> %d listings", city, len(listings))
+            return ProviderListings(listings, detail_warnings)
 
     except httpx.HTTPStatusError as e:
         logger.error("WG-Gesucht HTTP error status=%d city=%s: %s", e.response.status_code, city, e)

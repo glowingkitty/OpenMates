@@ -554,6 +554,16 @@
     border: none;
   }
 
+  :global(.embed-leaflet-map .approximate-location) {
+    background: none;
+    border: none;
+  }
+
+  :global(.embed-leaflet-map .approximate-location .embed-map-pin) {
+    opacity: 0.6;
+    stroke-dasharray: 3 2;
+  }
+
   :global(.embed-leaflet-map .embed-map-pin) {
     display: block;
     color: var(--embed-map-pin-color, var(--color-app-maps-start));

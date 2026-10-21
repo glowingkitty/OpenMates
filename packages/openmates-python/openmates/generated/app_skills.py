@@ -2794,7 +2794,55 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         'request searches for apartments and rooms '
                                                         'in a German city across multiple '
                                                         'platforms.\n',
-                                         'items': {'properties': {'listing_type': {'default': 'rent',
+                                         'items': {'properties': {'available_by': {'description': 'Must '
+                                                                                                  'be '
+                                                                                                  'available '
+                                                                                                  'on '
+                                                                                                  'or '
+                                                                                                  'before '
+                                                                                                  'this '
+                                                                                                  'ISO '
+                                                                                                  'date.',
+                                                                                   'format': 'date',
+                                                                                   'type': 'string'},
+                                                                  'excluded_amenities': {'default': [],
+                                                                                         'description': 'Amenities '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'explicitly '
+                                                                                                        'excludes. '
+                                                                                                        'Missing '
+                                                                                                        'evidence '
+                                                                                                        'does '
+                                                                                                        'not '
+                                                                                                        'prove '
+                                                                                                        'absence.',
+                                                                                         'items': {'enum': ['balcony',
+                                                                                                            'terrace',
+                                                                                                            'garden',
+                                                                                                            'elevator',
+                                                                                                            'furnished',
+                                                                                                            'parking',
+                                                                                                            'pets_allowed'],
+                                                                                                   'type': 'string'},
+                                                                                         'maxItems': 7,
+                                                                                         'type': 'array'},
+                                                                  'include_unconfirmed': {'default': False,
+                                                                                          'description': 'Include '
+                                                                                                         'clearly '
+                                                                                                         'labelled '
+                                                                                                         'listings '
+                                                                                                         'with '
+                                                                                                         'missing '
+                                                                                                         'evidence '
+                                                                                                         'for '
+                                                                                                         'requirements; '
+                                                                                                         'explicit '
+                                                                                                         'conflicts '
+                                                                                                         'remain '
+                                                                                                         'excluded.',
+                                                                                          'type': 'boolean'},
+                                                                  'listing_type': {'default': 'rent',
                                                                                    'description': 'Type '
                                                                                                   'of '
                                                                                                   'listing. '
@@ -2819,6 +2867,17 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                             'buy'],
                                                                                    'type': 'string',
                                                                                    'x-ui': {'basic': True}},
+                                                                  'max_cold_rent_eur': {'description': 'Maximum '
+                                                                                                       'explicitly '
+                                                                                                       'advertised '
+                                                                                                       'cold '
+                                                                                                       'monthly '
+                                                                                                       'rent, '
+                                                                                                       'excluding '
+                                                                                                       'service '
+                                                                                                       'costs.',
+                                                                                        'minimum': 0,
+                                                                                        'type': 'number'},
                                                                   'max_price_eur': {'description': 'Maximum '
                                                                                                    'advertised '
                                                                                                    'monthly '
@@ -2850,6 +2909,65 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                   'minimum': 1,
                                                                                   'type': 'integer',
                                                                                   'x-ui': {'basic': False}},
+                                                                  'max_rooms': {'minimum': 0,
+                                                                                'type': 'number'},
+                                                                  'max_size_sqm': {'minimum': 0,
+                                                                                   'type': 'number'},
+                                                                  'max_warm_rent_eur': {'description': 'Maximum '
+                                                                                                       'explicitly '
+                                                                                                       'advertised '
+                                                                                                       'total '
+                                                                                                       'monthly '
+                                                                                                       'rent, '
+                                                                                                       'including '
+                                                                                                       'service '
+                                                                                                       'costs. '
+                                                                                                       'Unknown '
+                                                                                                       'total '
+                                                                                                       'rent '
+                                                                                                       'is '
+                                                                                                       'unconfirmed.',
+                                                                                        'minimum': 0,
+                                                                                        'type': 'number'},
+                                                                  'max_water_distance_m': {'description': 'Maximum '
+                                                                                                          'supported '
+                                                                                                          'distance '
+                                                                                                          'to '
+                                                                                                          'a '
+                                                                                                          'shoreline, '
+                                                                                                          'not '
+                                                                                                          'to '
+                                                                                                          'a '
+                                                                                                          'water '
+                                                                                                          "feature's "
+                                                                                                          'representative '
+                                                                                                          'point.',
+                                                                                           'maximum': 5000,
+                                                                                           'minimum': 0,
+                                                                                           'type': 'number'},
+                                                                  'max_water_walk_minutes': {'description': 'Maximum '
+                                                                                                            'supported '
+                                                                                                            'walk '
+                                                                                                            'to '
+                                                                                                            'a '
+                                                                                                            'public '
+                                                                                                            'waterfront; '
+                                                                                                            'a '
+                                                                                                            'straight-line '
+                                                                                                            'estimate '
+                                                                                                            'cannot '
+                                                                                                            'satisfy '
+                                                                                                            'this.',
+                                                                                             'maximum': 120,
+                                                                                             'minimum': 0,
+                                                                                             'type': 'number'},
+                                                                  'min_price_eur': {'description': 'Minimum '
+                                                                                                   'advertised '
+                                                                                                   'price '
+                                                                                                   'in '
+                                                                                                   'EUR.',
+                                                                                    'minimum': 0,
+                                                                                    'type': 'number'},
                                                                   'min_rooms': {'description': 'Minimum '
                                                                                                'advertised '
                                                                                                'rooms. '
@@ -2879,6 +2997,39 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                    'minimum': 0,
                                                                                    'type': 'number',
                                                                                    'x-ui': {'basic': False}},
+                                                                  'neighborhood_categories': {'default': [],
+                                                                                              'items': {'enum': ['water',
+                                                                                                                 'park',
+                                                                                                                 'transit',
+                                                                                                                 'groceries',
+                                                                                                                 'school'],
+                                                                                                        'type': 'string'},
+                                                                                              'maxItems': 5,
+                                                                                              'type': 'array'},
+                                                                  'neighborhood_radius_m': {'default': 1500,
+                                                                                            'maximum': 5000,
+                                                                                            'minimum': 100,
+                                                                                            'type': 'integer'},
+                                                                  'preferred_amenities': {'default': [],
+                                                                                          'description': 'Soft '
+                                                                                                         'amenity '
+                                                                                                         'preferences; '
+                                                                                                         'these '
+                                                                                                         'rank '
+                                                                                                         'results '
+                                                                                                         'without '
+                                                                                                         'excluding '
+                                                                                                         'unknowns.',
+                                                                                          'items': {'enum': ['balcony',
+                                                                                                             'terrace',
+                                                                                                             'garden',
+                                                                                                             'elevator',
+                                                                                                             'furnished',
+                                                                                                             'parking',
+                                                                                                             'pets_allowed'],
+                                                                                                    'type': 'string'},
+                                                                                          'maxItems': 7,
+                                                                                          'type': 'array'},
                                                                   'property_type': {'default': 'apartment',
                                                                                     'description': 'Entire '
                                                                                                    'apartments '
@@ -2990,6 +3141,28 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'maxLength': 1000,
                                                                                          'type': 'string',
                                                                                          'x-ui': {'basic': True}},
+                                                                  'required_amenities': {'default': [],
+                                                                                         'description': 'Explicit '
+                                                                                                        'hard '
+                                                                                                        'amenity '
+                                                                                                        'requirements; '
+                                                                                                        'unknown '
+                                                                                                        'evidence '
+                                                                                                        'is '
+                                                                                                        'not '
+                                                                                                        'a '
+                                                                                                        'confirmed '
+                                                                                                        'match.',
+                                                                                         'items': {'enum': ['balcony',
+                                                                                                            'terrace',
+                                                                                                            'garden',
+                                                                                                            'elevator',
+                                                                                                            'furnished',
+                                                                                                            'parking',
+                                                                                                            'pets_allowed'],
+                                                                                                   'type': 'string'},
+                                                                                         'maxItems': 7,
+                                                                                         'type': 'array'},
                                                                   'sort': {'default': 'price_asc',
                                                                            'description': 'Price '
                                                                                           'ascending, '
@@ -3013,7 +3186,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                            'enum': ['price_asc',
                                                                                     'newest'],
                                                                            'type': 'string',
-                                                                           'x-ui': {'basic': False}}},
+                                                                           'x-ui': {'basic': False}},
+                                                                  'visual_analysis': {'default': True,
+                                                                                      'description': 'Assess '
+                                                                                                     'a '
+                                                                                                     'bounded '
+                                                                                                     'subset '
+                                                                                                     'of '
+                                                                                                     'supplied '
+                                                                                                     'photos '
+                                                                                                     'for '
+                                                                                                     'requested '
+                                                                                                     'features, '
+                                                                                                     'preserving '
+                                                                                                     'the '
+                                                                                                     'complete '
+                                                                                                     'gallery.',
+                                                                                      'type': 'boolean'}},
                                                    'required': ['query'],
                                                    'type': 'object'},
                                          'type': 'array',

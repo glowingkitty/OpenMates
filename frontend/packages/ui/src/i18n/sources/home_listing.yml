@@ -1,0 +1,457 @@
+listing:
+  context: Home listing details and evidence label
+  en: Listing
+  verified_by_human: []
+  de: Wohnungsangebot
+photos:
+  context: Home listing details and evidence label
+  en: Listing photos
+  verified_by_human: []
+  de: Fotos des Angebots
+photo:
+  context: Home listing details and evidence label
+  en: Photo
+  verified_by_human: []
+  de: Foto
+previous_photo:
+  context: Home listing details and evidence label
+  en: Previous photo
+  verified_by_human: []
+  de: Vorheriges Foto
+next_photo:
+  context: Home listing details and evidence label
+  en: Next photo
+  verified_by_human: []
+  de: Nächstes Foto
+photo_unavailable:
+  context: Home listing details and evidence label
+  en: This photo could not be loaded.
+  verified_by_human: []
+  de: Dieses Foto konnte nicht geladen werden.
+no_photos:
+  context: Home listing details and evidence label
+  en: No listing photos available.
+  verified_by_human: []
+  de: Keine Fotos für dieses Angebot verfügbar.
+partial_gallery:
+  context: Home listing details and evidence label
+  en: Additional listing photos may be unavailable.
+  verified_by_human: []
+  de: Weitere Fotos des Angebots sind möglicherweise nicht verfügbar.
+approximate:
+  context: Home listing details and evidence label
+  en: Approximate location
+  verified_by_human: []
+  de: Ungefährer Standort
+building:
+  context: Home listing details and evidence label
+  en: Building location
+  verified_by_human: []
+  de: Gebäudestandort
+no_location:
+  context: Home listing details and evidence label
+  en: Location unavailable
+  verified_by_human: []
+  de: Standort nicht verfügbar
+location:
+  context: Home listing details and evidence label
+  en: Location evidence
+  verified_by_human: []
+  de: Standortnachweise
+location_warning:
+  context: Home listing details and evidence label
+  en: This marker shows an approximate area. Apartment distance and walking access
+    are unknown.
+  verified_by_human: []
+  de: Diese Markierung zeigt einen ungefähren Bereich. Entfernung und fußläufiger
+    Zugang von der Wohnung sind unbekannt.
+description:
+  context: Home listing details and evidence label
+  en: Description
+  verified_by_human: []
+  de: Beschreibung
+details:
+  context: Home listing details and evidence label
+  en: Listing details
+  verified_by_human: []
+  de: Details zum Angebot
+amenities:
+  context: Home listing details and evidence label
+  en: Advertised amenities
+  verified_by_human: []
+  de: Angegebene Ausstattung
+match_evidence:
+  context: Home listing details and evidence label
+  en: Why this listing matches
+  verified_by_human: []
+  de: Warum dieses Angebot passt
+visual_evidence:
+  context: Home listing details and evidence label
+  en: Photo assessment
+  verified_by_human: []
+  de: Fotoeinschätzung
+photos_assessed:
+  context: Home listing details and evidence label
+  en: photos assessed
+  verified_by_human: []
+  de: Fotos bewertet
+neighborhood:
+  context: Home listing details and evidence label
+  en: Neighborhood evidence
+  verified_by_human: []
+  de: Informationen zur Umgebung
+'yes':
+  context: Home listing details and evidence label
+  en: 'Yes'
+  verified_by_human: []
+  de: Ja
+'no':
+  context: Home listing details and evidence label
+  en: 'No'
+  verified_by_human: []
+  de: Nein
+unknown:
+  context: Home listing details and evidence label
+  en: Unknown
+  verified_by_human: []
+  de: Unbekannt
+price_type:
+  context: Home listing details and evidence label
+  en: Price basis
+  verified_by_human: []
+  de: Preisgrundlage
+cold_rent_eur:
+  context: Home listing details and evidence label
+  en: Cold rent
+  verified_by_human: []
+  de: Kaltmiete
+warm_rent_eur:
+  context: Home listing details and evidence label
+  en: Warm rent
+  verified_by_human: []
+  de: Warmmiete
+utilities_eur:
+  context: Home listing details and evidence label
+  en: Utilities
+  verified_by_human: []
+  de: Nebenkosten
+heating_costs_eur:
+  context: Home listing details and evidence label
+  en: Heating costs
+  verified_by_human: []
+  de: Heizkosten
+floor:
+  context: Home listing details and evidence label
+  en: Floor
+  verified_by_human: []
+  de: Etage
+available_from:
+  context: Home listing details and evidence label
+  en: Available from
+  verified_by_human: []
+  de: Verfügbar ab
+available_to:
+  context: Home listing details and evidence label
+  en: Available until
+  verified_by_human: []
+  de: Verfügbar bis
+deposit:
+  context: Home listing details and evidence label
+  en: Deposit
+  verified_by_human: []
+  de: Kaution
+balcony:
+  context: Home listing details and evidence label
+  en: Balcony
+  verified_by_human: []
+  de: Balkon
+furnished:
+  context: Home listing details and evidence label
+  en: Furnished
+  verified_by_human: []
+  de: Möbliert
+elevator:
+  context: Home listing details and evidence label
+  en: Elevator
+  verified_by_human: []
+  de: Aufzug
+garden:
+  context: Home listing details and evidence label
+  en: Garden
+  verified_by_human: []
+  de: Garten
+terrace:
+  context: Home listing details and evidence label
+  en: Terrace
+  verified_by_human: []
+  de: Terrasse
+parking:
+  context: Home listing details and evidence label
+  en: Parking
+  verified_by_human: []
+  de: Parkplatz
+pets_allowed:
+  context: Home listing details and evidence label
+  en: Pets allowed
+  verified_by_human: []
+  de: Haustiere erlaubt
+price:
+  context: Advertised numerical price for a listing; currency is supplied by the source
+  en: Advertised price
+  verified_by_human: []
+  de: Angegebener Preis
+location_address:
+  context: Provider supplied address or district on a home listing
+  en: Advertised address
+  de: Angegebene Adresse
+  verified_by_human: []
+advertised_evidence:
+  context: Identifies match evidence originating from listing text or advertised amenities
+  en: Advertised listing evidence
+  de: Nachweise aus dem Angebot
+  verified_by_human: []
+assessment_warning:
+  context: Explains that automated photo analysis is limited and does not verify an
+    apartment feature
+  en: Automated assessment of the supplied photos. Unseen features remain unknown.
+  de: Automatische Einschätzung der bereitgestellten Fotos. Nicht sichtbare Merkmale
+    bleiben unbekannt.
+  verified_by_human: []
+filter_listings:
+  context: Visible housing result filter control or explanation
+  en: Filter listings
+  de: Angebote filtern
+  verified_by_human: []
+max_price:
+  context: Visible housing result filter control or explanation
+  en: Maximum price (EUR)
+  de: Höchstpreis (EUR)
+  verified_by_human: []
+advertised_price:
+  context: Visible housing result filter control or explanation
+  en: Advertised price
+  de: Angegebener Preis
+  verified_by_human: []
+min_rooms:
+  context: Visible housing result filter control or explanation
+  en: Minimum rooms
+  de: Mindestzimmerzahl
+  verified_by_human: []
+min_size:
+  context: Visible housing result filter control or explanation
+  en: Minimum area (m²)
+  de: Mindestfläche (m²)
+  verified_by_human: []
+required_amenity:
+  context: Visible housing result filter control or explanation
+  en: Required amenity
+  de: Erforderliche Ausstattung
+  verified_by_human: []
+any_amenity:
+  context: Visible housing result filter control or explanation
+  en: Any amenity
+  de: Beliebige Ausstattung
+  verified_by_human: []
+filter_unknown_warning:
+  context: Visible housing result filter control or explanation
+  en: Only listings with known supporting facts pass an active filter. Missing prices
+    or amenities do not confirm a match.
+  de: Aktive Filter berücksichtigen nur bekannte passende Angaben. Fehlende Preise
+    oder Ausstattungsangaben bestätigen keine Übereinstimmung.
+  verified_by_human: []
+reset_filters:
+  context: Visible housing result filter control or explanation
+  en: Reset listing filters
+  de: Angebotsfilter zurücksetzen
+  verified_by_human: []
+match_status:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Match assessment
+  de: Bewertung der Übereinstimmung
+  verified_by_human: []
+requirement:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Requirement
+  de: Anforderung
+  verified_by_human: []
+advertised_fact:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Advertised
+  de: Angegeben
+  verified_by_human: []
+listing_text:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Listing text
+  de: Angebotstext
+  verified_by_human: []
+photo_evidence:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Photos
+  de: Fotos
+  verified_by_human: []
+source:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Source
+  de: Quelle
+  verified_by_human: []
+checked:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Checked
+  de: Geprüft
+  verified_by_human: []
+water:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Water
+  de: Gewässer
+  verified_by_human: []
+park:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Parks
+  de: Parks
+  verified_by_human: []
+transit:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Public transport
+  de: Öffentliche Verkehrsmittel
+  verified_by_human: []
+groceries:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Groceries
+  de: Lebensmittel
+  verified_by_human: []
+school:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Schools
+  de: Schulen
+  verified_by_human: []
+limited_coverage:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Limited search coverage
+  de: Begrenzte Suchabdeckung
+  verified_by_human: []
+shoreline_unknown:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Apartment-to-shoreline distance unknown
+  de: Entfernung zwischen Wohnung und Ufer unbekannt
+  verified_by_human: []
+distance_unknown:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Distance from apartment unknown
+  de: Entfernung von der Wohnung unbekannt
+  verified_by_human: []
+shoreline_distance:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Distance to shoreline
+  de: Entfernung zum Ufer
+  verified_by_human: []
+point_distance:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Distance to map point (not shoreline)
+  de: Entfernung zum Kartenpunkt (nicht zum Ufer)
+  verified_by_human: []
+geometry_distance:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Distance to mapped feature geometry (not verified shoreline)
+  de: Entfernung zur kartierten Geometrie (kein bestätigtes Ufer)
+  verified_by_human: []
+routed_walk:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Walking route
+  de: Berechneter Fußweg
+  verified_by_human: []
+minutes:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: minutes
+  de: Minuten
+  verified_by_human: []
+walking_unknown:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Walking access unknown; no confirmed route
+  de: Fußläufiger Zugang unbekannt; keine bestätigte Route
+  verified_by_human: []
+no_nearby_evidence:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: No places returned in this limited search. Nearby amenities remain unknown.
+  de: Bei dieser begrenzten Suche wurden keine Orte gefunden. Einrichtungen in der
+    Nähe bleiben unbekannt.
+  verified_by_human: []
+status_confirmed:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Confirmed
+  de: Bestätigt
+  verified_by_human: []
+status_possible:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Possible
+  de: Möglich
+  verified_by_human: []
+status_conflicting:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Conflicting evidence
+  de: Widersprüchliche Nachweise
+  verified_by_human: []
+status_unknown:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Unknown
+  de: Unbekannt
+  verified_by_human: []
+status_unavailable:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Unavailable
+  de: Nicht verfügbar
+  verified_by_human: []
+status_unconfirmed:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Unconfirmed
+  de: Unbestätigt
+  verified_by_human: []
+status_partial:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Partial coverage
+  de: Teilweise Abdeckung
+  verified_by_human: []
+status_evaluated:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Assessed
+  de: Bewertet
+  verified_by_human: []
+status_visible:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Visible in assessed photos
+  de: Auf bewerteten Fotos sichtbar
+  verified_by_human: []
+status_not_visible:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Not visible; presence remains unknown
+  de: Nicht sichtbar; Vorhandensein bleibt unbekannt
+  verified_by_human: []
+status_uncertain:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Uncertain
+  de: Unsicher
+  verified_by_human: []
+status_present:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Present
+  de: Vorhanden
+  verified_by_human: []
+status_absent:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Absent
+  de: Nicht vorhanden
+  verified_by_human: []
+status_no_features_returned:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: No places returned
+  de: Keine Orte gefunden
+  verified_by_human: []
+status_not_checked:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Not checked
+  de: Nicht geprüft
+  verified_by_human: []
+status_ok:
+  context: Human readable housing evidence category, status, or distance provenance
+  en: Available
+  de: Verfügbar
+  verified_by_human: []

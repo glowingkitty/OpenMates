@@ -19,7 +19,8 @@ async def test_apartment_monitor_does_not_hide_new_listings_behind_cheapest(monk
     monkeypatch.setattr(skill, "_geocode_listings", no_geocode)
     _, listings, error, warnings = await skill._process_single_request({"query": "Berlin", "sort": "newest", "max_results": 1}, "request")
     assert [item["id"] for item in listings] == ["new"]
-    assert not error and not warnings
+    assert not error
+    assert any("not an exhaustive market search" in warning for warning in warnings)
     assert calls[0]["property_type"] == "apartment"
     assert calls[0]["max_results"] == 20
     assert "wohnungen-in-Berlin" in _build_search_url("Berlin", 8, category="2")
@@ -43,10 +44,11 @@ async def test_provider_failure_is_distinct_from_empty_and_partial(monkeypatch):
     assert not listings and "HTTP 429" in error
     monkeypatch.setattr(search_skill, "PROVIDER_MAP", {"Kleinanzeigen": fail, "ImmoScout24": empty})
     _, listings, error, warnings = await skill._process_single_request({"query": "Berlin"}, "request")
-    assert not listings and error is None and "HTTP 429" in warnings[0]
+    assert not listings and error is None and any("HTTP 429" in warning for warning in warnings)
     monkeypatch.setattr(search_skill, "PROVIDER_MAP", {"Kleinanzeigen": empty})
     _, listings, error, warnings = await skill._process_single_request({"query": "Berlin"}, "request")
-    assert not listings and error is None and not warnings
+    assert not listings and error is None
+    assert any("not an exhaustive market search" in warning for warning in warnings)
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity

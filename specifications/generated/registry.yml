@@ -218,6 +218,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.home-search:
+    version: 1
+    status: draft
+    path: features/app-skills/home-search
+    fingerprint: 2c52db42665262bb4f0606dd08570fd13b49ccc8f8eec717179dc11a4e8ff8c8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.hosting-search-domains:
     version: 1
     status: draft
@@ -3620,6 +3631,138 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  home-search.listings.rich-provider-evidence:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: invariant
+    fingerprint: 16ef14777f0f3b295afee01ceeb1d1b7c37bca6e1d11d70192b16d15b42e6a2d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.images.complete-gallery:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: behavior
+    fingerprint: 0cc63b7e2695bc489fff00b8d164d93b0bf89e429f53b223e55fc6673f78cab8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.filters.explicit-and-unknown:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: behavior
+    fingerprint: 244c2ddad187a7154c0c3f6c74c202b8cb99a40083b4e5dfeb623ed0445a728b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.relevance.natural-language:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: behavior
+    fingerprint: 4cfeb98c2f0d176611309e82aca4c0747e498ebd0d8fd9cc4167ca71e2fcea65
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.vision.evidence-and-conflicts:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: behavior
+    fingerprint: e1ac9975d4bde0f4e9fe182a91eff0b799f9715d952eef8eb01cd245730b4d18
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.location.precision:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: invariant
+    fingerprint: 42764e093927f98c42c5cd969db03929511902d35cde27d8931b83c0d4a49c5c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.neighborhood.sourced-facts:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: behavior
+    fingerprint: 41a9c4c30fe37ccfe32f6b1d3bb317ad1f8d60060077c4c566de441bd15041b9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.water.distance-and-access:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: behavior
+    fingerprint: f86465531e5ed61c4ebd4523041e50c9e4e831d240eaa175e532525b787284b0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.web.map-and-filter:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: parity
+    fingerprint: 2f87c2c45705d3e2d72d760b36e47d6d5d28dd9d5b7757366ec791b18388771d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.enrichment.bounded-and-reusable:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: invariant
+    fingerprint: 4c2ebd1ed2c6453307e623a936af57e01bf86300ef42fb3831b1912d27d6a698
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.images.transient-analysis:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: privacy
+    fingerprint: ec728c4b122f1e2bf11c037ffdcbad904ae8be3c9de40070156660bff702842d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  home-search.output.safe-and-truthful:
+    specification: feature.app-skill.home-search@1
+    specification_id: feature.app-skill.home-search
+    type: security
+    fingerprint: 0b7c44cb4a81c13b34ed60585ee944263646dedd6b1f16110ff80f7ea163d8b4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   hosting-domains.request.validated:
     specification: feature.app-skill.hosting-search-domains@1
     specification_id: feature.app-skill.hosting-search-domains

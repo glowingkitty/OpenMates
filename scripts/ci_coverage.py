@@ -11,6 +11,8 @@ from pathlib import Path
 
 
 CORE_SPECS = frozenset({
+    # Home galleries/filters use local preview fixtures; no account or inference.
+    "components/home-search-details.spec.ts",
     # Reviewed ordinary suites use core auth/state only; assertion failures are results.
     # The nightly digest preview and status route use only static fixtures and
     # mocked public status data; neither needs provider credentials.

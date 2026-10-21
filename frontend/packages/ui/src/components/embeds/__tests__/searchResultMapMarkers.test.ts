@@ -13,4 +13,12 @@ describe('real result header map coordinates', () => {
     expect(searchResultMapMarkers([{ embed_id: 'x', location: { lat: 100, lon: 200 } }])).toEqual([]);
     expect(searchResultMapMarkers([{ embed_id: 'x', lat: 52, lon: 13, location: { lat: 52, lon: 13 } }])).toHaveLength(1);
   });
+  // contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.location.precision
+  it('labels approximate apartment pins and does not turn nearby water into apartment markers', () => {
+    expect(searchResultMapMarkers([{ embed_id: 'home', provider: 'WG-Gesucht', title: 'Apartment', latitude: 52, longitude: 13,
+      location_precision: 'district', location_approximate: true,
+      neighborhood: { features: { water: [{ latitude: 52.1, longitude: 13.1 }] } } }])).toEqual([
+      { ref: 'home', lat: 52, lon: 13, label: 'Apartment · Approximate location', iconClass: 'approximate-location' },
+    ]);
+  });
 });

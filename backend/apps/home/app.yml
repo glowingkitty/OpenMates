@@ -23,7 +23,7 @@ description_translation_key: home.description
 icon_image: |
   home.svg
 category: lifestyle
-last_updated: "2026-03-28"
+last_updated: "2026-10-21"
 settings_and_memories:
   - id: saved_listings
     name_translation_key: home.saved_listings
@@ -125,6 +125,50 @@ embed_types:
       - name: furnished
         type: boolean
         description: "Whether the listing is furnished (WG-Gesucht only)"
+      - name: image_urls
+        type: string
+      - name: description
+        type: string
+      - name: gallery_status
+        type: string
+      - name: detail_status
+        type: string
+      - name: price
+        type: number
+      - name: price_type
+        type: string
+      - name: cold_rent_eur
+        type: number
+      - name: warm_rent_eur
+        type: number
+      - name: utilities_eur
+        type: number
+      - name: heating_costs_eur
+        type: number
+      - name: floor
+        type: string
+      - name: available_to
+        type: string
+      - name: latitude
+        type: number
+      - name: longitude
+        type: number
+      - name: location_precision
+        type: string
+      - name: location_approximate
+        type: boolean
+      - name: location_source
+        type: string
+      - name: amenities
+        type: object
+      - name: amenity_conflicts
+        type: object
+      - name: match_evidence
+        type: object
+      - name: visual_assessment
+        type: object
+      - name: neighborhood
+        type: object
 instructions:
   - instruction: |
       **Home Search Skill**
@@ -134,7 +178,16 @@ instructions:
         Returns listings with prices, sizes, addresses, and direct links.
         Costs 10 credits per search.
       - Use when the user asks to find housing, apartments, rooms, or real estate in Germany.
-      - Always specify the city name as the query. Optionally specify listing_type ("rent" or "buy").
+      - Always specify only the city name as query; put other needs in structured filters and relevance_criteria.
+      - Distinguish required_amenities ("with a balcony", "must have"), excluded_amenities ("without"),
+        and preferred_amenities ("ideally", "prefer"). Keep every material preference in relevance_criteria.
+      - A warm-rent budget uses max_warm_rent_eur, not generic advertised price. Unknown costs or amenities
+        are not confirmed. include_unconfirmed explicitly allows labelled uncertain listings.
+      - Use neighborhood_categories and explicit max_water_distance_m/max_water_walk_minutes when supplied.
+        Report sourced shoreline distance separately from actual walking access. Approximate locations,
+        representative water points and missing routes cannot establish a precise proximity requirement.
+      - Explain match_evidence, visual_assessment coverage and provider/gallery limitations. Never claim all
+        photos were analyzed or infer amenity absence from unseen photos. The UI gallery retains all supplied photos.
       - WG-Gesucht only has rental listings — it is automatically skipped for "buy" searches.
 skills:
   # -----------------------------------------------------------------------
@@ -155,7 +208,11 @@ skills:
       fields, put it in relevance_criteria even if related words could also be added to query. Example:
       "Prioritize listings with explicit balcony and quiet-setting evidence." Omit relevance_criteria
       only for a neutral housing search fully expressed by query and structured fields. Never invent
-      amenities, commute, lease, accessibility, or neighborhood qualities.
+      amenities, commute, lease, accessibility, or neighborhood qualities. Use required_amenities for
+      explicit must-have features and preferred_amenities for soft preferences. Preserve warm versus cold
+      rent using the corresponding budget field. For requests near water/parks/transit/groceries/schools,
+      select neighborhood_categories and retain the natural language criteria. Numerical water distance
+      and walking limits must use their structured fields; unknown or approximate evidence cannot confirm them.
     class_path: backend.apps.home.skills.search_skill.SearchSkill
     pricing:
       per_unit:
@@ -170,6 +227,7 @@ skills:
     exclude_fields_for_llm:
       - type
       - image_url
+      - image_urls
       - id
     suggestions_follow_up_requests:
       - Show only apartments under 1000 EUR
@@ -258,6 +316,82 @@ skills:
                 minimum: 0
                 description: Minimum advertised area in square metres. Unknown area is excluded
                   when set.
+              min_price_eur:
+                type: number
+                minimum: 0
+                description: Minimum advertised price in EUR.
+              max_rooms:
+                type: number
+                minimum: 0
+              max_size_sqm:
+                type: number
+                minimum: 0
+              max_warm_rent_eur:
+                type: number
+                minimum: 0
+                description: Maximum explicitly advertised total monthly rent, including service costs. Unknown total rent is unconfirmed.
+              max_cold_rent_eur:
+                type: number
+                minimum: 0
+                description: Maximum explicitly advertised cold monthly rent, excluding service costs.
+              available_by:
+                type: string
+                format: date
+                description: Must be available on or before this ISO date.
+              required_amenities:
+                type: array
+                default: []
+                maxItems: 7
+                description: Explicit hard amenity requirements; unknown evidence is not a confirmed match.
+                items:
+                  type: string
+                  enum: [balcony, terrace, garden, elevator, furnished, parking, pets_allowed]
+              excluded_amenities:
+                type: array
+                default: []
+                maxItems: 7
+                description: Amenities the user explicitly excludes. Missing evidence does not prove absence.
+                items:
+                  type: string
+                  enum: [balcony, terrace, garden, elevator, furnished, parking, pets_allowed]
+              preferred_amenities:
+                type: array
+                default: []
+                maxItems: 7
+                description: Soft amenity preferences; these rank results without excluding unknowns.
+                items:
+                  type: string
+                  enum: [balcony, terrace, garden, elevator, furnished, parking, pets_allowed]
+              include_unconfirmed:
+                type: boolean
+                default: false
+                description: Include clearly labelled listings with missing evidence for requirements; explicit conflicts remain excluded.
+              visual_analysis:
+                type: boolean
+                default: true
+                description: Assess a bounded subset of supplied photos for requested features, preserving the complete gallery.
+              neighborhood_categories:
+                type: array
+                default: []
+                maxItems: 5
+                items:
+                  type: string
+                  enum: [water, park, transit, groceries, school]
+              neighborhood_radius_m:
+                type: integer
+                minimum: 100
+                maximum: 5000
+                default: 1500
+              max_water_distance_m:
+                type: number
+                minimum: 0
+                maximum: 5000
+                description: Maximum supported distance to a shoreline, not to a water feature's representative point.
+              max_water_walk_minutes:
+                type: number
+                minimum: 0
+                maximum: 120
+                description: Maximum supported walk to a public waterfront; a straight-line estimate cannot satisfy this.
               relevance_criteria:
                 x-ui:
                   basic: true

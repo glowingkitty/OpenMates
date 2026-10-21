@@ -13019,6 +13019,278 @@
       }
     }
   },
+  "home_listing": {
+    "listing": {
+      "text": "Wohnungsangebot"
+    },
+    "photos": {
+      "text": "Fotos des Angebots"
+    },
+    "photo": {
+      "text": "Foto"
+    },
+    "previous_photo": {
+      "text": "Vorheriges Foto"
+    },
+    "next_photo": {
+      "text": "Nächstes Foto"
+    },
+    "photo_unavailable": {
+      "text": "Dieses Foto konnte nicht geladen werden."
+    },
+    "no_photos": {
+      "text": "Keine Fotos für dieses Angebot verfügbar."
+    },
+    "partial_gallery": {
+      "text": "Weitere Fotos des Angebots sind möglicherweise nicht verfügbar."
+    },
+    "approximate": {
+      "text": "Ungefährer Standort"
+    },
+    "building": {
+      "text": "Gebäudestandort"
+    },
+    "no_location": {
+      "text": "Standort nicht verfügbar"
+    },
+    "location": {
+      "text": "Standortnachweise"
+    },
+    "location_warning": {
+      "text": "Diese Markierung zeigt einen ungefähren Bereich. Entfernung und fußläufiger Zugang von der Wohnung sind unbekannt."
+    },
+    "description": {
+      "text": "Beschreibung"
+    },
+    "details": {
+      "text": "Details zum Angebot"
+    },
+    "amenities": {
+      "text": "Angegebene Ausstattung"
+    },
+    "match_evidence": {
+      "text": "Warum dieses Angebot passt"
+    },
+    "visual_evidence": {
+      "text": "Fotoeinschätzung"
+    },
+    "photos_assessed": {
+      "text": "Fotos bewertet"
+    },
+    "neighborhood": {
+      "text": "Informationen zur Umgebung"
+    },
+    "yes": {
+      "text": "Ja"
+    },
+    "no": {
+      "text": "Nein"
+    },
+    "unknown": {
+      "text": "Unbekannt"
+    },
+    "price_type": {
+      "text": "Preisgrundlage"
+    },
+    "cold_rent_eur": {
+      "text": "Kaltmiete"
+    },
+    "warm_rent_eur": {
+      "text": "Warmmiete"
+    },
+    "utilities_eur": {
+      "text": "Nebenkosten"
+    },
+    "heating_costs_eur": {
+      "text": "Heizkosten"
+    },
+    "floor": {
+      "text": "Etage"
+    },
+    "available_from": {
+      "text": "Verfügbar ab"
+    },
+    "available_to": {
+      "text": "Verfügbar bis"
+    },
+    "deposit": {
+      "text": "Kaution"
+    },
+    "balcony": {
+      "text": "Balkon"
+    },
+    "furnished": {
+      "text": "Möbliert"
+    },
+    "elevator": {
+      "text": "Aufzug"
+    },
+    "garden": {
+      "text": "Garten"
+    },
+    "terrace": {
+      "text": "Terrasse"
+    },
+    "parking": {
+      "text": "Parkplatz"
+    },
+    "pets_allowed": {
+      "text": "Haustiere erlaubt"
+    },
+    "price": {
+      "text": "Angegebener Preis"
+    },
+    "location_address": {
+      "text": "Angegebene Adresse"
+    },
+    "advertised_evidence": {
+      "text": "Nachweise aus dem Angebot"
+    },
+    "assessment_warning": {
+      "text": "Automatische Einschätzung der bereitgestellten Fotos. Nicht sichtbare Merkmale bleiben unbekannt."
+    },
+    "filter_listings": {
+      "text": "Angebote filtern"
+    },
+    "max_price": {
+      "text": "Höchstpreis (EUR)"
+    },
+    "advertised_price": {
+      "text": "Angegebener Preis"
+    },
+    "min_rooms": {
+      "text": "Mindestzimmerzahl"
+    },
+    "min_size": {
+      "text": "Mindestfläche (m²)"
+    },
+    "required_amenity": {
+      "text": "Erforderliche Ausstattung"
+    },
+    "any_amenity": {
+      "text": "Beliebige Ausstattung"
+    },
+    "filter_unknown_warning": {
+      "text": "Aktive Filter berücksichtigen nur bekannte passende Angaben. Fehlende Preise oder Ausstattungsangaben bestätigen keine Übereinstimmung."
+    },
+    "reset_filters": {
+      "text": "Angebotsfilter zurücksetzen"
+    },
+    "match_status": {
+      "text": "Bewertung der Übereinstimmung"
+    },
+    "requirement": {
+      "text": "Anforderung"
+    },
+    "advertised_fact": {
+      "text": "Angegeben"
+    },
+    "listing_text": {
+      "text": "Angebotstext"
+    },
+    "photo_evidence": {
+      "text": "Fotos"
+    },
+    "source": {
+      "text": "Quelle"
+    },
+    "checked": {
+      "text": "Geprüft"
+    },
+    "water": {
+      "text": "Gewässer"
+    },
+    "park": {
+      "text": "Parks"
+    },
+    "transit": {
+      "text": "Öffentliche Verkehrsmittel"
+    },
+    "groceries": {
+      "text": "Lebensmittel"
+    },
+    "school": {
+      "text": "Schulen"
+    },
+    "limited_coverage": {
+      "text": "Begrenzte Suchabdeckung"
+    },
+    "shoreline_unknown": {
+      "text": "Entfernung zwischen Wohnung und Ufer unbekannt"
+    },
+    "distance_unknown": {
+      "text": "Entfernung von der Wohnung unbekannt"
+    },
+    "shoreline_distance": {
+      "text": "Entfernung zum Ufer"
+    },
+    "point_distance": {
+      "text": "Entfernung zum Kartenpunkt (nicht zum Ufer)"
+    },
+    "geometry_distance": {
+      "text": "Entfernung zur kartierten Geometrie (kein bestätigtes Ufer)"
+    },
+    "routed_walk": {
+      "text": "Berechneter Fußweg"
+    },
+    "minutes": {
+      "text": "Minuten"
+    },
+    "walking_unknown": {
+      "text": "Fußläufiger Zugang unbekannt; keine bestätigte Route"
+    },
+    "no_nearby_evidence": {
+      "text": "Bei dieser begrenzten Suche wurden keine Orte gefunden. Einrichtungen in der Nähe bleiben unbekannt."
+    },
+    "status_confirmed": {
+      "text": "Bestätigt"
+    },
+    "status_possible": {
+      "text": "Möglich"
+    },
+    "status_conflicting": {
+      "text": "Widersprüchliche Nachweise"
+    },
+    "status_unknown": {
+      "text": "Unbekannt"
+    },
+    "status_unavailable": {
+      "text": "Nicht verfügbar"
+    },
+    "status_unconfirmed": {
+      "text": "Unbestätigt"
+    },
+    "status_partial": {
+      "text": "Teilweise Abdeckung"
+    },
+    "status_evaluated": {
+      "text": "Bewertet"
+    },
+    "status_visible": {
+      "text": "Auf bewerteten Fotos sichtbar"
+    },
+    "status_not_visible": {
+      "text": "Nicht sichtbar; Vorhandensein bleibt unbekannt"
+    },
+    "status_uncertain": {
+      "text": "Unsicher"
+    },
+    "status_present": {
+      "text": "Vorhanden"
+    },
+    "status_absent": {
+      "text": "Nicht vorhanden"
+    },
+    "status_no_features_returned": {
+      "text": "Keine Orte gefunden"
+    },
+    "status_not_checked": {
+      "text": "Nicht geprüft"
+    },
+    "status_ok": {
+      "text": "Verfügbar"
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Rechnung"

@@ -1,0 +1,82 @@
+schema_version: 1
+specification: feature.app-skill.home-search@1
+
+details:
+  - id: retain-existing-provider-details
+    given: A WG-Gesucht apartment advertises a balcony, third floor, a full description, a move-in date and separate cold rent, utilities and total rent; an ImmoScout24 listing omits the floor.
+    when: Home search retrieves and normalizes the listings.
+    then: The advertised details survive in the results and listing view, total rent is not confused with cold rent, and the missing floor remains unknown.
+
+gallery:
+  - id: all-photos-survive-analysis-limit
+    given: Kleinanzeigen supplies one cover photo in search and eighteen apartment photos in its detail gallery.
+    when: A user opens the listing after a bounded visual assessment of only some photos.
+    then: All eighteen distinct photos remain accessible in provider order through gallery controls and a readable counter, while the result says how many photos were assessed.
+  - id: failed-gallery-is-disclosed
+    given: A provider returns a cover photo but its listing-detail request fails and a second listing has no photos.
+    when: The user opens each listing.
+    then: The first keeps its cover and discloses that additional photos could not be retrieved; the second has a readable empty-photo state and no invented imagery.
+
+filters:
+  - id: required-balcony-and-total-rent
+    given: A user requires a balcony and warm rent below 1500 euros; one listing explicitly has both, one explicitly has no balcony, and another omits balcony and warm rent information.
+    when: Home applies the search requirements.
+    then: Only the supported listing is a confirmed match, the explicit conflict is excluded, and the listing with missing evidence is identified as unconfirmed rather than silently satisfying the requirements.
+
+relevance:
+  - id: berlin-balcony-water-before-final-limit
+    given: A user asks for three apartments in Berlin with a balcony, preferably close to water; a promising candidate mentions its balcony only in the description and another has useful photos but sparse text.
+    when: Home gathers and assesses the bounded candidate pool.
+    then: It considers descriptions, structured facts, available visual findings and sourced water evidence before selecting three results, without placing the complete request into the city field or dropping the sparse-text candidate before image assessment.
+
+vision:
+  - id: balcony-evidence-is-not-overclaimed
+    given: One listing states that it has no balcony but shows a building with several balconies; another omits balcony information and shows only interior photos.
+    when: Jev evaluates the available photos and listing text.
+    then: The first reports the conflict without assigning a neighboring balcony to the apartment, and the second remains unknown rather than being declared balcony-free or visually verified.
+  - id: image-provider-unavailable
+    given: A user asks for a balcony and some photos cannot be downloaded or TypeSafe is unavailable.
+    when: Home returns the search.
+    then: It preserves useful listing facts, distinguishes advertised balcony evidence from unavailable visual assessment, and does not send images to a text-only provider.
+
+precision:
+  - id: city-center-is-not-an-apartment
+    given: One provider publishes an approximate district location and another address cannot be geocoded beyond Berlin's city center.
+    when: Home prepares locations and distance evidence.
+    then: Both locations remain labelled approximate, neither becomes an exact apartment marker, and neither is used to promise a precise apartment-to-water distance.
+
+neighborhood:
+  - id: useful-nearby-facts-and-missing-coverage
+    given: A user wants an apartment near a park, groceries and public transport; the existing location provider returns nearby places for one address but reaches its request allowance before another lookup.
+    when: Home enriches the candidates.
+    then: Available facts carry source and freshness, the second lookup is marked unavailable, and missing coverage is not described as an absence of parks or transport.
+
+water:
+  - id: nearby-water-can-be-hard-to-reach
+    given: An apartment is near a canal but a railway and private land separate it from the nearest public waterfront entrance.
+    when: Home evaluates a preference for nearby water or a requirement to reach it within ten minutes on foot.
+    then: Shoreline proximity and walking access remain separate facts; only a supported walking route can satisfy the time requirement, and unavailable geometry or route evidence is disclosed rather than replaced with a precise-looking estimate.
+
+map:
+  - id: filter-map-open-gallery
+    given: Search results include precisely located apartments, district-only listings and one listing without coordinates.
+    when: A user filters the visible results and selects a map marker on a phone or laptop.
+    then: Cards and map reflect the same filter, the marker opens its corresponding listing, approximate locations are labelled, the listing without coordinates remains discoverable, and the complete returned gallery is usable without clipped controls.
+
+bounds:
+  - id: expensive-enrichment-stays-bounded
+    given: Several providers return many listings and some detail, photo or location requests are slow; the user requests five final results.
+    when: Home processes the search and a later request reuses unchanged listing or location evidence.
+    then: It respects finite discovery, concurrency and latency limits, returns at most five results with honest partial-coverage notices, and reuses appropriate cached facts without downloading all photos again or creating a spatial index.
+
+transient:
+  - id: analysis-has-no-temp-files
+    given: Shopping compares product photos and Home assesses apartment photos; either operation may complete, fail decoding or be cancelled.
+    when: The image-analysis work finishes or is cancelled.
+    then: Analysis has created no temporary image files, stored uploads or persistent raw-photo cache, its in-memory references are released, and the existing expiring public UI-proxy cache and owner-encrypted originals retain their separate lifecycle.
+
+safety:
+  - id: malicious-listing-and-private-image-host
+    given: A listing description or photo contains instructions to reveal chat history and another photo URL targets a private network.
+    when: Home enriches and ranks the listings.
+    then: The instructions are treated as untrusted content, the private-network download is rejected, and Jev receives only the necessary public listing evidence and safe prepared photos while useful results remain available with truthful warnings.

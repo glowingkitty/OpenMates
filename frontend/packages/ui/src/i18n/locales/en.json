@@ -13097,6 +13097,278 @@
       }
     }
   },
+  "home_listing": {
+    "listing": {
+      "text": "Listing"
+    },
+    "photos": {
+      "text": "Listing photos"
+    },
+    "photo": {
+      "text": "Photo"
+    },
+    "previous_photo": {
+      "text": "Previous photo"
+    },
+    "next_photo": {
+      "text": "Next photo"
+    },
+    "photo_unavailable": {
+      "text": "This photo could not be loaded."
+    },
+    "no_photos": {
+      "text": "No listing photos available."
+    },
+    "partial_gallery": {
+      "text": "Additional listing photos may be unavailable."
+    },
+    "approximate": {
+      "text": "Approximate location"
+    },
+    "building": {
+      "text": "Building location"
+    },
+    "no_location": {
+      "text": "Location unavailable"
+    },
+    "location": {
+      "text": "Location evidence"
+    },
+    "location_warning": {
+      "text": "This marker shows an approximate area. Apartment distance and walking access are unknown."
+    },
+    "description": {
+      "text": "Description"
+    },
+    "details": {
+      "text": "Listing details"
+    },
+    "amenities": {
+      "text": "Advertised amenities"
+    },
+    "match_evidence": {
+      "text": "Why this listing matches"
+    },
+    "visual_evidence": {
+      "text": "Photo assessment"
+    },
+    "photos_assessed": {
+      "text": "photos assessed"
+    },
+    "neighborhood": {
+      "text": "Neighborhood evidence"
+    },
+    "yes": {
+      "text": "Yes"
+    },
+    "no": {
+      "text": "No"
+    },
+    "unknown": {
+      "text": "Unknown"
+    },
+    "price_type": {
+      "text": "Price basis"
+    },
+    "cold_rent_eur": {
+      "text": "Cold rent"
+    },
+    "warm_rent_eur": {
+      "text": "Warm rent"
+    },
+    "utilities_eur": {
+      "text": "Utilities"
+    },
+    "heating_costs_eur": {
+      "text": "Heating costs"
+    },
+    "floor": {
+      "text": "Floor"
+    },
+    "available_from": {
+      "text": "Available from"
+    },
+    "available_to": {
+      "text": "Available until"
+    },
+    "deposit": {
+      "text": "Deposit"
+    },
+    "balcony": {
+      "text": "Balcony"
+    },
+    "furnished": {
+      "text": "Furnished"
+    },
+    "elevator": {
+      "text": "Elevator"
+    },
+    "garden": {
+      "text": "Garden"
+    },
+    "terrace": {
+      "text": "Terrace"
+    },
+    "parking": {
+      "text": "Parking"
+    },
+    "pets_allowed": {
+      "text": "Pets allowed"
+    },
+    "price": {
+      "text": "Advertised price"
+    },
+    "location_address": {
+      "text": "Advertised address"
+    },
+    "advertised_evidence": {
+      "text": "Advertised listing evidence"
+    },
+    "assessment_warning": {
+      "text": "Automated assessment of the supplied photos. Unseen features remain unknown."
+    },
+    "filter_listings": {
+      "text": "Filter listings"
+    },
+    "max_price": {
+      "text": "Maximum price (EUR)"
+    },
+    "advertised_price": {
+      "text": "Advertised price"
+    },
+    "min_rooms": {
+      "text": "Minimum rooms"
+    },
+    "min_size": {
+      "text": "Minimum area (m²)"
+    },
+    "required_amenity": {
+      "text": "Required amenity"
+    },
+    "any_amenity": {
+      "text": "Any amenity"
+    },
+    "filter_unknown_warning": {
+      "text": "Only listings with known supporting facts pass an active filter. Missing prices or amenities do not confirm a match."
+    },
+    "reset_filters": {
+      "text": "Reset listing filters"
+    },
+    "match_status": {
+      "text": "Match assessment"
+    },
+    "requirement": {
+      "text": "Requirement"
+    },
+    "advertised_fact": {
+      "text": "Advertised"
+    },
+    "listing_text": {
+      "text": "Listing text"
+    },
+    "photo_evidence": {
+      "text": "Photos"
+    },
+    "source": {
+      "text": "Source"
+    },
+    "checked": {
+      "text": "Checked"
+    },
+    "water": {
+      "text": "Water"
+    },
+    "park": {
+      "text": "Parks"
+    },
+    "transit": {
+      "text": "Public transport"
+    },
+    "groceries": {
+      "text": "Groceries"
+    },
+    "school": {
+      "text": "Schools"
+    },
+    "limited_coverage": {
+      "text": "Limited search coverage"
+    },
+    "shoreline_unknown": {
+      "text": "Apartment-to-shoreline distance unknown"
+    },
+    "distance_unknown": {
+      "text": "Distance from apartment unknown"
+    },
+    "shoreline_distance": {
+      "text": "Distance to shoreline"
+    },
+    "point_distance": {
+      "text": "Distance to map point (not shoreline)"
+    },
+    "geometry_distance": {
+      "text": "Distance to mapped feature geometry (not verified shoreline)"
+    },
+    "routed_walk": {
+      "text": "Walking route"
+    },
+    "minutes": {
+      "text": "minutes"
+    },
+    "walking_unknown": {
+      "text": "Walking access unknown; no confirmed route"
+    },
+    "no_nearby_evidence": {
+      "text": "No places returned in this limited search. Nearby amenities remain unknown."
+    },
+    "status_confirmed": {
+      "text": "Confirmed"
+    },
+    "status_possible": {
+      "text": "Possible"
+    },
+    "status_conflicting": {
+      "text": "Conflicting evidence"
+    },
+    "status_unknown": {
+      "text": "Unknown"
+    },
+    "status_unavailable": {
+      "text": "Unavailable"
+    },
+    "status_unconfirmed": {
+      "text": "Unconfirmed"
+    },
+    "status_partial": {
+      "text": "Partial coverage"
+    },
+    "status_evaluated": {
+      "text": "Assessed"
+    },
+    "status_visible": {
+      "text": "Visible in assessed photos"
+    },
+    "status_not_visible": {
+      "text": "Not visible; presence remains unknown"
+    },
+    "status_uncertain": {
+      "text": "Uncertain"
+    },
+    "status_present": {
+      "text": "Present"
+    },
+    "status_absent": {
+      "text": "Absent"
+    },
+    "status_no_features_returned": {
+      "text": "No places returned"
+    },
+    "status_not_checked": {
+      "text": "Not checked"
+    },
+    "status_ok": {
+      "text": "Available"
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Invoice"

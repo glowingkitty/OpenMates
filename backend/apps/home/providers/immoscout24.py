@@ -16,9 +16,16 @@ No API key required.
 """
 
 import logging
+import json
 from typing import Any, Dict, List, Optional
 
 import httpx
+
+from backend.apps.home.providers.results import ProviderListings
+from backend.shared.providers.housing.details import (
+    MAX_CANDIDATES, amenity, defaults, enrich, location, merge_gallery,
+    number, photos, response_text, text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +154,7 @@ def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Option
     if isinstance(title_pic, dict):
         image_url = title_pic.get("full") or title_pic.get("preview")
 
-    return {
+    listing = defaults({
         "id": f"is24_{listing_id}",
         "title": title,
         "price": price,
@@ -159,7 +166,9 @@ def _normalize_mobile_listing(item: Dict[str, Any], listing_type: str) -> Option
         "url": f"https://www.immobilienscout24.de/expose/{listing_id}",
         "provider": "ImmoScout24",
         "listing_type": listing_type,
-    }
+    })
+    _merge_detail(listing, item, detail=False)
+    return listing
 
 
 def _normalize_listing(raw: Dict[str, Any], listing_type: str) -> Optional[Dict[str, Any]]:
@@ -233,7 +242,7 @@ def _normalize_listing(raw: Dict[str, Any], listing_type: str) -> Optional[Dict[
                 if image_url:
                     break
 
-    return {
+    listing = defaults({
         "id": f"is24_{listing_id}",
         "title": title,
         "price": price,
@@ -245,7 +254,78 @@ def _normalize_listing(raw: Dict[str, Any], listing_type: str) -> Optional[Dict[
         "url": f"https://www.immobilienscout24.de/expose/{listing_id}",
         "provider": "ImmoScout24",
         "listing_type": listing_type,
-    }
+    })
+    _merge_detail(listing, real_estate, detail=False)
+    return listing
+
+
+def _merge_detail(listing: Dict[str, Any], data: Dict[str, Any], detail: bool = True) -> None:
+    """Read mobile expose sections plus the documented realEstate response shape."""
+    if not isinstance(data, dict):
+        raise ValueError("Unrecognized ImmoScout24 expose payload")
+    real = data.get("realEstate") or data.get("expose", {}).get("realEstate") or data.get("expose.expose", {}).get("realEstate") or data
+    address = real.get("address", {})
+    if isinstance(address, dict):
+        location(listing, address)
+    fields = {"baseRent": "cold_rent_eur", "totalRent": "warm_rent_eur", "additionalCosts": "utilities_eur", "serviceCharge": "utilities_eur", "heatingCosts": "heating_costs_eur", "deposit": "deposit", "securityDeposit": "deposit", "livingSpace": "size_sqm", "numberOfRooms": "rooms"}
+    for source, target in fields.items():
+        value = number(real.get(source))
+        if value is not None:
+            listing[target] = value
+    for source, target in {"floor": "floor", "freeFrom": "available_from", "availableFrom": "available_from", "availableTo": "available_to"}.items():
+        if real.get(source) not in (None, ""):
+            listing[target] = real[source]
+    descriptions = [text(real[key]) for key in ("descriptionNote", "furnishingNote", "locationNote", "otherNote", "description") if real.get(key)]
+    if descriptions:
+        listing["description"] = "\n\n".join(descriptions)
+    for source, target in {"balcony": "balcony", "furnished": "furnished", "lift": "elevator", "garden": "garden", "terrace": "terrace", "parking": "parking", "petsAllowed": "pets_allowed"}.items():
+        if source in real:
+            amenity(listing, target, real[source])
+    # Mobile API organizes labelled facts and text into expose sections.
+    labels = {"Kaltmiete": "cold_rent_eur", "Warmmiete": "warm_rent_eur", "Gesamtmiete": "warm_rent_eur", "Nebenkosten": "utilities_eur", "Heizkosten": "heating_costs_eur", "Kaution": "deposit", "Etage": "floor", "Bezugsfrei ab": "available_from", "Wohnfläche": "size_sqm", "Zimmer": "rooms"}
+    amenity_labels = {"Balkon": "balcony", "Möbliert": "furnished", "Aufzug": "elevator", "Garten": "garden", "Terrasse": "terrace", "Haustiere": "pets_allowed"}
+    gallery: list[str] = []
+    gallery_seen = False
+    def sections(value: Any) -> None:
+        nonlocal gallery_seen
+        if isinstance(value, list):
+            for child in value:
+                sections(child)
+        elif isinstance(value, dict):
+            label = value.get("label") or value.get("name") or value.get("title")
+            supplied = value.get("value")
+            if label in labels and supplied is not None:
+                target = labels[label]
+                parsed = number(supplied) if target.endswith("_eur") or target in {"deposit", "size_sqm", "rooms"} else supplied
+                if parsed is not None:
+                    listing[target] = parsed
+            if label in amenity_labels and supplied is not None:
+                amenity(listing, amenity_labels[label], supplied)
+            if label in {"Objektbeschreibung", "Ausstattung", "Lage", "Sonstiges"} and isinstance(value.get("text"), str):
+                listing["description"] = "\n\n".join(filter(None, [listing.get("description"), text(value["text"])]))
+            for key, child in value.items():
+                if key in {"pictures", "images", "gallery", "attachments"}:
+                    gallery_seen = True
+                    gallery.extend(photos(child))
+                elif key in {"sections", "items", "attributes", "data", "content"}:
+                    sections(child)
+    sections(real)
+    gallery = photos(real.get("titlePicture")) + gallery
+    merge_gallery(listing, gallery, complete=detail and gallery_seen)
+    for key, value in listing["amenities"].items():
+        listing[key] = value
+    if listing.get("listing_type") != "buy":
+        if listing.get("warm_rent_eur") is not None:
+            listing.update(price=listing["warm_rent_eur"], price_type="warm")
+        elif listing.get("cold_rent_eur") is not None:
+            listing.update(price=listing["cold_rent_eur"], price_type="cold")
+    if listing.get("price") is not None:
+        suffix = "EUR" if listing.get("listing_type") == "buy" else "EUR/month"
+        listing["price_label"] = f"{listing['price']:,.0f} {suffix}".replace(",", ".")
+    if detail:
+        if not gallery_seen and not descriptions and not any(key in real for key in ("sections", "baseRent", "totalRent", "address", "attributes")):
+            raise ValueError("Unrecognized ImmoScout24 expose payload")
+        listing["detail_status"] = "available"
 
 
 async def search_listings(
@@ -269,6 +349,8 @@ async def search_listings(
     """
     if property_type == "shared_room":
         raise ValueError("ImmoScout24 shared-room search is not supported")
+    if max_results <= 0:
+        return []
     geocode = _get_geocode(city)
     realestatetype = LISTING_TYPE_MAP.get(listing_type, "apartmentrent")
 
@@ -317,16 +399,23 @@ async def search_listings(
         return []
 
     listings: List[Dict[str, Any]] = []
-    for item_wrapper in raw_items[:max_results]:
+    for item_wrapper in raw_items:
         if item_wrapper.get("type") != "EXPOSE_RESULT":
             continue
         item = item_wrapper.get("item", {})
         listing = _normalize_mobile_listing(item, listing_type)
         if listing:
             listings.append(listing)
+            if len(listings) >= min(max(0, max_results), MAX_CANDIDATES):
+                break
 
     logger.info(
         "ImmoScout24 search city=%s type=%s -> %d listings (raw=%d)",
         city, listing_type, len(listings), len(raw_items),
     )
-    return listings
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+        async def fetch_detail(listing: Dict[str, Any]) -> None:
+            raw = await response_text(client, f"{MOBILE_API_BASE}/expose/{listing['id'][5:]}", {"User-Agent": MOBILE_USER_AGENT, "Accept": "application/json"})
+            _merge_detail(listing, json.loads(raw), detail=True)
+        warnings = await enrich(listings, fetch_detail)
+    return ProviderListings(listings, warnings)

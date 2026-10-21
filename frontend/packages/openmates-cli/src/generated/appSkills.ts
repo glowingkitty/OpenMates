@@ -2788,6 +2788,131 @@ export const APP_SKILL_METADATA = [
                 "minimum": 0,
                 "description": "Minimum advertised area in square metres. Unknown area is excluded when set."
               },
+              "min_price_eur": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Minimum advertised price in EUR."
+              },
+              "max_rooms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max_size_sqm": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max_warm_rent_eur": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Maximum explicitly advertised total monthly rent, including service costs. Unknown total rent is unconfirmed."
+              },
+              "max_cold_rent_eur": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Maximum explicitly advertised cold monthly rent, excluding service costs."
+              },
+              "available_by": {
+                "type": "string",
+                "format": "date",
+                "description": "Must be available on or before this ISO date."
+              },
+              "required_amenities": {
+                "type": "array",
+                "default": [],
+                "maxItems": 7,
+                "description": "Explicit hard amenity requirements; unknown evidence is not a confirmed match.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "balcony",
+                    "terrace",
+                    "garden",
+                    "elevator",
+                    "furnished",
+                    "parking",
+                    "pets_allowed"
+                  ]
+                }
+              },
+              "excluded_amenities": {
+                "type": "array",
+                "default": [],
+                "maxItems": 7,
+                "description": "Amenities the user explicitly excludes. Missing evidence does not prove absence.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "balcony",
+                    "terrace",
+                    "garden",
+                    "elevator",
+                    "furnished",
+                    "parking",
+                    "pets_allowed"
+                  ]
+                }
+              },
+              "preferred_amenities": {
+                "type": "array",
+                "default": [],
+                "maxItems": 7,
+                "description": "Soft amenity preferences; these rank results without excluding unknowns.",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "balcony",
+                    "terrace",
+                    "garden",
+                    "elevator",
+                    "furnished",
+                    "parking",
+                    "pets_allowed"
+                  ]
+                }
+              },
+              "include_unconfirmed": {
+                "type": "boolean",
+                "default": false,
+                "description": "Include clearly labelled listings with missing evidence for requirements; explicit conflicts remain excluded."
+              },
+              "visual_analysis": {
+                "type": "boolean",
+                "default": true,
+                "description": "Assess a bounded subset of supplied photos for requested features, preserving the complete gallery."
+              },
+              "neighborhood_categories": {
+                "type": "array",
+                "default": [],
+                "maxItems": 5,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "water",
+                    "park",
+                    "transit",
+                    "groceries",
+                    "school"
+                  ]
+                }
+              },
+              "neighborhood_radius_m": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 5000,
+                "default": 1500
+              },
+              "max_water_distance_m": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5000,
+                "description": "Maximum supported distance to a shoreline, not to a water feature's representative point."
+              },
+              "max_water_walk_minutes": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 120,
+                "description": "Maximum supported walk to a public waterfront; a straight-line estimate cannot satisfy this."
+              },
               "relevance_criteria": {
                 "x-ui": {
                   "basic": true

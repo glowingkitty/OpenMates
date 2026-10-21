@@ -22,16 +22,20 @@ See: backend/apps/home/providers/ for individual provider implementations.
 
 import asyncio
 import logging
+import math
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.apps.base_skill import BaseSkill
 from backend.apps.home.providers.immoscout24 import search_listings as is24_search
 from backend.apps.home.providers.kleinanzeigen import search_listings as ka_search
 from backend.apps.home.providers.wg_gesucht import search_listings as wg_search
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_utils.geo_utils import geocode_address
+from backend.shared.python_utils.geo_utils import lookup_city
+from backend.apps.home.evidence import assess_home_evidence, resolve_home_preferences
+from backend.apps.home.location_enrichment import enrich_home_locations, requested_categories
 from backend.shared.python_utils.search_relevance import (
     MAX_RELEVANCE_CRITERIA_CHARS,
     normalize_relevance_criteria,
@@ -68,7 +72,10 @@ FOLLOW_UP_SUGGESTIONS: List[str] = [
 ]
 
 # Fields excluded from LLM context (kept in UI results for rendering)
-IGNORE_FIELDS_FOR_LLM: List[str] = ["type", "image_url", "id", "latitude", "longitude"]
+IGNORE_FIELDS_FOR_LLM: List[str] = ["type", "image_url", "image_urls", "id"]
+
+Amenity = Literal["balcony", "terrace", "garden", "elevator", "furnished", "parking", "pets_allowed"]
+NeighborhoodCategory = Literal["water", "park", "transit", "groceries", "school"]
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +85,21 @@ IGNORE_FIELDS_FOR_LLM: List[str] = ["type", "image_url", "id", "latitude", "long
 
 class SearchRequestItem(BaseModel):
     """A single housing search request."""
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    @model_validator(mode="before")
+    @classmethod
+    def omitted_defaults(cls, value):
+        # Dynamic REST models project omitted optional fields as null. Normalize
+        # only fields that already have a concrete default in this contract.
+        if isinstance(value, dict):
+            value = dict(value)
+            for name in ("required_amenities", "excluded_amenities", "preferred_amenities", "neighborhood_categories",
+                         "visual_analysis", "include_unconfirmed", "neighborhood_radius_m", "max_results",
+                         "listing_type", "property_type", "sort"):
+                if value.get(name) is None:
+                    value.pop(name, None)
+        return value
 
     query: str = Field(
         description="City or location to search in (e.g. 'Berlin', 'Munich', 'Hamburg')."
@@ -91,6 +113,21 @@ class SearchRequestItem(BaseModel):
     max_price_eur: Optional[float] = Field(default=None, ge=0, description="Maximum advertised monthly rent or purchase price in EUR; provider price basis is retained.")
     min_rooms: Optional[float] = Field(default=None, ge=0, description="Minimum advertised room count; unknown values are excluded when set.")
     min_size_sqm: Optional[float] = Field(default=None, ge=0, description="Minimum advertised area; unknown values are excluded when set.")
+    min_price_eur: Optional[float] = Field(default=None, ge=0)
+    max_rooms: Optional[float] = Field(default=None, ge=0)
+    max_size_sqm: Optional[float] = Field(default=None, ge=0)
+    max_warm_rent_eur: Optional[float] = Field(default=None, ge=0, description="Maximum explicitly advertised total monthly rent including known service costs; unknown total rent does not satisfy this requirement.")
+    max_cold_rent_eur: Optional[float] = Field(default=None, ge=0)
+    available_by: Optional[date] = Field(default=None, description="Listing must be available on or before this ISO date; missing availability remains unconfirmed.")
+    required_amenities: List[Amenity] = Field(default_factory=list, max_length=7, description="Hard requirements. A missing amenity never counts as confirmed.")
+    excluded_amenities: List[Amenity] = Field(default_factory=list, max_length=7)
+    preferred_amenities: List[Amenity] = Field(default_factory=list, max_length=7, description="Soft preferences used for ranking, not exclusions.")
+    include_unconfirmed: bool = Field(default=False, description="Also return clearly labelled listings with missing evidence for requirements; explicit conflicts stay excluded.")
+    visual_analysis: bool = Field(default=True, description="Assess supplied photos only when requested amenities have a visually assessable component. Does not limit gallery photos.")
+    neighborhood_categories: List[NeighborhoodCategory] = Field(default_factory=list, max_length=5)
+    neighborhood_radius_m: int = Field(default=1500, ge=100, le=5000)
+    max_water_distance_m: Optional[float] = Field(default=None, ge=0, le=5000, description="Maximum supported shoreline distance. Approximate locations or representative water points cannot confirm it.")
+    max_water_walk_minutes: Optional[float] = Field(default=None, ge=0, le=120, description="Maximum supported walk to a public waterfront; a straight-line estimate cannot satisfy it.")
     providers: Optional[List[str]] = Field(
         default=None,
         description="Providers to search. Defaults to all three: ImmoScout24, Kleinanzeigen, WG-Gesucht.",
@@ -111,6 +148,15 @@ class SearchRequestItem(BaseModel):
             "unstated amenities, commute, lease, accessibility, or neighborhood qualities."
         ),
     )
+
+    @model_validator(mode="after")
+    def consistent_constraints(self):
+        for lower, upper in ((self.min_price_eur, self.max_price_eur), (self.min_rooms, self.max_rooms), (self.min_size_sqm, self.max_size_sqm)):
+            if lower is not None and upper is not None and lower > upper:
+                raise ValueError("minimum cannot exceed maximum")
+        if set(self.required_amenities) & set(self.excluded_amenities):
+            raise ValueError("an amenity cannot be both required and excluded")
+        return self
 
 
 class SearchRequest(BaseModel):
@@ -141,6 +187,121 @@ class SearchResponse(BaseModel):
     ignore_fields_for_llm: Optional[List[str]] = Field(
         default_factory=lambda: IGNORE_FIELDS_FOR_LLM.copy()
     )
+
+
+def _number(value: Any) -> Optional[float]:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None
+
+
+def _listing_date(value: Any) -> Optional[date]:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        for pattern in ("%Y-%m-%d", "%d.%m.%Y"):
+            try:
+                return datetime.strptime(value[:10], pattern).date()
+            except ValueError:
+                continue
+    return None
+
+
+def filter_home_listings(listings: List[Dict[str, Any]], request: Dict[str, Any], *, amenities: bool = True, geographic: bool = True) -> tuple[List[Dict[str, Any]], List[str]]:
+    """Apply explicit constraints without confusing unknown evidence with a match."""
+    kept: List[Dict[str, Any]] = []
+    unconfirmed_count = 0
+    constraints = (
+        ("min_price_eur", "price", False), ("max_price_eur", "price", True),
+        ("min_rooms", "rooms", False), ("max_rooms", "rooms", True),
+        ("min_size_sqm", "size_sqm", False), ("max_size_sqm", "size_sqm", True),
+        ("max_warm_rent_eur", "warm_rent_eur", True), ("max_cold_rent_eur", "cold_rent_eur", True),
+    )
+    for listing in listings:
+        missing: List[str] = []
+        conflict = False
+        for name, field, maximum in constraints:
+            limit = request.get(name)
+            if limit is None:
+                continue
+            value = _number(listing.get(field))
+            if value is None:
+                missing.append(name)
+            elif (value > limit if maximum else value < limit):
+                conflict = True
+        deadline = _listing_date(request.get("available_by"))
+        if deadline:
+            available = _listing_date(listing.get("available_from"))
+            if available is None:
+                missing.append("available_by")
+            elif available > deadline:
+                conflict = True
+        evidence = listing.setdefault("match_evidence", {})
+        if amenities:
+            for mode, expected in (("required_amenities", True), ("excluded_amenities", False)):
+                for feature in request.get(mode, []):
+                    fact = (listing.get("amenities") or {}).get(feature, listing.get(feature))
+                    assessment = evidence.get("amenities", {}).get(feature, {})
+                    status = assessment.get("status")
+                    text_status = assessment.get("text_status")
+                    visual_status = assessment.get("visual_status")
+                    contradictory = ((fact is False and (text_status == "present" or visual_status == "visible"))
+                                     or (fact is True and text_status == "absent")
+                                     or (text_status == "absent" and visual_status == "visible")
+                                     or feature in (listing.get("amenity_conflicts") or {}))
+                    if contradictory:
+                        conflict = True
+                    elif isinstance(fact, bool):
+                        conflict |= fact != expected
+                    elif text_status in {"present", "absent"}:
+                        conflict |= (text_status == "present") != expected
+                    elif expected and status == "confirmed":
+                        continue
+                    elif not expected and text_status in {"absent", "no", "excluded", "explicit_no"}:
+                        continue
+                    elif not expected and status == "confirmed":
+                        conflict = True
+                    else:
+                        missing.append(feature)
+        if geographic:
+            water = (listing.get("neighborhood") or {}).get("features", {}).get("water", [])
+            precise = listing.get("location_precision") == "building" and not listing.get("location_approximate", True)
+            for name, field in (("max_water_distance_m", "distance_m"), ("max_water_walk_minutes", "walk_minutes")):
+                limit = request.get(name)
+                if limit is None:
+                    continue
+                values = [_number(row.get(field)) for row in water if precise and isinstance(row, dict)
+                          and (row.get("distance_method") == "shoreline_geometry" if field == "distance_m"
+                               else row.get("walk_status") == "routed" and row.get("walk_method") == "provider_walking_route")]
+                values = [value for value in values if value is not None]
+                if not values:
+                    missing.append(name)
+                elif min(values) > limit:
+                    conflict = True
+        if conflict:
+            continue
+        if missing:
+            unconfirmed_count += 1
+            evidence["status"] = "unconfirmed"
+            evidence["unconfirmed_requirements"] = missing
+            if not request.get("include_unconfirmed"):
+                continue
+        elif amenities and geographic:
+            evidence.setdefault("status", "confirmed")
+            evidence["requirements_status"] = "confirmed"
+            evidence.pop("unconfirmed_requirements", None)
+        kept.append(listing)
+    warnings = [f"{unconfirmed_count} listing(s) have missing or uncertain evidence for explicit requirements; "
+                + ("included as unconfirmed." if request.get("include_unconfirmed") else "not counted as confirmed matches. Set include_unconfirmed to inspect them.")] if unconfirmed_count else []
+    return kept, warnings
+
+
+def _listing_identity(listing: Dict[str, Any]) -> str:
+    # Provider identity avoids merging unrelated flats with generic titles and district-only addresses.
+    url = normalize_url_for_deduplication(listing.get("url"))
+    if url:
+        return f"url:{url}"
+    return f"{listing.get('provider', '')}:{listing.get('id', '')}"
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +387,7 @@ class SearchSkill(BaseSkill):
             process_single_request_func=self._process_single_request,
             logger=logger,
             secrets_manager=secrets_manager,
+            cache_service=kwargs.get("cache_service"),
         )
 
         warnings: List[str] = []
@@ -276,28 +438,15 @@ class SearchSkill(BaseSkill):
         listings: List[Dict[str, Any]],
         city: str,
     ) -> None:
-        """
-        Attach latitude/longitude to each listing by geocoding its address.
-
-        Uses geocode_address() from geo_utils which tries Nominatim first for
-        address-level precision, then falls back to the local city table. Listings
-        without a resolvable address are left without coordinates — the frontend
-        will simply hide the map for those.
-
-        Geocoding is done sequentially; _nominatim_query auto-throttles to
-        respect Nominatim's 1 req/s rate limit.
-
-        Args:
-            listings: Mutable list of listing dicts — latitude/longitude keys
-                      are added in-place.
-            city: The search city name (used as fallback for geocoding).
-        """
+        """Final local fallback only; never disguise a city center as a listing pin."""
+        coords = lookup_city(city)
         for listing in listings:
-            address = listing.get("address", "")
-            coords = await geocode_address(address=address, city=city)
+            if _number(listing.get("latitude")) is not None and _number(listing.get("longitude")) is not None:
+                continue
             if coords:
-                listing["latitude"] = coords[0]
-                listing["longitude"] = coords[1]
+                listing.update(latitude=coords[0], longitude=coords[1], location_precision="city",
+                               location_approximate=True, location_source="city_lookup")
+
 
     async def _process_single_request(
         self,
@@ -321,7 +470,7 @@ class SearchSkill(BaseSkill):
             validated = SearchRequestItem.model_validate(req)
         except Exception as exc:
             return (request_id, [], f"Invalid housing search input: {exc}")
-        req = validated.model_dump(exclude_none=True)
+        req = validated.model_dump(mode="json", exclude_none=True)
         query: str = req.get("query", "").strip()
         listing_type: str = req.get("listing_type", "rent").strip().lower()
         providers_requested: Optional[List[str]] = req.get("providers")
@@ -331,9 +480,17 @@ class SearchSkill(BaseSkill):
         if not query:
             return (request_id, [], "Missing 'query' in request")
 
+        req = await resolve_home_preferences(req, secrets_manager=kwargs.get("secrets_manager"))
+        amenity_search = any(req.get(key) for key in ("required_amenities", "excluded_amenities", "preferred_amenities"))
+        geographic_search = bool(requested_categories(req))
+        filtered_search = any(req.get(key) is not None for key in (
+            "min_price_eur", "max_price_eur", "min_rooms", "max_rooms", "min_size_sqm", "max_size_sqm",
+            "max_warm_rent_eur", "max_cold_rent_eur", "available_by"))
+        expanded_search = bool(relevance_criteria or amenity_search or geographic_search or filtered_search)
+
         # Clamp max_results
         max_results = max(1, min(MAX_RESULTS_HARD_LIMIT, max_results))
-        candidate_target = relevance_candidate_target(max_results) if relevance_criteria else max_results
+        candidate_target = relevance_candidate_target(max_results) if expanded_search else max_results
 
         # Validate listing_type
         if listing_type not in ("rent", "buy"):
@@ -364,7 +521,7 @@ class SearchSkill(BaseSkill):
             query, listing_type, list(selected_providers.keys()), max_results,
         )
 
-        if relevance_criteria:
+        if expanded_search:
             provider_count = max(1, len(selected_providers))
             discovery_limit = min(
                 MAX_RESULTS_HARD_LIMIT,
@@ -408,78 +565,68 @@ class SearchSkill(BaseSkill):
                 logger.warning("Home search %s returned unexpected type: %s", provider_name, type(result))
                 provider_errors.append(f"{provider_name} returned an invalid response")
 
-        # Criteria belong to the skill, before its bounded result limit.
-        for input_name, field, maximum in (("max_price_eur", "price", True), ("min_rooms", "rooms", False), ("min_size_sqm", "size_sqm", False)):
-            threshold = req.get(input_name)
-            if threshold is not None:
-                merged = [item for item in merged if isinstance(item.get(field), (int, float))
-                          and (item[field] <= threshold if maximum else item[field] >= threshold)]
+        # Authoritative numeric constraints avoid spending inference on known conflicts.
+        merged, numeric_warnings = filter_home_listings(merged, req, amenities=False, geographic=False)
+        warnings.extend(numeric_warnings)
         if sort == "newest":
-            # Interleave providers fairly without inventing cross-provider posting dates.
             merged.sort(key=lambda item: item["discovery_rank"])
             if any(name != "Kleinanzeigen" for name in selected_providers):
                 warnings.append("ImmoScout24 and WG-Gesucht retain provider order; newest ordering is not guaranteed.")
         else:
-            merged.sort(key=lambda x: (x.get("price") is None, x.get("price") or 0))
+            merged.sort(key=lambda item: (item.get("price") is None, item.get("price") or 0))
+        merged = stable_deduplicate_candidates(merged, key=_listing_identity)[:candidate_target]
 
-        if relevance_criteria:
-            def listing_identity(listing: Dict[str, Any]) -> str:
-                title = " ".join(str(listing.get("title") or "").lower().split())
-                address = " ".join(str(listing.get("address") or "").lower().split())
-                price = listing.get("price")
-                if title and address:
-                    return f"listing:{title}|{address}|{price}"
-                url = normalize_url_for_deduplication(listing.get("url"))
-                if url:
-                    return f"url:{url}"
-                provider = str(listing.get("provider") or "").lower()
-                listing_id = str(listing.get("id") or "").lower()
-                return f"provider:{provider}|{listing_id}" if provider or listing_id else ""
+        if amenity_search:
+            warnings.extend(await assess_home_evidence(
+                merged, request=req, secrets_manager=kwargs.get("secrets_manager"),
+                cache_service=kwargs.get("cache_service")))
+        if geographic_search:
+            warnings.extend(await enrich_home_locations(
+                merged, city=query, request=req, secrets_manager=kwargs.get("secrets_manager"),
+                cache_service=kwargs.get("cache_service")))
 
-            merged = stable_deduplicate_candidates(
-                merged,
-                key=listing_identity,
-            )[:candidate_target]
-            projections = [{
-                "title": listing.get("title"),
-                "description": listing.get("description"),
-                "address": listing.get("address"),
-                "price": listing.get("price"),
-                "price_type": listing.get("price_type"),
-                "size_sqm": listing.get("size_sqm"),
-                "rooms": listing.get("rooms"),
-                "property_type": listing.get("property_type"),
-                "provider": listing.get("provider"),
-                "url": listing.get("url"),
-            } for listing in merged]
+        merged, evidence_warnings = filter_home_listings(merged, req)
+        warnings.extend(evidence_warnings)
+        ranking_criteria = relevance_criteria or (
+            "Prefer explicitly supported amenities: " + ", ".join(req.get("preferred_amenities", []))
+            if req.get("preferred_amenities") else ""
+        )
+        if geographic_search and not ranking_criteria:
+            ranking_criteria = "Prioritize supported nearby " + ", ".join(requested_categories(req)) + " evidence."
+        if ranking_criteria:
+            projections = []
+            for listing in merged:
+                neighborhood = (listing.get("neighborhood") or {}).get("features", {})
+                nearby = {category: [{key: row.get(key) for key in ("name", "distance_m", "distance_method", "walk_minutes")}
+                                     for row in rows[:2]] for category, rows in neighborhood.items() if isinstance(rows, list)}
+                projections.append({
+                    "title": listing.get("title"), "amenities": listing.get("amenities"),
+                    "match_evidence": listing.get("match_evidence"), "nearby": nearby,
+                    "location_precision": listing.get("location_precision"),
+                    "price": listing.get("price"), "price_type": listing.get("price_type"),
+                    "warm_rent_eur": listing.get("warm_rent_eur"), "cold_rent_eur": listing.get("cold_rent_eur"),
+                    "rooms": listing.get("rooms"), "size_sqm": listing.get("size_sqm"),
+                    "address": listing.get("address"), "available_from": listing.get("available_from"),
+                    "description": listing.get("description"),
+                })
             ranking = await rank_search_candidates(
-                candidates=merged,
-                candidate_projections=projections,
-                relevance_criteria=relevance_criteria,
-                search_parameters={
-                    "query": query,
-                    "listing_type": listing_type,
-                    "property_type": property_type,
-                    "sort": sort,
-                    "max_price_eur": req.get("max_price_eur"),
-                    "min_rooms": req.get("min_rooms"),
-                    "min_size_sqm": req.get("min_size_sqm"),
-                    "providers": list(selected_providers),
-                },
-                profile="home",
-                secrets_manager=kwargs.get("secrets_manager"),
-            )
+                candidates=merged, candidate_projections=projections,
+                relevance_criteria=ranking_criteria, search_parameters=req,
+                profile="home", secrets_manager=kwargs.get("secrets_manager"))
             merged = ranking.candidates
+            if not ranking.applied and merged:
+                warnings.append("Relevance ranking was unavailable; provider/price order is retained.")
 
-        # Only the requested final result count is enriched and returned. The
-        # internal candidate pool never becomes extra embeds or AI context.
+        # Never emit extra candidate embeds. Enrich neutral searches only after selection.
         merged = merged[:max_results]
-
-        # Geocode listing addresses for map display.
-        # Each listing has a text address (e.g. "Berlin Kreuzberg") but no GPS
-        # coordinates. We resolve lat/lon so the frontend can show a map via
-        # EntryWithMapTemplate — same pattern as events and health appointments.
+        if not geographic_search:
+            warnings.extend(await enrich_home_locations(
+                merged, city=query, request=req, secrets_manager=kwargs.get("secrets_manager"),
+                cache_service=kwargs.get("cache_service")))
         await self._geocode_listings(merged, city=query)
+        if not merged and not provider_errors:
+            warnings.append("No confirmed matches in the bounded provider results; broaden requirements or inspect unconfirmed listings.")
+        warnings.append("Coverage is limited to the retrieved provider pages; this is not an exhaustive market search.")
 
         # Build error string if some providers failed (but we still have results)
         error = "; ".join(provider_errors) if len(provider_errors) == len(selected_providers) else None
