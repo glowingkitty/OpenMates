@@ -60,9 +60,11 @@ TOPICS = {'en': ['Volcano', 'Pollination', 'Solar eclipse'],
           'ja': ['火山', '受粉', '日食']}
 CURRENT_SOURCE_PATHS = [f'backend/apps/ai/daily_inspiration/{name}.py' for name in (
     'decisions', 'writer', 'generator', 'wiki_generator', 'video_processor',
-    'validator', 'thumbnail_review', 'config', 'media_coherence', 'semantic_review',
+    'validator', 'thumbnail_review', 'config', 'media_coherence',
 )] + ['backend/apps/ai/utils/llm_utils.py',
-      'backend/core/api/app/tasks/default_inspiration_tasks.py']
+      'backend/core/api/app/tasks/default_inspiration_tasks.py',
+      'backend/core/api/app/tasks/daily_inspiration_tasks.py',
+      'backend/core/api/app/routes/default_inspirations.py']
 
 
 def pool_rows_from_cards(cards, language):
@@ -309,9 +311,73 @@ def semantic_native_usage(row):
     return ledger
 
 
+def native_writer_usage(row):
+    """Price captured writer responses once, retaining canceled/failed attempts.
+
+    Semantic-review ledgers above remain readable for historical diagnostics;
+    current production has no semantic reviewer. Cached-token absence is an
+    uncached estimate, not exact spend. Rates are the frozen 2026-10-21 catalog.
+    """
+    rates = {'mercury-3': (.10, .01, .35), 'mistral-small-latest': (.15, .015, .60),
+             'gemini-3.5-flash-lite': (.30, .03, 2.50), 'gemini-3.8-flash': (.75, .075, 3.75)}
+    calls = row.get('calls', row.get('attempts', []))
+    ledger, seen, captured = [], set(), set()
+    for native in [*row.get('google_sdk', []), *row.get('native_http', [])]:
+        identity = native.get('logical_call')
+        if not isinstance(identity, int) or isinstance(identity, bool) or not 0 <= identity < len(calls):
+            continue
+        response = native.get('response') or {}
+        model = response.get('model_version', response.get('modelVersion', response.get('model')))
+        rate = next((value for key, value in rates.items() if str(model).startswith(key)), None)
+        usage = response.get('usage_metadata', response.get('usageMetadata', response.get('usage'))) or {}
+        if not rate or not usage:
+            continue
+        response_id = response.get('response_id', response.get('responseId', response.get('id')))
+        key = (identity, response_id) if response_id else None
+        if key is not None and key in seen:
+            continue
+        if key is not None:
+            seen.add(key)
+        google = str(model).startswith('gemini-')
+        inputs = usage.get('prompt_token_count', usage.get('promptTokenCount')) if google else usage.get('prompt_tokens')
+        outputs = usage.get('candidates_token_count', usage.get('candidatesTokenCount')) if google else usage.get('completion_tokens')
+        thoughts = (usage.get('thoughts_token_count', usage.get('thoughtsTokenCount')) or 0) if google else 0
+        cached = (usage.get('cached_content_token_count', usage.get('cachedContentTokenCount')) if google
+                  else (usage.get('prompt_tokens_details') or {}).get('cached_tokens'))
+        valid = all(isinstance(value, int) and not isinstance(value, bool) and value >= 0
+                    for value in (inputs, outputs, thoughts))
+        valid = valid and (cached is None or isinstance(cached, int) and 0 <= cached <= inputs)
+        estimate = ((inputs - (cached or 0)) * rate[0] + (cached or 0) * rate[1]
+                    + (outputs + thoughts) * rate[2]) / 1e6 if valid else None
+        captured.add(identity)
+        ledger.append({'logical_call': identity, 'model_id': calls[identity].get('requested_model'),
+            'observed_model': model, 'response_id': response_id,
+            'input_tokens': inputs, 'cache_read_input_tokens': cached,
+            'output_tokens': outputs + thoughts if valid else None,
+            'output_reasoning_tokens': thoughts if google else (usage.get('completion_tokens_details') or {}).get('reasoning_tokens'),
+            'supplier_cost_usd': estimate, 'supplier_cost_upper_bound_usd': estimate,
+            'supplier_cost_complete': valid and cached is not None,
+            'supplier_upper_bound_complete': valid,
+            'cost_basis': 'Once-only native response; missing cache counter priced uncached. Google thoughts included once; Mercury completion already includes reasoning.'})
+    fallback_events = [entry for entry in row.get('facade_attempt_usage', [])
+                       if not str(entry.get('logical_call', '')).startswith('semantic:')]
+    facade = {}
+    for index, entry in enumerate(fallback_events):
+        facade.setdefault(entry.get('logical_call', index), []).append(entry)
+    for index, attempt in enumerate(calls):
+        if index not in captured:
+            events = facade.get(index) or [(attempt.get('result') or {}).get('usage_telemetry') or {}]
+            for telemetry in events:
+                ledger.append({**telemetry, 'logical_call': index,
+                    'model_id': attempt.get('requested_model'),
+                    'supplier_cost_complete': bool(telemetry.get('supplier_cost_complete')),
+                    'cost_basis': 'Facade fallback: no priced native response captured; absent usage remains unknown.'})
+    return ledger
+
+
 def summarize_row(row):
-    usage = [item for item in row.get('facade_attempt_usage', [])
-             if not str(item.get('logical_call', '')).startswith('semantic:')]
+    usage = native_writer_usage(row)
+    row['native_writer_usage'] = usage
     semantic = semantic_native_usage(row)
     row['native_semantic_review_usage'] = semantic
     jev = native_jev_usage(row)
@@ -332,7 +398,8 @@ def summarize_row(row):
         'successful_brave_http_requests': len(searches),
         'brave_gross_catalog_usd': len(searches) * .005,
         'known_inference_plus_search_gross_usd': known + len(searches) * .005,
-        'facade_attempt_usage_records': len(usage), 'jev_attempts': len(jev),
+        'facade_attempt_usage_records': len(row.get('facade_attempt_usage', [])),
+        'native_writer_usage_records': len(usage), 'jev_attempts': len(jev),
         'raw_jev_accounting_rows_not_summed': len(row.get('jev_accounting', [])),
         'known_jev_supplier_usd': sum(item.get('supplier_cost_usd') or 0 for item in jev),
         'jev_accounting_method': 'One captured native HTTP send per ledger entry; raw shared accounting slices retained but never summed because concurrent image reviews can duplicate them.',
@@ -340,7 +407,7 @@ def summarize_row(row):
         'failed_native_http_attempts': sum(item.get('status', 0) >= 400 or 'error' in item for item in native),
         'accounted_inference_complete': bool(usage or jev or semantic) and all(item.get('supplier_cost_complete') for item in [*usage, *jev, *semantic]),
         'all_transport_spend_complete': False,
-        'limits': 'Known telemetry estimate before credits; SDK retries/timeouts can lack usage. Native captures are not double-counted. No invoice, infra or YouTube/Wikimedia monetary cost is available. Brave $5/1000 successful HTTP requests is a gross catalog estimate, not verified billable net requests.',
+        'limits': 'Captured native/telemetry estimate before credits; missing cache counters priced uncached. SDK retries/timeouts can lack usage, so captured-response prices are not total-spend bounds. Native captures are not double-counted. No invoice, infra or YouTube/Wikimedia monetary cost is available. Brave $5/1000 successful HTTP requests is a gross catalog estimate, not verified billable net requests.',
     }
     admitted = row.get('counts', {}).get('video', 0) + row.get('counts', {}).get('wiki', 0)
     row['cost']['known_gross_per_admitted_generated_card_usd'] = (known + len(searches) * .005) / admitted if admitted else None
@@ -541,15 +608,6 @@ async def worker(options):
                     stack.enter_context(patch.object(module, 'call_preprocessing_llm', call))
             if options.mode == 'current':
                 decisions = importlib.import_module(PACKAGE + '.decisions')
-                semantic_review = importlib.import_module(PACKAGE + '.semantic_review')
-                original_semantic = semantic_review.call_semantic_model
-
-                async def semantic_call(**kwargs):
-                    row, path = ACTIVE.get()
-                    return await recorded_semantic_call(original_semantic, kwargs, row,
-                        lambda: atomic_json(path, row), CALL)
-
-                stack.enter_context(patch.object(semantic_review, 'call_semantic_model', semantic_call))
                 stack.enter_context(patch.object(decisions, 'JevDecisionClient', RecordedJev))
             for module_name, operation, name in (
                 ('video_processor', 'video_search', 'search_videos'),
@@ -592,7 +650,7 @@ async def worker(options):
                     history.parent.mkdir(parents=True, exist_ok=True)
                     path.replace(history)
                 row = {'mode': output_mode, 'language': language, 'status': 'running', 'items': [],
-                       'accounting_version': 'semantic-review-separated-v1',
+                       'accounting_version': 'sole-writer-native-usage-v1',
                        **source_preflight,
                        'historical_declared_deadline_seconds': options.historical_deadline_seconds if options.mode == 'original' else None,
                        'deadline_scope': ('Supplementary original architecture with declared extended caller deadlines; not exact historical timing.'

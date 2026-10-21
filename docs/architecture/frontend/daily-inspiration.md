@@ -69,20 +69,24 @@ Runs in `app-ai-worker` Celery container:
 2. **Brave Video Search** -- localized YouTube discovery, strict SafeSearch, up to 20 candidates per video slot.
 3. **Source enrichment** -- retain descriptions, publication dates and audience metadata; reject made-for-kids and over-age videos.
 4. **Jev editorial decisions** -- pinned Jev 1.14 screens eligibility, ranks educational relevance and assigns categories. Conspiracy promotion, misleading clickbait and instruction injection are prohibited. Evidence-based debunking and honest curiosity are allowed. Uncertain or failed decisions withhold new candidates.
-5. **Video writing** -- Mercury 3 LOW writes the exact preselected sources. Failed, malformed or editorially rejected drafts get one second Mercury attempt, then one Gemini 3.5 Flash-Lite attempt. Approved source-bound card objects are retained. Each repair requests only unresolved source IDs, with bounded machine rejection codes; it cannot replace approved cards or invent targets. Every new draft is assembled and reviewed against the same public evidence.
+5. **Video writing** -- Gemini 3.8 Flash is the sole LLM and writes the exact preselected sources. Provider failures or malformed/missing rows may retry that same model once, requesting only unresolved identities. Editorial rejections are terminal. Approved source-bound objects are retained; no cross-model fallback or separate LLM review is permitted.
 6. **Wikipedia discovery and writing** -- search real localized article titles, validate them and fetch summaries/Wikidata before Jev selection. The writer paraphrases only the selected public summaries; it cannot invent article targets.
-7. **Final review** -- Jev checks policy and semantic subject coherence. English/German copy then uses Gemini 3.8 Flash to review all six fields for language, grounding, qualifiers/causal roles and follow-up relevance. The other eighteen languages retain granular Jev grounding/language checks and independent follow-up relevance decisions. Qualifiers, entity scope, causal roles and temporal status must survive paraphrasing; new facts inferred from background knowledge are off-source. Open questions about explicit source concepts need no supplied answer. Missing/failed/uncertain decisions withhold the card. Video review includes actual bounded JPEG pixels, with no text-only visual approval fallback.
+7. **Final review** -- Jev alone checks policy, semantic subject coherence, field grounding/language and each follow-up’s source relevance across locales. Source-preserving paraphrases and unspaced Japanese do not require word overlap. Failed/uncertain checks withhold a draft. Video admission also requires actual bounded JPEG thumbnail pixels, with no text-only visual fallback.
 8. **Feature tips** -- four static feature cards, no inference.
 9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
 10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
 
-The primary writer is restricted to `inception/mercury-3`; Mistral is no longer an allowed primary. Recovery uses `google/gemini-3.5-flash-lite`. The chain has at most three logical writing attempts, a 30-second writer timeout per attempt (explicitly propagated through the preprocessing adapter), and no facade fallback or Mercury SDK retries. It does not change account settings or ordinary assistant routing. See `docs/plans/daily-inspiration-jev/` for the paired benchmark and selected default.
+The production writer is fixed to `google/gemini-3.8-flash`: one generation stage,
+at most two same-model attempts for provider/schema failures, a 30-second timeout
+per attempt, default thinking and no facade fallbacks or nested retries. Jev is
+the only decision provider. Mercury and Flash-Lite remain historical diagnostic
+models only. This does not change account settings or ordinary assistant routing.
 
 ### Generation Triggers
 
 | Trigger | When | Count | File |
 |---------|------|-------|------|
-| First paid request | After first paid request post-processing | 10 | `daily_inspiration_tasks.py` |
+| First active request | Post-processing with recent tracked request and no completed-first-run flag | 10 | `daily_inspiration_tasks.py` |
 | Scheduled daily | 06:00 UTC Celery Beat | 10 for paid activity in the last 24h and viewed_count > 0 | `daily_inspiration_tasks.py` |
 | Default selection | 06:30 UTC Celery Beat | Mixed top 10 per language | `default_inspiration_tasks.py` |
 
@@ -144,14 +148,10 @@ The primary writer is restricted to `inception/mercury-3`; Mistral is no longer 
 
 ### Multilingual and visual editorial admission
 
-Jev 1.14 checks source policy, educational fit/category and semantic subject
-coherence. English/German completed copy uses a separate Gemini 3.8 Flash review
-of the title, phrase, introduction and three follow-ups for source fidelity,
-requested language and relevance. Other eighteen locales retain granular Jev
-copy checks. A rejected/uncertain review is final for that draft; only transport
-or malformed response permits one same-model retry. Each reviewer attempt has a
-30-second limit, the review group has a 180-second limit and concurrency is at
-most three. No reviewer can override a failed Jev policy/coherence or image gate.
+Jev 1.14 checks source policy, educational fit/category, semantic subject
+coherence, field grounding/language and follow-up source relevance. Gemini 3.8
+writes the copy; no LLM is called to review it. Negative/uncertain Jev admission
+is terminal for that draft and cannot trigger another writer call.
 Semantic checks accept translations and unspaced Japanese; lexical overlap is not an
 admission rule. Every follow-up must use an explicit source concept. A merely related
 scenario, such as wind for a source mentioning only bridge compression/tension, is rejected.
@@ -179,7 +179,7 @@ Wikipedia cards carry their actual retrieval edition. The card copy remains loca
 
 ### Granular recovery and cost accounting (2026-10-21)
 
-The review proof is versioned `daily-editorial-v7`; public cache keys use `v16`.
+The review proof is versioned `daily-editorial-v8`; public cache keys use `v17`.
 Older video/wiki approvals cannot satisfy the stronger gate. Jev confidence remains an
 abstention heuristic at the existing threshold, not a calibrated correctness
 probability. Field-level repair codes contain no arbitrary provider prose and
@@ -191,19 +191,19 @@ flowchart TD
     A[Recent topics or generic seeds] --> B[Brave videos / localized Wikipedia discovery]
     B --> C[Source identity, age and deterministic policy checks]
     C --> D[Jev source policy, fit and categories; video pixels]
-    D --> E[Mercury LOW writes source-backed card fields]
-    E --> F[Jev policy/coherence; Gemini EN/DE copy or Jev other locales]
+    D --> E[Gemini 3.8 Flash writes source-backed fields]
+    E --> F[Jev policy, coherence, grounding, language and follow-up relevance]
     F --> G[Retain approved source-bound cards]
-    F --> H[Repair only unresolved source IDs]
-    H --> I[Second Mercury attempt, then Gemini Flash-Lite]
+    E --> H[Provider or missing/malformed source rows only]
+    H --> I[One same-Gemini retry for unresolved IDs]
     I --> F
     G --> J[Personal complete set / reviewed public pool]
     J --> K[Background source/copy review and shared defaults selection]
     K --> L[Cached public delivery; localized static recovery]
 ```
 
-The retry arrow is bounded to three total writing attempts; it is not an
-unlimited loop. No fresh generation occurs on anonymous page loads. Shared
+The retry arrow is bounded to two same-model writing attempts. Editorial
+rejections do not enter the retry path. No fresh generation occurs on anonymous page loads. Shared
 background review cost depends on actual eligible pool rows, whereas personal
 generation depends on eligible users/first-run events. Twenty display languages
 do not imply twenty new daily generation jobs.
@@ -226,8 +226,9 @@ credits and omit unmeasured infrastructure/third-party charges. Generation yield
 is reported separately from accepted-copy quality and ten-card fallback delivery.
 
 The scoped English/German release and corrected live measurements are documented
-in [the release overview](../../plans/daily-inspiration-jev/english-german-release-2026-10-21.md).
-English produced a complete ten-card sample; German had two missing video slots
-and retained the existing localized/public and personalized recovery behavior.
-This is a practical English/German release, not a claim of universal multilingual
-classification or a lower full-pipeline cost than the original architecture.
+in [the single-LLM release overview](../../plans/daily-inspiration-jev/single-llm-release-2026-10-21.md).
+Scheduled personalization requires request activity within 24 hours and at least
+one recorded inspiration view; first-run seeds require recent tracked activity
+but no prior views. Missing or unavailable activity skips first-run generation.
+The completion guard lasts seven days. Login/signup/public reads do not generate
+new personal sets; background shared-pool Jev review is independent of activity.

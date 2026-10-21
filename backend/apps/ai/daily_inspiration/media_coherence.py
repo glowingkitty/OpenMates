@@ -11,7 +11,7 @@ import json
 from typing import Any, Mapping
 
 # Bump whenever editorial or visual requirements change.
-REVIEW_VERSION = "daily-editorial-v7"
+REVIEW_VERSION = "daily-editorial-v8"
 _REVIEW_FIELDS = (
     "language", "youtube_id", "video_title", "video_description", "video_thumbnail_url",
     "video_channel_name", "title", "phrase", "assistant_response", "category",

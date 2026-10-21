@@ -37,7 +37,7 @@ from backend.apps.ai.daily_inspiration.media_coherence import (
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v16:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v17:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {

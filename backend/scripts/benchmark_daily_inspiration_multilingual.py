@@ -1,7 +1,7 @@
 """Resumable, opt-in paired daily-inspiration qualification on fresh public evidence.
 
-No pool/account writes. Retrieval is frozen once; production assembly, recovery and
-Jev review are unchanged. Locale quality remains an automated assessment, not a
+No pool/account writes. Fresh retrieval is frozen once for two single-model arms;
+production assembly and Jev gates are unchanged. Locale quality is automated, not a
 claim of blind human review. Run as a module in the API container with Vault access.
 """
 from __future__ import annotations
@@ -30,12 +30,12 @@ def load_runtime():
     global httpx, AsyncModels, config, decisions, generator, thumbnail_review
     global video_processor, wiki_generator, writer, validator, call_preprocessing_llm
     global SecretsManager, JevDecisionClient, wikipedia
-    global llm_utils, media_coherence, semantic_review
+    global llm_utils, media_coherence
     import httpx
     from google.genai.models import AsyncModels
     
     from backend.apps.ai.daily_inspiration import (
-        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence, semantic_review,
+        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence,
     )
     from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
     from backend.apps.ai.utils import llm_utils
@@ -69,8 +69,11 @@ TOPICS = {
     'cs': 'Polární záře|Recyklace papíru|Šíření semen|Oblouk (architektura)|Cirkadiánní rytmus',
     'sv': 'Polarsken|Pappersåtervinning|Fröspridning|Båge (arkitektur)|Dygnsrytm',
 }
-ARMS = ('mercury_chain', 'gemini_only')
-ARM_ORDER_SEED = 'daily-inspiration-v6-fresh-topics-v1'
+ARM_MODELS = {'gemini38_only': 'google/gemini-3.8-flash', 'mercury3_only': 'inception/mercury-3'}
+ARM_PROFILES = {'gemini38_only': {'temperature': 1.0, 'reasoning_effort': 'provider_default'},
+                'mercury3_only': {'temperature': .5, 'reasoning_effort': 'low'}}
+ARMS = tuple(ARM_MODELS)
+ARM_ORDER_SEED = 'daily-inspiration-single-writer-v1'
 DISCOVERY_BATCH_SIZE = 3
 
 
@@ -126,7 +129,7 @@ def validate_source_manifest(actual, expected_path):
 
 
 ACTIVE = ContextVar('daily_multilingual_receipt', default=None)
-SEMANTIC_CALL = ContextVar('daily_multilingual_semantic_call', default=None)
+WRITER_CALL = ContextVar('daily_multilingual_writer_call', default=None)
 
 
 def atomic_json(path, value):
@@ -388,9 +391,18 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
     original_write = writer.write_reviewed_cards
 
     async def call(**kwargs):
+        if kwargs['model_id'] != ARM_MODELS[arm] or row['attempts']:
+            raise ValueError('Isolated arm permits exactly one call to its declared writer')
+        # Diagnostic control only: production remains the fixed Gemini writer.
+        if arm == 'mercury3_only':
+            kwargs = {**kwargs, 'reasoning_effort': 'low', 'temperature': .5}
         attempt = {'requested_model': kwargs['model_id'], 'request': kwargs['message_history'],
+                   'request_profile': {key: kwargs.get(key, 'provider_default' if key == 'reasoning_effort' else None)
+                                       for key in ('temperature', 'reasoning_effort', 'max_output_tokens',
+                                                   'allow_retries', 'fallback_models', 'single_attempt_timeout_seconds')},
                    'started_at': time.time()}
         row['attempts'].append(attempt)
+        token = WRITER_CALL.set(len(row['attempts']) - 1)
         stamp = time.monotonic()
         try:
             result = await call_preprocessing_llm(**kwargs)
@@ -402,6 +414,7 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
         finally:
             attempt['seconds'] = time.monotonic() - stamp
             atomic_json(ACTIVE.get()[1], row)
+            WRITER_CALL.reset(token)
 
     async def reviewed_write(**kwargs):
         return await instrumented_write(original_write, row=row, language=language, **kwargs)
@@ -457,8 +470,8 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
                         (thumbnail_review, 'fetch_thumbnail', frozen_thumbnail)]
         for module, name, replacement in replacements:
             stack.enter_context(patch.object(module, name, replacement))
-        if arm == 'gemini_only':
-            stack.enter_context(patch.object(writer, 'writer_model', lambda: config.FALLBACK_WRITER))
+        stack.enter_context(patch.object(writer, 'writer_model', lambda: ARM_MODELS[arm]))
+        stack.enter_context(patch.object(writer, 'MAX_WRITER_ATTEMPTS', 1))
         queries = [item['query'] for item in sources]
         if kind == 'video':
             return await generator.generate_inspirations('public-benchmark', len(sources), queries,
@@ -506,8 +519,8 @@ def summarize(root, options):
     for arm in ARMS:
         selected = [row for row in rows if row['arm'] == arm and row.get('status') == 'complete']
         billed_rows = [row for row in [*rows, *prior_rows] if row['arm'] == arm]
-        usage = [attempt['result'].get('usage_telemetry') or {} for row in billed_rows for attempt in row['attempts'] if 'result' in attempt]
-        from backend.scripts.benchmark_daily_inspiration_costs import semantic_native_usage
+        from backend.scripts.benchmark_daily_inspiration_costs import native_writer_usage, semantic_native_usage
+        usage = [entry for row in billed_rows for entry in native_writer_usage(row)]
         semantic_usage = [item for row in billed_rows for item in semantic_native_usage(row)]
         accounting = [item for row in billed_rows for item in unique_jev_usage(row)]
         unknown_jev = sum(unknown_jev_attempts(row) for row in billed_rows)
@@ -530,7 +543,8 @@ def summarize(root, options):
             'shortfall': len(options.languages) * options.limit * 2 - admitted,
             'first_draft_admitted': sum((row['attempts'][0].get('admitted', 0) if row['attempts'] else 0) for row in selected),
             'recovery_batches': sum(len(row['attempts']) > 1 for row in selected),
-            'fallback_gemini_attempts': sum('gemini' in attempt['requested_model'] for row in selected for attempt in row['attempts']) if arm == 'mercury_chain' else 0,
+            'writer_model': ARM_MODELS[arm], 'max_writer_attempts_per_batch': 1,
+            'fallback_gemini_attempts': 0,
             'seconds': sum(row.get('production_seconds', row['seconds']) for row in selected),
             'assessment_seconds': sum(row.get('assessment_seconds', 0) for row in selected),
             'by_language': {language: {
@@ -549,9 +563,9 @@ def summarize(root, options):
             'usage_telemetry': usage, 'jev_accounting': accounting,
             'unknown_jev_usage_attempts': unknown_jev,
             'jev_transport_accounting': [entry for row in billed_rows for entry in row.get('decision_accounting', [])],
-            'unknown_writer_usage_attempts': sum('result' not in attempt for row in billed_rows for attempt in row['attempts']),
+            'unknown_writer_usage_attempts': sum(item.get('input_tokens') is None for item in usage),
             'cost_complete': len(usage) == sum(len(row['attempts']) for row in billed_rows) and bool(usage) and all(item.get('supplier_cost_complete') for item in [*usage, *semantic_usage]) and bool(accounting) and not unknown_jev and all(item.get('input_tokens') is not None for item in accounting),
-            'cost_limit': 'Writer telemetry plus once-only native semantic-review usage and Jev input at $0.042/M; missing cache counters give a separate Google uncached upper bound; failed transports can undercount.',
+            'cost_limit': 'Once-only native writer and Jev input usage; unknown cache counters priced uncached. Canceled/failed sends without usage remain unpriced, so captured-response estimates are not total-spend bounds. Historical semantic-review ledgers retained only for old receipts.',
         }
     atomic_json(root / 'summary.json', summary)
     return summary
@@ -661,11 +675,23 @@ def unknown_jev_attempts(row):
 
 def build_manifest(options):
     manifest = {'comparison': 'writer_and_fresh_final_review_on_shared_live_approved_sources',
-                'accounting_version': 'semantic-review-separated-v1',
+                'accounting_version': 'sole-writer-native-usage-v1',
+                'arm_models': ARM_MODELS, 'max_writer_attempts_per_batch': 1,
+                'arm_profiles': ARM_PROFILES, 'max_output_tokens': 4096,
                 'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
-                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, semantic_review, llm_utils)}}
+                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, llm_utils)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    helper = Path(__file__).with_name('benchmark_daily_inspiration_costs.py')
+    manifest['accounting_helper_sha256'] = hashlib.sha256(helper.read_bytes()).hexdigest()
+    root = Path(__file__).resolve().parents[2]
+    for relative in ('backend/core/api/app/tasks/default_inspiration_tasks.py',
+                     'backend/core/api/app/tasks/daily_inspiration_tasks.py',
+                     'backend/core/api/app/routes/default_inspirations.py'):
+        path = root / relative
+        manifest['source_sha256'][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest['provider_catalog_sha256'] = {name: hashlib.sha256((root / 'backend/providers' / name).read_bytes()).hexdigest()
+                                         for name in ('google.yml', 'inception.yml', 'typesafe.yml')}
     exclusions = exclusion_manifest(options.exclude_source_root)
     manifest['exclusions'] = exclusions
     manifest['topics'] = {language: TOPICS[language].split('|')[:options.limit] for language in options.languages}
@@ -701,7 +727,7 @@ async def run(options):
         if request.url.host in {'api.inceptionlabs.ai', 'generativelanguage.googleapis.com'}:
             await response.aread()
             record('native_http', {'host': request.url.host, 'status': response.status_code,
-                                  'logical_call': SEMANTIC_CALL.get(),
+                                  'logical_call': WRITER_CALL.get(),
                                   'request': json.loads(request.content), 'response': response.json(),
                                   'seconds': time.monotonic() - stamp})
             if request.url.host == 'api.inceptionlabs.ai' and response.status_code < 400 and response.json().get('model') != 'mercury-3':
@@ -709,22 +735,20 @@ async def run(options):
         return response
 
     async def google(client, **kwargs):
-        response = await original_google(client, **kwargs)
+        stamp = time.monotonic()
+        try:
+            response = await original_google(client, **kwargs)
+        except BaseException as error:
+            record('native_http', {'transport': 'google_sdk', 'requested_model': kwargs.get('model'),
+                                  'logical_call': WRITER_CALL.get(), 'error': type(error).__name__,
+                                  'seconds': time.monotonic() - stamp})
+            raise
         record('native_http', {'transport': 'google_sdk', 'requested_model': kwargs.get('model'),
-                               'logical_call': SEMANTIC_CALL.get(),
+                               'logical_call': WRITER_CALL.get(), 'seconds': time.monotonic() - stamp,
                                'response': response.model_dump(mode='json', exclude_none=True)})
-        expected = 'gemini-3.8-flash' if SEMANTIC_CALL.get() else 'gemini-3.5-flash-lite'
-        if not (response.model_version or '').startswith(expected):
+        if not (response.model_version or '').startswith('gemini-3.8-flash'):
             raise ValueError('Unexpected observed Gemini model')
         return response
-
-    original_semantic = semantic_review.call_semantic_model
-
-    async def semantic_call(**kwargs):
-        from backend.scripts.benchmark_daily_inspiration_costs import recorded_semantic_call
-        row, path = ACTIVE.get()
-        return await recorded_semantic_call(original_semantic, kwargs, row,
-            lambda: atomic_json(path, row), SEMANTIC_CALL)
 
     class RecordedJev:
         def __init__(self, **kwargs):
@@ -754,12 +778,13 @@ async def run(options):
             return summarize(root, options)
         if not collected:
             return summarize(root, options)
+        if getattr(options, 'collect_only', False):
+            return summarize(root, options)
         started = time.monotonic()
         with ExitStack() as stack:
             stack.enter_context(patch.object(httpx.AsyncClient, 'send', send))
             stack.enter_context(patch.object(AsyncModels, 'generate_content', google))
             stack.enter_context(patch.object(decisions, 'JevDecisionClient', RecordedJev))
-            stack.enter_context(patch.object(semantic_review, 'call_semantic_model', semantic_call))
             for language in options.languages:
                 for kind in ('video', 'wiki'):
                     for offset in range(0, options.limit, DISCOVERY_BATCH_SIZE):
@@ -782,6 +807,10 @@ async def run(options):
                                    'paired_arm_order': arm_order['order'], 'paired_arm_order_seed': arm_order['seed'],
                                    'paired_arm_position': arm_order['order'].index(arm),
                                    'source_ids': [item['identity'] for item in sources], 'attempts': [],
+                                   'source_snapshot_sha256': {str(item.relative_to(root)): hashlib.sha256(item.read_bytes()).hexdigest()
+                                                              for item in snapshots if item.exists()},
+                                   'thumbnail_sha256': {item['image']['path']: item['image']['sha256']
+                                                        for item in sources if item.get('image')},
                                    'requested_count': len(sources), 'status': 'running'}
                             token = ACTIVE.set((row, path))
                             stamp = time.monotonic()
@@ -843,8 +872,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--execute', action='store_true', help='Required for paid real-provider calls')
     parser.add_argument('--output-dir', required=True)
-    parser.add_argument('--languages', nargs='+', choices=LANGUAGES, default=LANGUAGES)
-    parser.add_argument('--limit', type=int, choices=range(1, 6), default=5)
+    parser.add_argument('--languages', nargs='+', choices=LANGUAGES, default=['en', 'de'])
+    parser.add_argument('--limit', type=int, choices=range(1, 6), default=1)
+    parser.add_argument('--collect-only', action='store_true', help='Collect/freeze the four EN/DE source slots without writer calls; resume with the same output/options and omit this flag')
     parser.add_argument('--phase-minutes', type=int, choices=range(1, 31), default=30)
     parser.add_argument('--exclude-source-root', help='Previous benchmark root or sources directory; exclude every completed source ID')
     parser.add_argument('--frozen-source-manifest', help='Pin a complete terminal retrieval cohort and bypass all collection I/O')
@@ -857,6 +887,8 @@ def main():
             frozen_check = validate_frozen_sources(Path(options.output_dir), options.frozen_source_manifest, build_manifest(options))
         print(json.dumps({'execute': False, 'languages': options.languages,
                           'planned_cards': len(options.languages) * options.limit * 4,
+                          'arm_models': ARM_MODELS, 'writer_attempts_per_batch': 1,
+                          'collect_only': options.collect_only,
                           'logical_concurrency': 1, 'output_dir': options.output_dir, 'frozen_sources': frozen_check,
                           'exclusions': exclusion_manifest(options.exclude_source_root),
                           'arm_order_seed': ARM_ORDER_SEED, 'paired_arm_orders': arm_order_manifest(options)}))

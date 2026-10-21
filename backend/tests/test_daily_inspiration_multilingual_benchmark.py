@@ -164,7 +164,7 @@ async def test_resumed_completed_excluded_source_fails_before_retrieval(tmp_path
 
 @pytest.mark.asyncio
 async def test_candidate_manifest_mismatch_fails_before_vault_or_provider_setup(monkeypatch, tmp_path):
-    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'semantic_review', 'llm_utils'):
+    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils'):
         monkeypatch.setattr(benchmark, name, SimpleNamespace(__file__=benchmark.__file__, POLICY_VERSION='test'), raising=False)
     expected = tmp_path / 'expected.json'
     expected.write_text(json.dumps({'wrong.py': 'wrong-hash'}))
@@ -183,7 +183,7 @@ async def test_changed_exclusion_manifest_prevents_resuming_old_writing_before_b
     write_source(previous / 'sources', 'one', 'OldVideo001')
     output = tmp_path / 'run'
     output.mkdir()
-    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'semantic_review', 'llm_utils'):
+    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils'):
         monkeypatch.setattr(benchmark, name, SimpleNamespace(__file__=benchmark.__file__, POLICY_VERSION='test'), raising=False)
 
     def forbidden_manager():
@@ -203,7 +203,7 @@ async def test_changed_exclusion_manifest_prevents_resuming_old_writing_before_b
 
 
 @pytest.mark.asyncio
-async def test_instrumentation_tracks_targeted_attempt_admissions_and_final_union(monkeypatch):
+async def test_instrumentation_tracks_missing_row_retry_admissions_and_final_union(monkeypatch):
     from backend.apps.ai.daily_inspiration import writer
     monkeypatch.setattr(writer, 'RETRY_DELAY_SECONDS', 0)
     row = {'attempts': []}
@@ -227,16 +227,16 @@ async def test_instrumentation_tracks_targeted_attempt_admissions_and_final_unio
         return SimpleNamespace(error_message=None, arguments={'articles': [
             {'wiki_title': identity, 'phrase': Card.phrase, 'title': Card.title,
              'assistant_response': Card.assistant_response, 'follow_up_suggestions': Card.follow_up_suggestions}
-            for identity in ('a', 'b')]})
+            for identity in (('a',) if len(row['attempts']) == 1 else ('b',))]})
 
     async def accept(arguments):
         ids = [draft['wiki_title'] for draft in arguments['articles']]
-        expected = ['a', 'b'] if len(row['attempts']) == 1 else ['b']
+        expected = ['a'] if len(row['attempts']) == 1 else ['b']
         assert ids == expected
         identity = 'a' if len(row['attempts']) == 1 else 'b'
         originals[identity] = Card(identity)
         if identity == 'a':
-            feedback['b'] = ['phrase.grounding:unsupported']
+            feedback['b'] = ['copy:missing_or_shape']
         return [originals[identity]]
 
     cards = await benchmark.instrumented_write(writer.write_reviewed_cards,
@@ -248,7 +248,7 @@ async def test_instrumentation_tracks_targeted_attempt_admissions_and_final_unio
     assert row['final_source_ids'] == ['b', 'a']
     assert row['final_source_owners'] == {'b': 1, 'a': 0}
     assert [attempt['admitted_source_ids'] for attempt in row['attempts']] == [['a'], ['b']]
-    assert row['attempts'][0]['rejection_feedback'] == {'b': ['phrase.grounding:unsupported']}
+    assert row['attempts'][0]['rejection_feedback'] == {'b': ['copy:missing_or_shape']}
 
 
 def frozen_fixture(tmp_path):
@@ -313,7 +313,8 @@ def test_frozen_validation_rejects_changed_or_incomplete_inputs_before_billing(t
 
 
 @pytest.mark.asyncio
-async def test_frozen_run_never_collects_or_retries_terminal_shortfalls(monkeypatch, tmp_path):
+@pytest.mark.parametrize('collect_only', [False, True])
+async def test_frozen_run_never_collects_or_retries_terminal_shortfalls(monkeypatch, tmp_path, collect_only):
     output, provenance, manifest = frozen_fixture(tmp_path)
     before = (output / 'sources/en-wiki-0.json').read_bytes()
 
@@ -336,13 +337,12 @@ async def test_frozen_run_never_collects_or_retries_terminal_shortfalls(monkeypa
     monkeypatch.setattr(benchmark, 'httpx', SimpleNamespace(AsyncClient=SimpleNamespace(send=None)), raising=False)
     monkeypatch.setattr(benchmark, 'AsyncModels', SimpleNamespace(generate_content=None), raising=False)
     monkeypatch.setattr(benchmark, 'decisions', SimpleNamespace(JevDecisionClient=None), raising=False)
-    monkeypatch.setattr(benchmark, 'semantic_review', SimpleNamespace(call_semantic_model=None), raising=False)
     monkeypatch.setattr(benchmark, 'qualify_batch', no_cards)
-    await benchmark.run(options(output, languages=['en'], frozen_source_manifest=str(provenance)))
+    await benchmark.run(options(output, languages=['en'], frozen_source_manifest=str(provenance), collect_only=collect_only))
     assert (output / 'sources/en-wiki-0.json').read_bytes() == before
     saved = json.loads((output / 'manifest.json').read_text())
     assert saved['frozen_sources']['terminal_shortfalls'] == 1
-    assert len(list((output / 'rows').glob('*.json'))) == 2
+    assert len(list((output / 'rows').glob('*.json'))) == (0 if collect_only else 2)
 
 
 def test_jev_usage_counts_unique_responses_not_shared_transport_slices_or_locale_calls():
@@ -357,6 +357,57 @@ def test_jev_usage_counts_unique_responses_not_shared_transport_slices_or_locale
                                    {'phase': 'locale_assessment', 'input_tokens': None, 'success': False}]}
     assert sum(item['input_tokens'] for item in benchmark.unique_jev_usage(row)) == 300
     assert benchmark.unknown_jev_attempts(row) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('arm', benchmark.ARMS)
+async def test_single_model_diagnostic_override_is_one_attempt_and_restored(monkeypatch, tmp_path, arm):
+    from backend.apps.ai.daily_inspiration import config, writer
+    original_model, original_limit = writer.writer_model(), writer.MAX_WRITER_ATTEMPTS
+    monkeypatch.setattr(benchmark, 'writer', writer, raising=False)
+    monkeypatch.setattr(benchmark, 'config', config, raising=False)
+    def namespace(names):
+        return SimpleNamespace(**{name: None for name in names.split()})
+    generator = namespace('find_video_candidates call_preprocessing_llm write_reviewed_cards')
+    wiki = namespace('call_preprocessing_llm write_reviewed_cards search_wikipedia_titles review_candidates batch_validate_topics fetch_page_summary fetch_wikidata_entity')
+    monkeypatch.setattr(benchmark, 'generator', generator, raising=False)
+    monkeypatch.setattr(benchmark, 'wiki_generator', wiki, raising=False)
+    monkeypatch.setattr(benchmark, 'thumbnail_review', namespace('fetch_thumbnail'), raising=False)
+
+    async def provider_free(**kwargs):
+        assert kwargs['temperature'] == benchmark.ARM_PROFILES[arm]['temperature']
+        assert kwargs['max_output_tokens'] == 4096
+        if arm == 'mercury3_only':
+            assert kwargs['reasoning_effort'] == 'low'
+        else:
+            assert 'reasoning_effort' not in kwargs  # Preserve Gemini default thinking.
+        return SimpleNamespace(model_dump=lambda **_kw: {})
+
+    async def generate(*_args, **_kwargs):
+        assert writer.writer_model() == benchmark.ARM_MODELS[arm]
+        assert writer.MAX_WRITER_ATTEMPTS == 1
+        request = {'model_id': writer.writer_model(), 'message_history': [],
+                   'temperature': 1.0, 'max_output_tokens': 4096}
+        await generator.call_preprocessing_llm(**request)
+        with pytest.raises(ValueError, match='exactly one call'):
+            await generator.call_preprocessing_llm(**request)
+        return []
+
+    generator.generate_inspirations = generate
+    monkeypatch.setattr(benchmark, 'call_preprocessing_llm', provider_free, raising=False)
+    row = {'attempts': []}
+    token = benchmark.ACTIVE.set((row, tmp_path / 'case.json'))
+    try:
+        assert await benchmark.qualify_batch([{'query': 'public source'}], 'video', 'en', arm,
+                                              row, None, tmp_path) == []
+    finally:
+        benchmark.ACTIVE.reset(token)
+    assert len(row['attempts']) == 1
+    assert row['attempts'][0]['requested_model'] == benchmark.ARM_MODELS[arm]
+    assert row['attempts'][0]['request_profile']['temperature'] == benchmark.ARM_PROFILES[arm]['temperature']
+    assert row['attempts'][0]['request_profile']['reasoning_effort'] == benchmark.ARM_PROFILES[arm]['reasoning_effort']
+    assert writer.writer_model() == original_model == 'google/gemini-3.8-flash'
+    assert writer.MAX_WRITER_ATTEMPTS == original_limit
 
 
 @pytest.mark.asyncio

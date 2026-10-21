@@ -27,6 +27,7 @@ import asyncio
 import hashlib
 import logging
 import random
+import time
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 
@@ -419,6 +420,23 @@ async def trigger_first_run_inspirations(
         logger.debug(
             f"[DailyInspiration][{task_id}] First-run already completed for user {user_id[:8]}... — skipping"
         )
+        return
+    # First-run seeds have no view requirement, but still require tracked activity.
+    # Skip expensive generation when activity cannot be established from cache.
+    try:
+        paid_data = await cache_service.get_inspiration_paid_request_data(user_id)
+        recent_activity = bool(paid_data) and (
+            time.time() - paid_data.get("last_paid_request_timestamp", 0) < 86400
+        )
+    except Exception:
+        logger.warning(
+            "[DailyInspiration][%s] First-run activity lookup failed; skipping generation",
+            task_id,
+            exc_info=True,
+        )
+        return
+    if not recent_activity:
+        logger.debug("[DailyInspiration][%s] No recent tracked activity; skipping first-run", task_id)
         return
     if await _should_skip_e2e_inspiration_user(cache_service, user_id, task_id, directus_service):
         return

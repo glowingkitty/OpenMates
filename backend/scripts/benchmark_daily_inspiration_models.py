@@ -25,9 +25,10 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.typesafe.client import JevDecisionClient
 from backend.shared.providers.wikipedia.wikipedia_api import WikipediaTopic
 
+# Historical diagnostic arms only; production writer selection is fixed separately.
 ARMS = {
-    "mistral": (config.MISTRAL_WRITER, "mistral_ai", "https://api.mistral.ai/v1/chat/completions", .15, .60, .015),
-    "mercury": (config.MERCURY_WRITER, "inception_labs", "https://api.inceptionlabs.ai/v1/chat/completions", .10, .35, .01),
+    "mistral": ("mistral/mistral-small-latest", "mistral_ai", "https://api.mistral.ai/v1/chat/completions", .15, .60, .015),
+    "mercury": ("inception/mercury-3", "inception_labs", "https://api.inceptionlabs.ai/v1/chat/completions", .10, .35, .01),
 }
 SOURCES = [
     {"id": "bio-en", "language": "en", "title": "How bioluminescence produces light", "wiki_title": "Bioluminescence",
@@ -211,7 +212,6 @@ async def run(options):
 
                                 async def writer(**kwargs):
                                     assert kwargs["fallback_models"] == [] and not kwargs["allow_retries"]
-                                    assert kwargs["temperature"] == .5
                                     function = kwargs["tool_definition"]["function"]
                                     body = {"model": ARMS[arm][0].split("/", 1)[1], "messages": kwargs["message_history"],
                                             "tools": [kwargs["tool_definition"]], "tool_choice": {"type": "function", "function": {"name": function["name"]}},

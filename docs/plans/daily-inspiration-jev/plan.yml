@@ -1,70 +1,92 @@
 schema_version: 2
 profile: concise
 id: daily-inspiration-jev
-title: Finish reliable English and German inspirations with bounded semantic review
-status: verified
-goal: >-
-  Finish and deploy a practical English/German quality improvement, preserving
-  Jev source and thumbnail screening, bounded writing recovery and all twenty
-  localized static feeds. Explain the workflow, measured costs and remaining
-  improvements without requiring exhaustive multilingual perfection.
+title: Use one Jev decision model and one Gemini writer for active-user inspirations
+status: implementing
+goal: Implement the approved Jev 1.14 plus Gemini 3.8 Flash setup with one LLM writing stage, no second
+  LLM reviewer or cross-model fallback, verify English/German quality and active-user generation gates,
+  and deploy the scoped dev changes.
 scope_notes:
-  - Jev retains source policy, coherence, ranking and actual thumbnail decisions. English/German completed copy uses a focused Gemini 3.8 Flash semantic review; other locales retain the deployed granular Jev copy review.
-  - Align validation and review to source-preserving paraphrases and open questions about explicit concepts; reject added specific facts, qualifiers, roles, causes, dates and absent scenarios.
-  - Retain source-bound approved cards across attempts; request only unresolved identities with bounded trusted rejection codes and review every repair.
-  - Re-adjudicate nineteen historical material cards and four uncertain cases transparently; retain human/native-speaker review limitations.
-  - Treat generation yield as an efficiency metric; publication quality and complete localized static recovery determine release readiness.
-  - Compare full pipeline costs against original commit c94ebe85a14f87aa3223eacfe129aa85ec93d939, separating historical estimates, new measurements, search fees, provider credits and shared/personal scheduling.
-  - Review bounded actual YouTube thumbnail pixels through direct Jev; withhold failed, unavailable or uncertain image decisions.
-  - Persist versioned review proof; anonymous feed requests make no paid provider calls.
-  - Localize all fifteen backend static cards using the shared YAML catalog and preserve canonical Wikipedia source editions.
-  - Preserve ten-card delivery, localized static recovery, encryption and ordinary account/chat model routing.
-  - Compare Mercury 3 LOW twice then Gemini 3.5 Flash-Lite once against three bounded Gemini writing attempts, using the same Jev gates.
-  - Freeze real approved public sources across writer arms; every generated draft still receives fresh native Jev review.
-  - Select the writer using source-grounded quality before latency or estimated supplier cost; do not weaken admission thresholds to improve scores.
-  - Keep retrieval shortages, source re-review variation, writer failures and independent automated review distinct.
-  - Optimize Jev precision by testing isolated one-field language and source-grounding requests before changing served admission behavior; preserve confidence thresholds and negative controls.
-  - Use de/ar/hi/ja and disclosed retained regressions for development, then freeze the candidate before validation across the remaining locale controls and public-source drafts.
-  - After three failed Jev field-review variants, test a focused LLM semantic reviewer while retaining Jev source policy, coherence, ranking and actual thumbnail decisions; never override a failed Jev gate.
-  - Keep fixture labels and caller identities outside all provider inputs; invalidate label-revealing diagnostics and preserve their usage receipts.
+- 'One production LLM: google/gemini-3.8-flash. A transport/provider/schema failure may retry the same
+  model once; editorial rejections are terminal and approved source-bound objects are retained.'
+- Jev handles source suitability/ranking/categories, semantic coherence, field grounding/language and
+  follow-up relevance, plus actual thumbnail pixels. Remove the separate Gemini semantic reviewer. Keep
+  source identities, policy thresholds and static recovery.
+- Keep all twenty localized static feeds. Anonymous reads, login and signup make no fresh generation calls.
+  Incomplete personal refreshes retain the previous set.
+- Daily personal generation requires tracked request activity under twenty-four hours and at least one
+  recorded inspiration view. First-run seeds require recent tracked activity but no prior view. Preserve
+  the current tracking meaning, including zero-credit requests; do not add concurrency locks or redesign
+  scheduling.
+- No account/chat routing changes. No production-server deployment. Shared background Jev pool review
+  remains separate from new personal generation.
 checks:
-  - Focused backend regressions for semantic decisions, source identities, thumbnail transport, pool proof, retry bounds and all static locales.
-  - Frontend fallback/store unit checks and isolated CI component/public-feed browser coverage, including Japanese source navigation and all twenty endpoint locales.
-  - Real provider paired benchmark with actual model identity, drafts, Jev decisions, usage, latency and blinded automated source-grounded review.
-  - Release acceptance focuses on English/German source fidelity, wrong-language and follow-up controls, deterministic failure recovery and localized delivery; report wider multilingual limitations without claiming exhaustive qualification.
-  - Historical 95 percent first-draft and 99 percent final generation-admission targets remain reported as yield metrics, not standalone safety gates.
-  - Reuse the completed multilingual paired benchmark and thumbnail evidence; finish with fourteen fixed English/German controls and a small live refresh check instead of another broad benchmark.
-  - Before/after cost analysis includes the actual pre-Jev/Mercury workflow; never relabel the Gemini-only plus Jev control as the original baseline.
+- Focused provider-free writer/source-identity/retry tests, Jev decision/pixel/proof/public recovery and
+  activity-boundary tests; scoped lint and isolated GitHub backend tests.
+- 'One small native English/German paired comparison on four fresh approved public sources: one video
+  and one wiki per locale, Gemini 3.8 versus Mercury 3 diagnostic arms, one writer attempt per arm under
+  the same current Jev gates. No separate LLM review and no account/pool writes.'
+- Deploy through the session helper, verify exact-source frontend readiness and coordinated backend health,
+  and pin actual runtime sources before native calls.
+- Report actual admissions, latency and captured supplier usage/unknowns; do not infer a full-refresh
+  price or savings from the small paired sample.
 decision_notes:
-  - User narrowed acceptance on 2026-10-21 to practical reliability with English/German focus, requested completion and deployment, and explicitly allowed Gemini if Mercury is insufficient. Stop broader experiments; remaining multilingual perfection is not a release gate.
-  - Keep Mercury LOW, Mercury LOW retry and Gemini 3.5 Flash-Lite as the existing writer chain. Use stronger Gemini 3.8 Flash for scoped final semantic review because cheap reviewer variants missed known errors; do not use Gemini 3.5 as a semantic-review fallback.
-  - User rejected Mistral as a current writer option; it remains excluded from the candidate and appears only in the historical baseline.
-  - User authorized implementation, real-provider benchmarking, the resulting writer decision and scoped dev deployment.
-  - Existing public-safe feed and language Specifications apply; ordinary model routing is outside this work.
-  - Gemini Batch and a general shared-pool redesign remain outside scope.
-  - User explicitly approved the concrete granular-review, repair, rubric and qualification follow-up on 2026-10-21. Existing public-feed contracts exclude provider/prompt internals; no product contract expansion.
-  - Independent automated multilingual labels are not native-speaker sign-off; no human review is fabricated.
-  - User requested continued optimization on 2026-10-21; continue in TASK-1531 and session d115. First isolate language/field interference and the known causal-role reversal, then measure resulting quality, latency and cost.
+- User explicitly rejected two LLM stages and approved Jev plus Gemini 3.8 as the sole writer. Mercury
+  and Gemini Flash-Lite runtime generation/review paths are removed, not hidden behind a fallback.
+- Keep the accepted practical English/German focus. Do not restart broad multilingual optimization or
+  require a perfect system.
+- Existing feature.daily-inspiration@2 and feature.language-preferences@1 apply; provider/prompt internals
+  are outside the permanent product contract. The recent-activity check enforces the existing first-paid-request
+  intent.
+- Batch processing, pool redesign, positive-credit billing changes, first-run concurrency locks and cooldowns
+  are outside this follow-up.
 evidence:
+  policy_version: daily-editorial-v8
+  public_cache_version: v17
+  current_report: docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+  status: Focused checks and scoped comparison/deployment in progress.
+previous_v7_evidence:
   implementation_commit: be96267b0894c144e54aec6d914946067a06251e
   core_implementation_commit: 3e33b8c5d1d57d6bdd6ee5edb688f7ba6edbf6c2
   policy_version: daily-editorial-v7
   public_cache_version: v16
-  focused_local: 227 focused backend tests and 29 benchmark-accounting checks passed in their respective selections; counts overlap and are not summed.
+  focused_local: 227 focused backend tests and 29 benchmark-accounting checks passed in their respective
+    selections; counts overlap and are not summed.
   isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39595728586
   isolated_ci_source: 4193f508d19f8d795f67de231379a51b315e77df
-  isolated_ci_result: 226 selected tests passed; receipt retrieved and evidence command completed with no unit-test recording inventory. Core implementation matched the tested candidate; the follow-up tracing-label correction passed 36 focused local tests with the real provider-span validator and scoped Ruff.
-  english_german_controls: Fourteen of fourteen fixed real-provider labels matched; seven valid cards accepted and seven negative cards withheld. One timeout succeeded on its allowed retry. Automated controls, not native-speaker gold.
-  independent_review: No blocking code issues found; independent automated inspection of all ten corrected-sample admissions against retained source projections found no obvious material copy/relevance blocker.
+  isolated_ci_result: 226 selected tests passed; receipt retrieved and evidence command completed with
+    no unit-test recording inventory. Core implementation matched the tested candidate; the follow-up
+    tracing-label correction passed 36 focused local tests with the real provider-span validator and scoped
+    Ruff.
+  english_german_controls: Fourteen of fourteen fixed real-provider labels matched; seven valid cards
+    accepted and seven negative cards withheld. One timeout succeeded on its allowed retry. Automated
+    controls, not native-speaker gold.
+  independent_review: No blocking code issues found; independent automated inspection of all ten corrected-sample
+    admissions against retained source projections found no obvious material copy/relevance blocker.
   current_report: docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
-  runtime: Corrected-source reload docker-0d806d4a completed with all seventeen consumers healthy. Both exact-source Vercel checks passed for be96267b0894c144e54aec6d914946067a06251e; twelve runtime module hashes verified before paid calls.
-  integration_regression: Initial EN/DE live diagnostic exposed an unregistered tracing label before Gemini dispatch. Corrected to the existing inspiration purpose and covered with the real provider-span validator; no prompt/model/threshold changes.
-  final_refresh: Corrected English sample delivered three video, three wiki and four static cards in 202.66 seconds; German delivered one video, three wiki and four static cards in 60.94 seconds. German source shortage retains localized public fallback and prior personal set. Both samples observed all four intended models; no account/pool writes.
-  german_shortfall: Two generated German videos were excluded by the existing five-year science age cap (2017 and 2019 publications), despite successful retrieval, thumbnail checks and writer fallback. Improve replacement discovery rather than weaken that policy.
+  runtime: Corrected-source reload docker-0d806d4a completed with all seventeen consumers healthy. Both
+    exact-source Vercel checks passed for be96267b0894c144e54aec6d914946067a06251e; twelve runtime module
+    hashes verified before paid calls.
+  integration_regression: Initial EN/DE live diagnostic exposed an unregistered tracing label before Gemini
+    dispatch. Corrected to the existing inspiration purpose and covered with the real provider-span validator;
+    no prompt/model/threshold changes.
+  final_refresh: Corrected English sample delivered three video, three wiki and four static cards in 202.66
+    seconds; German delivered one video, three wiki and four static cards in 60.94 seconds. German source
+    shortage retains localized public fallback and prior personal set. Both samples observed all four
+    intended models; no account/pool writes.
+  german_shortfall: Two generated German videos were excluded by the existing five-year science age cap
+    (2017 and 2019 publications), despite successful retrieval, thumbnail checks and writer fallback.
+    Improve replacement discovery rather than weaken that policy.
   final_refresh_receipt: /app/test-results/d115-v7-corrected-refresh-20261021/summary.json
-  release_costs: Original English incomplete attempt USD0.018906930; corrected English complete ten USD0.059215606 captured-response estimate plus three unpriced cancellations; German incomplete eight USD0.042219968. Google cache counters absent; captured Google responses use uncached upper estimates. No savings claim or historical German comparison.
+  release_costs: Original English incomplete attempt USD0.018906930; corrected English complete ten USD0.059215606
+    captured-response estimate plus three unpriced cancellations; German incomplete eight USD0.042219968.
+    Google cache counters absent; captured Google responses use uncached upper estimates. No savings claim
+    or historical German comparison.
   release_cost_aggregate: docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.json
-  accepted_scope_result: Practical English/German dev rollout delivered with strict source/copy/thumbnail gates and complete localized public recovery. German recent-video discovery and other-locale copy precision remain bounded follow-ups; no claim of full twenty-language production qualification or production-server deployment.
+  accepted_scope_result: Practical English/German dev rollout delivered with strict source/copy/thumbnail
+    gates and complete localized public recovery. German recent-video discovery and other-locale copy
+    precision remain bounded follow-ups; no claim of full twenty-language production qualification or
+    production-server deployment.
 previous_v6_evidence:
   implementation_commit: 76419cba88796db635c80e0c5218ece0783a581c
   policy_version: daily-editorial-v6
@@ -74,27 +96,46 @@ previous_v6_evidence:
   isolated_public_feed_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39574090167
   isolated_writer_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39579556331
   isolated_generator_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39582942072
-  evidence_delivery: Receipt evidence commands completed; latest DE, JA and static-fallback browser recordings uploaded successfully.
-  runtime: docker-78d5bd31 completed with all seventeen affected consumers healthy; both exact-source Vercel deployments succeeded.
-  text_controls: All sixty negatives withheld, but only ten of sixty valid multilingual positives admitted; zero unavailable decisions.
-  historical_regressions: Nineteen of twenty-three scored labels matched; one Turkish causal-role negative admitted, three positives withheld, one additional uncertain case unscored. Original valid Japanese paraphrase accepted.
-  thumbnail_controls: All one hundred actual JPEG-panel decisions matched; sixty honest and forty deceptive. Five translated templates, not one hundred independent natural thumbnails.
-  language_pilots: Two exploratory twenty-four-case pilots improved positive acceptance but each admitted a known wrong-English-introduction control; neither adopted.
-  fresh_paired: All twenty locales and one hundred fifty-six paired batches complete; two hundred planned slots per arm, one hundred sixty-eight eligible, thirty-two frozen source shortfalls. Mercury fifteen first / thirty-four final admissions; Gemini twenty-one / thirty-nine.
-  blinded_review: All seventy-three admitted cards and forty sampled withholds reviewed provider/admission-blind; twenty-one flags adjudicated before unblinding. Mercury zero material / zero uncertain among thirty-four; Gemini five material / one uncertain among thirty-nine. Automated review, not human/native gold.
-  recovery: Approved source-bound cards preserved; fallback request conversion fixed and all four Gemini full-refresh fallback calls succeeded. Neither sampled full-refresh architecture produced a complete personal set; localized ten-card public recovery verified in browser CI.
+  evidence_delivery: Receipt evidence commands completed; latest DE, JA and static-fallback browser recordings
+    uploaded successfully.
+  runtime: docker-78d5bd31 completed with all seventeen affected consumers healthy; both exact-source
+    Vercel deployments succeeded.
+  text_controls: All sixty negatives withheld, but only ten of sixty valid multilingual positives admitted;
+    zero unavailable decisions.
+  historical_regressions: Nineteen of twenty-three scored labels matched; one Turkish causal-role negative
+    admitted, three positives withheld, one additional uncertain case unscored. Original valid Japanese
+    paraphrase accepted.
+  thumbnail_controls: All one hundred actual JPEG-panel decisions matched; sixty honest and forty deceptive.
+    Five translated templates, not one hundred independent natural thumbnails.
+  language_pilots: Two exploratory twenty-four-case pilots improved positive acceptance but each admitted
+    a known wrong-English-introduction control; neither adopted.
+  fresh_paired: All twenty locales and one hundred fifty-six paired batches complete; two hundred planned
+    slots per arm, one hundred sixty-eight eligible, thirty-two frozen source shortfalls. Mercury fifteen
+    first / thirty-four final admissions; Gemini twenty-one / thirty-nine.
+  blinded_review: All seventy-three admitted cards and forty sampled withholds reviewed provider/admission-blind;
+    twenty-one flags adjudicated before unblinding. Mercury zero material / zero uncertain among thirty-four;
+    Gemini five material / one uncertain among thirty-nine. Automated review, not human/native gold.
+  recovery: Approved source-bound cards preserved; fallback request conversion fixed and all four Gemini
+    full-refresh fallback calls succeeded. Neither sampled full-refresh architecture produced a complete
+    personal set; localized ten-card public recovery verified in browser CI.
   original_baseline: c94ebe85a14f87aa3223eacfe129aa85ec93d939
-  full_refresh_costs: Declared thirty-second original-architecture replay averaged USD0.019273155 per attempt; current USD0.029581853 launch / USD0.034852118 regular. No completed-set price, original production invoice or saving established.
-  qualification: Failed for production; language precision, known causal-role false admission and complete personal-refresh yield remain unresolved. Keep the Mercury retry chain as the preferred dev candidate; do not weaken thresholds or adopt failed pilots.
-  experiment_delivery: Authorized granular implementation, native comparison, source-only audit, historical cost overview and scoped dev deployment delivered. Production qualification remains active; no production deployment performed.
+  full_refresh_costs: Declared thirty-second original-architecture replay averaged USD0.019273155 per
+    attempt; current USD0.029581853 launch / USD0.034852118 regular. No completed-set price, original
+    production invoice or saving established.
+  qualification: Failed for production; language precision, known causal-role false admission and complete
+    personal-refresh yield remain unresolved. Keep the Mercury retry chain as the preferred dev candidate;
+    do not weaken thresholds or adopt failed pilots.
+  experiment_delivery: Authorized granular implementation, native comparison, source-only audit, historical
+    cost overview and scoped dev deployment delivered. Production qualification remains active; no production
+    deployment performed.
   current_report: docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
   cost_aggregate: docs/plans/daily-inspiration-jev/full-refresh-costs-2026-10-21.json
   paired_aggregate: docs/plans/daily-inspiration-jev/granular-paired-aggregate-2026-10-21.json
   blind_audit: docs/plans/daily-inspiration-jev/blinded-review-2026-10-21.json
   historical_reports:
-    - docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md
-    - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
-    - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
-    - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
-    - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
-    - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+  - docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md
+  - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+  - docs/plans/daily-inspiration-jev/multilingual-qualification-2026-10-20.md
+  - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
+  - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
+  - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md

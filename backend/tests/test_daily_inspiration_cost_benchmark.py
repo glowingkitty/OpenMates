@@ -120,7 +120,8 @@ def test_reviewed_current_hash_mismatch_fails_before_provider_imports(tmp_path):
     actual = benchmark.current_source_preflight()['current_source_sha256']
     assert {'decisions.py', 'writer.py', 'generator.py', 'wiki_generator.py',
             'video_processor.py', 'validator.py', 'thumbnail_review.py', 'config.py',
-            'llm_utils.py', 'media_coherence.py', 'semantic_review.py'} <= actual.keys()
+            'llm_utils.py', 'media_coherence.py'} <= actual.keys()
+    assert 'semantic_review.py' not in actual
     manifest.write_text(json.dumps({'source_sha256': actual}))
     verified = benchmark.current_source_preflight(manifest)
     assert verified['reviewed_source_comparison']['unreviewed_keys'] == []
@@ -155,6 +156,44 @@ def test_semantic_native_usage_prices_all_paid_responses_once_separate_from_writ
     assert row['cost']['semantic_review_supplier_upper_bound_usd'] == pytest.approx(.00213)
     assert row['logical_facade_calls'] == 1 and row['cost']['semantic_review_attempts'] == 1
     assert not row['cost']['semantic_review_cost_complete']
+
+
+def test_sole_writer_native_ledger_includes_thoughts_paid_parse_errors_and_cancels():
+    google = {'logical_call': 0, 'response': {'response_id': 'google-one',
+        'model_version': 'gemini-3.8-flash', 'usage_metadata': {
+            'prompt_token_count': 1000, 'cached_content_token_count': 400,
+            'candidates_token_count': 100, 'thoughts_token_count': 20}}}
+    mercury = {'logical_call': 1, 'host': 'api.inceptionlabs.ai', 'status': 200,
+        'response': {'id': 'paid-length', 'model': 'mercury-3', 'usage': {
+            'prompt_tokens': 1000, 'prompt_tokens_details': {'cached_tokens': 100},
+            'completion_tokens': 200, 'completion_tokens_details': {'reasoning_tokens': 190}},
+            'choices': [{'finish_reason': 'length'}]}}
+    row = {'calls': [{'requested_model': 'google/gemini-3.8-flash'},
+                     {'requested_model': 'inception/mercury-3', 'error': 'parse_failure'},
+                     {'requested_model': 'google/gemini-3.8-flash', 'error': 'CancelledError'}],
+           'google_sdk': [google], 'native_http': [google, mercury],
+           'facade_attempt_usage': [{'logical_call': 0, 'supplier_cost_usd': 99}]}
+    ledger = benchmark.native_writer_usage(row)
+    assert len(ledger) == 3
+    assert ledger[0]['supplier_cost_usd'] == pytest.approx(.00093)
+    assert ledger[0]['output_tokens'] == 120
+    assert ledger[1]['supplier_cost_usd'] == pytest.approx(.000161)
+    assert ledger[1]['output_tokens'] == 200  # Reasoning is already included.
+    assert ledger[2].get('supplier_cost_usd') is None
+    assert not ledger[2]['supplier_cost_complete']
+    assert benchmark.native_writer_usage({'calls': [], 'semantic_review_attempts': []}) == []
+
+
+def test_gemini38_writer_without_cache_counter_is_an_uncached_estimate():
+    row = {'attempts': [{'requested_model': 'google/gemini-3.8-flash'}],
+        'native_http': [{'logical_call': 0, 'transport': 'google_sdk', 'response': {
+            'response_id': 'uncached-unknown', 'model_version': 'gemini-3.8-flash',
+            'usage_metadata': {'prompt_token_count': 1000, 'candidates_token_count': 100,
+                               'thoughts_token_count': 20}}}]}
+    usage = benchmark.native_writer_usage(row)[0]
+    assert usage['supplier_cost_upper_bound_usd'] == pytest.approx(.0012)
+    assert not usage['supplier_cost_complete']
+    assert usage['supplier_upper_bound_complete']
 
 
 @pytest.mark.asyncio
