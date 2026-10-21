@@ -1,10 +1,12 @@
 # Direct image references: implementation and verification
 
-Task: TASK-7471. Direct-reference implementation and timing verification are complete;
-the final live answer has a narrow, explicitly unresolved visual-grounding finding.
-The Plan and Task remain active for that unmet grounding criterion. A proposed
-per-requirement evidence extension, or explicit acceptance of the score-only
-limitation, is pending a user decision; disclosure is not treated as a waiver.
+Task: TASK-7471. Complete with an accepted known limitation. Direct-reference
+implementation and timing verification are complete; the final live answer retains
+the narrow visual-grounding finding documented below. On 2026-10-21, after reviewing
+the results and disclosed limitation, the user said, "Improvement sounds good
+enough to deploy and end this task." This accepts task closure with that limitation;
+it does not turn the failed strict narrative check into a pass. The proposed
+per-requirement visual-evidence extension is deferred.
 Approved contracts: architecture.app-skill-execution@1, feature.ai-model-routing@7,
 and feature.app-skill.shopping-search@2.
 

@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: direct-image-reference-processing
 title: Direct image references and efficient assistant orchestration
-status: implementing
+status: verified
 goal: >-
   The image should be usable still by app skills like shopping search or image
   search. The separate image view skill should be used only when the image shall
@@ -20,6 +20,7 @@ decisions:
   - Authorization and expiry checks precede external provider access or billing; no key recovery or extended upload lifetime.
   - Fifteen to twenty seconds is an investigation target, not an unverified service guarantee.
   - User confirmed both exact shared-image and model-routing contract hashes on 2026-10-20; approval receipts are recorded for session d8e6.
+  - On 2026-10-21 the user accepted the disclosed remaining visual-description limitation and explicitly requested deployment and task closure. Per-requirement visual evidence is deferred; the failing strict narrative observation remains recorded, not reclassified as a passing test.
 checks:
   - Focused routing tests cover direct Shopping/edit/search, real inspection, photo-only requests, explicit tools and unrelated historical images.
   - Resolver tests cover ownership, exact references, cache loss, fresh uploads, generated images, v2 and legacy formats, expiry and unavailable ciphertext.
@@ -34,5 +35,5 @@ verification_notes:
   - Genuine image inspection and the unrelated follow-up passed independently in 9.306 and 8.612 seconds. The Shopping-only policy did not change those paths.
   - Scoped publication and healthy runtime activation were verified; API and AI-worker cache reads contained the exact persistent Shopping instruction.
   - Quality assessment is partial, not a universal grounding pass. Material uncertainty, score scale, identity caveats, brand roles and filtering counts were correct; one unsupported negative visual description remains. Jev returns aggregate scores rather than observed-feature explanations. The verification report preserves this finding and recommends explicit evidence before richer explanations.
-  - Overall completion remains open for the factual-grounding criterion. Independent conformance review rejected marking the Plan verified from disclosure alone. The proposed per-requirement evidence extension, or acceptance of the score-only limitation, awaits the user's decision.
+  - Completion is accepted with the user's 2026-10-21 waiver for the disclosed strict visual-narrative finding. All other required implementation and verification criteria retain their recorded evidence; no test or product contract was weakened.
   - Safe disposable caches, completed test-build copies and two obsolete owned worktrees were removed; recovery archives, pending work and test evidence were preserved.
