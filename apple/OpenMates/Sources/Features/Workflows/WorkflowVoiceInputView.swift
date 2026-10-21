@@ -157,7 +157,11 @@ final class WorkflowVoiceInputController: ObservableObject {
             return
         }
 
-        recordingReservation = speechRuntime.beginRecording()
+        guard let reservation = speechRuntime.tryBeginRecording() else {
+            error = AppStrings.recordingBlockedByCall
+            return
+        }
+        recordingReservation = reservation
         let realtime = AudioRealtimeTranscriptionClient.live(authManager: authManager) { [weak self] event in
             await self?.receive(event, token: token)
         }
@@ -305,7 +309,11 @@ final class WorkflowVoiceInputController: ObservableObject {
         testing = true
         self.client = client
         self.onOutcome = onOutcome
-        recordingReservation = speechRuntime.beginRecording()
+        guard let reservation = speechRuntime.tryBeginRecording() else {
+            error = AppStrings.recordingBlockedByCall
+            return
+        }
+        recordingReservation = reservation
         recording = true
     }
     func receiveForTesting(_ event: AudioRealtimeTranscriptionClient.Event) async {

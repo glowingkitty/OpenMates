@@ -1,22 +1,21 @@
 schema_version: 1
-specification: feature.focus-modes@4
+specification: feature.focus-modes@2
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
   action: Request a Project file update while including the focus name and instructions in model-generated text.
-  expect: The mutation is denied; neither the recommendation nor prompt content establishes active authorized focus
-    state.
+  expect: The mutation is denied; neither the recommendation nor prompt content establishes active authorized focus state.
 - id: project-specific-focus
   given: The current chat has an active Review authentication focus stored in the OpenMates Project.
   action: Evaluate the focus prerequisite for an OpenMates file update.
-  expect: The Project-bound focus prerequisite is satisfied; underlying role and write-policy checks still determine
-    whether this particular mutation is permitted.
+  expect: The Project-bound focus prerequisite is satisfied; underlying role and write-policy checks still determine whether
+    this particular mutation is permitted.
 project_off_read:
 - id: discuss-file-after-off
   given: The chat already displays src/login.ts from OpenMates and the user switches Work on OpenMates off.
   action: Ask the assistant to explain the displayed file, then request an edit without activating a Project focus.
-  expect: The file remains readable under its existing access; the edit is denied and subsequent system prompts
-    exclude the inactive focus instruction.
+  expect: The file remains readable under its existing access; the edit is denied and subsequent system prompts exclude the
+    inactive focus instruction.
 - id: old-activation-does-not-restore-writes
   given: The chat contains an old Project focus activation followed by deactivation.
   action: Reload the chat and attempt a Project write using the old activation event as authority.
@@ -29,30 +28,29 @@ activation:
 - id: accept-or-reject
   given: A live Deep research activation awaits the existing confirmation window.
   action: Allow confirmation, or reject before confirmation.
-  expect: Confirmation continues with Deep research active; rejection continues without its instruction and cannot
-    later auto-activate the same consumed request.
+  expect: Confirmation continues with Deep research active; rejection continues without its instruction and cannot later auto-activate
+    the same consumed request.
 - id: accepted-and-rejected-internal-answer-authority
   given: A current user turn owns the chat authority and its live Focus activation pauses before an answer.
   action: Accept or reject the activation and start its internal answer execution.
-  expect: The continuation uses the original authenticated chat and source-turn authority, while its execution ID
-    remains distinct. Legacy continuation does not invent durable recovery metadata. Its completion releases or
-    hands off only its own turn and preserves accepted queued follow-ups.
+  expect: The continuation uses the original authenticated chat and source-turn authority, while its execution ID remains
+    distinct. Legacy continuation does not invent durable recovery metadata. Its completion releases or hands off only its
+    own turn and preserves accepted queued follow-ups.
 - id: stopped-or-expired-focus-preserves-newer-work
   given: A Focus pause is cancelled, or its continuation never starts, while accepted followers or a newer owner exist.
   action: Execute cancellation or pending-expiry cleanup, including a repeated Focus pause in the same user turn.
-  expect: Cleanup preserves accepted queued work and cannot clear a newer owner. An old pause expiry cannot expire
-    a running answer or a newer pause; cached transport decoding does not change authority validation.
+  expect: Cleanup preserves accepted queued work and cannot clear a newer owner. An old pause expiry cannot expire a running
+    answer or a newer pause; cached transport decoding does not change authority validation.
 full_instruction:
 - id: career-follow-ups
   given: Career insights is active with full instruction P configured in the app for these requests.
   action: Send the activation continuation, then ask which skills transfer, then ask for a weekly plan.
-  expect: Each of the three inference system prompts contains all of P, not just the first request or an abbreviated
-    reminder.
+  expect: Each of the three inference system prompts contains all of P, not just the first request or an abbreviated reminder.
 - id: reopened-active-chat
   given: Deep research remains active in a saved conversation after reopening.
   action: Send another research question.
-  expect: The new inference system prompt contains the full currently configured Deep research instruction even
-    if activation is outside retained model history; the specification does not pin an older wording.
+  expect: The new inference system prompt contains the full currently configured Deep research instruction even if activation
+    is outside retained model history; the specification does not pin an older wording.
 off_instruction:
 - id: user-off
   given: Career insights is active and its instruction is P.
@@ -61,8 +59,8 @@ off_instruction:
 - id: ai-off-continuation
   given: An inference started with Deep research active and the AI deactivates it.
   action: Continue processing after successful deactivation.
-  expect: The next inference call uses a rebuilt system prompt without the Deep research instruction, including
-    within the same message request.
+  expect: The next inference call uses a rebuilt system prompt without the Deep research instruction, including within the
+    same message request.
 history_events:
 - id: career-event-pair
   given: Career insights is activated and later deactivated.
@@ -78,8 +76,7 @@ countdown:
   action: Render it and cancel using the existing card or Escape interaction.
   expect: A countdown is visible before cancellation; cancellation consumes only that pending activation.
 - id: history-matrix
-  given: A completed chat, public shared chat, example, or unconfirmed historical record contains an activation
-    embed.
+  given: A completed chat, public shared chat, example, or unconfirmed historical record contains an activation embed.
   action: Open, remount, and reload each history view.
   expect: No countdown or cancellation affordance appears, including when local active-focus metadata is absent.
 history_side_effects:
@@ -90,14 +87,13 @@ history_side_effects:
 - id: navigate-during-pending
   given: Chat A has a pending activation and the user navigates to chat B.
   action: An activation callback for A arrives while B is displayed.
-  expect: It does not activate, cancel, or write focus state for B; rendering A later does not manufacture a new
-    countdown.
+  expect: It does not activate, cancel, or write focus state for B; rendering A later does not manufacture a new countdown.
 controls:
 - id: career-banner-off
   given: Career insights is currently active.
   action: Open its details, return, then switch it off.
-  expect: Details leave activation state unchanged; switching off removes the active indication and the next request
-    excludes the instruction.
+  expect: Details leave activation state unchanged; switching off removes the active indication and the next request excludes
+    the instruction.
 - id: historical-details
   given: A historical activation record remains after the focus was stopped.
   action: Inspect the record and open its details.
@@ -115,31 +111,30 @@ banner_placement:
 - id: phone-banner
   given: Career insights is active at phone width.
   action: Render the composer.
-  expect: Its active banner is approximately 10 CSS pixels higher than the pre-fix baseline; label and off control
-    remain visible and unobstructed.
+  expect: Its active banner is approximately 10 CSS pixels higher than the pre-fix baseline; label and off control remain
+    visible and unobstructed.
 - id: laptop-banner
   given: Career insights is active at laptop width; unrelated composer pills are also available.
   action: Compare focus and unrelated pill layouts with the pre-fix baseline.
   expect: Only the active focus banner receives the requested lift; controls remain usable without overlap.
 specializations:
 - id: career-contract
-  given: The Career insights specification guarantees useful career guidance with concrete examples and references
-    feature.focus-modes@1.
+  given: The Career insights specification guarantees useful career guidance with concrete examples and references feature.focus-modes@1.
   action: Revise the app instruction wording or questioning tactics while retaining those observable guarantees.
-  expect: Exact wording and tactics remain in app instructions; the individual specification defines the observable
-    guarantees, and the shared contract still requires complete instruction delivery on every active request.
+  expect: Exact wording and tactics remain in app instructions; the individual specification defines the observable guarantees,
+    and the shared contract still requires complete instruction delivery on every active request.
 - id: research-contract
-  given: A Deep research specification defines observable evidence-backed research guarantees and concrete examples,
-    referencing feature.focus-modes@1.
+  given: A Deep research specification defines observable evidence-backed research guarantees and concrete examples, referencing
+    feature.focus-modes@1.
   action: Adjust research prompting tactics without changing the promised evidence-backed behavior.
-  expect: Tactics remain implementation details; shared full-instruction, off, historical-countdown, and interaction
-    guarantees still apply, while any changed observable guarantee requires specification review.
+  expect: Tactics remain implementation details; shared full-instruction, off, historical-countdown, and interaction guarantees
+    still apply, while any changed observable guarantee requires specification review.
 retirement:
 - id: retired-options-absent
   given: A member opens the available mates and the OpenMates focus modes after signup.
   action: Browse the choices on web and Apple, then reopen an older Suki chat.
-  expect: Suki and Welcome are unavailable for new chats, signup has not created a Welcome chat, and the older chat
-    remains readable.
+  expect: Suki and Welcome are unavailable for new chats, signup has not created a Welcome chat, and the older chat remains
+    readable.
 - id: platform-question-falls-back
   given: A member asks what OpenMates can do, without choosing a specialized mate.
   action: Send the question in a new chat.
@@ -148,57 +143,54 @@ phases:
 - id: user-controls-intake
   given: Career insights is in its clarification phase, which defaults to five rounds of one question.
   action: Ask to skip remaining questions and proceed, or ask for all remaining questions together.
-  expect: The assistant honors either request with no enforced minimum-question counter. It keeps unknowns explicit
-    when skipping, or considers the batched answers before deciding whether research and progression are appropriate.
+  expect: The assistant honors either request with no enforced minimum-question counter. It keeps unknowns explicit when skipping,
+    or considers the batched answers before deciding whether research and progression are appropriate.
 - id: gated-return-and-restoration
   given: Career insights has advanced to Explore career directions through requirements met with genuine user confirmation.
-  action: Request a return to Understand your situation, then reload. Later complete a tool round while a requirement
-    is unmet or Jev is unsure.
-  expect: The requested earlier phase is current, a clickable system message records the return, and encrypted state
-    restores it. Current instructions and requirements are full while other phases have IDs/titles only. Unmet or
-    uncertain requirements retain the phase; stale decisions and the same rewind turn cannot bounce forward.
-
+  action: Request a return to Understand your situation, then reload. Later complete a tool round while a requirement is unmet
+    or Jev is unsure.
+  expect: The requested earlier phase is current, a clickable system message records the return, and encrypted state restores
+    it. Current instructions and requirements are full while other phases have IDs/titles only. Unmet or uncertain requirements
+    retain the phase; stale decisions and the same rewind turn cannot bounce forward.
 learning_progress:
 - id: fraction-practice-no-answer-leak
   given: Learning mode asks the learner to try 1/5 + 1/2 and waits for an answer.
   when: OpenMates creates follow-up suggestions.
-  then: Suggestions offer a small hint or another attempt without naming 7/10, providing the working, or calculating
-    the answer.
+  then: Suggestions offer a small hint or another attempt without naming 7/10, providing the working, or calculating the answer.
   assertion_ids:
   - focus-modes.learning.progress-and-suggestions
 - id: independent-check-evidence
   given: A learner completed a worked example and says I understand.
   when: The lesson evaluates readiness for review.
-  then: The tutor asks a fresh independent question; review follows the learner’s attempt rather than the assistant’s
-    worked example.
+  then: The tutor asks a fresh independent question; review follows the learner’s attempt rather than the assistant’s worked
+    example.
   assertion_ids:
   - focus-modes.learning.progress-and-suggestions
-
 project_specialist:
 - id: debugging-specialist-layer
   assertion_ids:
   - focus-modes.project-specialist-composition
   given: Work on SocialHub is active and its Debugging specialist becomes active.
   when: The assistant investigates a retry bug on a narrow screen and then switches to Release preparation.
-  then: Project base instructions stay effective, one shortened Project-qualified specialist indicator is shown,
-    and the switch retains the authorized SocialHub binding.
+  then: Project base instructions stay effective, one shortened Project-qualified specialist indicator is shown, and the switch
+    retains the authorized SocialHub binding.
 context_reselection:
 - id: focus-and-phase-refresh
   assertion_ids:
   - focus-modes.context-reselection
-  given: Trip planning activates in one chat; a Project Add new app skill Focus changes from research to implementation
-    in another.
+  given: Trip planning activates in one chat; a Project Add new app skill Focus changes from research to implementation in
+    another.
   when: Each authoritative transition prepares its continuation.
-  then: Eligible skills, saved Workflows and relevant Memories are refreshed using the effective Focus/phase. A tool
-    result that leaves the phase unchanged adds no phase-triggered refresh.
+  then: Eligible skills, saved Workflows and context are refreshed using the effective Focus/phase. A tool result that leaves
+    the phase unchanged adds no phase-triggered refresh.
 recommendation_catalog:
 - id: inactive-focus-candidate
   assertion_ids:
   - focus-modes.project-recommendation-catalog
   given: SocialHub has active Debugging and inactive Release preparation Focuses.
   when: A completed release-planning response is evaluated against their titles and summaries.
-  then: Release preparation may be selected for full inspection even though inactive; no authoring LLM runs.
-    Public app Focuses are excluded.
+  then: Release preparation may be selected for full inspection even though inactive; no authoring LLM runs. Public app Focuses
+    are excluded.
 - id: new-project-focus-recommendation
   assertion_ids:
   - focus-modes.project-recommendation-catalog
@@ -211,40 +203,40 @@ recommendation_full:
   - focus-modes.project-recommendation-full-assessment
   given: Catalog Jev selected the permitted Release preparation Focus because its summary appears relevant.
   when: Its full instructions are loaded and a second Jev assessment compares them with the chat.
-  then: Update appears only if a useful improvement is confirmed. If the full instructions already cover the
-    process or the assessment is unavailable, no Update button appears.
+  then: Update appears only if a useful improvement is confirmed. If the full instructions already cover the process or the
+    assessment is unavailable, no Update button appears.
 authoring_click:
 - id: click-starts-background-job
   assertion_ids:
   - focus-modes.project-authoring-click
   given: A validated Update button is shown for SocialHub Release preparation.
   when: Alice clicks it twice during reconnect, then continues chatting.
-  then: One background job receives permitted history and update instructions. Chat stays usable, no regular
-    authoring chat is created, and no authoring call occurred before the first click.
+  then: One background job receives permitted history and update instructions. Chat stays usable, no regular authoring chat
+    is created, and no authoring call occurred before the first click.
 authoring_persistence:
 - id: concurrent-focus-edit
   assertion_ids:
   - focus-modes.project-authoring-persistence
   given: A background update began from Release preparation revision 3; Alice separately saves revision 4.
   when: The job tries to save its generated revision.
-  then: It reports a conflict instead of overwriting revision 4 or sending a ready notification. Private content
-    stays within existing encrypted storage and recovery paths.
+  then: It reports a conflict instead of overwriting revision 4 or sending a ready notification. Private content stays within
+    existing encrypted storage and recovery paths.
 updated_followup:
 - id: updated-active-focus-next-turn
   assertion_ids:
   - focus-modes.updated-followup-revision
-  given: SocialHub Debugging is active at revision 3, and a background update saves revision 4 while one response
-    is running.
+  given: SocialHub Debugging is active at revision 3, and a background update saves revision 4 while one response is running.
   when: Alice sends the next follow-up using that Focus.
-  then: The new request uses revision 4 and refreshed context; the already-running response finishes with revision
-    3.
-
+  then: The new request uses revision 4 and refreshed context; the already-running response finishes with revision 3.
 natural_request:
 - id: natural-multi-angle-research
-  given: A user asks why US egg prices stayed high and requests comparison of supply, concentration, margins, regulation and counterarguments without naming a focus mode. Deep research is the unique supported match.
+  given: A user asks why US egg prices stayed high and requests comparison of supply, concentration, margins, regulation and
+    counterarguments without naming a focus mode. Deep research is the unique supported match.
   action: Process the original request.
-  expect: Show the normal cancellable Deep research activation before the substantive answer. After acceptance, research children perform their work and the parent uses their evidence; relevance alone never starts the children.
+  expect: Show the normal cancellable Deep research activation before the substantive answer. After acceptance, research children
+    perform their work and the parent uses their evidence; relevance alone never starts the children.
 - id: ordinary-or-declined-request
   given: A user asks one simple web lookup, explicitly selects a search skill, or rejects a pending research activation.
   action: Answer the lookup or resume the rejected request.
-  expect: Keep the ordinary answer path, honor the exact skill selection and do not propose the same focus again on the rejection continuation.
+  expect: Keep the ordinary answer path, honor the exact skill selection and do not propose the same focus again on the rejection
+    continuation.

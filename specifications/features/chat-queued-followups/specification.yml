@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chat-queued-followups
-version: 1
+version: 2
 status: draft
 title: Queued Chat Follow-ups and Steering
 summary: 'Users can send follow-ups while an assistant is working, edit the same queued message across devices,
@@ -137,12 +137,7 @@ applies_to:
       web:
         required: true
       apple:
-        required: false
-    exceptions:
-    - id: native-controls-deferred
-      implementation: apple
-      reason: This increment adds web editing and steering controls; native control parity is a separate implementation.
-      equivalent_outcome: Backend queue admission and encrypted cross-device content remain shared with native clients.
+        required: true
 examples:
   file: examples.yml
   required_groups:

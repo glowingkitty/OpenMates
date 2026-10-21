@@ -1,3 +1,5 @@
+// Specification: specifications/features/settings-ui/specification.yml
+// Assertions: settings-ui.composition.canonical-and-accessible
 // OpenMates custom design primitives — replacements for native iOS controls.
 // These match the web app's Svelte components and CSS custom properties exactly.
 // Never use Form, List, Toggle, Picker, NavigationStack, etc. in product UI — use these instead.
@@ -1194,9 +1196,14 @@ struct OMSettingsRow: View {
     var icon: String?
     var iconGradient: LinearGradient?
     var plainIcon = false
+    // Optional SettingsItem Lucide renderer. Existing rows retain Icon(assetName).
+    var iconContent: AnyView? = nil
     var iconAccessibilityIdentifier: String?
     var titleLineLimit: Int?
     var value: String?
+    var creditsDisplay: String? = nil
+    // Opt-in for SettingsItem's unweighted bottom subtitle; existing callers retain their style.
+    var subtitleBottomWeight: Font.Weight = .medium
     var isDestructive = false
     var showsChevron = true
     var accessibilityIdentifier: String?
@@ -1230,7 +1237,10 @@ struct OMSettingsRow: View {
                 // .settings-icon: 44x44, radius-4 (10pt)
                 // Mode B (.has-bg): gradient bg, white icon at 50% (22pt)
                 // Mode A (no .has-bg): grey-20→grey-30 gradient bg, colored icon at 50% (22pt)
-                Icon(icon, size: 22)
+                Group {
+                    if let iconContent { iconContent }
+                    else { Icon(icon, size: 22) }
+                }
                     .foregroundStyle(plainIcon ? AnyShapeStyle(iconGradient ?? LinearGradient.primary) : AnyShapeStyle(Color.white))
                     .frame(width: 44, height: 44)
                     .background(plainIcon ? LinearGradient(colors: [Color.grey20, Color.grey30], startPoint: .topLeading, endPoint: .bottomTrailing) : isDestructive ? LinearGradient.appNews : iconGradient ?? LinearGradient.primary)
@@ -1251,7 +1261,7 @@ struct OMSettingsRow: View {
                     .lineLimit(titleLineLimit)
                     .truncationMode(.tail)
                 if let subtitleBottom {
-                    Text(subtitleBottom).font(.omSmall.weight(.medium)).foregroundStyle(Color.grey60)
+                    Text(subtitleBottom).font(.omSmall.weight(subtitleBottomWeight)).foregroundStyle(Color.grey60)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if let subtitle {
                     Text(subtitle)
@@ -1263,7 +1273,9 @@ struct OMSettingsRow: View {
 
             Spacer(minLength: .spacing4)
 
-            if let value {
+            if let creditsDisplay {
+                OMSettingsCreditsDisplay(value: creditsDisplay)
+            } else if let value {
                 Text(value)
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
@@ -1283,19 +1295,26 @@ struct OMSettingsRow: View {
     }
 }
 
+// Explicit SettingsItem roles preserve existing static-row callers by default.
+enum OMSettingsStaticRowAppearance: Equatable { case heading, information }
+
 struct OMSettingsStaticRow: View {
     let title: String
     let value: String
     var subtitleTop: String?
+    var subtitleBottom: String? = nil
     var icon: String?
+    var creditsDisplay: String? = nil
+    var appearance: OMSettingsStaticRowAppearance? = nil
 
     var body: some View {
         HStack(spacing: 0) {
             if let icon {
                 Icon(icon, size: 22)
-                    .foregroundStyle(Color.fontSecondary)
+                    .foregroundStyle(appearance == .heading ? AnyShapeStyle(Color.white)
+                        : appearance == .information ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.fontSecondary))
                     .frame(width: 44, height: 44)
-                    .background(
+                    .background(appearance == .heading ? LinearGradient.primary :
                         LinearGradient(
                             colors: [Color.grey20, Color.grey30],
                             startPoint: .topLeading,
@@ -1313,11 +1332,17 @@ struct OMSettingsStaticRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Text(title)
-                    .font(.omP)
+                    .font(.omP.weight(appearance == .heading ? .semibold : appearance == .information ? .medium : .regular))
                     .foregroundStyle(Color.fontPrimary)
+                if let subtitleBottom {
+                    Text(subtitleBottom).font(.omSmall.weight(appearance == nil ? .medium : .regular)).foregroundStyle(Color.grey60)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer()
-            if !value.isEmpty {
+            if let creditsDisplay {
+                OMSettingsCreditsDisplay(value: creditsDisplay)
+            } else if !value.isEmpty {
                 Text(value)
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)

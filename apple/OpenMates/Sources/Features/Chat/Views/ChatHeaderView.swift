@@ -181,6 +181,8 @@ struct AssistantMessageIdentityView: View {
     let onOpenMateSettings: ((String) -> Void)?
     let onOpenModelSettings: ((String) -> Void)?
 
+    var timingBinding: NativeChatSendTimingBinding? = nil
+
     @ObservedObject private var modelCatalog = NativeModelCatalogRuntime.shared
 
     private var mateID: String? {
@@ -201,7 +203,7 @@ struct AssistantMessageIdentityView: View {
     var body: some View {
         switch placement {
         case .mateName:
-            mateName
+            mateName.modifier(NativeChatSendTimingModifier(binding: timingBinding))
         case .modelAttribution:
             modelAttribution
         }

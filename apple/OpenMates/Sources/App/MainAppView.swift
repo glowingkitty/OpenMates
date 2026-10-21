@@ -1,3 +1,7 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.usage.landing-complete, billing.access.authenticated-first-party
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.apple-startup-offline, daily-inspiration.personalized-priority, daily-inspiration.guest-isolated
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Specification: specifications/architecture/storage-lifecycle/specification.yml
@@ -8,6 +12,8 @@
 // Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.workflow-run.chat-target, notifications.workflow-run.run-target
 // Main app shell after authentication.
 // Uses NavigationSplitView for adaptive layout across iPhone, iPad, and Mac.
 // Sidebar shows chat list; detail shows active chat or empty state.
@@ -212,6 +218,78 @@ enum ChatHistoryPresentationInterruption {
     }
 }
 
+/// Context-event ownership survives async highlight setup and completion route consumption.
+struct WorkflowCompletionContextRefresh {
+    let completionOwnedEvent: Bool
+
+    @MainActor
+    func run(isCurrent: @MainActor () -> Bool, configureHighlights: @MainActor () async -> Void,
+             loadWorkspace: @MainActor () async -> Void) async {
+        guard isCurrent() else { return }
+        await configureHighlights()
+        guard isCurrent(), !completionOwnedEvent else { return }
+        await loadWorkspace()
+    }
+}
+
+/// A completion may request Personal once, after initial retained Team restoration.
+/// The ready epoch fences delivery and routing without overriding later Team choices.
+struct WorkflowCompletionPersonalHandoff {
+    struct Identity: Equatable {
+        let accountID: String
+        let profile: ServerProfile
+        let offlineScope: UUID
+        let authorityGeneration: UUID
+    }
+    enum Decision: Equatable { case wait, selectPersonal, ready, cancel }
+    private enum Phase { case restoring, selecting, awaitingContext(UInt64), ready(UInt64), cancelled }
+    let id = UUID()
+    let route: WorkflowCompletionRoute
+    let identity: Identity
+    private var phase = Phase.restoring
+
+    init(route: WorkflowCompletionRoute, identity: Identity) {
+        self.route = route
+        self.identity = identity
+    }
+
+    mutating func decision(route: WorkflowCompletionRoute?, identity: Identity?,
+                           restored: Bool, loading: Bool, teamID: String?,
+                           teamEpoch: UInt64, handledTeamEpoch: UInt64) -> Decision {
+        guard route == self.route, identity == self.identity else { phase = .cancelled; return .cancel }
+        switch phase {
+        case .cancelled: return .cancel
+        case .selecting: return .wait
+        case .ready(let epoch):
+            guard restored, teamID == nil, teamEpoch == epoch else { phase = .cancelled; return .cancel }
+            return .ready
+        case .awaitingContext(let epoch):
+            guard teamID == nil, teamEpoch == epoch else { phase = .cancelled; return .cancel }
+            guard !loading, handledTeamEpoch == epoch else { return .wait }
+            phase = .ready(epoch); return .ready
+        case .restoring:
+            guard restored, !loading else { return .wait }
+            // Even temporary Personal may retain a Team preference after an uncached roster failure.
+            phase = .selecting; return .selectPersonal
+        }
+    }
+
+    mutating func didSelectPersonal(teamID: String?, teamEpoch: UInt64) {
+        guard case .selecting = phase else { return }
+        phase = teamID == nil ? .awaitingContext(teamEpoch) : .cancelled
+    }
+
+    var ownsRouting: Bool {
+        if case .cancelled = phase { return false }
+        return true
+    }
+
+    func isReady(route: WorkflowCompletionRoute?, identity: Identity?, teamID: String?, teamEpoch: UInt64) -> Bool {
+        guard case .ready(let epoch) = phase else { return false }
+        return route == self.route && identity == self.identity && teamID == nil && teamEpoch == epoch
+    }
+}
+
 struct MainAppView: View {
     let launchCommand: AppWindowLaunchCommand?
 
@@ -237,7 +315,9 @@ struct MainAppView: View {
     @StateObject private var chatStore = AppSessionCoordinator.shared.chatStore
     @StateObject private var appsStore = AppsWorkspaceStore()
     @StateObject private var workflowStore = WorkflowStore()
-    @State private var workflowCompletionInFlight: WorkflowCompletionRoute?
+    @State private var workflowCompletionInFlight: (handoff: UUID, attempt: UUID)?
+    @State private var workflowCompletionHandoff: WorkflowCompletionPersonalHandoff?
+    @State private var workflowCompletionHandledTeamEpoch = TeamWorkspaceContext.shared.contextEpoch
     @State private var workflowCompletionRetryCount = 0
     @ObservedObject private var sidebarActivity = NativeChatActivityStore.shared
     @State private var pendingSpotlightIdentifier: String?
@@ -257,6 +337,7 @@ struct MainAppView: View {
     @State private var taskNavigationGeneration = UUID()
     @StateObject private var projectTasksStore = TasksWorkspaceStore()
     @StateObject private var teamContext = TeamWorkspaceContext.shared
+    @StateObject private var nativeVoiceCalls = NativeVoiceCallRootRuntime()
     @StateObject private var wsManager = AppSessionCoordinator.shared.webSocketManager
     @StateObject private var deepLinkHandler = DeepLinkHandler()
     @StateObject private var incognitoManager = IncognitoManager()
@@ -318,6 +399,8 @@ struct MainAppView: View {
     @State private var searchText = ""
     @State private var searchSelection: ChatSearchSelection?
     @State private var dailyInspirations: [DailyInspirationBanner.DailyInspiration] = []
+    @State private var personalInspirations = NativeDailyInspirationStore()
+    @State private var dailyInspirationContextGeneration = UUID()
     @State private var syncedNewChatSuggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var accountInterestTagIds: [InterestTagId] = []
     @State private var totalChatCount = 0
@@ -455,7 +538,7 @@ struct MainAppView: View {
     }
 
     private func isEmptyShellChat(_ chat: Chat) -> Bool {
-        WelcomeScreenState.isEmptyShell(chat)
+        WelcomeScreenState.isEmptyShell(chat, draftPreview: DraftService.shared.displayDraftPreviews[chat.id])
     }
 
     private func isTopLevelUserChat(_ chat: Chat) -> Bool {
@@ -626,8 +709,22 @@ struct MainAppView: View {
         return (isAuthenticated || forcedForUITest) && Self.workspaceTabsEnabled
     }
 
+    private var dailyInspirationScope: NativeWorkspaceOfflineScope? {
+        guard isAuthenticated, let accountID = authManager.currentUser?.id else { return nil }
+        return NativeWorkspaceOfflineScope(accountID: accountID,
+            server: ServerProfile.current().apiBaseURL.absoluteString, teamID: teamContext.teamID,
+            accountGeneration: OfflineStore.shared.scopeGeneration, teamEpoch: teamContext.contextEpoch)
+    }
+
+    private var visibleDailyInspirations: [DailyInspirationData] {
+        guard isAuthenticated else { return dailyInspirations }
+        return personalInspirations.visibleItems(accountID: authManager.currentUser?.id,
+            server: ServerProfile.current().apiBaseURL.absoluteString, teamID: teamContext.teamID,
+            generation: OfflineStore.shared.scopeGeneration, teamEpoch: teamContext.contextEpoch)
+    }
+
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
-        dailyInspirations.first
+        visibleDailyInspirations.first
     }
 
     private var currentWindowTitle: String {
@@ -661,6 +758,31 @@ struct MainAppView: View {
 
     private var shellWithLifecycleRoutes: some View {
         let content = shellWithOverlays
+        .environment(\.nativeVoiceCallRuntime, nativeVoiceCalls)
+        .overlay {
+            NativeVoiceCallRootOverlay(runtime: nativeVoiceCalls) { chatID in
+                selectedWorkspace = .chat; selectedChatId = chatID; showNewChat = false
+            }
+        }
+        .task(id: NativeVoiceCallRootRuntime.identity(auth: authManager)) {
+            await nativeVoiceCalls.configure(auth: authManager, store: chatStore, socket: wsManager,
+                ordinaryInferenceActive: { chatID in
+                    if NativeVoiceCallSendAdmission.shared.isPreparing(chatID: chatID) { return true }
+                    if sidebarActivity.processingIDs.contains(chatID) || ActiveChatsCoordinator.shared.policy.items[chatID] != nil { return true }
+                    if !chatStore.pendingAssistantRecoveryMessageIds(in: chatID).isEmpty { return true }
+                    if PendingAssistantResponseQueue.shared.all().contains(where: { $0.chatId == chatID }) { return true }
+                    if PendingAssistantResponseQueue.recovery(ownerId: authManager.currentUser?.id ?? "", apiBaseURL: ServerProfile.current().apiBaseURL)
+                        .all().contains(where: { $0.chatId == chatID }) { return true }
+                    return OfflineStore.shared.loadPendingActions().contains { action in
+                        guard action.actionType == "send_message", let bytes = action.payloadJSON,
+                              let fields = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any]
+                        else { return false }
+                        return fields["chat_id"] as? String == chatID
+                    }
+                }, artifacts: { scope, callID, frame in
+                    try await routeVoiceCallArtifact(scope: scope, callID: callID, frame: frame)
+                })
+        }
         .onReceive(syncBridge?.$isPrefetching.eraseToAnyPublisher() ?? Just(false).eraseToAnyPublisher()) {
             isOfflinePrefetching = $0
         }
@@ -890,6 +1012,7 @@ struct MainAppView: View {
     }
 
     private func stopShellLifecycle() {
+        nativeVoiceCalls.revokeOwner()
         visibleMetadataKeyRetry?.cancel()
         widgetLinkTask?.cancel()
         workflowWidgetRunTask?.cancel()
@@ -957,6 +1080,54 @@ struct MainAppView: View {
 
     private var shellWithActivityEvents: some View {
         shellWithTransportEvents
+        .task(id: "inspirations|\(dailyInspirationContextGeneration)|\(memoryActivityRuntimeIdentity)|\(authManager.hasNetworkAuthority)|\(didBootstrapAuthenticatedSession)|\(scenePhase)") {
+            guard isAuthenticated, let accountID = authManager.currentUser?.id else {
+                personalInspirations.reset(); return
+            }
+            guard scenePhase == .active else { return }
+            do {
+                let captured = NativeWorkspaceOfflineScope(accountID: accountID,
+                    server: ServerProfile.current().apiBaseURL.absoluteString, teamID: teamContext.teamID,
+                    accountGeneration: OfflineStore.shared.scopeGeneration, teamEpoch: teamContext.contextEpoch)
+                try? await personalInspirations.restore(scope: captured)
+                guard !Task.isCancelled else { return }
+                if authManager.hasNetworkAuthority { try? await personalInspirations.refresh() }
+                // One daily boundary wake while foreground; cancellation on
+                // scene/scope change cancels the sleep. This is not a retry loop.
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(max(1, personalInspirations.nextBoundary.timeIntervalSinceNow)))
+                    personalInspirations.invalidateExpired()
+                    if authManager.hasNetworkAuthority {
+                        try? await personalInspirations.refresh()
+                        guard !Task.isCancelled else { return }
+                        await syncInspirationToWidget()
+                    }
+                }
+            } catch {
+                // A transient refresh failure preserves the decrypted local set.
+                // No auth repair or extra retry loop is started by this surface.
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { notification in
+            guard let type = notification.userInfo?["type"] as? String,
+                  NativeDailyInspirationStore.eventTypes.contains(type),
+                  isAuthenticated, let accountID = authManager.currentUser?.id,
+                  let event = ChatCompressionNotificationReceipt(notification),
+                  event.transportGeneration == wsManager.transportGeneration,
+                  event.matches(scope: OfflineStore.shared.scopeGeneration,
+                      transport: wsManager.transportGeneration) else { return }
+            let expectedTransport = wsManager.transportGeneration
+            let expectedScope = OfflineStore.shared.scopeGeneration
+            let captured = NativeWorkspaceOfflineScope(accountID: accountID,
+                server: ServerProfile.current().apiBaseURL.absoluteString, teamID: teamContext.teamID,
+                accountGeneration: expectedScope, teamEpoch: teamContext.contextEpoch)
+            Task {
+                guard let decoded = try? await event.fields(),
+                      wsManager.transportGeneration == expectedTransport,
+                      OfflineStore.shared.scopeGeneration == expectedScope else { return }
+                try? await personalInspirations.ingest(fields: decoded.fields, type: type, scope: captured)
+            }
+        }
         .task(id: "\(memoryActivityRuntimeIdentity)|\(wsManager.connectionState)|\(scenePhase)") {
             sidebarActivity.configure(accountID: isAuthenticated ? authManager.currentUser?.id : nil,
                 scope: OfflineStore.shared.scopeGeneration, server: ServerProfile.current(), teamID: teamContext.teamID, teamEpoch: teamContext.contextEpoch)
@@ -1019,6 +1190,9 @@ struct MainAppView: View {
         }
         .onChange(of: teamContext.rosterEpoch) { _, _ in scheduleGlobalSpotlight(reason: "membership"); consumePendingSpotlight() }
         .onChange(of: teamContext.contextEpoch) { _, _ in
+            nativeVoiceCalls.revokeOwner()
+            NativePersonalPrivacyRuntime.shared.invalidate()
+            invalidateDailyInspirationContext()
             UnreadMessagesStore.shared.setActiveTeam(teamContext.teamID)
             PendingProjectFocusStore.shared.reset()
             NativeProjectAuthoringClient.shared.reset()
@@ -1037,11 +1211,26 @@ struct MainAppView: View {
             TeamWorkspaceOfflineRetention.pause()
             configureMemoryActivities()
             maintainOfflineWorkspaces()
+            // Finish synchronous Team invalidation before a completion captures Personal scope.
+            workflowCompletionHandledTeamEpoch = teamContext.contextEpoch
+            openPendingWorkflowCompletion()
+            let context = teamContext.snapshot
+            let offlineScope = OfflineStore.shared.scopeGeneration
+            let server = ServerProfile.current()
+            // Capture event ownership before any await: a successful route may clear its handoff meanwhile.
+            let refresh = WorkflowCompletionContextRefresh(completionOwnedEvent:
+                canOpenWorkflowCompletion && workflowCompletionHandoff?.ownsRouting == true)
+            let contextIsCurrent: @MainActor @Sendable () -> Bool = {
+                teamContext.isCurrent(context) && OfflineStore.shared.scopeGeneration == offlineScope &&
+                    ServerProfile.current() == server && authManager.currentUser?.id == context.accountID
+            }
             Task {
-                let scope = await MessageHighlightRuntimeScope.capture(scope: OfflineStore.shared.scopeGeneration,
-                    server: ServerProfile.current(), team: teamContext.snapshot)
-                await HighlightsManager.shared.configure(scope)
-                await loadSelectedWorkspace()
+                await refresh.run(isCurrent: contextIsCurrent, configureHighlights: {
+                    let scope = await MessageHighlightRuntimeScope.capture(scope: offlineScope,
+                        server: server, team: context)
+                    guard contextIsCurrent() else { return }
+                    await HighlightsManager.shared.configure(scope)
+                }, loadWorkspace: { await loadSelectedWorkspace() })
             }
         }
     }
@@ -1073,6 +1262,8 @@ struct MainAppView: View {
             if let new, old != new { workflowCompletionRetryCount = 0 }
             openPendingWorkflowCompletion()
         }
+        .onChange(of: teamContext.isLoading) { _, _ in openPendingWorkflowCompletion() }
+        .onChange(of: teamContext.hasRestoredInitialSelection) { _, _ in openPendingWorkflowCompletion() }
         .onChange(of: deepLinkHandler.pendingWorkflowsWorkspace) { _, requested in
             guard requested else { return }
             selectWorkspace(.workflows)
@@ -1608,7 +1799,7 @@ struct MainAppView: View {
             lastActiveSidebarSelection = .init(chatID: chatId, scope: sidebarAccountScope)
         }
         if let chatId, let accountId = authManager.currentUser?.id,
-           let chat = chatStore.chat(for: chatId), WelcomeScreenState.isContinuationEligible(chat) {
+           let chat = chatStore.chat(for: chatId), WelcomeScreenState.isContinuationEligible(chat, draftPreview: DraftService.shared.displayDraftPreviews[chat.id]) {
             authManager.updateLastOpened(chatId, accountId: accountId)
         }
         if chatId != nil {
@@ -1681,6 +1872,8 @@ struct MainAppView: View {
 
     private func sidebarAccountScopeDidChange(_ oldScope: ChatSidebarDisplayPolicy.Scope,
                                               _ newScope: ChatSidebarDisplayPolicy.Scope) {
+        NativePersonalPrivacyRuntime.shared.invalidate()
+        invalidateDailyInspirationContext()
         pushManager.invalidateRegistration()
         resetWorkspaceState()
         // A cached authenticated identity can change without changing AuthState.
@@ -1725,7 +1918,17 @@ struct MainAppView: View {
             OfflineStore.shared.scopeGeneration == scope && sidebarAccountScope == account
     }
 
+    private func invalidateDailyInspirationContext() {
+        // Clear decrypted state synchronously before any Team/auth work awaits.
+        // Restart a restore that could already have begun in this same render.
+        personalInspirations.reset()
+        dailyInspirationContextGeneration = UUID()
+    }
+
     private func authStateDidChange(_ oldValue: AuthManager.AuthState, _ newState: AuthManager.AuthState) {
+        nativeVoiceCalls.revokeOwner()
+        NativePersonalPrivacyRuntime.shared.invalidate()
+        invalidateDailyInspirationContext()
         if newState == .authenticated {
             registerRuntimeWindow()
             showAuthSheet = false
@@ -1778,41 +1981,84 @@ struct MainAppView: View {
         #endif
     }
 
+    private var pendingWorkflowCompletionRoute: WorkflowCompletionRoute? {
+        pushManager.pendingWorkflowCompletion ?? deepLinkHandler.pendingWorkflowCompletion
+    }
+
+    private var workflowCompletionIdentity: WorkflowCompletionPersonalHandoff.Identity? {
+        guard isAuthenticated, didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority,
+              let accountID = authManager.currentUser?.id,
+              let generation = authManager.networkAuthority?.generation else { return nil }
+        return .init(accountID: accountID, profile: ServerProfile.current(),
+                     offlineScope: OfflineStore.shared.scopeGeneration, authorityGeneration: generation)
+    }
+
     private func openPendingWorkflowCompletion() {
-        guard let route = pushManager.pendingWorkflowCompletion ?? deepLinkHandler.pendingWorkflowCompletion,
-              canOpenWorkflowCompletion, isAuthenticated, didBootstrapAuthenticatedSession, authManager.hasNetworkAuthority,
-              let accountID = authManager.currentUser?.id else { return }
-        let authorityGeneration = authManager.networkAuthority?.generation
+        guard let route = pendingWorkflowCompletionRoute else {
+            workflowCompletionHandoff = nil
+            return
+        }
+        if workflowCompletionHandoff?.route != route { workflowCompletionHandoff = nil }
+        guard canOpenWorkflowCompletion, let identity = workflowCompletionIdentity else { return }
+        if workflowCompletionHandoff == nil {
+            workflowCompletionHandoff = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+        }
+        guard var handoffState = workflowCompletionHandoff else { return }
+        let decision = handoffState.decision(route: route, identity: identity,
+            restored: teamContext.isInitialSelectionReady(accountID: identity.accountID),
+            loading: teamContext.isLoading, teamID: teamContext.teamID,
+            teamEpoch: teamContext.contextEpoch, handledTeamEpoch: workflowCompletionHandledTeamEpoch)
+        workflowCompletionHandoff = handoffState
+        let handoff = handoffState
+        switch decision {
+        case .wait: return
+        case .cancel:
+            // Expire this action so a fresh tap can request a new one-shot handoff.
+            if pushManager.pendingWorkflowCompletion == route { pushManager.pendingWorkflowCompletion = nil }
+            if deepLinkHandler.pendingWorkflowCompletion == route { deepLinkHandler.pendingWorkflowCompletion = nil }
+            return
+        case .selectPersonal:
+            Task {
+                // selectTeam uses the existing account/server/offline fence at its async boundary.
+                let selectionIsCurrent: @MainActor @Sendable () -> Bool = {
+                    workflowCompletionHandoff?.id == handoff.id &&
+                        workflowCompletionIdentity == identity && pendingWorkflowCompletionRoute == route
+                }
+                guard selectionIsCurrent() else { return }
+                await teamContext.selectTeam(nil, isCurrent: selectionIsCurrent)
+                guard workflowCompletionHandoff?.id == handoff.id,
+                      workflowCompletionIdentity == identity, pendingWorkflowCompletionRoute == route else { return }
+                workflowCompletionHandoff?.didSelectPersonal(teamID: teamContext.teamID,
+                                                             teamEpoch: teamContext.contextEpoch)
+                openPendingWorkflowCompletion()
+            }
+            return
+        case .ready: break
+        }
+        guard route.chatID == nil || wsManager.connectionState == .connected,
+              workflowCompletionInFlight?.handoff != handoff.id else { return }
+        let attemptID = UUID()
+        workflowCompletionInFlight = (handoff: handoff.id, attempt: attemptID)
+        let accountID = identity.accountID
+        let isCurrent: @MainActor @Sendable () -> Bool = {
+            canOpenWorkflowCompletion && teamContext.hasRestoredInitialSelection &&
+                workflowCompletionHandoff?.id == handoff.id &&
+                workflowCompletionHandoff?.isReady(route: pendingWorkflowCompletionRoute,
+                    identity: workflowCompletionIdentity, teamID: teamContext.teamID,
+                    teamEpoch: teamContext.contextEpoch) == true
+        }
         if route.chatID == nil {
-            guard workflowCompletionInFlight != route else { return }
-            workflowCompletionInFlight = route
-            let scope = OfflineStore.shared.scopeGeneration
-            let profile = ServerProfile.current()
             selectWorkspace(.workflows, loadContent: false)
             Task {
-                defer { if workflowCompletionInFlight == route { workflowCompletionInFlight = nil } }
+                defer { if workflowCompletionInFlight?.attempt == attemptID { workflowCompletionInFlight = nil } }
+                guard isCurrent() else { return }
                 await workflowStore.load(accountId: accountID)
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      selectedWorkspace == .workflows else { return }
+                guard isCurrent(), selectedWorkspace == .workflows else { return }
                 await workflowStore.select(id: route.workflowID)
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      selectedWorkspace == .workflows,
+                guard isCurrent(), selectedWorkspace == .workflows,
                       workflowStore.selectedWorkflow?.id == route.workflowID else { return }
                 await workflowStore.selectRun(route.runID)
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      selectedWorkspace == .workflows,
+                guard isCurrent(), selectedWorkspace == .workflows,
                       workflowStore.selectedRunDetail?.id == route.runID else { return }
                 workflowCompletionRetryCount = 0
                 if pushManager.pendingWorkflowCompletion == route { pushManager.pendingWorkflowCompletion = nil }
@@ -1820,31 +2066,16 @@ struct MainAppView: View {
             }
             return
         }
-        guard wsManager.connectionState == .connected else { return }
-        guard workflowCompletionInFlight != route else { return }
-        workflowCompletionInFlight = route
-        let scope = OfflineStore.shared.scopeGeneration
-        let profile = ServerProfile.current()
         Task {
-            defer { if workflowCompletionInFlight == route { workflowCompletionInFlight = nil } }
+            defer { if workflowCompletionInFlight?.attempt == attemptID { workflowCompletionInFlight = nil } }
             do {
+                guard isCurrent() else { return }
                 try await WorkflowCompletionDelivery.persistIfNeeded(route, accountID: accountID, socket: wsManager,
-                                                                    isCurrent: { canOpenWorkflowCompletion })
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route,
-                      let chatID = route.chatID, let messageID = route.messageID else { return }
+                                                                    isCurrent: isCurrent)
+                guard isCurrent(), let chatID = route.chatID, let messageID = route.messageID else { return }
                 _ = try await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID,
-                                                                                   isCurrent: { canOpenWorkflowCompletion })
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                                                                         isCurrent: isCurrent)
+                guard isCurrent() else { return }
                 selectedWorkspace = .chat
                 selectedChatId = chatID
                 showNewChat = false
@@ -1854,22 +2085,13 @@ struct MainAppView: View {
             } catch {
                 NativeDiagnostics.warning("Workflow completion destination remains pending: \(type(of: error))",
                                           category: "push_notifications")
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                guard isCurrent() else { return }
                 if let chatID = route.chatID, let messageID = route.messageID,
                    await WorkflowCompletionDelivery.authorizesPersistedTarget(route, accountID: accountID),
+                   isCurrent(),
                    (try? await pushManager.workflowMessageForNotification(chatId: chatID, messageId: messageID,
-                                                                                   isCurrent: { canOpenWorkflowCompletion })) != nil {
-                    guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                          authManager.networkAuthority?.generation == authorityGeneration,
-                          authManager.currentUser?.id == accountID,
-                          OfflineStore.shared.scopeGeneration == scope,
-                          ServerProfile.current() == profile,
-                          pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                                                                         isCurrent: isCurrent)) != nil {
+                    guard isCurrent() else { return }
                     selectedWorkspace = .chat
                     selectedChatId = chatID
                     showNewChat = false
@@ -1878,20 +2100,16 @@ struct MainAppView: View {
                     if deepLinkHandler.pendingWorkflowCompletion == route { deepLinkHandler.pendingWorkflowCompletion = nil }
                     return
                 }
-                guard canOpenWorkflowCompletion, isAuthenticated, authManager.hasNetworkAuthority,
-                      authManager.networkAuthority?.generation == authorityGeneration,
-                      authManager.currentUser?.id == accountID,
-                      OfflineStore.shared.scopeGeneration == scope,
-                      ServerProfile.current() == profile,
-                      pushManager.pendingWorkflowCompletion == route || deepLinkHandler.pendingWorkflowCompletion == route else { return }
+                guard isCurrent() else { return }
                 workflowCompletionRetryCount += 1
                 if workflowCompletionRetryCount >= 12 {
                     ToastManager.shared.show(AppStrings.error, type: .error)
-                    openWorkspaceWorkflow(route.workflowID, runID: route.runID)
                     return
                 }
+                // Existing encrypted-delivery recovery interval; not a Team readiness timer.
                 try? await Task.sleep(for: .seconds(3))
-                if workflowCompletionInFlight == route { workflowCompletionInFlight = nil }
+                guard isCurrent() else { return }
+                if workflowCompletionInFlight?.attempt == attemptID { workflowCompletionInFlight = nil }
                 openPendingWorkflowCompletion()
             }
         }
@@ -3062,6 +3280,7 @@ struct MainAppView: View {
                 }
             },
             memoriesEmbedRecords: loadedSettingsMemoryEmbeds,
+            usageContext: settingsBillingUsageContext,
             onOpenMemoryEmbed: openSettingsMemoryEmbed
         )
         }
@@ -3077,6 +3296,61 @@ struct MainAppView: View {
         .background(Color.grey20)
         .clipShape(RoundedRectangle(cornerRadius: activeChatContainerRadius))
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
+    }
+
+    // Billing uses the same scoped store and exact-target navigation as search.
+    // Specification: specifications/features/billing/specification.yml
+    // Assertions: billing.usage.landing-complete, billing.surface.semantic-parity
+    private var settingsBillingUsageContext: BillingUsageContext {
+        let owner = authManager.currentUser?.id
+        let scope = OfflineStore.shared.scopeGeneration
+        let server = ServerProfile.current()
+        let team = teamContext.snapshot
+        let current: () -> Bool = {
+            isAuthenticated && authManager.currentUser?.id == owner && owner != nil
+                && OfflineStore.shared.scopeGeneration == scope
+                && ServerProfile.current() == server && teamContext.isCurrent(team)
+        }
+        return BillingUsageContext(hiddenChatsUnlocked: hiddenChatsUnlocked,
+            chat: { id in
+                guard current() else { return nil }
+                return chatStore.chat(for: id) ?? OfflineStore.shared.loadChat(id: id)
+            }, messages: { id in
+                guard current() else { return [] }
+                let live = chatStore.messages(for: id)
+                return live + OfflineStore.shared.loadMessages(chatId: id)
+            }, embeds: { id in
+                guard current() else { return [] }
+                let live = chatStore.embeds(for: id)
+                return live + OfflineStore.shared.loadEmbeds(chatId: id)
+            }, openTarget: { target in
+                guard current() else { return }
+                let chatID: String
+                switch target {
+                case .message(let id, _), .embed(let id, _): chatID = id
+                }
+                guard let chat = chatStore.chat(for: chatID) ?? OfflineStore.shared.loadChat(id: chatID),
+                      ActiveChatsWidgetNavigationPolicy.canOpen(chat, teamID: chat.teamId,
+                          hiddenUnlocked: hiddenChatsUnlocked),
+                      chat.teamId == nil || teamContext.teams.contains(where: { $0.id == chat.teamId && $0.canRead }) else { return }
+                if chatStore.chat(for: chatID) == nil {
+                    chatStore.performWithoutPersistence { chatStore.upsertChats([chat]) }
+                }
+                let messageID: String?
+                switch target {
+                case .message(_, let id):
+                    let rows = chatStore.messages(for: chatID) + OfflineStore.shared.loadMessages(chatId: chatID)
+                    guard let row = rows.first(where: { $0.id == id || $0.serverMessageId == id }) else { return }
+                    messageID = row.id
+                case .embed(_, let id):
+                    let records = chatStore.embeds(for: chatID) + OfflineStore.shared.loadEmbeds(chatId: chatID)
+                    guard records.contains(where: { $0.id == id }) else { return }
+                    pendingExternalEmbedOpen = .init(chatId: chatID, embedId: id)
+                    messageID = nil
+                }
+                showSettings = false
+                handleSearchSelection(.init(chatId: chatID, messageId: messageID, query: "", teamID: chat.teamId))
+            })
     }
 
     private var loadedSettingsMemoryEmbeds: [String: EmbedRecord] {
@@ -3458,7 +3732,8 @@ struct MainAppView: View {
         } else if showNewChat || selectedChatId == nil {
             NewChatWelcomeView(
                 isIncognito: incognitoManager.isEnabled,
-                inspirations: dailyInspirations,
+                inspirations: visibleDailyInspirations,
+                inspirationScope: dailyInspirationScope,
                 isAuthenticated: isAuthenticated || isWelcomeRecentOverflowUITestEnabled,
                 currentUser: authManager.currentUser,
                 chats: chatStore.chats,
@@ -3623,7 +3898,20 @@ struct MainAppView: View {
                 canSendAnonymously: anonymousFreeUsage.canSendAnonymously,
                 prefillText: newChatPrefillText,
                 prefillRequest: newChatPrefillRequest,
-                onPrefillConsumed: { newChatPrefillText = nil }
+                onPrefillConsumed: { newChatPrefillText = nil },
+                onStartVoiceCall: isAuthenticated && !incognitoManager.isEnabled && teamContext.teamID == nil ? { draftID in
+                    guard let id = UUID(uuidString: draftID), nativeVoiceCalls.canStart(chat: chatStore.chat(for: draftID)) else { return }
+                    let openingRequest = freshNewChatRequest
+                    if let existing = chatStore.chat(for: draftID), existing.encryptedChatKey != nil {
+                        await nativeVoiceCalls.start(.existing(chatID: draftID))
+                    } else {
+                        await nativeVoiceCalls.start(.newPersonal(chatID: id, mateCategory: "general_knowledge"))
+                    }
+                    if nativeVoiceCalls.coordinator?.boundChatID == draftID, freshNewChatRequest == openingRequest,
+                       selectedChatId == nil || selectedChatId == draftID {
+                        selectedChatId = draftID; showNewChat = false
+                    }
+                } : nil
             )
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("chat-workspace-welcome")
@@ -3636,7 +3924,7 @@ struct MainAppView: View {
             ChatView(
                 chatId: chatId,
                 projectReviewOwnerID: isPublic ? nil : windowRuntimeID,
-                bannerState: chatStore.chat(for: chatId).map(WelcomeScreenState.isDraftOnly) == true
+                bannerState: chatStore.chat(for: chatId).map { WelcomeScreenState.isDraftOnly($0, draftPreview: DraftService.shared.displayDraftPreviews[$0.id]) } == true
                     ? nil : isPublic ? demoBannerState(for: chatId) : nil,
                 bannerCreatedAt: nil,
                 initialChat: isPublic ? nil : chatStore.chat(for: chatId),
@@ -3926,7 +4214,7 @@ struct MainAppView: View {
             showsHiddenChatsButton: !widgetRunningChatsOnly,
             processingChatIDs: widgetRunningChatsOnly ? Set(widgetRunningChatIDs) : [],
             userSections: presentation.userSections, publicSections: presentation.publicSections,
-            selectedChatID: selectedChatId, draftPreviews: widgetRunningChatsOnly ? [:] : draftPreviews,
+            selectedChatID: selectedChatId, draftPreviews: widgetRunningChatsOnly ? [:] : draftPreviews, previewsAreFormatted: true,
             showSearch: showSearch, emptyMessage: presentation.emptyMessage, loadMore: presentation.loadMore,
             actions: chatSidebarActions, refresh: refreshChatSidebar) {
                 chatSidebarSearchContent(draftPreviews: draftPreviews)
@@ -4880,6 +5168,11 @@ struct MainAppView: View {
     /// Fetches the current daily inspiration from the public API and writes it
     /// to the App Group container so the WidgetKit extension can display it.
     private func syncInspirationToWidget() async {
+        let captured = authManager.currentUser.map { user in
+            NativeWorkspaceOfflineScope(accountID: user.id,
+                server: ServerProfile.current().apiBaseURL.absoluteString, teamID: teamContext.teamID,
+                accountGeneration: OfflineStore.shared.scopeGeneration, teamEpoch: teamContext.contextEpoch)
+        }
         let baseURL = await ServerProfile.current().apiBaseURL.absoluteString
         let sourceLanguage = "en"
         guard let url = URL(string: "\(baseURL)/v1/default-inspirations?lang=\(sourceLanguage)") else { return }
@@ -4888,6 +5181,7 @@ struct MainAppView: View {
             let (data, _) = try await URLSession.shared.data(from: url)
 
             let response = try DailyInspirationAPIResponse.decode(data)
+            if let captured { try? await personalInspirations.acceptPublic(data, scope: captured) }
             if let first = response.inspirations.first {
                 // Populate the daily inspiration state for the welcome screen
                 dailyInspirations = response.inspirations.map { $0.bannerData(sourceLanguage: sourceLanguage) }
@@ -5357,6 +5651,11 @@ struct MainAppView: View {
             Task { await loadInitialData() }
             return
         }
+        // The selected chat's scope-fenced observer applies these receipts.
+        // Reloading all workspaces for every queue update creates unnecessary sync.
+        if ["message_queued", "queued_message_status", "queued_message_updated",
+            "queued_message_started", "queued_message_steered", "queued_message_steer_deferred",
+            "queued_handoff_paused", "queued_messages_snapshot"].contains(type) { return }
         if type == "chat_read_status_updated" {
             guard isAuthenticated,
                   let json = try? JSONSerialization.jsonObject(with: raw) as? [String: Any],
@@ -5428,7 +5727,8 @@ struct MainAppView: View {
                     modelName: payload.modelName,
                     category: payload.category,
                     rejectionReason: payload.rejectionReason,
-                    source: "background"
+                    source: "background",
+                    continuesTurn: payload.continuesTurn
                 )
 
             case "pending_ai_response":
@@ -5493,6 +5793,130 @@ struct MainAppView: View {
         }
     }
 
+    // Broker identity stays outside payload routing; tools never choose another
+    // account/chat or invoke an ordinary text send to simulate completion.
+    private func routeVoiceCallArtifact(scope: NativeVoiceCallScope, callID: String,
+                                       frame: NativeVoiceCallFrame) async throws -> NativeVoiceCallArtifactDisposition {
+        try nativeVoiceCalls.require(scope: scope, callID: callID)
+        guard frame["call_id"]?.string == callID,
+              let assistantID = frame["assistant_message_id"]?.string, !assistantID.isEmpty,
+              let userID = frame["user_message_id"]?.string, !userID.isEmpty,
+              frame["function_call_id"]?.string?.isEmpty == false,
+              let payload = frame["payload"]?.object,
+              payload["chat_id"] == nil || payload["chat_id"]?.string == scope.chatID else { throw NativeVoiceCallError.invalidResponse }
+        let bytes = try JSONEncoder().encode(payload)
+        guard bytes.count <= NativeVoiceCallWire.maximumFrameBytes,
+              var fields = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else { throw NativeVoiceCallError.invalidResponse }
+        fields["chat_id"] = scope.chatID
+        let transport = wsManager.transportGeneration
+        let ownerFence: @MainActor () throws -> Void = {
+            try nativeVoiceCalls.requireOwner(scope)
+            guard wsManager.transportGeneration == transport else { throw NativeVoiceCallError.connectionLost }
+        }
+        switch frame["type"]?.string {
+        case "voice_embed":
+            return try await nativeVoiceCalls.finishAdmittedArtifact(scope: scope, callID: callID) {
+                try await persistVoiceCallArtifact(scope: scope, callID: callID, frame: frame,
+                    transport: transport)
+            }
+        case "voice_context":
+            guard var event = fields["event"] as? [String: Any] else { throw NativeVoiceCallError.invalidResponse }
+            event["chat_id"] = scope.chatID; event["assistant_message_id"] = assistantID; event["user_message_id"] = userID
+            let routed: [String: Any] = ["chat_id": scope.chatID, "event": event]
+            guard let receipt = AppliedChatContextReceipt.parse(routed) else { throw NativeVoiceCallError.invalidResponse }
+            await applyChatContextReceipt(routed)
+            try ownerFence()
+            guard let stored = chatStore.messages(for: scope.chatID).first(where: { $0.id == receipt.messageID }),
+                  stored.content == receipt.content, stored.encryptedContent?.isEmpty == false,
+                  !PendingAssistantResponseQueue.shared.all().contains(where: { $0.chatId == scope.chatID && $0.messageId == receipt.messageID })
+            else { throw NativeVoiceCallError.persistenceFailed }
+            return .presented
+        case "voice_focus":
+            guard let focusID = fields["focus_id"] as? String, !focusID.isEmpty else { throw NativeVoiceCallError.invalidResponse }
+            let event = fields["event"] as? String ?? fields["event_for_client"] as? String
+            if event == "focus_mode_pending" {
+                // Existing native countdown currently implements only a Project
+                // base with delayed activation. Other policies need their real UI.
+                guard focusID.hasPrefix("project-"), fields["selected_specialist"] == nil || fields["selected_specialist"] is NSNull,
+                      fields["activation_policy"] == nil || fields["activation_policy"] as? String == "delayed",
+                      let embedID = fields["embed_id"] as? String, UUID(uuidString: embedID) != nil,
+                      let seconds = fields["expires_at"] as? NSNumber, seconds.doubleValue.isFinite else { return .unsupported }
+                fields["expires_at"] = seconds.doubleValue
+                configurePendingProjectFocus()
+                PendingProjectFocusStore.shared.ingest(fields: fields, scope: scope.workspaceGeneration)
+                guard PendingProjectFocusStore.shared.entry(chatID: scope.chatID, embedID: embedID) != nil else { throw NativeVoiceCallError.invalidResponse }
+                return .presented
+            }
+            guard event == "focus_mode_activated", let existing = chatStore.chat(for: scope.chatID),
+                  let key = ChatKeyManager.shared.key(for: scope.chatID) else { return .unsupported }
+            let encrypted = try await CryptoManager.shared.encryptContent(focusID, key: key)
+            try ownerFence()
+            var phases = existing.encryptedFocusPhaseState
+            if let saved = phases {
+                let text = try await CryptoManager.shared.decryptContent(base64String: saved, key: key)
+                try ownerFence()
+                guard let data = text.data(using: .utf8), var states = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw NativeVoiceCallError.contextUnavailable }
+                if !focusID.hasPrefix("project-") { states.removeValue(forKey: focusID) }
+                let serialized = try JSONSerialization.data(withJSONObject: states)
+                phases = try await CryptoManager.shared.encryptContent(String(decoding: serialized, as: UTF8.self), key: key)
+                try ownerFence()
+            }
+            try await wsManager.send(WSOutboundMessage(type: "update_encrypted_active_focus_id", payload: [
+                "chat_id": scope.chatID, "encrypted_active_focus_id": encrypted]), beforeSend: ownerFence)
+            try ownerFence()
+            chatStore.updateActiveFocus(chatId: scope.chatID, encryptedActiveFocusId: encrypted, activeFocusId: focusID)
+            chatStore.updateFocusPhaseState(chatId: scope.chatID, encrypted: phases)
+            return .presented // Broker confirmed activation; actual local projection + encrypted metadata send.
+        default: return .unsupported
+        }
+    }
+
+    /// Actual committed artifacts may finish after normal hangup. They retain
+    /// their original call/user/assistant/function identity and owner send fence.
+    private func persistVoiceCallArtifact(scope: NativeVoiceCallScope, callID: String,
+        frame: NativeVoiceCallFrame, transport: Int
+    ) async throws -> NativeVoiceCallArtifactDisposition {
+        guard let payload = frame["payload"]?.object,
+              let assistantID = frame["assistant_message_id"]?.string,
+              let userID = frame["user_message_id"]?.string,
+              let functionID = frame["function_call_id"]?.string else { throw NativeVoiceCallError.invalidResponse }
+        let data = try JSONEncoder().encode(payload)
+        guard var fields = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let embedID = fields["embed_id"] as? String else { throw NativeVoiceCallError.invalidResponse }
+        fields["chat_id"] = scope.chatID; fields["message_id"] = assistantID
+        let ownerFence: @MainActor () throws -> Void = {
+            try nativeVoiceCalls.requireOwner(scope)
+            guard wsManager.transportGeneration == transport else { throw NativeVoiceCallError.connectionLost }
+        }
+        try ownerFence()
+        let committed: Bool
+        if fields["content"] == nil, fields["embed_reference"] is String {
+            _ = try NativeVoiceCallArtifactReference.fromPayload(payload)
+            var materialized = false
+            // The ordinary sync socket owns reference-only content. This bounded
+            // wait observes actual ciphertext, never acknowledges a queued read.
+            for attempt in 0..<20 {
+                materialized = try await wsManager.requestVoiceArtifactReference(embedID: embedID,
+                    chatID: scope.chatID, validate: ownerFence)
+                if materialized { break }
+                if attempt < 19 { try await Task.sleep(for: .milliseconds(100)) }
+            }
+            guard materialized else { throw NativeVoiceCallError.persistenceFailed }
+            committed = true
+        } else {
+            committed = try await wsManager.handleVoiceArtifact(fields, validate: ownerFence)
+            if !committed, fields["status"] as? String != "processing" { throw NativeVoiceCallError.persistenceFailed }
+        }
+        try ownerFence()
+        if committed, let reference = try NativeVoiceCallArtifactReference.fromPayload(payload) {
+            try await nativeVoiceCalls.associateCommittedArtifact(scope: scope, callID: callID,
+                functionCallID: functionID, assistantMessageID: assistantID, userMessageID: userID,
+                reference: reference.fields)
+            try ownerFence()
+        }
+        return .presented
+    }
+
     private func configurePendingProjectFocus() {
         PendingProjectFocusStore.shared.configure(scope: OfflineStore.shared.scopeGeneration,
             complete: { try await NativeProjectAuthoringClient.shared.completePendingFocus($0) },
@@ -5510,9 +5934,12 @@ struct MainAppView: View {
         let keyGeneration = ChatKeyManager.shared.cacheGeneration
         let server = ServerProfile.current()
         let transport = wsManager.transportGeneration
+        let receiptTeam = TeamWorkspaceContext.shared.snapshot
+        guard chat.teamId == receiptTeam.teamID else { return }
         let contextIsCurrent = {
             isAuthenticated && authManager.currentUser?.id == accountID && OfflineStore.shared.scopeGeneration == scope &&
-                ChatKeyManager.shared.cacheGeneration == keyGeneration && ServerProfile.current() == server && wsManager.transportGeneration == transport
+                ChatKeyManager.shared.cacheGeneration == keyGeneration && ServerProfile.current() == server && wsManager.transportGeneration == transport &&
+                TeamWorkspaceContext.shared.isCurrent(receiptTeam)
         }
         guard !chatStore.messages(for: receipt.chatID).contains(where: { $0.id == receipt.messageID }) else { return }
         do {
@@ -5740,13 +6167,14 @@ struct MainAppView: View {
         modelName: String?,
         category: String?,
         rejectionReason: String?,
-        source: String
+        source: String,
+        continuesTurn: Bool = false
     ) async {
         guard !chatId.isEmpty, !messageId.isEmpty else { return }
         let completionScope = OfflineStore.shared.scopeGeneration
         let completionAccount = authManager.currentUser?.id
         let completionTeam = teamContext.snapshot
-        if let scope = ActiveChatsCoordinator.shared.currentScope {
+        if !continuesTurn, let scope = ActiveChatsCoordinator.shared.currentScope {
             ActiveChatsCoordinator.shared.finished(chatID: chatId, turnID: messageId, scope: scope)
             if let userMessageId {
                 ActiveChatsCoordinator.shared.finished(chatID: chatId, turnID: userMessageId, scope: scope)
@@ -5821,7 +6249,7 @@ struct MainAppView: View {
         // The accepted store merge preserves Team/count/share identity when a
         // completion payload only carries response metadata.
         let acceptedChat = chatStore.chat(for: chatId) ?? updatedChat
-        await showAssistantNotificationIfNeeded(chat: acceptedChat, message: message, source: source)
+        if !continuesTurn { await showAssistantNotificationIfNeeded(chat: acceptedChat, message: message, source: source) }
 
         if !wsManager.ownsRecoveryPersistence(messageId: messageId) {
             do {
@@ -6649,9 +7077,11 @@ struct MainAppView: View {
         }
         // The welcome carousel sorts independently from the sidebar (drafts
         // first there). Its visible cards also need their encrypted metadata.
-        let resume = WelcomeScreenState.resumeChat(from: chatStore.chats, lastOpened: authManager.currentUser?.lastOpened)
+        let resume = WelcomeScreenState.resumeChat(from: chatStore.chats, lastOpened: authManager.currentUser?.lastOpened,
+            draftPreview: { DraftService.shared.displayDraftPreviews[$0] })
         if let resume { ids.insert(resume.id) }
-        WelcomeScreenState.recentChats(from: chatStore.chats, excluding: resume?.id)
+        WelcomeScreenState.recentChats(from: chatStore.chats, excluding: resume?.id,
+            draftPreview: { DraftService.shared.displayDraftPreviews[$0] })
             .forEach { ids.insert($0.id) }
         visibleSidebarUserChats.forEach { ids.insert($0.id) }
         if let welcomeGridMetadataIDs { ids.formUnion(welcomeGridMetadataIDs) }
@@ -7045,11 +7475,20 @@ private struct AIBackgroundResponseCompletedPayload: Decodable {
     let fullContent: String
     let modelName: String?
     let category: String?
+    let awaitingAsyncSkillContinuation: Bool?
     let interruptedBySoftLimit: Bool?
     let interruptedByRevocation: Bool?
     let rejectionReason: String?
     let recoveryJobId: String?
     let recoveryProtocolVersion: Int?
+    var continuesTurn: Bool {
+        ChatStreamFinalityPolicy.continuesTurn([
+            "awaiting_async_skill_continuation": awaitingAsyncSkillContinuation ?? false,
+            "interrupted_by_soft_limit": interruptedBySoftLimit ?? false,
+            "interrupted_by_revocation": interruptedByRevocation ?? false,
+            "rejection_reason": rejectionReason ?? ""
+        ])
+    }
 }
 
 private struct PendingAIResponsePayload: Decodable {
@@ -7562,100 +8001,20 @@ private struct WorkspacePlaceholderView: View {
     }
 }
 
+// Both settings and the app-header avatar share one account/session/server fence.
+// The backend decrypts authenticated profile images; legacy public images use a
+// credential-free transport in SettingsProfileImageLoader.
 struct AuthenticatedProfileImage<Fallback: View>: View {
     let urlString: String
     @ViewBuilder let fallback: () -> Fallback
-
-    @State private var imageData: Data?
+    @EnvironmentObject private var authManager: AuthManager
 
     var body: some View {
-        Group {
-            if let image = platformImage {
-                image
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                fallback()
-            }
+        if let ownerID = authManager.currentUser?.id {
+            SettingsProfileAvatar(ownerID: ownerID, rawURL: urlString, fallback: fallback)
+        } else {
+            fallback()
         }
-        .task(id: urlString) {
-            await loadImage()
-        }
-    }
-
-    private var platformImage: Image? {
-        guard let imageData else { return nil }
-        #if os(iOS)
-        guard let image = UIImage(data: imageData) else { return nil }
-        return Image(uiImage: image)
-        #elseif os(macOS)
-        guard let image = NSImage(data: imageData) else { return nil }
-        return Image(nsImage: image)
-        #else
-        return nil
-        #endif
-    }
-
-    private func loadImage() async {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            imageData = nil
-            return
-        }
-        if let cachedData = await ProfileImageRequestCache.shared.cachedData(for: trimmed) {
-            imageData = cachedData
-            return
-        }
-        guard await ProfileImageRequestCache.shared.shouldAttempt(trimmed) else {
-            imageData = nil
-            return
-        }
-
-        do {
-            let data: Data
-            if let absoluteURL = URL(string: trimmed), absoluteURL.scheme != nil {
-                let (downloadedData, response) = try await URLSession.shared.data(from: absoluteURL)
-                guard let httpResponse = response as? HTTPURLResponse,
-                      (200...299).contains(httpResponse.statusCode) else {
-                    throw APIError.invalidResponse
-                }
-                data = downloadedData
-            } else {
-                data = try await APIClient.shared.request(.get, path: trimmed)
-            }
-            imageData = data
-            await ProfileImageRequestCache.shared.recordSuccess(data, for: trimmed)
-        } catch {
-            imageData = nil
-            await ProfileImageRequestCache.shared.recordFailure(for: trimmed)
-            print("[ProfileImage] failed to load profile image url=\(trimmed) error=\(error.localizedDescription)")
-        }
-    }
-}
-
-private actor ProfileImageRequestCache {
-    static let shared = ProfileImageRequestCache()
-
-    private let failedRetryDelay: TimeInterval = 300
-    private var cachedDataByUrl: [String: Data] = [:]
-    private var lastFailureByUrl: [String: Date] = [:]
-
-    func cachedData(for url: String) -> Data? {
-        cachedDataByUrl[url]
-    }
-
-    func shouldAttempt(_ url: String) -> Bool {
-        guard let lastFailure = lastFailureByUrl[url] else { return true }
-        return Date().timeIntervalSince(lastFailure) > failedRetryDelay
-    }
-
-    func recordSuccess(_ data: Data, for url: String) {
-        cachedDataByUrl[url] = data
-        lastFailureByUrl[url] = nil
-    }
-
-    func recordFailure(for url: String) {
-        lastFailureByUrl[url] = Date()
     }
 }
 
@@ -7863,13 +8222,15 @@ enum WelcomeScreenState {
     }
 
     static func priorityCards(items: [WelcomeContinueItem], chats: [Chat], teamID: String?, now: Date,
-                              draftPreview: (String) -> String? = { _ in nil }) -> [WelcomeChatCardData] {
+                              draftPreview: (String) -> String? = { _ in nil }, previewIsFormatted: Bool = false) -> [WelcomeChatCardData] {
         items.compactMap { item -> WelcomeChatCardData? in
             if let chatID = item.chatID {
                 guard let chat = chats.first(where: { $0.id == chatID && $0.teamId == teamID && !$0.isHiddenFromNormalSurfaces
                     && !isPublicChat($0.id) && !IncognitoChatSession.isIncognitoChatId($0.id)
                     && $0.parentId == nil && $0.isSubChat != true }) else { return nil }
-                var card = WelcomeScreenState.cardData(for: chat, draftPreview: draftPreview(chatID))
+                let preview = draftPreview(chatID)
+                guard !isEmptyShell(chat, draftPreview: preview), isContinuationPreviewReady(chat, draftPreview: preview) else { return nil }
+                var card = WelcomeScreenState.cardData(for: chat, draftPreview: preview, previewIsFormatted: previewIsFormatted)
                 card.priorityLabel = item.priority.label(now: now)
                 return card
             }
@@ -7913,56 +8274,56 @@ enum WelcomeScreenState {
 
     // Web: ActiveChat.loadRecentChats + chatSortUtils.sortChats, called without
     // sidebar server ordering. Keep hidden chats behind their privacy boundary.
-    static func isContinuationEligible(_ chat: Chat) -> Bool {
+    static func isContinuationEligible(_ chat: Chat, draftPreview: String? = nil) -> Bool {
         // Web `loadRecentChats()` uses the same persisted top-level set as the
         // sidebar. Pinned archived chats stay addressable; unpinned archived
         // chats and empty new-chat shells do not become continuation cards.
         (chat.isPinned == true || chat.isArchived != true) &&
-        !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces && !isEmptyShell(chat) &&
+        !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces && !isEmptyShell(chat, draftPreview: draftPreview) &&
         !isPublicChat(chat.id) && !IncognitoChatSession.isIncognitoChatId(chat.id) &&
         chat.parentId == nil && chat.isSubChat != true
     }
 
-    static func isEmptyShell(_ chat: Chat) -> Bool {
-        let hasDraft = chat.hasNonEmptyDraft == true || (chat.draftV ?? 0) > 0
-        let hasMessages = (chat.messagesV ?? 0) > 0
-        let hasMetadata = hasGeneratedMetadata(chat)
-        return !hasDraft && !hasMessages && !hasMetadata
+    static func isEmptyShell(_ chat: Chat, draftPreview: String? = nil) -> Bool {
+        !ChatSidebarDisplayPolicy.hasDraftContent(chat, preview: draftPreview) && !ChatSidebarDisplayPolicy.hasChatContent(chat)
     }
 
     private static func hasGeneratedMetadata(_ chat: Chat) -> Bool {
-        (chat.titleV ?? 0) > 0 ||
-        [chat.title, chat.encryptedTitle, chat.category, chat.encryptedCategory,
-         chat.icon, chat.encryptedIcon, chat.chatSummary, chat.encryptedChatSummary]
-            .contains { $0?.isEmpty == false }
+        ChatSidebarDisplayPolicy.hasGeneratedMetadata(chat)
     }
 
     static func isDraftOnly(_ chat: Chat) -> Bool {
-        let hasDraft = chat.hasNonEmptyDraft == true || (chat.draftV ?? 0) > 0
-        return hasDraft && (chat.messagesV ?? 0) == 0 && !hasGeneratedMetadata(chat)
+        isDraftOnly(chat, draftPreview: nil)
+    }
+
+    static func isDraftOnly(_ chat: Chat, draftPreview: String?) -> Bool {
+        let hasDraft = ChatSidebarDisplayPolicy.hasDraftContent(chat, preview: draftPreview)
+        return hasDraft && (chat.messagesV ?? 0) == 0 && chat.lastVisibleMessageId == nil && !hasGeneratedMetadata(chat)
     }
 
     /// Pending or undecryptable draft previews are not empty-draft evidence.
     /// Keep the stored draft, but wait for display content before making a card.
     static func isContinuationPreviewReady(_ chat: Chat, draftPreview: String?) -> Bool {
-        !isDraftOnly(chat) || !ChatDraftPreviewFormatter.format(draftPreview).isEmpty
+        ChatSidebarDisplayPolicy.isPresentationReady(chat, preview: draftPreview?.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
+    static func resumeChat(from chats: [Chat], lastOpened: String?,
+                           draftPreview: (String) -> String? = { _ in nil }) -> Chat? {
         guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new" else { return nil }
-        return chats.first { $0.id == lastOpened && isContinuationEligible($0) && !isDraftOnly($0) }
+        return chats.first { $0.id == lastOpened && isContinuationEligible($0, draftPreview: draftPreview($0.id))
+            && !isDraftOnly($0, draftPreview: draftPreview($0.id)) }
     }
 
     static func recentChats(from chats: [Chat], excluding resumeChatId: String?, activeChatId: String? = nil,
-                            limit: Int = recentChatLimit) -> [Chat] {
+                            limit: Int = recentChatLimit, draftPreview: (String) -> String? = { _ in nil }) -> [Chat] {
         chats
-            .filter { isContinuationEligible($0) && $0.id != resumeChatId && $0.id != activeChatId }
+            .filter { isContinuationEligible($0, draftPreview: draftPreview($0.id)) && $0.id != resumeChatId && $0.id != activeChatId }
             .sorted { lhs, rhs in
                 if (lhs.isPinned == true) != (rhs.isPinned == true) { return lhs.isPinned == true }
                 // Web sorts on encrypted_draft_md presence, not draft_v.
-                if (lhs.hasNonEmptyDraft == true) != (rhs.hasNonEmptyDraft == true) {
-                    return lhs.hasNonEmptyDraft == true
-                }
+                let lhsHasDraft = ChatSidebarDisplayPolicy.hasDraftContent(lhs, preview: draftPreview(lhs.id))
+                let rhsHasDraft = ChatSidebarDisplayPolicy.hasDraftContent(rhs, preview: draftPreview(rhs.id))
+                if lhsHasDraft != rhsHasDraft { return lhsHasDraft }
                 let lhsTime = lhs.sidebarActivityDate ?? .distantPast
                 let rhsTime = rhs.sidebarActivityDate ?? .distantPast
                 if lhsTime != rhsTime { return lhsTime > rhsTime }
@@ -7976,10 +8337,13 @@ enum WelcomeScreenState {
             .map { $0 }
     }
 
-    static func cardData(for chat: Chat, draftPreview: String? = nil) -> WelcomeChatCardData {
+    static func cardData(for chat: Chat, draftPreview: String? = nil, previewIsFormatted: Bool = false) -> WelcomeChatCardData {
         let category = chat.category ?? category(for: chat)
-        let preview = draftPreview.map(ChatDraftPreviewFormatter.format)
-        let draftOnly = isDraftOnly(chat)
+        let formatted: String? = chat.hasNonEmptyDraft == false ? nil : draftPreview.map {
+            previewIsFormatted ? $0 : ChatDraftPreviewFormatter.format($0)
+        }
+        let preview = formatted.flatMap { $0.isEmpty ? nil : $0 }
+        let draftOnly = isDraftOnly(chat, draftPreview: preview)
         return WelcomeChatCardData(
             id: chat.id,
             title: draftOnly ? AppStrings.draftBadge : chat.displayTitle,
@@ -8115,10 +8479,12 @@ struct NewChatWelcomeView: View {
             && !composerSession.controller.document.nodes.contains(where: { $0.kind == "embed" })
     }
     let isIncognito: Bool
+    @Environment(\.nativeVoiceCallRuntime) private var voiceCallRuntime
     @EnvironmentObject private var authManager: AuthManager
     @StateObject private var modelHost = NativeComposerModelHost()
     @State private var modelDraftID = UUID().uuidString.lowercased()
     let inspirations: [DailyInspirationBanner.DailyInspiration]
+    let inspirationScope: NativeWorkspaceOfflineScope?
     let isAuthenticated: Bool
     let currentUser: UserProfile?
     let chats: [Chat]
@@ -8151,6 +8517,7 @@ struct NewChatWelcomeView: View {
     var prefillText: String? = nil
     var prefillRequest = 0
     var onPrefillConsumed: () -> Void = {}
+    var onStartVoiceCall: ((String) async -> Void)? = nil
     @ObservedObject private var continueService = WelcomeContinueService.shared
     @ObservedObject private var welcomeDraftService = DraftService.shared
     @StateObject private var composerSession = NativeComposerSession()
@@ -8357,20 +8724,26 @@ struct NewChatWelcomeView: View {
     }
 
     private var resumeChat: Chat? {
-        WelcomeScreenState.resumeChat(from: chats, lastOpened: currentUser?.lastOpened)
+        WelcomeScreenState.resumeChat(from: chats.filter { $0.teamId == composerSearchTeam.teamID }, lastOpened: currentUser?.lastOpened,
+            draftPreview: { welcomeDraftService.displayDraftPreviews[$0] })
     }
 
     private var recentChatCards: [WelcomeChatCardData] {
         var cards: [WelcomeChatCardData] = []
-        if let resumeChat {
-            cards.append(WelcomeScreenState.cardData(for: resumeChat, draftPreview: welcomeDraftService.draftPreview(chatId: resumeChat.id)))
+        let readyResume = resumeChat.flatMap { chat in
+            WelcomeScreenState.isContinuationPreviewReady(chat,
+                draftPreview: welcomeDraftService.displayDraftPreviews[chat.id]) ? chat : nil
+        }
+        if let resumeChat = readyResume {
+            cards.append(WelcomeScreenState.cardData(for: resumeChat, draftPreview: welcomeDraftService.displayDraftPreviews[resumeChat.id], previewIsFormatted: true))
         }
         cards.append(contentsOf: WelcomeScreenState
-            .recentChats(from: chats.filter { WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }, excluding: resumeChat?.id, activeChatId: activeChatID)
-            .map { WelcomeScreenState.cardData(for: $0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) })
+            .recentChats(from: chats.filter { $0.teamId == composerSearchTeam.teamID && WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: welcomeDraftService.displayDraftPreviews[$0.id]) }, excluding: readyResume?.id, activeChatId: activeChatID,
+                draftPreview: { welcomeDraftService.displayDraftPreviews[$0] })
+            .map { WelcomeScreenState.cardData(for: $0, draftPreview: welcomeDraftService.displayDraftPreviews[$0.id], previewIsFormatted: true) })
         let priority = WelcomeScreenState.priorityCards(items: continueService.items, chats: chats,
             teamID: composerSearchTeam.teamID, now: continueService.now,
-            draftPreview: { welcomeDraftService.draftPreview(chatId: $0) })
+            draftPreview: { welcomeDraftService.displayDraftPreviews[$0] }, previewIsFormatted: true)
         let promotedIDs = Set(priority.map(\.id))
         return Array((priority + cards.filter { !promotedIDs.contains($0.id) }).prefix(WelcomeScreenState.recentChatLimit))
     }
@@ -8388,13 +8761,14 @@ struct NewChatWelcomeView: View {
     private var allChatGridCards: [WelcomeChatCardData] {
         guard isAuthenticated else { return nonAuthChatCards }
         let eligible = chats.filter { $0.teamId == composerSearchTeam.teamID &&
-            WelcomeScreenState.isContinuationEligible($0) && WelcomeScreenState.isContinuationPreviewReady($0,
-                draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }
+            WelcomeScreenState.isContinuationEligible($0, draftPreview: welcomeDraftService.displayDraftPreviews[$0.id]) && WelcomeScreenState.isContinuationPreviewReady($0,
+                draftPreview: welcomeDraftService.displayDraftPreviews[$0.id]) }
         let scopedResume = resumeChat.flatMap { resume in eligible.first(where: { $0.id == resume.id }) }
         let ordered = (scopedResume.map { [$0] } ?? []) + WelcomeScreenState.recentChats(
-            from: eligible, excluding: scopedResume?.id, activeChatId: activeChatID, limit: eligible.count + 1)
+            from: eligible, excluding: scopedResume?.id, activeChatId: activeChatID, limit: eligible.count + 1,
+            draftPreview: { welcomeDraftService.displayDraftPreviews[$0] })
         return ordered.map { WelcomeScreenState.cardData(for: $0,
-            draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) }
+            draftPreview: welcomeDraftService.displayDraftPreviews[$0.id], previewIsFormatted: true) }
     }
 
     private func openWelcomeCard(_ chatID: String) {
@@ -8540,8 +8914,7 @@ struct NewChatWelcomeView: View {
                 )
                 : 100
 
-            let bannerFallback: CGFloat = activeInspiration == nil ? 0
-                : Self.inspirationBannerHeight(for: proxy.size, isSettingsOpen: isSettingsOpen)
+            let bannerFallback = Self.inspirationBannerHeight(for: proxy.size, isSettingsOpen: isSettingsOpen)
             let continuation = WorkspaceContinuationLayoutPolicy.resolve(width: proxy.size.width, height: proxy.size.height,
                 bannerBottom: browsingChatGrid ? 0 : measuredWelcomeBannerBottom ?? bannerFallback,
                 composerTop: measuredWelcomeComposerTop ?? max(0, proxy.size.height - composerReserve - keyboardOverlap))
@@ -8552,8 +8925,21 @@ struct NewChatWelcomeView: View {
                     .ignoresSafeArea(.container)
 
                 VStack(spacing: 0) {
-                    if let activeInspiration, !isWelcomeWorkspaceSuppressed, !browsingChatGrid {
-                        inspirationCarousel(activeInspiration, containerSize: proxy.size)
+                    if !isWelcomeWorkspaceSuppressed, !browsingChatGrid {
+                        ZStack {
+                            if let activeInspiration {
+                                inspirationCarousel(activeInspiration, containerSize: proxy.size)
+                                    .transition(.opacity)
+                            } else {
+                                InspirationCard(inspiration: .init(text: "", category: "general_knowledge"),
+                                    containerSize: proxy.size,
+                                    heightOverride: Self.inspirationBannerHeight(for: proxy.size, isSettingsOpen: isSettingsOpen),
+                                    isInteractive: false, isPlaceholder: true, onTap: {})
+                                    .transition(.opacity)
+                            }
+                        }
+                            .animation(gridReduceMotion ? nil : .easeInOut(duration: 0.2), value: activeInspiration?.inspirationId)
+                            .modifier(DailyInspirationScopeBoundary(scope: inspirationScope))
                             .padding(.top, 0)
                             .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("welcome-continuation-layout")).maxY } action: {
                                 measuredWelcomeBannerBottom = $0
@@ -8758,6 +9144,19 @@ struct NewChatWelcomeView: View {
             }
         }
         #endif
+        .overlay(alignment: .topTrailing) {
+            if let onStartVoiceCall, !isIncognito, isAuthenticated,
+               let coordinator = voiceCallRuntime?.coordinator {
+                NativeVoiceCallStartControl(coordinator: coordinator, chatID: modelDraftID, overlapsHeader: false,
+                    canBegin: !isCreatingChat && !recordAttemptActive && !isRecordingUploadPending && attachmentUploadTasks.isEmpty) {
+                    let allocated = DraftService.shared.reserveNewChatDraftId(preferredId: modelDraftID)
+                    guard allocated == modelDraftID else {
+                        ToastManager.shared.show(AppStrings.nativeCall("call_unavailable"), type: .error); return
+                    }
+                    Task { await onStartVoiceCall(allocated) }
+                }.padding(.spacing6)
+            }
+        }
         .task(id: freshSessionRequest) {
             let isReadyForRequestedAction: Bool
             if freshSessionRequest > handledFreshSessionRequest {
@@ -9264,6 +9663,18 @@ struct NewChatWelcomeView: View {
         beginRecordAttempt()
     }
 
+    // Only this new-chat composer owns the allocation. Neither usage rows nor
+    // generic realtime sessions may manufacture draft-audio evidence.
+    private func welcomeAudioPreallocation(recordingChatID: String) -> BillingUsageDraftAudioRegistry.ConfirmedPreallocation? {
+        let draft = composerSearchStore.chat(for: modelDraftID) ?? OfflineStore.shared.loadChat(id: modelDraftID)
+        let hasAcceptedUserMessage = (draft?.messagesV ?? 0) > 0
+            || composerSearchStore.messages(for: modelDraftID).contains { $0.role == .user }
+            || OfflineStore.shared.loadMessages(chatId: modelDraftID).contains { $0.role == .user }
+        return .init(draftChatID: modelDraftID, recordingChatID: recordingChatID,
+            isNewChatComposer: isAuthenticated && !isIncognito,
+            hasAcceptedUserMessage: hasAcceptedUserMessage, teamID: composerSearchTeam.teamID)
+    }
+
     private func prepareWelcomeRealtimeRecording() {
         recordingLiveTranscript = ""
         recordingRealtimeConnecting = false
@@ -9274,7 +9685,15 @@ struct NewChatWelcomeView: View {
         }
         let session = AudioRecordingRealtimeSession()
         activeRecordingRealtimeSession = session
-        session.begin(authManager: authManager, chatID: modelDraftID) { transcript, isConnecting in
+        let allocation = welcomeAudioPreallocation(recordingChatID: modelDraftID)
+        let ownerID = authManager.currentUser?.id
+        let markerGeneration = OfflineStore.shared.scopeGeneration
+        let markerProfile = ServerProfile.current()
+        let markerTeamEpoch = composerSearchTeam.contextEpoch
+        session.begin(authManager: authManager, chatID: modelDraftID, beforeRemoteStart: {
+            try await BillingUsageDraftAudioRegistry.shared.markCaptured(allocation, accountID: ownerID,
+                cacheGeneration: markerGeneration, serverProfile: markerProfile, teamEpoch: markerTeamEpoch)
+        }) { transcript, isConnecting in
             guard activeRecordingRealtimeSession === session else { return }
             recordingLiveTranscript = transcript
             recordingRealtimeConnecting = isConnecting
@@ -9331,6 +9750,10 @@ struct NewChatWelcomeView: View {
         let nodeID = retryNodeID ?? "composer:embed:\(UUID().uuidString.lowercased())"
         let uploadScope = AudioRecordingUploadScope.capture()
         let uploadDraftID = modelDraftID
+        let allocation = welcomeAudioPreallocation(recordingChatID: uploadDraftID)
+        let markerOwnerID = authManager.currentUser?.id
+        let markerProfile = ServerProfile.current()
+        let markerTeamEpoch = composerSearchTeam.contextEpoch
         do {
             if retryNodeID != nil {
                 guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return false }
@@ -9383,6 +9806,18 @@ struct NewChatWelcomeView: View {
             try? composerSession.updatePendingEmbedTitle(nodeID: nodeID, title: transcript)
         }
         let task = Task { @MainActor in
+            do {
+                try await BillingUsageDraftAudioRegistry.shared.markCaptured(allocation, accountID: markerOwnerID,
+                    cacheGeneration: uploadScope.accountGeneration, serverProfile: markerProfile, teamEpoch: markerTeamEpoch)
+            } catch {
+                if welcomeRecordingUploadIDs[nodeID] == uploadID, uploadScope.isCurrent, modelDraftID == uploadDraftID {
+                    welcomeRecordingUploadIDs.removeValue(forKey: nodeID)
+                    welcomeRecordingUploadTasks.removeValue(forKey: nodeID)
+                    isRecordingUploadPending = !welcomeRecordingUploadTasks.isEmpty
+                    try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                }
+                return
+            }
             let embed = await AudioRecordingUploadService.prepare(
                 url: url,
                 duration: duration,
@@ -9544,7 +9979,7 @@ struct NewChatWelcomeView: View {
         composerRecorder.startRecording()
         guard composerRecorder.error == nil else {
             cancelWelcomeRealtimeRecording()
-            micPermissionState = .denied
+            if !composerRecorder.recordingAdmissionRejected { micPermissionState = .denied }
             recordAttemptActive = false
             recordStartedFromKeyboard = false
             restoreCompactComposerAfterRecordRequestIfNeeded()
@@ -9713,6 +10148,9 @@ struct NewChatWelcomeView: View {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--ui-test-welcome-mic-granted") {
             micPermissionState = .granted
+        }
+        if arguments.contains("--ui-test-welcome-record-hint") {
+            showRecordHint(duration: 0)
         }
         if arguments.contains("--ui-test-welcome-restored-recording") {
             composerSession.replaceMarkdown(
@@ -10762,6 +11200,11 @@ struct NewChatWelcomeView: View {
     }
 
     private func createChatWith(message: String) {
+        let sendActionStarted = NativeSyncPerfLog.now()
+        if voiceCallRuntime?.blocksOrdinarySend == true {
+            ToastManager.shared.show(AppStrings.nativeCall("return_to_chat"), type: .error)
+            return
+        }
         recordWelcomeSendStage("callback")
         guard !isCreatingChat else { return }
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -10773,6 +11216,10 @@ struct NewChatWelcomeView: View {
             return
         }
 
+        guard let ordinaryPreparation = NativeVoiceCallSendAdmission.shared.beginOrdinary(chatID: modelDraftID) else {
+            ToastManager.shared.show(AppStrings.nativeCall("return_to_chat"), type: .error); return
+        }
+        let sendTimingToken = NativeChatSendTiming.shared.beginAction(chatID: modelDraftID, startedAt: sendActionStarted)
         let sendDocument = composerSession.controller.document
         let sendOptions = piiPrivacySettingsStore.detectionOptions()
         let sendExclusions = piiExclusions
@@ -10789,7 +11236,10 @@ struct NewChatWelcomeView: View {
         let context = modelContext
         let pendingEmbeds = pendingComposerEmbeds
         Task { @MainActor in
+            var timingAccepted = false
             defer {
+                if !timingAccepted { NativeChatSendTiming.shared.cancel(chatID: sendingOwner.chatID, token: sendTimingToken) }
+                NativeVoiceCallSendAdmission.shared.endOrdinary(ordinaryPreparation)
                 // A cancelled/stale activation must not strand this same draft's
                 // submit state. Never write into a replacement account or draft.
                 if sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
@@ -10825,6 +11275,7 @@ struct NewChatWelcomeView: View {
                     scheduleNewChatDraftSave()
                     return
                 }
+                guard !NativeVoiceCallSendAdmission.shared.blocksOrdinary else { throw NativeVoiceCallError.callUnavailable }
                 recordWelcomeSendStage("create-start")
                 let chatId = try await onCreateChatWithMessage(
                     routedText,
@@ -10833,6 +11284,7 @@ struct NewChatWelcomeView: View {
                     isIncognito ? nil : AssistantSpeechAppRuntime.shared.scope(for: modelDraftID),
                     modelDraftID
                 )
+                timingAccepted = true
                 recordWelcomeSendStage("create-returned")
                 guard sendingOwner.matches(server: ServerProfile.current().apiBaseURL.absoluteString,
                     accountGeneration: OfflineStore.shared.scopeGeneration, chatID: modelDraftID),
@@ -12134,19 +12586,23 @@ private struct WelcomeComposer: View {
     }
 
     private var recordActionControls: some View {
-        HStack(spacing: .spacing4) {
-            if let recordHintText {
-                Text(recordHintText)
-                    .font(.omXs)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontTertiary)
-                    .lineLimit(1)
-                    .transition(.opacity)
-                    .accessibilityIdentifier("press-hold-label")
+        // Guidance must not occupy the speech/microphone/Send action lane.
+        // Keep the same record control mounted as hint visibility changes.
+        recordGestureButton
+            .overlay(alignment: .topTrailing) {
+                if let recordHintText {
+                    Text(recordHintText)
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontTertiary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .alignmentGuide(.top) { $0[.bottom] + .spacing2 }
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("press-hold-label")
+                }
             }
-
-            recordGestureButton
-        }
     }
 
     private var recordGestureButton: some View {

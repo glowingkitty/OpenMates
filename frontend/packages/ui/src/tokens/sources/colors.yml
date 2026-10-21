@@ -52,6 +52,12 @@ semantic:
   chat-rainbow-green:      { light: "#30d158", dark: "#30d158" }
   chat-rainbow-cyan:       { light: "#32ade6", dark: "#32ade6" }
   chat-rainbow-purple:     { light: "#bf5af2", dark: "#bf5af2" }
+  # ChatMessage.svelte .response-bottom-glow: the current web response palette.
+  response-glow-pink:      { light: "#ff6882", dark: "#ff6882" }
+  response-glow-amber:     { light: "#ffcc73", dark: "#ffcc73" }
+  response-glow-green:     { light: "#76dca2", dark: "#76dca2" }
+  response-glow-blue:      { light: "#80c8f5", dark: "#80c8f5" }
+  response-glow-purple:    { light: "#c7a3ee", dark: "#c7a3ee" }
   ai-settings-muted:       { light: "#939393", dark: "#cfcfcf" }
   ai-settings-pricing:     { light: "#646464", dark: "#d0d0d0" }
   ai-icon-tile-start:      { light: "#ffffff", dark: "#2c2c2c" }

@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 import UserNotifications
 #if os(iOS)
@@ -7,6 +8,255 @@ import UIKit
 
 @MainActor
 final class AppDeepLinkRoutingTests: XCTestCase {
+    private func completionRoute(chat: Bool = false) -> WorkflowCompletionRoute {
+        WorkflowCompletionRoute(workflowID: "11111111-1111-4111-8111-111111111111",
+            runID: "22222222-2222-4222-8222-222222222222",
+            chatID: chat ? "33333333-3333-4333-8333-333333333333" : nil,
+            messageID: chat ? "44444444-4444-4444-8444-444444444444" : nil,
+            deliveryID: chat ? "55555555-5555-4555-8555-555555555555" : nil)
+    }
+
+    private func completionIdentity() -> WorkflowCompletionPersonalHandoff.Identity {
+        .init(accountID: "synthetic-owner", profile: ServerProfile.current(),
+              offlineScope: UUID(), authorityGeneration: UUID())
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testCompletionWaitsForColdTeamRestorationThenSelectsPersonalOnceForBothDestinations() {
+        for chat in [false, true] {
+            let route = completionRoute(chat: chat), identity = completionIdentity()
+            var handoff = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: false, loading: false,
+                teamID: nil, teamEpoch: 1, handledTeamEpoch: 1), .wait,
+                "Reset's temporary Personal state is not initial roster readiness")
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: false, loading: true,
+                teamID: "restored-team", teamEpoch: 2, handledTeamEpoch: 2), .wait)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: "restored-team", teamEpoch: 2, handledTeamEpoch: 2), .selectPersonal)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: "restored-team", teamEpoch: 2, handledTeamEpoch: 2), .wait,
+                "A duplicate tap cannot start another selection")
+            handoff.didSelectPersonal(teamID: nil, teamEpoch: 3)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: nil, teamEpoch: 3, handledTeamEpoch: 2), .wait,
+                "Workflow scope capture must wait for shell Team invalidation")
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: nil, teamEpoch: 3, handledTeamEpoch: 3), .ready)
+            XCTAssertTrue(handoff.isReady(route: route, identity: identity, teamID: nil, teamEpoch: 3))
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: true,
+                teamID: nil, teamEpoch: 3, handledTeamEpoch: 3), .ready,
+                "An ordinary roster refresh must not cancel an already-ready Personal destination")
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: nil, teamEpoch: 3, handledTeamEpoch: 3), .ready)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testAlreadyPersonalCompletionExpiresItsHandoffBeforeLaterDeliberateTeamChoice() {
+        let route = completionRoute(), identity = completionIdentity()
+        var handoff = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+        XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+            teamID: nil, teamEpoch: 8, handledTeamEpoch: 8), .selectPersonal)
+        handoff.didSelectPersonal(teamID: nil, teamEpoch: 8)
+        XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+            teamID: nil, teamEpoch: 8, handledTeamEpoch: 8), .ready)
+        XCTAssertFalse(handoff.isReady(route: route, identity: identity, teamID: "chosen-team", teamEpoch: 9))
+        XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+            teamID: "chosen-team", teamEpoch: 9, handledTeamEpoch: 9), .cancel)
+        XCTAssertFalse(handoff.ownsRouting)
+        XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+            teamID: nil, teamEpoch: 10, handledTeamEpoch: 10), .cancel,
+            "Subsequent events cannot rearm a consumed/cancelled request")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testCompletionHandoffRejectsChangedOwnerServerOfflineAuthorityAndRoute() {
+        let route = completionRoute(chat: true), identity = completionIdentity()
+        let otherProfile = ServerProfile.custom(domain: "other.example")
+        let changes: [WorkflowCompletionPersonalHandoff.Identity?] = [
+            nil,
+            .init(accountID: "other-owner", profile: identity.profile, offlineScope: identity.offlineScope,
+                  authorityGeneration: identity.authorityGeneration),
+            .init(accountID: identity.accountID, profile: otherProfile, offlineScope: identity.offlineScope,
+                  authorityGeneration: identity.authorityGeneration),
+            .init(accountID: identity.accountID, profile: identity.profile, offlineScope: UUID(),
+                  authorityGeneration: identity.authorityGeneration),
+            .init(accountID: identity.accountID, profile: identity.profile, offlineScope: identity.offlineScope,
+                  authorityGeneration: UUID())
+        ]
+        for changed in changes {
+            var handoff = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+            XCTAssertEqual(handoff.decision(route: route, identity: changed, restored: true, loading: false,
+                teamID: "team", teamEpoch: 3, handledTeamEpoch: 3), .cancel)
+            XCTAssertFalse(handoff.isReady(route: route, identity: changed, teamID: nil, teamEpoch: 3))
+        }
+        var leaving = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+        XCTAssertEqual(leaving.decision(route: nil, identity: identity, restored: true, loading: false,
+            teamID: "team", teamEpoch: 3, handledTeamEpoch: 3), .cancel)
+        var replacing = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+        XCTAssertEqual(replacing.decision(route: completionRoute(), identity: identity,
+            restored: true, loading: false, teamID: "team", teamEpoch: 3, handledTeamEpoch: 3), .cancel)
+        var reopened = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+        XCTAssertNotEqual(reopened.id, leaving.id)
+        XCTAssertEqual(reopened.decision(route: route, identity: identity, restored: true, loading: false,
+            teamID: "team", teamEpoch: 3, handledTeamEpoch: 3), .selectPersonal)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testInitialSelectionReadinessWaitsForRetainedTeamRestorationInCurrentScope() async throws {
+        let owner = "synthetic-completion-owner", profile = ServerProfile.current()
+        var offlineScope = UUID()
+        let service = CompletionTeamRosterFixture()
+        let suite = "completion-personal-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let context = TeamWorkspaceContext(service: service,
+            environment: .init(currentAccountID: { owner }, scopeGeneration: { offlineScope }, serverProfile: { profile }),
+            defaults: defaults, revocationCleanup: { _, _, _ in })
+        await context.load(accountID: owner)
+        await context.selectTeam(service.team.id)
+        XCTAssertEqual(context.teamID, service.team.id)
+        context.reset(accountID: owner)
+        XCTAssertNil(context.teamID)
+        XCTAssertFalse(context.isInitialSelectionReady(accountID: owner))
+        let entered = expectation(description: "initial live roster suspended after retained Team restore")
+        service.onList = { entered.fulfill() }
+        service.holdList = true
+        let restoration = Task { await context.load(accountID: owner) }
+        await fulfillment(of: [entered], timeout: 2)
+        XCTAssertEqual(context.teamID, service.team.id)
+        XCTAssertFalse(context.isInitialSelectionReady(accountID: owner))
+        service.resumeList()
+        await restoration.value
+        XCTAssertTrue(context.isInitialSelectionReady(accountID: owner))
+        let refreshing = expectation(description: "ordinary roster refresh")
+        service.onList = { refreshing.fulfill() }
+        service.holdList = true
+        let refresh = Task { await context.load(accountID: owner) }
+        await fulfillment(of: [refreshing], timeout: 2)
+        XCTAssertTrue(context.isLoading)
+        XCTAssertTrue(context.isInitialSelectionReady(accountID: owner),
+            "Initial restoration readiness survives an ordinary roster refresh")
+        service.resumeList()
+        await refresh.value
+        await context.selectTeam(nil)
+        XCTAssertNil(context.teamID)
+        XCTAssertTrue(context.isInitialSelectionReady(accountID: owner))
+        XCTAssertFalse(context.isInitialSelectionReady(accountID: "other-owner"))
+        offlineScope = UUID()
+        XCTAssertFalse(context.isInitialSelectionReady(accountID: owner))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testCompletionPersonalSelectionChecksAuthorityAgainAfterAsyncAccountBoundary() async throws {
+        let owner = "synthetic-completion-owner", profile = ServerProfile.current(), scope = UUID()
+        var authorized = true, invalidateAtAccountCheck = false
+        let service = CompletionTeamRosterFixture()
+        let suite = "completion-selection-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let context = TeamWorkspaceContext(service: service,
+            environment: .init(currentAccountID: {
+                if invalidateAtAccountCheck { authorized = false }
+                return owner
+            }, scopeGeneration: { scope }, serverProfile: { profile }),
+            defaults: defaults, revocationCleanup: { _, _, _ in })
+        await context.load(accountID: owner)
+        await context.selectTeam(service.team.id)
+        XCTAssertEqual(context.teamID, service.team.id)
+        invalidateAtAccountCheck = true
+        await context.selectTeam(nil, isCurrent: { authorized })
+        XCTAssertEqual(context.teamID, service.team.id,
+            "A stale completion may not switch the new authority's active workspace")
+    }
+
+    private final class CompletionTeamRosterFixture: TeamWorkspaceServing {
+        let team = TeamWorkspaceTeam(id: "synthetic-retained-team", name: "Synthetic", description: "",
+            role: .member, status: "active", profileImageMetadata: .generated, zeroBalance: 0,
+            createdAt: 0, updatedAt: 0, key: SymmetricKey(data: Data(repeating: 7, count: 32)))
+        var holdList = false
+        var cachedResult: [TeamWorkspaceTeam]?
+        var listError: Error?
+        var onList: (() -> Void)?
+        private var continuation: CheckedContinuation<Void, Never>?
+        func cachedTeams(fence: TeamWorkspaceFence) async throws -> [TeamWorkspaceTeam] { cachedResult ?? [team] }
+        func listTeams(fence: TeamWorkspaceFence) async throws -> [TeamWorkspaceTeam] {
+            if holdList {
+                await withCheckedContinuation { continuation = $0; onList?() }
+            }
+            if let listError { throw listError }
+            return [team]
+        }
+        func getTeam(_ id: String, fence: TeamWorkspaceFence) async throws -> TeamWorkspaceTeam { team }
+        func resumeList() { holdList = false; continuation?.resume(); continuation = nil }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity,notifications.workflow-run.run-target
+    func testOrdinaryWorkflowDeepLinkDoesNotCreatePersonalCompletionRequest() throws {
+        let handler = DeepLinkHandler()
+        let id = completionRoute().workflowID
+        handler.handle(url: try XCTUnwrap(URL(string: "openmates://workflows/\(id)")))
+        XCTAssertEqual(handler.pendingWorkflowID, id)
+        XCTAssertNil(handler.pendingWorkflowCompletion,
+            "An ordinary Team Workflow link must retain the caller's Team scope")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target
+    func testFailedOfflineRosterRestorationAllowsPersonalAndDoesNotResurrectRetainedTeamOnRepair() async throws {
+        for hasCachedRoster in [true, false] {
+            let identity = completionIdentity(), route = completionRoute()
+            let service = CompletionTeamRosterFixture()
+            let suite = "completion-offline-" + UUID().uuidString
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let context = TeamWorkspaceContext(service: service,
+                environment: .init(currentAccountID: { identity.accountID },
+                    scopeGeneration: { identity.offlineScope }, serverProfile: { identity.profile }),
+                defaults: defaults, revocationCleanup: { _, _, _ in })
+            await context.load(accountID: identity.accountID)
+            await context.selectTeam(service.team.id)
+            context.reset(accountID: identity.accountID)
+            XCTAssertFalse(context.isInitialSelectionReady(accountID: identity.accountID))
+            service.cachedResult = hasCachedRoster ? [service.team] : []
+            service.listError = URLError(.notConnectedToInternet)
+            await context.load(accountID: identity.accountID)
+            XCTAssertFalse(context.isLoading)
+            XCTAssertNotNil(context.error)
+            XCTAssertFalse(context.hasAuthoritativeRoster)
+            XCTAssertEqual(context.usingCachedRoster, hasCachedRoster)
+            XCTAssertEqual(context.teamID, hasCachedRoster ? service.team.id : nil)
+            XCTAssertTrue(context.isInitialSelectionReady(accountID: identity.accountID),
+                "A current failed roster attempt settles initial restoration without claiming live membership")
+            var handoff = WorkflowCompletionPersonalHandoff(route: route, identity: identity)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity,
+                restored: context.isInitialSelectionReady(accountID: identity.accountID), loading: context.isLoading,
+                teamID: context.teamID, teamEpoch: context.contextEpoch,
+                handledTeamEpoch: context.contextEpoch), .selectPersonal)
+            let initialEpoch = context.contextEpoch
+            await context.selectTeam(nil, isCurrent: { true })
+            XCTAssertNil(context.teamID)
+            if !hasCachedRoster {
+                XCTAssertEqual(context.contextEpoch, initialEpoch,
+                    "Clearing a retained Team preference while already Personal must not synthesize a Team epoch")
+            }
+            handoff.didSelectPersonal(teamID: context.teamID, teamEpoch: context.contextEpoch)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: nil, teamEpoch: context.contextEpoch, handledTeamEpoch: context.contextEpoch), .ready)
+            // Normal repair now has a usable roster, but completion intent already cleared the retained preference.
+            service.cachedResult = nil
+            service.listError = nil
+            await context.load(accountID: identity.accountID)
+            XCTAssertTrue(context.hasAuthoritativeRoster)
+            XCTAssertNil(context.teamID, "Roster repair must not restore the old persisted Team after Personal intent")
+            await context.selectTeam(service.team.id)
+            XCTAssertEqual(handoff.decision(route: route, identity: identity, restored: true, loading: false,
+                teamID: context.teamID, teamEpoch: context.contextEpoch,
+                handledTeamEpoch: context.contextEpoch), .cancel)
+            XCTAssertEqual(context.teamID, service.team.id, "The user's later deliberate Team choice survives")
+        }
+    }
+
+
     // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.chat-target,apple-notifications.action.routing-coherent
     func testWorkflowCompletionInvalidationDuringClaimStopsWritesAndResumesSameDestination() async throws {
         try await verifyWorkflowCompletionInvalidation(stage: "workflow_chat_delivery_claim")
@@ -75,14 +325,21 @@ final class AppDeepLinkRoutingTests: XCTestCase {
                        "An already persisted delivery must reuse the winning ciphertext")
     }
 
-    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target,apple-notifications.action.direct-reply
     func testWorkflowCompletionCategoryOpensWithoutInlineReply() throws {
         let categories = PushNotificationManager.notificationCategories()
         let workflow = try XCTUnwrap(categories.first { $0.identifier == "OPENMATES_WORKFLOW_COMPLETED" })
         XCTAssertTrue(workflow.actions.isEmpty, "Workflow completion requires a destination tap, never an inline Reply")
         let chat = try XCTUnwrap(categories.first { $0.identifier == "OPENMATES_CHAT_MESSAGE" })
-        XCTAssertEqual(chat.actions.map(\.identifier), ["OPENMATES_REPLY", "OPENMATES_OPEN_CHAT"])
+        XCTAssertEqual(chat.actions.map(\.identifier), ["OPENMATES_REPLY"])
+        #if os(iOS)
+        XCTAssertFalse(chat.actions.first is UNTextInputNotificationAction)
+        XCTAssertEqual(chat.actions.first?.title, AppStrings.sendAction)
+        XCTAssertTrue(chat.actions.first?.options.contains(.authenticationRequired) == true)
+        XCTAssertFalse(chat.actions.first?.options.contains(.foreground) == true)
+        #else
         XCTAssertTrue(chat.actions.first is UNTextInputNotificationAction)
+        #endif
     }
 
     // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.chat-target,notifications.workflow-run.run-target

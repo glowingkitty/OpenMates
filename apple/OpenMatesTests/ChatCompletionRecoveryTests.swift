@@ -90,6 +90,34 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted,chats.message.identity-idempotent
+    @MainActor
+    func testReconnectDiscoveryWhileBackgroundedRecoversExactTurnAfterForegroundAcknowledgement() async throws {
+        let fixture = try await makeRecoveryFixture()
+        fixture.coordinator.handleTransportDisconnected()
+        await fixture.coordinator.handleTransportConnected(requiresForegroundAcknowledgement: true, socketGeneration: 8)
+        fixture.coordinator.lifecycleWillSend(isForeground: false, socketGeneration: 8)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        await fixture.coordinator.markInitialSyncReady()
+        XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
+        XCTAssertTrue(fixture.coordinator.ownsRecoveryPersistence(messageId: RecoveryVector.shared.assistantMessageId),
+                      "Discovery must retain the completed turn while the app is backgrounded")
+
+        fixture.coordinator.lifecycleWillSend(isForeground: true, socketGeneration: 8)
+        await fixture.coordinator.handleLifecycleAcknowledgement(["is_foreground": true], socketGeneration: 7)
+        XCTAssertTrue(fixture.transport.sentTypes.isEmpty, "An old socket's foreground receipt cannot admit a claim")
+        await fixture.coordinator.handleLifecycleAcknowledgement(["is_foreground": true], socketGeneration: 8)
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
+        XCTAssertEqual(fixture.persisted.messages.first?.id, RecoveryVector.shared.assistantMessageId)
+        XCTAssertEqual(fixture.persisted.messages.first?.chatId, RecoveryVector.shared.chatId)
+        XCTAssertEqual(fixture.persisted.messages.first?.content, "Recovered hello")
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
+        XCTAssertTrue(fixture.coordinator.pendingAssistantMessageIds(in: RecoveryVector.shared.chatId).isEmpty)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"],
+                       "Rediscovery must not repeat inference or persist the same terminal turn twice")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=storage.background.saved-output-retention,chats.message.identity-idempotent
     @MainActor
     func testChangedRediscoveredJobCannotReplaceRetainedIdentity() async throws {

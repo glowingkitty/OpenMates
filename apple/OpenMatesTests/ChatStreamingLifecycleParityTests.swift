@@ -10,6 +10,245 @@ import SwiftData
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.admission.synced,chat-queued-followups.steering.safe-boundary
+    func testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus() async throws {
+        let fixture = try terminalSyncFixture()
+        let user = Message(id: "queued-user", chatId: fixture.chat.id, role: .user, content: "Synthetic queued request",
+            encryptedContent: "synthetic-cipher", createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil,
+            isStreaming: false, embedRefs: nil)
+        fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [user], embeds: [])
+        await fixture.model.applyQueuedFollowupEvent(type: "queued_messages_snapshot", fields: ["chat_id": fixture.chat.id,
+            "messages": [["message_id": user.id, "queue_revision": 1, "queue_mode": "follow_up"]]])
+        XCTAssertEqual(fixture.model.queuedFollowups[user.id]?.revision, 1)
+        await fixture.model.applyQueuedFollowupEvent(type: "queued_message_started", fields: ["chat_id": fixture.chat.id, "message_id": user.id])
+        XCTAssertNil(fixture.model.queuedFollowups[user.id])
+        await fixture.model.applyQueuedFollowupEvent(type: "queued_message_status", fields: ["chat_id": fixture.chat.id,
+            "user_message_id": user.id, "queue_revision": 1, "queue_mode": "follow_up"])
+        XCTAssertNil(fixture.model.queuedFollowups[user.id], "Queued status replay cannot undo an exact processing receipt")
+        XCTAssertEqual(fixture.model.messages.first?.queueDispatchStatus, "processing")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision
+    func testContentFreeQueueSnapshotCannotRelabelOlderHistoryCiphertext() async throws {
+        let fixture = try terminalSyncFixture()
+        let user = Message(id: "queued-user", chatId: fixture.chat.id, role: .user, content: "Old synthetic revision",
+            encryptedContent: "synthetic-cipher-v1", createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil,
+            isStreaming: false, embedRefs: nil, queueRevision: 1, queueMode: "follow_up", queueDispatchStatus: "queued")
+        fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [user], embeds: [])
+        await fixture.model.applyQueuedFollowupEvent(type: "queued_messages_snapshot", fields: ["chat_id": fixture.chat.id,
+            "messages": [["message_id": user.id, "queue_revision": 3, "queue_mode": "steer"]]])
+        XCTAssertNil(fixture.model.queuedFollowups[user.id], "Unknown new content must be reconciled before editing is enabled")
+        XCTAssertEqual(fixture.model.messages.first?.queueRevision, 1)
+        XCTAssertEqual(fixture.model.messages.first?.encryptedContent, "synthetic-cipher-v1")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.access.scoped
+    func testQueueReducerRejectsOlderOrInconsistentProtectedEvents() async throws {
+        let fixture = try terminalSyncFixture()
+        let user = Message(id: "queued-user", chatId: fixture.chat.id, role: .user, content: "Current protected revision",
+            encryptedContent: "synthetic-cipher-v3", createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil,
+            isStreaming: false, embedRefs: nil, queueRevision: 3, queueMode: "follow_up", queueDispatchStatus: "queued")
+        fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [user], embeds: [])
+        for (revision, cipher) in [(2, "synthetic-cipher-v2"), (3, "different-cipher-v3")] {
+            await fixture.model.applyQueuedFollowupEvent(type: "queued_message_updated", fields: ["chat_id": fixture.chat.id,
+                "message_id": user.id, "queue_revision": revision, "queue_mode": "follow_up", "encrypted_content": cipher])
+            XCTAssertEqual(fixture.model.queuedFollowups[user.id]?.revision, 3)
+            XCTAssertEqual(fixture.model.messages.first?.content, "Current protected revision")
+            XCTAssertEqual(fixture.model.messages.first?.encryptedContent, "synthetic-cipher-v3")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.message.identity-idempotent
+    func testSubChatProgressRetainsExactWireMessageIdentityWithoutInventedBatch() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let bytes = Data("{\"chat_id\":\"parent\",\"task_id\":\"task\",\"message_id\":\"answer\",\"status\":\"running\",\"active_sub_chat_id\":\"child\"}".utf8)
+        let progress = try decoder.decode(SubChatProgress.self, from: bytes)
+        XCTAssertEqual(progress.messageId, "answer")
+        XCTAssertEqual(progress.taskId, "task")
+        XCTAssertEqual(progress.activeSubChatId, "child")
+        let missing = try decoder.decode(SubChatProgress.self, from: Data("{\"chat_id\":\"parent\",\"task_id\":\"task\"}".utf8))
+        XCTAssertNil(missing.messageId, "Task identity is never invented as a missing wire message ID")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.message.identity-idempotent
+    func testBatchTransportSeamPreservesDocumentedTaskAliasForMarkerMatching() throws {
+        let fixture = try terminalSyncFixture()
+        let answer = Message(id: "canonical-answer", chatId: fixture.chat.id, role: .assistant,
+            content: "Synthetic batch response", encryptedContent: nil, createdAt: "2026-10-19T00:00:00Z",
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [answer], embeds: [])
+        fixture.model.subChatProgress = SubChatProgress(chatId: fixture.chat.id, taskId: "task", executionMode: "parallel",
+            status: "running", total: 1, completed: 0, activeSubChatId: "child", messageId: "task")
+        XCTAssertEqual(fixture.model.subChatProgress(for: answer.id)?.messageId, "task")
+        XCTAssertNil(fixture.model.subChatProgress(for: "unknown-answer"))
+        fixture.model.subChatProgress?.messageId = "foreign-answer"
+        XCTAssertNil(fixture.model.subChatProgress(for: answer.id))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
+    func testLiveMemoryReceiptUsesExistingEncryptedSystemMessageAdmission() throws {
+        let chatID = "9f12fcf8-65aa-4db1-af7e-67222095d621"
+        var event: [String: Any] = ["type": "memories_loaded", "chat_id": chatID,
+            "event_id": "b870e2b7-53f3-4168-a9f7-a1c3da0b5da5", "created_at": 1_800_000_000,
+            "count": 1, "set_key": String(repeating: "a", count: 64), "user_message_id": "user", "assistant_message_id": "answer",
+            "memories": [["id": "app:code:guide", "title": "Guide", "source": "app", "app_id": "code",
+                "revision": String(repeating: "b", count: 64), "body": "Synthetic guide"]]]
+        let accepted = try XCTUnwrap(AppliedChatContextReceipt.parse(["chat_id": chatID, "event": event]))
+        guard case .memoriesLoaded(let receipt)? = AgentContextEvent.parse(accepted.content) else {
+            return XCTFail("Valid live Memory must follow the existing encrypted receipt path")
+        }
+        XCTAssertEqual(receipt.assistantMessageId, "answer")
+        event["count"] = 2
+        XCTAssertNil(AppliedChatContextReceipt.parse(["chat_id": chatID, "event": event]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
+    func testReplayPreservesConfirmedMateAndModelThroughLaterPreprocessing() async {
+        let client = StreamingClient()
+        await client.dispatch(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"), for: "chat")
+        await client.dispatch(.preprocessingStep(chatId: "chat", step: "mate_selected",
+            data: ["mate_category": "science", "mate_name": "Scientist"]), for: "chat")
+        await client.dispatch(.preprocessingStep(chatId: "chat", step: "model_selected",
+            data: ["model_name": "Synthetic model"]), for: "chat")
+        let subscription = await client.streamForChat("chat")
+        await client.removeStream("chat")
+        var state = ChatStreamingLifecycleState()
+        for await event in subscription { state.apply(event) }
+        XCTAssertEqual(state.transientResponse?.mateCategory, "science")
+        XCTAssertEqual(state.transientResponse?.modelName, "Synthetic model")
+        XCTAssertTrue(state.isActive)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.ordered-final,chats.completion.pending-delivery
+    func testReplayOfInterimFinalRetainsTurnActivityWithMaterializedRow() async {
+        let client = StreamingClient()
+        await client.dispatch(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"), for: "chat")
+        await client.dispatch(.typingStarted(chatId: "chat", messageId: "answer", metadata: nil), for: "chat")
+        await client.dispatch(.messageFinality(chatId: "chat", messageId: "answer", taskId: "task", continuesTurn: true), for: "chat")
+        await client.dispatch(.chunk(chatId: "chat", messageId: "answer", sequence: 1, content: "Interim", isFinal: true,
+            userMessageId: "user", category: nil, modelName: nil, rejectionReason: nil), for: "chat")
+        let subscription = await client.streamForChat("chat", excludingMaterializedFinalMessageIDs: ["answer"])
+        await client.removeStream("chat")
+        var state = ChatStreamingLifecycleState()
+        for await event in subscription { state.apply(event) }
+        XCTAssertTrue(state.awaitsAsyncSkillContinuation)
+        XCTAssertTrue(state.isActive)
+        XCTAssertEqual(state.messageId, "answer")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.identity-idempotent,chats.streaming.progressive-presentation
+    func testQueuedFollowerNoticePreservesActiveSourceTurn() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "active-task", userMessageId: "active-user"))
+        state.apply(.messageQueued(chatId: "chat", taskId: "active-task", userMessageId: "queued-user", message: nil))
+        XCTAssertEqual(state.userMessageId, "active-user")
+        XCTAssertTrue(state.apply(.chunk(chatId: "chat", messageId: "answer", sequence: 1, content: "Partial", isFinal: false,
+            userMessageId: "active-user", category: nil, modelName: nil, rejectionReason: nil)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.local-state.precedence
+    func testMemoryReceiptsKeepExactResponseAndRevisionAssociation() throws {
+        func receipt(_ assistant: String?, user: String?, body: String = "Synthetic guide") throws -> String {
+            var fields: [String: Any] = ["type": "memories_loaded", "set_key": String(repeating: "a", count: 64), "count": 1,
+                "memories": [["id": "app:code:guide", "title": "Guide", "source": "app", "app_id": "code",
+                    "revision": String(repeating: "b", count: 64), "body": body]]]
+            fields["assistant_message_id"] = assistant; fields["user_message_id"] = user
+            return String(decoding: try JSONSerialization.data(withJSONObject: fields), as: UTF8.self)
+        }
+        func row(_ id: String, _ role: MessageRole, _ content: String?, chat: String = "chat", user: String? = nil) -> Message {
+            Message(id: id, chatId: chat, role: role, content: content, encryptedContent: nil,
+                createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil,
+                userMessageId: user)
+        }
+        let rows = [row("user", .user, "Request"), row("receipt", .system, try receipt("answer", user: "user")),
+            row("answer", .assistant, "Answer", user: "user"), row("duplicate", .system, try receipt("answer", user: "user")),
+            row("wrong", .system, try receipt("answer", user: "other-user")),
+            row("other-chat", .system, try receipt("answer", user: "user"), chat: "different-chat")]
+        let association = ChatMemoryAssociations.resolve(rows, pending: nil)
+        XCTAssertEqual(association.byAssistantID["answer"]?.map(\.title), ["Guide"])
+        XCTAssertEqual(association.attachedReceiptIDs, ["receipt", "duplicate"])
+        XCTAssertNil(ChatLoadedMemoryReceipt.parse(try receipt("answer", user: "user", body: String(repeating: "x", count: 20_001))))
+        let pending = ChatTransientAssistantResponse(id: "pending", chatId: "chat", userMessageId: "user", mateCategory: "science", mateName: nil)
+        let pendingRows = [row("user", .user, "Request"), row("pending-receipt", .system, try receipt(nil, user: "user"))]
+        XCTAssertEqual(ChatMemoryAssociations.resolve(pendingRows, pending: pending).byAssistantID["pending"]?.count, 1)
+        // Legacy source-less receipt must not leap across the next user boundary.
+        let legacy = [row("old", .user, "Old"), row("legacy", .system, try receipt(nil, user: nil)),
+            row("new", .user, "New"), row("new-answer", .assistant, "New answer")]
+        XCTAssertTrue(ChatMemoryAssociations.resolve(legacy, pending: pending).attachedReceiptIDs.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.message.identity-idempotent
+    func testConfirmedMateCreatesTransientIntentWithoutDurableEmptyRow() throws {
+        let fixture = try terminalSyncFixture()
+        let model = fixture.model
+        model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
+        XCTAssertNil(model.transientAssistantResponse)
+        model.handleStreamEvent(.preprocessingStep(chatId: fixture.chat.id, step: "mate_selected",
+            data: ["mate_category": "software_development", "mate_name": "Developer"]))
+        XCTAssertEqual(model.transientAssistantResponse?.id, "task")
+        XCTAssertEqual(model.transientAssistantResponse?.mateCategory, "software_development")
+        XCTAssertTrue(model.messages.isEmpty, "Thinking is a response presentation, never an empty durable Message")
+        model.handleStreamEvent(.typingStarted(chatId: fixture.chat.id, messageId: "answer", metadata: nil))
+        XCTAssertEqual(model.transientAssistantResponse?.id, "answer")
+        model.handleStreamEvent(.chunk(chatId: fixture.chat.id, messageId: "answer", sequence: 1,
+            content: "Authored text", isFinal: false, userMessageId: "user", category: nil, modelName: nil, rejectionReason: nil))
+        XCTAssertNil(model.transientAssistantResponse)
+        XCTAssertEqual(model.messages.map(\.id), ["answer"])
+        XCTAssertTrue(model.responseActive(for: "answer"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.streaming.progressive-presentation
+    func testInterimSkillFinalCannotFinishTurnViaTypingOrSavedHistory() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        state.apply(.typingStarted(chatId: "chat", messageId: "answer", metadata: nil))
+        XCTAssertTrue(state.apply(.messageFinality(chatId: "chat", messageId: "answer", taskId: "task", continuesTurn: true)))
+        state.apply(.chunk(chatId: "chat", messageId: "answer", sequence: 1, content: "Interim",
+            isFinal: true, userMessageId: "user", category: nil, modelName: nil, rejectionReason: nil))
+        XCTAssertTrue(state.isActive)
+        XCTAssertFalse(state.apply(.typingEnded(chatId: "chat", messageId: "answer")))
+        XCTAssertFalse(state.apply(.messageReady(chatId: "chat", messageId: "answer")))
+        XCTAssertFalse(state.completeFromAuthoritativeSync(messageId: "answer"))
+        XCTAssertNil(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [terminalRow(id: "answer", chatID: "chat")],
+            lifecycle: state, chatID: "chat", pendingMessageIDs: []))
+        state.apply(.taskInitiated(chatId: "chat", taskId: "continuation", userMessageId: "user"))
+        state.apply(.messageFinality(chatId: "chat", messageId: "final-answer", taskId: "continuation", continuesTurn: false))
+        state.apply(.chunk(chatId: "chat", messageId: "final-answer", sequence: 1, content: "Done",
+            isFinal: true, userMessageId: "user", category: nil, modelName: nil, rejectionReason: nil))
+        XCTAssertFalse(state.isActive)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.local-state.precedence
+    func testLateMetadataAndThinkingNeverReviveTerminalOrRegressNewTurn() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
+        state.apply(.chunk(chatId: "chat", messageId: "answer", sequence: 1, content: "Done", isFinal: true,
+            userMessageId: "user", category: nil, modelName: nil, rejectionReason: nil))
+        XCTAssertFalse(state.apply(.preprocessingStep(chatId: "chat", step: "mate_selected", data: ["mate_category": "science"])))
+        XCTAssertFalse(state.apply(.thinkingChunk(chatId: "chat", messageId: "answer", content: "Late")))
+        XCTAssertFalse(state.apply(.typingStarted(chatId: "chat", messageId: "answer", metadata: nil)))
+        state.apply(.postProcessingCompleted(chatId: "chat", taskId: "task", followUpSuggestions: [], newChatSuggestions: [],
+            chatSummary: nil, chatTags: [], updatedTitle: nil, sourceTitleVersion: nil, sourceMetadataVersion: nil))
+        XCTAssertFalse(state.isActive)
+        state.apply(.taskInitiated(chatId: "chat", taskId: "new-task", userMessageId: "new-user"))
+        XCTAssertFalse(state.apply(.messageFinality(chatId: "chat", messageId: "stale", taskId: "task", continuesTurn: false)))
+        XCTAssertFalse(state.apply(.chunk(chatId: "chat", messageId: "stale", sequence: 9, content: "Old", isFinal: true,
+            userMessageId: nil, category: nil, modelName: nil, rejectionReason: nil)))
+        XCTAssertTrue(state.isActive)
+        XCTAssertEqual(state.taskId, "new-task")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.completion.pending-delivery
+    func testInterruptionAndRejectionOverrideAsyncContinuationExactly() {
+        XCTAssertTrue(ChatStreamFinalityPolicy.continuesTurn(["awaiting_async_skill_continuation": true]))
+        let cases: [[String: Any]] = [["awaiting_async_skill_continuation": true, "interrupted_by_revocation": true],
+            ["awaiting_async_skill_continuation": true, "interrupted_by_soft_limit": true],
+            ["awaiting_async_skill_continuation": true, "rejection_reason": "denied"], [:]]
+        for fields in cases {
+            XCTAssertFalse(ChatStreamFinalityPolicy.continuesTurn(fields))
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.message.identity-idempotent,chats.persistence.client-encrypted
     func testNotificationCatchUpReadsCachedPartialAndKeepsExactSavedCanonicalRow() async throws {
         var reads = 0
@@ -112,6 +351,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertTrue(state.completeFromAuthoritativeSync(messageId: saved.id))
         XCTAssertFalse(state.isActive)
 
+        state.reset() // A separate request fixture must establish fresh task authority.
         state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
         state.apply(.typingStarted(chatId: "chat", messageId: "assistant-new", metadata: nil))
         XCTAssertNil(ChatStreamingSyncCompletionPolicy.matchingMessage(in: [saved], lifecycle: state,
@@ -201,14 +441,14 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.completion.pending-delivery,chats.surface.semantic-parity
-    func testPostprocessingCompletionClearsProcessingAndMessageReadyMatchesTaskBeforeTyping() throws {
+    func testOptionalPostprocessingKeepsProcessingAndMessageReadyMatchesTaskBeforeTyping() throws {
         let fixture = try terminalSyncFixture()
         fixture.model.handleStreamEvent(.taskInitiated(chatId: fixture.chat.id, taskId: "task", userMessageId: "user"))
         fixture.model.handleStreamEvent(.postProcessingCompleted(chatId: fixture.chat.id, taskId: "task",
             followUpSuggestions: [], newChatSuggestions: [], chatSummary: nil, chatTags: [], updatedTitle: nil,
             sourceTitleVersion: nil, sourceMetadataVersion: nil))
-        XCTAssertFalse(fixture.model.isStreaming)
-        XCTAssertFalse(fixture.model.streamingLifecycle.isActive)
+        XCTAssertTrue(fixture.model.isStreaming)
+        XCTAssertTrue(fixture.model.streamingLifecycle.isActive)
         var state = ChatStreamingLifecycleState()
         state.apply(.taskInitiated(chatId: "chat", taskId: "task", userMessageId: "user"))
         XCTAssertFalse(state.apply(.messageReady(chatId: "chat", messageId: "older-task")))

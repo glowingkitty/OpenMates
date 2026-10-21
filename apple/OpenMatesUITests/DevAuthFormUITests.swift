@@ -94,7 +94,16 @@ import UIKit
 
     // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
     func testWideLoginAndSignupKeepCenteredFormBetweenVisibleAppGrids() {
-        let app = launch("login", "wide-header", landscape: true)
+        assertWideLoginAndSignupAppGrids(theme: "light")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
+    func testDarkWideEntryKeepsWhiteGlyphsAndTranslucentAppColors() {
+        assertWideLoginAndSignupAppGrids(theme: "dark")
+    }
+
+    private func assertWideLoginAndSignupAppGrids(theme: String) {
+        let app = launch("login", "wide-header", landscape: true, theme: theme)
         defer {
             XCUIDevice.shared.orientation = .portrait
             Self.waitForWindowOrientation(landscape: false, app: app)
@@ -116,9 +125,9 @@ import UIKit
             // Retain the visible state even when a following pixel assertion fails.
             attachScreenshot(name)
             assertVisibleAppTiles(in: CGRect(x: viewport.frame.minX, y: viewport.frame.minY,
-                width: header.frame.minX - viewport.frame.minX, height: viewport.frame.height), app: app)
+                width: header.frame.minX - viewport.frame.minX, height: viewport.frame.height), app: app, dark: theme == "dark")
             assertVisibleAppTiles(in: CGRect(x: header.frame.maxX, y: viewport.frame.minY,
-                width: viewport.frame.maxX - header.frame.maxX, height: viewport.frame.height), app: app)
+                width: viewport.frame.maxX - header.frame.maxX, height: viewport.frame.height), app: app, dark: theme == "dark")
         }
         XCTAssertTrue(app.staticTexts["login-heading"].exists)
         assertWideLayout("Wide login centered form and visible white app icons on both sides")
@@ -365,11 +374,11 @@ import UIKit
         XCTAssertTrue(element.isHittable)
         element.tap()
     }
-    private func launch(_ component: String, _ variant: String, landscape: Bool = false) -> XCUIApplication {
+    private func launch(_ component: String, _ variant: String, landscape: Bool = false, theme: String = "light") -> XCUIApplication {
         XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", component, "--dev-preview-variant", variant,
-            "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+            "--dev-preview-theme", theme, "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         Self.waitForWindowOrientation(landscape: landscape, app: app)
         return app
@@ -395,9 +404,9 @@ import UIKit
         XCTAssertEqual(result, .completed,
                        "Selecting signup must update its tab and replace the login form with signup benefits")
     }
-    private func assertVisibleAppTiles(in region: CGRect, app: XCUIApplication,
+    private func assertVisibleAppTiles(in region: CGRect, app: XCUIApplication, dark: Bool = false,
                                        file: StaticString = #filePath, line: UInt = #line) {
-        // Accepted treatment: app gradients at0.2 over light grey20, while
+        // Accepted treatment: app gradients at0.2 over themed grey20, while
         // glyphs remain fully white. Measure actual blended pixels and reject
         // opaque backgrounds or a global opacity wash that also fades glyphs.
         let window = app.windows.firstMatch.frame
@@ -440,12 +449,13 @@ import UIKit
             return true
         }
         XCTAssertTrue(rendered, file: file, line: line)
-        // Web/generated tokens: grey20 light=0.953 (~243/255). These six
+        // Canonical grey20 is243 in light mode and33 in dark mode. These six
         // palettes cover both side grids and the mobile rows without locating
         // individual tiles: web, nutrition, language, finance, code and mail.
+        let background = dark ? 33.0 : 243.0
         let palettes: [(Int, Int)] = [(0xDE1E66, 0xFF763B), (0xFD8450, 0xF42C2D),
             (0x4989F2, 0x2F44BF), (0x0A6E04, 0x2CB81E),
-            (0x155D91, 0x42ABF4), (0xA82E1C, 0xEF6A58)]
+            (dark ? 0x1B8FE3 : 0x155D91, 0x42ABF4), (0xA82E1C, 0xEF6A58)]
         let expectedBlends: [[Int]] = palettes.flatMap { start, end in
             (0...8).map { step in
                 let fraction = Double(step) / 8
@@ -453,7 +463,7 @@ import UIKit
                     let first = Double((start >> shift) & 255)
                     let last = Double((end >> shift) & 255)
                     let gradient = first + (last - first) * fraction
-                    return Int((243 * 0.8 + gradient * 0.2).rounded())
+                    return Int((background * 0.8 + gradient * 0.2).rounded())
                 }
             }
         }
@@ -463,7 +473,7 @@ import UIKit
         for offset in stride(from: 0, to: pixels.count, by: 4) {
             let red = Int(pixels[offset]), green = Int(pixels[offset + 1]), blue = Int(pixels[offset + 2])
             let range = max(red, max(green, blue)) - min(red, min(green, blue))
-            if range >= 12 && min(red, min(green, blue)) >= 190 && expectedBlends.contains(where: {
+            if range >= 12 && expectedBlends.contains(where: {
                 abs(red - $0[0]) <= 4 && abs(green - $0[1]) <= 4 && abs(blue - $0[2]) <= 4
             }) { blended += 1 }
             // At0.2, an RGB gradient over a neutral background has range<=51.
@@ -473,7 +483,7 @@ import UIKit
             if min(red, min(green, blue)) >= 250 { white += 1 }
         }
         XCTAssertGreaterThan(CGFloat(blended) / (scale * scale), 60,
-            "App backgrounds must match their0.2 gradient blend over grey20", file: file, line: line)
+            "App backgrounds must match their0.2 gradient blend over themed grey20", file: file, line: line)
         XCTAssertLessThan(CGFloat(opaqueColored) / (scale * scale), 1,
             "App backgrounds must remain translucent", file: file, line: line)
         XCTAssertGreaterThan(CGFloat(white) / (scale * scale), 8,

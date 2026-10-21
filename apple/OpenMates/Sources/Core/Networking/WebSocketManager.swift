@@ -1,3 +1,11 @@
+// Specification: specifications/features/chat-queued-followups/specification.yml
+// Assertions: chat-queued-followups.access.scoped, chat-queued-followups.editing.stable-revision
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.privacy-context, message-input.send.ownership
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.usage.landing-complete, billing.access.authenticated-first-party
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.personalized-priority
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.message.confirmed-haptic
 // WebSocket connection manager for real-time sync with the backend.
@@ -43,6 +51,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var reconnectTask: Task<Void, Never>?
     private var reconnectAttempts = 0
     private var connectionGeneration = 0
+    private var personalPrivacyCapabilityGeneration: Int?
+    private var personalPrivacyPrepareStarted = false
     let messageHapticGate = NativeMessageHapticGate()
     var messageHapticScope: String {
         let team = TeamWorkspaceContext.shared.snapshot
@@ -183,6 +193,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         reconnectTask = nil
         rejectAllWaiters()
         connectionGeneration += 1
+        NativePersonalPrivacyRuntime.shared.transportDidChange(socket: self)
         isPhasedSyncActive = false
         phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
@@ -319,6 +330,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         metadataRecoveryCoordinator?.reset()
         rejectAllWaiters()
         connectionGeneration += 1
+        NativePersonalPrivacyRuntime.shared.transportDidChange(socket: self)
         isPhasedSyncActive = false
         phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
@@ -358,6 +370,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             throw WebSocketError.encodingFailed
         }
         try await webSocketTask.send(.string(json))
+    }
+
+    func send(_ message: WSOutboundMessage, beforeSend: @MainActor () throws -> Void) async throws {
+        try beforeSend()
+        try await send(message)
     }
 
     func recoveryLifecycleChanged(isForeground: Bool) {
@@ -428,6 +445,32 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         embedStreamCoordinator = coordinator
     }
 
+
+    /// Reuses the socket's single encryption/journal owner. The root has already
+    /// validated broker IDs and overrides chat/message routing from its binding.
+    /// True means confirmed finalized persistence, false means a verified volatile
+    /// processing card. Deferred persistence is thrown, never reported as success.
+    func handleVoiceArtifact(_ fields: [String: Any],
+                             validate: @escaping @MainActor () throws -> Void = {}) async throws -> Bool {
+        try validate()
+        guard let embedStreamCoordinator else { throw NativeVoiceCallError.persistenceFailed }
+        let durable = try await embedStreamCoordinator.handleVoiceArtifact(fields, validate: validate)
+        try validate()
+        return durable
+    }
+
+    /// False means content was requested but has not materialized as ciphertext.
+    /// Reference parsing/issued-response identity remains the call root's job.
+    func requestVoiceArtifactReference(embedID: String, chatID: String,
+                                       validate: @escaping @MainActor () throws -> Void = {}) async throws -> Bool {
+        try validate()
+        guard let embedStreamCoordinator else { throw NativeVoiceCallError.persistenceFailed }
+        let stored = try await embedStreamCoordinator.requestVoiceArtifactReference(
+            embedID: embedID, chatID: chatID, validate: validate)
+        try validate()
+        return stored
+    }
+
     func waitForMessage(
         _ type: String,
         timeout: Duration = .seconds(20),
@@ -485,6 +528,59 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
             try await boundSocket.send(.string(json))
         }
+    }
+
+    /// Existing revision transport; local UI changes only after the exact
+    /// server receipt. An immutable package can be retried without reciphering.
+    func reviseQueuedMessage(_ request: ChatQueuedRevisionRequest,
+                             validateAuthority: @escaping @MainActor () throws -> Void) async throws -> Int {
+        let response = try await reviseQueuedMessageWithReceipt(request, validateAuthority: validateAuthority)
+        guard let type = response.type else { throw ChatQueuedRevisionError.invalidReceipt }
+        return try request.validateReceipt(response.fields, type: type)
+    }
+    func reviseQueuedMessageWithReceipt(_ request: ChatQueuedRevisionRequest,
+                             validateAuthority: @escaping @MainActor () throws -> Void,
+                             afterReceipt: (@MainActor () throws -> Void)? = nil) async throws -> WebSocketResponse {
+        let response = try await sendAndWait(WSOutboundMessage(type: "revise_queued_message", payload: request.payload()),
+            responseTypes: ["queued_message_updated", "queued_message_revision_rejected"],
+            matching: { fields in
+                fields["chat_id"] as? String == request.chatID && fields["message_id"] as? String == request.messageID
+                    && fields["client_request_id"] as? String == request.clientRequestID
+            }, preSendValidation: validateAuthority)
+        try (afterReceipt ?? validateAuthority)()
+        guard let type = response.type else { throw ChatQueuedRevisionError.invalidReceipt }
+        _ = try request.validateReceipt(response.fields, type: type)
+        return response
+    }
+
+    func personalPrivacySnapshotForSend(turnID: String, knownGeneration: String?) async throws -> [String: Any]? {
+        guard personalPrivacyCapabilityGeneration == connectionGeneration else { return nil }
+        let requestID = UUID().uuidString
+        var payload: [String: Any] = ["request_id": requestID, "purpose": "send", "turn_id": turnID]
+        if let knownGeneration { payload["known_generation"] = knownGeneration }
+        let result = try await sendAndWait(WSOutboundMessage(type: "personal_send_context_snapshot", payload: payload),
+            responseType: "personal_send_context_snapshot_result", timeout: .seconds(10),
+            matching: { $0["request_id"] as? String == requestID })
+        guard result.fields["success"] as? Bool == true else { throw NativePersonalPrivacyError.invalidSnapshot }
+        return result.fields
+    }
+
+    /// Focus preparation carries no draft text, user message, model selection,
+    /// inference or billing. The current v2 capability must be advertised by
+    /// this exact socket. These bytes remain encrypted and RAM-only.
+    func preparePersonalPrivacyContext() async throws -> [String: Any]? {
+        guard personalPrivacyCapabilityGeneration == connectionGeneration,
+              !personalPrivacyPrepareStarted else { return nil }
+        personalPrivacyPrepareStarted = true
+        let requestID = UUID().uuidString
+        let response = try await sendAndWait(WSOutboundMessage(type: "personal_send_context_snapshot", payload: [
+            "request_id": requestID, "purpose": "prepare", "turn_id": NSNull()
+        ]), responseType: "personal_send_context_snapshot_result", timeout: .seconds(10),
+            matching: { $0["request_id"] as? String == requestID })
+        guard response.fields["success"] as? Bool == true,
+              response.fields["unchanged"] as? Bool == false,
+              response.fields["personal_memories"] is [String: Any] else { throw WebSocketError.encodingFailed }
+        return response.fields
     }
 
     /// Registration, send, timeout and caller cancellation share one lifetime.
@@ -735,6 +831,22 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             rejectWaiters(with: msg.fields)
         }
         messageHapticGate.consume(type: msg.type, fields: msg.fields, scope: messageHapticScope)
+        if msg.type == "chat_message_confirmed" {
+            let markerGeneration = OfflineStore.shared.scopeGeneration
+            let markerProfile = ServerProfile.current()
+            let markerTeamEpoch = TeamWorkspaceContext.shared.contextEpoch
+            let markerTransport = connectionGeneration
+            Task { @MainActor [weak self] in
+                guard let ownerID = await AuthManager.currentUserId(), let self,
+                      self.connectionGeneration == markerTransport,
+                      OfflineStore.shared.scopeGeneration == markerGeneration,
+                      ServerProfile.current() == markerProfile,
+                      TeamWorkspaceContext.shared.contextEpoch == markerTeamEpoch else { return }
+                let fence = UserTasksAccountFence(accountID: ownerID)
+                try? await BillingUsageDraftAudioRegistry.shared.consumeAcceptedMessage(
+                    type: msg.type, fields: msg.fields, fence: fence)
+            }
+        }
         resolveWaiters(type: msg.type, payload: msg.fields)
         if ["chat_model_preference", "chat_model_preference_updated", "chat_model_preference_synced"].contains(msg.type) {
             modelPreferenceInbound?(msg.type, msg.fields, connectionGeneration)
@@ -758,6 +870,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
         switch msg.type {
+        case "server_capabilities":
+            let capabilities = msg.stringArrayField("capabilities") ?? []
+            if capabilities.contains("personal_send_context_snapshot_v2"), personalPrivacyCapabilityGeneration != connectionGeneration {
+                personalPrivacyCapabilityGeneration = connectionGeneration
+                personalPrivacyPrepareStarted = false
+            }
         // Keepalive
         case "pong":
             break
@@ -807,7 +925,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             let category = msg.stringField("category")
             let modelName = msg.stringField("model_name")
             let rejectionReason = msg.stringField("rejection_reason")
-            recoveryCoordinator?.handleTerminalStream(msg.fields)
+            if !ChatStreamFinalityPolicy.continuesTurn(msg.fields) { recoveryCoordinator?.handleTerminalStream(msg.fields) }
+            if isFinal {
+                streamEventDispatcher.enqueue(.messageFinality(chatId: chatId, messageId: messageId,
+                    taskId: msg.stringField("task_id"), continuesTurn: ChatStreamFinalityPolicy.continuesTurn(msg.fields)), for: chatId)
+            }
             streamEventDispatcher.enqueue(
                 .chunk(
                     chatId: chatId,
@@ -891,6 +1013,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
 
         case "message_queued":
+            NotificationCenter.default.post(name: .wsMessageReceived, object: nil,
+                userInfo: ["type": msg.type, "raw": raw, "accountScope": OfflineStore.shared.scopeGeneration,
+                           "transportGeneration": connectionGeneration])
             let chatId = msg.stringField("chat_id") ?? ""
             streamEventDispatcher.enqueue(
                 .messageQueued(
@@ -950,8 +1075,15 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
               "chat_context_applied", "project_authoring_available",
               "spawn_sub_chats", "sub_chat_confirmation_required",
               "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped", "sub_chat_completed",
+              "queued_message_status", "queued_message_updated", "queued_message_started", "queued_message_steered",
+              "queued_message_steer_deferred", "queued_handoff_paused", "queued_messages_snapshot",
               "ai_background_response_completed":
-            recoveryCoordinator?.handleTerminalStream(msg.fields)
+            if msg.type == "ai_background_response_completed",
+               let chatID = msg.stringField("chat_id"), let messageID = msg.stringField("message_id") {
+                streamEventDispatcher.enqueue(.messageFinality(chatId: chatID, messageId: messageID,
+                    taskId: msg.stringField("task_id"), continuesTurn: ChatStreamFinalityPolicy.continuesTurn(msg.fields)), for: chatID)
+            }
+            if !ChatStreamFinalityPolicy.continuesTurn(msg.fields) { recoveryCoordinator?.handleTerminalStream(msg.fields) }
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw, "decoded": WebSocketResponse(fields: msg.fields, type: msg.type),
@@ -960,7 +1092,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
 
         // Sync phases
-        case "initial_sync_response", "initial_sync_error",
+        case "daily_inspiration", "initial_sync_response", "initial_sync_error",
              "phase_1_last_chat_ready", "phase_1b_chat_content_ready",
              "phase_2_last_20_chats_ready", "phase_3_last_100_chats_ready",
              "background_message_sync", "cache_primed", "cache_status_response",
@@ -1224,6 +1356,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         connectTask = nil
         rejectAllWaiters()
         connectionGeneration += 1
+        NativePersonalPrivacyRuntime.shared.transportDidChange(socket: self)
         isPhasedSyncActive = false
         phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
@@ -1538,6 +1671,8 @@ final class ChatEmbedStreamCoordinator {
     private var generation = UUID()
     private var requestedEmbedIdsByChat: [String: Set<String>] = [:]
     private var processedPayloadKeys = Set<String>()
+    // Owner fence retained with deferred call artifacts until actual commitment.
+    private var voiceArtifactValidators: [String: @MainActor () throws -> Void] = [:]
     private var inFlightPayloadKeys = Set<String>()
     private var pendingRetries: [String: PendingRetry] = [:]
     private var retryTasks: [String: Task<Void, Never>] = [:]
@@ -1615,6 +1750,7 @@ final class ChatEmbedStreamCoordinator {
         transportPaused = false
         requestedEmbedIdsByChat.removeAll()
         processedPayloadKeys.removeAll()
+        voiceArtifactValidators.removeAll()
         inFlightPayloadKeys.removeAll()
     }
 
@@ -1645,6 +1781,70 @@ final class ChatEmbedStreamCoordinator {
             expectedGeneration: expectedGeneration,
             expectedScope: expectedScope
         )
+    }
+
+    /// Unlike handleEmbedData, this admitted call entrypoint exposes whether
+    /// persistence actually completed. The ordinary sync method deliberately
+    /// swallows errors into its retry journal, so merely awaiting it is insufficient.
+    /// The validator must fence the owner; an admitted artifact may outlive speech.
+    func handleVoiceArtifact(_ fields: [String: Any],
+                             validate: @escaping @MainActor () throws -> Void = {}) async throws -> Bool {
+        try validate()
+        let expectedGeneration = generation, expectedScope = accountScopeGeneration()
+        guard let chatID = fields["chat_id"] as? String, chatStore.chat(for: chatID) != nil,
+              let embedID = fields["embed_id"] as? String, !embedID.isEmpty,
+              let messageID = fields["message_id"] as? String, !messageID.isEmpty,
+              fields["content"] is String, fields["type"] is String,
+              let rawStatus = fields["status"] as? String,
+              let status = EmbedStatus(rawValue: rawStatus),
+              status == .processing || status == .finished,
+              fields["already_encrypted"] as? Bool != true
+        else { throw NativeVoiceCallError.invalidResponse }
+        let deletionVersion = chatDeletionVersion(chatID)
+        let version = fields["version_number"] as? Int
+        let payloadKey = version.map { "\(embedID):v\($0)" } ?? embedID
+        if status == .finished { voiceArtifactValidators[payloadKey] = validate }
+        await handleEmbedData(fields)
+        try validate()
+        guard isCurrent(expectedGeneration, expectedScope),
+              chatDeletionVersion(chatID) == deletionVersion,
+              latestPayloadByEmbed[embedID] == payloadKey,
+              let stored = chatStore.embeds(for: chatID).first(where: { $0.id == embedID })
+        else { throw NativeVoiceCallError.scopeChanged }
+        if status == .processing {
+            // Processing is volatile by design, not a durable final artifact.
+            guard stored.status == .processing, stored.versionNumber == version,
+                  stored.rawData != nil, stored.encryptedContent == nil
+            else { throw NativeVoiceCallError.persistenceFailed }
+            return false
+        }
+        guard processedPayloadKeys.contains(payloadKey), stored.status == .finished,
+              stored.versionNumber == version,
+              stored.encryptedContent?.isEmpty == false,
+              stored.encryptedType?.isEmpty == false,
+              stored.hashedMessageId == Self.sha256Hex(messageID)
+        else { throw NativeVoiceCallError.persistenceFailed }
+        return true
+    }
+
+    /// Requests content through the existing sync request deduplicator and only
+    /// recognizes an actual encrypted record for this exact chat. It does not
+    /// wait/poll or turn a queued request into success.
+    func requestVoiceArtifactReference(embedID: String, chatID: String,
+                                       validate: @escaping @MainActor () throws -> Void = {}) async throws -> Bool {
+        try validate()
+        guard !embedID.isEmpty, chatStore.chat(for: chatID) != nil else { throw NativeVoiceCallError.invalidResponse }
+        let expectedGeneration = generation, expectedScope = accountScopeGeneration()
+        let deletionVersion = chatDeletionVersion(chatID)
+        await requestEmbeds([embedID], chatId: chatID, expectedGeneration: expectedGeneration, expectedScope: expectedScope)
+        try validate()
+        guard isCurrent(expectedGeneration, expectedScope), chatDeletionVersion(chatID) == deletionVersion else {
+            throw NativeVoiceCallError.scopeChanged
+        }
+        return chatStore.embeds(for: chatID).contains {
+            $0.id == embedID && $0.status == .finished && $0.encryptedContent?.isEmpty == false &&
+                $0.encryptedType?.isEmpty == false && $0.hashedChatId == Self.sha256Hex(chatID)
+        }
     }
 
     func handleEmbedData(_ fields: [String: Any]) async {
@@ -1732,6 +1932,7 @@ final class ChatEmbedStreamCoordinator {
             ownerRetryTasks[payloadKey]?.cancel()
             ownerRetryTasks[payloadKey] = nil
             processedPayloadKeys.insert(payloadKey)
+            voiceArtifactValidators.removeValue(forKey: payloadKey)
             NativeDiagnostics.event("live_embed_persisted", category: "chat_stream", counts: ["children": childIds.count])
         } catch {
             let ownerFields = pendingOwnerPayloads[payloadKey]?.fields ?? fields
@@ -2147,6 +2348,9 @@ final class ChatEmbedStreamCoordinator {
     }
 
     private func validatePrepared(_ prepared: PreparedEmbedWrite) throws {
+        // The same synchronous owner check runs at every canonical send fence,
+        // including retries. Ending speech alone must not invalidate this owner.
+        try voiceArtifactValidators[prepared.payloadKey]?()
         guard isCurrent(prepared.generation, prepared.scope),
               latestPayloadByEmbed[prepared.embedId] == prepared.payloadKey,
               chatDeletionVersion(prepared.chatId) == prepared.deletionVersion,
@@ -2269,6 +2473,7 @@ final class ChatEmbedStreamCoordinator {
                 pendingOwnerPayloads.removeValue(forKey: payloadKey)
                 ownerRetryTasks.removeValue(forKey: payloadKey)?.cancel()
                 processedPayloadKeys.insert(payloadKey)
+                voiceArtifactValidators.removeValue(forKey: payloadKey)
             } else if pendingOwnerPayloads[payloadKey] == nil {
                 // Encryption context was unavailable. Re-requesting is not a
                 // save receipt: keep pending state until actual persistence.

@@ -46,3 +46,8 @@ required_verification:
   - Watch signed-out startup, public example opening, Login ordering and authenticated session preservation.
   - Anonymous admission enabled, disabled and exhausted; test budget restored afterward.
   - Offline send and relaunch/reconnect replay on each Apple platform, stable identities, ordered delivery and no cross-account/server/team replay.
+
+approval_prompt_waiver:
+  source: Explicit user instruction in the existing Apple task on 2026-10-14.
+  instruction: Stop asking for Specification approval for the already requested Apple work.
+  handling: Continue the authorized scope with durable contracts and verification; do not fabricate approval of new exact fingerprints or repeat approval questions.

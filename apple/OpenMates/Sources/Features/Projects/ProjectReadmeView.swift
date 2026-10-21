@@ -10,7 +10,7 @@
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.access.explicit-context, projects.surface.semantic-parity
 // Specification: specifications/features/apple-offline-workspaces/specification.yml
-// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.maintenance
 import SwiftUI
 import ImageIO
 #if os(iOS)
@@ -266,9 +266,13 @@ enum ProjectReadmeDocument {
 
 struct ProjectReadmeView: View {
     let markdown: String
+    let identity: ProjectReadmePresentationIdentity
+    let viewport: CGRect
+    let validate: () async throws -> Void
     let loadImage: (String) async throws -> Data
     @State private var parts: [ProjectReadmePart] = []
     @State private var allowedImageSources: Set<String> = []
+    @State private var imageLoads = ProjectReadmeImageLoadQueue()
     @State private var inlineContents: [String: [ProjectReadmeInlinePart]] = [:]
 
     var body: some View {
@@ -281,22 +285,30 @@ struct ProjectReadmeView: View {
             }
         }
         .font(.omP).foregroundStyle(Color.fontPrimary)
+        .environment(\.projectReadmeViewport, viewport)
         .textSelection(.enabled)
-        .task(id: markdown) {
-            parts = ProjectReadmeDocument.parse(markdown)
-            var sources: [String] = []
+        .task(id: identity) {
+            allowedImageSources = []
+            parts = []
+            inlineContents = [:]
+            let parsedParts = ProjectReadmeDocument.parse(markdown)
+            var sources: Set<String> = []
             var parsedInline: [String: [ProjectReadmeInlinePart]] = [:]
-            for part in parts {
+            for part in parsedParts {
+                guard !Task.isCancelled else { return }
+                await Task.yield()
                 for text in ProjectReadmeDocument.textContents(part) where parsedInline[text] == nil {
                     let content = ProjectReadmeDocument.inlineParts(text)
                     parsedInline[text] = content
                     for inline in content {
-                        if case .image(let image) = inline, !sources.contains(image.source) { sources.append(image.source) }
+                        if case .image(let image) = inline { sources.insert(image.source) }
                     }
                 }
             }
+            guard !Task.isCancelled else { return }
+            parts = parsedParts
             inlineContents = parsedInline
-            allowedImageSources = Set(sources.prefix(8))
+            allowedImageSources = sources
         }
     }
 
@@ -339,7 +351,9 @@ struct ProjectReadmeView: View {
                         }
                     }
                 }
-            }.accessibilityIdentifier("project-readme-table-\(index)")
+            }
+            .modifier(ProjectReadmeViewportClip())
+            .accessibilityIdentifier("project-readme-table-\(index)")
         default: EmptyView()
         }
     }
@@ -350,7 +364,9 @@ struct ProjectReadmeView: View {
                 switch part {
                 case .text(let attributed): Text(attributed)
                 case .image(let image):
-                    ProjectReadmeImageView(image: image, permitsLoad: allowedImageSources.contains(image.source), load: loadImage)
+                    ProjectReadmeImageView(image: image, identity: identity,
+                        permitsLoad: allowedImageSources.contains(image.source), queue: imageLoads,
+                        validate: validate, load: loadImage)
                 }
             }
         }
@@ -370,11 +386,127 @@ struct ProjectReadmeView: View {
     }
 }
 
+/// Lazy image views share one foreground read at a time. Cancellation removes a
+/// queued view before it can fetch; changing Project/account still uses store fences.
+@MainActor
+final class ProjectReadmeImageLoadQueue {
+    private var loading = false
+    private var waiters: [(UUID, CheckedContinuation<Void, Error>)] = []
+
+    func load(_ source: String, operation: (String) async throws -> Data) async throws -> Data {
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            if loading {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    waiters.append((id, continuation))
+                }
+            } else {
+                loading = true
+            }
+        } onCancel: {
+            Task { @MainActor in self.cancel(id) }
+        }
+        defer { release() }
+        try Task.checkCancellation()
+        await Task.yield()
+        try Task.checkCancellation()
+        return try await operation(source)
+    }
+
+    private func cancel(_ id: UUID) {
+        guard let index = waiters.firstIndex(where: { $0.0 == id }) else { return }
+        waiters.remove(at: index).1.resume(throwing: CancellationError())
+    }
+
+    private func release() {
+        if waiters.isEmpty { loading = false }
+        else { waiters.removeFirst().1.resume() }
+    }
+}
+
+/// A mounted paragraph/list/table may contain many eager image rows. Residency
+/// follows actual clipped viewport intersection, independently of view mounting.
+enum ProjectReadmeImageResidency {
+    static func clipped(_ viewport: CGRect, to bounds: CGRect) -> CGRect {
+        guard valid(viewport), valid(bounds) else { return .zero }
+        let intersection = viewport.intersection(bounds)
+        return valid(intersection) ? intersection : .zero
+    }
+
+    static func isVisible(frame: CGRect, viewport: CGRect) -> Bool {
+        valid(clipped(viewport, to: frame))
+    }
+
+    private static func valid(_ rect: CGRect) -> Bool {
+        !rect.isNull && !rect.isInfinite && rect.minX.isFinite && rect.minY.isFinite &&
+            rect.width.isFinite && rect.height.isFinite && rect.width > 0 && rect.height > 0
+    }
+}
+
+private struct ProjectReadmeViewportKey: EnvironmentKey {
+    static let defaultValue = CGRect.zero
+}
+
+private extension EnvironmentValues {
+    var projectReadmeViewport: CGRect {
+        get { self[ProjectReadmeViewportKey.self] }
+        set { self[ProjectReadmeViewportKey.self] = newValue }
+    }
+}
+
+/// Horizontal table clipping narrows the inherited vertical scroll viewport.
+/// The production Grid and selection behavior remain intact.
+private struct ProjectReadmeViewportClip: ViewModifier {
+    @Environment(\.projectReadmeViewport) private var inheritedViewport
+    @State private var bounds = CGRect.zero
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.projectReadmeViewport, ProjectReadmeImageResidency.clipped(inheritedViewport, to: bounds))
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { bounds = $0 }
+    }
+}
+
+/// Debug-only residency evidence belongs to the existing production renderer.
+/// Values contain counts/booleans, never private image sources or image bytes.
+private struct ProjectReadmeImageEvidence: ViewModifier {
+    let resident: Bool
+    let visible: Bool
+    let loads: Int
+
+    @ViewBuilder func body(content: Content) -> some View {
+        #if DEBUG
+        content.accessibilityElement(children: .contain)
+            .accessibilityIdentifier("project-readme-image-state")
+            .accessibilityValue("resident=\(resident);viewport=\(visible);loads=\(loads)")
+        #else
+        content
+        #endif
+    }
+}
+
+private struct ProjectReadmeImageTaskIdentity: Hashable {
+    let presentation: ProjectReadmePresentationIdentity
+    let source: String
+    let permitsLoad: Bool
+    let isVisible: Bool
+}
+
 private struct ProjectReadmeImageView: View {
     let image: ProjectReadmeImage
+    let identity: ProjectReadmePresentationIdentity
     let permitsLoad: Bool
+    let queue: ProjectReadmeImageLoadQueue
+    let validate: () async throws -> Void
     let load: (String) async throws -> Data
+    @Environment(\.projectReadmeViewport) private var viewport
+    @State private var isVisible = false
+    @State private var loadCount = 0
     @State private var decoded: Image?
+    @State private var decodedSource: String?
+    @State private var decodedIdentity: ProjectReadmePresentationIdentity?
+    @State private var decodedAspectRatio: CGFloat?
     @Environment(\.openURL) private var openURL
     var body: some View {
         Group {
@@ -383,19 +515,48 @@ private struct ProjectReadmeImageView: View {
             } else { imageContent }
         }
         .frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .modifier(ProjectReadmeImageEvidence(resident: decoded != nil, visible: isVisible, loads: loadCount))
         .accessibilityLabel(image.alt)
-        .task(id: "\(permitsLoad):\(image.source)") {
+        .onGeometryChange(for: Bool.self) {
+            ProjectReadmeImageResidency.isVisible(frame: $0.frame(in: .global), viewport: viewport)
+        } action: { visible in
+            isVisible = visible
+            if !visible { decoded = nil }
+        }
+        .onDisappear { isVisible = false; decoded = nil }
+        .task(id: ProjectReadmeImageTaskIdentity(presentation: identity, source: image.source,
+            permitsLoad: permitsLoad, isVisible: isVisible)) {
             decoded = nil
-            guard permitsLoad else { return }
-            let result = try? await load(image.source)
-            guard !Task.isCancelled else { return }
-            decoded = result.flatMap(decode)
+            if decodedSource != image.source || decodedIdentity != identity {
+                decodedSource = image.source
+                decodedIdentity = identity
+                decodedAspectRatio = nil
+            }
+            guard permitsLoad, isVisible else { return }
+            let result = try? await queue.load(image.source) { source in
+                // A row can scroll away while queued behind another image.
+                guard isVisible else { throw CancellationError() }
+                try Task.checkCancellation()
+                loadCount += 1
+                return try await load(source)
+            }
+            guard isVisible, !Task.isCancelled else { return }
+            if let rendered = result.flatMap(decode) {
+                // Account/team/key/document authority can change while loading or
+                // decoding. Recheck after decoding before publishing private pixels.
+                guard (try? await validate()) != nil, isVisible, !Task.isCancelled else { return }
+                decoded = rendered.image
+                decodedAspectRatio = rendered.aspectRatio
+            }
         }
     }
     private var imageContent: some View {
         Group {
             if let decoded {
                 decoded.resizable().scaledToFit().accessibilityIdentifier("project-readme-image-rendered")
+            } else if let decodedAspectRatio {
+                // Release offscreen pixels without collapsing the document's rows.
+                Color.clear.aspectRatio(decodedAspectRatio, contentMode: .fit).overlay { placeholder }
             } else { placeholder }
         }
     }
@@ -406,7 +567,7 @@ private struct ProjectReadmeImageView: View {
         }.font(.omSmall).foregroundStyle(Color.fontSecondary)
             .padding(.spacing4).background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
     }
-    private func decode(_ data: Data) -> Image? {
+    private func decode(_ data: Data) -> (image: Image, aspectRatio: CGFloat)? {
         guard data.count <= 2 * 1024 * 1024,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -414,6 +575,6 @@ private struct ProjectReadmeImageView: View {
                 kCGImageSourceThumbnailMaxPixelSize: 1920,
                 kCGImageSourceCreateThumbnailWithTransform: true,
               ] as CFDictionary) else { return nil }
-        return Image(decorative: thumbnail, scale: 1)
+        return (Image(decorative: thumbnail, scale: 1), CGFloat(thumbnail.width) / CGFloat(thumbnail.height))
     }
 }

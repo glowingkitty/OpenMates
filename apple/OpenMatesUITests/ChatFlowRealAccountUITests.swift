@@ -1018,7 +1018,54 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
     func testAppleCoreParityProof() throws {
-        let credentials = try RealAccountTestCredentials.fromReservedSlot(14)
+        try runAppleCoreParityProof(credentials: .fromReservedSlot(14))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity,chats.streaming.progressive-presentation
+    func testPersonalDevSendToAuthoritativeMateWithin1500Milliseconds() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-send-mate-timing", "--ui-test-welcome-send-stage"]
+        )
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
+        // Measures the real production Send action and server-selected identity;
+        // the helper retains the strict, unrounded <=1500ms assertion.
+        let mateTiming = try RealAccountUITestSupport.awaitSelectedMateTiming(app: app)
+        XCTAssertLessThanOrEqual(mateTiming.frameOpportunityMilliseconds, 1500)
+        let window = app.windows.firstMatch.frame
+        let transient = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "assistant-response-transient")
+        let saved = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        let identity = app.descendants(matching: .any).matching(identifier: "message-sender-name")
+            .allElementsBoundByIndex.first { element in
+                guard element.exists, element.isHittable, !element.frame.isEmpty,
+                      window.intersects(element.frame), let value = element.value as? String else { return false }
+                return value.split(separator: ";").contains { $0 == "attempt=\(mateTiming.attempt)" }
+            }
+        XCTAssertNotNil(identity, "The same Send attempt's authoritative Mate identity must remain visibly attached")
+        XCTAssertTrue([transient, saved].contains { $0.exists && !$0.frame.isEmpty && window.intersects($0.frame) },
+                      "The identity must belong to a visible transient response or its saved handoff")
+        XCTAssertFalse(RealAccountUITestSupport.accessibilityElement(in: app, identifier: "streaming-banner").exists,
+                       "The retired page processing banner must stay absent")
+        attachScreenshot(name: "Personal Send authoritative Mate identity after frame opportunity")
+        // Automatic XCTest recording supplies the visible-frame evidence. This
+        // numeric signal alone does not establish that a pixel was painted.
+        let timingAttachment = XCTAttachment(string: "attempt=\(mateTiming.attempt);mateEventReceivedMs=\(mateTiming.eventReceivedMilliseconds);mateReducerAppliedMs=\(mateTiming.reducerAppliedMilliseconds);selectedMateFrameOpportunityMs=\(mateTiming.frameOpportunityMilliseconds);signal=display-link-opportunity-not-confirmed-paint")
+        timingAttachment.name = "personal-send-to-authoritative-mate-timing"
+        timingAttachment.lifetime = .keepAlways
+        add(timingAttachment)
+        XCTAssertTrue(saved.waitForExistence(timeout: assistantResponseTimeout), "The actual assistant response must appear")
+        let completed = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "assistant-response-feedback")
+        XCTAssertTrue(completed.waitForExistence(timeout: assistantResponseTimeout), "The actual assistant response must complete")
+        XCTAssertGreaterThan(saved.label.count, 8)
+        XCTAssertFalse(saved.label.contains("app_skill_use"), "The assistant response must not expose protocol metadata")
+        XCTAssertFalse(RealAccountUITestSupport.accessibilityElement(in: app, identifier: "streaming-banner").exists)
+        attachScreenshot(name: "Personal Send completed assistant response")
+    }
+
+    private func runAppleCoreParityProof(credentials: RealAccountTestCredentials) throws {
         let proofDeviceProfile = try String(contentsOfFile: "/tmp/openmates-proof-device-profile", encoding: .utf8)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         switch proofDeviceProfile {
@@ -1043,20 +1090,26 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp(
             disableAuthCache: true,
-            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"]
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-send-mate-timing"]
         )
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         let loginReadyMs = Int(Date().timeIntervalSince(started) * 1000)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
-        let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
-        let streamingBanner = RealAccountUITestSupport.accessibilityElement(
-            in: app,
-            identifier: "streaming-banner"
-        )
-        XCTAssertTrue(streamingBanner.waitForExistence(timeout: 30), "Expected visible processing state")
-        let processingVisibleMs = Int(Date().timeIntervalSince(started) * 1000)
+        let mateTiming = try RealAccountUITestSupport.awaitSelectedMateTiming(app: app)
+        let messageSentMs = Int(mateTiming.actionAt.timeIntervalSince(started) * 1000)
+        let processingVisibleMs = messageSentMs + Int(mateTiming.frameOpportunityMilliseconds.rounded(.up))
+        let transient = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "assistant-response-transient")
+        let saved = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(transient.exists || saved.exists, "Authoritative Mate belongs to a transient response or its saved handoff")
+        XCTAssertFalse(RealAccountUITestSupport.accessibilityElement(in: app, identifier: "streaming-banner").exists,
+            "The retired page processing banner must stay absent")
+        attachScreenshot(name: "Server-authoritative selected Mate observed after frame opportunity")
+        let timingAttachment = XCTAttachment(string: "attempt=\(mateTiming.attempt);mateEventReceivedMs=\(mateTiming.eventReceivedMilliseconds);mateReducerAppliedMs=\(mateTiming.reducerAppliedMilliseconds);selectedMateFrameOpportunityMs=\(mateTiming.frameOpportunityMilliseconds);signal=display-link-opportunity-not-confirmed-paint")
+        timingAttachment.name = "send-to-authoritative-mate-timing"
+        timingAttachment.lifetime = .keepAlways
+        add(timingAttachment)
         let responseProgress = RealAccountUITestSupport.awaitProgressiveAssistantResponseForProof(
             app: app,
             timeout: assistantResponseTimeout
@@ -1190,6 +1243,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let timeline: [String: Any] = [
             "schema_version": 1,
             "device": profile,
+            "timing_signal": "Selected-Mate attached layout plus display-link frame opportunity; confirm visible presentation in the recording.",
             "contract": [
                 "id": "apple-core-parity",
                 "title": "Apple core chat parity",
@@ -1197,13 +1251,13 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "devices": [profile],
                 "transcript": [
                     ["id": "shell", "text": "The authenticated native chat shell is ready for the conversation.", "checkpoint": "message-sent", "devices": [profile]],
-                    ["id": "processing", "text": "A side rainbow marks active processing while the composer remains integrated with the chat background.", "checkpoint": "processing-visible", "devices": [profile]],
-                    ["id": "first-chunk", "text": "The left-aligned assistant card appears as the first response chunk arrives.", "checkpoint": "first-chunk-visible", "devices": [profile]],
+                    ["id": "processing", "text": "The server-selected Mate appears in the response identity with a compact thinking indicator and a glow along the response bottom.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "first-chunk", "text": "The selected-Mate transient identity hands off to the same left-aligned assistant response when content arrives.", "checkpoint": "first-chunk-visible", "devices": [profile]],
                     ["id": "chat", "text": "The same assistant card grows chunk by chunk into the completed four-sentence response.", "checkpoint": "response-visible", "devices": [profile]],
                 ],
                 "assertions": [
                     ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "message-sent", "devices": [profile]],
-                    ["id": "chat.processing_rainbow", "visual": "The processing rainbow stays on the outer chat sides and does not overlay the thinking or message content.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "chat.response_bottom_glow", "visual": "The active response bottom glows beneath the transient or saved assistant response; activity details remain compact and expandable.", "checkpoint": "processing-visible", "devices": [profile]],
                     ["id": "chat.composer_shell", "visual": "No opaque white strip appears behind the processing status or compact composer.", "checkpoint": "processing-visible", "devices": [profile]],
                     ["id": "chat.progressive_response", "visual": "The assistant response is visibly shorter at first-chunk-visible than at response-visible.", "checkpoint": "first-chunk-visible", "devices": [profile]],
                     ["id": "chat.response", "visual": "The completed assistant response is left-aligned, uses the available transcript width, and appears once.", "checkpoint": "response-visible", "devices": [profile]],
@@ -1211,7 +1265,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             ],
             "events": [
                 ["kind": "checkpoint", "id": "login-ready", "at_ms": loginReadyMs],
-                ["kind": "action", "id": "send-message", "start_ms": loginReadyMs, "end_ms": messageSentMs],
+                ["kind": "action", "id": "send-message", "start_ms": messageSentMs, "end_ms": messageSentMs],
                 ["kind": "checkpoint", "id": "message-sent", "at_ms": messageSentMs],
                 ["kind": "checkpoint", "id": "processing-visible", "at_ms": processingVisibleMs],
                 ["kind": "checkpoint", "id": "first-chunk-visible", "at_ms": firstChunkVisibleMs],
@@ -1220,7 +1274,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             ],
             "assertion_results": [
                 ["id": "auth.ready", "status": "passed", "at_ms": messageSentMs],
-                ["id": "chat.processing_rainbow", "status": "passed", "at_ms": processingVisibleMs],
+                ["id": "chat.response_bottom_glow", "status": "passed", "at_ms": processingVisibleMs],
                 ["id": "chat.composer_shell", "status": "passed", "at_ms": processingVisibleMs],
                 ["id": "chat.progressive_response", "status": "passed", "at_ms": firstChunkVisibleMs],
                 ["id": "chat.response", "status": "passed", "at_ms": responseVisibleMs],

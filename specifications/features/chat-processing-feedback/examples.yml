@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chat-processing-feedback@4
+specification: feature.chat-processing-feedback@5
 selection:
 - id: accepted-turn-before-model-resolution
   given: Alice’s message is sending and the server accepts its processing.
@@ -72,3 +72,14 @@ responsive:
   when: She focuses the Mate name or activates a group disclosure with the keyboard.
   then: The correct action opens, disclosure state is accessible, all content fits and updates do not steal composer
     focus.
+october_apple_feedback:
+- id: apple-selected-mate-and-finality
+  assertion_ids: [chat-processing-feedback.selection-after-acceptance, chat-processing-feedback.turn-lifecycle]
+  given: A saved Apple turn is accepted and stage one selects its Mate while detailed preparation continues.
+  when: The response later pauses for an asynchronous skill continuation and finally completes its required encrypted persistence.
+  then: One current-Mate Thinking response appears without an empty durable row; continuation retains its live response, terminal processing ends, and delayed optional metadata cannot revive it.
+- id: apple-activity-disclosure-and-bottom-glow
+  assertion_ids: [chat-processing-feedback.completed-processing-summary, chat-processing-feedback.response-container-glow, chat-processing-feedback.accessible-responsive]
+  given: An Apple response has completed thinking and app work before an authored paragraph and a later active activity group.
+  when: The user expands the completed summary and resizes the workspace or enables reduced motion.
+  then: Completed details expand at their source position with truthful labels and reachable actions; only authoritative active work has the bottom internal glow, which is static with reduced motion.

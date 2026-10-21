@@ -1,9 +1,15 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
 // Native profile-image selection, square crop, resize, and safety-checked upload.
 // Raw images remain on-device; only a 340x340 JPEG is sent to the upload API,
 // matching SettingsProfilePicture.svelte's data handling and UI states.
 
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.isolation
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/account/SettingsProfilePicture.svelte
+//          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+// Service: frontend/packages/ui/src/services/profileImageService.ts
 // CSS:     frontend/packages/ui/src/styles/settings.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -70,11 +76,14 @@ struct SettingsProfilePictureView: View {
     }
 
     private func loadAndUpload(_ item: PhotosPickerItem?) {
-        guard let item else { return }
+        guard let item, let ownerID = authManager.currentUser?.id else { return }
+        let requestFence = UserTasksAccountFence(accountID: ownerID)
+        let deletionCleanup = AccountDeletionCleanup(fence: requestFence)
         isUploading = true
         statusMessage = nil
         errorMessage = nil
         Task {
+            defer { isUploading = false; selectedItem = nil }
             do {
                 guard let rawData = try await item.loadTransferable(type: Data.self) else {
                     throw AccountSecurityError.missingAccountData
@@ -83,7 +92,11 @@ struct SettingsProfilePictureView: View {
                     throw ProfileImageError.fileTooLarge
                 }
                 let jpeg = try Self.squareJPEG(from: rawData)
-                let response = try await AccountSecurityService.shared.uploadProfileImage(jpeg)
+                try await requestFence.check()
+                let response = try await AccountSecurityService.shared.uploadProfileImage(jpeg,
+                    serverProfile: requestFence.serverProfile, expectedAccountID: requestFence.accountID,
+                    expectedScope: requestFence.scope, expectedTeamContext: requestFence.requestTeamContext)
+                try await requestFence.check()
                 switch response.status {
                 case "ok":
                     previewData = jpeg
@@ -91,6 +104,7 @@ struct SettingsProfilePictureView: View {
                 case "rejected":
                     throw ProfileImageError.rejected
                 case "account_deleted":
+                    guard deletionCleanup.eraseConfirmed(currentAccountID: authManager.currentUser?.id) else { return }
                     await authManager.logout()
                     throw ProfileImageError.accountDeleted
                 default:
@@ -100,8 +114,6 @@ struct SettingsProfilePictureView: View {
                 errorMessage = error.localizedDescription
                 NativeDiagnostics.error("Profile image upload failed", category: "settings.account")
             }
-            isUploading = false
-            selectedItem = nil
         }
     }
 
@@ -170,4 +182,154 @@ private struct ProfileImageError: LocalizedError {
     @MainActor static var wrongFormat: Self { .init(errorDescription: AppStrings.photoWrongFormat) }
     @MainActor static var rejected: Self { .init(errorDescription: AppStrings.photoRejected) }
     @MainActor static var accountDeleted: Self { .init(errorDescription: AppStrings.accountDeleted) }
+}
+
+// Web: services/profileImageService.ts. The authenticated API decrypts the
+// private S3 image on the server; the client receives ordinary raster bytes.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.session.isolation
+struct SettingsProfileImageRequest: Equatable {
+    enum Source: Equatable {
+        case authenticated(String)
+        case legacy(URL)
+    }
+    let ownerID: String
+    let authority: AuthSessionRecoveryContext
+    let scope: UUID
+    let source: Source
+
+    init?(ownerID: String, rawURL: String?, authority: AuthSessionRecoveryContext, scope: UUID) {
+        guard ownerID == authority.accountID, !ownerID.isEmpty else { return nil }
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/?#%")
+        guard let escaped = ownerID.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        let path = "/v1/users/\(escaped)/profile-image"
+        let raw = rawURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let source: Source
+        if raw.isEmpty || raw == path {
+            source = .authenticated(path)
+        } else if let url = URL(string: raw), url.scheme?.lowercased() == "https",
+                  url.user == nil, url.password == nil, url.fragment == nil {
+            let base = authority.profile.apiBaseURL
+            if url.host?.lowercased() == base.host?.lowercased(), url.port == base.port,
+               url.scheme?.lowercased() == base.scheme?.lowercased() {
+                guard url.path == path, url.query == nil else { return nil }
+                source = .authenticated(path)
+            } else {
+                // A proxy URL on another origin must never be mistaken for a
+                // legacy public image, nor acquire another server's cookies.
+                guard !url.path.hasPrefix("/v1/users/") else { return nil }
+                source = .legacy(url)
+            }
+        } else { return nil }
+        self.ownerID = ownerID; self.authority = authority; self.scope = scope; self.source = source
+    }
+
+    func matches(authority currentAuthority: AuthSessionRecoveryContext?, scope currentScope: UUID) -> Bool {
+        authority == currentAuthority && scope == currentScope
+    }
+
+    @MainActor var isCurrent: Bool {
+        matches(authority: AuthManager.captureNetworkAuthority(), scope: OfflineStore.shared.scopeGeneration)
+    }
+}
+
+@MainActor
+final class SettingsProfileImageLoader: ObservableObject {
+    @Published private(set) var data: Data?
+    @Published private(set) var image: Image?
+    @Published private(set) var loadedRequest: SettingsProfileImageRequest?
+    private var generation = UUID()
+
+    // There is no global URL-only cache or negative cache. Every new mount can
+    // retry a failed fetch, including after auth validation or a profile upload.
+    func load(_ request: SettingsProfileImageRequest?,
+              isCurrent: @escaping @MainActor () -> Bool,
+              fetch: @escaping @MainActor (SettingsProfileImageRequest) async throws -> Data = SettingsProfileImageLoader.fetch) async {
+        let operation = UUID(); generation = operation
+        data = nil; image = nil; loadedRequest = nil
+        guard let request, isCurrent() else { return }
+        do {
+            let bytes = try await fetch(request)
+            guard generation == operation, !Task.isCancelled, isCurrent(), let decoded = Self.decodeImage(bytes) else { return }
+            loadedRequest = request; image = decoded; data = bytes
+        } catch {
+            guard generation == operation else { return }
+            data = nil; image = nil; loadedRequest = nil
+            // No URL, account identifier, error body or credentials in diagnostics.
+            if !Task.isCancelled && isCurrent() {
+                NativeDiagnostics.info("Profile image unavailable", category: "settings.account")
+            }
+        }
+    }
+
+    static func fetch(_ request: SettingsProfileImageRequest) async throws -> Data {
+        guard request.isCurrent else { throw CancellationError() }
+        let data: Data
+        switch request.source {
+        case .authenticated(let path):
+            data = try await APIClient.shared.request(.get, path: path, serverProfile: request.authority.profile,
+                expectedAccountID: request.ownerID, expectedScope: request.scope)
+        case .legacy(let url):
+            // Public legacy images never use the first-party credential jar.
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.httpCookieStorage = nil
+            configuration.urlCredentialStorage = nil
+            configuration.httpShouldSetCookies = false
+            let session = URLSession(configuration: configuration)
+            defer { session.invalidateAndCancel() }
+            var download = URLRequest(url: url); download.httpShouldHandleCookies = false
+            let (bytes, response) = try await session.data(for: download)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                throw APIError.invalidResponse
+            }
+            data = bytes
+        }
+        guard request.isCurrent else { throw CancellationError() }
+        return data
+    }
+
+    private static func decodeImage(_ data: Data) -> Image? {
+        #if os(iOS)
+        return UIImage(data: data).map { Image(uiImage: $0) }
+        #elseif os(macOS)
+        return NSImage(data: data).map { Image(nsImage: $0) }
+        #else
+        return nil
+        #endif
+    }
+}
+
+
+// The view compares the loaded identity before exposing bytes, so an account or
+// authority change hides the previous image immediately, before .task restarts.
+struct SettingsProfileAvatar<Fallback: View>: View {
+    let ownerID: String
+    let rawURL: String?
+    @ViewBuilder let fallback: () -> Fallback
+    @EnvironmentObject private var authManager: AuthManager
+    @StateObject private var loader = SettingsProfileImageLoader()
+
+    private var request: SettingsProfileImageRequest? {
+        guard let authority = authManager.networkAuthority else { return nil }
+        return SettingsProfileImageRequest(ownerID: ownerID, rawURL: rawURL,
+            authority: authority, scope: OfflineStore.shared.scopeGeneration)
+    }
+
+    var body: some View {
+        Group {
+            if let request, request.isCurrent, loader.loadedRequest == request,
+               let image = loader.image {
+                image.resizable().scaledToFill().accessibilityIdentifier("settings-profile-image-loaded")
+            } else {
+                fallback().accessibilityIdentifier("settings-profile-image-fallback")
+            }
+        }
+        .task(id: request) {
+            let captured = request
+            await loader.load(captured, isCurrent: { captured?.isCurrent == true })
+        }
+    }
+
+
 }

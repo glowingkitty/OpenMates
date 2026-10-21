@@ -230,3 +230,82 @@ offline_ai_models.ready:
   en: Downloaded
   de: Heruntergeladen
   verified_by_human: []
+
+recording_transcription.title:
+  context: Native recording automatic speech transcription settings title
+  en: Recording transcription
+  de: Aufnahmen transkribieren
+  verified_by_human: []
+recording_transcription.whistle:
+  context: Official bundled speech recognition model name
+  en: Whistle
+  de: Whistle
+  verified_by_human: []
+recording_transcription.included:
+  context: Model is part of the app, not a downloaded document
+  en: Included with this app
+  de: In dieser App enthalten
+  verified_by_human: []
+recording_transcription.unavailable:
+  context: Bundled model missing from this build; never implies a download action
+  en: Unavailable in this build
+  de: In dieser Version nicht verfügbar
+  verified_by_human: []
+recording_transcription.bundled_size:
+  context: Included speech model file size in app bundle
+  en: Included model size
+  de: Größe des enthaltenen Modells
+  verified_by_human: []
+recording_transcription.memory:
+  context: Honest model memory behavior after stopping inference
+  en: After first use, Whistle can remain in memory until the app closes. Turning transcription off stops further
+    processing.
+  de: Nach der ersten Verwendung kann Whistle bis zum Schließen der App im Arbeitsspeicher bleiben. Ausschalten
+    beendet die weitere Verarbeitung.
+  verified_by_human: []
+recording_transcription.blocked_by_call:
+  context: Recording admission denied because a voice call owns the microphone
+  en: Finish the voice call before recording.
+  de: Beende den Sprachanruf, bevor du eine Aufnahme startest.
+  verified_by_human: []
+recording_transcription.choice.automatic:
+  context: Preserve historical local Whisper if available, otherwise online transcription
+  en: Automatic (Whisper or online)
+  de: Automatisch (Whisper oder online)
+  verified_by_human: []
+recording_transcription.choice.whisper:
+  context: Explicit local Whisper only selection
+  en: Whisper on this device
+  de: Whisper auf diesem Gerät
+  verified_by_human: []
+recording_transcription.choice.whistle:
+  context: Explicit bundled local Whistle only selection
+  en: Whistle on this device
+  de: Whistle auf diesem Gerät
+  verified_by_human: []
+recording_transcription.choice.False:
+  context: Disable live transcription, retain audio recording attachment
+  en: 'Off'
+  de: Aus
+  verified_by_human: []
+recording_transcription.description.automatic:
+  context: Clearly disclose historical automatic fallback to online before capture
+  en: Uses downloaded Whisper when available. Otherwise uses online transcription.
+  de: Verwendet das heruntergeladene Whisper, wenn verfügbar. Andernfalls wird online transkribiert.
+  verified_by_human: []
+recording_transcription.description.whisper:
+  context: Explicit local route has no online fallback
+  en: Uses downloaded Whisper on this device. If unavailable, transcription fails locally.
+  de: Verwendet das heruntergeladene Whisper auf diesem Gerät. Ist es nicht verfügbar, schlägt die Transkription
+    lokal fehl.
+  verified_by_human: []
+recording_transcription.description.whistle:
+  context: Explicit bundled route needs no first-use download
+  en: Runs on this device using the model included with the app. No download is needed.
+  de: Läuft auf diesem Gerät mit dem in der App enthaltenen Modell. Kein Download erforderlich.
+  verified_by_human: []
+recording_transcription.description.False:
+  context: No realtime inference; normal audio attachment flow remains
+  en: No live transcription. You can still attach your audio recording.
+  de: Keine Live-Transkription. Du kannst die Audioaufnahme weiterhin anhängen.
+  verified_by_human: []

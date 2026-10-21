@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@6
+specification: feature.message-input@7
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -301,3 +301,25 @@ composer_ghost:
   given: Alice has a contextual ghost for chat A and begins typing, attaching a file, recording or editing a queued message.
   when: She dismisses it with Escape or opens chat B, and an old completion or synchronized suggestion arrives.
   then: Her own draft and current chat remain unchanged; no stale ghost appears. Reduced motion shows an eligible new ghost without a fade.
+october_apple_recording:
+  - id: explicit-local-off-and-automatic-selection
+    assertion_ids: [message-input.recording.lifecycle, message-input.privacy-context]
+    given: An Apple composer has a prior draft and supports Automatic, installed Whisper, included Whistle and Off transcription choices.
+    when: The user selects an unavailable explicit local engine, changes selection while a transcript is pending, or selects Off and finishes a recording.
+    then: Explicit local failure stays local, stale text never enters the draft, and Off preserves the waveform and audio attachment without a hidden transcription request; Automatic alone retains its disclosed existing online fallback.
+  - id: call-audio-prevents-composer-capture
+    assertion_ids: [message-input.recording.lifecycle]
+    given: A connecting or active call owns native audio while an unsent composer draft exists.
+    when: The user attempts any composer recording entry point.
+    then: Capture cannot start, the draft is preserved and no microphone-permission denial is invented for an audio-ownership rejection.
+october_apple_privacy:
+  - id: prepared-privacy-is-not-send-permission
+    assertion_ids: [message-input.privacy-context, message-input.send.ownership]
+    given: Focusing an Apple composer warmed a locally decrypted Personal snapshot before the user's privacy settings changed.
+    when: The user sends while a privacy write is pending, uncertain or contradicted by the fresh complete server snapshot.
+    then: The send waits for current persisted policy or fails visibly with the draft retained; warm cache alone cannot authorize admission and no private draft is sent for preparation.
+  - id: immutable-retry-and-owner-switch
+    assertion_ids: [message-input.privacy-context, message-input.send.ownership]
+    given: An immutable saved turn has an explicit current-turn privacy exclusion and transport reconnects before admission completes.
+    when: The exact turn retries within its original account and workspace, or account, key, server or Team ownership changes.
+    then: A valid retry keeps the same protected payload and deliberate exclusion only after a fresh scoped receipt; replacement ownership cannot consume the turn, draft or prepared privacy.

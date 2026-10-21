@@ -34,6 +34,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         }
         XCTAssertEqual(editor.value as? String, "", "Preserve any unrelated existing draft")
         guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        guard RealAccountUITestSupport.deferOptionalOfflineModelOffer(app: app, editor: editor) else { return }
         let responseMarker = "WATCH6DC7-\(UUID().uuidString.prefix(8)) completed"
         let prompt = "apple-watch-notification-6dc7: Reply with exactly \(responseMarker)."
         app.typeText(prompt)
@@ -102,6 +103,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         }
         XCTAssertEqual(editor.value as? String, "", "Preserve any unrelated existing draft")
         guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        guard RealAccountUITestSupport.deferOptionalOfflineModelOffer(app: app, editor: editor) else { return }
         app.typeText(prompt)
         XCTAssertEqual(editor.value as? String, prompt)
         let send = app.buttons["send-button"]
@@ -130,14 +132,9 @@ final class BackgroundChatNotificationUITests: XCTestCase {
     }
 
     private func openDeliveredNotification(_ notification: XCUIElement, on board: XCUIApplication) throws {
-        notification.press(forDuration: 1)
-        let expectedAction = RealAccountTestCredentials.configurationValue(for: "OPENMATES_NOTIFICATION_OPEN_CHAT_LABEL") ?? "Open chat"
-        XCTAssertNotEqual(expectedAction, "chat.open_chat", "The expected notification action must be translated")
-        let openChat = board.buttons[expectedAction]
-        XCTAssertTrue(openChat.waitForExistence(timeout: 5), "System notification did not expose the translated Open chat action")
-        XCTAssertFalse(board.buttons["chat.open_chat"].exists, "System notification exposed an untranslated action key")
-        attachScreenshot(named: "Actual DEV translated Open chat action")
-        openChat.tap()
+        // Opening uses the notification's ordinary default tap; expanded message
+        // notifications have the sole Send action and no second Open chat action.
+        notification.tap()
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
@@ -169,7 +166,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         springBoard().staticTexts[notificationTitle].tap()
         XCTAssertTrue(chatView(in: app, chatId: chatId).waitForExistence(timeout: notificationTimeout))
 
-        try attemptInlineReplyIfSupported(app: app, chatId: chatId)
+        try assertLegacyNotificationHasNoReplyEditor(app: app, chatId: chatId)
         attachScreenshot(named: "Simulator generic notification interaction")
     }
 
@@ -201,58 +198,85 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         XCTFail("Timed out waiting for simulator push injection")
     }
 
-    private func attemptInlineReplyIfSupported(app: XCUIApplication, chatId: String) throws {
-        let capability = RealAccountTestCredentials.configurationValue(for: "OPENMATES_SIMULATOR_INLINE_REPLY") ?? "auto"
-        guard capability != "unsupported" else { return }
-
-        // Reply to a different chat after process termination so routing and
-        // history loading cannot borrow the currently open transcript.
-        RealAccountUITestSupport.openNewChatIfNeeded(app: app)
+    private func assertLegacyNotificationHasNoReplyEditor(app: XCUIApplication, chatId: String) throws {
+        // The host helper injects a generic legacy payload with no authenticated
+        // context. It cannot prove an editor handoff. The real APNs test below
+        // exercises that path; injected legacy notifications must fail closed.
         app.terminate()
         try requestPush(scenario: "inline_reply", chatId: chatId)
         try assertGenericSpringBoardNotification()
-
-        let springboard = springBoard()
-        springboard.staticTexts[notificationTitle].press(forDuration: 1)
-        let replyButton = springboard.buttons.matching(
-            NSPredicate(format: "label IN %@", ["Click here to respond", "Click to respond", "Reply", "Respond"])
-        ).firstMatch
-        guard replyButton.waitForExistence(timeout: 3) else {
-            if capability == "supported" {
-                XCTFail("Simulator was declared inline-reply capable but did not expose Reply")
-            }
-            return
-        }
-        replyButton.tap()
-        let replyField = springboard.textFields.firstMatch
-        XCTAssertTrue(replyField.waitForExistence(timeout: 3))
-        let reply = "Which city did I mention? Reply with only the city name."
-        replyField.typeText(reply)
-        springboard.buttons["Send"].tap()
-        app.activate()
-        // Inline send does not switch the foreground workspace. Open the target
-        // through its notification to inspect the persisted result afterward.
+        let board = springBoard()
+        board.staticTexts[notificationTitle].press(forDuration: 1)
+        XCTAssertFalse(board.textViews["notification-reply-editor"].exists,
+                       "A legacy payload must not authorize the reply editor")
+        XCTAssertFalse(board.buttons["Reply"].exists)
+        XCTAssertFalse(board.buttons["Open chat"].exists)
+        attachScreenshot(named: "Legacy notification expansion has no reply editor")
         XCUIDevice.shared.press(.home)
-        try requestPush(scenario: "reply_result_tap", chatId: chatId)
-        try assertGenericSpringBoardNotification()
-        springboard.staticTexts[notificationTitle].tap()
-        XCTAssertTrue(
-            RealAccountUITestSupport.accessibilityElement(
-                in: app,
-                identifier: "message-user",
-                labelContaining: reply
-            ).waitForExistence(timeout: notificationTimeout)
-        )
-        XCTAssertTrue(chatView(in: app, chatId: chatId).waitForExistence(timeout: notificationTimeout),
-                      "Reply must be persisted in its target conversation")
-        let assistants = app.otherElements.matching(identifier: "message-assistant")
-        let answered = NSPredicate { _, _ in
-            assistants.count >= 2 && assistants.element(boundBy: assistants.count - 1).label.contains("Osaka")
+    }
+
+    // Real DEV inference and APNs only: no injected target, no capability-based
+    // silent pass, no Reply tap, and no synthetic text-input response.
+    // contract-test: direct surface=gui.apple assertions=apple-notifications.action.direct-reply,apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
+    func testLiveDevExpandedNotificationImmediatelyEditsAndSendsOnce() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(extraArguments: ["--ui-test-fresh-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.openNewChatIfNeeded(app: app)
+        guard let composer = RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 20) else {
+            XCTFail("Live DEV composer did not appear"); return
         }
-        expectation(for: answered, evaluatedWith: nil)
-        waitForExpectations(timeout: 90)
-        let streaming = app.descendants(matching: .any).matching(identifier: "chat-streaming-banner").firstMatch
-        XCTAssertTrue(streaming.waitForNonExistence(timeout: 90))
+        XCTAssertEqual(composer.value as? String, "", "Preserve unrelated drafts")
+        XCTAssertTrue(RealAccountUITestSupport.focusForTextEntry(composer, in: app, identifier: "message-editor"))
+        guard RealAccountUITestSupport.deferOptionalOfflineModelOffer(app: app, editor: composer) else { return }
+        let marker = "DIRECT-REPLY-\(UUID().uuidString.prefix(8))"
+        let prompt = "Remember Osaka as the city. Respond with exactly \(marker)."
+        app.typeText(prompt)
+        app.buttons["send-button"].tap()
+        XCUIDevice.shared.press(.home)
+        let board = springBoard()
+        let delivered = board.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", marker)).firstMatch
+        XCTAssertTrue(delivered.waitForExistence(timeout: 120), "Real encrypted APNs completion was not delivered")
+        app.terminate()
+        delivered.press(forDuration: 1)
+        let field = board.textViews["notification-reply-editor"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Expansion must immediately show the extension editor")
+        XCTAssertTrue(field.isHittable)
+        XCTAssertTrue(board.keyboards.firstMatch.waitForExistence(timeout: 5), "Expansion must immediately focus the keyboard")
+        let send = board.buttons["Send"]
+        XCTAssertTrue(send.waitForExistence(timeout: 3))
+        XCTAssertEqual(board.buttons.matching(NSPredicate(format: "label == %@", "Send")).count, 1)
+        for title in ["Reply", "Respond", "Click here to respond", "Click to respond", "Open chat"] {
+            XCTAssertFalse(board.buttons[title].exists, "Expanded notification must expose only Send")
+        }
+        XCTAssertNotEqual(app.state, .runningForeground, "Expansion must not open the app")
+        attachScreenshot(named: "Real APNs expansion immediately shows editor keyboard and sole Send")
+        let discardedDraft = "Discarded notification draft \(marker)"
+        field.typeText(discardedDraft)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertFalse(RealAccountUITestSupport.accessibilityElement(in: app,
+            identifier: "message-user", labelContaining: discardedDraft).exists,
+            "Expansion, typing and closing without Send must not submit")
+        XCUIDevice.shared.press(.home)
+        let retained = board.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", marker)).firstMatch
+        XCTAssertTrue(retained.waitForExistence(timeout: 5))
+        retained.press(forDuration: 1)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "", "Closing must not retain an unsubmitted extension draft")
+        let reply = "Which city did I ask you to remember? Reply with only the city name."
+        field.typeText(reply)
+        send.tap()
+        app.activate()
+        XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(in: app, identifier: "message-user",
+            labelContaining: reply).waitForExistence(timeout: 30), "Explicit Send must persist in the exact target chat")
+        let rows = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "message-user", reply))
+        XCTAssertEqual(rows.count, 1, "The submitted notification reply must appear once")
+        XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(in: app, identifier: "message-assistant",
+            labelContaining: "Osaka").waitForExistence(timeout: 90), "Notification reply must load the target history")
+        attachScreenshot(named: "Real APNs reply persisted once through ordinary chat history")
     }
 
     private func assertGenericSpringBoardNotification() throws {

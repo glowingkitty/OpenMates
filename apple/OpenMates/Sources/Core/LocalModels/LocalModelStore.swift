@@ -4,6 +4,8 @@
 // Assertions: apple-local-model-lab.optional-downloads
 // Specification: specifications/features/apple-live-activities/specification.yml
 // Assertions: apple-live-activities.download.progress, apple-live-activities.download.completion
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.privacy-context
 import Combine
 import CryptoKit
 import Foundation
@@ -493,6 +495,13 @@ final class LocalModelStore: ObservableObject {
         #endif
     }()
     let models: [LocalModelManifest]
+    let bundledWhistle: BundledSpeechModelDescriptor
+    @Published private(set) var recordingTranscriptionPreference: RecordingTranscriptionPreference
+    @Published private(set) var changingRecordingTranscriptionPreference = false
+    private(set) var recordingTranscriptionGeneration = UUID()
+    private var recordingTranscriptionOwners: [UUID: @MainActor () async -> Void] = [:]
+    private var recordingTranscriptionDrain: Task<Void, Never>?
+    private static let recordingTranscriptionPreferenceKey = "openmates.recording-transcription.preference"
     @Published private(set) var states: [LocalModelID: LocalModelInstallState] = [:]
     @Published private(set) var catalogError: String?
     @Published private(set) var progressByModel: [LocalModelID: LocalModelInstallProgress] = [:]
@@ -522,10 +531,15 @@ final class LocalModelStore: ObservableObject {
          storageReserveBytes: Int64 = LocalModelStoragePolicy.reserveBytes, downloader: any LocalModelFileDownloading = LocalModelHTTPDownloader(),
          verifyExisting: Bool = true, recoverBackgroundDownloads: Bool = false,
          preferences: UserDefaults? = nil,
+         bundledWhistle: BundledSpeechModelDescriptor = .appBundle(),
          activityEvents: @escaping @MainActor (LocalModelDownloadActivityEvent) -> Void = { _ in },
          beforeVerification: @escaping @Sendable () async throws -> Void = {}) {
         self.storageReserveBytes = storageReserveBytes
         self.preferences = preferences
+        self.bundledWhistle = bundledWhistle
+        // Absence keeps the historical local-Whisper-if-ready / disclosed-online route.
+        self.recordingTranscriptionPreference = preferences?.string(forKey: Self.recordingTranscriptionPreferenceKey)
+            .flatMap(RecordingTranscriptionPreference.init(rawValue:)) ?? .automatic
         self.recoverBackgroundDownloads = recoverBackgroundDownloads
         self.activityEvents = activityEvents
         self.beforeVerification = beforeVerification
@@ -567,6 +581,82 @@ final class LocalModelStore: ObservableObject {
         }
         #endif
     }
+    private var recordingWhisperReady: Bool {
+        #if arch(arm64) && !os(watchOS)
+        return canUseCapability(.whisper)
+        #else
+        return false
+        #endif
+    }
+
+    var recordingTranscriptionRoute: RecordingTranscriptionRoute {
+        RecordingTranscriptionRoute.resolve(preference: recordingTranscriptionPreference,
+            whisperReady: recordingWhisperReady, whistleIncluded: bundledWhistle.isIncluded,
+            changing: changingRecordingTranscriptionPreference)
+    }
+
+    func setRecordingTranscriptionPreference(_ preference: RecordingTranscriptionPreference) async {
+        guard recordingTranscriptionPreference != preference || recordingTranscriptionDrain != nil else { return }
+        recordingTranscriptionPreference = preference
+        preferences?.set(preference.rawValue, forKey: Self.recordingTranscriptionPreferenceKey)
+        recordingTranscriptionGeneration = UUID()
+        if let recordingTranscriptionDrain { await recordingTranscriptionDrain.value; return }
+        changingRecordingTranscriptionPreference = true
+        let owners = Array(recordingTranscriptionOwners.values)
+        let drain = Task { for end in owners { await end() } }
+        recordingTranscriptionDrain = drain
+        await drain.value
+        recordingTranscriptionDrain = nil
+        changingRecordingTranscriptionPreference = false
+    }
+
+    func recordingTranscriptionSelection(factory: RecordingTranscriptionRuntimeFactory = .live) -> RecordingTranscriptionSelection {
+        var route = recordingTranscriptionRoute
+        let underlying: (any LocalPCMTranscribing)?
+        switch route {
+        case .whisper:
+            if let directory = try? installedDirectory(.whisper) { underlying = factory.whisper(directory) }
+            else { route = .unavailable(.whisper); underlying = UnavailableRecordingTranscriber() }
+        case .whistle:
+            if let url = bundledWhistle.modelURL { underlying = factory.whistle(url) }
+            else { route = .unavailable(.whistle); underlying = UnavailableRecordingTranscriber() }
+        case .unavailable: underlying = UnavailableRecordingTranscriber()
+        case .disabled, .online: underlying = nil
+        }
+        guard let underlying else {
+            return .init(route: route, runtime: nil, preferenceGeneration: recordingTranscriptionGeneration)
+        }
+        let owner = UUID()
+        let wrapped = RegisteredRecordingTranscriber(runtime: underlying) { [weak self] in
+            await self?.unregisterRecordingTranscriptionRuntime(owner)
+        }
+        // Even an unavailable local route registers: changing/off drains its client-facing wrapper.
+        recordingTranscriptionOwners[owner] = { [weak wrapped] in await wrapped?.unload() }
+        if route == .whisper {
+            guard registerRuntime(.whisper, owner: owner, drain: { [weak wrapped] in await wrapped?.unload() }) else {
+                recordingTranscriptionOwners[owner] = nil
+                return .init(route: .unavailable(.whisper), runtime: UnavailableRecordingTranscriber(),
+                             preferenceGeneration: recordingTranscriptionGeneration)
+            }
+        }
+        return .init(route: route, runtime: wrapped, preferenceGeneration: recordingTranscriptionGeneration)
+    }
+
+    @discardableResult
+    func registerRecordingTranscriptionOwner(_ owner: UUID, generation: UUID,
+                                            drain: @escaping @MainActor () async -> Void) -> Bool {
+        guard !changingRecordingTranscriptionPreference, generation == recordingTranscriptionGeneration else { return false }
+        recordingTranscriptionOwners[owner] = drain
+        return true
+    }
+
+    func unregisterRecordingTranscriptionOwner(_ owner: UUID) { recordingTranscriptionOwners[owner] = nil }
+
+    private func unregisterRecordingTranscriptionRuntime(_ owner: UUID) {
+        recordingTranscriptionOwners[owner] = nil
+        unregisterRuntime(.whisper, owner: owner)
+    }
+
     func setSequentialPackActive(_ active: Bool) { downloader.setSequentialPackActive(active) }
     func state(for id: LocalModelID) -> LocalModelInstallState { states[id] ?? .notDownloaded }
     func progress(for id: LocalModelID) -> LocalModelInstallProgress? { progressByModel[id] }

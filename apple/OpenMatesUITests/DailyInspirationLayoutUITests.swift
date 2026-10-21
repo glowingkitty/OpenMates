@@ -309,3 +309,68 @@ final class DailyInspirationLayoutUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 }
+
+@MainActor
+final class DailyInspirationStartupUITests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline
+    func testColdPlaceholderPreservesBannerGeometryWhenContentAppears() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", "loading",
+            "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let placeholder = app.descendants(matching: .any)["daily-inspiration-placeholder"]
+        XCTAssertTrue(placeholder.waitForExistence(timeout: 5))
+        let bounds = placeholder.frame
+        XCTAssertGreaterThan(bounds.height, 0)
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-phrase"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-cta-text"].exists)
+        XCTAssertFalse(app.progressIndicators.firstMatch.exists)
+        let load = app.buttons["inspiration-fixture-load"]
+        XCTAssertTrue(load.isHittable)
+        XCTAssertGreaterThanOrEqual(load.frame.height, 44)
+        load.tap()
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "inspiration-loaded"),
+            object: app.descendants(matching: .any)["dev-preview-local-action"])
+        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 3), .completed)
+        let card = app.descendants(matching: .any)["daily-inspiration-card"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        let settled = NSPredicate { _, _ in !placeholder.exists && abs(card.frame.height - bounds.height) < 1 }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: nil)], timeout: 3), .completed)
+        XCTAssertEqual(card.frame.minY, bounds.minY, accuracy: 1)
+        XCTAssertEqual(card.frame.height, bounds.height, accuracy: 1)
+        XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-cta-text"].isHittable)
+        let image = XCTAttachment(screenshot: app.screenshot())
+        image.name = "Daily inspiration placeholder to loaded banner"
+        image.lifetime = .keepAlways
+        add(image)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.apple-startup-offline,daily-inspiration.guest-isolated
+    func testOwnerChangeRemovesOldBannerContentAndImmediatelyShowsPlaceholder() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "daily-inspiration", "--dev-preview-variant", "scope-switch",
+            "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let phrase = app.descendants(matching: .any)["daily-inspiration-phrase"]
+        XCTAssertTrue(phrase.waitForExistence(timeout: 5))
+        let card = app.descendants(matching: .any)["daily-inspiration-card"], bounds = card.frame
+        let changeOwner = app.buttons["inspiration-fixture-switch-owner"]
+        XCTAssertTrue(changeOwner.isHittable)
+        XCTAssertGreaterThanOrEqual(changeOwner.frame.height, 44)
+        changeOwner.tap()
+        // Wait for the actual action receipt, then check its committed state
+        // immediately; do not replace the privacy assertions with a timeout.
+        let switched = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "inspiration-owner-switched"),
+            object: app.descendants(matching: .any)["dev-preview-local-action"])
+        XCTAssertEqual(XCTWaiter.wait(for: [switched], timeout: 3), .completed)
+        let placeholder = app.descendants(matching: .any)["daily-inspiration-placeholder"]
+        XCTAssertTrue(placeholder.exists)
+        XCTAssertFalse(phrase.exists)
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-cta-text"].exists)
+        XCTAssertEqual(placeholder.frame.height, bounds.height, accuracy: 1)
+        let image = XCTAttachment(screenshot: app.screenshot())
+        image.name = "Owner change removes prior inspiration subtree"
+        image.lifetime = .keepAlways
+        add(image)
+    }
+}

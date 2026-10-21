@@ -1,4 +1,3 @@
-# Integrated audio-only calls in private chats. Other locales fall back to English.
 title:
   context: Persistent call control title
   en: Voice call
@@ -66,8 +65,12 @@ usage_based_pricing:
   verified_by_human: []
 pricing_explanation:
   context: Accessible voice pricing explanation shown by expanding the pricing disclosure
-  en: Charges depend on audio, replies and conversation context. Listening includes silence until automatic idle pauses audio input. Muting also pauses input charges; replies and processing can still cost credits. There is no flat fee for staying connected.
-  de: Die Kosten hängen von Audio, Antworten und Gesprächskontext ab. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert. Stummschalten pausiert ebenfalls die Eingabekosten; Antworten und Verarbeitung können weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr.
+  en: Charges depend on audio, replies and conversation context. Listening includes silence until automatic idle pauses audio
+    input. Muting also pauses input charges; replies and processing can still cost credits. There is no flat fee for staying
+    connected.
+  de: Die Kosten hängen von Audio, Antworten und Gesprächskontext ab. Beim Zuhören zählt auch Stille, bis die automatische
+    Ruhepause die Audioeingabe pausiert. Stummschalten pausiert ebenfalls die Eingabekosten; Antworten und Verarbeitung können
+    weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr.
   verified_by_human: []
 return_to_chat:
   context: Navigate to the chat that owns the call
@@ -156,8 +159,10 @@ transcript_save_failed:
   verified_by_human: []
 unsupported_content:
   context: Bound call composer has an attachment or an explicit app selection that is not supported by live text submission
-  en: Attachments and app selections from the composer are not supported during calls yet. Ask to use an app in your message. Your draft is saved.
-  de: Anhänge und App-Auswahlen im Eingabefeld werden während eines Anrufs noch nicht unterstützt. Bitte in deiner Nachricht darum, eine App zu nutzen. Dein Entwurf bleibt erhalten.
+  en: Attachments and app selections from the composer are not supported during calls yet. Ask to use an app in your message.
+    Your draft is saved.
+  de: Anhänge und App-Auswahlen im Eingabefeld werden während eines Anrufs noch nicht unterstützt. Bitte in deiner Nachricht
+    darum, eine App zu nutzen. Dein Entwurf bleibt erhalten.
   verified_by_human: []
 text_only_hint:
   context: Composer hint when it belongs to the active voice call
@@ -184,7 +189,6 @@ context_unavailable:
   en: This chat’s context could not be loaded safely. Continue with text or try again.
   de: Der Kontext dieses Chats konnte nicht sicher geladen werden. Fahre mit Textnachrichten fort oder versuche es erneut.
   verified_by_human: []
-
 video_call:
   context: Accessible video button in the voice call strip
   en: Video call
@@ -215,7 +219,6 @@ retry:
   en: Try again
   de: Erneut versuchen
   verified_by_human: []
-
 privacy_title:
   context: First voice call acknowledgement dialog title
   en: Before your first voice call
@@ -223,8 +226,10 @@ privacy_title:
   verified_by_human: []
 privacy_description:
   context: Attributed Google paid Gemini API processing disclosure shown before microphone capture
-  en: Google processes your voice and the conversation context shared with this call. Google states that data sent through its paid Gemini API is not used to train its models.
-  de: Google verarbeitet deine Stimme und den Gesprächskontext, der mit diesem Anruf geteilt wird. Google erklärt, dass Daten, die über seine kostenpflichtige Gemini API gesendet werden, nicht zum Trainieren seiner Modelle verwendet werden.
+  en: Google processes your voice and the conversation context shared with this call. Google states that data sent through
+    its paid Gemini API is not used to train its models.
+  de: Google verarbeitet deine Stimme und den Gesprächskontext, der mit diesem Anruf geteilt wird. Google erklärt, dass Daten,
+    die über seine kostenpflichtige Gemini API gesendet werden, nicht zum Trainieren seiner Modelle verwendet werden.
   verified_by_human: []
 privacy_terms:
   context: Link to Google's current paid Gemini API terms
@@ -246,85 +251,71 @@ privacy_save_failed:
   en: Your acknowledgement could not be saved. Try again to start the call.
   de: Deine Bestätigung konnte nicht gespeichert werden. Versuche es erneut, um den Anruf zu starten.
   verified_by_human: []
-
 camera_preview:
   context: Accessible name for the live camera preview
   en: Camera preview
   de: Kameravorschau
   verified_by_human: []
-
 ai_generated:
   context: Accessible label for the AI badge on generated call media
   en: AI-generated
   de: KI-generiert
   verified_by_human: []
-
 flip_camera:
   context: Switch between front and rear camera
   en: Flip camera
   de: Kamera wechseln
   verified_by_human: []
-
 show_camera:
   context: Return from generated media to the live camera
   en: Show camera
   de: Kamera anzeigen
   verified_by_human: []
-
 generated_media:
   context: Accessible name for media shown during a call
   en: Call media
   de: Anrufmedien
   verified_by_human: []
-
 previous_media:
   context: Show the previous generated result
   en: Previous result
   de: Vorheriges Ergebnis
   verified_by_human: []
-
 next_media:
   context: Show the next generated result
   en: Next result
   de: Nächstes Ergebnis
   verified_by_human: []
-
 media_unavailable:
   context: Generated media could not be decrypted or loaded
   en: The result could not be loaded.
   de: Das Ergebnis konnte nicht geladen werden.
   verified_by_human: []
-
 camera_on:
   context: Start sending live camera observations during a call
   en: Turn camera on
   de: Kamera einschalten
   verified_by_human: []
-
 camera_off:
   context: Stop sending live camera observations without ending the call
   en: Turn camera off
   de: Kamera ausschalten
   verified_by_human: []
-
 camera_denied:
   context: Browser denied camera permission
   en: Camera access was denied.
   de: Der Zugriff auf die Kamera wurde verweigert.
   verified_by_human: []
-
 camera_missing:
   context: No camera is available
   en: No camera was found.
   de: Es wurde keine Kamera gefunden.
   verified_by_human: []
-
 camera_failed:
   context: The live camera could not be started or stopped unexpectedly
   en: The camera is unavailable. Please try again.
   de: Die Kamera ist nicht verfügbar. Bitte versuche es erneut.
   verified_by_human: []
-
 source_frame_failed:
   context: An encrypted camera reference could not be saved
   en: The camera reference could not be saved.

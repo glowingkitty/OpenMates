@@ -388,6 +388,10 @@ private struct DevComponentPreviewCanvas: View {
             }
         case .login, .signup:
             DevAuthFormFixture(configuration: configuration)
+        case .composer where configuration.variant == "native-voice-call":
+            NativeVoiceCallControlsFixture()
+        case .composer where configuration.variant == "native-voice-call-consent":
+            NativeVoiceCallControlsFixture(consent: true)
         case .composer where configuration.variant == "assistant-speech":
             DevAssistantSpeechPreview()
         case .composer where configuration.variant == "assistant-speech-public":
@@ -501,7 +505,7 @@ private struct DevComponentPreviewCanvas: View {
                 ProjectsWorkspaceView(store: projectsFixtureStore, chatStore: subChatFixtureStore,
                     tasksStore: projectTasksFixtureStore,
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
-                        "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"]
+                        "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource"]
                         .contains(configuration.variant) ? .files
                         : configuration.variant == "tasks" ? .tasks : .overview,
                     onOpenChat: { lastAction = "opened-chat-\($0)" },
@@ -632,7 +636,11 @@ private struct DevComponentPreviewCanvas: View {
                 WorkflowShortTemplatePreviewHost()
             }
         case .message:
-            if configuration.variant == "project-focus-commit" {
+            if configuration.variant == "response-batches" {
+                DevAssistantBatchActivityFixture()
+            } else if configuration.variant.hasPrefix("response-activity") {
+                DevAssistantActivityFixture(variant: configuration.variant)
+            } else if configuration.variant == "project-focus-commit" {
                 DevProjectFocusCommitFixture()
             } else if configuration.variant.hasPrefix("agent-context-") {
                 AgentContextNoticeView(event: DevAgentContextFixture.event(configuration.variant), onAuthoring: { recommendation in

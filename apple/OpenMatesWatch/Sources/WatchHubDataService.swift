@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.offline.recent-cohort, apple-watch.embeds.read-only-fullscreen
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Watch Tasks and read-only Workflows data. Tasks use the same per-task key
@@ -10,20 +12,32 @@
 
 import CryptoKit
 import Foundation
+import ImageIO
 
 /// Watch user data is sealed before crossing the disk actor. File names and
 /// authenticated encryption bind each entry to the personal account/server.
 actor WatchHubOfflineCache {
-    static let shared = WatchHubOfflineCache()
+    static let shared = WatchHubOfflineCache(erasureFence: .account)
     static let maximumEntryBytes = 2_000_000
     static let maximumBytes = 64_000_000
     private let directory: URL
+    private let erasureFence: WatchHubCacheDiskFence
+    private let cohortFence = WatchHubCacheDiskFence()
+    private let cohortPartition: Bool
+    private let entryLimit: Int
+    private let byteLimit: Int
+    private var cohortEpoch: UInt64 = 0
+    private var cohortKeys: Set<String>?
     private var eraseEpoch: UInt64 = 0
+    private let beforeLoad: (@Sendable () async -> Void)?
     private let verifyScope: @Sendable (WatchWorkflowDetailScope) async -> Bool
-    init(directory: URL? = nil, verifyScope: @escaping @Sendable (WatchWorkflowDetailScope) async -> Bool = { scope in
+    init(directory: URL? = nil, cohortPartition: Bool = false, erasureFence: WatchHubCacheDiskFence = WatchHubCacheDiskFence(), entryLimit: Int = WatchHubOfflineCache.maximumEntryBytes, byteLimit: Int = WatchHubOfflineCache.maximumBytes, beforeLoad: (@Sendable () async -> Void)? = nil, verifyScope: @escaping @Sendable (WatchWorkflowDetailScope) async -> Bool = { scope in
         await MainActor.run { scope.generation == WatchChatAccountLifecycle.generation && scope.profile == ServerProfile.current() }
     }) {
         self.verifyScope = verifyScope
+        self.beforeLoad = beforeLoad
+        self.erasureFence = erasureFence; self.cohortPartition = cohortPartition
+        self.entryLimit = entryLimit; self.byteLimit = byteLimit
         self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OpenMatesWatch/hub-offline", isDirectory: true)
     }
@@ -33,37 +47,93 @@ actor WatchHubOfflineCache {
     private func url(_ scope: WatchWorkflowDetailScope, key: String) -> URL {
         directory.appendingPathComponent(SHA256.hash(data: binding(scope, key: key)).map { String(format: "%02x", $0) }.joined() + ".sealed")
     }
-    func load(key: String, scope: WatchWorkflowDetailScope, masterKey: SymmetricKey) -> Data? {
+    func load(key: String, scope: WatchWorkflowDetailScope, masterKey: SymmetricKey) async -> Data? {
+        await beforeLoad?()
         guard scope.teamID == nil, let data = try? Data(contentsOf: url(scope, key: key)),
-              data.count <= Self.maximumEntryBytes + 100,
+              data.count <= entryLimit + 100,
               let box = try? AES.GCM.SealedBox(combined: data) else { return nil }
         return try? AES.GCM.open(box, using: masterKey, authenticating: binding(scope, key: key))
     }
-    func save(_ data: Data, key: String, scope: WatchWorkflowDetailScope, masterKey: SymmetricKey) async throws {
+    func save(_ data: Data, key: String, scope: WatchWorkflowDetailScope, masterKey: SymmetricKey, cohort: UInt64? = nil) async throws {
+        let diskEpoch = erasureFence.epoch
         let observedEraseEpoch = eraseEpoch
-        guard scope.teamID == nil, data.count <= Self.maximumEntryBytes else { throw APIError.invalidResponse }
+        guard scope.teamID == nil, data.count <= entryLimit else { throw APIError.invalidResponse }
         let sealed = try AES.GCM.seal(data, using: masterKey, authenticating: binding(scope, key: key)).combined!
         try Task.checkCancellation()
         let current = await verifyScope(scope)
         try Task.checkCancellation()
-        guard current, observedEraseEpoch == eraseEpoch else { throw CancellationError() }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        var directory = directory
-        var values = URLResourceValues(); values.isExcludedFromBackup = true
-        try directory.setResourceValues(values)
+        guard current, observedEraseEpoch == eraseEpoch,
+              cohort == nil || (cohort == cohortEpoch && cohortKeys?.contains(key) == true) else { throw CancellationError() }
         let target = url(scope, key: key)
-        let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey])
-        let total = try entries.filter { $0 != target }.reduce(0) { try $0 + ($1.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) }
-        guard total + sealed.count <= Self.maximumBytes else { throw APIError.invalidResponse }
-        try sealed.write(to: target, options: [.atomic, .completeFileProtection])
+        let directory = self.directory; let byteLimit = self.byteLimit
+        let erasureFence = self.erasureFence; let cohortFence = self.cohortFence
+        // Lifecycle validation and protected atomic replacement share the same
+        // MainActor turn. The shared erasure fence also covers child cache actors.
+        try await MainActor.run {
+            try Task.checkCancellation()
+            guard scope.generation == WatchChatAccountLifecycle.generation,
+                  scope.profile == ServerProfile.current() else { throw CancellationError() }
+            try erasureFence.perform(expected: diskEpoch) {
+                try cohortFence.perform(expected: cohort) {
+                    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                    var directory = directory
+                    var values = URLResourceValues(); values.isExcludedFromBackup = true
+                    try directory.setResourceValues(values)
+                    let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.fileSizeKey])
+                    let total = try entries.filter { $0 != target }.reduce(0) { try $0 + ($1.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0) }
+                    guard total + sealed.count <= byteLimit else { throw APIError.invalidResponse }
+                    try sealed.write(to: target, options: [.atomic, .completeFileProtection])
+                }
+            }
+        }
     }
+    /// Separate directory and quota for cohort media; ordinary Hub entries are
+    /// never enumerated or removed by media pruning. Revocation removes the parent.
+    static func cohortMedia(scope: WatchWorkflowDetailScope) -> WatchHubOfflineCache {
+        let owner = WatchRetainedMedia.digest(Data("\(scope.accountID)|\(scope.profile.apiBaseURL.absoluteString)|personal".utf8))
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("OpenMatesWatch/hub-offline/cohort-media/" + owner, isDirectory: true)
+        return WatchHubOfflineCache(directory: directory, cohortPartition: true, erasureFence: .account, entryLimit: WatchAudioSource.maximumBytes, byteLimit: 128 * 1024 * 1024)
+    }
+
+    /// Claim before downloading so a late completion from an old cohort cannot
+    /// restore a pruned asset. Only this dedicated cache may call this operation.
+    func retainCohort(keys: Set<String>, scope: WatchWorkflowDetailScope) async throws -> UInt64 {
+        let observedEraseEpoch = eraseEpoch
+        let diskEpoch = erasureFence.epoch
+        guard cohortPartition, scope.teamID == nil, await verifyScope(scope), observedEraseEpoch == eraseEpoch else { throw CancellationError() }
+        try Task.checkCancellation()
+        let names = Set(keys.map { url(scope, key: $0).lastPathComponent })
+        let directory = self.directory; let erasureFence = self.erasureFence; let cohortFence = self.cohortFence
+        let claim = try await MainActor.run {
+            try Task.checkCancellation()
+            guard scope.generation == WatchChatAccountLifecycle.generation,
+                  scope.profile == ServerProfile.current() else { throw CancellationError() }
+            var claim: UInt64 = 0
+            try erasureFence.perform(expected: diskEpoch) {
+                claim = try cohortFence.advance {
+                    for entry in (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [] {
+                        try Task.checkCancellation()
+                        if entry.pathExtension == "sealed", !names.contains(entry.lastPathComponent) { try FileManager.default.removeItem(at: entry) }
+                    }
+                }
+            }
+            return claim
+        }
+        guard cohortFence.epoch == claim else { throw CancellationError() }
+        cohortEpoch = claim; cohortKeys = keys
+        return claim
+    }
+
     func remove(key: String, scope: WatchWorkflowDetailScope) throws {
         let target = url(scope, key: key)
         if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
     }
     func removeAll() throws {
         eraseEpoch &+= 1
-        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+        try erasureFence.perform(invalidate: true) {
+            if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+        }
     }
 }
 
@@ -629,5 +699,72 @@ struct WatchPullRefreshGesture {
     mutating func cancel() {
         isTracking = false
         isArmed = false
+    }
+}
+
+
+/// Current hydrated content/version is part of the identity. Reads happen only
+/// after normal chat/embed key unwrapping; retained bytes confer no API authority.
+enum WatchRetainedMedia {
+    static let thumbnailLimit = 512_000
+    static func digest(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+    static func identity(chatID: String?, embed: EmbedRecord) -> String? {
+        guard let chatID else { return nil }
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        guard let content = try? encoder.encode(embed.rawData ?? [:]) else { return nil }
+        return "media:" + digest(Data("\(chatID)|\(embed.id)|\(embed.type)|\(embed.versionNumber ?? 1)|".utf8) + content)
+    }
+    static func validThumbnail(_ data: Data) -> Bool {
+        guard data.count <= thumbnailLimit, let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 512,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ] as CFDictionary) != nil
+    }
+    static func thumbnail(_ url: URL, context: WatchChatRequestContext) async throws -> Data {
+        try await context.check()
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host?.isEmpty == false,
+              url.user == nil, url.password == nil else { throw URLError(.badURL) }
+        let config = URLSessionConfiguration.ephemeral
+        config.httpCookieStorage = nil; config.httpShouldSetCookies = false
+        config.urlCredentialStorage = nil; config.urlCache = nil
+        config.timeoutIntervalForRequest = 15; config.timeoutIntervalForResource = 15
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+        let (bytes, response) = try await session.bytes(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              response.expectedContentLength <= thumbnailLimit else { throw URLError(.badServerResponse) }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < thumbnailLimit else { throw URLError(.dataLengthExceedsMaximum) }
+            if data.count % 4096 == 0 { try Task.checkCancellation(); try await context.check() }
+            data.append(byte)
+        }
+        try await context.check()
+        guard validThumbnail(data) else { throw URLError(.cannotDecodeContentData) }
+        return data
+    }
+}
+
+
+/// Shared by the parent Hub cache and its media children. A completed erase
+/// invalidates outstanding disk writes even across distinct actor instances.
+final class WatchHubCacheDiskFence: @unchecked Sendable {
+    static let account = WatchHubCacheDiskFence()
+    private let lock = NSLock()
+    private var value: UInt64 = 0
+    var epoch: UInt64 { lock.lock(); defer { lock.unlock() }; return value }
+    func advance(_ operation: () throws -> Void) throws -> UInt64 {
+        lock.lock(); defer { lock.unlock() }
+        value &+= 1; try operation(); return value
+    }
+    func perform(expected: UInt64? = nil, invalidate: Bool = false, _ operation: () throws -> Void) throws {
+        lock.lock(); defer { lock.unlock() }
+        if let expected, expected != value { throw CancellationError() }
+        if invalidate { value &+= 1 }
+        try operation()
     }
 }

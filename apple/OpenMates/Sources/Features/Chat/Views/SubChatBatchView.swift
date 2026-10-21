@@ -21,6 +21,8 @@ struct SubChatBatchDescriptor: Codable, Equatable, Sendable {
     let status: String
     let subChatIDs: [String]
     let executionMode: String?
+    var taskID: String? = nil
+    var parentMessageID: String? = nil
 
     func accepts(parentID: String) -> Bool {
         !parentID.isEmpty && (parentChatID == nil || parentChatID == parentID)
@@ -73,7 +75,9 @@ struct SubChatBatchDescriptor: Codable, Equatable, Sendable {
             .filter { !$0.isEmpty && seen.insert($0).inserted }
         return Self(batchID: batchID, parentChatID: parentID,
                     status: status, subChatIDs: ids,
-                    executionMode: object["execution_mode"] as? String)
+                    executionMode: object["execution_mode"] as? String,
+                    taskID: object["task_id"] as? String,
+                    parentMessageID: object["parent_message_id"] as? String)
     }
 
     private static func jsonObject(_ code: String) -> [String: Any]? {
@@ -170,6 +174,7 @@ struct SubChatBatchView: View {
     let progress: SubChatProgress?
     let completedSubChatIDs: Set<String>
     let onOpenChat: ((String) -> Void)?
+    var parentMessageID: String? = nil
 
     var body: some View {
         Group {
@@ -177,7 +182,8 @@ struct SubChatBatchView: View {
                 SubChatBatchCardsView(descriptor: descriptor, parentChatID: parentChatID,
                                       messageCreatedAt: messageCreatedAt, viewportWidth: viewportWidth,
                                       store: store, progress: progress,
-                                      completedSubChatIDs: completedSubChatIDs, onOpenChat: onOpenChat)
+                                      completedSubChatIDs: completedSubChatIDs, onOpenChat: onOpenChat,
+                                      parentMessageID: parentMessageID)
             }
         }
     }
@@ -192,6 +198,7 @@ private struct SubChatBatchCardsView: View {
     let progress: SubChatProgress?
     let completedSubChatIDs: Set<String>
     let onOpenChat: ((String) -> Void)?
+    let parentMessageID: String?
     @State private var resolvedPreviews: [String: SubChatResolvedPreview] = [:]
     @State private var resolvedScope: UUID?
     @State private var keyRefresh = 0
@@ -272,7 +279,12 @@ private struct SubChatBatchCardsView: View {
         }
     }
 
+    private var scopedProgress: SubChatProgress? {
+        SubChatActivityProvenance.progress(progress, for: descriptor, parentID: parentChatID, messageID: parentMessageID)
+    }
+
     private func cardStatus(for child: Chat) -> SubChatBatchCard.Status {
+        let progress = scopedProgress
         let status = progress?.status ?? ""
         if scopedPreview(for: child.id)?.summary != nil
             || SubChatBatchPreviewText.summary(for: child, messages: store.messages(for: child.id)) != nil

@@ -4,7 +4,8 @@
 // Used by the regular iOS/macOS login surface and by the standalone Watch app.
 // Does not store sessions; callers decide how to persist the authenticated user.
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session
+// Assertions: apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session,
+//             apple-watch.pairing.explicit-entry-back
 
 import CryptoKit
 import Foundation
@@ -86,6 +87,12 @@ struct WatchPairAttemptState: Equatable {
         token = nil
         pairURLString = nil
         return generation
+    }
+
+    mutating func invalidate() {
+        generation += 1
+        token = nil
+        pairURLString = nil
     }
 
     mutating func ensureCurrentAttempt(serverProfile: ServerProfile) -> Int {
@@ -466,6 +473,22 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
                 if self.receiptCache.expiresAt == nil { self.clearPairingReceipts() }
             }
         }
+    }
+
+    func stopPairingCallbacks(clearReceipts: Bool = true) {
+        approvalHandler = nil
+        acknowledgmentHandler = nil
+        if clearReceipts { clearPairingReceipts() }
+    }
+
+    // User-triggered generic settings handoff only. Catalog reading never
+    // activates transport or carries a private item identity or payload.
+    @discardableResult
+    func sendPublicSettingsOpenRequest() -> Bool {
+        guard WCSession.isSupported() else { return false }
+        activateTransport()
+        guard WCSession.default.activationState == .activated, WCSession.default.isReachable else { return false }
+        return sendSettingsOpenRequest()
     }
 
     func clearPairingReceipts() {

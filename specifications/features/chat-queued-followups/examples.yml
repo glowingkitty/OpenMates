@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.chat-queued-followups@1
+specification: feature.chat-queued-followups@2
 admission:
 - id: follow-up-while-tools-run
   assertion_ids:
@@ -65,3 +65,14 @@ access:
   when: The device sends an edit or steering action.
   then: The server rejects unauthorized or stale mutation without exposing content, altering the accepted message
     or triggering tools. Authorized edits retain normal PII processing and encrypted history.
+october_apple_queue:
+- id: native-queued-edit-and-draft-ownership
+  assertion_ids: [chat-queued-followups.admission.synced, chat-queued-followups.editing.stable-revision, chat-queued-followups.editing.cancel]
+  given: An Apple chat is answering while another user message is queued and an ordinary unsent draft is present.
+  when: The user edits the queued message, cancels, submits unchanged text, or submits changed text while another device claims or revises it.
+  then: Cancel preserves the separately owned draft and newer typing, unchanged submission makes no revision, and changed submission updates the same protected identity only after exact acceptance; a conflict keeps the local edit.
+- id: native-queue-reconnect-and-steer
+  assertion_ids: [chat-queued-followups.admission.synced, chat-queued-followups.steering.safe-boundary, chat-queued-followups.access.scoped]
+  given: An authorized Apple device reconnects after a queued message changed on another device and has only an older encrypted revision locally.
+  when: It receives a content-free newer queue snapshot and the user later chooses Steer instead after current protected content is available.
+  then: The older ciphertext is never relabeled or made editable as the newer revision; exact protected history converges first, and steering preserves the same request and existing permission and claim boundaries.

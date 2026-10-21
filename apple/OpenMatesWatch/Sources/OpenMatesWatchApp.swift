@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.guest.compact-workspace
 // OpenMates Watch app entry point.
 // Defines the independent watchOS application scene for the standalone Watch
 // client. The target intentionally starts with only app plumbing; pair login,
@@ -36,7 +38,11 @@ struct OpenMatesWatchApp: App {
         WindowGroup {
             Group {
             #if DEBUG && targetEnvironment(simulator)
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-voice-consent") {
+                WatchVoiceCallConsentFixtureView()
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-guest") {
+                WatchGuestEntryView(authStore: WatchAuthStore(), onSettings: { false }, uiTestPairFixture: .iphoneConfirm)
+            } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-save-failure") {
                 WatchWorkflowUITestFixtureView(failFirstSave: true)
             } else if ProcessInfo.processInfo.arguments.contains("--ui-test-watch-workflow-retry") {
                 WatchWorkflowUITestFixtureView(failFirstRead: true)

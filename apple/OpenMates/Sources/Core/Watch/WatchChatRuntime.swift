@@ -9,7 +9,7 @@
 // per-chat keys from the Watch-local master key, and keeps a local JSON snapshot
 // for offline startup. This layer never logs plaintext.
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply, apple-watch.offline.recent-cohort
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply, apple-watch.chats.input-actions, apple-watch.chats.local-transcription, apple-watch.offline.recent-cohort
 // Specification: specifications/features/apple-recent-offline-chats/specification.yml
 // Assertions: apple-offline.recent-cohort, apple-offline.interruption-isolation
 // Specification: specifications/features/apple-notifications/specification.yml
@@ -18,9 +18,25 @@
 // Specification: specifications/architecture/storage-lifecycle/specification.yml
 // Assertions: storage.background.complete-sealed-recovery, storage.background.saved-output-retention, storage.cold.independent-message-pages, storage.compression.incremental-archive, storage.surface.semantic-parity
 
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts, video-call.chat.skill-integration
+
 import CryptoKit
 import Foundation
 import SwiftUI
+
+// Shared runtime also compiles in the iOS unit-test host. Keep the Watch's
+// compact localization bridge confined to its actual platform target.
+@MainActor
+private enum WatchChatRuntimeCopy {
+    static func text(_ key: String) -> String {
+        #if os(watchOS)
+        WatchLocalization.text(key)
+        #else
+        LocalizationManager.shared.text(key)
+        #endif
+    }
+}
 
 // Crypto fixture compatibility alone does not qualify discovery, all five typed
 // canonical writers, exact rereads/ACKs, or durable retry. Keep v2 unadvertised.
@@ -445,6 +461,7 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
     var messagesByChatId: [String: [WatchChatMessage]]
     var pendingTextSends: [WatchPendingTextSend]
     var pendingAudioEmbeds: [WatchPendingAudioEmbed]
+    var recordingDrafts: [WatchEncryptedRecordingDraft]
     var savedAt: Date
     var accountID: String?
     var serverScope: String?
@@ -465,6 +482,7 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         messagesByChatId: [String: [WatchChatMessage]],
         pendingTextSends: [WatchPendingTextSend] = [],
         pendingAudioEmbeds: [WatchPendingAudioEmbed] = [],
+        recordingDrafts: [WatchEncryptedRecordingDraft] = [],
         savedAt: Date,
         accountID: String? = nil,
         serverScope: String? = nil,
@@ -476,6 +494,7 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         self.messagesByChatId = messagesByChatId
         self.pendingTextSends = pendingTextSends
         self.pendingAudioEmbeds = pendingAudioEmbeds
+        self.recordingDrafts = recordingDrafts
         self.savedAt = savedAt
         self.accountID = accountID
         self.serverScope = serverScope
@@ -490,6 +509,7 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         messagesByChatId = try container.decode([String: [WatchChatMessage]].self, forKey: .messagesByChatId)
         pendingTextSends = try container.decodeIfPresent([WatchPendingTextSend].self, forKey: .pendingTextSends) ?? []
         pendingAudioEmbeds = try container.decodeIfPresent([WatchPendingAudioEmbed].self, forKey: .pendingAudioEmbeds) ?? []
+        recordingDrafts = try container.decodeIfPresent([WatchEncryptedRecordingDraft].self, forKey: .recordingDrafts) ?? []
         savedAt = try container.decode(Date.self, forKey: .savedAt)
         accountID = try container.decodeIfPresent(String.self, forKey: .accountID)
         serverScope = try container.decodeIfPresent(String.self, forKey: .serverScope)
@@ -880,9 +900,13 @@ protocol WatchChatAPI: Sendable {
     func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio
     func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata?
     func fetchAudioRecording(_ source: WatchAudioSource, context: WatchChatRequestContext) async throws -> Data
+    func fetchPreviewThumbnail(_ url: URL, context: WatchChatRequestContext) async throws -> Data
 }
 
 extension WatchChatAPI {
+    func fetchPreviewThumbnail(_ url: URL, context: WatchChatRequestContext) async throws -> Data {
+        try await WatchRetainedMedia.thumbnail(url, context: context)
+    }
     func fetchWrapperWindow(chatId: String, beforeID: String?, exactWrapperID: String?, context: WatchChatRequestContext) async throws -> WatchWrapperWindowPage {
         throw WatchChatRuntimeError.historyUnavailable
     }
@@ -947,6 +971,7 @@ extension WatchChatSyncSocket {
 @MainActor
 protocol WatchChatCrypto: AnyObject {
     func offlineWrappedChatKey(for chat: WatchChatSummary) -> String?
+    func offlineMediaMasterKey() async throws -> SymmetricKey
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String
@@ -968,6 +993,7 @@ extension WatchChatCrypto {
         throw WatchChatRuntimeError.missingChatKey
     }
     func offlineWrappedChatKey(for chat: WatchChatSummary) -> String? { chat.offlineWrappedChatKey ?? chat.encryptedChatKey }
+    func offlineMediaMasterKey() async throws -> SymmetricKey { throw WatchChatRuntimeError.missingChatKey }
     func createChat(withID id: String) async throws -> WatchChatSummary { throw WatchChatRuntimeError.missingChatKey }
     func prepareEmbedStorage(payload: [String: Any], chat: WatchChatSummary, messageID: String) async throws -> (keys: [String: Any], embed: [String: Any]) { throw WatchChatRuntimeError.missingChatKey }
     func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef { throw WatchChatRuntimeError.missingChatKey }
@@ -997,8 +1023,11 @@ actor WatchChatOfflineCache {
     private let decoder: JSONDecoder
     private let conversationDirectory: URL
     private var eraseEpoch: UInt64 = 0
+    private let snapshotCommitFence = WatchSnapshotCommitFence()
+    private let beforeSnapshotCommit: (@Sendable () async throws -> Void)?
 
-    init(directory: URL? = nil) {
+    init(directory: URL? = nil, beforeSnapshotCommit: (@Sendable () async throws -> Void)? = nil) {
+        self.beforeSnapshotCommit = beforeSnapshotCommit
         self.fileURL = (directory ?? WatchChatOfflineCache.defaultDirectory())
             .appendingPathComponent("watch-chat-snapshot.json")
         // Complete offline receipts are user data, not evictable system caches.
@@ -1019,29 +1048,39 @@ actor WatchChatOfflineCache {
         return snapshot
     }
 
-    func saveSnapshot(_ snapshot: WatchChatSnapshot, accountGeneration: UInt64? = nil, serverScope: String? = nil) async throws {
-        let observedEraseEpoch = eraseEpoch
-        if let accountGeneration {
-            let valid = await MainActor.run {
-                accountGeneration == WatchChatAccountLifecycle.generation &&
-                (serverScope == nil || serverScope == WatchChatRuntime.currentServerScope)
-            }
-            guard valid, observedEraseEpoch == eraseEpoch else { throw CancellationError() }
-        }
-        try Task.checkCancellation()
-        guard observedEraseEpoch == eraseEpoch else { throw CancellationError() }
-        try FileManager.default.createDirectory(
-            at: fileURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
+    func saveSnapshot(_ snapshot: WatchChatSnapshot, accountGeneration: UInt64? = nil, serverScope: String? = nil,
+                      validateCommit: @escaping @MainActor @Sendable () throws -> Void = {},
+                      didCommit: @escaping @MainActor @Sendable () -> Void = {}) async throws {
+        let token = snapshotCommitFence.claim()
         let data = try encoder.encode(snapshot)
-        try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try await beforeSnapshotCommit?()
+        try Task.checkCancellation()
+        let fileURL = self.fileURL
+        let fence = snapshotCommitFence
+        // Cancellation/scope validation, atomic disk replacement and publication
+        // share one MainActor turn. Cancel before this point writes nothing;
+        // after this point the completed editor operation has already committed.
+        try await MainActor.run {
+            try Task.checkCancellation()
+            if let accountGeneration {
+                guard accountGeneration == WatchChatAccountLifecycle.generation,
+                      serverScope == nil || serverScope == WatchChatRuntime.currentServerScope else { throw CancellationError() }
+            }
+            try validateCommit()
+            try fence.commit(token: token) {
+                try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+                didCommit()
+            }
+        }
     }
 
     func removeSnapshot() throws {
         eraseEpoch &+= 1
-        if FileManager.default.fileExists(atPath: fileURL.path) { try FileManager.default.removeItem(at: fileURL) }
-        if FileManager.default.fileExists(atPath: conversationDirectory.path) { try FileManager.default.removeItem(at: conversationDirectory) }
+        try snapshotCommitFence.erase {
+            if FileManager.default.fileExists(atPath: fileURL.path) { try FileManager.default.removeItem(at: fileURL) }
+            if FileManager.default.fileExists(atPath: conversationDirectory.path) { try FileManager.default.removeItem(at: conversationDirectory) }
+        }
     }
 
     private func conversationURL(chatID: String) -> URL {
@@ -1226,6 +1265,26 @@ enum WatchRecentOfflinePolicy {
     }
 }
 
+/// Issued while the original bound call is live. The private token is checked
+/// again after every suspension; payloads and previews remain memory-only.
+struct WatchVoiceCallArtifactAdmission: Sendable {
+    let scope: NativeVoiceCallScope
+    let callID: String
+    let functionCallID: String
+    let assistantMessageID: String
+    let userMessageID: String
+    fileprivate let token: UUID
+    fileprivate let key: String
+    fileprivate let version: Int
+    fileprivate let payload: NativeVoiceCallFrame
+    fileprivate let parsedReference: NativeVoiceCallArtifactReference
+}
+
+struct WatchVoiceCallArtifactCommit: Sendable {
+    let admission: WatchVoiceCallArtifactAdmission
+    let reference: NativeVoiceCallFrame
+}
+
 @MainActor
 final class WatchChatRuntime: ObservableObject {
     @Published private(set) var chats: [WatchChatSummary] = []
@@ -1236,6 +1295,29 @@ final class WatchChatRuntime: ObservableObject {
     @Published private(set) var chatLoadFailed = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var pendingAudioEmbeds: [WatchPendingAudioEmbed] = []
+    @Published private(set) var recordingDrafts: [WatchEncryptedRecordingDraft] = []
+    @Published private(set) var isPreparingRecordingDraft = false
+    @Published private(set) var isCapturingRecording = false
+    let callActions = WatchCallActionAdapter()
+    private var voiceArtifactAdmissions: [String: WatchVoiceCallArtifactAdmission] = [:]
+    private var voiceArtifactFinalHashes: [String: String] = [:]
+    private var voiceArtifactCommits: [String: WatchVoiceCallArtifactCommit] = [:]
+    private var voiceArtifactTasks: [String: Task<WatchVoiceCallArtifactCommit?, Error>] = [:]
+    private var voiceArtifactBundleIDs = Set<String>()
+    private var rejectedCallTypedIDs = Set<String>()
+    private var callComposerSettlementTasks: [UUID: Task<Void, Never>] = [:]
+    @Published private var pendingCallComposerDrafts: [UUID: WatchPendingCallComposerDraft] = [:]
+    var hasPendingVoiceCallTypedDraft: Bool { pendingCallComposerDrafts.values.contains { $0.chatID == selectedChatId } }
+    @Published private var voiceCallTranscriptProjections: [String: [String: WatchCallTranscriptProjection]] = [:]
+    private let recordingTranscriber: any WatchRecordingDraftTranscribing
+    private var mediaCache: WatchHubOfflineCache?
+    private var mediaTask: Task<Void, Never>?
+    private var mediaRunID: UUID?
+    private var mediaCohortSignature: String?
+    @Published private(set) var offlineMediaStatus = WatchOfflineMediaStatus()
+
+    private var recordingDraftGeneration: UInt64 = 0
+    var hasSelectedRecordingDraft: Bool { recordingDrafts.contains { $0.chatID == selectedChatId } }
     // A just-recorded attachment remains replayable after its recorder temp file
     // is removed. Never included in WatchChatSnapshot or any disk cache.
     @Published private var localAudioPreviews: [String: (chatID: String, data: Data)] = [:]
@@ -1248,14 +1330,65 @@ final class WatchChatRuntime: ObservableObject {
         return localAudioPreviews.filter { $0.value.chatID == chatID }.mapValues { $0.data }
     }
 
+    /// Resolve membership from the current selected transcript on every check.
+    /// A hydrated object left in lookup memory is insufficient without a current
+    /// direct reference or a current parent's explicit child reference.
+    private func currentMediaModels(chatID: String) throws -> [WatchEmbedPreviewModel] {
+        try Task.checkCancellation()
+        guard !isStopped, selectedChatId == chatID else { throw CancellationError() }
+        let roots = selectedMessages.flatMap { messageWithHydratedEmbeds($0).watchEmbedRecords }
+        let children = Set(roots.flatMap(\.childEmbedIds))
+        return roots.map { WatchEmbedPreviewMapper.makeModel(for: $0, chatId: chatID) }
+            + hydratedEmbedPreviews.values.filter { children.contains($0.id) }.map {
+                WatchEmbedPreviewMapper.makeModel(for: $0, chatId: chatID)
+            }
+    }
+
+    private func validateCurrentThumbnail(key: String, chatID: String) throws {
+        guard try currentMediaModels(chatID: chatID).contains(where: {
+            $0.detailContent.retainedMediaKey == key
+        }) else { throw CancellationError() }
+    }
+
+    private func validateCurrentAudio(_ model: WatchEmbedPreviewModel, chatID: String) throws {
+        guard model.continuation.chatId == chatID,
+              let current = try currentMediaModels(chatID: chatID).first(where: { $0.id == model.id }),
+              current.detailContent.retainedMediaKey == model.detailContent.retainedMediaKey,
+              current.detailContent.audioSource == model.detailContent.audioSource else { throw CancellationError() }
+    }
+
+    func retainedThumbnailData(for content: WatchEmbedDetailContent) async throws -> Data? {
+        guard !isStopped, let accountID, let mediaCache, let chatID = selectedChatId,
+              let key = content.retainedMediaKey else { return nil }
+        try validateCurrentThumbnail(key: key, chatID: chatID)
+        let context = requestContext()
+        let master = try await crypto.offlineMediaMasterKey()
+        try context.check()
+        try validateCurrentThumbnail(key: key, chatID: chatID)
+        let bytes = await mediaCache.load(key: key + ":thumbnail", scope: .capture(accountID: accountID), masterKey: master)
+        try context.check()
+        // The same chat can replace/remove an embed while either actor suspends.
+        // Re-resolve exact membership and content/version after the final await.
+        try validateCurrentThumbnail(key: key, chatID: chatID)
+        return bytes.flatMap { WatchRetainedMedia.validThumbnail($0) ? $0 : nil }
+    }
+
     func audioPlaybackData(for model: WatchEmbedPreviewModel) async throws -> Data {
-        let authorizedIDs = Set(selectedMessages.flatMap { messageWithHydratedEmbeds($0).watchEmbedRecords }
-            .flatMap { [$0.id] + $0.childEmbedIds })
-        guard !isStopped, let chatID = selectedChatId, model.continuation.chatId == chatID,
-              authorizedIDs.contains(model.id) else {
-            throw CancellationError()
-        }
+        guard let chatID = selectedChatId else { throw CancellationError() }
+        try validateCurrentAudio(model, chatID: chatID)
         if let local = localAudioPreviews[model.id], local.chatID == chatID { return local.data }
+        if let mediaCache, let accountID, let key = model.detailContent.retainedMediaKey {
+            let context = requestContext()
+            let master = try? await crypto.offlineMediaMasterKey()
+            try context.check()
+            try validateCurrentAudio(model, chatID: chatID)
+            if let master {
+                let data = await mediaCache.load(key: key + ":audio", scope: .capture(accountID: accountID), masterKey: master)
+                try context.check()
+                try validateCurrentAudio(model, chatID: chatID)
+                if let data, !data.isEmpty, data.count <= WatchAudioSource.maximumBytes { return data }
+            }
+        }
         guard !isOffline, let source = model.detailContent.audioSource else {
             throw WatchChatRuntimeError.invalidRecording
         }
@@ -1274,7 +1407,7 @@ final class WatchChatRuntime: ObservableObject {
         data = try await api.fetchAudioRecording(source, context: context)
 #endif
         try context.check()
-        guard selectedChatId == chatID else { throw CancellationError() }
+        try validateCurrentAudio(model, chatID: chatID)
         return data
     }
 
@@ -1368,7 +1501,9 @@ final class WatchChatRuntime: ObservableObject {
         cache: WatchChatOfflineCache = .shared,
         crypto: (any WatchChatCrypto)? = nil,
         syncSocket: (any WatchChatSyncSocket)? = WatchRealtimeSyncSocket(),
-        syncSession: WatchSyncSession? = nil
+        syncSession: WatchSyncSession? = nil,
+        recordingTranscriber: any WatchRecordingDraftTranscribing = WatchUnavailableRecordingTranscriber(),
+        mediaCache: WatchHubOfflineCache? = nil
     ) {
         self.accountID = currentUserId
         self.api = api
@@ -1376,12 +1511,15 @@ final class WatchChatRuntime: ObservableObject {
         self.crypto = crypto ?? WatchChatCryptoService(currentUserId: currentUserId)
         self.syncSocket = syncSocket
         self.syncSession = syncSession
+        self.recordingTranscriber = recordingTranscriber
+        self.mediaCache = mediaCache ?? currentUserId.map { WatchHubOfflineCache.cohortMedia(scope: .capture(accountID: $0)) }
     }
 
 #if DEBUG
     static func offlineCohortFixture(directory: URL? = nil) -> WatchChatRuntime {
         let crypto = WatchOfflineFixtureCrypto()
         let transport = WatchOfflineFixtureTransport(crypto: crypto)
+        transport.includesMedia = ProcessInfo.processInfo.arguments.contains("--ui-test-watch-offline-media")
         let runtime = WatchChatRuntime(currentUserId: WatchOfflineFixtureTransport.accountID,
             api: transport, cache: WatchChatOfflineCache(directory: directory ?? FileManager.default.temporaryDirectory.appendingPathComponent("watch-offline-fixture-" + UUID().uuidString)),
             crypto: crypto, syncSocket: transport, syncSession: WatchSyncSession(sessionId: "fixture", token: nil))
@@ -1410,6 +1548,7 @@ final class WatchChatRuntime: ObservableObject {
         await setForeground(true)
         await refresh()
         await waitForRecentOfflineSync()
+        await waitForRecentMediaSync()
         transport.offline = true
         await setForeground(false)
         isOffline = true
@@ -1432,6 +1571,8 @@ final class WatchChatRuntime: ObservableObject {
         self.messagesByChatId = snapshot.messagesByChatId
         self.pendingTextSends = snapshot.pendingTextSends
         self.pendingAudioEmbeds = snapshot.pendingAudioEmbeds
+        self.recordingDrafts = snapshot.recordingDrafts
+        self.recordingTranscriber = WatchUnavailableRecordingTranscriber()
         self.selectedChatId = selectedChatId
         if let selectedChatId, let initialDraft { composerDrafts[selectedChatId] = initialDraft }
         if let selectedChatId, let chat = chats.first(where: { $0.id == selectedChatId }),
@@ -1448,6 +1589,604 @@ final class WatchChatRuntime: ObservableObject {
             accountGeneration: accountLifecycleGeneration, validate: { [weak self] in
                 guard let self, !self.isStopped, self.lifecycleGeneration == generation else { throw CancellationError() }
             })
+    }
+
+    func voiceCallContext(for chatID: String) throws -> WatchChatRequestContext {
+        _ = try voiceCallChat(for: chatID)
+        let context = requestContext()
+        try context.check()
+        guard accountID != nil, !isPreviewFixture else { throw WatchComposerActionError.staleScope }
+        return context
+    }
+
+    /// Local key preparation only. The call factory must still obtain an exact
+    /// canonical metadata receipt before treating a new chat as server-confirmed.
+    func prepareVoiceCallChat(context: WatchChatRequestContext, chatID: String) async throws
+        -> (chat: WatchChatSummary, needsServerConfirmation: Bool) {
+        try context.check()
+        guard context.accountID == accountID, context.profile == requestServerProfile,
+              context.accountGeneration == accountLifecycleGeneration else { throw CancellationError() }
+        let original = try voiceCallChat(for: chatID, requiresKey: false)
+        let needsConfirmation = transientChat?.id == chatID
+            || (original.messagesV == 0 && original.titleV == 0 && original.metadataV == 0)
+        let prepared: WatchChatSummary
+        if original.encryptedChatKey == nil {
+            guard needsConfirmation, transientChat?.id == chatID || encryptedDrafts[chatID] != nil else {
+                throw WatchChatRuntimeError.missingChatKey
+            }
+            prepared = try await crypto.createChat(withID: chatID)
+            try context.check()
+            guard prepared.id == chatID, prepared.encryptedChatKey != nil else { throw WatchChatRuntimeError.missingChatKey }
+            if transientChat?.id == chatID { transientChat = prepared }
+            if let index = chats.firstIndex(where: { $0.id == chatID }) { chats[index] = prepared }
+        } else { prepared = try await prepareDraftChatForSending(original) }
+        try context.check()
+        _ = try voiceCallChat(for: chatID)
+        return (prepared, needsConfirmation)
+    }
+
+    /// Only the real call factory invokes this after successful audio activation.
+    /// Ordinary canonical transport is connected once; there is no provider
+    /// reconnect, silent keepalive, or fabricated physical eligibility here.
+    func activateVoiceCallCanonicalTransport(context: WatchChatRequestContext) async throws {
+        try context.check()
+        guard !isStopped, !isPreviewFixture, context.accountID == accountID,
+              context.profile == requestServerProfile, context.accountGeneration == accountLifecycleGeneration,
+              let socket = syncSocket, let session = syncSession,
+              let lease = WatchAudioOwnership.shared.currentLease, lease.owner == .liveCall else {
+            throw WatchChatRuntimeError.socketUnavailable
+        }
+        let generation = lifecycleGeneration
+        if !socket.isConnected { socket.connect(session: session, syncState: makeSyncClientState()) }
+        let socketGeneration = socket.generation
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while true {
+            try context.check()
+            guard !isStopped, lifecycleGeneration == generation, socket.generation == socketGeneration,
+                  WatchAudioOwnership.shared.isCurrent(lease) else { throw CancellationError() }
+            if socket.isConnected { return }
+            guard clock.now < deadline else { throw WatchChatRuntimeError.socketUnavailable }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+    }
+
+    /// Called only after shared persistence encrypted the exact transcript
+    /// revision. Publish a UI-only row; never invoke ordinary inference, create a
+    /// second ciphertext, advance canonical versions or persist plaintext.
+    func voiceCallPublishTranscript(_ transcript: NativeVoiceCallTranscript, scope: NativeVoiceCallScope,
+                                    context: WatchChatRequestContext,
+                                    admittedArtifact: WatchVoiceCallArtifactAdmission? = nil) throws {
+        try context.check()
+        let projection = callActions.projection
+        let completionPublication: Bool
+        if let admittedArtifact {
+            try validateVoiceCallArtifact(admittedArtifact, context: context)
+            guard let committed = voiceArtifactCommits[admittedArtifact.key],
+                  committed.admission.token == admittedArtifact.token,
+                  transcript.role == .assistant, transcript.callID == admittedArtifact.callID,
+                  transcript.messageID == admittedArtifact.assistantMessageID,
+                  transcript.userMessageID == admittedArtifact.userMessageID,
+                  scope == admittedArtifact.scope,
+                  transcript.embedReferences.contains(where: { $0.fields == committed.reference }) else {
+                throw NativeVoiceCallError.scopeChanged
+            }
+            completionPublication = projection.phase == .ended
+        } else { completionPublication = false }
+        guard !isStopped, !isPreviewFixture, context.accountID == accountID,
+              scope.accountID == accountID, context.profile == requestServerProfile,
+              scope.profileID == requestServerProfile.id, context.accountGeneration == accountLifecycleGeneration,
+              (projection.phase == .live || completionPublication), projection.chatID == scope.chatID,
+              projection.callID == transcript.callID, projection.scopeGeneration == scope.workspaceGeneration,
+              !transcript.messageID.isEmpty, transcript.messageID.utf8.count <= 128,
+              transcript.createdAt > 0, transcript.text.utf16.count <= 64_000 else { throw CancellationError() }
+        _ = try voiceCallChat(for: scope.chatID)
+        let role: WatchChatMessage.Role = transcript.role == .assistant ? .assistant : .user
+        let createdAt = String(transcript.createdAt)
+        var rows = voiceCallTranscriptProjections[scope.chatID] ?? [:]
+        if transcript.role == .user, transcript.final,
+           let pending = pendingCallComposerDrafts.values.first(where: { $0.messageID == transcript.messageID }),
+           pending.contentHash != Self.voiceDraftHash(transcript.text) { throw NativeVoiceCallError.textRejected }
+        if let existing = rows[transcript.messageID] {
+            guard existing.callID == transcript.callID, existing.scopeGeneration == scope.workspaceGeneration,
+                  existing.message.role == role, existing.message.createdAt == createdAt else { throw CancellationError() }
+            if existing.final && !transcript.final { return }
+        }
+        if let canonical = messagesByChatId[scope.chatID]?.first(where: { $0.id == transcript.messageID }) {
+            guard canonical.role == role else { throw CancellationError() }
+            if canonical.content == transcript.text, !canonical.isPending {
+                // Keep the durable owner row; pending composer acceptance below
+                // still uses the verified final echo even when no overlay is needed.
+                rows.removeValue(forKey: transcript.messageID)
+            }
+        }
+        let message = WatchChatMessage(id: transcript.messageID, chatId: scope.chatID, role: role,
+            content: transcript.text, encryptedContent: nil,
+            embedRefs: WatchMessageContentSanitizer.inlineEmbedRefs(content: transcript.text),
+            createdAt: createdAt, isPending: false)
+        rows[transcript.messageID] = WatchCallTranscriptProjection(callID: transcript.callID,
+            scopeGeneration: scope.workspaceGeneration, message: message, final: transcript.final)
+        // Bound transient UI memory independently of the encrypted outbox.
+        guard rows.count <= 256, rows.values.reduce(0, { $0 + ($1.message.content?.utf8.count ?? 0) }) <= 1_048_576 else {
+            throw WatchChatRuntimeError.historyUnavailable
+        }
+        try context.check()
+        voiceCallTranscriptProjections[scope.chatID] = rows
+        if transcript.role == .user && transcript.final {
+            for (id, pending) in pendingCallComposerDrafts where pending.messageID == transcript.messageID {
+                if pending.callID == transcript.callID, pending.scopeGeneration == scope.workspaceGeneration,
+                   pending.contentHash == Self.voiceDraftHash(transcript.text) {
+                    acceptVoiceCallComposerDraft(operationID: id, context: context)
+                }
+            }
+        }
+    }
+
+    /// Admission has no message-row prerequisite: a tool can finish before the
+    /// provider's first spoken token. Caller is the controller's issued event path.
+    func voiceCallAdmitArtifact(frame: NativeVoiceCallFrame, scope: NativeVoiceCallScope,
+                                context: WatchChatRequestContext) throws -> WatchVoiceCallArtifactAdmission {
+        try context.check()
+        let projection = callActions.projection
+        guard !isStopped, !isPreviewFixture, context.accountID == accountID,
+              scope.accountID == accountID, scope.profileID == requestServerProfile.id,
+              context.profile == requestServerProfile, context.accountGeneration == accountLifecycleGeneration,
+              frame["type"]?.string == "voice_embed", projection.phase == .live,
+              projection.chatID == scope.chatID, projection.scopeGeneration == scope.workspaceGeneration,
+              let callID = frame["call_id"]?.string, projection.callID == callID,
+              let functionID = frame["function_call_id"]?.string,
+              let assistantID = frame["assistant_message_id"]?.string,
+              let userID = frame["user_message_id"]?.string, assistantID != userID,
+              [callID, functionID, assistantID, userID].allSatisfy({
+                  !$0.isEmpty && $0.utf8.count <= 128 && !$0.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+              }), let payload = frame["payload"]?.object,
+              payload["chat_id"] == nil || payload["chat_id"]?.string == scope.chatID,
+              payload["message_id"] == nil || payload["message_id"]?.string == assistantID,
+              payload["user_id"] == nil || payload["user_id"]?.string == scope.accountID,
+              payload["team_id"] == nil || payload["team_id"] == .null,
+              let reference = try NativeVoiceCallArtifactReference.fromPayload(payload) else {
+            throw NativeVoiceCallError.invalidResponse
+        }
+        _ = try voiceCallChat(for: scope.chatID)
+        let rawVersion = payload["version_number"]?.number ?? 1
+        guard payload["version_number"] == nil || payload["version_number"]?.number != nil,
+              rawVersion.isFinite, rawVersion > 0, rawVersion <= Double(Int32.max),
+              rawVersion.rounded(.down) == rawVersion,
+              try JSONEncoder().encode(payload).count <= NativeVoiceCallWire.maximumFrameBytes else {
+            throw NativeVoiceCallError.invalidResponse
+        }
+        let version = Int(rawVersion)
+        let key = [scope.workspaceGeneration.uuidString, callID, functionID, reference.embedID, String(version)].joined(separator: "\u{0}")
+        let token: UUID
+        if let previous = voiceArtifactAdmissions[key] {
+            guard previous.scope == scope, previous.assistantMessageID == assistantID,
+                  previous.userMessageID == userID, previous.parsedReference.type == reference.type else {
+                throw NativeVoiceCallError.invalidResponse
+            }
+            token = previous.token
+        } else {
+            guard voiceArtifactAdmissions.count < 128 else { throw NativeVoiceCallError.contextTooLarge }
+            token = UUID()
+        }
+        let admission = WatchVoiceCallArtifactAdmission(scope: scope, callID: callID, functionCallID: functionID,
+            assistantMessageID: assistantID, userMessageID: userID, token: token, key: key,
+            version: version, payload: payload, parsedReference: reference)
+        voiceArtifactAdmissions[key] = admission
+        return admission
+    }
+
+    private func validateVoiceCallArtifact(_ admission: WatchVoiceCallArtifactAdmission,
+                                           context: WatchChatRequestContext) throws {
+        try context.check()
+        let state = callActions.projection
+        guard !isStopped, !isPreviewFixture, context.accountID == accountID,
+              admission.scope.accountID == accountID, context.profile == requestServerProfile,
+              admission.scope.profileID == requestServerProfile.id, context.accountGeneration == accountLifecycleGeneration,
+              voiceArtifactAdmissions[admission.key]?.token == admission.token,
+              state.phase == .live || state.phase == .ended,
+              state.chatID == admission.scope.chatID, state.callID == admission.callID,
+              state.scopeGeneration == admission.scope.workspaceGeneration else { throw NativeVoiceCallError.scopeChanged }
+        _ = try voiceCallChat(for: admission.scope.chatID)
+    }
+
+    /// Nil is a transient processing preview. A commit is returned only after
+    /// the retained encrypted head AND every exact wrapper receipt validate.
+    func voiceCallPersistArtifact(_ admission: WatchVoiceCallArtifactAdmission,
+                                  context: WatchChatRequestContext) async throws -> WatchVoiceCallArtifactCommit? {
+        try validateVoiceCallArtifact(admission, context: context)
+        let status = admission.payload["status"]?.string ?? "finished"
+        if ["processing", "pending", "running"].contains(status) {
+            if voiceArtifactCommits[admission.key] != nil { return nil }
+            return try await persistVoiceCallArtifact(admission, context: context)
+        }
+        // A cold reference that fails its read proof must not prevent a later
+        // genuine plaintext final from entering the canonical writer.
+        if admission.payload["content"]?.string != nil, admission.payload["already_encrypted"]?.bool != true,
+           admission.payload["encryption_mode"]?.string != "client" {
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+            let fingerprint = Self.voiceDraftHash(String(decoding: try encoder.encode(admission.payload), as: UTF8.self))
+            if let previous = voiceArtifactFinalHashes[admission.key], previous != fingerprint {
+                throw NativeVoiceCallError.invalidResponse
+            }
+            voiceArtifactFinalHashes[admission.key] = fingerprint
+        }
+        if let committed = voiceArtifactCommits[admission.key] { return committed }
+        if let work = voiceArtifactTasks[admission.key] {
+            let committed = try await work.value
+            try validateVoiceCallArtifact(admission, context: context)
+            return committed
+        }
+        let work = Task { @MainActor in try await self.persistVoiceCallArtifact(admission, context: context) }
+        voiceArtifactTasks[admission.key] = work
+        defer { voiceArtifactTasks.removeValue(forKey: admission.key) }
+        let committed = try await work.value
+        try validateVoiceCallArtifact(admission, context: context)
+        return committed
+    }
+
+    private func persistVoiceCallArtifact(_ admission: WatchVoiceCallArtifactAdmission,
+                                          context: WatchChatRequestContext) async throws -> WatchVoiceCallArtifactCommit? {
+        try validateVoiceCallArtifact(admission, context: context)
+        let chat = try voiceCallChat(for: admission.scope.chatID)
+        var payload = try WatchCanonicalStorage.object(JSONEncoder().encode(admission.payload))
+        payload["chat_id"] = chat.id; payload["message_id"] = admission.assistantMessageID
+        payload["user_id"] = admission.scope.accountID; payload["version_number"] = admission.version
+        let status = payload["status"] as? String ?? "finished"
+        if ["processing", "pending", "running"].contains(status) {
+            if payload["content"] as? String != nil {
+                let preview = try await crypto.hydrateEmbed(payload: payload, chat: chat)
+                try validateVoiceCallArtifact(admission, context: context)
+                guard preview.type == admission.parsedReference.type else { throw NativeVoiceCallError.invalidResponse }
+                hydratedEmbedPreviews[preview.id] = preview
+            }
+            return nil
+        }
+        guard status == "finished" || status == "completed" else { throw NativeVoiceCallError.persistenceFailed }
+        guard let socket = syncSocket, socket.isConnected else { throw WatchChatRuntimeError.socketUnavailable }
+        let socketGeneration = socket.generation
+        func validate() throws {
+            try validateVoiceCallArtifact(admission, context: context)
+            guard socket.isConnected, socket.generation == socketGeneration else { throw WatchChatRuntimeError.socketUnavailable }
+        }
+        let retained = pendingCompletions.first(where: { candidate in
+            guard candidate.eventType == "store_embed_bundle", candidate.chatId == chat.id,
+                  let bundle = try? WatchCanonicalStorage.object(candidate.encryptedPayload),
+                  let head = bundle["head"] as? [String: Any] else { return false }
+            let enrichment = head["canonical_metadata_enrichment"] as? [String: Any]
+            let version = head["version_number"] as? Int ?? enrichment?["expected_version"] as? Int ?? 1
+            return head["embed_id"] as? String == admission.parsedReference.embedID
+                && head["hashed_message_id"] as? String == WatchChatKeyWrapperRecord.hashedChatId(for: admission.assistantMessageID)
+                && version == admission.version
+        })
+        let preview: WatchEmbedRef
+        let entry: WatchPendingCompletion
+        // Cold references use the existing authorized read, then the existing
+        // locked metadata-equality transaction to obtain a genuine head receipt.
+        if payload["content"] as? String == nil || payload["already_encrypted"] as? Bool == true
+            || payload["encryption_mode"] as? String == "client" {
+            let fetched = try await socket.requestEvent(type: "request_embed",
+                payload: ["embed_id": admission.parsedReference.embedID, "chat_id": chat.id],
+                responseTypes: ["send_embed_data"], matching: { $0["embed_id"] as? String == admission.parsedReference.embedID },
+                beforeSend: { try validate() })
+            try validate()
+            // The deployed canonical transaction interprets absent/null legacy
+            // revisions as v1. Typed decoding preserves boolean/string rejection.
+            let versionJSON = try JSONDecoder().decode(NativeVoiceCallJSON.self,
+                from: JSONSerialization.data(withJSONObject: fetched["version_number"] ?? NSNull(), options: [.fragmentsAllowed]))
+            let fetchedVersion: Double? = versionJSON == .null ? 1 : versionJSON.number
+            guard fetched["embed_id"] as? String == admission.parsedReference.embedID,
+                  fetched["already_encrypted"] as? Bool == true, fetched["encryption_mode"] as? String == "client",
+                  fetched["user_id"] as? String == admission.scope.accountID,
+                  fetched["chat_id"] as? String == chat.id,
+                  fetched["message_id"] as? String == WatchChatKeyWrapperRecord.hashedChatId(for: admission.assistantMessageID),
+                  fetchedVersion == Double(admission.version),
+                  fetched["status"] as? String == "finished",
+                  fetched["parent_embed_id"] == nil || fetched["parent_embed_id"] is NSNull,
+                  let ciphertext = fetched["content"] as? String, !ciphertext.isEmpty,
+                  let encryptedType = fetched["type"] as? String, !encryptedType.isEmpty,
+                  fetched["embed_keys_has_more_after"] as? Bool == false,
+                  fetched["oversized_embed_key_id"] == nil || fetched["oversized_embed_key_id"] is NSNull,
+                  let wrappers = fetched["embed_keys"] as? [[String: Any]], !wrappers.isEmpty else {
+                throw NativeVoiceCallError.persistenceFailed
+            }
+            let chatWrappers = wrappers.filter { row in
+                row["key_type"] as? String == "chat"
+                    && row["hashed_embed_id"] as? String == WatchChatKeyWrapperRecord.hashedChatId(for: admission.parsedReference.embedID)
+                    && row["hashed_chat_id"] as? String == WatchChatKeyWrapperRecord.hashedChatId(for: chat.id)
+                    && row["hashed_user_id"] as? String == WatchChatKeyWrapperRecord.hashedChatId(for: admission.scope.accountID)
+                    && (row["hashed_team_id"] == nil || row["hashed_team_id"] is NSNull)
+                    && (row["hashed_project_id"] == nil || row["hashed_project_id"] is NSNull)
+            }
+            guard chatWrappers.count == 1 else { throw NativeVoiceCallError.persistenceFailed }
+            var scopedRecord = fetched
+            scopedRecord["embed_keys"] = chatWrappers
+            preview = try await crypto.hydrateEmbed(payload: scopedRecord, chat: chat)
+            try validate()
+            let decryptedType = try await crypto.decryptArtifactVersion(encryptedType, embedID: preview.id, chat: chat)
+            try validate()
+            guard preview.id == admission.parsedReference.embedID, preview.type == admission.parsedReference.type,
+                  decryptedType == admission.parsedReference.type else { throw NativeVoiceCallError.persistenceFailed }
+            hydratedEmbedPreviews[preview.id] = preview
+            // Supply only real metadata already present in this exact fetched
+            // head. The server compares every supplied field under its head lock;
+            // expected version/digest forbids stale replay from rewriting a head.
+            var metadata: [String: Any] = [:]
+            if let hash = fetched["content_hash"] as? String,
+               hash.range(of: #"\A[0-9a-f]{64}\z"#, options: .regularExpression) != nil { metadata["content_hash"] = hash }
+            if let path = fetched["file_path"] as? String, !path.isEmpty, path.utf8.count <= 4_096,
+               !path.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) { metadata["file_path"] = path }
+            guard !metadata.isEmpty else { throw NativeVoiceCallError.persistenceFailed }
+            if let retained {
+                let bundle = try WatchCanonicalStorage.object(retained.encryptedPayload)
+                guard let head = bundle["head"] as? [String: Any],
+                      head["encrypted_content"] as? String == ciphertext,
+                      head["encrypted_type"] as? String == encryptedType else { throw NativeVoiceCallError.persistenceFailed }
+                entry = retained
+            } else {
+                var head: [String: Any] = ["request_id": UUID().uuidString.lowercased(),
+                    "embed_id": admission.parsedReference.embedID, "chat_id": chat.id,
+                    "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: chat.id),
+                    "hashed_message_id": WatchChatKeyWrapperRecord.hashedChatId(for: admission.assistantMessageID),
+                    "hashed_user_id": WatchChatKeyWrapperRecord.hashedChatId(for: admission.scope.accountID),
+                    "encrypted_content": ciphertext, "encrypted_type": encryptedType,
+                    "status": "finished",
+                    // expected_version checks the effective locked revision;
+                    // omitting the stored column preserves a genuine legacy null.
+                    "canonical_metadata_enrichment": ["expected_version": admission.version,
+                        "expected_ciphertext_sha256": CanonicalEmbedStorageReceipts.digest(ciphertext)]]
+                for (field, value) in metadata { head[field] = value }
+                entry = try WatchCanonicalStorage.embedBundle(chatID: chat.id, head: head,
+                    keys: ["request_id": UUID().uuidString.lowercased(), "keys": chatWrappers])
+                pendingCompletions.append(entry)
+            }
+        } else {
+            preview = try await crypto.hydrateEmbed(payload: payload, chat: chat)
+            try validate()
+            guard preview.id == admission.parsedReference.embedID, preview.type == admission.parsedReference.type else {
+                throw NativeVoiceCallError.invalidResponse
+            }
+            if let retained { entry = retained }
+            else {
+                let prepared = try await crypto.prepareEmbedStorage(payload: payload, chat: chat, messageID: admission.assistantMessageID)
+                try validate()
+                var head = prepared.embed
+                head["chat_id"] = chat.id
+                // Existing catalogued chat heads require their public app/skill
+                // context on ordinary writes. The server derives root/scope fields.
+                if payload["app_id"] != nil || payload["skill_id"] != nil {
+                    guard let appID = payload["app_id"] as? String,
+                          appID.range(of: #"\A[a-z][a-z0-9_]{0,63}\z"#, options: .regularExpression) != nil,
+                          let skillID = payload["skill_id"] as? String,
+                          skillID.range(of: #"\A[a-z][a-z0-9_-]{0,63}\z"#, options: .regularExpression) != nil else {
+                        throw NativeVoiceCallError.invalidResponse
+                    }
+                    head["app_id"] = appID; head["skill_id"] = skillID
+                }
+                entry = try WatchCanonicalStorage.embedBundle(chatID: chat.id, head: head, keys: prepared.keys)
+                pendingCompletions.append(entry)
+            }
+        }
+        voiceArtifactBundleIDs.insert(entry.id)
+        // Preserve randomized ciphertext and request IDs even when a receipt is
+        // lost. Persist the encrypted retry authority before the first wire send.
+        try await persistSnapshot(validateCommit: { try validate() })
+        try validate()
+        try await WatchCanonicalStorage.persistEmbedBundle(entry, policy: .requireCanonicalDigest,
+            request: { type, fields, responses, matching in
+                try await socket.requestEvent(type: type, payload: fields, responseTypes: responses,
+                    matching: matching, beforeSend: { try validate() })
+            }, validate: { try validate() })
+        try validate()
+        let committed = WatchVoiceCallArtifactCommit(admission: admission, reference: admission.parsedReference.fields)
+        voiceArtifactCommits[admission.key] = committed
+        hydratedEmbedPreviews[preview.id] = preview
+        pendingCompletions.removeAll { $0.id == entry.id }
+        voiceArtifactBundleIDs.remove(entry.id)
+        try await persistSnapshot(validateCommit: { try validate() })
+        try validate()
+        return committed
+    }
+
+    private static func voiceDraftHash(_ text: String) -> String {
+        SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func sendVoiceCallComposerDraft(_ text: String, chat: WatchChatSummary) async -> Bool {
+        let state = callActions.projection
+        let context = requestContext()
+        guard state.phase == .live, state.chatID == chat.id, let callID = state.callID,
+              let scopeGeneration = state.scopeGeneration, !hasPendingVoiceCallTypedDraft,
+              composerDrafts[chat.id] == text, !text.isEmpty, text.utf16.count <= 8_000 else { return false }
+        let revision = currentDraftRevision(for: chat.id)
+        let operationID = UUID()
+        callActions.onStateChange = { [weak self] state in self?.voiceCallComposerStateChanged(state) }
+        draftSaveTask?.cancel()
+        do {
+            let sealed = try await crypto.encryptDraft(text)
+            let preview = try await crypto.encryptDraft(String(text.prefix(160)))
+            let original = encryptedDrafts[chat.id]
+            let draft = WatchEncryptedDraft(encryptedMarkdown: sealed, encryptedPreview: preview,
+                serverVersion: original?.serverVersion ?? 0, localRevision: revision, needsSync: true,
+                clearedVersion: original?.clearedVersion)
+            let candidate = WatchRecordingDraftCandidate(chat: chat, recording: nil, draft: draft)
+            try await persistSnapshot(recordingCandidate: candidate, validateCommit: {
+                try context.check()
+                guard self.currentDraftRevision(for: chat.id) == revision, self.composerDrafts[chat.id] == text,
+                      self.callActions.projection.callID == callID,
+                      self.callActions.projection.scopeGeneration == scopeGeneration else { throw CancellationError() }
+            }, didCommit: { self.encryptedDrafts[chat.id] = draft })
+            pendingCallComposerDrafts[operationID] = WatchPendingCallComposerDraft(operationID: operationID,
+                chatID: chat.id, callID: callID, scopeGeneration: scopeGeneration,
+                revision: revision, contentHash: Self.voiceDraftHash(text), encryptedSource: sealed)
+            guard let messageID = try await callActions.sendText(text, chatID: chat.id) else { throw CancellationError() }
+            try context.check()
+            guard var pending = pendingCallComposerDrafts[operationID],
+                  callActions.projection.callID == callID, callActions.projection.scopeGeneration == scopeGeneration else { throw CancellationError() }
+            guard rejectedCallTypedIDs.remove(messageID) == nil else { throw NativeVoiceCallError.textRejected }
+            pending.messageID = messageID
+            pendingCallComposerDrafts[operationID] = pending
+            // The matching final echo can arrive while the wire send is suspended.
+            if let echoed = voiceCallTranscriptProjections[chat.id]?[messageID], echoed.final,
+               echoed.callID == callID, echoed.scopeGeneration == scopeGeneration,
+               Self.voiceDraftHash(echoed.message.content ?? "") == pending.contentHash {
+                acceptVoiceCallComposerDraft(operationID: operationID, context: context)
+            } else if !callActions.projection.ownsAudio {
+                pendingCallComposerDrafts.removeValue(forKey: operationID)
+            }
+        } catch {
+            pendingCallComposerDrafts.removeValue(forKey: operationID)
+            if !isStopped { errorMessage = WatchChatRuntimeCopy.text("videocall.connection_lost") }
+        }
+        // Wire success never authorizes the ordinary composer's immediate clear.
+        return false
+    }
+
+    func voiceCallRejectTyped(messageID: String, scope: NativeVoiceCallScope, context: WatchChatRequestContext) {
+        guard (try? context.check()) != nil, scope.accountID == accountID,
+              scope.profileID == requestServerProfile.id,
+              scope.workspaceGeneration == callActions.projection.scopeGeneration,
+              scope.chatID == callActions.projection.chatID,
+              context.accountGeneration == accountLifecycleGeneration else { return }
+        if pendingCallComposerDrafts.values.contains(where: { $0.chatID == scope.chatID && $0.messageID == nil }) {
+            if rejectedCallTypedIDs.count < 32 { rejectedCallTypedIDs.insert(messageID) }
+        }
+        pendingCallComposerDrafts = pendingCallComposerDrafts.filter {
+            !($0.value.messageID == messageID && $0.value.chatID == scope.chatID
+                && $0.value.scopeGeneration == scope.workspaceGeneration && !$0.value.accepted)
+        }
+        // The source remains in its exact encrypted draft; no clear/restore can
+        // overwrite a newer edit. Controller outbox retains ciphertext for retry.
+    }
+
+    private func voiceCallComposerStateChanged(_ state: WatchCallActionProjection) {
+        guard !state.ownsAudio else { return }
+        pendingCallComposerDrafts = pendingCallComposerDrafts.filter { $0.value.accepted || $0.value.messageID == nil }
+        rejectedCallTypedIDs.removeAll()
+    }
+
+    private func acceptVoiceCallComposerDraft(operationID: UUID, context: WatchChatRequestContext) {
+        guard var pending = pendingCallComposerDrafts[operationID], !pending.accepted else { return }
+        pending.accepted = true
+        pendingCallComposerDrafts[operationID] = pending
+        let owned = pending
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { callComposerSettlementTasks.removeValue(forKey: operationID) }
+            do {
+                try context.check()
+                guard currentDraftRevision(for: owned.chatID) == owned.revision,
+                      Self.voiceDraftHash(composerDrafts[owned.chatID] ?? "") == owned.contentHash,
+                      let chat = try? voiceCallChat(for: owned.chatID) else { throw CancellationError() }
+                let revision = draftRevision &+ 1
+                var tombstone = encryptedDrafts[owned.chatID] ?? WatchEncryptedDraft(encryptedMarkdown: nil,
+                    encryptedPreview: nil, serverVersion: 0, localRevision: revision, needsSync: true)
+                tombstone.encryptedMarkdown = nil; tombstone.encryptedPreview = nil
+                tombstone.localRevision = revision; tombstone.needsSync = true
+                let committedTombstone = tombstone
+                let candidate = WatchRecordingDraftCandidate(chat: chat, recording: nil, draft: committedTombstone)
+                try await persistSnapshot(recordingCandidate: candidate, validateCommit: {
+                    try context.check()
+                    guard self.pendingCallComposerDrafts[operationID]?.accepted == true,
+                          self.currentDraftRevision(for: owned.chatID) == owned.revision,
+                          Self.voiceDraftHash(self.composerDrafts[owned.chatID] ?? "") == owned.contentHash else { throw CancellationError() }
+                }, didCommit: {
+                    self.draftSaveTask?.cancel()
+                    self.draftRevision = max(self.draftRevision, revision)
+                    self.draftLocalRevisions[owned.chatID] = revision
+                    self.encryptedDrafts[owned.chatID] = committedTombstone
+                    self.composerDrafts[owned.chatID] = ""
+                    self.pendingCallComposerDrafts.removeValue(forKey: operationID)
+                })
+            } catch is CancellationError { pendingCallComposerDrafts.removeValue(forKey: operationID) }
+              catch {
+                // Keep accepted source sealed and block a duplicate Send until
+                // the storage failure is resolved; never clear it on a failed write.
+                errorMessage = WatchChatRuntimeCopy.text("common.detail_save_error")
+            }
+        }
+        callComposerSettlementTasks[operationID] = task
+    }
+
+    func waitForVoiceCallDraftSettlement() async {
+        for task in Array(callComposerSettlementTasks.values) { await task.value }
+    }
+
+    func voiceCallCanonicalRequest(context: WatchChatRequestContext, chatID: String,
+                                   frame: NativeVoiceCallFrame, responseType: String) async throws -> NativeVoiceCallFrame {
+        try context.check()
+        guard context.accountID == accountID, context.profile == requestServerProfile,
+              context.accountGeneration == accountLifecycleGeneration,
+              let socket = syncSocket, socket.isConnected,
+              let type = frame["type"]?.string else { throw WatchChatRuntimeError.socketUnavailable }
+        _ = try voiceCallChat(for: chatID)
+        var payload = try WatchCanonicalStorage.object(JSONEncoder().encode(frame))
+        payload.removeValue(forKey: "type")
+        let requestedID = payload["chat_id"] as? String
+        let requestedIDs = payload["chat_ids"] as? [String]
+        let refreshIDs = payload["refresh_chat_ids"] as? [String]
+        let clientIDs = payload["client_chat_ids"] as? [String]
+        let personalRefresh = type == "phased_sync_request" && refreshIDs == [chatID] && clientIDs == [chatID]
+        guard requestedID == chatID || requestedIDs == [chatID] || personalRefresh,
+              payload["team_id"] == nil || payload["team_id"] is NSNull else { throw CancellationError() }
+        let socketGeneration = socket.generation
+        let generation = lifecycleGeneration
+        let response = try await socket.requestEvent(type: type, payload: payload,
+            responseTypes: [responseType], matching: { fields in
+                (fields["chat_id"] as? String) == chatID
+                    || (fields["messages_by_chat_id"] as? [String: Any])?[chatID] != nil
+                    || (fields["chat_details_by_id"] as? [String: Any])?[chatID] != nil
+                    || (fields["chats"] as? [[String: Any]])?.contains(where: {
+                        (($0["chat_details"] as? [String: Any])?["id"] as? String) == chatID
+                    }) == true
+                    || (fields["recent_chat_metadata"] as? [[String: Any]])?.contains(where: {
+                        ($0["id"] as? String) == chatID
+                    }) == true
+            }, beforeSend: {
+                try context.check()
+                guard !self.isStopped, self.lifecycleGeneration == generation,
+                      socket.generation == socketGeneration else { throw CancellationError() }
+                _ = try self.voiceCallChat(for: chatID)
+            })
+        try context.check()
+        guard !isStopped, generation == lifecycleGeneration,
+              socket.generation == socketGeneration else { throw CancellationError() }
+        _ = try voiceCallChat(for: chatID)
+        var object = response
+        object["type"] = responseType
+        let bytes = try JSONSerialization.data(withJSONObject: object)
+        guard bytes.count <= WatchChatOfflineCache.maximumConversationBytes else { throw WatchChatRuntimeError.historyUnavailable }
+        return try JSONDecoder().decode(NativeVoiceCallFrame.self, from: bytes)
+    }
+
+    private func voiceCallChat(for chatID: String, requiresKey: Bool = true) throws -> WatchChatSummary {
+        guard !isStopped,
+              !["incognito-", "demo-", "example-", "announcements-"].contains(where: chatID.hasPrefix),
+              let chat = chats.first(where: { $0.id == chatID }) ?? (transientChat?.id == chatID ? transientChat : nil),
+              !chat.isSharedRecipient else { throw WatchComposerActionError.staleScope }
+        guard !requiresKey || chat.encryptedChatKey != nil else { throw WatchChatRuntimeError.missingChatKey }
+        return chat
+    }
+
+    func voiceCallEncrypt(_ text: String, chatID: String, context: WatchChatRequestContext) async throws -> String {
+        try context.check()
+        guard context.accountID == accountID, context.profile == requestServerProfile,
+              context.accountGeneration == accountLifecycleGeneration else { throw CancellationError() }
+        let chat = try voiceCallChat(for: chatID)
+        let ciphertext = try await crypto.encryptText(text, for: chat)
+        try context.check()
+        _ = try voiceCallChat(for: chatID)
+        return ciphertext
+    }
+
+    func voiceCallDecrypt(_ ciphertext: String, chatID: String, context: WatchChatRequestContext) async throws -> String {
+        try context.check()
+        guard context.accountID == accountID, context.profile == requestServerProfile,
+              context.accountGeneration == accountLifecycleGeneration else { throw CancellationError() }
+        let chat = try voiceCallChat(for: chatID)
+        let text = try await crypto.decryptText(ciphertext, for: chat)
+        try context.check()
+        _ = try voiceCallChat(for: chatID)
+        return text
     }
 
     /// Read-only history is scoped to the visibly selected, referenced artifact.
@@ -1496,8 +2235,12 @@ final class WatchChatRuntime: ObservableObject {
 #endif
 
     var selectedMessages: [WatchChatMessage] {
-        guard let selectedChatId else { return [] }
-        return messagesByChatId[selectedChatId] ?? []
+        guard !isStopped, let selectedChatId else { return [] }
+        var messages = Dictionary((messagesByChatId[selectedChatId] ?? []).map { ($0.id, $0) }, uniquingKeysWith: { _, newer in newer })
+        for (id, row) in voiceCallTranscriptProjections[selectedChatId] ?? [:] {
+            if messages[id]?.content != row.message.content { messages[id] = row.message }
+        }
+        return Self.sortedMessages(Array(messages.values))
     }
 
     func loadCachedSnapshot() async {
@@ -1666,6 +2409,7 @@ final class WatchChatRuntime: ObservableObject {
         defer {
             backgroundOfflineMaintenance = false
             cancelRecentOfflineSync()
+            cancelRecentMediaSync()
             if !isForeground { syncSocket?.disconnect() }
         }
         if let syncSocket, let syncSession, !syncSocket.isConnected {
@@ -1681,8 +2425,11 @@ final class WatchChatRuntime: ObservableObject {
         await refresh()
         guard !Task.isCancelled, !isForeground else { return }
         scheduleRecentOfflineSync()
-        await withTaskCancellationHandler(operation: { await waitForRecentOfflineSync() }, onCancel: {
-            Task { @MainActor [weak self] in self?.cancelRecentOfflineSync() }
+        await withTaskCancellationHandler(operation: {
+            await waitForRecentOfflineSync()
+            await waitForRecentMediaSync()
+        }, onCancel: {
+            Task { @MainActor [weak self] in self?.cancelRecentOfflineSync(); self?.cancelRecentMediaSync() }
         })
     }
 
@@ -1699,6 +2446,8 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     private func scheduleRecentOfflineSync() {
+        let signature = currentMediaCohortSignature()
+        if mediaCohortSignature != nil, mediaCohortSignature != signature { cancelRecentMediaSync() }
         guard canMaintainRecentOfflineChats else { return }
         recentOfflineNeedsRefresh = true
         guard recentOfflineTask == nil else { return }
@@ -1788,7 +2537,158 @@ final class WatchChatRuntime: ObservableObject {
         do {
             try check()
             try await cache.pruneConversations(retaining: Set(WatchRecentOfflinePolicy.cohort(chats).map(\.id)))
+            scheduleRecentMediaSync()
         } catch { }
+    }
+
+    private func currentMediaCohortSignature() -> String {
+        WatchRetainedMedia.digest(Data(WatchRecentOfflinePolicy.cohort(chats).map {
+            "\($0.id)|\(WatchRecentOfflinePolicy.revision($0))|\($0.encryptedChatKey ?? "")"
+        }.joined(separator: "\n").utf8))
+    }
+
+    private func cancelRecentMediaSync() {
+        mediaRunID = nil
+        mediaTask?.cancel(); mediaTask = nil
+        mediaCohortSignature = nil
+        offlineMediaStatus.finished = false
+    }
+
+    /// Independent from startup, list sync and transcript publication. One task
+    /// and one active asset keep downloads bounded and deduplicate repeated sync.
+    private func scheduleRecentMediaSync() {
+        guard !isStopped, accountID != nil, mediaCache != nil else { return }
+        let signature = currentMediaCohortSignature()
+        if mediaTask != nil, mediaCohortSignature == signature { return }
+        cancelRecentMediaSync()
+        let id = UUID(); mediaRunID = id; mediaCohortSignature = signature
+        mediaTask = Task(priority: .utility) { @MainActor [weak self] in
+            guard let self else { return }
+            await self.maintainRecentMedia(id: id, signature: signature)
+            if self.mediaRunID == id { self.mediaTask = nil }
+        }
+    }
+
+    func waitForRecentMediaSync() async { await mediaTask?.value }
+
+    private func maintainRecentMedia(id: UUID, signature: String) async {
+        guard let accountID, let mediaCache else { return }
+        let scope = WatchWorkflowDetailScope.capture(accountID: accountID)
+        let context = requestContext()
+        func check() throws {
+            try Task.checkCancellation(); try context.check()
+            guard mediaRunID == id, currentMediaCohortSignature() == signature,
+                  scope.generation == WatchChatAccountLifecycle.generation,
+                  scope.profile == ServerProfile.current() else { throw CancellationError() }
+        }
+        enum Asset {
+            case thumbnail(URL), inlineThumbnail(Data), audio(WatchAudioSource)
+        }
+        var assets: [(key: String, value: Asset)] = []
+        var seen = Set<String>()
+        var status = WatchOfflineMediaStatus()
+        for chat in WatchRecentOfflinePolicy.cohort(chats) {
+            do {
+                try check()
+                guard let value = await cache.loadConversation(chatID: chat.id, accountID: accountID, serverScope: serverScope),
+                      value.revision == WatchRecentOfflinePolicy.revision(chat) else { throw WatchChatRuntimeError.historyUnavailable }
+                // Reopen with the currently validated wrapped chat key. Binary
+                // cache hits never replace the normal wrapper/hydration boundary.
+                var remote = WatchRemoteChat(id: chat.id, title: nil, lastMessageAt: chat.lastMessageAt, updatedAt: nil,
+                    chatSummary: nil, isPinned: chat.isPinned, encryptedTitle: chat.encryptedTitle,
+                    encryptedChatSummary: chat.encryptedPreview, encryptedChatKey: chat.encryptedChatKey)
+                if let wrapped = value.wrappedRecoveryChatKey ?? value.chat.offlineWrappedChatKey {
+                    remote.chatKeyWrappers = [WatchChatKeyWrapperRecord(id: nil,
+                        hashedChatId: WatchChatKeyWrapperRecord.hashedChatId(for: chat.id), keyType: "master",
+                        encryptedChatKey: wrapped, wrapperVersion: nil, createdAt: nil)]
+                }
+                guard let keyed = await crypto.decryptChat(remote) else { throw WatchChatRuntimeError.missingChatKey }
+                try check()
+                for sealed in value.embedPages {
+                    let text = try await crypto.decryptText(sealed, for: keyed)
+                    try check()
+                    let page = try await cache.decodeEmbedPage(Data(text.utf8))
+                    for record in page {
+                        var payload = record.mapValues(\.value); payload["user_id"] = accountID
+                        let ref = try await crypto.hydrateEmbed(payload: payload, chat: keyed)
+                        try check()
+                        let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: chat.id)
+                        let detail = model.detailContent
+                        if (model.family == .audio || model.family == .audioRecording),
+                           detail.audioSource == nil, ref.data?["files"] != nil {
+                            status.requested += 1; status.failed += 1
+                        }
+                        guard let key = detail.retainedMediaKey else { continue }
+                        func add(_ suffix: String, _ asset: Asset) {
+                            let key = key + suffix
+                            if seen.insert(key).inserted { assets.append((key, asset)) }
+                        }
+                        if let data = detail.imageData { add(":thumbnail", .inlineThumbnail(data)) }
+                        else if let url = detail.imageURL { add(":thumbnail", .thumbnail(url)) }
+                        if let source = detail.audioSource { add(":audio", .audio(source)) }
+                    }
+                    await Task.yield()
+                }
+            } catch is CancellationError { return }
+            catch { status.requested += 1; status.failed += 1 }
+        }
+        do {
+            try check()
+            let claim = try await mediaCache.retainCohort(keys: Set(assets.map(\.key)), scope: scope)
+            try check()
+            status.requested += assets.count
+            offlineMediaStatus = status
+            guard !assets.isEmpty else {
+                status.finished = true; offlineMediaStatus = status; return
+            }
+            let master = try await crypto.offlineMediaMasterKey()
+            try check()
+            for asset in assets {
+                do {
+                    try check()
+                    let limit: Int
+                    switch asset.value {
+                    case .audio: limit = WatchAudioSource.maximumBytes
+                    default: limit = WatchRetainedMedia.thumbnailLimit
+                    }
+                    if let cached = await mediaCache.load(key: asset.key, scope: scope, masterKey: master),
+                       !cached.isEmpty, cached.count <= limit {
+                        switch asset.value {
+                        case .audio: status.retained += 1
+                        default:
+                            guard WatchRetainedMedia.validThumbnail(cached) else { throw WatchChatRuntimeError.historyUnavailable }
+                            status.retained += 1
+                        }
+                    } else {
+                        let bytes: Data
+                        switch asset.value {
+                        case .thumbnail(let url): bytes = try await api.fetchPreviewThumbnail(url, context: context)
+                        case .inlineThumbnail(let data): bytes = data
+                        case .audio(let source): bytes = try await api.fetchAudioRecording(source, context: context)
+                        }
+                        try check()
+                        guard !bytes.isEmpty, bytes.count <= limit else { throw WatchChatRuntimeError.historyUnavailable }
+                        switch asset.value {
+                        case .audio: break
+                        default:
+                            guard WatchRetainedMedia.validThumbnail(bytes) else { throw WatchChatRuntimeError.historyUnavailable }
+                        }
+                        try await mediaCache.save(bytes, key: asset.key, scope: scope, masterKey: master, cohort: claim)
+                        try check()
+                        status.retained += 1
+                    }
+                } catch is CancellationError { return }
+                catch { status.failed += 1 }
+                try check(); offlineMediaStatus = status
+                await Task.yield()
+            }
+            status.finished = true; offlineMediaStatus = status
+        } catch is CancellationError { return }
+        catch {
+            guard (try? check()) != nil else { return }
+            status.failed += max(0, status.requested - status.retained - status.failed)
+            status.finished = true; offlineMediaStatus = status
+        }
     }
 
     private static func isConnectivityError(_ error: Error) -> Bool {
@@ -1902,11 +2802,9 @@ final class WatchChatRuntime: ObservableObject {
                 messagesByChatId[chat.id] = Self.sortedMessages(cachedMessages)
             }
         }
-        // An omitted REST message version also decodes as zero. Only a known
-        // unsent draft can skip fetching; an empty cache is not authoritative.
-        let isDraftOnly = chat.messagesV == 0 && chat.titleV == 0 && chat.metadataV == 0
-            && (transientChat?.id == chat.id || encryptedDrafts[chat.id]?.encryptedMarkdown != nil)
-        if isDraftOnly, messagesByChatId[chat.id] == [] { return }
+        // Local identity and queued ciphertext do not prove the server row exists.
+        // Unknown zero-version remote chats still fetch their authoritative window.
+        if awaitsFirstCanonicalTurn(chat) { return }
         if isOffline, offlinePageIndex != nil { return }
 
         do {
@@ -2153,6 +3051,7 @@ final class WatchChatRuntime: ObservableObject {
         }
         do {
             let hasContent = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || recordingDrafts.contains { $0.chatID == chatId }
             let encrypted = hasContent ? try await crypto.encryptDraft(text) : nil
             let preview = hasContent ? try await crypto.encryptDraft(String(text.prefix(160))) : nil
             guard generation == lifecycleGeneration, !isStopped, revision == currentDraftRevision(for: chatId) else { return }
@@ -2393,7 +3292,15 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func stopRealtimeSync() {
+        cancelRecentMediaSync()
+        voiceCallTranscriptProjections.removeAll()
+        for task in voiceArtifactTasks.values { task.cancel() }
+        voiceArtifactTasks.removeAll(); voiceArtifactAdmissions.removeAll()
+        voiceArtifactFinalHashes.removeAll(); voiceArtifactCommits.removeAll(); voiceArtifactBundleIDs.removeAll()
+        pendingCallComposerDrafts.removeAll()
         localAudioPreviews.removeAll()
+        recordingDraftGeneration &+= 1
+        Task { await recordingTranscriber.cancel(); await callActions.invalidate() }
         cancelRecentOfflineSync()
         lifecycleGeneration &+= 1
         isStopped = true
@@ -2551,13 +3458,23 @@ final class WatchChatRuntime: ObservableObject {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
             return false
         }
-        do { chat = try await prepareDraftChatForSending(chat) }
-        catch { if !isStopped { errorMessage = error.localizedDescription }; return false }
+        do {
+            if callActions.projection.ownsAudio {
+                // Active-call typed input must use its UUIDv7 encrypted outbox,
+                // never ordinary text inference. A different-chat call blocks.
+                guard callActions.projection.chatID == chat.id else { throw WatchComposerActionError.busy }
+                return await sendVoiceCallComposerDraft(content, chat: chat)
+            }
+            chat = try await prepareDraftChatForSending(chat)
+            if let recording = recordingDrafts.first(where: { $0.chatID == chat.id }) {
+                return try await sendRecordingDraft(recording, text: content, chat: chat)
+            }
+        } catch { if !isStopped { errorMessage = error.localizedDescription }; return false }
         return await send(content: content, chat: chat, embed: nil)
     }
 
     @discardableResult
-    func sendAudioRecording(data: Data, filename: String, duration: TimeInterval) async -> Bool {
+    func sendAudioRecording(data: Data, filename: String, duration: TimeInterval, draftText: String = "") async -> Bool {
         guard var chat = selectedChat else {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
             return false
@@ -2585,13 +3502,160 @@ final class WatchChatRuntime: ObservableObject {
                 hydratedEmbedPreviews[embed.id] = WatchEmbedRef(id: embed.id, type: "audio-recording", status: "finished",
                     data: object.mapValues(AnyCodable.init))
             }
-            let accepted = await send(content: embed.markdownReference, chat: chat, embed: embed)
+            let completeDraft = draftText.isEmpty ? embed.markdownReference : draftText + "\n" + embed.markdownReference
+            let accepted = await send(content: completeDraft, chat: chat, embed: embed)
             if !accepted { localAudioPreviews.removeValue(forKey: embed.id) }
             return accepted
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    /// Local dictation is an editor operation. It performs no upload or inference.
+    /// The optional attachment is sealed before persistence and uploaded only by Send.
+    @discardableResult
+    func prepareRecordingDraft(fileURL: URL, duration: TimeInterval, attachAudio: Bool) async -> Bool {
+        guard !isStopped, !isPreparingRecordingDraft, !callActions.projection.ownsAudio,
+              let chat = selectedChat, !hasSelectedRecordingDraft,
+              duration > 0, duration <= 30 else { return false }
+        let generation = lifecycleGeneration
+        let recordingGeneration = recordingDraftGeneration
+        let context = requestContext()
+        let previousDraft = composerDrafts[chat.id] ?? ""
+        let previousRevision = currentDraftRevision(for: chat.id)
+        draftSaveTask?.cancel()
+        isPreparingRecordingDraft = true
+        var committed = false
+        defer {
+            isPreparingRecordingDraft = false
+            // Canceling the old debounce must not strand an otherwise unchanged
+            // unsaved original draft when inference/commit is canceled or fails.
+            if !committed, !isStopped, currentDraftRevision(for: chat.id) == previousRevision,
+               (composerDrafts[chat.id] ?? "") == previousDraft {
+                updateComposerDraft(previousDraft, chatId: chat.id)
+            }
+        }
+        func validate() throws {
+            try context.check()
+            guard !Task.isCancelled, !isStopped, generation == lifecycleGeneration,
+                  recordingGeneration == recordingDraftGeneration, selectedChatId == chat.id,
+                  (composerDrafts[chat.id] ?? "") == previousDraft,
+                  currentDraftRevision(for: chat.id) == previousRevision else { throw CancellationError() }
+        }
+        do {
+            let data = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+            guard !data.isEmpty, data.count <= WatchAudioSource.maximumBytes else { throw WatchComposerActionError.invalidRecording }
+            let transcript = try await recordingTranscriber.transcribe(fileURL: fileURL)
+            try validate()
+            let updated = WatchComposerControlPolicy.appendTranscript(transcript, to: previousDraft)
+            let recording: WatchEncryptedRecordingDraft?
+            if attachAudio {
+                let payload = WatchRecordingDraftPayload(audio: data, filename: "recording.m4a", duration: duration, transcript: transcript)
+                let json = try JSONEncoder().encode(payload)
+                let encrypted = try await crypto.encryptDraft(String(decoding: json, as: UTF8.self))
+                try validate()
+                recording = WatchEncryptedRecordingDraft(id: UUID(), chatID: chat.id, encryptedPayload: encrypted)
+            } else { recording = nil }
+            let markdown = try await crypto.encryptDraft(updated)
+            let preview = try await crypto.encryptDraft(String(updated.prefix(160)))
+            try validate()
+            let revision = draftRevision &+ 1
+            let previousEncrypted = encryptedDrafts[chat.id]
+            let encrypted = WatchEncryptedDraft(encryptedMarkdown: markdown, encryptedPreview: preview,
+                serverVersion: previousEncrypted?.serverVersion ?? 0, localRevision: revision, needsSync: true,
+                clearedVersion: previousEncrypted?.clearedVersion)
+            let candidate = WatchRecordingDraftCandidate(chat: chat, recording: recording, draft: encrypted)
+            try await persistSnapshot(recordingCandidate: candidate, validateCommit: {
+                try context.check()
+                guard !self.isStopped, self.lifecycleGeneration == generation,
+                      self.recordingDraftGeneration == recordingGeneration,
+                      self.selectedChatId == chat.id,
+                      self.currentDraftRevision(for: chat.id) == previousRevision,
+                      (self.composerDrafts[chat.id] ?? "") == previousDraft else { throw CancellationError() }
+            }, didCommit: {
+                self.draftRevision = max(self.draftRevision, revision)
+                self.draftLocalRevisions[chat.id] = revision
+                self.promoteDraftChatForSending(chat)
+                if let recording { self.recordingDrafts.append(recording) }
+                self.encryptedDrafts[chat.id] = encrypted
+                self.composerDrafts[chat.id] = updated
+            })
+            committed = true
+            Task { [weak self] in await self?.replayPendingDrafts() }
+            return true
+        } catch is CancellationError { return false }
+          catch {
+            if !isStopped, generation == lifecycleGeneration, recordingGeneration == recordingDraftGeneration {
+                errorMessage = WatchChatRuntimeCopy.text("watch.chats.local_transcription_unavailable")
+            }
+            return false
+        }
+    }
+
+    func cancelRecordingDraftPreparation() async {
+        recordingDraftGeneration &+= 1
+        await recordingTranscriber.cancel()
+    }
+
+    func removeSelectedRecordingDraft() async {
+        guard !isStopped, !isSending, !isPreparingRecordingDraft, let chatID = selectedChatId,
+              let draft = recordingDrafts.first(where: { $0.chatID == chatID }) else { return }
+        let context = requestContext()
+        recordingDrafts.removeAll { $0.id == draft.id }
+        do {
+            try await persistSnapshot()
+            try context.check()
+            updateComposerDraft(composerDrafts[chatID] ?? "", chatId: chatID)
+        } catch {
+            guard !isStopped else { return }
+            recordingDrafts.append(draft)
+            errorMessage = WatchChatRuntimeCopy.text("common.detail_save_error")
+        }
+    }
+
+    func beginRecordingCapture() -> Bool {
+        guard !isStopped, !isCapturingRecording, !isPreparingRecordingDraft,
+              !hasSelectedRecordingDraft, !callActions.projection.ownsAudio else { return false }
+        isCapturingRecording = true
+        return true
+    }
+
+    func endRecordingCapture() { isCapturingRecording = false }
+
+    func activateCallAction() async {
+        guard !isStopped, !isCapturingRecording, !isPreparingRecordingDraft, !hasSelectedRecordingDraft,
+              let chat = selectedChat else { return }
+        do {
+            // Root's adapter owns canonical context/new-chat confirmation and
+            // reserves the shared audio owner before opening any paid transport.
+            try await callActions.activate(context: requestContext(), chatID: chat.id)
+        } catch {
+            guard !isStopped else { return }
+            errorMessage = WatchChatRuntimeCopy.text("videocall.call_unavailable")
+        }
+    }
+
+    private func sendRecordingDraft(_ recording: WatchEncryptedRecordingDraft, text: String,
+                                    chat: WatchChatSummary) async throws -> Bool {
+        let context = requestContext()
+        let plaintext = try await crypto.decryptDraft(recording.encryptedPayload)
+        try context.check()
+        let payload = try JSONDecoder().decode(WatchRecordingDraftPayload.self, from: Data(plaintext.utf8))
+        guard recording.chatID == selectedChatId, !payload.audio.isEmpty,
+              payload.audio.count <= WatchAudioSource.maximumBytes else { throw CancellationError() }
+        let upload = try await api.uploadAudioRecording(data: payload.audio, filename: payload.filename,
+            chatId: chat.id, context: context)
+        try context.check()
+        guard selectedChatId == chat.id, recordingDrafts.contains(recording) else { throw CancellationError() }
+        let transcription = WatchTranscriptionMetadata(title: nil, transcript: payload.transcript,
+            transcriptOriginal: payload.transcript, transcriptCorrected: nil, useCorrected: false,
+            model: nil, correctionModel: nil, waveform: nil)
+        let embed = WatchPendingAudioEmbed.from(upload: upload, transcription: transcription, duration: payload.duration)
+        let content = text.isEmpty ? embed.markdownReference : text + "\n" + embed.markdownReference
+        // The same first snapshot commits the prepared encrypted turn and removes
+        // this editor attachment, preventing resurrection/duplicate sends on boot.
+        return await send(content: content, chat: chat, embed: embed, recordingDraftID: recording.id)
     }
 
     private func prepareDraftChatForSending(_ original: WatchChatSummary) async throws -> WatchChatSummary {
@@ -2606,7 +3670,7 @@ final class WatchChatRuntime: ObservableObject {
         return prepared
     }
 
-    private func send(content: String, chat: WatchChatSummary, embed: WatchPendingAudioEmbed?) async -> Bool {
+    private func send(content: String, chat: WatchChatSummary, embed: WatchPendingAudioEmbed?, recordingDraftID: UUID? = nil) async -> Bool {
         guard !isStopped else { return false }
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
@@ -2713,20 +3777,26 @@ final class WatchChatRuntime: ObservableObject {
                 encryptedContent: encryptedContent, encryptedChatKey: encryptedChatKey,
                 createdAt: createdAt, encryptedPreparedTurn: encryptedPrepared
             )
-            promoteDraftChatForSending(chat)
-            var local = messagesByChatId[chat.id] ?? []
-            local.append(WatchChatMessage(
+            let localMessage = WatchChatMessage(
                 id: messageId, chatId: chat.id, role: .user, content: trimmed,
                 encryptedContent: encryptedContent,
                 embedRefs: embed.map { [WatchEmbedRef(id: $0.id, type: "audio-recording", status: "finished", data: nil)] },
-                createdAt: createdAt, isPending: true
-            ))
-            messagesByChatId[chat.id] = Self.sortedMessages(local)
-            pendingTextSends.append(pending)
+                createdAt: createdAt, isPending: true)
+            let candidate = WatchPreparedTurnCandidate(chat: chat, pending: pending, message: localMessage)
+            try await persistSnapshot(turnCandidate: candidate, consumingRecordingID: recordingDraftID, didCommit: {
+                self.promoteDraftChatForSending(chat)
+                var local = self.messagesByChatId[chat.id] ?? []
+                local.append(localMessage)
+                self.messagesByChatId[chat.id] = Self.sortedMessages(local)
+                self.pendingTextSends.append(pending)
+                if let recordingDraftID { self.recordingDrafts.removeAll { $0.id == recordingDraftID } }
+            })
+            // Acceptance means the prepared turn and attachment transfer are now
+            // durably committed. A transport failure can safely retry this turn.
             queued = true
-            try await persistSnapshot()
             try validate()
-            await clearDraftAfterSending(chatId: chat.id)
+            if recordingDraftID == nil { await clearDraftAfterSending(chatId: chat.id) }
+            else { await replayPendingDrafts() }
             try validate()
             syncSocket.connect(session: syncSession!, syncState: makeSyncClientState())
             let socketGeneration = syncSocket.generation
@@ -2774,8 +3844,18 @@ final class WatchChatRuntime: ObservableObject {
         return history
     }
 
+    /// First-turn admission retires the pending send and marks its local message
+    /// committed. Until then, draft navigation and socket changes must not read a
+    /// canonical row that may not exist yet, including after cold queue recovery.
+    private func awaitsFirstCanonicalTurn(_ chat: WatchChatSummary) -> Bool {
+        chat.messagesV == 0 && chat.titleV == 0 && chat.metadataV == 0
+            && (transientChat?.id == chat.id || encryptedDrafts[chat.id]?.encryptedMarkdown != nil
+                || pendingTextSends.contains(where: { $0.chatId == chat.id }))
+            && (messagesByChatId[chat.id] ?? []).allSatisfy(\.isPending)
+    }
+
     func refreshSelectedChat() async {
-        guard !isStopped, let chat = selectedChat else { return }
+        guard !isStopped, let chat = selectedChat, !awaitsFirstCanonicalTurn(chat) else { return }
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
         let requestID = UUID(); windowRequestID = requestID
@@ -2872,6 +3952,12 @@ final class WatchChatRuntime: ObservableObject {
             if evicted.contains(where: { $0.createdAt > last.createdAt || ($0.createdAt == last.createdAt && $0.id > last.id) }) { foregroundEvictedNewerChats.insert(chatID) }
         }
         messagesByChatId[chatID] = retained
+        if var overlays = voiceCallTranscriptProjections[chatID] {
+            for message in retained where !message.isPending {
+                if overlays[message.id]?.message.content == message.content { overlays.removeValue(forKey: message.id) }
+            }
+            voiceCallTranscriptProjections[chatID] = overlays.isEmpty ? nil : overlays
+        }
     }
 
     private static func windowCursor(_ message: WatchChatMessage) -> WatchMessageWindowCursor? {
@@ -2884,6 +3970,7 @@ final class WatchChatRuntime: ObservableObject {
         foregroundEvictedNewerChats.removeAll()
         localAudioPreviews.removeAll()
         encryptedDrafts = snapshot.encryptedDrafts
+        recordingDrafts = snapshot.recordingDrafts
         draftRevision = encryptedDrafts.values.map(\.localRevision).max() ?? 0
         chats = Self.sortedChats(snapshot.chats)
         messagesByChatId = snapshot.messagesByChatId.mapValues { Self.sortedMessages($0.filter(\.isPending)) }.filter { !$0.value.isEmpty }
@@ -2893,7 +3980,11 @@ final class WatchChatRuntime: ObservableObject {
         pendingAudioEmbeds = []
     }
 
-    private func persistSnapshot() async throws {
+    private func persistSnapshot(recordingCandidate: WatchRecordingDraftCandidate? = nil,
+                                 turnCandidate: WatchPreparedTurnCandidate? = nil,
+                                 consumingRecordingID: UUID? = nil,
+                                 validateCommit: @escaping @MainActor @Sendable () throws -> Void = {},
+                                 didCommit: @escaping @MainActor @Sendable () -> Void = {}) async throws {
         guard !isStopped, !isPreviewFixture else { return }
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
@@ -2908,7 +3999,14 @@ final class WatchChatRuntime: ObservableObject {
             let retained = Set(chats.map(\.id))
             encryptedMessages = previous.messagesByChatId.filter { retained.contains($0.key) && (messagesByChatId[$0.key] == nil || partialWindowChats.contains($0.key)) }
         }
-        for chat in chats {
+        var snapshotChats = chats
+        if let candidate = recordingCandidate, !snapshotChats.contains(where: { $0.id == candidate.chat.id }) {
+            snapshotChats.append(candidate.chat)
+        }
+        if let candidate = turnCandidate, !snapshotChats.contains(where: { $0.id == candidate.chat.id }) {
+            snapshotChats.append(candidate.chat)
+        }
+        for chat in snapshotChats {
             var storedChat = chat
             if let title = chat.title, storedChat.encryptedTitle == nil { storedChat.encryptedTitle = try await crypto.encryptText(title, for: chat) }
             if let preview = chat.preview, storedChat.encryptedPreview == nil { storedChat.encryptedPreview = try await crypto.encryptText(preview, for: chat) }
@@ -2945,15 +4043,59 @@ final class WatchChatRuntime: ObservableObject {
             pendingTextSends[index].inferenceJSON = Data()
         }
         try validate()
+        var snapshotPendingTurns = pendingTextSends
+        if let candidate = turnCandidate {
+            snapshotPendingTurns.append(candidate.pending)
+            var encryptedMessage = candidate.message
+            encryptedMessage.content = nil; encryptedMessage.embedRefs = nil
+            encryptedMessages[candidate.chat.id, default: []].append(encryptedMessage)
+        }
+        var snapshotDrafts = encryptedDrafts
+        var snapshotRecordings = recordingDrafts
+        if let candidate = recordingCandidate {
+            snapshotDrafts[candidate.chat.id] = candidate.draft
+            if let recording = candidate.recording { snapshotRecordings.append(recording) }
+        }
+        var consumedDraft: (chatID: String, expectedRevision: UInt64, revision: UInt64, tombstone: WatchEncryptedDraft?)?
+        if let consumingRecordingID, let recording = snapshotRecordings.first(where: { $0.id == consumingRecordingID }) {
+            let chatID = recording.chatID
+            let revision = draftRevision &+ 1
+            var tombstone = snapshotDrafts[chatID]
+            tombstone?.encryptedMarkdown = nil; tombstone?.encryptedPreview = nil
+            tombstone?.localRevision = revision; tombstone?.needsSync = true
+            snapshotDrafts[chatID] = tombstone
+            consumedDraft = (chatID, currentDraftRevision(for: chatID), revision, tombstone)
+            snapshotRecordings.removeAll { $0.id == consumingRecordingID }
+        }
+        let consumed = consumedDraft
         try await cache.saveSnapshot(
             WatchChatSnapshot(
                 chats: encryptedChats,
                 messagesByChatId: encryptedMessages,
-                pendingTextSends: pendingTextSends,
+                pendingTextSends: snapshotPendingTurns,
                 pendingAudioEmbeds: [],
-                savedAt: Date(), accountID: accountID, serverScope: serverScope, encryptedDrafts: encryptedDrafts,
+                recordingDrafts: snapshotRecordings,
+                savedAt: Date(), accountID: accountID, serverScope: serverScope, encryptedDrafts: snapshotDrafts,
                 pendingRecoveryJobs: pendingRecoveryJobs, pendingCompletions: pendingCompletions
-            ), accountGeneration: accountLifecycleGeneration, serverScope: serverScope
+            ), accountGeneration: accountLifecycleGeneration, serverScope: serverScope,
+            validateCommit: {
+                guard !self.isStopped, self.lifecycleGeneration == generation,
+                      profile == ServerProfile.current() else { throw CancellationError() }
+                if let consumed {
+                    guard self.currentDraftRevision(for: consumed.chatID) == consumed.expectedRevision else { throw CancellationError() }
+                }
+                try validateCommit()
+            }, didCommit: {
+                if let consumed {
+                    self.draftSaveTask?.cancel()
+                    self.draftRevision = max(self.draftRevision, consumed.revision)
+                    self.draftLocalRevisions[consumed.chatID] = consumed.revision
+                    self.encryptedDrafts[consumed.chatID] = consumed.tombstone
+                    self.composerDrafts[consumed.chatID] = ""
+                    if self.transientChat?.id == consumed.chatID { self.transientChat = nil }
+                }
+                didCommit()
+            }
         )
     }
 
@@ -3231,6 +4373,7 @@ final class WatchChatRuntime: ObservableObject {
             if migrated != pendingCompletions { pendingCompletions = migrated; try await persistSnapshot() }
         } catch { failed = true }
         for entry in WatchCanonicalStorage.completionDrainCandidates(pendingCompletions) {
+            if voiceArtifactBundleIDs.contains(entry.id) { continue }
             if failed { break }
             do {
                 try validate()
@@ -3907,6 +5050,12 @@ private final class WatchChatCryptoService: WatchChatCrypto {
     init(currentUserId: String?) {
         self.currentUserId = currentUserId
     }
+    func offlineMediaMasterKey() async throws -> SymmetricKey {
+        guard let currentUserId, artifactAccountGeneration == WatchChatAccountLifecycle.generation,
+              artifactServerProfile == ServerProfile.current(),
+              let key = try await CryptoManager.shared.loadMasterKey(for: currentUserId) else { throw WatchChatRuntimeError.missingChatKey }
+        return key
+    }
 
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
         guard let resolved = await loadChatKey(chatId: chat.id, wrappers: chat.chatKeyWrappers,
@@ -4538,7 +5687,13 @@ private final class WatchPreviewDraftCrypto: WatchChatCrypto {
 
 @MainActor
 final class WatchOfflineFixtureCrypto: WatchChatCrypto {
-    let key = SymmetricKey(size: .bits256)
+    let key: SymmetricKey
+    init(key: SymmetricKey = SymmetricKey(size: .bits256)) { self.key = key }
+    var beforeOfflineMediaKey: (@MainActor () async -> Void)?
+    func offlineMediaMasterKey() async throws -> SymmetricKey {
+        await beforeOfflineMediaKey?()
+        return key
+    }
     private(set) var decryptedMessageCount = 0
     func seal(_ text: String) throws -> String { try ComposerEmbedCrypto.encryptContent(text, using: key) }
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
@@ -4580,14 +5735,48 @@ final class WatchOfflineFixtureTransport: WatchChatAPI, WatchChatSyncSocket {
     var holdBatch = false
     var partialBatch = false
     var wrongCount = false
+    var includesMedia = false
+    var excludeNewest = false
+    var holdMedia = false
+    var failAudio = false
+    private(set) var thumbnailReads = 0
+    private(set) var audioReads = 0
+    static let thumbnail = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNwWvDgPwAFrALCutECygAAAABJRU5ErkJggg==")!
+    static var audio: Data {
+        var result = Data()
+        func text(_ value: String) { result.append(contentsOf: value.utf8) }
+        func number(_ value: UInt32, bytes: Int = 4) {
+            for shift in 0..<bytes { result.append(UInt8(truncatingIfNeeded: value >> (shift * 8))) }
+        }
+        text("RIFF"); number(64_036); text("WAVEfmt "); number(16)
+        number(1, bytes: 2); number(1, bytes: 2); number(8000); number(16_000)
+        number(2, bytes: 2); number(16, bytes: 2); text("data"); number(64_000)
+        result.append(Data(repeating: 0, count: 64_000)); return result
+    }
     private(set) var requestedIDs: [String] = []
     private(set) var windowReadCount = 0
     private(set) var fullMessageReadCount = 0
     var generation: Int { 1 }
     var isConnected: Bool { !offline }
     init(crypto: WatchOfflineFixtureCrypto) { self.crypto = crypto }
+    func fetchPreviewThumbnail(_ url: URL, context: WatchChatRequestContext) async throws -> Data {
+        thumbnailReads += 1
+        guard !offline, url.host == "media.example.invalid" else { throw URLError(.notConnectedToInternet) }
+        while holdMedia { try await Task.sleep(for: .milliseconds(5)) }
+        return Self.thumbnail
+    }
+    func fetchAudioRecording(_ source: WatchAudioSource, context: WatchChatRequestContext) async throws -> Data {
+        audioReads += 1
+        guard !offline, !failAudio, source.s3Key == "synthetic/offline.wav" else { throw URLError(.notConnectedToInternet) }
+        let key = SymmetricKey(data: Data(repeating: 7, count: 32))
+        let box = try AES.GCM.seal(Self.audio, using: key)
+        return try source.decrypt(try fixtureCombined(box))
+    }
+    private func fixtureCombined(_ box: AES.GCM.SealedBox) throws -> Data {
+        guard let data = box.combined else { throw WatchChatRuntimeError.invalidRecording }; return data
+    }
     func chats() throws -> [WatchRemoteChat] {
-        try (0...20).map { index in
+        try (0...20).filter { !excludeNewest || $0 != 20 }.map { index in
             var chat = WatchRemoteChat(id: "watch-offline-\(index)", title: nil, lastMessageAt: String(1_800_000_000 + index), updatedAt: nil,
                 chatSummary: nil, isPinned: index == 0, encryptedTitle: try crypto.seal("Offline chat \(index)"),
                 encryptedChatSummary: nil, encryptedChatKey: "fixture-wrapped-key")
@@ -4627,7 +5816,8 @@ final class WatchOfflineFixtureTransport: WatchChatAPI, WatchChatSyncSocket {
         try Task.checkCancellation()
         let count = id == "watch-offline-20" ? 101 : 1
         let messages = try (0..<count).map { index -> [String: Any] in
-            let text = index == 100 ? "Last offline response\n[!](embed:offline-sheet)" : "Offline message \(index)"
+            let suffix = includesMedia ? "\n[!](embed:offline-image)\n[!](embed:offline-audio)" : ""
+            let text = index == 100 ? "Last offline response\n[!](embed:offline-sheet)" + suffix : "Offline message \(index)"
             return ["id": "offline-message-\(index)", "chat_id": id, "role": "assistant", "encrypted_content": try crypto.seal(text), "created_at": String(1_800_000_000 + index)]
         }
         var embeds: [[String: Any]] = []
@@ -4640,6 +5830,24 @@ final class WatchOfflineFixtureTransport: WatchChatAPI, WatchChatSyncSocket {
             keys = [["hashed_embed_id": WatchChatKeyWrapperRecord.hashedChatId(for: "offline-sheet"), "key_type": "master",
                 "hashed_user_id": WatchChatKeyWrapperRecord.hashedChatId(for: Self.accountID),
                 "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: crypto.key)]]
+        }
+        if id == "watch-offline-20", includesMedia {
+            let descriptions: [(String, String, [String: Any])] = [
+                ("offline-image", "image", ["title": "Retained image", "thumbnail_url": "https://media.example.invalid/synthetic.png", "version_number": 1]),
+                ("offline-audio", "audio-recording", ["title": "Retained audio", "transcript": "Offline recorded words",
+                    "aes_key": Data(repeating: 7, count: 32).base64EncodedString(),
+                    "files": ["original": ["s3_key": "synthetic/offline.wav", "encryption": "aes-gcm-nonce-prefixed-v1", "size_bytes": Self.audio.count + 28]], "version_number": 1])
+            ]
+            for (embedID, type, raw) in descriptions {
+                let embedKey = SymmetricKey(size: .bits256)
+                let text = String(decoding: try JSONSerialization.data(withJSONObject: raw, options: [.sortedKeys]), as: UTF8.self)
+                embeds.append(["embed_id": embedID, "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: id),
+                    "encrypted_type": try ComposerEmbedCrypto.encryptContent(type, using: embedKey),
+                    "encrypted_content": try ComposerEmbedCrypto.encryptContent(text, using: embedKey), "status": "finished", "version_number": 1])
+                keys.append(["hashed_embed_id": WatchChatKeyWrapperRecord.hashedChatId(for: embedID), "key_type": "master",
+                    "hashed_user_id": WatchChatKeyWrapperRecord.hashedChatId(for: Self.accountID),
+                    "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: crypto.key)])
+            }
         }
         return ["messages_by_chat_id": [id: messages], "versions_by_chat_id": [id: ["messages_v": count, "server_message_count": count + (wrongCount ? 1 : 0)]],
             "embeds": embeds, "embed_keys": keys, "chat_key_wrappers": [], "partial_error": partialBatch]
@@ -4668,3 +5876,12 @@ private struct WatchMessageWindowFixtureTransport: WatchChatAPI {
     func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? { throw WatchChatRuntimeError.audioUploadFailed }
 }
 #endif
+
+
+struct WatchOfflineMediaStatus: Equatable, Sendable {
+    var requested = 0
+    var retained = 0
+    var failed = 0
+    var finished = false
+    var complete: Bool { finished && failed == 0 && retained == requested }
+}

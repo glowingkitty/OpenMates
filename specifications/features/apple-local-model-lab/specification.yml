@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.apple-local-model-lab
-version: 8
+version: 9
 status: draft
 title: Apple optional local model laboratory
 summary: Optional pinned speech and privacy assets support the native laboratory and an explicit composer download pack;
@@ -12,11 +12,12 @@ scope:
   - Verified optional assets, local results, cancellation, private ephemeral state and visible device measurements.
   - An explicit composer offer for the sequential 2.3 GB Whisper STT, Supertonic3 TTS and Enhanced PII asset pack,
     with persisted Later/Download consent, pause, cancellation, retry and truthful background progress.
+  - Separately included Whistle recording transcription on supported app and Watch targets, with no first-use download or duplicate Documents export.
   - Separate Apple Watch foreground multilingual tiny Whisper developer experiment with explicitly pinned assets,
     microphone input capped at thirty seconds, cancellation and numeric timing/memory samples.
   excludes:
   - Production chat or billing routing governed by separate speech/privacy contracts, implicit cloud fallback,
-    bundled weights and any initial weight download without explicit consent.
+    bundling the optional Whisper/Supertonic3/Privacy Filter weights and any initial optional-weight download without explicit consent.
   - Unsupported adapter/platform inference, Watch production downloaded-model routing and guarantees of accuracy,
     latency, battery use or physical-device reliability.
 relationships:
@@ -37,7 +38,7 @@ assertions:
     in any transfer state. The app header uses a subtle opacity-animated download icon, static with reduced motion,
     which opens Settings > AI > Offline models. Settings and the regular Live Activity expose concrete progress;
     consumer labels are Speech to text, Text to speech and Enhanced anonymization without model names.
-    Technical model identities remain available only in the advanced Developers lab. Download completion
+    Technical identities for the optional pack remain in the advanced Developers lab. The separately included Whistle recording choice is labeled included with the app, reports its bundle size without a download/delete control and does not duplicate its model in Documents. Download completion
     does not activate Enhanced PII or establish local production routing, lower costs or a privacy benefit by itself.
     Assets use immutable revision URLs and per-file size and SHA-256 validation; incomplete or corrupt assets
     never become ready. Reopening verifies installed assets without network access. Transfer and verification are
@@ -99,8 +100,8 @@ assertions:
   type: behavior
   must: 'Unavailable or unsafe adapters are absent from laboratory choices and cannot download or run. Platform
     eligibility belongs to each adapter: the pinned Whisper and Privacy Filter runtimes require Apple silicon.
-    Apple Watch offers only the separate foreground tiny Whisper experiment. Removed KittenTTS Mini0.8, Pocket TTS, Kokoro and Apple
-    system voice laboratory adapters have no runtime, catalog, build or UI dependency. Supertonic3 is user-selected for the laboratory and separately governed production local speech; supported arm64 app targets require linked CPU ONNX. The production pack is limited to supported phone/tablet/Mac targets; Watch remains server transcription only. Unsupported builds/platforms visibly disable install/run without selecting another provider.'
+    The Watch Developers lab offers only the separate foreground tiny Whisper experiment; included Whistle recording transcription is governed by the composer and Watch chat contracts. Removed KittenTTS Mini0.8, Pocket TTS, Kokoro and Apple
+    system voice laboratory adapters have no runtime, catalog, build or UI dependency. Supertonic3 is user-selected for the laboratory and separately governed production local speech; supported arm64 app targets require linked CPU ONNX. The production pack is limited to supported phone/tablet/Mac targets; Watch production local recording uses the separately included Whistle adapter only on supported builds. Unsupported builds/platforms visibly disable install/run without selecting another provider.'
   depends_on:
   - examples.availability
 - id: apple-local-model-lab.watch-tiny

@@ -6,21 +6,19 @@ status: implementing
 planning_date: '2026-10-19'
 task: TASK-8137
 related_tasks:
-  - TASK-2444
-  - TASK-4979
-goal: >
-  implement the new chat processing from the web app (in terms of removing the
-  rainbow glow effect around the container, switch to the new rainbow at the
-  bottom of the assistant response message, implement the new minimized app
-  skill use UI, implementing voice mode and all the other changes we made in
-  recent 2 weeks to the UI of the web app - to ensure apple app parity. As well
-  as adapting the apple watch UI so we always see the phone call + keyboard +
-  mic icons at the bottom for both new chats and existing chats, and can tap
-  them to start a voice call, or enter text or record / transcribe text.
-execution_boundary: >
-  The user approved this plan on 19 October 2026 and explicitly authorized
-  implementation with subagents. Continue the established scoped development,
-  verification and TestFlight route, preserving current changes and account data.
+- TASK-2444
+- TASK-4979
+goal: 'implement the new chat processing from the web app (in terms of removing the rainbow glow effect around the container,
+  switch to the new rainbow at the bottom of the assistant response message, implement the new minimized app skill use UI,
+  implementing voice mode and all the other changes we made in recent 2 weeks to the UI of the web app - to ensure apple app
+  parity. As well as adapting the apple watch UI so we always see the phone call + keyboard + mic icons at the bottom for
+  both new chats and existing chats, and can tap them to start a voice call, or enter text or record / transcribe text.
+
+  '
+execution_boundary: 'The user approved this plan on 19 October 2026 and explicitly authorized implementation with subagents.
+  Continue the established scoped development, verification and TestFlight route, preserving current changes and account data.
+
+  '
 source:
   fetched_dev: 78e8d99023c4a90ad06b2d1b35cd257c15cab8fc
   fetched_dev_time: '2026-10-19T00:49:12Z'
@@ -28,121 +26,181 @@ source:
   last_delivered_version: 0.27.0
   last_delivered_build: 98
   pending_followup_candidate: 86852dc6581ae24007367f8b78f7ab3f51733a50
-  reconciliation: >
-    The retained baseline candidate was refreshed against pinned dev while preserving
-    source identities and historical approvals. October implementation is being
-    integrated separately; the baseline candidate does not contain the new work.
-    Reconcile exact native shipping inputs before final publication.
+  reconciliation: 'The retained baseline candidate was refreshed against pinned dev while preserving source identities and
+    historical approvals. October implementation is being integrated separately; the baseline candidate does not contain the
+    new work. Reconcile exact native shipping inputs before final publication.
+
+    '
 references:
-  - docs/plans/apple-guest-offline-storage/plan.yml
-  - docs/plans/apple-ui-parity-program/plan.yml
-  - docs/plans/chat-processing-next-stage/implemented-flow.md
-  - docs/plans/chat-processing-next-stage/validation-2026-10-15.md
-  - docs/plans/chat-latency-improvements/plan.yml
-  - docs/plans/integrated-voice-video-calling/plan.yml
-  - docs/plans/apple-offline-speech-stability/plan.yml
-  - specifications/features/chat-processing-feedback/specification.yml
-  - specifications/features/chat-queued-followups/specification.yml
-  - specifications/features/message-input/specification.yml
-  - specifications/features/video-call/specification.yml
-  - specifications/features/apple-watch/specification.yml
-  - specifications/features/apple-local-model-lab/specification.yml
-  - specifications/features/apple-offline-workspaces/specification.yml
-  - specifications/features/apple-notifications/specification.yml
-  - specifications/features/notifications/specification.yml
-  - specifications/features/chats/specification.yml
-  - specifications/features/projects/specification.yml
-  - specifications/features/focus-modes/specification.yml
-  - https://huggingface.co/Cactus-Compute/whistle
-  - https://cactuscompute.com/blog/needle-supported-devices
-  - https://developer.apple.com/documentation/technotes/tn3135-low-level-networking-on-watchos
+- docs/plans/apple-guest-offline-storage/plan.yml
+- docs/plans/apple-ui-parity-program/plan.yml
+- docs/plans/chat-processing-next-stage/implemented-flow.md
+- docs/plans/chat-processing-next-stage/validation-2026-10-15.md
+- docs/plans/chat-latency-improvements/plan.yml
+- docs/plans/integrated-voice-video-calling/plan.yml
+- docs/plans/apple-offline-speech-stability/plan.yml
+- specifications/features/chat-processing-feedback/specification.yml
+- specifications/features/chat-queued-followups/specification.yml
+- specifications/features/message-input/specification.yml
+- specifications/features/video-call/specification.yml
+- specifications/features/apple-watch/specification.yml
+- specifications/features/apple-local-model-lab/specification.yml
+- specifications/features/apple-offline-workspaces/specification.yml
+- specifications/features/apple-notifications/specification.yml
+- specifications/features/notifications/specification.yml
+- specifications/features/chats/specification.yml
+- specifications/features/projects/specification.yml
+- specifications/features/focus-modes/specification.yml
+- https://huggingface.co/Cactus-Compute/whistle
+- https://cactuscompute.com/blog/needle-supported-devices
+- https://developer.apple.com/documentation/technotes/tn3135-low-level-networking-on-watchos
 work_packages:
-  - name: Reconcile the delivered and retained Apple baseline
-    outcome:
-      - Preserve current changes and separate already-published build98 content from actual unpublished followups.
-      - Refresh the managed candidate and native source identities against pinned current dev; retain existing approvals and the user's approval-prompt waiver.
-      - Carry forward reviewed draft filtering, immediate offline Daily Inspirations, uncapped safe README images, embed footer geometry, Personal notification handoff and Mac signing-group repair.
-      - Verify actual remote Project README, remote directories/files and stored embeds separately, including offline metadata and image retention.
-      - Establish supported serial Swift compilation within the existing native disk reserve before focused build/test work resumes.
-  - name: Adopt current chat lifecycle and response UI
-    outcome:
-      - Inventory typed wire events and authority first; extend existing native send, stream and recovery reducers.
-      - Render one turn-scoped transient Thinking response after confirmed Mate identity and hand it to the saved/streamed row without duplication.
-      - Remove ChatProcessingRing and separate legacy streaming banner; render the web-matched rainbow at the assistant response bottom only while its authoritative turn remains active.
-      - Render thinking and skill runs at their source positions, preserving prose order, live work, disclosure state and completed-group collapse.
-      - Preserve key input parameters, operation statuses, embed previews/fullscreen actions, loaded Memories and Focus/Project consent countdowns.
-      - Add queued follow-up editing and Steer instead with encrypted immutable revisions and server conflict/continuation authority.
-      - Align preparation, terminal completion, required encrypted persistence and later optional metadata; prevent late metadata from reviving typing or changing a newer draft.
-  - name: Close the remaining two-week UI and embed differences
-    outcome:
-      - Compare current rendered web composer, drafts, connection indicator, header breakpoints, guest examples/interests and navigation with phone/tablet/Mac.
-      - Audit renderer registration, preview, fullscreen and actions for newer Diagram, Jobs and trademark-related results, plus changed recipe/wiki/media presentations.
-      - Reuse already-present Apple components where parity is demonstrated; record exact source states and any remaining gaps in the parity matrix.
-  - name: Restore settings profile, team quick actions and Usage parity
-    outcome:
-      - Load private profile images through the authenticated owner-scoped proxy, fence stale results and preserve credential-free external image loading.
-      - Remove the profile Personal selector; show only actual teams in the quick picker, remember selection while off and expose orange Create for an empty roster.
-      - Match responsive profile dimensions and bounded animated picker placement, including short canvases and reduced motion.
-      - Render actual daily Usage entries inline in Billing, preserve context groups, decrypt scoped labels and support details, pagination, receipts and authorized exact-target actions.
-      - Verify focused source-matched settings and Usage interactions with usable core E2E recordings.
-  - name: Prove Watch call networking and bundled Whistle early
-    parallel_with: Chat lifecycle and response UI
-    outcome:
-      - Pin the official Whistle model and runtime, verify license/provenance, target slices, minimum OS, static linking and Simulator/device compatibility.
-      - Bundle whistle.cact into iOS and Watch app targets and use a serialized portable local PCM transcription adapter; no first-use model download.
-      - Evaluate on actual phone and Watch against current Whisper and Apple dictation with the same English/German samples, names, noise, silence and longer recordings.
-      - Measure cold/warm transcript latency, word errors, peak memory, battery/thermal behavior and final app/download sizes separately from the advertised model file size.
-      - Verify genuine Watch audio/call networking eligibility, mute, idle, wrist-down and absent-phone behavior before selecting the final call transport.
-  - name: Implement shared native live calling and persistent Watch actions
-    depends_on: Supported physical Watch networking and reconciled call contract
-    outcome:
-      - Reuse the deployed chat-bound Gemini voice-call API, consent, auth, fixed chat/Mate identity, billing and tool continuation semantics.
-      - Add a scoped call controller and duplex audio ownership with 16kHz input, 24kHz playback, interruption, mute, idle gating, bounded startup audio and complete teardown.
-      - Persist encrypted transcript revisions, start/end events, compression checkpoints and exact acknowledgments through a durable call outbox; preserve tool/action provenance.
-      - Match phone/tablet/Mac call bar, minimized-call controls, navigation persistence, disclosure and error states.
-      - Use one fixed Watch bottom component with functional phone, keyboard and microphone controls in both new and existing chats.
-      - Keep text entry, recording/transcription, active calls and assistant playback under one audio ownership policy; preserve drafts and cancellation.
-      - Integrate Whistle into Watch editable dictation/transcription and evaluate local call captions without bypassing Gemini's direct audio path or duplicating canonical transcripts.
-  - name: Finish the existing offline and device-proof work
-    outcome:
-      - Retain existing scope for actual iPhone Storage per-chat reclamation with protected keys, drafts and outbox records.
-      - Complete guest/free-budget and durable offline send/relaunch/replay on all four Apple platforms against the current server contract.
-      - Reconcile and verify the retained Watch guest/pairing proposal and latest20 offline chat/embed coverage.
-      - Complete TASK-2444 real delivery, exact destination, login/Team handoff, privacy/claim/duplicate and email Universal Link proof; unit passes alone do not close it.
-      - Make expanded iPhone and iPad message notifications immediately show the response editor and sole Send action, with exact authenticated recipient and workspace binding, durable handoff and duplicate protection; keep Workflow notifications excluded and verify the native extension on the delivered binary.
+- name: Reconcile the delivered and retained Apple baseline
+  outcome:
+  - Preserve current changes and separate already-published build98 content from actual unpublished followups.
+  - Refresh the managed candidate and native source identities against pinned current dev; retain existing approvals and the
+    user's approval-prompt waiver.
+  - Carry forward reviewed draft filtering, immediate offline Daily Inspirations, uncapped safe README images, embed footer
+    geometry, Personal notification handoff and Mac signing-group repair.
+  - Verify actual remote Project README, remote directories/files and stored embeds separately, including offline metadata
+    and image retention.
+  - Establish supported serial Swift compilation within the existing native disk reserve before focused build/test work resumes.
+- name: Adopt current chat lifecycle and response UI
+  outcome:
+  - Inventory typed wire events and authority first; extend existing native send, stream and recovery reducers.
+  - Render one turn-scoped transient Thinking response after confirmed Mate identity and hand it to the saved/streamed row
+    without duplication.
+  - Remove ChatProcessingRing and separate legacy streaming banner; render the web-matched rainbow at the assistant response
+    bottom only while its authoritative turn remains active.
+  - Render thinking and skill runs at their source positions, preserving prose order, live work, disclosure state and completed-group
+    collapse.
+  - Preserve key input parameters, operation statuses, embed previews/fullscreen actions, loaded Memories and Focus/Project
+    consent countdowns.
+  - Add queued follow-up editing and Steer instead with encrypted immutable revisions and server conflict/continuation authority.
+  - Align preparation, terminal completion, required encrypted persistence and later optional metadata; prevent late metadata
+    from reviving typing or changing a newer draft.
+- name: Close the remaining two-week UI and embed differences
+  outcome:
+  - Compare current rendered web composer, drafts, connection indicator, header breakpoints, guest examples/interests and
+    navigation with phone/tablet/Mac.
+  - Audit renderer registration, preview, fullscreen and actions for newer Diagram, Jobs and trademark-related results, plus
+    changed recipe/wiki/media presentations.
+  - Reuse already-present Apple components where parity is demonstrated; record exact source states and any remaining gaps
+    in the parity matrix.
+- name: Restore settings profile, team quick actions and Usage parity
+  outcome:
+  - Load private profile images through the authenticated owner-scoped proxy, fence stale results and preserve credential-free
+    external image loading.
+  - Remove the profile Personal selector; show only actual teams in the quick picker, remember selection while off and expose
+    orange Create for an empty roster.
+  - Match responsive profile dimensions and bounded animated picker placement, including short canvases and reduced motion.
+  - Render actual daily Usage entries inline in Billing, preserve context groups, decrypt scoped labels and support details,
+    pagination, receipts and authorized exact-target actions.
+  - Verify focused source-matched settings and Usage interactions with usable core E2E recordings.
+- name: Prove Watch call networking and bundled Whistle early
+  parallel_with: Chat lifecycle and response UI
+  outcome:
+  - Pin the official Whistle model and runtime, verify license/provenance, target slices, minimum OS, static linking and Simulator/device
+    compatibility.
+  - Bundle whistle.cact into iOS and Watch app targets and use a serialized portable local PCM transcription adapter; no first-use
+    model download.
+  - Evaluate on actual phone and Watch against current Whisper and Apple dictation with the same English/German samples, names,
+    noise, silence and longer recordings.
+  - Measure cold/warm transcript latency, word errors, peak memory, battery/thermal behavior and final app/download sizes
+    separately from the advertised model file size.
+  - Verify genuine Watch audio/call networking eligibility, mute, idle, wrist-down and absent-phone behavior before selecting
+    the final call transport.
+- name: Implement shared native live calling and persistent Watch actions
+  depends_on: Supported physical Watch networking and reconciled call contract
+  outcome:
+  - Reuse the deployed chat-bound Gemini voice-call API, consent, auth, fixed chat/Mate identity, billing and tool continuation
+    semantics.
+  - Add a scoped call controller and duplex audio ownership with 16kHz input, 24kHz playback, interruption, mute, idle gating,
+    bounded startup audio and complete teardown.
+  - Persist encrypted transcript revisions, start/end events, compression checkpoints and exact acknowledgments through a
+    durable call outbox; preserve tool/action provenance.
+  - Match phone/tablet/Mac call bar, minimized-call controls, navigation persistence, disclosure and error states.
+  - Use one fixed Watch bottom component with functional phone, keyboard and microphone controls in both new and existing
+    chats.
+  - Keep text entry, recording/transcription, active calls and assistant playback under one audio ownership policy; preserve
+    drafts and cancellation.
+  - Integrate Whistle into Watch editable dictation/transcription and evaluate local call captions without bypassing Gemini's
+    direct audio path or duplicating canonical transcripts.
+- name: Finish the existing offline and device-proof work
+  outcome:
+  - Retain existing scope for actual iPhone Storage per-chat reclamation with protected keys, drafts and outbox records.
+  - Complete guest/free-budget and durable offline send/relaunch/replay on all four Apple platforms against the current server
+    contract.
+  - Reconcile and verify the retained Watch guest/pairing proposal and latest20 offline chat/embed coverage.
+  - Complete TASK-2444 real delivery, exact destination, login/Team handoff, privacy/claim/duplicate and email Universal Link
+    proof; unit passes alone do not close it.
+  - Make expanded iPhone and iPad message notifications immediately show the response editor and sole Send action, with exact
+    authenticated recipient and workspace binding, durable handoff and duplicate protection; keep Workflow notifications excluded
+    and verify the native extension on the delivered binary.
+- name: Close remaining Apple camera parity against published web behavior
+  outcome:
+  - Preserve the published camera-toggle contract and uninterrupted voice behavior; do not weaken it to universal Coming soon.
+  - Implement and verify Apple camera permission, explicit start/stop, supported camera switching, visible preview and bounded
+    provider-frame delivery only in a separately qualified Apple increment.
+  - Keep Apple camera parity open until source-matched native parent-flow and actual supported-device proof exist.
 whistle_decisions:
   minimum_os: iOS/iPadOS 26.2, watchOS 26.2 and macOS 26.2; explicitly authorized by the user on 19 October 2026.
   candidate: Cactus-Compute/whistle whistle.cact
   advertised_model_size_mb: 16.9
   observed_model_sha256: b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb
-  provenance_note: >
-    Actual downloaded model and platform archives were verified against immutable
-    official pins. Model bytes are 16919407; packaged model plus both license
-    notices is 16942123 bytes per app. Native inference and installed size remain
-    separate pending measurements; Watch Simulator has no supported native slice.
+  provenance_note: 'Actual downloaded model and platform archives were verified against immutable official pins. Model bytes
+    are 16919407; packaged model plus both license notices is 16942123 bytes per app. Native inference and installed size
+    remain separate pending measurements; Watch Simulator has no supported native slice.
+
+    '
   distribution: Include the model in iOS and Watch bundles for evaluation.
   selection: Preserve Whisper as an alternative until same-device comparisons establish replacement quality.
-  storage: Show bundled Whistle as included with the app; avoid a duplicate Documents export. Downloaded optional engines retain their real deletion controls.
-  processing: Keep inference off the UI thread, use bounded audio windows, cancel stale results, and preserve explicit local-only privacy without silent online fallback.
-  call_transcription: Local STT/captions do not replace or double-send the existing call broker's authoritative encrypted transcript flow.
+  storage: Show bundled Whistle as included with the app; avoid a duplicate Documents export. Downloaded optional engines
+    retain their real deletion controls.
+  processing: Keep inference off the UI thread, use bounded audio windows, cancel stale results, and preserve explicit local-only
+    privacy without silent online fallback.
+  call_transcription: Local STT/captions do not replace or double-send the existing call broker's authoritative encrypted
+    transcript flow.
 required_verification:
-  - Browser-computed current web reference states plus source-matched native parent-flow appearance and interaction evidence on phone/tablet/Mac.
-  - Focused native lifecycle, crypto, queue revision, recovery, call audio/context/tool and storage regressions with existing assertion metadata preserved.
-  - Immediate optimistic paint, confirmed Mate-to-visible Thinking, first authored text and terminal/persistence timing measured separately on matching web/native scenarios.
-  - Do not claim the 1500ms selected-Mate or overall latency targets are met until actual default-routed measurements pass; shared server failures remain visible.
-  - Real Watch call/network/audio and fully offline Whistle transcription proof, including microphone permission, interruptions, mute/idle, no nearby phone and resource limits.
-  - Core relevant new/existing chat, activity disclosure, queued steer, reconnect, call, Watch three-action and local transcription E2E recordings, retaining failures/retries and exact source/build identity.
-  - Authorized TestFlight delivery and installed-binary verification for iOS/iPadOS/watchOS followed by macOS; preserve apps/account data and release receipts.
+- Browser-computed current web reference states plus source-matched native parent-flow appearance and interaction evidence
+  on phone/tablet/Mac.
+- Focused native lifecycle, crypto, queue revision, recovery, call audio/context/tool and storage regressions with existing
+  assertion metadata preserved.
+- Immediate optimistic paint, confirmed Mate-to-visible Thinking, first authored text and terminal/persistence timing measured
+  separately on matching web/native scenarios.
+- Do not claim the 1500ms selected-Mate or overall latency targets are met until actual default-routed measurements pass;
+  shared server failures remain visible.
+- Real Watch call/network/audio and fully offline Whistle transcription proof, including microphone permission, interruptions,
+  mute/idle, no nearby phone and resource limits.
+- Core relevant new/existing chat, activity disclosure, queued steer, reconnect, call, Watch three-action and local transcription
+  E2E recordings, retaining failures/retries and exact source/build identity.
+- Authorized TestFlight delivery and installed-binary verification for iOS/iPadOS/watchOS followed by macOS; preserve apps/account
+  data and release receipts.
+- Publication517 is private preparation against dev324326a45de9d4a4b154271c1793a4cf225b3896; final source/input reconciliation
+  and normal managed publication remain pending. The backend notification dependency25dfaf52 is published and activated, which
+  does not prove physical APNs reply behavior.
+- Native509 reports597 passed,2 failed,1 skipped; the reviewed follow-up test/focus-probe edits are under root native520 qualification.
+  These results do not establish real selected-Mate<=1500ms timing, physical Watch call/Whistle feasibility, personal Project
+  same-container offline reopen, TASK-2444/email delivery, current macOS qualification or new unified TestFlight/installed-binary
+  proof.
+- Preserve all actual pending phone/tablet/Watch device, notification editor/sole Send/tap/destination, timing, remote Project
+  README/files/images/offline, macOS and delivery evidence. Do not close them from fixture, unit, archive or backend health
+  evidence.
 delivery_recommendation:
-  - First reviewable TestFlight increment contains stable retained repairs and current chat-processing/activity UI parity.
-  - Second increment contains native live calls, functional Watch three-action entry and bundled Whistle evaluation after device feasibility passes.
-  - Keep the previously requested storage/offline/guest and native notification proof visible under existing Tasks; do not mark them complete from unrelated UI or unit evidence.
+- First reviewable TestFlight increment contains stable retained repairs and current chat-processing/activity UI parity.
+- Second increment contains native live calls, functional Watch three-action entry and bundled Whistle evaluation after device
+  feasibility passes.
+- Keep the previously requested storage/offline/guest and native notification proof visible under existing Tasks; do not mark
+  them complete from unrelated UI or unit evidence.
 coordination:
-  - OpenMates Tasks remains the status authority; work packages above describe scope/order rather than a second task status ledger.
-  - The remote chat-processing task has completed and deployed to dev, but its final report retains latency/recovery validation failures.
-  - Continue the existing no-repeat Specification-approval instruction; record contract changes and evidence without inventing approval fingerprints.
-  - Preserve native capacity/deletion guards and existing TestFlight-only delivery outside Simulator.
-
+- OpenMates Tasks remains the status authority; work packages above describe scope/order rather than a second task status
+  ledger.
+- The remote chat-processing task has completed and deployed to dev, but its final report retains latency/recovery validation
+  failures.
+- Continue the existing no-repeat Specification-approval instruction; record contract changes and evidence without inventing
+  approval fingerprints.
+- Preserve native capacity/deletion guards and existing TestFlight-only delivery outside Simulator.
 approval_prompt_waiver:
-  source: "DEC-7341e377637b7fe957ea4ed2; original user message 0dbbad470df3d85fd9155f54755ee76762cd9269ee89f0e4733cbdfe39bd0d2f"
-  instruction: "Continue the existing user instruction to stop repeated Specification approval prompts within TASK-8137; exact fingerprint approval and verification are not claimed."
+  source: DEC-7341e377637b7fe957ea4ed2; original user message 0dbbad470df3d85fd9155f54755ee76762cd9269ee89f0e4733cbdfe39bd0d2f
+  instruction: Continue the existing user instruction to stop repeated Specification approval prompts within TASK-8137; exact
+    fingerprint approval and verification are not claimed.

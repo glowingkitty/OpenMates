@@ -1,4 +1,6 @@
 // Native billing, StoreKit purchases, invoices, usage, gift cards, referrals, and support.
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party, billing.usage.landing-complete, billing.surface.semantic-parity
 // Uses the current backend response envelopes and keeps product-owned flows inside OpenMates.
 // Downloaded CSV/PDF documents are handed to OS-owned file/share surfaces only.
 
@@ -20,7 +22,13 @@ import AppKit
 #endif
 
 enum BillingUITestFixture {
-    static var enabled: Bool { ProcessInfo.processInfo.arguments.contains("--ui-test-billing-fixture") }
+    static var enabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-billing-fixture")
+        #else
+        false
+        #endif
+    }
 }
 
 private enum BillingRoute {
@@ -29,12 +37,14 @@ private enum BillingRoute {
 
 struct SettingsBillingView: View {
     let referralCodeRequest: Int
+    let usageContext: BillingUsageContext
 
     @EnvironmentObject private var authManager: AuthManager
     @State private var route: BillingRoute?
     @State private var handledReferralCodeRequest = 0
 
-    init(referralCodeRequest: Int = 0, deepLinkPath: String? = nil) {
+    init(referralCodeRequest: Int = 0, deepLinkPath: String? = nil, usageContext: BillingUsageContext = .init()) {
+        self.usageContext = usageContext
         self.referralCodeRequest = referralCodeRequest
         let routes: [String: BillingRoute] = ["buy-credits": .buyCredits, "auto-topup": .autoTopUp,
             "auto-topup/low-balance": .autoTopUp, "auto-topup/monthly": .autoTopUp,
@@ -47,7 +57,11 @@ struct SettingsBillingView: View {
 
     var body: some View {
         Group {
-            if let route { subview(route) } else { hub }
+            // Keep direct construction and retained subroutes safe on signout,
+            // independently of the settings menu and deep-link admission gate.
+            if authManager.currentUser != nil || BillingUITestFixture.enabled {
+                if let route { subview(route) } else { hub }
+            }
         }
         .onChange(of: referralCodeRequest) { _, request in
             guard request != handledReferralCodeRequest else { return }
@@ -88,7 +102,7 @@ struct SettingsBillingView: View {
             Rectangle().fill(Color.grey25).frame(height: 1).padding(.horizontal, .spacing5).padding(.vertical, .spacing6)
 
             OMSettingsSection(AppStrings.usage, icon: "usage") {
-                billingRow(AppStrings.billingUsageDetails, icon: "usage", id: "settings-billing-usage-row", route: .usage)
+                BillingUsagePanel(context: usageContext)
             }
         }
     }
@@ -116,7 +130,7 @@ struct SettingsBillingView: View {
             case .buyCredits: BuyCreditsView()
             case .autoTopUp: AutoTopUpView()
             case .invoices: InvoicesView()
-            case .usage: BillingUsageView()
+            case .usage: BillingUsageView(context: usageContext)
             case .referralCode: SettingsReferralCodeView()
             case .giftCards: BillingGiftCardsView()
             case .support: BillingSupportView()
@@ -363,145 +377,6 @@ struct InvoicesView: View {
     }
 }
 
-// MARK: - Usage
-
-private enum UsageTab: String, CaseIterable { case overview, chats, apps, api }
-
-struct BillingUsageView: View {
-    @State private var tab: UsageTab = .overview
-    @State private var daily: [UsageDay] = []
-    @State private var summaries: [UsageSummary] = []
-    @State private var details: [UsageEntry] = []
-    @State private var selected: UsageSummary?
-    @State private var isLoading = false
-    @State private var error: String?
-    @State private var exportedURL: URL?
-
-    var body: some View {
-        OMSettingsPage(title: AppStrings.usage, showsHeader: false) {
-            Color.clear.frame(height: 0).accessibilityIdentifier("settings-billing-usage-page")
-            OMSegmentedControl(
-                items: UsageTab.allCases.map { .init(id: $0, title: title($0)) },
-                selection: $tab
-            )
-            .padding(.horizontal, .spacing5)
-            .accessibilityIdentifier("settings-billing-usage-tabs")
-
-            OMSettingsSection {
-                Button(AppStrings.billingExportUsage) { exportUsage() }
-                    .buttonStyle(OMPrimaryButtonStyle()).padding(.spacing5)
-                    .accessibilityIdentifier("settings-billing-usage-export")
-            }
-
-            if isLoading { ProgressView().frame(maxWidth: .infinity).padding(.spacing8) }
-            else if selected != nil {
-                OMSettingsSection(AppStrings.billingUsageDetails) {
-                    Button(AppStrings.back) { self.selected = nil; details = [] }.buttonStyle(.plain).padding(.spacing5)
-                    ForEach(details) { entry in usageEntry(entry) }
-                }
-                .accessibilityIdentifier("settings-billing-usage-drilldown")
-            } else if tab == .overview {
-                OMSettingsSection {
-                    ForEach(daily) { day in
-                        OMSettingsStaticRow(title: day.date, value: day.totalCredits.formatted())
-                    }
-                }
-            } else {
-                OMSettingsSection {
-                    ForEach(summaries) { summary in
-                        Button { open(summary) } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(summary.identifier(fallback: AppStrings.billingUnknownUsage))
-                                        .font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(1)
-                                    Text(summary.month).font(.omXs).foregroundStyle(Color.fontTertiary)
-                                }
-                                Spacer()
-                                Text(summary.totalCredits.formatted()).font(.omSmall).foregroundStyle(Color.fontSecondary)
-                                Icon("forward", size: 16).foregroundStyle(Color.fontTertiary)
-                            }
-                            .padding(.spacing5)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            if let error { OMSettingsSection { Text(error).font(.omSmall).foregroundStyle(Color.error).padding(.spacing5) } }
-        }
-        .task { await load() }
-        .onChange(of: tab) { _, _ in Task { await load() } }
-        .onChange(of: exportedURL) { _, url in if let url { presentFile(url) } }
-    }
-
-    private func title(_ tab: UsageTab) -> String {
-        switch tab {
-        case .overview: AppStrings.billingUsageOverview
-        case .chats: AppStrings.billingUsageChats
-        case .apps: AppStrings.billingUsageApps
-        case .api: AppStrings.billingUsageAPI
-        }
-    }
-
-    private func load() async {
-        isLoading = true
-        error = nil
-        selected = nil
-        if BillingUITestFixture.enabled {
-            daily = [.fixture]
-            summaries = [.fixture(for: tab)]
-            isLoading = false
-            return
-        }
-        do {
-            if tab == .overview { daily = try await BillingService.shared.dailyUsage().days }
-            else { summaries = try await BillingService.shared.usageSummaries(type: tab.backendType).summaries }
-        } catch {
-            self.error = error.localizedDescription
-            NativeDiagnostics.warning("Usage load failed: \(type(of: error))", category: "billing_usage")
-        }
-        isLoading = false
-    }
-
-    private func open(_ summary: UsageSummary) {
-        selected = summary
-        isLoading = true
-        let unknownUsage = AppStrings.billingUnknownUsage
-        Task {
-            do {
-                details = try await BillingService.shared.usageDetails(
-                    type: tab.detailType,
-                    summary: summary,
-                    unknownUsage: unknownUsage
-                ).entries
-            }
-            catch { self.error = error.localizedDescription }
-            isLoading = false
-        }
-    }
-
-    private func usageEntry(_ entry: UsageEntry) -> some View {
-        VStack(alignment: .leading, spacing: .spacing1) {
-            Text(entry.displayName).font(.omSmall).foregroundStyle(Color.fontPrimary)
-            Text(entry.createdAt.map { Date(timeIntervalSince1970: TimeInterval($0)).formatted() } ?? AppStrings.none)
-                .font(.omXs).foregroundStyle(Color.fontTertiary)
-            Text(entry.credits?.formatted() ?? AppStrings.none).font(.omXs).foregroundStyle(Color.fontSecondary)
-        }
-        .padding(.spacing5)
-    }
-
-    private func exportUsage() {
-        Task {
-            do { exportedURL = try await BillingService.shared.exportUsage() }
-            catch { self.error = error.localizedDescription }
-        }
-    }
-}
-
-private extension UsageTab {
-    var backendType: String { self == .api ? "api_keys" : rawValue }
-    var detailType: String { self == .api ? "api_key" : String(rawValue.dropLast()) }
-}
-
 // MARK: - Gift cards and support
 
 struct BillingGiftCardsView: View {
@@ -731,38 +606,6 @@ struct BillingInvoice: Decodable, Identifiable {
 
 struct InvoicesListResponse: Decodable { let invoices: [BillingInvoice] }
 
-struct UsageSummaryResponse: Decodable { let summaries: [UsageSummary] }
-struct UsageDetailsResponse: Decodable { let entries: [UsageEntry] }
-struct DailyUsageResponse: Decodable { let days: [UsageDay] }
-
-struct UsageSummary: Decodable, Identifiable {
-    let chatId: String?
-    let appId: String?
-    let apiKeyHash: String?
-    let month: String
-    let totalCredits: Double
-    func identifier(fallback: String) -> String { chatId ?? appId ?? apiKeyHash ?? fallback }
-    var id: String { "\(chatId ?? ""):\(appId ?? ""):\(apiKeyHash ?? ""):\(month)" }
-    fileprivate static func fixture(for tab: UsageTab) -> Self { Self(chatId: tab == .chats ? "fixture-chat" : nil, appId: tab == .apps ? "ai" : nil, apiKeyHash: tab == .api ? "fixture-key" : nil, month: "2026-01", totalCredits: 42) }
-}
-
-struct UsageEntry: Decodable, Identifiable {
-    let id: String
-    let type: String
-    let appId: String?
-    let skillId: String?
-    let credits: Double?
-    let createdAt: Int?
-    var displayName: String { [appId, skillId].compactMap { $0 }.joined(separator: " / ").nonEmpty ?? type }
-}
-
-struct UsageDay: Decodable, Identifiable {
-    let date: String
-    let totalCredits: Double
-    var id: String { date }
-    static let fixture = Self(date: "2026-01-01", totalCredits: 42)
-}
-
 private struct GiftCardRecord: Decodable, Identifiable {
     let giftCardCode: String
     let creditsValue: Int
@@ -814,25 +657,6 @@ private actor BillingService {
 
     func invoices() async throws -> InvoicesListResponse {
         try await APIClient.shared.request(.get, path: "/v1/payments/invoices")
-    }
-
-    func dailyUsage() async throws -> DailyUsageResponse {
-        try await APIClient.shared.request(.get, path: "/v1/settings/usage/daily-overview?days=30")
-    }
-
-    func usageSummaries(type: String) async throws -> UsageSummaryResponse {
-        try await APIClient.shared.request(.get, path: "/v1/settings/usage/summaries?type=\(type)&months=3")
-    }
-
-    func usageDetails(type: String, summary: UsageSummary, unknownUsage: String) async throws -> UsageDetailsResponse {
-        let rawIdentifier = summary.identifier(fallback: unknownUsage)
-        let identifier = rawIdentifier.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? rawIdentifier
-        return try await APIClient.shared.request(.get, path: "/v1/settings/usage/details?type=\(type)&identifier=\(identifier)&year_month=\(summary.month)")
-    }
-
-    func exportUsage() async throws -> URL {
-        let data: Data = try await APIClient.shared.request(.get, path: "/v1/settings/usage/export?months=3")
-        return try write(data, filename: "usage-export.csv")
     }
 
     func downloadInvoice(_ invoice: BillingInvoice, creditNote: Bool) async throws -> URL {
@@ -889,7 +713,7 @@ private actor BillingService {
 }
 
 @MainActor
-private func presentFile(_ url: URL) {
+func presentFile(_ url: URL) {
     #if os(iOS)
     let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
     guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

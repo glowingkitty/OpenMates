@@ -366,7 +366,9 @@ struct SettingsOfflineModelsView: View {
     @ObservedObject private var store = LocalModelStore.shared
     @State private var changingModels: Set<LocalModelID> = []
     var body: some View {
-        OfflineAIModelsSettingsContent(snapshot: pack.snapshot,
+        VStack(alignment: .leading, spacing: .spacing6) {
+            SettingsRecordingTranscriptionSection(store: store)
+            OfflineAIModelsSettingsContent(snapshot: pack.snapshot,
             readyModels: Set(OfflineAIModelPack.order.filter { store.state(for: $0) == .ready }),
             enabledModels: Set(OfflineAIModelPack.order.filter { store.isCapabilityEnabled($0) }),
             busyModels: changingModels.union(store.removingModels),
@@ -378,7 +380,8 @@ struct SettingsOfflineModelsView: View {
                 guard changingModels.insert(id).inserted else { return }
                 Task { await store.remove(id); changingModels.remove(id) }
             })
-            .task { await pack.waitUntilRestored() }
+        }
+        .task { await pack.waitUntilRestored() }
     }
 }
 

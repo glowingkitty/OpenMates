@@ -1,3 +1,7 @@
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.chat.fixed-binding, video-call.chat.typed-input, video-call.chat.launch-and-provider
+// Specification: specifications/features/chat-queued-followups/specification.yml
+// Assertions: chat-queued-followups.admission.synced, chat-queued-followups.editing.stable-revision, chat-queued-followups.editing.cancel, chat-queued-followups.steering.safe-boundary
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Single chat view — message list with input field and streaming responses.
@@ -473,6 +477,8 @@ struct ChatView: View {
     /// Called after an external chat/embed deep link has opened the fullscreen embed route.
     var onInitialEmbedOpened: ((String) -> Void)? = nil
 
+    @Environment(\.nativeVoiceCallRuntime) private var voiceCallRuntime
+    @State private var voiceCallEditorID = UUID()
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
@@ -563,6 +569,8 @@ struct ChatView: View {
     @State private var attachmentDraftSavedRevision = -1
     #endif
     @State private var suppressNextDraftSave = false
+    @State private var queuedEditEntry: UUID?
+    @State private var queuedEditPriorAttachments: [ComposerDraftAttachment] = []
     @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
@@ -620,10 +628,6 @@ struct ChatView: View {
 
     private var isStreamingPresentationActive: Bool {
         viewModel.isStreaming || isUITestStreamingPresentationEnabled
-    }
-
-    private var streamingStageText: String {
-        ChatTypingPresentation.stageText(for: viewModel.streamingLifecycle)
     }
 
     var body: some View {
@@ -724,10 +728,6 @@ struct ChatView: View {
                         subChatLifecyclePanel
 
                         returnToParentButton
-
-                        if isStreamingPresentationActive {
-                            streamingBanner
-                        }
 
                     }
                     .workspacePromptBackground(active: isInputFocused || isComposerExpanded,
@@ -855,13 +855,6 @@ struct ChatView: View {
         .onChange(of: actionMessage?.id) { _, _ in confirmingMessageDeletionID = nil }
         .onChange(of: chatId) { _, _ in selectedMessageText = nil; nativeMessageSelectionTarget = nil; actionMessage = nil; highlightCommentID = nil; explanationChatID = nil; editingContextMessage = nil; preEditDraft = nil; compressedMessageBoundary = nil; selectionHideTask?.cancel() }
         .onDisappear { selectionHideTask?.cancel() }
-        .overlay {
-            if viewModel.streamingLifecycle.isActive {
-                ChatProcessingRing()
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
         .chatKeyboardShortcuts(
             onStopStreaming: { viewModel.stopStreaming() },
             onToggleIncognito: {
@@ -905,11 +898,35 @@ struct ChatView: View {
     // expressions to type-check. Each property retains its concrete view type.
     private var appearanceLifecycleChatView: some View {
         decoratedChatView
+        .overlay(alignment: .bottom) {
+            if let calls = voiceCallRuntime {
+                NativeVoiceCallDraftRecoveryStrip(runtime: calls, chatID: chatId) { ticket in
+                    calls.recover(ticket) { snapshot, alreadyAccepted in
+                        guard piiComposerForeground, viewModel.queuedEditSession == nil,
+                              resolvedComposerEmbeds.isEmpty,
+                              composerSession.controller.document.nodes.allSatisfy({ $0.kind == "text" }) else { return false }
+                        let original = try? ComposerMarkdownAdapter.serialize(snapshot.document)
+                        if alreadyAccepted {
+                            guard original == composerSession.canonicalMarkdown else { return false }
+                            clearAcceptedVoiceCallDraft(); return true
+                        }
+                        if original == composerSession.canonicalMarkdown { return true }
+                        guard composerSession.canonicalMarkdown.isEmpty else { return false }
+                        do {
+                            try composerSession.loadDocument(snapshot.document)
+                            try composerSession.controller.setSelection(NSRange(location: snapshot.selectionLocation, length: snapshot.selectionLength))
+                            scheduleEncryptedDraftSave(); return true
+                        } catch { return false }
+                    }
+                }
+            }
+        }
         .onAppear(perform: handleInitialAppear)
         .onChange(of: isInputFocused) { _, focused in
             if focused, authManager.state == .authenticated,
                !IncognitoChatSession.isIncognitoChatId(chatId), !WelcomeScreenState.isPublicChat(chatId) {
                 OfflineAIModelPack.shared.offerIfNeeded()
+                Task { await viewModel.prepareComposerFocus() }
             }
         }
         .onChange(of: inputFocusRequest) { _, _ in
@@ -1143,6 +1160,9 @@ struct ChatView: View {
         if ProcessInfo.processInfo.arguments.contains("--ui-test-chat-mic-granted") {
             micPermissionState = .granted
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-chat-record-hint") {
+            showRecordHint(duration: 0)
+        }
         #endif
         handoffManager.advertiseChatViewing(
             chatId: chatId,
@@ -1310,7 +1330,9 @@ struct ChatView: View {
             return Self.chatHistoryFullParityMessages
         }
         #endif
-        return viewModel.chat?.id == chatId ? viewModel.messages : []
+        guard viewModel.chat?.id == chatId else { return [] }
+        let attachedReceiptIDs = viewModel.attachedMemoryReceiptIDs
+        return viewModel.messages.filter { !attachedReceiptIDs.contains($0.id) }
     }
 
     private func isDraftOnlyChat(_ chat: Chat) -> Bool {
@@ -1642,6 +1664,7 @@ struct ChatView: View {
                                 #endif
 
                                 ForEach(displayedChatMessages) { message in
+                                    VStack(alignment: .trailing, spacing: 0) {
                                     MessageBubble(
                                         message: message,
                                         chatId: chatId,
@@ -1661,7 +1684,7 @@ struct ChatView: View {
                                         },
                                         onOpenPublicChat: onOpenPublicChat,
                                         subChatStore: chatStore,
-                                        subChatProgress: viewModel.subChatProgress,
+                                        subChatProgress: viewModel.subChatProgress(for: message.id),
                                         completedSubChatIDs: viewModel.completedSubChatIDs,
                                         onOpenSubChat: onOpenChat,
                                         onInteractiveQuestionSubmit: { content in
@@ -1670,13 +1693,16 @@ struct ChatView: View {
                                         interactiveQuestionAnswers: viewModel.interactiveQuestionAnswers,
                                         onOpenMateSettings: onOpenMateSettings,
                                         onOpenModelSettings: onOpenModelSettings,
+                                        timingBinding: viewModel.sendTimingBinding(for: message),
                                         onSpeak: canSpeakAssistantMessage(message) ? {
                                             speakAssistantMessage(message)
                                         } : nil,
                                         onShowActions: {
                                             actionMessage = message
                                         },
-                                        accessibilityIdentifier: chatHistoryFixtureIdentifier(for: message)
+                                        accessibilityIdentifier: chatHistoryFixtureIdentifier(for: message),
+                                        responseActive: viewModel.responseActive(for: message.id),
+                                        loadedMemories: viewModel.loadedMemories(for: message.id)
                                     )
                                     .id(message.id)
                                     .environment(\.embedChatID, chatId)
@@ -1688,6 +1714,24 @@ struct ChatView: View {
                                     .environment(\.embedPIIRevealed, isPIIRevealed)
                                     .modifier(ChatMessageVisibilityTracking(
                                         messageId: message.id, viewportHeight: scrollGeo.size.height))
+                                    if message.role == .user, let queue = viewModel.queuedFollowups[message.id], queue.editable {
+                                        QueuedFollowupControlsView(state: queue,
+                                            busy: viewModel.updatingQueuedMessageIDs.contains(message.id),
+                                            error: viewModel.queuedFollowupError,
+                                            onEdit: { beginQueuedFollowupEdit(messageID: message.id) },
+                                            onSteer: { Task { await viewModel.steerQueuedFollowup(messageID: message.id) } })
+                                    }
+                                    }.id(message.id)
+                                }
+
+                                if let transient = viewModel.transientAssistantResponse,
+                                   transient.chatId == chatId, !viewModel.hasNewerMessages {
+                                    TransientAssistantResponseView(response: transient,
+                                        memories: viewModel.loadedMemories(for: transient.id),
+                                        viewportWidth: scrollGeo.size.width,
+                                        onOpenMateSettings: onOpenMateSettings,
+                                        onOpenModelSettings: onOpenModelSettings)
+                                        .id("transient-response:" + transient.id)
                                 }
 
                                 #if DEBUG
@@ -2526,6 +2570,20 @@ struct ChatView: View {
                     .alignmentGuide(.chatMoreLeading) { dimensions in dimensions[.leading] }
                     .zIndex(chatHeaderMoreOpen ? 2 : 0)
 
+                if let voiceCallRuntime, !isDemoOrLegalChat, !isExampleChat,
+                   voiceCallRuntime.supports(chat: viewModel.chat), let chat = viewModel.chat,
+                   let coordinator = voiceCallRuntime.coordinator {
+                    NativeVoiceCallStartControl(coordinator: coordinator, chatID: chat.id,
+                        overlapsHeader: chatHeaderActionsOverlapBanner,
+                        canBegin: !recordAttemptActive && recordingUploadTasks.isEmpty && !isVerifyingPIISend
+                            && viewModel.queuedEditSession == nil && !viewModel.isStreaming) {
+                        Task {
+                            if chat.encryptedChatKey == nil, let id = UUID(uuidString: chat.id) {
+                                await voiceCallRuntime.start(.newPersonal(chatID: id, mateCategory: chat.category ?? "general_knowledge"))
+                            } else { await voiceCallRuntime.start(.existing(chatID: chat.id)) }
+                        }
+                    }
+                }
                 Spacer(minLength: .spacing6)
 
                 if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
@@ -2641,10 +2699,59 @@ struct ChatView: View {
         return presentedChat?.isSharedByOthers != true && TeamWorkspaceContext.shared.snapshot.teamID == nil
     }
     private func beginEditingMessage(_ message: Message) {
-        guard canMutateMessageHistory, message.role == .user else { return }
+        guard viewModel.queuedEditSession == nil, canMutateMessageHistory, message.role == .user else { return }
         if editingContextMessage == nil { preEditDraft = messageText }
         editingContextMessage = message; messageText = message.content ?? ""
         selectedMessageText = nil; actionMessage = nil; isInputFocused = true
+    }
+    private func beginQueuedFollowupEdit(messageID: String) {
+        guard editingContextMessage == nil, queuedEditEntry == nil else { return }
+        let document = composerSession.controller.document, revision = composerSession.revision
+        guard let text = viewModel.beginQueuedEdit(messageID: messageID, previousDraft: document, revision: revision) else { return }
+        let entry = UUID(); queuedEditEntry = entry
+        draftSaveTask?.cancel()
+        let scope = OfflineStore.shared.scopeGeneration, server = ServerProfile.current(), team = TeamWorkspaceContext.shared.snapshot
+        let requestedChat = chatId, markdown = composerSession.canonicalMarkdown, draftVersion = viewModel.chat?.draftV ?? 0
+        let attachments = Self.draftAttachmentSnapshot(document: document, resolved: resolvedComposerEmbeds)
+        queuedEditPriorAttachments = attachments ?? []
+        Task { @MainActor in
+            defer { if queuedEditEntry == entry { queuedEditEntry = nil } }
+            @MainActor func ownsEntry() -> Bool {
+                queuedEditEntry == entry && viewModel.queuedEditSession?.state.messageID == messageID
+                    && chatId == requestedChat && scope == OfflineStore.shared.scopeGeneration
+                    && ServerProfile.current() == server && TeamWorkspaceContext.shared.isCurrent(team)
+                    && composerSession.revision == revision
+            }
+            guard ownsEntry() else { return }
+            do {
+                var synthetic = false
+                #if DEBUG
+                synthetic = viewModel.isQueuedFollowupFixture
+                #endif
+                // Flush the ordinary draft before showing queued content. Queue
+                // editor changes never overwrite that separately owned draft.
+                if !synthetic {
+                    try await DraftService.shared.saveDraft(canonicalMarkdown: markdown, preview: String(markdown.prefix(160)),
+                        chatId: requestedChat, revision: revision, draftVersion: draftVersion, attachments: attachments)
+                }
+                guard ownsEntry() else { return }
+                suppressNextDraftSave = true
+                messageText = text
+                viewModel.ownQueuedEditDraft(composerSession.controller.document, revision: composerSession.revision)
+                selectedMessageText = nil; actionMessage = nil; isInputFocused = true
+            } catch {
+                guard ownsEntry() else { return }
+                _ = viewModel.cancelQueuedEdit(current: composerSession.controller.document, revision: composerSession.revision)
+                viewModel.failQueuedEditEntry()
+            }
+        }
+    }
+    private func cancelQueuedFollowupEdit() {
+        queuedEditEntry = nil
+        let document = viewModel.cancelQueuedEdit(current: composerSession.controller.document, revision: composerSession.revision)
+        try? composerSession.loadDocument(document)
+        hydrateEncryptedDraftAttachments(queuedEditPriorAttachments)
+        queuedEditPriorAttachments = []
     }
     private func cancelMessageEdit() {
         messageText = preEditDraft ?? ""; editingContextMessage = nil; preEditDraft = nil
@@ -2880,27 +2987,6 @@ struct ChatView: View {
         NSPasteboard.general.setString(content, forType: .string)
         #endif
         ToastManager.shared.show(AppStrings.copied, type: .success)
-    }
-
-    private var streamingBanner: some View {
-        Text(streamingStageText)
-            .font(.omP)
-            .fontWeight(.medium)
-            .italic()
-            .modifier(ProcessingTextShimmer())
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, .spacing8)
-            .padding(.bottom, .spacing3)
-            .background(
-                LinearGradient(
-                    colors: [.clear, Color.grey20, Color.grey20],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(streamingStageText)
-            .accessibilityIdentifier("streaming-banner")
     }
 
     private var composerStopButton: some View {
@@ -3248,6 +3334,11 @@ struct ChatView: View {
                     .font(.system(size: 1)).opacity(0.01).allowsHitTesting(false)
                     .accessibilityIdentifier("compact-draft-recording-probe")
             }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-queued-followups"), chatId == "dev-chat-opening-large" {
+                Text(viewModel.queuedFollowupFixtureOutcome).font(.omMicro)
+                    .accessibilityIdentifier("queued-followup-fixture-outcome")
+                    .accessibilityValue(viewModel.queuedFollowupFixtureReceipt)
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-composer-send"), chatId == "dev-chat-opening-large" {
                 Text(viewModel.error == nil ? "ready" : "rejected")
                     .font(.omMicro)
@@ -3268,6 +3359,9 @@ struct ChatView: View {
                 }
             }
             #endif
+            if viewModel.queuedEditSession != nil {
+                QueuedFollowupEditBanner(onCancel: cancelQueuedFollowupEdit).padding(.horizontal, .spacing4)
+            }
             if editingContextMessage != nil {
                 HStack {
                     Text(AppStrings.localized("chats.edit_banner.editing.text")).font(.omSmall)
@@ -3290,7 +3384,7 @@ struct ChatView: View {
                     : (overlayActive ? overlayHeight : expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
-                isComposerEditable: deferredComposerSendContexts.isEmpty,
+                isComposerEditable: deferredComposerSendContexts.isEmpty && queuedEditEntry == nil,
                 piiDecorations: ComposerPIIDecorations.nativeDecorations(
                     matches: activePIIMatches,
                     visibleText: composerSession.controller.attributedString.string
@@ -3360,12 +3454,12 @@ struct ChatView: View {
                             #endif
                         }, onFiles: { showAttachmentMenu = true },
                         model: { NativeComposerModelHostView(host: modelHost, viewportWidth: actionGeometry.size.width) }, speech: { ComposerSpeechHostView(chatID: chatId, supported: !IncognitoChatSession.isIncognitoChatId(chatId)) }, record: { recordActionControls }, submit: {
-                if isStreamingPresentationActive {
+                if isStreamingPresentationActive && messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed && viewModel.queuedEditSession == nil {
                     composerStopButton
                 } else if !messageText.isEmpty || viewModel.hasPendingComposerEmbeds || composerHasEmbed {
                     MessageComposerSendButton(
                         title: AppStrings.sendAction,
-                        disabled: isVerifyingPIISend || (messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed),
+                        disabled: isVerifyingPIISend || queuedEditEntry != nil || (messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed),
                         accessibilityLabel: AppStrings.sendMessage,
                         action: sendMessage
                     )
@@ -4128,19 +4222,23 @@ struct ChatView: View {
     }
 
     private var recordActionControls: some View {
-        HStack(spacing: .spacing4) {
-            if recordHintVisible && micPermissionState == .granted {
-                Text(AppStrings.pressAndHoldToRecord)
-                    .font(.omXs)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontTertiary)
-                    .lineLimit(1)
-                    .transition(.opacity)
-                    .accessibilityIdentifier("press-hold-label")
+        // Guidance must not occupy the speech/microphone/Send action lane.
+        // Keep the same record control mounted as hint visibility changes.
+        recordGestureButton
+            .overlay(alignment: .topTrailing) {
+                if recordHintVisible && micPermissionState == .granted {
+                    Text(AppStrings.pressAndHoldToRecord)
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontTertiary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .alignmentGuide(.top) { $0[.bottom] + .spacing2 }
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                        .accessibilityIdentifier("press-hold-label")
+                }
             }
-
-            recordGestureButton
-        }
     }
 
     private var recordGestureButton: some View {
@@ -4298,7 +4396,7 @@ struct ChatView: View {
         composerRecorder.startRecording()
         guard composerRecorder.error == nil else {
             cancelRealtimeRecording()
-            micPermissionState = .denied
+            if !composerRecorder.recordingAdmissionRejected { micPermissionState = .denied }
             recordAttemptActive = false
             showRecordHint(duration: 0)
             return
@@ -4383,7 +4481,7 @@ struct ChatView: View {
         prepareRealtimeRecording()
         composerRecorder.startRecording()
         guard composerRecorder.error == nil else {
-            micPermissionState = .denied
+            if !composerRecorder.recordingAdmissionRejected { micPermissionState = .denied }
             recordAttemptActive = false
             recordStartedFromKeyboard = false
             showRecordHint(duration: 0)
@@ -4479,10 +4577,11 @@ struct ChatView: View {
     #endif
 
     private func sendMessage() {
+        let sendActionStarted = NativeSyncPerfLog.now()
         #if DEBUG
         recordComposerSendFixturePhase("entered")
         #endif
-        guard !isVerifyingPIISend else {
+        guard !isVerifyingPIISend, queuedEditEntry == nil else {
             #if DEBUG
             recordComposerSendFixturePhase("blocked-verifying")
             #endif
@@ -4517,6 +4616,15 @@ struct ChatView: View {
             #endif
             return
         }
+        let ordinaryPreparation: UUID?
+        if voiceCallRuntime?.blocksOrdinarySend == true { ordinaryPreparation = nil }
+        else {
+            guard let token = NativeVoiceCallSendAdmission.shared.beginOrdinary(chatID: chatId) else {
+                viewModel.error = AppStrings.nativeCall("return_to_chat"); return
+            }
+            ordinaryPreparation = token
+        }
+        let sendTimingToken = NativeChatSendTiming.shared.beginAction(chatID: chatId, startedAt: sendActionStarted)
         isVerifyingPIISend = true
         #if DEBUG
         recordComposerSendFixturePhase("scheduled")
@@ -4526,14 +4634,19 @@ struct ChatView: View {
         let exclusions = piiExclusions
         let originals = excludedPIIOriginals(in: document, excludedIds: exclusions)
         Task { @MainActor in
+            defer { if let ordinaryPreparation { NativeVoiceCallSendAdmission.shared.endOrdinary(ordinaryPreparation) } }
             await sendVerifiedComposerMessage(document: document, documentRevision: documentRevision, owner: owner, options: options,
-                                              exclusions: exclusions, excludedOriginals: originals)
+                                              exclusions: exclusions, excludedOriginals: originals, timingToken: sendTimingToken)
             if piiComposerContext == owner { isVerifyingPIISend = false }
         }
     }
 
     private func sendVerifiedComposerMessage(document: ComposerDocumentV1, documentRevision: Int, owner: ComposerPIIContext,
-        options: PIIDetectionOptions, exclusions: Set<String>, excludedOriginals: Set<String>) async {
+        options: PIIDetectionOptions, exclusions: Set<String>, excludedOriginals: Set<String>, timingToken: UUID? = nil) async {
+        var timingAccepted = false
+        defer {
+            if !timingAccepted, let timingToken { NativeChatSendTiming.shared.cancel(chatID: chatId, token: timingToken) }
+        }
         guard owner == piiComposerContext, piiComposerForeground else {
             #if DEBUG
             recordComposerSendFixturePhase("blocked-foreground-context")
@@ -4585,6 +4698,38 @@ struct ChatView: View {
             #endif
             return
         }
+        if let calls = voiceCallRuntime, calls.blocksOrdinarySend {
+            guard viewModel.queuedEditSession == nil, editingContextMessage == nil,
+                  !broadcastToSiblingSubChats, composerEmbeds.isEmpty,
+                  document.nodes.allSatisfy({ $0.kind == "text" }), piiMappings.isEmpty else {
+                viewModel.error = AppStrings.nativeCall("unsupported_content"); return
+            }
+            guard calls.coordinator?.state.status == .live,
+                  calls.coordinator?.boundChatID == chatId else {
+                viewModel.error = AppStrings.nativeCall(calls.coordinator?.state.status == .connecting ? "connecting" : "return_to_chat")
+                return
+            }
+            let editorID = voiceCallEditorID
+            let snapshotSelection = composerSession.controller.selection
+            do {
+                try await calls.submit(chatID: chatId, editorID: editorID, text: text,
+                    document: document, revision: documentRevision, selection: snapshotSelection,
+                    accepted: {
+                        guard voiceCallEditorID == editorID, owner == piiComposerContext, piiComposerForeground,
+                              composerSession.revision == documentRevision,
+                              composerSession.controller.document == document else { return false }
+                        clearAcceptedVoiceCallDraft()
+                        return true
+                    }, unchanged: {
+                        voiceCallEditorID == editorID && owner == piiComposerContext && piiComposerForeground
+                            && composerSession.revision == documentRevision
+                            && composerSession.controller.document == document
+                    })
+            } catch {
+                if owner == piiComposerContext { viewModel.error = AppStrings.nativeCallError(error as? NativeVoiceCallError ?? .connectionLost) }
+            }
+            return // A call submission never reaches ordinary model/inference dispatch.
+        }
         let editingID = editingContextMessage?.id
         let sendingOwner = ComposerModelSendOwnership(server: ServerProfile.current().apiBaseURL.absoluteString,
             accountGeneration: OfflineStore.shared.scopeGeneration, chatID: chatId)
@@ -4598,6 +4743,10 @@ struct ChatView: View {
 
         // Await dispatch so the outer PII submit gate remains held throughout.
         let routedText: String
+        if viewModel.queuedEditSession != nil {
+            // A queued revision retains its admitted request/model identity.
+            routedText = text
+        } else {
         do {
             NativeDiagnostics.event("composer_send_model_routing", category: "apple_composer")
             #if DEBUG
@@ -4626,6 +4775,7 @@ struct ChatView: View {
             viewModel.error = LocalizationManager.shared.text("enter_message.model_selector.unavailable_reset")
             return
         }
+        }
         guard dispatchFence.permits(currentContext: piiComposerContext,
             currentOptions: piiPrivacySettingsStore.detectionOptions(),
             foreground: piiComposerForeground, cancelled: Task.isCancelled) else {
@@ -4636,18 +4786,26 @@ struct ChatView: View {
             stopFollowingStreamingResponse()
             return
         }
+        guard voiceCallRuntime?.blocksOrdinarySend != true, !NativeVoiceCallSendAdmission.shared.blocksOrdinary else {
+            viewModel.error = AppStrings.nativeCall("return_to_chat"); return
+        }
         NativeDiagnostics.event("composer_send_pipeline_begin", category: "apple_composer")
         #if DEBUG
         recordComposerSendFixturePhase("pipeline-await")
         #endif
-        let accepted = await viewModel.sendMessage(
-            routedText,
-            piiMappings: piiMappings,
-            excludedPIIOriginals: excludedOriginals,
-            broadcastToSiblings: broadcastToSiblingSubChats,
-            composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds,
-            editingMessageID: editingID
-        )
+        let isQueuedEdit = viewModel.queuedEditSession != nil
+        let accepted: Bool
+        if isQueuedEdit {
+            accepted = await viewModel.submitQueuedEdit(routedText,
+                sourceContent: (try? ComposerMarkdownAdapter.serialize(document)) ?? routedText,
+                document: document, revision: documentRevision, piiMappings: piiMappings, excludedOriginals: excludedOriginals,
+                composerEmbeds: composerEmbeds)
+        } else {
+            accepted = await viewModel.sendMessage(routedText, piiMappings: piiMappings, excludedPIIOriginals: excludedOriginals,
+                broadcastToSiblings: broadcastToSiblingSubChats,
+                composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds, editingMessageID: editingID)
+        }
+        timingAccepted = accepted
         #if DEBUG
         recordComposerSendFixturePhase("pipeline-returned")
         #endif
@@ -4677,16 +4835,31 @@ struct ChatView: View {
                 #endif
                 draftSaveTask?.cancel()
                 suppressNextDraftSave = true
-                messageText = ""; detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []; mentionQuery = nil
-                dismissAcceptedComposer()
+                if isQueuedEdit, let previous = viewModel.takeCompletedQueuedEditDraft(current: composerSession.controller.document,
+                    revision: composerSession.revision) {
+                    try? composerSession.loadDocument(previous)
+                    hydrateEncryptedDraftAttachments(queuedEditPriorAttachments)
+                    queuedEditPriorAttachments = []
+                } else { messageText = "" }
+                detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []; mentionQuery = nil
+                if messageText.isEmpty { dismissAcceptedComposer() }
             }
             if editingContextMessage?.id == editingID { editingContextMessage = nil; preEditDraft = nil }
             let retainedNodeIDs = Set(composerSession.controller.document.nodes.map(\.id))
             for nodeID in documentNodeIDs where !retainedNodeIDs.contains(nodeID) {
                 resolvedComposerEmbeds.removeValue(forKey: nodeID)
             }
-            if clearsSnapshot { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
+            if clearsSnapshot && messageText.isEmpty { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
         }
+    }
+
+    private func clearAcceptedVoiceCallDraft() {
+        draftSaveTask?.cancel()
+        suppressNextDraftSave = false
+        messageText = ""
+        detectedPIIMatches = []; piiExclusions = []; piiExcludedValues = []; mentionQuery = nil
+        dismissAcceptedComposer()
+        scheduleEncryptedDraftSave()
     }
 
     private func dismissAcceptedComposer() {
@@ -4792,12 +4965,21 @@ struct ChatView: View {
         let requestedChatID = chatId
         let revision = composerSession.revision
         let scopeGeneration = OfflineStore.shared.scopeGeneration
+        let queuedMessageID = viewModel.queuedEditSession?.state.messageID
         do {
             let draft = try await DraftService.shared.loadDraft(chatId: requestedChatID)
             let markdown = draft?.canonicalMarkdown ?? ""
             guard requestedChatID == chatId, loadedRouteID == requestedChatID,
                   revision == composerSession.revision,
                   scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
+            if let queuedMessageID, viewModel.queuedEditSession?.state.messageID == queuedMessageID {
+                if let document = try? ComposerMarkdownAdapter.parse(markdown) {
+                    viewModel.updateQueuedEditPreviousDraft(document, messageID: queuedMessageID)
+                    queuedEditPriorAttachments = draft?.attachments ?? []
+                }
+                return
+            }
+            guard viewModel.queuedEditSession == nil else { return }
             if markdown != composerSession.canonicalMarkdown {
                 suppressNextDraftSave = true
                 composerSession.replaceMarkdown(markdown)
@@ -4862,7 +5044,7 @@ struct ChatView: View {
     }
 
     private func scheduleEncryptedDraftSave() {
-        guard !isDemoOrLegalChat, !isExampleChat else { return }
+        guard viewModel.queuedEditSession == nil, !isDemoOrLegalChat, !isExampleChat else { return }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
         let revision = composerSession.revision
@@ -4875,7 +5057,7 @@ struct ChatView: View {
     }
 
     private func flushEncryptedDraft() {
-        guard !isDemoOrLegalChat, !isExampleChat else { return }
+        guard viewModel.queuedEditSession == nil, !isDemoOrLegalChat, !isExampleChat else { return }
         draftSaveTask?.cancel()
         let markdown = composerSession.canonicalMarkdown
         let revision = composerSession.revision
@@ -4887,7 +5069,7 @@ struct ChatView: View {
 
     private func saveEncryptedDraft(markdown: String, revision: Int, draftVersion: Int) async {
         do {
-            guard revision == composerSession.revision else { return }
+            guard viewModel.queuedEditSession == nil, revision == composerSession.revision else { return }
             try await DraftService.shared.saveDraft(
                 canonicalMarkdown: markdown,
                 preview: String(markdown.prefix(160)),
@@ -5072,43 +5254,6 @@ enum ChatEmbedSyncSignature {
     private static func update(_ hasher: inout SHA256, _ value: String) {
         hasher.update(data: Data(value.utf8))
         hasher.update(data: Data([0]))
-    }
-}
-
-private struct ChatProcessingRing: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var rotation = 0.0
-
-    private var gradient: AngularGradient {
-        AngularGradient(
-            colors: [
-                .chatRainbowRed,
-                .chatRainbowOrange,
-                .chatRainbowYellow,
-                .chatRainbowGreen,
-                .chatRainbowCyan,
-                .chatRainbowPurple,
-                .chatRainbowRed
-            ],
-            center: .center,
-            angle: .degrees(rotation)
-        )
-    }
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 17)
-            .strokeBorder(gradient, lineWidth: 2)
-            .blur(radius: 1.5)
-            .shadow(color: Color.chatRainbowPurple.opacity(colorScheme == .dark ? 0.70 : 0.42), radius: 9)
-            .shadow(color: Color.chatRainbowCyan.opacity(colorScheme == .dark ? 0.55 : 0.32), radius: 5)
-            .padding(1)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
-                    rotation = 360
-                }
-            }
     }
 }
 
@@ -5394,9 +5539,12 @@ struct MessageBubble: View {
     var interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer] = [:]
     var onOpenMateSettings: ((String) -> Void)? = nil
     var onOpenModelSettings: ((String) -> Void)? = nil
+    var timingBinding: NativeChatSendTimingBinding? = nil
     var onSpeak: (() -> Void)? = nil
     let onShowActions: (() -> Void)?
     var accessibilityIdentifier: String? = nil
+    var responseActive = false
+    var loadedMemories: [ChatAppliedMemory] = []
     /// Recipient transcripts use an ephemeral scope instead of the owner's cache scope.
     var renderScopeID: String? = nil
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -5445,6 +5593,7 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private func assistantMarkdownContent(_ presentation: ChatMessageRenderPresentation) -> some View {
+        let lookup = EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown")
         RichMarkdownView(
             content: presentation.displayContent,
             renderDocument: presentation.stableRenderDocument,
@@ -5458,13 +5607,20 @@ struct MessageBubble: View {
             onOpenSubChat: onOpenSubChat,
             subChatProgress: subChatProgress,
             completedSubChatIDs: completedSubChatIDs,
-            embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
+            embedLookup: lookup,
             allEmbedRecords: allEmbedRecords,
-            hiddenEmbedIds: presentation.hiddenInlineEmbedIds,
+            // Activity parents stay in their source-position document run.
+            hiddenEmbedIds: [],
             onEmbedTap: onEmbedTap,
             onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
             interactiveQuestionAnswers: interactiveQuestionAnswers,
-            searchHighlightQuery: searchHighlightQuery
+            searchHighlightQuery: searchHighlightQuery,
+            assistantActivity: AssistantActivityConfiguration(chatID: chatId,
+                responseActive: responseActive, thinkingContent: thinkingContent ?? "",
+                thinkingStreaming: isThinkingStreaming, memories: loadedMemories,
+                embeds: allEmbedRecords.merging(lookup, uniquingKeysWith: { current, _ in current }), completedSubChatIDs: completedSubChatIDs,
+                viewportWidth: containerWidth, messageID: message.id,
+                subChatProgress: subChatProgress, childStore: subChatStore)
         )
     }
 
@@ -5489,7 +5645,9 @@ struct MessageBubble: View {
             "embed_count": embeds.count,
             "has_thinking": thinkingContent?.isEmpty == false,
             "has_sender_name": !isUser && !isSystem,
-            "is_streaming": streamingContent != nil
+            "is_streaming": streamingContent != nil,
+            "response_active": responseActive,
+            "loaded_memory_count": loadedMemories.count
         ]
         guard JSONSerialization.isValidJSONObject(payload),
               let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
@@ -5696,7 +5854,8 @@ struct MessageBubble: View {
             category: assistantCategory,
             modelName: message.modelName,
             onOpenMateSettings: onOpenMateSettings,
-            onOpenModelSettings: onOpenModelSettings
+            onOpenModelSettings: onOpenModelSettings,
+            timingBinding: timingBinding
         )
     }
 
@@ -5774,7 +5933,7 @@ struct MessageBubble: View {
 
     private func assistantContent(_ presentation: ChatMessageRenderPresentation) -> some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if !presentation.displayContent.isEmpty || thinkingContent?.isEmpty == false || !presentation.topLevelAppSkillEmbeds.isEmpty {
+            if !presentation.displayContent.isEmpty || thinkingContent?.isEmpty == false || isThinkingStreaming || !loadedMemories.isEmpty || responseActive {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         HStack(spacing: .spacing2) {
@@ -5784,45 +5943,17 @@ struct MessageBubble: View {
                             }
                         }
 
-                        if let thinkingContent, !thinkingContent.isEmpty {
-                            ThinkingSectionView(
-                                content: thinkingContent,
-                                isStreaming: isThinkingStreaming
-                            )
-                            .accessibilityIdentifier("thinking-section")
-                        }
-
-                        if !presentation.topLevelAppSkillEmbeds.isEmpty {
-                            VStack(alignment: .leading, spacing: .spacing3) {
-                                Text("\(presentation.topLevelAppSkillEmbeds.count) app skill\(presentation.topLevelAppSkillEmbeds.count == 1 ? "" : "s") used:")
-                                    .font(.omXs)
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(Color.fontTertiary)
-
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: .spacing3) {
-                                        ForEach(Array(presentation.topLevelAppSkillEmbeds.reversed())) { embed in
-                                            EmbedPreviewCard(embed: embed, allEmbedRecords: allEmbedRecords) {
-                                                onEmbedTap(embed)
-                                            }
-                                            .frame(width: 300, height: 200)
-                                        }
-                                    }
-                                }
-                                .frame(height: 200)
-                            }
-                            .padding(.bottom, .spacing2)
-                        }
-
-                        if !presentation.displayContent.isEmpty {
-                            assistantMarkdownContent(presentation)
-                        }
+                        assistantMarkdownContent(presentation)
                     }
                     .foregroundStyle(Color.grey100)
                     .padding(.spacing6)
+                    .padding(.bottom, responseActive ? .spacing5 : 0)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.grey0)
                     .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .overlay(alignment: .bottom) {
+                        if responseActive { AssistantResponseGlow() }
+                    }
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
                     .overlay(alignment: .topLeading) {
                         SpeechTailView(side: useStackedLayout ? .top : .leading, color: Color.grey0)

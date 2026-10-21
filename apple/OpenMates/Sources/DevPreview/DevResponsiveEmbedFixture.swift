@@ -14,10 +14,19 @@ import SwiftUI
 struct DevResponsiveEmbedFixture: View {
     let large: Bool
     @State private var index = 0
+    @State private var openedCount = 0
     @State private var bounds: [String: CGRect] = [:]
-    private let states = ["short", "long", "processing", "error", "cancelled", "full-width"]
+    private let states = ["short", "long", "processing", "error", "cancelled", "full-width", "video-short", "video-long", "video-narrow"]
 
     private var record: EmbedRecord {
+        if index >= 6 {
+            return EmbedRecord(id: "responsive-video-footer-fixture", type: "videos-video",
+                status: .finished, data: .raw([
+                    "title": AnyCodable(index == 6 ? "Short video" : String(repeating: "W", count: 90)),
+                    "duration_formatted": AnyCodable("17:08"),
+                    "published_at": AnyCodable("2026-10-04T10:30:00Z")
+                ]), parentEmbedId: nil, appId: "videos", skillId: nil, embedIds: nil, createdAt: nil)
+        }
         var data: [String: AnyCodable] = ["name": AnyCodable(index == 0 ? "Dr. Example" : "Dr. Example With A Deliberately Long Name That Wraps Across Several Lines"),
             "slot_datetime": AnyCodable("2026-10-04T10:30:00"),
             "provider": AnyCodable("Jameda"), "provider_platform": AnyCodable("Jameda")]
@@ -43,12 +52,18 @@ struct DevResponsiveEmbedFixture: View {
     var body: some View {
         GeometryReader { viewport in
             VStack(spacing: .spacing10) {
-                Button("Next fixture content") { index = (index + 1) % states.count }
+                Button { index = (index + 1) % states.count } label: {
+                    Text("Next fixture content")
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
                     .buttonStyle(.plain).accessibilityIdentifier("responsive-preview-next-content")
                 Text(states[index]).font(.omTiny)
                     .accessibilityIdentifier("responsive-preview-content-state")
-                EmbedPreviewCard(embed: record, variant: large ? .large : .compact) {}
-                    .frame(width: large ? max(300, viewport.size.width - 40) : 300)
+                Text("\(openedCount)").font(.omTiny)
+                    .accessibilityIdentifier("responsive-preview-open-count")
+                EmbedPreviewCard(embed: record, variant: large ? .large : .compact) { openedCount += 1 }
+                    .frame(width: index == 8 ? 220 : large ? max(300, viewport.size.width - 40) : 300)
                     .coordinateSpace(name: "responsive-preview-fixture")
                     .onPreferenceChange(EmbedPreviewGeometryKey.self) { bounds = $0 }
                 Spacer(minLength: 0)
@@ -57,7 +72,7 @@ struct DevResponsiveEmbedFixture: View {
             .frame(width: viewport.size.width, height: viewport.size.height, alignment: .top)
             .overlay(alignment: .bottomLeading) {
                 VStack(spacing: 0) {
-                    ForEach(["card", "footer", "circle"], id: \.self) { key in
+                    ForEach(["card", "footer", "circle", "title"], id: \.self) { key in
                         let rect = bounds[key] ?? .zero
                         Text(" ").font(.omTiny).foregroundStyle(Color.clear)
                             .frame(width: 1, height: 1).allowsHitTesting(false)

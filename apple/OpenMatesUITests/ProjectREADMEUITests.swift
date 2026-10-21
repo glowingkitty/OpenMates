@@ -127,6 +127,47 @@ final class ProjectREADMEUITests: XCTestCase {
         XCTAssertTrue(renderedFiles, "Existing remote file entries must render; sanitized diagnostic category is attached")
     }
 
+    // Public preview metadata exercises cached browsing without impersonating
+    // a real account or changing the device's network configuration.
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,projects.files.connected-embed-previews,projects.surface.semantic-parity
+    func testOfflineProjectMetadataKeepsCloudCardsAndCachedFoldersBrowsable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "projects", "--dev-preview-variant", "offlineCachedSource",
+            "-AppleLanguages", "(en)"]
+        app.launch()
+        let scroll = app.scrollViews["project-detail-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        let item = app.buttons["project-item-project-source"]
+        for _ in 0..<8 where !item.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(item.isHittable)
+        XCTAssertTrue(item.staticTexts["ProjectsPage.svelte"].exists)
+        XCTAssertTrue(item.staticTexts["Code"].exists,
+                      "Stored embed type metadata must survive without loading the body")
+        XCTAssertTrue(app.descendants(matching: .any)["project-item-remote-project-source"].exists)
+        let source = app.buttons["project-source-source-preview"]
+        for _ in 0..<8 where !source.isHittable { scroll.swipeDown() }
+        XCTAssertTrue(source.isHittable)
+        XCTAssertTrue(source.isEnabled, "An offline source can expose previously retained directory metadata")
+        source.tap()
+        let folder = app.buttons["project-remote-entry-frontend"]
+        XCTAssertTrue(folder.waitForExistence(timeout: 5))
+        for _ in 0..<8 where !folder.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(folder.isHittable)
+        XCTAssertTrue(folder.isEnabled)
+        XCTAssertFalse(app.buttons["project-file-select"].exists)
+        XCTAssertFalse(app.buttons["project-upload-button"].isEnabled)
+        XCTAssertFalse(app.buttons["project-files-create"].isEnabled)
+        folder.tap()
+        let file = app.buttons["project-remote-entry-frontend/app.ts"]
+        XCTAssertTrue(file.waitForExistence(timeout: 5))
+        XCTAssertFalse(file.isEnabled, "Cached names must not grant live body or download authority")
+        XCTAssertFalse(app.descendants(matching: .any)["project-remote-file-detail"].exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Public offline Project metadata and cached directory"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.surface.semantic-parity
     func testConfirmedOfflineReadmeShowsClearMessageAndRetry() {
         let app = XCUIApplication()
@@ -323,4 +364,146 @@ final class ProjectREADMEUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first
+    func testReadmeRendererReachesTwelfthEligibleImageAfterScrolling() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "projects", "--dev-preview-variant", "readme",
+            "--ui-test-project-readme-many-images", "--dev-preview-width", "390", "--dev-preview-height", "844",
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let scroll = app.scrollViews["project-detail-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        let lastParagraph = app.descendants(matching: .any)["project-readme-paragraph-12"].firstMatch
+        let lastImage = lastParagraph.descendants(matching: .image)["project-readme-image-rendered"].firstMatch
+        for _ in 0..<30 {
+            if lastImage.exists, lastImage.isHittable { break }
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(lastImage.waitForExistence(timeout: 5), "The twelfth distinct safe reference must reach the production image renderer")
+        XCTAssertTrue(lastImage.isHittable)
+        XCTAssertGreaterThan(lastImage.frame.width, 20)
+        XCTAssertGreaterThan(lastImage.frame.height, 10)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Twelfth README image rendered through production Project view"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.local-first
+    func testLargeSingleReadmeParagraphLoadsAndRetainsOnlyVisibleImages() {
+        assertDenseReadmeImageResidency(shape: "paragraph")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.local-first
+    func testLargeSingleReadmeListLoadsAndRetainsOnlyVisibleImages() {
+        assertDenseReadmeImageResidency(shape: "list")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.local-first
+    func testLargeSingleReadmeTableLoadsAndRetainsOnlyVisibleImages() {
+        assertDenseReadmeImageResidency(shape: "table")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.local-first
+    func testWideReadmeTableLoadsClippedColumnOnlyAfterHorizontalScrollAndReleasesItOnReturn() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "projects", "--dev-preview-variant", "readme",
+            "--ui-test-project-readme-many-images", "--ui-test-project-readme-image-shape", "wide-table",
+            "--dev-preview-width", "390", "--dev-preview-height", "844", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let vertical = app.scrollViews["project-detail-scroll"]
+        XCTAssertTrue(vertical.waitForExistence(timeout: 8))
+        let table = app.scrollViews["project-readme-table-1"]
+        let states = app.descendants(matching: .any).matching(identifier: "project-readme-image-state")
+        let left = states.matching(NSPredicate(format: "label == %@", "Wide table left")).firstMatch
+        let right = states.matching(NSPredicate(format: "label == %@", "Wide table right")).firstMatch
+        for _ in 0..<8 {
+            if table.exists, left.exists, table.frame.minY >= vertical.frame.minY,
+                table.frame.maxY <= vertical.frame.maxY { break }
+            vertical.swipeUp()
+        }
+        XCTAssertTrue(table.waitForExistence(timeout: 5))
+        XCTAssertTrue(table.isHittable, "Gestures must target the production horizontal table ScrollView")
+        let leftVisible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            left.exists && (left.value as? String)?.contains("resident=true;viewport=true") == true
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [leftVisible], timeout: 5), .completed)
+        XCTAssertTrue(right.exists)
+        XCTAssertGreaterThan(right.frame.minX, table.frame.maxX,
+                             "The rendered far column must genuinely extend past the viewport before horizontal scrolling")
+        XCTAssertEqual(right.value as? String, "resident=false;viewport=false;loads=0",
+                       "A horizontally clipped image cannot load just because its table row is vertically visible")
+        for _ in 0..<12 {
+            if (right.value as? String)?.contains("resident=true;viewport=true") == true { break }
+            table.swipeLeft()
+        }
+        let rightVisible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            right.exists && (right.value as? String)?.contains("resident=true;viewport=true") == true
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [rightVisible], timeout: 5), .completed)
+        XCTAssertTrue(right.descendants(matching: .image)["project-readme-image-rendered"].firstMatch.exists)
+        XCTAssertEqual(left.value as? String, "resident=false;viewport=false;loads=1")
+        for _ in 0..<12 {
+            if (left.value as? String)?.contains("resident=true;viewport=true") == true &&
+                (right.value as? String)?.contains("resident=false;viewport=false") == true { break }
+            table.swipeRight()
+        }
+        let returned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (left.value as? String) == "resident=true;viewport=true;loads=2" &&
+                (right.value as? String) == "resident=false;viewport=false;loads=1"
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [returned], timeout: 5), .completed,
+                       "Returning reloads the visible column and releases the far column without changing retention eligibility")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Wide production README table returned after horizontal residency check"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func assertDenseReadmeImageResidency(shape: String) {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "projects", "--dev-preview-variant", "readme",
+            "--ui-test-project-readme-many-images", "--ui-test-project-readme-image-shape", shape,
+            "--dev-preview-width", "390", "--dev-preview-height", "844", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let scroll = app.scrollViews["project-detail-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 8))
+        let states = app.descendants(matching: .any).matching(identifier: "project-readme-image-state")
+        let first = states.matching(NSPredicate(format: "label == %@", "README image 0")).firstMatch
+        for _ in 0..<8 where !first.exists || !first.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        let firstVisible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            first.exists && (first.value as? String)?.contains("resident=true;viewport=true") == true
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [firstVisible], timeout: 5), .completed)
+        let last = states.matching(NSPredicate(format: "label == %@", "README image 99")).firstMatch
+        XCTAssertTrue(last.exists, "The last eager child is mounted within the same large block")
+        XCTAssertEqual(last.value as? String, "resident=false;viewport=false;loads=0",
+                       "A mounted offscreen image must neither load nor retain decoded pixels")
+        // Evaluate the complete residency predicate in one AX query. Reading
+        // each of the 100 nodes separately adds hundreds of remote snapshots.
+        XCTAssertEqual(states.matching(NSPredicate(format: "value CONTAINS %@ AND value CONTAINS %@",
+            "resident=true", "viewport=false")).count, 0)
+        for _ in 0..<80 {
+            if last.exists, (last.value as? String)?.contains("resident=true;viewport=true") == true { break }
+            scroll.swipeUp()
+        }
+        let lastVisible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            last.exists && (last.value as? String)?.contains("resident=true;viewport=true") == true
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [lastVisible], timeout: 5), .completed)
+        XCTAssertEqual(first.value as? String, "resident=false;viewport=false;loads=1",
+                       "An eager first row releases pixels after scrolling away while preserving its geometry")
+        // Evaluate the complete residency predicate in one AX query. Reading
+        // each of the 100 nodes separately adds hundreds of remote snapshots.
+        XCTAssertEqual(states.matching(NSPredicate(format: "value CONTAINS %@ AND value CONTAINS %@",
+            "resident=true", "viewport=false")).count, 0)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Viewport residency in one large README " + shape
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
 }

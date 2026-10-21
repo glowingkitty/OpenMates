@@ -36,6 +36,23 @@ enum ProjectWorkspaceSearchEntry: Identifiable {
     }
 }
 
+/// Presentation identity follows private document/key/authority changes, never
+/// ordinary image cache writes or unrelated store operation generations.
+struct ProjectReadmePresentationIdentity: Hashable {
+    let document: ProjectWorkspaceReadme
+    let projectID: String?
+    let projectKeyDigest: String
+    let projectTeamID: String?
+    let accountID: String?
+    let scope: UUID
+    let server: String
+    let selectedTeamID: String?
+    let activeTeamID: String?
+    let teamEpoch: UInt64
+    let sourceSessionID: String?
+    let sourceKeyEpoch: Int?
+}
+
 @MainActor
 final class ProjectsWorkspaceStore: ObservableObject {
     enum ReadmeState {
@@ -85,6 +102,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
         return "other"
     }
     #endif
+    @Published private(set) var remoteMetadataOnly = false
     @Published private(set) var activeRemoteSourceID: String?
     @Published private(set) var remotePath = "."
     @Published private(set) var remoteEntries: [ProjectRemoteEntry] = []
@@ -117,8 +135,6 @@ final class ProjectsWorkspaceStore: ObservableObject {
     private let validateFence: @MainActor (ProjectsWorkspaceFence) async throws -> Void
     private var accountID: String?
     private var teamID: String?
-    private var readmeImageCache: [String: Data] = [:]
-    private var cachedImageReadme: ProjectWorkspaceReadme?
     private var generation = UUID()
     private var searchGeneration = UUID()
     private var remoteGeneration = UUID()
@@ -262,10 +278,12 @@ final class ProjectsWorkspaceStore: ObservableObject {
         let sourceRequest = sourceGeneration
         errorMessage = nil
         var hasCachedContents = false
+        var hasCachedSettings = false
         if let cachedContents = try? await service.cachedContents(project: project, fence: fence),
-           requestGeneration == generation, selectedProjectID == project.id,
+           !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id,
            (try? await validateFence(fence)) != nil {
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             folders = cachedContents.folders
             items = cachedContents.items
             sources = cachedContents.sources
@@ -273,26 +291,36 @@ final class ProjectsWorkspaceStore: ObservableObject {
             isLoadingDetail = false
             await restoreCachedReadme(project: project, contents: cachedContents, fence: fence,
                                      generation: requestGeneration, sourceGeneration: sourceRequest)
+            await restoreCachedSourceRoots(project: project, sources: cachedContents.sources, fence: fence,
+                generation: requestGeneration, sourceGeneration: sourceRequest)
         }
         if let cachedSettings = try? await service.cachedSettings(project: project, fence: fence),
-           requestGeneration == generation, selectedProjectID == project.id,
+           !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id,
            (try? await validateFence(fence)) != nil {
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             self.settings = cachedSettings
+            hasCachedSettings = true
         }
+        guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+              selectedProjectID == project.id else { return }
+        // These reads have independent cache and publication authority. A settings
+        // failure must not discard fresh connected-source sessions from contents.
+        async let contentsRequest = service.contents(project: project, fence: fence)
+        async let settingsRequest = service.settings(project: project, fence: fence)
         do {
-            async let contentsRequest = service.contents(project: project, fence: fence)
-            async let settingsRequest = service.settings(project: project, fence: fence)
-            let (contents, settings) = try await (contentsRequest, settingsRequest)
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
+            let contents = try await contentsRequest
+            try Task.checkCancellation()
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             try await validateFence(fence)
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             folders = contents.folders
             items = contents.items
             itemEmbedPreviews = [:]
             loadingEmbedPreviewIDs = [:]
             sources = contents.sources
-            self.settings = settings
             // README discovery may wait for a remote host. Its independent
             // overview state must not hold Files or Tasks behind that read.
             isLoadingDetail = false
@@ -301,6 +329,8 @@ final class ProjectsWorkspaceStore: ObservableObject {
             readme = .loading
             await restoreCachedReadme(project: project, contents: contents, fence: fence,
                                      generation: requestGeneration, sourceGeneration: sourceRequest)
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             Task { [weak self] in
                 guard let self else { return }
                 let loadedReadme = await self.loadReadme(project: project, contents: contents, fence: fence)
@@ -317,9 +347,12 @@ final class ProjectsWorkspaceStore: ObservableObject {
                     fence: fence, generation: requestGeneration, sourceGeneration: sourceRequest)
             }
         } catch {
-            guard requestGeneration == generation else { return }
-            guard (try? await validateFence(fence)) != nil, requestGeneration == generation else { return }
-            if !NativeWorkspaceReadFailure.isCancellation(error),
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            guard (try? await validateFence(fence)) != nil,
+                  requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            if !Task.isCancelled, !NativeWorkspaceReadFailure.isCancellation(error),
                !(hasCachedContents && NativeWorkspaceReadFailure.isTransient(error)) {
                 errorMessage = AppStrings.projectError(error)
             }
@@ -328,9 +361,30 @@ final class ProjectsWorkspaceStore: ObservableObject {
             #endif
             if case .ready = readme {
                 // Keep the compatible encrypted overview while reporting real refresh errors above.
-            } else if !NativeWorkspaceReadFailure.isCancellation(error) { readme = .failed }
+            } else if !Task.isCancelled, !NativeWorkspaceReadFailure.isCancellation(error) { readme = .failed }
         }
-        if requestGeneration == generation { isLoadingDetail = false }
+        do {
+            let settings = try await settingsRequest
+            try Task.checkCancellation()
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            try await validateFence(fence)
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            self.settings = settings
+        } catch {
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            guard (try? await validateFence(fence)) != nil,
+                  requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            if !Task.isCancelled, !NativeWorkspaceReadFailure.isCancellation(error),
+               !(hasCachedSettings && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = AppStrings.projectError(error)
+            }
+        }
+        if requestGeneration == generation, sourceRequest == sourceGeneration,
+           selectedProjectID == project.id { isLoadingDetail = false }
     }
 
     private func applyReadmeRefresh(_ loaded: ReadmeState, project: ProjectWorkspaceProject,
@@ -372,8 +426,6 @@ final class ProjectsWorkspaceStore: ObservableObject {
         guard request == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id else { return }
         let document = retained.document
         readme = .ready(document)
-        cachedImageReadme = document
-        readmeImageCache = retained.images
     }
 
     /// Web refreshes source presence every 15 seconds. A retained workspace
@@ -396,8 +448,6 @@ final class ProjectsWorkspaceStore: ObservableObject {
                   selectedProjectID == project.id,
                   sources != refreshed else { return }
             sourceGeneration = UUID()
-            readmeImageCache = [:]
-            cachedImageReadme = nil
             let sourceRequest = sourceGeneration
             let changedIDs = Set(sources.filter { old in
                 !refreshed.contains(old)
@@ -408,6 +458,10 @@ final class ProjectsWorkspaceStore: ObservableObject {
             }
             cancelSearch()
             sources = refreshed
+            await restoreCachedSourceRoots(project: project, sources: refreshed, fence: fence,
+                generation: requestGeneration, sourceGeneration: sourceRequest)
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
             let contents = ProjectWorkspaceContents(folders: folders, items: items, sources: refreshed)
             readme = .loading
             await restoreCachedReadme(project: project, contents: contents, fence: fence,
@@ -795,6 +849,11 @@ final class ProjectsWorkspaceStore: ObservableObject {
             throw ProjectsWorkspaceError.accountChanged
         }
         try await validateFence(fence)
+        guard !Task.isCancelled, requestGeneration == generation, selectedProjectID == project.id,
+              items.contains(where: { $0.id == item.id && $0.targetID == item.targetID }) else {
+            throw ProjectsWorkspaceError.accountChanged
+        }
+        itemEmbedPreviews[item.id] = record
         return record
     }
 
@@ -819,41 +878,17 @@ final class ProjectsWorkspaceStore: ObservableObject {
         } catch { return nil }
     }
 
-    /// Hydrate only cards that SwiftUI has placed on screen. Plaintext remains
-    /// in this scoped in-memory store and is discarded on Project/account reset.
+    /// Thin item metadata is enough to display every entry without downloading
+    /// full bodies. Only explicit open hydrates a rich preview in selected memory.
     func loadItemEmbedPreview(_ item: ProjectWorkspaceItem) async {
-        guard item.kind == "embed", itemEmbedPreviews[item.id] == nil,
-              loadingEmbedPreviewIDs[item.id] == nil, selectedProjectID != nil else { return }
         #if DEBUG
-        if previewVariant != nil {
-            if let type = item.metadata["embed_type"],
-               let skill = DevEmbedPreviewFixtures.skill(forRegistryKey: type) {
-                itemEmbedPreviews[item.id] = skill.primaryEmbed
-            }
-            return
+        guard previewVariant != "offlineCachedSource" else { return }
+        if previewVariant != nil, item.kind == "embed", itemEmbedPreviews[item.id] == nil,
+           selectedProjectID != nil, let type = item.metadata["embed_type"],
+           let skill = DevEmbedPreviewFixtures.skill(forRegistryKey: type) {
+            itemEmbedPreviews[item.id] = skill.primaryEmbed
         }
         #endif
-        guard let project = selectedProject, let accountID,
-              items.contains(where: { $0.id == item.id && $0.targetID == item.targetID }) else { return }
-        let requestGeneration = generation
-        let fence = ProjectsWorkspaceFence(accountID: accountID)
-        loadingEmbedPreviewIDs[item.id] = requestGeneration
-        defer {
-            if loadingEmbedPreviewIDs[item.id] == requestGeneration {
-                loadingEmbedPreviewIDs.removeValue(forKey: item.id)
-            }
-        }
-        do {
-            let record = try await service.openLinkedEmbed(item, project: project, fence: fence)
-            guard requestGeneration == generation, selectedProjectID == project.id,
-                  items.contains(where: { $0.id == item.id && $0.targetID == item.targetID }) else { return }
-            try await validateFence(fence)
-            guard requestGeneration == generation, selectedProjectID == project.id else { return }
-            itemEmbedPreviews[item.id] = record
-        } catch {
-            // The encrypted card remains a metadata-only fallback. Open will
-            // revalidate the key and present the user's normal error path.
-        }
     }
 
     func uploadFile(url: URL, folderID: String?) async {
@@ -908,6 +943,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
 
     func transferRemote(_ paths: [String], move: Bool,
                         destinationPath: String) async {
+        guard !remoteMetadataOnly else { return }
         guard let project = selectedProject, let accountID, !isSaving,
               let sourceID = activeRemoteSourceID,
               let source = sources.first(where: { $0.id == sourceID }),
@@ -937,7 +973,10 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func openRemoteSource(_ sourceID: String) async {
-        guard sources.contains(where: { $0.id == sourceID && $0.status == "connected" }) else { return }
+        guard let source = sources.first(where: { $0.id == sourceID }),
+              source.capabilities.contains("read"),
+              ["connected", "offline", "disconnected"].contains(source.status) else { return }
+        remoteMetadataOnly = source.status != "connected"
         clearRemoteDownload()
         remoteGeneration = UUID()
         activeRemoteSourceID = sourceID
@@ -951,6 +990,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func closeRemoteSource() {
+        remoteMetadataOnly = false
         remoteGeneration = UUID()
         clearRemoteDownload()
         activeRemoteSourceID = nil
@@ -970,6 +1010,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func downloadRemoteFile(_ path: String, maximumBytes: Int? = nil) async {
+        guard !remoteMetadataOnly else {
+            remoteError = AppStrings.projectError(ProjectsWorkspaceError.sourceOffline); return
+        }
         guard !isLoadingRemote, let project = selectedProject,
               let sourceID = activeRemoteSourceID,
               let source = sources.first(where: { $0.id == sourceID }) else { return }
@@ -1066,6 +1109,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
         }
         #if DEBUG
         if let previewVariant {
+            remoteMetadataOnly = previewVariant == "offlineCachedSource"
             let entries = ProjectsWorkspacePreviewFixture.state(for: previewVariant).remoteEntries
                 .filter { entry in
                     let parts = entry.path.split(separator: "/")
@@ -1082,20 +1126,53 @@ final class ProjectsWorkspaceStore: ObservableObject {
         guard let project = selectedProject, let accountID,
               let source = sources.first(where: { $0.id == activeRemoteSourceID }) else { return }
         let requestGeneration = generation
+        let sourceRequest = sourceGeneration
+        let liveCursor = remotePagination.cursor(for: pageIndex)
         let fence = ProjectsWorkspaceFence(accountID: accountID)
-        isLoadingRemote = true
+        var hasCachedDirectory = false
+        if pageIndex == 0, let cached = try? await service.cachedRemoteDirectory(path: path, project: project, source: source, fence: fence) {
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  remoteRequest == remoteGeneration, activeRemoteSourceID == source.id,
+                  (try? await validateFence(fence)) != nil else { return }
+            guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  remoteRequest == remoteGeneration, activeRemoteSourceID == source.id else { return }
+            remotePath = path
+            remotePagination = ProjectRemotePagination()
+            remotePagination.install(cached.directory, page: 0)
+            remoteEntries = remotePagination.entries
+            hasCachedDirectory = true
+            if !cached.complete { remoteError = AppStrings.projectRemoteLimited }
+        }
+        guard source.status == "connected", !remoteMetadataOnly else {
+            remoteMetadataOnly = true
+            isLoadingRemote = false
+            if !hasCachedDirectory { remoteError = AppStrings.projectError(ProjectsWorkspaceError.sourceOffline) }
+            return
+        }
+        guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+              remoteRequest == remoteGeneration, activeRemoteSourceID == source.id else { return }
+        isLoadingRemote = !hasCachedDirectory
         #if DEBUG
         readOnlyFilesCategory = "pending"
         #endif
         do {
+            let metadataRequest = try? await service.beginRemoteDirectory(path: path, project: project, source: source, fence: fence)
             let directory = try await remoteClient.list(project: project, source: source,
-                path: path, cursor: remotePagination.cursor(for: pageIndex), fence: fence)
-            guard requestGeneration == generation, remoteRequest == remoteGeneration,
-                  activeRemoteSourceID == source.id else { return }
+                path: path, cursor: liveCursor, fence: fence)
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  remoteRequest == remoteGeneration, activeRemoteSourceID == source.id else { return }
             try await validateFence(fence)
-            guard requestGeneration == generation, remoteRequest == remoteGeneration,
-                  activeRemoteSourceID == source.id else { return }
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  remoteRequest == remoteGeneration, activeRemoteSourceID == source.id else { return }
+            try? await service.retainRemoteDirectory(directory, path: path, cursor: liveCursor, request: metadataRequest,
+                project: project, source: source, fence: fence)
+            try await validateFence(fence)
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
+                  remoteRequest == remoteGeneration, activeRemoteSourceID == source.id else { return }
+            remoteMetadataOnly = false
+            remoteError = nil
             remotePath = path
+            if pageIndex == 0 { remotePagination = ProjectRemotePagination() }
             remotePagination.install(directory, page: pageIndex)
             remoteEntries = remotePagination.entries
             #if DEBUG
@@ -1105,8 +1182,12 @@ final class ProjectsWorkspaceStore: ObservableObject {
                 remoteError = AppStrings.projectRemoteLimited
             }
         } catch {
-            if requestGeneration == generation && remoteRequest == remoteGeneration {
-                remoteError = AppStrings.projectError(error)
+            if requestGeneration == generation && sourceRequest == sourceGeneration && remoteRequest == remoteGeneration {
+                if hasCachedDirectory && NativeWorkspaceReadFailure.isTransient(error) { remoteMetadataOnly = true }
+                if !NativeWorkspaceReadFailure.isCancellation(error),
+                   !(hasCachedDirectory && NativeWorkspaceReadFailure.isTransient(error)) {
+                    remoteError = AppStrings.projectError(error)
+                }
                 #if DEBUG
                 readOnlyFilesCategory = Self.readOnlyErrorCategory(error)
                 #endif
@@ -1118,6 +1199,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
     /// Opening is the only authorization needed to fetch image bytes. All file types
     /// share the metadata-first fullscreen; binary originals retain explicit download.
     func openRemoteFile(_ entry: ProjectRemoteEntry) async {
+        guard !remoteMetadataOnly else {
+            remoteError = AppStrings.projectError(ProjectsWorkspaceError.sourceOffline); return
+        }
         clearRemoteText()
         if ProjectRemoteFilePresentation.isImage(entry.path) {
             let request = remoteGeneration
@@ -1159,6 +1243,9 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     func openRemoteText(_ path: String) async {
+        guard !remoteMetadataOnly else {
+            remoteError = AppStrings.projectError(ProjectsWorkspaceError.sourceOffline); return
+        }
         remoteGeneration = UUID()
         let remoteRequest = remoteGeneration
         remoteText = nil
@@ -1237,8 +1324,6 @@ final class ProjectsWorkspaceStore: ObservableObject {
     }
 
     private func clearDetail() {
-        readmeImageCache = [:]
-        cachedImageReadme = nil
         sourceGeneration = UUID()
         sourceRefreshRequest = nil
         folders = []
@@ -1254,6 +1339,36 @@ final class ProjectsWorkspaceStore: ObservableObject {
         remoteFilePreviews = [:]
     }
 
+    func readmePresentationIdentity(_ document: ProjectWorkspaceReadme) -> ProjectReadmePresentationIdentity {
+        let project = selectedProject
+        let keyDigest = project?.key.withUnsafeBytes {
+            SHA256.hash(data: Data($0)).map { String(format: "%02x", $0) }.joined()
+        } ?? ""
+        let team = TeamWorkspaceContext.shared.snapshot
+        let source = sources.first { $0.id == document.sourceID }
+        return .init(document: document, projectID: project?.id, projectKeyDigest: keyDigest,
+            projectTeamID: project?.teamId, accountID: accountID, scope: OfflineStore.shared.scopeGeneration,
+            server: ServerProfile.current().apiBaseURL.absoluteString, selectedTeamID: teamID, activeTeamID: team.teamID,
+            teamEpoch: team.epoch, sourceSessionID: source?.sessionID, sourceKeyEpoch: source?.keyEpoch)
+    }
+
+    func validateReadmePresentation(_ document: ProjectWorkspaceReadme, identity: ProjectReadmePresentationIdentity) async throws {
+        try Task.checkCancellation()
+        guard readmePresentationIdentity(document) == identity,
+              case .ready(let current) = readme, current == document else { throw ProjectsWorkspaceError.accountChanged }
+        #if DEBUG
+        if previewVariant != nil { return }
+        #endif
+        guard let accountID else { throw ProjectsWorkspaceError.invalidContext }
+        let requestGeneration = generation
+        let sourceRequest = sourceGeneration
+        try await validateFence(ProjectsWorkspaceFence(accountID: accountID))
+        try Task.checkCancellation()
+        guard requestGeneration == generation, sourceRequest == sourceGeneration,
+              readmePresentationIdentity(document) == identity,
+              case .ready(let current) = readme, current == document else { throw ProjectsWorkspaceError.accountChanged }
+    }
+
     /// Private and proxy README media use the same bounded encrypted Project cache.
     func readReadmeImage(_ sourceURL: String, readme: ProjectWorkspaceReadme) async throws -> Data {
         let publicURL = ProjectReadmeDocument.publicImageURL(sourceURL)
@@ -1261,32 +1376,24 @@ final class ProjectsWorkspaceStore: ObservableObject {
         guard publicURL != nil || relativePath != nil else { throw ProjectsWorkspaceError.invalidContext }
         let path = relativePath ?? sourceURL
         #if DEBUG
-        if previewVariant == "readme", path == "assets/readme-preview.png" {
+        if previewVariant == "readme", path == "assets/readme-preview.png" ||
+            (ProcessInfo.processInfo.arguments.contains("--ui-test-project-readme-many-images") && ProjectsWorkspacePreviewFixture.readmeImagePaths.contains(path)) {
             return ProjectsWorkspacePreviewFixture.readmeImageData
         }
         #endif
         guard let project = selectedProject, let accountID,
               case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.invalidContext }
-        if cachedImageReadme != readme { readmeImageCache = [:]; cachedImageReadme = readme }
         let requestGeneration = generation
         let sourceRequest = sourceGeneration
         let fence = ProjectsWorkspaceFence(accountID: accountID)
         let contents = ProjectWorkspaceContents(folders: folders, items: items, sources: sources)
-        if readmeImageCache[sourceURL] == nil,
-           let retained = try? await service.cachedReadme(project: project, contents: contents, fence: fence),
-           retained.markdown == readme.markdown, retained.origin == readme.origin,
-           retained.sourceID == readme.sourceID, retained.sourceKeyEpoch == readme.sourceKeyEpoch,
-           let bytes = retained.images[sourceURL] {
-            guard requestGeneration == generation, sourceRequest == sourceGeneration,
-                  case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
-            readmeImageCache[sourceURL] = bytes
-        }
-        if let cached = readmeImageCache[sourceURL] {
-            try await validateFence(fence)
-            guard requestGeneration == generation, sourceRequest == sourceGeneration,
-                  case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
-            return cached
-        }
+        let cached = try? await service.cachedReadmeImage(source: sourceURL, document: readme,
+            project: project, contents: contents, fence: fence)
+        try Task.checkCancellation()
+        try await validateFence(fence)
+        guard requestGeneration == generation, sourceRequest == sourceGeneration,
+              case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
+        if let cached { return cached }
         let bytes: Data
         if let publicURL {
             let session = URLSession(configuration: .ephemeral)
@@ -1331,7 +1438,6 @@ final class ProjectsWorkspaceStore: ObservableObject {
         guard requestGeneration == generation, sourceRequest == sourceGeneration, selectedProjectID == project.id,
               case .ready(let current) = self.readme, current == readme else { throw ProjectsWorkspaceError.accountChanged }
         try Task.checkCancellation()
-        if readmeImageCache.count < 8 { readmeImageCache[sourceURL] = bytes }
         try? await service.retainReadmeImage(bytes, source: sourceURL, document: readme,
             project: project, contents: contents, fence: fence)
         try await validateFence(fence)
@@ -1413,6 +1519,20 @@ final class ProjectsWorkspaceStore: ObservableObject {
         return failed ? .failed : unavailable ? .unavailable : .empty
     }
 
+    private func restoreCachedSourceRoots(project: ProjectWorkspaceProject, sources: [ProjectWorkspaceSource],
+                                          fence: ProjectsWorkspaceFence, generation request: UUID,
+                                          sourceGeneration sourceRequest: UUID) async {
+        for source in sources where source.capabilities.contains("read") {
+            guard !Task.isCancelled, request == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            guard let cached = try? await service.cachedRemoteDirectory(path: ".", project: project, source: source, fence: fence),
+                  (try? await validateFence(fence)) != nil else { continue }
+            guard !Task.isCancelled, request == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id, self.sources.contains(source) else { return }
+            sourceRootPreviews[source.id] = Array(cached.directory.entries.prefix(3))
+        }
+    }
+
     private func prefetchSourceRoots(project: ProjectWorkspaceProject,
                                      sources: [ProjectWorkspaceSource],
                                      fence: ProjectsWorkspaceFence, generation requestGeneration: UUID,
@@ -1420,11 +1540,17 @@ final class ProjectsWorkspaceStore: ObservableObject {
         for source in sources.filter({ $0.status == "connected" && $0.capabilities.contains("read") }).prefix(3) {
             guard requestGeneration == generation, sourceRequest == sourceGeneration,
                   selectedProjectID == project.id else { return }
+            let metadataRequest = try? await service.beginRemoteDirectory(path: ".", project: project, source: source, fence: fence)
             guard let directory = try? await listSourceRoot(project, source, fence),
                   (try? await validateFence(fence)) != nil else { continue }
             // The account check can suspend. Source presence or selection may
             // change during it, so this is the final check before publication.
             guard requestGeneration == generation, sourceRequest == sourceGeneration,
+                  selectedProjectID == project.id else { return }
+            try? await service.retainRemoteDirectory(directory, path: ".", cursor: nil, request: metadataRequest,
+                project: project, source: source, fence: fence)
+            guard (try? await validateFence(fence)) != nil else { continue }
+            guard !Task.isCancelled, requestGeneration == generation, sourceRequest == sourceGeneration,
                   selectedProjectID == project.id else { return }
             sourceRootPreviews[source.id] = Array(directory.entries.prefix(3))
         }
@@ -1465,6 +1591,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
 
     private func installPreviewDetail(variant: String) {
         let state = ProjectsWorkspacePreviewFixture.state(for: variant)
+        remoteMetadataOnly = variant == "offlineCachedSource"
         folders = state.folders
         items = state.items
         itemEmbedPreviews = [:]

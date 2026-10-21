@@ -26,6 +26,51 @@ final class EmbedResponsiveGeometryUITests: XCTestCase {
         try verifyFooter(large: true)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.layout.responsive-history,chats.rendering.inline-entity-interaction
+    func testVideoFooterKeepsCircleAndTitleInsideRegularAndNarrowCardAndOpens() throws {
+        let app = launch(component: "embed-preview", variant: "footer-compact")
+        let state = element(app, "responsive-preview-content-state")
+        XCTAssertTrue(state.waitForExistence(timeout: 8))
+        let states = ["short", "long", "processing", "error", "cancelled", "full-width",
+                      "video-short", "video-long", "video-narrow"]
+        for expected in states.dropFirst() {
+            app.buttons["responsive-preview-next-content"].tap()
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label == %@", expected), object: state)], timeout: 5), .completed)
+            guard expected.hasPrefix("video-") else { continue }
+            let expectedWidth: CGFloat = expected == "video-narrow" ? 220 : 300
+            let geometrySettled = NSPredicate { _, _ in
+                guard let card = self.parse(self.element(app, "responsive-preview-card-bounds").label),
+                      let footer = self.parse(self.element(app, "responsive-preview-footer-bounds").label),
+                      let title = self.parse(self.element(app, "responsive-preview-title-bounds").label)
+                else { return false }
+                return abs(card.width - expectedWidth) < 0.5 && abs(footer.width - expectedWidth) < 0.5
+                    && title.width > 0 && footer.insetBy(dx: -0.5, dy: -0.5).contains(title)
+            }
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+                predicate: geometrySettled, object: state)], timeout: 5), .completed)
+            let card = try bounds(app, "card")
+            let footer = try bounds(app, "footer")
+            let circle = try bounds(app, "circle")
+            let title = try bounds(app, "title")
+            XCTAssertEqual(card.height, 200, accuracy: 0.5)
+            XCTAssertEqual(footer.height, 61, accuracy: 0.5)
+            XCTAssertEqual(circle.size.width, 61, accuracy: 0.5)
+            XCTAssertEqual(circle.size.height, 61, accuracy: 0.5)
+            XCTAssertEqual(circle.minX, card.minX, accuracy: 0.5)
+            XCTAssertTrue(card.insetBy(dx: -0.5, dy: -0.5).contains(circle))
+            XCTAssertTrue(footer.insetBy(dx: -0.5, dy: -0.5).contains(title))
+            XCTAssertGreaterThanOrEqual(title.minX, circle.maxX)
+            XCTAssertLessThanOrEqual(title.height, footer.height / 2, "Video title must retain its single rendered line")
+            let open = app.buttons["embed-preview"]
+            XCTAssertTrue(open.isHittable)
+            open.tap()
+            let expectedCount = expected == "video-short" ? "1" : expected == "video-long" ? "2" : "3"
+            XCTAssertEqual(element(app, "responsive-preview-open-count").label, expectedCount)
+            attach("Video footer \(expected)")
+        }
+    }
+
     private func verifyResultsWidth(orientation: UIDeviceOrientation) {
         XCUIDevice.shared.orientation = orientation
         defer { XCUIDevice.shared.orientation = .portrait }
@@ -75,7 +120,9 @@ final class EmbedResponsiveGeometryUITests: XCTestCase {
             XCTAssertEqual(footer.width, original.width, accuracy: 0.5)
             attach("\(large ? "Large" : "Compact") complete footer \(state)")
             if state != "full-width" {
-                app.buttons["responsive-preview-next-content"].tap()
+                let nextControl = app.buttons["responsive-preview-next-content"]
+                XCTAssertTrue(nextControl.isHittable)
+                nextControl.tap()
                 let next = ["short", "long", "processing", "error", "cancelled", "full-width"]
                 let expected = next[next.firstIndex(of: state)! + 1]
                 XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(

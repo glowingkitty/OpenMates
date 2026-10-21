@@ -21,6 +21,9 @@
 
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.apple-startup-offline, daily-inspiration.personalized-priority,
+// daily-inspiration.encrypted-persistence, daily-inspiration.guest-isolated
 
 import SwiftUI
 #if os(iOS)
@@ -158,7 +161,7 @@ private struct WelcomeDecorativeVisibilityReader: UIViewRepresentable {
 // MARK: - Data model
 
 /// Matches the web's DailyInspiration type from dailyInspirationStore.ts.
-struct DailyInspirationData: Decodable {
+struct DailyInspirationData: Decodable, Sendable {
     let inspirationId: String?
     let text: String
     let title: String?
@@ -195,7 +198,7 @@ struct DailyInspirationData: Decodable {
     }
 }
 
-struct DailyInspirationWiki: Decodable {
+struct DailyInspirationWiki: Decodable, Sendable {
     let title: String
     let wikiTitle: String?
     let description: String?
@@ -219,9 +222,9 @@ struct DailyInspirationWiki: Decodable {
 }
 
 /// Shared public API mapping keeps the banner and its widget on one payload.
-struct DailyInspirationAPIResponse: Decodable {
+struct DailyInspirationAPIResponse: Decodable, Sendable {
     let inspirations: [Item]
-    struct Item: Decodable {
+    struct Item: Decodable, Sendable {
         let inspirationId: String
         let phrase: String
         let title: String
@@ -241,13 +244,14 @@ struct DailyInspirationAPIResponse: Decodable {
     }
 
     static func decode(_ data: Data) throws -> Self {
+        guard NativeDailyInspirationContentPolicy.publicSafe(data) else { throw CocoaError(.coderReadCorrupt) }
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(Self.self, from: data)
     }
 }
 
-struct DailyInspirationFeature: Decodable {
+struct DailyInspirationFeature: Decodable, Sendable {
     let iconName: String?
     let title: String?
     let description: String?
@@ -265,7 +269,7 @@ struct DailyInspirationFeature: Decodable {
     }
 }
 
-struct DailyInspirationVideo: Decodable {
+struct DailyInspirationVideo: Decodable, Sendable {
     let youtubeId: String?
     let title: String?
     let channelName: String?
@@ -338,6 +342,7 @@ struct InspirationCard: View {
     var ctaTitle: String? = nil
     var tapHint: String? = nil
     var isInteractive = true
+    var isPlaceholder = false
     var onOpenWiki: ((EmbedRecord) -> Void)? = nil
     let onTap: () -> Void
 
@@ -406,8 +411,9 @@ struct InspirationCard: View {
             .accessibilityHidden(true)
 
             // 4. Content: label, phrase row with mate profile, CTA, and optional video
-            contentLayer
-                .frame(height: bannerHeight)
+            if !isPlaceholder {
+                contentLayer.frame(height: bannerHeight)
+            }
         }
         .task(id: mobileCardTaskIdentity) {
             // Web alternates the phrase and preview at 55% of its 20-second
@@ -436,15 +442,15 @@ struct InspirationCard: View {
         .clipShape(RoundedRectangle(cornerRadius: .radius6))
         .shadow(color: .black.opacity(0.15), radius: .spacing4, x: 0, y: .spacing2)
         .contentShape(Rectangle())
-        .onTapGesture { if isInteractive { onTap() } }
-        .disabled(!isInteractive)
-        .allowsHitTesting(isInteractive)
+        .onTapGesture { if isInteractive && !isPlaceholder { onTap() } }
+        .disabled(!isInteractive || isPlaceholder)
+        .allowsHitTesting(isInteractive && !isPlaceholder)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("daily-inspiration-card")
-        .accessibilityLabel(accessibilitySummary)
-        .accessibilityAddTraits(isInteractive ? .isButton : [])
-        .accessibilityRemoveTraits(isInteractive ? [] : .isButton)
-        .accessibilityHint(isInteractive ? (tapHint ?? "Starts a new chat with this inspiration") : "")
+        .accessibilityIdentifier(isPlaceholder ? "daily-inspiration-placeholder" : "daily-inspiration-card")
+        .accessibilityLabel(isPlaceholder ? AppStrings.dailyInspiration : accessibilitySummary)
+        .accessibilityAddTraits(isInteractive && !isPlaceholder ? .isButton : [])
+        .accessibilityRemoveTraits(isInteractive && !isPlaceholder ? [] : .isButton)
+        .accessibilityHint(isInteractive && !isPlaceholder ? (tapHint ?? "Starts a new chat with this inspiration") : "")
         .accessibilityValue(showMobileCard && isCompact
             ? (inspiration.feature?.title ?? inspiration.video?.title ?? inspiration.wiki?.title ?? inspiration.text)
             : inspiration.text)
@@ -885,5 +891,431 @@ private struct InspirationOrbView: View {
             .blur(radius: 28)
             .opacity(opacity)
             .allowsHitTesting(false)
+    }
+}
+
+// Web: frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.apple-startup-offline, daily-inspiration.guest-isolated
+
+/// A context change removes the previous banner subtree in the same transaction.
+/// Its private content must never remain as an outgoing opacity-transition layer.
+/// Updates within one scope retain the banner's normal content crossfade.
+struct DailyInspirationScopeBoundary: ViewModifier {
+    let scope: NativeWorkspaceOfflineScope?
+
+    func body(content: Content) -> some View {
+        content
+            .id(scope)
+            .transaction(value: scope) { transaction in
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
+    }
+}
+
+// Web: services/dailyInspirationDB.ts, stores/dailyInspirationStore.ts,
+// demo_chats/loadDefaultInspirations.ts, services/chatSyncServiceHandlersAI.ts
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.personalized-priority, daily-inspiration.encrypted-persistence,
+// daily-inspiration.guest-isolated
+import Foundation
+import Observation
+import CryptoKit
+
+/// Matches the published web's hasPublicSafeDailySet. Retired promotional
+/// IDs remain rejection rules; they are never selected as guest fallback.
+enum NativeDailyInspirationContentPolicy {
+    static let retiredPromotionalIDs: Set<String> = ["openmates-intro", "openmates-actionable-events", "openmates-privacy-safety",
+        "openmates-mates-focus", "openmates-provider-cross-platform", "openmates-signup-cta"]
+
+    static func publicSafe(_ data: Data) -> Bool {
+        guard data.count <= 2 * 1_024 * 1_024,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let rows = object["inspirations"] as? [[String: Any]], !rows.isEmpty, rows.count <= 10 else { return false }
+        return rows.allSatisfy { row in
+            let id = row["inspiration_id"] as? String ?? ""
+            let featureID = (row["feature"] as? [String: Any])?["feature_id"] as? String ?? ""
+            return !retiredPromotionalIDs.contains(id) && !retiredPromotionalIDs.contains(featureID)
+        }
+    }
+}
+
+struct NativeDailyInspirationSnapshot: Codable, Sendable {
+    let version: Int
+    let personalized: Bool
+    let retainedAt: Date
+    let payload: Data
+}
+
+/// Only the existing AES-GCM workspace cache persists personal content. The UI
+/// must use visibleItems so a context change hides old data before tasks resume.
+@Observable @MainActor
+final class NativeDailyInspirationStore {
+    private(set) var scope: NativeWorkspaceOfflineScope?
+    private(set) var items: [DailyInspirationData] = []
+    private var publishedPayload: Data?
+    @ObservationIgnored private var publishedValue: NativeDailyInspirationDecoder.Prepared?
+    private var committedPayload: Data?
+    private var restoreOperation: UUID?
+    private var cacheRestoreResolved = false
+    private var pendingPublic: Data?
+    private var revision = UUID()
+    private var personalRevision = UUID()
+    private var eventSequence: UInt64 = 0
+    private var acceptedEventSequence: UInt64 = 0
+    private var personalized = false
+    private var expiresAt = Date.distantPast
+    private var generatedAt = Date.distantPast
+    @ObservationIgnored private let cache: NativeWorkspaceOfflineCache
+    @ObservationIgnored private let decoder = NativeDailyInspirationDecoder()
+    @ObservationIgnored private let configure: @MainActor (String, String?) async throws -> NativeWorkspaceOfflineScope
+    @ObservationIgnored private let check: @MainActor (NativeWorkspaceOfflineScope) async throws -> Void
+    @ObservationIgnored private let request: @MainActor (NativeWorkspaceOfflineScope) async throws -> Data
+    @ObservationIgnored private let masterKey: @MainActor (String) async throws -> SymmetricKey?
+    static let namespace = "daily-inspiration-v1"
+    private static let path = "snapshot"
+    nonisolated static let ttl: TimeInterval = 72 * 60 * 60
+
+    init(cache: NativeWorkspaceOfflineCache = .shared,
+         configure: @escaping @MainActor (String, String?) async throws -> NativeWorkspaceOfflineScope = {
+             try await NativeWorkspaceOfflineRuntime.configure(accountID: $0, teamID: $1)
+         },
+         check: @escaping @MainActor (NativeWorkspaceOfflineScope) async throws -> Void = {
+             try await NativeWorkspaceOfflineRuntime.check($0)
+         },
+         request: @escaping @MainActor (NativeWorkspaceOfflineScope) async throws -> Data = {
+             try await NativeWorkspaceOfflineRuntime.request(namespace: NativeDailyInspirationStore.namespace,
+                 path: "/v1/daily-inspirations", scope: $0, retain: false)
+         },
+         masterKey: @escaping @MainActor (String) async throws -> SymmetricKey? = {
+             try await CryptoManager.shared.loadMasterKey(for: $0)
+         }) {
+        self.cache = cache; self.configure = configure; self.check = check
+        self.request = request; self.masterKey = masterKey
+    }
+
+    func visibleItems(accountID: String?, server: String, teamID: String?,
+                      generation: UUID, teamEpoch: UInt64, now: Date = Date()) -> [DailyInspirationData] {
+        guard let scope, scope.accountID == accountID, scope.server == server,
+              scope.teamID == teamID, scope.accountGeneration == generation,
+              scope.teamEpoch == teamEpoch, now < expiresAt else { return [] }
+        return items
+    }
+
+    func reset() {
+        scope = nil; items = []; publishedPayload = nil; personalized = false
+        publishedValue = nil; committedPayload = nil; restoreOperation = nil; pendingPublic = nil; cacheRestoreResolved = false
+        expiresAt = .distantPast; generatedAt = .distantPast; revision = UUID(); personalRevision = UUID()
+    }
+
+    /// Capture/bind the entire scope synchronously, before configuration awaits.
+    /// A late restore can never reset a newer account or overwrite a live set.
+    func restore(scope expected: NativeWorkspaceOfflineScope) async throws {
+        if scope != expected { reset(); scope = expected }
+        invalidateExpired()
+        let ticket = revision, operation = UUID()
+        restoreOperation = operation
+        do {
+            try await restoreCache(scope: expected, ticket: ticket, operation: operation)
+        } catch {
+            await finishRestore(scope: expected, operation: operation)
+            throw error
+        }
+        await finishRestore(scope: expected, operation: operation)
+    }
+
+    private func restoreCache(scope expected: NativeWorkspaceOfflineScope, ticket: UUID, operation: UUID) async throws {
+        let configured = try await configure(expected.accountID, expected.teamID)
+        try await check(expected)
+        guard configured == expected, scope == expected, revision == ticket,
+              restoreOperation == operation else { return }
+        if personalized, !items.isEmpty { cacheRestoreResolved = true; return }
+        let prepared: NativeDailyInspirationDecoder.Prepared?
+        do {
+            if let data = try await cache.read(namespace: Self.namespace, path: Self.path, scope: expected) {
+                prepared = try await decoder.restore(data, now: Date())
+            } else { prepared = nil }
+        } catch {
+            // Corrupt bytes are a resolved unusable cache; cancellation or a
+            // still-locked key is not evidence that personal content is absent.
+            if !NativeWorkspaceReadFailure.isCancellation(error), scope == expected, restoreOperation == operation {
+                cacheRestoreResolved = true
+            }
+            throw error
+        }
+        try await check(expected)
+        guard scope == expected, revision == ticket, restoreOperation == operation else { return }
+        cacheRestoreResolved = true
+        if let prepared {
+            publish(prepared)
+            committedPayload = prepared.payload
+        }
+    }
+
+    private func finishRestore(scope captured: NativeWorkspaceOfflineScope, operation: UUID) async {
+        guard scope == captured, restoreOperation == operation else { return }
+        restoreOperation = nil
+        guard cacheRestoreResolved, !Task.isCancelled else { return }
+        let queued = pendingPublic
+        pendingPublic = nil
+        if let queued { try? await acceptPublic(queued, scope: captured) }
+    }
+
+    /// Caller admits one finite request only with verified network authority.
+    /// Keep any valid cached content if recovery is unavailable or incomplete.
+    func refresh() async throws {
+        guard let captured = scope else { return }
+        invalidateExpired()
+        let ticket = personalRevision
+        let data = try await request(captured)
+        guard let key = try await masterKey(captured.accountID) else { return }
+        let clear = try await decoder.decrypt(data, masterKey: key)
+        let prepared = try await decoder.prepare(clear, personalized: true, retainedAt: Date(), now: Date())
+        try await check(captured)
+        guard scope == captured, personalRevision == ticket else { return }
+        if let prepared { try await accept(prepared, scope: captured, ticket: ticket) }
+    }
+
+    /// Public defaults are already fetched by the existing widget path. Accept
+    /// its bytes only under that caller's captured scope, without a second GET.
+    func acceptPublic(_ data: Data, scope captured: NativeWorkspaceOfflineScope) async throws {
+        guard scope == captured else { return }
+        // Public network completion is not evidence that the encrypted cache is
+        // empty. Defer admission until the current scope's restore has decided.
+        if restoreOperation != nil || !cacheRestoreResolved {
+            if data.count <= 2 * 1_024 * 1_024 { pendingPublic = data }
+            return
+        }
+        invalidateExpired()
+        let ticket = revision
+        guard !personalized,
+              let prepared = try await decoder.prepare(data, personalized: false, retainedAt: Date(), now: Date()) else { return }
+        try await check(captured)
+        guard scope == captured, revision == ticket, !personalized else { return }
+        try await accept(prepared, scope: captured, ticket: ticket)
+    }
+
+    /// Only filtered, scope/transport-tagged Phase 1 or live receipts reach here.
+    func ingest(fields: [String: Any], type: String, scope captured: NativeWorkspaceOfflineScope) async throws {
+        guard scope == captured, Self.eventTypes.contains(type) else { return }
+        let payload = fields["payload"] as? [String: Any] ?? fields
+        let rows: [[String: Any]]
+        if type == "daily_inspiration" {
+            guard payload["user_id"] as? String == captured.accountID,
+                  let values = payload["inspirations"] as? [[String: Any]] else { return }
+            rows = values
+        } else {
+            // Phase 1 can arrive on the same transport after a team switch.
+            guard (payload["context_epoch"] as? NSNumber)?.uint64Value == captured.teamEpoch,
+                  (payload["team_id"] as? String) == captured.teamID else { return }
+            guard let values = payload["daily_inspirations"] as? [[String: Any]], !values.isEmpty else { return }
+            rows = values
+        }
+        guard rows.count <= 30 else { return }
+        eventSequence &+= 1
+        let event = eventSequence
+        let encoded = try JSONSerialization.data(withJSONObject: ["inspirations": rows], options: .sortedKeys)
+        let clear: Data
+        if type == "daily_inspiration" { clear = encoded }
+        else {
+            guard let key = try await masterKey(captured.accountID) else { return }
+            clear = try await decoder.decrypt(encoded, masterKey: key)
+        }
+        guard let prepared = try await decoder.prepare(clear, personalized: true, retainedAt: Date(), now: Date()) else { return }
+        try await check(captured)
+        guard scope == captured else { return }
+        try await accept(prepared, scope: captured, ticket: personalRevision, event: event)
+    }
+
+    static let eventTypes: Set<String> = ["daily_inspiration", "phase_1_last_chat_ready"]
+
+    var nextBoundary: Date {
+        let tomorrow = Self.utc.startOfDay(for: Date()).addingTimeInterval(24 * 60 * 60)
+        return expiresAt > Date() ? min(tomorrow, expiresAt) : tomorrow
+    }
+
+    func invalidateExpired() {
+        if Date() >= expiresAt, !items.isEmpty {
+            items = []; personalized = false; publishedPayload = nil
+            publishedValue = nil; committedPayload = nil; revision = UUID(); personalRevision = UUID()
+        }
+    }
+
+    private func publish(_ value: NativeDailyInspirationDecoder.Prepared) {
+        items = value.items; personalized = value.personalized
+        publishedPayload = value.payload; publishedValue = value
+        expiresAt = value.expiresAt; generatedAt = value.generatedAt
+    }
+
+    private func accept(_ value: NativeDailyInspirationDecoder.Prepared,
+                        scope captured: NativeWorkspaceOfflineScope, ticket: UUID, event: UInt64? = nil) async throws {
+        try await check(captured)
+        guard scope == captured else { return }
+        if let event {
+            guard event >= acceptedEventSequence else { return }
+        } else {
+            guard (value.personalized ? personalRevision == ticket : revision == ticket) else { return }
+        }
+        if personalized && (!value.personalized || value.generatedAt < generatedAt) { return }
+        if let event { acceptedEventSequence = event }
+        if publishedPayload == value.payload {
+            // Publishing once does not prove the ciphertext write succeeded.
+            // Retry a dirty identical delivery without resetting the carousel.
+            if committedPayload != value.payload, let retained = publishedValue {
+                try await persist(retained, scope: captured, publishedRevision: revision)
+            }
+            return
+        }
+        publish(value)
+        if value.personalized { cacheRestoreResolved = true }
+        committedPayload = nil
+        revision = UUID()
+        if value.personalized { personalRevision = UUID() }
+        try await persist(value, scope: captured, publishedRevision: revision)
+    }
+
+    private func persist(_ value: NativeDailyInspirationDecoder.Prepared,
+                         scope captured: NativeWorkspaceOfflineScope, publishedRevision: UUID) async throws {
+        let data = try JSONEncoder().encode(NativeDailyInspirationSnapshot(version: 1, personalized: value.personalized,
+            retainedAt: value.retainedAt, payload: value.payload))
+        // Replace the namespace atomically rather than reading the old snapshot:
+        // a valid recovery must also repair corrupt ciphertext/old cache schema.
+        let diskRevision = try await cache.beginRefresh(namespace: Self.namespace, scope: captured)
+        guard scope == captured, revision == publishedRevision else { return }
+        try await cache.commit(namespace: Self.namespace, responses: [Self.path: data],
+            scope: captured, revision: diskRevision)
+        try await check(captured)
+        guard scope == captured, revision == publishedRevision else { return }
+        committedPayload = value.payload
+    }
+
+    nonisolated static var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+
+    /// Mirrors the web's newest-ten, unique complete 3/3/4 set and 72-hour TTL.
+    nonisolated static func personalizedRows(_ data: Data, now: Date) -> [[String: Any]]? {
+        guard data.count <= 2 * 1_024 * 1_024,
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let records = object["inspirations"] as? [[String: Any]], records.count <= 30 else { return nil }
+        let forbidden = NativeDailyInspirationContentPolicy.retiredPromotionalIDs
+        let rows = records.filter {
+            guard let timestamp = $0["generated_at"] as? Double, timestamp.isFinite,
+                  timestamp <= now.timeIntervalSince1970, now.timeIntervalSince1970 - timestamp < ttl,
+                  let id = $0["inspiration_id"] as? String, !id.isEmpty,
+                  let phrase = $0["phrase"] as? String, !phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  let category = $0["category"] as? String, !category.isEmpty else { return false }
+            let featureID = ($0["feature"] as? [String: Any])?["feature_id"] as? String ?? ""
+            return !forbidden.contains(id) && !forbidden.contains(featureID)
+        }.sorted {
+            let left = $0["generated_at"] as? Double ?? 0, right = $1["generated_at"] as? Double ?? 0
+            if left != right { return left > right }
+            return ($0["inspiration_id"] as? String ?? "") < ($1["inspiration_id"] as? String ?? "")
+        }
+        let newest = Array(rows.prefix(10))
+        guard newest.count == 10, Set(newest.compactMap { $0["inspiration_id"] as? String }).count == 10 else { return nil }
+        for (type, count) in [("video", 3), ("wiki", 3), ("feature", 4)] {
+            guard newest.filter({ $0["content_type"] as? String == type }).count == count else { return nil }
+        }
+        return newest
+    }
+}
+
+/// Parsing, metadata mapping and crypto run off the foreground UI actor. Only a
+/// small Sendable value crosses back to publish; no clear data enters diagnostics.
+actor NativeDailyInspirationDecoder {
+    struct Prepared: Sendable {
+        let items: [DailyInspirationData]
+        let payload: Data
+        let personalized: Bool
+        let retainedAt: Date
+        let expiresAt: Date
+        let generatedAt: Date
+    }
+
+    func restore(_ data: Data, now: Date) throws -> Prepared? {
+        guard data.count <= 3 * 1_024 * 1_024,
+              let value = try? JSONDecoder().decode(NativeDailyInspirationSnapshot.self, from: data),
+              value.version == 1, value.retainedAt <= now,
+              now.timeIntervalSince(value.retainedAt) < NativeDailyInspirationStore.ttl else { return nil }
+        return try prepare(value.payload, personalized: value.personalized, retainedAt: value.retainedAt, now: now)
+    }
+
+    func prepare(_ payload: Data, personalized: Bool, retainedAt: Date, now: Date) throws -> Prepared? {
+        guard payload.count <= 2 * 1_024 * 1_024 else { return nil }
+        if !personalized {
+            let calendar = NativeDailyInspirationStore.utc
+            guard calendar.isDate(retainedAt, inSameDayAs: now) else { return nil }
+            let response = try DailyInspirationAPIResponse.decode(payload)
+            guard !response.inspirations.isEmpty, response.inspirations.count <= 10,
+                  Set(response.inspirations.map(\.inspirationId)).count == response.inspirations.count,
+                  response.inspirations.allSatisfy({ !$0.inspirationId.isEmpty && !$0.phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else { return nil }
+            return Prepared(items: response.inspirations.map { $0.bannerData(sourceLanguage: "en") },
+                payload: payload, personalized: false, retainedAt: retainedAt,
+                expiresAt: calendar.startOfDay(for: retainedAt).addingTimeInterval(24 * 60 * 60),
+                generatedAt: .distantPast)
+        }
+        guard let rows = NativeDailyInspirationStore.personalizedRows(payload, now: now) else { return nil }
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        func metadata<T: Decodable>(_ name: String, row: [String: Any], as type: T.Type) throws -> T? {
+            guard let value = row[name], !(value is NSNull) else { return nil }
+            return try decoder.decode(type, from: JSONSerialization.data(withJSONObject: value))
+        }
+        let items = try rows.map { row in
+            DailyInspirationData(inspirationId: row["inspiration_id"] as? String,
+                text: row["phrase"] as? String ?? "", title: row["title"] as? String,
+                category: row["category"] as? String, iconName: row["icon"] as? String,
+                video: try metadata("video", row: row, as: DailyInspirationVideo.self),
+                startedChatId: row["opened_chat_id"] as? String,
+                feature: try metadata("feature", row: row, as: DailyInspirationFeature.self),
+                contentType: row["content_type"] as? String,
+                wiki: try metadata("wiki", row: row, as: DailyInspirationWiki.self))
+        }
+        let normalized = try JSONSerialization.data(withJSONObject: ["inspirations": rows], options: .sortedKeys)
+        return Prepared(items: items, payload: normalized, personalized: true, retainedAt: retainedAt,
+            expiresAt: min(retainedAt.addingTimeInterval(NativeDailyInspirationStore.ttl),
+                Date(timeIntervalSince1970: rows.compactMap { $0["generated_at"] as? Double }.min()!)
+                    .addingTimeInterval(NativeDailyInspirationStore.ttl)),
+            generatedAt: Date(timeIntervalSince1970: rows.compactMap { $0["generated_at"] as? Double }.max()!))
+    }
+
+    func decrypt(_ data: Data, masterKey key: SymmetricKey) async throws -> Data {
+        guard data.count <= 2 * 1_024 * 1_024,
+              let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let records = object["inspirations"] as? [[String: Any]], records.count <= 30 else {
+            throw CocoaError(.coderReadCorrupt)
+        }
+        var output: [[String: Any]] = []
+        for record in records {
+            // A malformed legacy row must not prevent complete newer rows from recovering.
+            do {
+                var row: [String: Any] = ["inspiration_id": record["daily_inspiration_id"] ?? record["inspiration_id"] ?? "",
+                    "generated_at": record["generated_at"] ?? 0, "content_type": record["content_type"] ?? "video",
+                    "is_opened": record["is_opened"] ?? false, "opened_chat_id": record["opened_chat_id"] ?? NSNull()]
+                for (encrypted, plain, json) in [("encrypted_phrase", "phrase", false),
+                    ("encrypted_title", "title", false), ("encrypted_category", "category", false),
+                    ("encrypted_icon", "icon", false),
+                    ("encrypted_video_metadata", "video", true), ("encrypted_wiki_metadata", "wiki", true),
+                    ("encrypted_feature_metadata", "feature", true)] {
+                    guard let value = record[encrypted] as? String, !value.isEmpty else {
+                        if ["phrase", "category"].contains(plain) { throw CocoaError(.coderReadCorrupt) }
+                        continue
+                    }
+                    let bytes = try await CryptoManager.shared.decryptBlob(base64String: value, key: key)
+                    if json { row[plain] = try JSONSerialization.jsonObject(with: bytes) }
+                    else {
+                        guard let text = String(data: bytes, encoding: .utf8) else { throw CocoaError(.coderReadCorrupt) }
+                        row[plain] = text
+                    }
+                }
+                output.append(row)
+            } catch is CancellationError { throw CancellationError() }
+            catch { continue }
+        }
+        try Task.checkCancellation()
+        return try JSONSerialization.data(withJSONObject: ["inspirations": output], options: .sortedKeys)
     }
 }

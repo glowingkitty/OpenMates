@@ -1,7 +1,7 @@
 // Dedicated, short-lived realtime audio transcription transport.
 // Mirrors the authenticated browser protocol without sharing the long-lived chat socket.
 // Specification: specifications/features/message-input/specification.yml
-// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.privacy-context
 // Specification: specifications/features/apple-local-model-lab/specification.yml
 // Assertions: apple-local-model-lab.local-execution, apple-local-model-lab.serialized-cancellation
 
@@ -150,6 +150,10 @@ actor AudioRealtimeTranscriptionClient {
     private static let localChunkSamples = 16_000 * 8
     private static let maximumLocalSamples = 16_000 * 60
     nonisolated let usesLocalTranscription: Bool
+    nonisolated let transcriptionDisabled: Bool
+    private let localModelIdentifier: String
+    private let onTerminal: @Sendable () async -> Void
+    private var terminalOwnerReleased = false
 
     private let authenticationProvider: AuthenticationProvider
     private let transportFactory: TransportFactory
@@ -171,11 +175,17 @@ actor AudioRealtimeTranscriptionClient {
     init(
         authenticationProvider: @escaping AuthenticationProvider,
         localRuntime: (any LocalPCMTranscribing)? = nil,
+        localModelIdentifier: String = "whisper-large-v3-local",
+        transcriptionDisabled: Bool = false,
+        onTerminal: @escaping @Sendable () async -> Void = {},
         localScopeIsCurrent: @escaping @MainActor @Sendable () async -> Bool = { true },
         transportFactory: @escaping TransportFactory = { URLSessionAudioRealtimeSocketTransport() },
         eventHandler: @escaping EventHandler
     ) {
         self.localRuntime = localRuntime
+        self.localModelIdentifier = localModelIdentifier
+        self.transcriptionDisabled = transcriptionDisabled
+        self.onTerminal = onTerminal
         self.localScopeIsCurrent = localScopeIsCurrent
         self.usesLocalTranscription = localRuntime != nil
         self.authenticationProvider = authenticationProvider
@@ -191,29 +201,17 @@ actor AudioRealtimeTranscriptionClient {
         let owner = authManager.currentUser?.id
         let scope = CodeRunScopeFence(store: OfflineStore.shared)
         let profile = ServerProfile.current()
-        // Choose once before capture; an installed local route never silently
-        // switches to a server after an asset, memory or inference failure.
-        let localRuntime: (any LocalPCMTranscribing)?
-        #if arch(arm64) && !os(watchOS)
-        if LocalModelStore.shared.canUseCapability(.whisper),
-           let directory = try? LocalModelStore.shared.installedDirectory(.whisper) {
-            let runtimeOwner = UUID()
-            let runtime = WhisperKitComposerRuntime(directory: directory, onUnload: {
-                await LocalModelStore.shared.unregisterRuntime(.whisper, owner: runtimeOwner)
-            })
-            LocalModelStore.shared.registerRuntime(.whisper, owner: runtimeOwner) { [weak runtime] in
-                await runtime?.unload()
-            }
-            localRuntime = runtime
-        } else { localRuntime = nil }
-        #else
-        localRuntime = nil // Intel and Watch retain the disclosed server route.
-        #endif
-        return AudioRealtimeTranscriptionClient(
+        // Freeze the selected route before capture. Explicit local choices never
+        // acquire a server route after missing assets or an inference failure.
+        let store = LocalModelStore.shared
+        let selection = store.recordingTranscriptionSelection()
+        let clientOwner = UUID()
+        let client = AudioRealtimeTranscriptionClient(
             authenticationProvider: { @MainActor [weak authManager] forceRefresh in
                 guard let authManager, owner != nil,
                       authManager.currentUser?.id == owner,
                       scope.isCurrent(in: OfflineStore.shared),
+                      LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
                       ServerProfile.current().apiBaseURL == profile.apiBaseURL else {
                     throw AudioRealtimeTranscriptionError.authenticationUnavailable
                 }
@@ -223,6 +221,7 @@ actor AudioRealtimeTranscriptionClient {
                 guard authManager.state == .authenticated,
                       authManager.currentUser?.id == owner,
                       scope.isCurrent(in: OfflineStore.shared),
+                      LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration,
                       ServerProfile.current().apiBaseURL == profile.apiBaseURL,
                       authManager.sessionValidationState == .onlineAuthenticated,
                       let token = authManager.webSocketToken,
@@ -236,17 +235,35 @@ actor AudioRealtimeTranscriptionClient {
                     webSocketToken: token
                 )
             },
-            localRuntime: localRuntime,
+            localRuntime: selection.runtime,
+            localModelIdentifier: selection.route.localModelIdentifier ?? "whisper-large-v3-local",
+            transcriptionDisabled: selection.isDisabled,
+            onTerminal: { [weak store] in await store?.unregisterRecordingTranscriptionOwner(clientOwner) },
             localScopeIsCurrent: { @MainActor [weak authManager] in
                 authManager?.currentUser?.id == owner && scope.isCurrent(in: OfflineStore.shared) &&
-                    ServerProfile.current().apiBaseURL == profile.apiBaseURL
+                    ServerProfile.current().apiBaseURL == profile.apiBaseURL &&
+                    LocalModelStore.shared.recordingTranscriptionGeneration == selection.preferenceGeneration
             },
             eventHandler: eventHandler
         )
+        if !selection.isDisabled {
+            store.registerRecordingTranscriptionOwner(clientOwner, generation: selection.preferenceGeneration) { [weak client] in
+                await client?.cancel()
+            }
+        }
+        return client
     }
 
     func start(chatID: String? = nil) async throws {
         guard phase == .idle else { throw AudioRealtimeTranscriptionError.invalidState }
+        if transcriptionDisabled {
+            // Explicit Off records the attachment without live transcription,
+            // authentication, PCM conversion, network transport or native inference.
+            phase = .completed
+            await eventHandler(.status(.completed))
+            await releaseTerminalOwner()
+            return
+        }
         phase = .connecting
         pendingChatID = chatID
         await eventHandler(.status(.connecting))
@@ -310,6 +327,7 @@ actor AudioRealtimeTranscriptionClient {
     }
 
     func append(samples: [Float], sourceSampleRate: Double) async throws {
+        if transcriptionDisabled { return }
         if localRuntime != nil {
             guard await localScopeIsCurrent() else { await cancel(); throw CancellationError() }
             guard phase == .ready else { throw AudioRealtimeTranscriptionError.invalidState }
@@ -370,6 +388,7 @@ actor AudioRealtimeTranscriptionClient {
             try? await sendJSON(["type": "session.cancel"])
         }
         await closeTransport(code: 1_000, reason: "cancelled")
+        await releaseTerminalOwner()
         await eventHandler(.status(.cancelled))
     }
 
@@ -403,7 +422,7 @@ actor AudioRealtimeTranscriptionClient {
             if phase == .finishing {
                 guard await localScopeIsCurrent() else { await rejectLocalScopeFromDecode(); return }
                 let transcript = localTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
-                let result = TranscriptionResult(transcript: transcript, language: nil, model: "whisper-large-v3-local")
+                let result = TranscriptionResult(transcript: transcript, language: nil, model: localModelIdentifier)
                 await eventHandler(.transcriptionDone(result))
                 // Terminal events release the app's recording reservation.
                 // Release native ownership before publishing that boundary.
@@ -645,6 +664,7 @@ actor AudioRealtimeTranscriptionClient {
         accumulatedTranscript = ""
         rawResult = nil
         await closeTransport(code: 1_000, reason: "complete")
+        await releaseTerminalOwner()
     }
 
     private func sendEndIfNeeded() async {
@@ -674,7 +694,14 @@ actor AudioRealtimeTranscriptionClient {
         accumulatedTranscript = ""
         rawResult = nil
         await closeTransport(code: 1_011, reason: "failed")
+        await releaseTerminalOwner()
         await eventHandler(.status(.failed(error)))
+    }
+
+    private func releaseTerminalOwner() async {
+        guard !terminalOwnerReleased else { return }
+        terminalOwnerReleased = true
+        await onTerminal()
     }
 
     private func closeTransport(code: Int, reason: String) async {

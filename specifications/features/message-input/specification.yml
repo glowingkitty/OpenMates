@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 6
+version: 7
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -306,9 +306,14 @@ assertions:
   - examples.gated_attachments
 - id: message-input.recording.lifecycle
   type: behavior
-  must: Audio recording can start through press-and-hold pointer, touch, or keyboard shortcut paths, shows a focused
+  must: >
+    Audio recording can start through press-and-hold pointer, touch, or keyboard shortcut paths, shows a focused
     recording overlay with cancel/finish affordances, reports active layout state, and on stop or cancel resets
-    recording state without leaving hidden controls or stale focus behind.
+    recording state without leaving hidden controls or stale focus behind. On Apple, Automatic preserves
+    installed enabled local Whisper with the existing disclosed online route otherwise; explicit Whisper or
+    included Whistle never silently falls back online. Off disables live and attachment-batch transcription
+    while preserving capture, waveform and audio attachment. Changing choice drains active transcription and
+    suppresses stale results; live calls retain exclusive audio ownership.
   depends_on:
   - models.RecordingState
   - examples.recording
@@ -334,9 +339,15 @@ assertions:
   - models.DraftState.persistence_target
 - id: message-input.privacy-context
   type: privacy
-  must: Focus-mode, incognito, IdeaBucket, PII warning, anonymous free-text terms, credits, and signup-required
-    states are visible at the composer boundary without leaking durable plaintext private content or bypassing the
-    user's privacy settings.
+  must: >
+    Focus-mode, incognito, IdeaBucket, PII warning, anonymous free-text terms, credits, and signup-required
+    states are visible at the composer boundary without leaking durable plaintext private content or bypassing
+    the user's privacy settings. Saved Apple sends locally compile the complete current encrypted Personal
+    snapshot and reconcile pending or uncertain privacy writes before admission. Focus preparation carries no
+    draft text or inference authority; cached preparation is reusable only after a fresh scoped generation
+    check. Each saved admission and immutable retry requires current owner, key, workspace and transport
+    authority, preserves explicit current-turn exclusions and protected reference identities, and fails closed
+    when freshness or persistence cannot be established.
   depends_on:
   - models.ComposerContextPills
   - models.EmbedInputState.anonymous_signup_required
@@ -412,11 +423,7 @@ applies_to:
         required: true
       apple:
         required: true
-        role: native composer preserves semantic focus
-        draft: null
-        attachment: null
-        recording: null
-        and privacy-context outcomes: null
+        role: native composer preserves semantic focus, draft, attachment, recording, and privacy-context outcomes
     exceptions:
     - id: native-owned-pickers
       implementation: gui.apple

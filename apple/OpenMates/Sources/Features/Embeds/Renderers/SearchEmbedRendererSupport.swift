@@ -161,10 +161,24 @@ struct SearchPreviewIdentityLayout<Thumbnails: View, Inputs: View, Summary: View
 
     var body: some View {
         VStack(spacing: 0) {
-            thumbnails().frame(maxWidth: .infinity).frame(height: thumbnailHeight, alignment: .top)
+            // EmptyView ignores layout modifiers. A nonempty transparent base
+            // reserves the same strip before the first thumbnail is hydrated.
+            ZStack(alignment: .top) {
+                Color.clear
+                thumbnails()
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: thumbnailHeight, alignment: .top)
             VStack(alignment: .leading, spacing: 0) {
                 inputs().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                summary().frame(maxWidth: .infinity, alignment: .leading).frame(height: summaryHeight)
+                // Result counts/favicons must not insert new vertical space
+                // when an initially empty summary becomes available either.
+                ZStack(alignment: .leading) {
+                    Color.clear
+                    summary()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: summaryHeight)
             }
             .padding(.horizontal, horizontalInset)
             .padding(.bottom, .spacing4)

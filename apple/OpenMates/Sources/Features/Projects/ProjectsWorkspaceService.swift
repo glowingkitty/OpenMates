@@ -50,7 +50,11 @@ protocol ProjectsWorkspaceServing: Sendable {
     func cachedProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]?
     func cachedContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents?
     func cachedSettings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings?
+    func cachedRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource, fence: ProjectsWorkspaceFence) async throws -> ProjectOfflineDirectory?
+    func beginRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource, fence: ProjectsWorkspaceFence) async throws -> UUID?
+    func retainRemoteDirectory(_ directory: ProjectRemoteDirectory, path: String, cursor: String?, request: UUID?, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource, fence: ProjectsWorkspaceFence) async throws
     func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot?
+    func cachedReadmeImage(source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> Data?
     func retainReadme(_ document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws
     func clearReadme(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws
     func retainReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws
@@ -75,6 +79,9 @@ protocol ProjectsWorkspaceServing: Sendable {
 }
 
 extension ProjectsWorkspaceServing {
+    func cachedRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource, fence: ProjectsWorkspaceFence) async throws -> ProjectOfflineDirectory? { nil }
+    func beginRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource, fence: ProjectsWorkspaceFence) async throws -> UUID? { nil }
+    func retainRemoteDirectory(_ directory: ProjectRemoteDirectory, path: String, cursor: String?, request: UUID?, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource, fence: ProjectsWorkspaceFence) async throws { }
     func artifactHistorySession(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> EmbedVersionHistorySession {
         throw ProjectsWorkspaceError.missingProjectKey
     }
@@ -89,6 +96,7 @@ extension ProjectsWorkspaceServing {
     func cachedContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents? { nil }
     func cachedSettings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings? { nil }
     func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot? { nil }
+    func cachedReadmeImage(source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> Data? { nil }
     func retainReadme(_ document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws { }
     func clearReadme(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws { }
     func retainReadmeImage(_ data: Data, source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws { }
@@ -96,6 +104,18 @@ extension ProjectsWorkspaceServing {
 
 @MainActor
 final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
+    func cachedReadmeImage(source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> Data? {
+        let scope = try await readmeScope(project: project, fence: fence)
+        let binding = try ProjectReadmeOfflineSnapshot.binding(project: project, contents: contents)
+        guard let retained = try await NativeWorkspaceOfflineCache.shared.projectReadme(projectID: project.id, binding: binding, scope: scope),
+              retained.isCompatible(with: contents) else { return nil }
+        let bytes = try await NativeWorkspaceOfflineCache.shared.projectReadmeImage(source: source, document: document,
+            projectID: project.id, binding: binding, scope: scope)
+        try await fence.check()
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        return bytes
+    }
+
     func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot? {
         let scope = try await readmeScope(project: project, fence: fence)
         let value = try await NativeWorkspaceOfflineCache.shared.projectReadme(projectID: project.id,
@@ -121,10 +141,8 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
 
     func clearReadme(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws {
         let scope = try await readmeScope(project: project, fence: fence)
-        let namespace = "project-readme:" + project.id
-        let revision = try await NativeWorkspaceOfflineCache.shared.beginRefresh(namespace: namespace, scope: scope)
         try await NativeWorkspaceOfflineRuntime.check(scope)
-        try await NativeWorkspaceOfflineCache.shared.commit(namespace: namespace, responses: [:], scope: scope, revision: revision)
+        try await NativeWorkspaceOfflineCache.shared.clearProjectReadme(projectID: project.id, scope: scope)
     }
 
     private func readmeScope(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> NativeWorkspaceOfflineScope {
@@ -132,6 +150,85 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
         let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: project.teamId)
         try await fence.check()
         return scope
+    }
+    func cachedRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
+                               fence: ProjectsWorkspaceFence) async throws -> ProjectOfflineDirectory? {
+        let scope = try await readmeScope(project: project, fence: fence)
+        let binding = try ProjectOfflineMetadataBinding(project: project, source: source, scope: scope)
+        let cached = try await ProjectOfflineMetadataRepository.shared.cached(path: path, binding: binding,
+            cache: NativeWorkspaceOfflineCache.shared)
+        try await fence.check(); try await NativeWorkspaceOfflineRuntime.check(scope)
+        return cached
+    }
+
+    func beginRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
+                              fence: ProjectsWorkspaceFence) async throws -> UUID? {
+        let scope = try await readmeScope(project: project, fence: fence)
+        let binding = try ProjectOfflineMetadataBinding(project: project, source: source, scope: scope)
+        let repository = ProjectOfflineMetadataRepository.shared
+        let token = try repository.authority(binding: binding, source: source)
+        return try await repository.begin(path: path, binding: binding, token: token, cache: NativeWorkspaceOfflineCache.shared)
+    }
+
+    func retainRemoteDirectory(_ directory: ProjectRemoteDirectory, path: String, cursor: String?, request: UUID?,
+                               project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
+                               fence: ProjectsWorkspaceFence) async throws {
+        guard let request else { return }
+        let scope = try await readmeScope(project: project, fence: fence)
+        let binding = try ProjectOfflineMetadataBinding(project: project, source: source, scope: scope)
+        let repository = ProjectOfflineMetadataRepository.shared
+        let token = try repository.authority(binding: binding, source: source)
+        try await repository.accept(directory, path: path, cursor: cursor, binding: binding, token: token, request: request,
+            cache: NativeWorkspaceOfflineCache.shared, validate: {
+                try await fence.check(); try await NativeWorkspaceOfflineRuntime.check(scope)
+            })
+    }
+
+    /// Admission performs only encrypted local metadata work. Remote hierarchy
+    /// traversal is coalesced outside the workspace/chat sync completion barrier.
+    private func scheduleRemoteMetadata(project: ProjectWorkspaceProject, sources: [ProjectWorkspaceSource],
+                                        scope: NativeWorkspaceOfflineScope, cache: NativeWorkspaceOfflineCache,
+                                        validate: @escaping @MainActor () async throws -> Void) async throws {
+        let repository = ProjectOfflineMetadataRepository.shared
+        try await repository.reconcile(project: project, sources: sources, scope: scope, cache: cache, validate: validate)
+        let fence = ProjectsWorkspaceFence(accountID: scope.accountID)
+        for source in sources where source.status == "connected" && source.capabilities.contains("read") {
+            let binding = try ProjectOfflineMetadataBinding(project: project, source: source, scope: scope)
+            let token = try repository.authority(binding: binding, source: source)
+            ProjectOfflineMetadataScheduler.shared.schedule(id: binding.memoryID + token.uuidString) {
+                try await validate(); try await fence.check(); try repository.checkAuthority(token, binding: binding)
+                guard let pending = try await repository.next(binding: binding, cache: cache) else { return false }
+                try await validate(); try await fence.check(); try repository.checkAuthority(token, binding: binding)
+                let request = try await repository.begin(path: pending.path, binding: binding, token: token, cache: cache)
+                try await validate(); try repository.checkAuthority(token, binding: binding)
+                let page = try await ProjectRemoteSourceClient().list(project: project, source: source,
+                    path: pending.path, cursor: pending.cursor, maxEntries: 500, fence: fence)
+                try await repository.accept(page, path: pending.path, cursor: pending.cursor,
+                    binding: binding, token: token, request: request, cache: cache, validate: {
+                        try await validate(); try await fence.check()
+                    })
+                // Legacy truncated listings keep their partial bytes and retry on
+                // a later bounded slice, instead of spinning on the same page.
+                if page.omitted > 0 && page.nextCursor == nil { throw ProjectsWorkspaceError.invalidResponse }
+                return try await repository.next(binding: binding, cache: cache) != nil
+            }
+        }
+    }
+
+    private func scheduleRemoteMetadata(project: ProjectWorkspaceProject, sources: [ProjectWorkspaceSource],
+                                        fence: ProjectsWorkspaceFence) async {
+        do {
+            let scope = try await readmeScope(project: project, fence: fence)
+            try await scheduleRemoteMetadata(project: project, sources: sources, scope: scope,
+                cache: NativeWorkspaceOfflineCache.shared, validate: {
+                    try await fence.check(); try await NativeWorkspaceOfflineRuntime.check(scope)
+                })
+        } catch {
+            // Cache admission cannot hide a readable foreground Project.
+            if !NativeWorkspaceReadFailure.isCancellation(error) {
+                NativeDiagnostics.warning("project_directory_metadata_unavailable", category: "projects")
+            }
+        }
     }
     // A bounded memory-only key cache reuses the exact Project wrapper already
     // opened for the displayed artifact. Timeline pagination fetches no head.
@@ -310,8 +407,11 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
                       let sourceData = responses[projectRoute(project, suffix: "/sources")] else { throw ProjectsWorkspaceError.invalidResponse }
                 let items = try await NativeWorkspaceOfflineRuntime.decodeResponse(ContentsResponse.self, data: itemData)
                 let sources = try await NativeWorkspaceOfflineRuntime.decodeResponse(SourcesResponse.self, data: sourceData)
-                contents[project.id] = try await openContents(items, sources: sources, project: project)
+                let detail = try await openContents(items, sources: sources, project: project)
+                contents[project.id] = detail
                 projects[project.id] = project
+                try await scheduleRemoteMetadata(project: project, sources: detail.sources, scope: scope,
+                    cache: cache, validate: validate)
             } catch {
                 try Task.checkCancellation(); try await validate()
                 if NativeWorkspaceReadFailure.isCancellation(error) { throw error }
@@ -334,10 +434,8 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
             try await cache.retainProjectReadmeImage(bytes, source: source, document: document, projectID: id,
                 binding: ProjectReadmeOfflineSnapshot.binding(project: project, contents: detail), scope: scope)
         }, clear: { id in
-            let namespace = "project-readme:" + id
-            let revision = try await cache.beginRefresh(namespace: namespace, scope: scope)
             try await validate()
-            try await cache.commit(namespace: namespace, responses: [:], scope: scope, revision: revision)
+            try await cache.clearProjectReadme(projectID: id, scope: scope)
         }, validate: {
             try await fence.check(); try await validate()
         })
@@ -483,6 +581,8 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
         try await fence.check()
         let opened = try await openContents(response, sources: sourceResponse, project: project)
         try await fence.check()
+        if !cachedOnly { await scheduleRemoteMetadata(project: project, sources: opened.sources, fence: fence) }
+        try await fence.check()
         return opened
     }
 
@@ -514,6 +614,8 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
             path: projectRoute(project, suffix: "/sources"), serverProfile: fence.serverProfile,
             expectedAccountID: fence.accountID, expectedScope: fence.scope, expectedTeamContext: .init(epoch: fence.teamContext.epoch, teamID: fence.teamContext.teamID))
         let sources = try await openSources(response.sources, project: project)
+        try await fence.check()
+        await scheduleRemoteMetadata(project: project, sources: sources, fence: fence)
         try await fence.check()
         return sources
     }
@@ -814,19 +916,21 @@ final class ProjectsWorkspaceService: ProjectsWorkspaceServing {
 
 
 /// The existing inventory maintenance owns admission, cancellation and retry.
-/// Only README and its first eight safe image references are read here.
+/// Only README and its safe image references are read here; reads remain serial.
 @MainActor
 enum ProjectReadmeOfflineMaintenance {
-    static func imageSources(_ markdown: String) -> [String] {
+    static func imageSources(_ markdown: String) async throws -> [String] {
         var sources: [String] = []
+        var seen: Set<String> = []
         for block in ProjectReadmeDocument.parse(markdown) {
+            try Task.checkCancellation()
+            await Task.yield()
             for text in ProjectReadmeDocument.textContents(block) {
                 for part in ProjectReadmeDocument.inlineParts(text) {
                     guard case .image(let image) = part,
                           ProjectReadmeDocument.relativePath(image.source) != nil || ProjectReadmeDocument.publicImageURL(image.source) != nil,
-                          !sources.contains(image.source) else { continue }
+                          seen.insert(image.source).inserted else { continue }
                     sources.append(image.source)
-                    if sources.count == 8 { return sources }
                 }
             }
         }
@@ -852,7 +956,7 @@ enum ProjectReadmeOfflineMaintenance {
                 guard document.markdown.utf8.count <= 2 * 1_024 * 1_024 else { throw URLError(.dataLengthExceedsMaximum) }
                 try Task.checkCancellation(); try await validate()
                 try await save(projectID, document)
-                for source in imageSources(document.markdown) {
+                for source in try await imageSources(document.markdown) {
                     try Task.checkCancellation(); try await validate()
                     do {
                         let bytes = try await readImage(projectID, document, source)
@@ -864,6 +968,7 @@ enum ProjectReadmeOfflineMaintenance {
                         if NativeWorkspaceReadFailure.isCancellation(error) { throw error }
                         complete = false
                     }
+                    await Task.yield()
                 }
             } catch {
                 try Task.checkCancellation(); try await validate()
@@ -1154,13 +1259,58 @@ final class NativeProjectAuthoringClient: ObservableObject {
         return String(summary.prefix(4000))
     }
 
-    /// First-party transient request snapshots: metadata selection precedes private body reads.
-    /// No historical card can activate a Project or supply trusted access.
-    func requestContext(chatID: String, text: String) async throws -> [String: Any] {
-        guard let accountID = await AuthManager.currentUserId(), await AuthManager.isRecoveryEligibleDevice() else { return [:] }
-        let fence = ProjectsWorkspaceFence(accountID: accountID)
-        var result: [String: Any] = [:]
-        if let snapshot = try? await acceptedPlanContext(chatID: chatID, fence: fence) { result["accepted_plan_context"] = snapshot }
+    /// Only encoded snapshots cross child-task boundaries; JSON dictionaries stay on MainActor.
+    struct RequestContextPreparation: Sendable {
+        let acceptedPlan: Data?
+        let personalRules: Data
+        let currentFocus: Data
+    }
+
+    /// The independent metadata reads overlap local rule decryption. Pending consent still
+    /// finishes before a new binding read, and no Project bodies are opened here.
+    static func prepareRequestContext(
+        acceptedPlan: @escaping @MainActor @Sendable () async throws -> Data?,
+        personalRules: @MainActor @Sendable () async throws -> Data,
+        currentFocus: @escaping @MainActor @Sendable () async throws -> Data,
+        clearInactiveFocus: @MainActor (Data) async throws -> Void,
+        confirmPending: @MainActor () async throws -> Bool
+    ) async throws -> RequestContextPreparation {
+        try Task.checkCancellation()
+        async let plan = acceptedPlan()
+        async let initialFocus = currentFocus()
+        let rules = try await personalRules()
+        let previous = try await initialFocus
+        try Task.checkCancellation()
+        try await clearInactiveFocus(previous)
+        let activated = try await confirmPending()
+        let current = activated ? try await currentFocus() : previous
+        let snapshot = try await plan
+        try Task.checkCancellation()
+        return RequestContextPreparation(acceptedPlan: snapshot, personalRules: rules, currentFocus: current)
+    }
+
+    private func acceptedPlanSnapshot(chatID: String, fence: ProjectsWorkspaceFence) async throws -> Data? {
+        do {
+            guard let snapshot = try await acceptedPlanContext(chatID: chatID, fence: fence) else { return nil }
+            return try JSONSerialization.data(withJSONObject: snapshot)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw error
+        } catch {
+            // An unavailable optional Plan must not suppress cancellation of the send.
+            try Task.checkCancellation()
+            try await fence.check()
+            return nil
+        }
+    }
+
+    private func currentFocusSnapshot(chatID: String, fence: ProjectsWorkspaceFence) async throws -> Data {
+        let response = try await request(.get, path: "/v1/projects/focus/current?chat_id=" + Self.escaped(chatID), fence: fence)
+        return try JSONSerialization.data(withJSONObject: response)
+    }
+
+    private func personalRuleDocuments(accountID: String, fence: ProjectsWorkspaceFence) async throws -> Data {
         try await fence.check()
         var rules: [[String: Any]] = []
         if let ciphertext = AuthManager.notificationSession.currentUser?.encryptedSettings,
@@ -1178,15 +1328,37 @@ final class NativeProjectAuthoringClient: ObservableObject {
         }
         guard Set(rules.compactMap { $0["id"] as? String }).count == rules.count,
               rules.reduce(0, { $0 + ($1["document"] as? String ?? "").count }) <= 64_000 else { throw ProjectsWorkspaceError.invalidResponse }
-        if !rules.isEmpty { result["custom_rule_documents"] = rules }
-        // Safe authority metadata may clear a past decline, but never a waiting countdown.
-        let previous = try await request(.get, path: "/v1/projects/focus/current?chat_id=" + Self.escaped(chatID), fence: fence)
-        if (previous["focus"] as? [String: Any])?["active"] as? Bool != true {
-            PendingProjectFocusStore.shared.clearAfterNoActiveBase(chatID: chatID)
+        return try JSONSerialization.data(withJSONObject: rules)
+    }
+
+    /// First-party transient request snapshots: metadata selection precedes private body reads.
+    /// No historical card can activate a Project or supply trusted access.
+    func requestContext(chatID: String, text: String) async throws -> [String: Any] {
+        guard let accountID = await AuthManager.currentUserId(), await AuthManager.isRecoveryEligibleDevice() else { return [:] }
+        let fence = ProjectsWorkspaceFence(accountID: accountID)
+        let prepared = try await Self.prepareRequestContext(
+            acceptedPlan: { try await self.acceptedPlanSnapshot(chatID: chatID, fence: fence) },
+            personalRules: { try await self.personalRuleDocuments(accountID: accountID, fence: fence) },
+            currentFocus: { try await self.currentFocusSnapshot(chatID: chatID, fence: fence) },
+            clearInactiveFocus: { snapshot in
+                try await fence.check()
+                let previous = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
+                // Safe authority metadata may clear a past decline, never a waiting countdown.
+                if (previous?["focus"] as? [String: Any])?["active"] as? Bool != true {
+                    PendingProjectFocusStore.shared.clearAfterNoActiveBase(chatID: chatID)
+                }
+            },
+            confirmPending: { try await PendingProjectFocusStore.shared.confirmBeforeContext(chatID: chatID) })
+        try await fence.check()
+        var result: [String: Any] = [:]
+        if let snapshot = prepared.acceptedPlan {
+            result["accepted_plan_context"] = try JSONSerialization.jsonObject(with: snapshot)
         }
-        // A pending Project cannot be read until its live deadline is confirmed.
-        try await PendingProjectFocusStore.shared.confirmBeforeContext(chatID: chatID)
-        let current = try await request(.get, path: "/v1/projects/focus/current?chat_id=" + Self.escaped(chatID), fence: fence)
+        guard var rules = try JSONSerialization.jsonObject(with: prepared.personalRules) as? [[String: Any]],
+              let current = try JSONSerialization.jsonObject(with: prepared.currentFocus) as? [String: Any] else {
+            throw ProjectsWorkspaceError.invalidResponse
+        }
+        if !rules.isEmpty { result["custom_rule_documents"] = rules }
         guard let focus = current["focus"] as? [String: Any], focus["active"] as? Bool == true,
               let projectID = focus["project_id"] as? String,
               focus["team_id"] as? String == fence.teamContext.teamID else { return result }

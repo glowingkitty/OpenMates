@@ -5,6 +5,8 @@
 // Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.surface.semantic-parity,
 // projects.workspace.contract-plan-task-check-chain, projects.files.connected-embed-previews
 // Rendered reference: .runtime/build85-web-reference/projects-{overview,create-expanded,readme,files}.
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -14,6 +16,7 @@ struct ProjectsWorkspaceView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var workspaceReduceMotion
     @ObservedObject var store: ProjectsWorkspaceStore
+    @State private var readmeViewport = CGRect.zero
     var chatStore: ChatStore? = nil
     var hydrateProjectChat: (String) async -> Void = { _ in }
     var processingChatIDs: Set<String> = []
@@ -206,6 +209,14 @@ struct ProjectsWorkspaceView: View {
                 selectedRemoteFile = nil
                 autoBrowsedProjectID = nil
             }
+        }
+        .onChange(of: store.remoteMetadataOnly) { _, metadataOnly in
+            guard metadataOnly else { return }
+            cancelSelection()
+            stagedTransfer = nil
+            showCreateMenu = false
+            selectedRemoteFile = nil
+            store.clearRemoteText()
         }
         .onAppear { if let previewInitialTab { selectedTab = previewInitialTab } }
     }
@@ -566,6 +577,7 @@ struct ProjectsWorkspaceView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .accessibilityIdentifier("project-detail-scroll")
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { readmeViewport = $0 }
                 .overlay(alignment: .top) {
                     projectHeaderActions(project, width: geometry.size.width)
                 }
@@ -800,11 +812,13 @@ struct ProjectsWorkspaceView: View {
                         Text(AppStrings.projectOverviewTruncated)
                             .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     }
-                    ProjectReadmeView(markdown: readme.markdown) { source in
+                    let imageIdentity = store.readmePresentationIdentity(readme)
+                    ProjectReadmeView(markdown: readme.markdown, identity: imageIdentity, viewport: readmeViewport, validate: {
+                        try await store.validateReadmePresentation(readme, identity: imageIdentity)
+                    }) { source in
                         try await store.readReadmeImage(source, readme: readme)
                     }
-                    .id(readme)
-                    .id(project.id)
+                    .id(imageIdentity)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 }
@@ -973,7 +987,7 @@ struct ProjectsWorkspaceView: View {
                 HStack {
                     projectEntryCount
                     Spacer()
-                    fileSelectionActions(project)
+                    if !store.remoteMetadataOnly { fileSelectionActions(project) }
                 }
                 fileViewModeControls
             }
@@ -981,7 +995,7 @@ struct ProjectsWorkspaceView: View {
             HStack(spacing: 8) {
                 projectEntryCount
                 Spacer()
-                fileSelectionActions(project)
+                if !store.remoteMetadataOnly { fileSelectionActions(project) }
                 fileViewModeControls
             }
         }
@@ -1261,6 +1275,7 @@ struct ProjectsWorkspaceView: View {
                     if entry.kind == "directory" {
                         await store.browseRemote(path: entry.path)
                     } else {
+                        guard !store.remoteMetadataOnly else { return }
                         selectedRemoteFile = entry
                         store.clearRemoteText()
                         await store.openRemoteFile(entry)
@@ -1337,7 +1352,7 @@ struct ProjectsWorkspaceView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .disabled(store.isSaving || !(project.permissions.manageOwnItems || project.permissions.manageAnyItems))
+            .disabled(store.remoteMetadataOnly || store.isSaving || !(project.permissions.manageOwnItems || project.permissions.manageAnyItems))
             .accessibilityIdentifier("project-upload-button")
             Divider().padding(.vertical, 30)
             Button { showCreateMenu.toggle() } label: {
@@ -1348,6 +1363,7 @@ struct ProjectsWorkspaceView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
             }
+            .disabled(store.remoteMetadataOnly)
             .accessibilityIdentifier("project-files-create")
         }
         .buttonStyle(.plain)
@@ -1538,7 +1554,7 @@ struct ProjectsWorkspaceView: View {
             .foregroundStyle(Color.fontPrimary)
         }
         .buttonStyle(.plain)
-        .disabled(source.status != "connected")
+        .disabled(!source.capabilities.contains("read") || !["connected", "offline", "disconnected"].contains(source.status))
         .accessibilityIdentifier("project-source-\(source.id)")
     }
 
@@ -1587,6 +1603,7 @@ struct ProjectsWorkspaceView: View {
             }
             .overlay(RoundedRectangle(cornerRadius: 30).stroke(
                 selectedRemotePaths.contains(entry.path) ? Color.buttonPrimary : .clear, lineWidth: 2))
+            .disabled(store.remoteMetadataOnly)
             .accessibilityIdentifier("project-remote-entry-\(entry.path)")
         } else if entry.kind == "directory" && !listMode {
             Button { openRemoteEntry(entry) } label: {
@@ -1614,6 +1631,7 @@ struct ProjectsWorkspaceView: View {
         } else if entry.kind == "directory" {
             Task { await store.browseRemote(path: entry.path) }
         } else {
+            guard !store.remoteMetadataOnly else { return }
             selectedRemoteFile = entry
             store.clearRemoteText()
             Task { await store.openRemoteFile(entry) }
@@ -1654,6 +1672,7 @@ struct ProjectsWorkspaceView: View {
             .foregroundStyle(Color.fontPrimary)
         }
         .buttonStyle(.plain)
+        .disabled(store.remoteMetadataOnly && entry.kind != "directory")
         .accessibilityIdentifier("project-remote-entry-\(entry.path)")
     }
 
@@ -1695,14 +1714,15 @@ struct ProjectsWorkspaceView: View {
         } else {
             Button { handleItemTap(item) } label: {
             VStack(alignment: .leading, spacing: 10) {
-                Icon(iconName(for: item.name), size: 31)
+                Icon(itemMetadataIcon(item), size: 31)
                     .frame(width: 56, height: 56)
-                    .background(LinearGradient.appFiles, in: Circle())
+                    .background(AppIconView.gradient(forAppId: itemMetadataAppID(item)), in: Circle())
                     .foregroundStyle(.white)
-                Text(item.name.isEmpty ? item.targetID : item.name)
+                Text(itemMetadataName(item))
                     .font(.omP).fontWeight(.bold).lineLimit(2)
                 Spacer(minLength: 0)
-                Text(item.kind.capitalized).font(.omXs).foregroundStyle(Color.fontSecondary)
+                Text(itemMetadataType(item))
+                    .font(.omXs).foregroundStyle(Color.fontSecondary)
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1714,9 +1734,41 @@ struct ProjectsWorkspaceView: View {
             .foregroundStyle(Color.fontPrimary)
             }
             .buttonStyle(.plain)
+            .overlay(alignment: .topTrailing) {
+                if item.kind == "embed", store.itemEmbedPreviews[item.id] == nil {
+                    projectFolderCloudBadge
+                        .accessibilityIdentifier("project-item-remote-\(item.id)")
+                }
+            }
             .accessibilityIdentifier("project-item-\(item.id)")
             .task(id: item.id) { await store.loadItemEmbedPreview(item) }
         }
+    }
+
+    // Encrypted Project metadata identifies a remote item before its body is
+    // available. Rendering this fallback never needs to read the linked body.
+    private func itemMetadataName(_ item: ProjectWorkspaceItem) -> String {
+        [item.name, item.metadata["filename"] ?? "", item.metadata["title"] ?? ""]
+            .first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? item.targetID
+    }
+
+    private func itemMetadataType(_ item: ProjectWorkspaceItem) -> String {
+        if let type = item.metadata["file_type"], !type.isEmpty { return type }
+        if let rawType = item.metadata["embed_type"], let type = EmbedType(rawValue: rawType) {
+            return type.displayName
+        }
+        return item.metadata["skill_id"] ?? item.kind.capitalized
+    }
+
+    private func itemMetadataAppID(_ item: ProjectWorkspaceItem) -> String {
+        item.metadata["app_id"] ?? item.metadata["embed_type"].flatMap { EmbedType(rawValue: $0)?.appId } ?? "files"
+    }
+
+    private func itemMetadataIcon(_ item: ProjectWorkspaceItem) -> String {
+        if item.metadata["embed_type"] != nil || item.metadata["app_id"] != nil {
+            return AppIconView.iconName(forAppId: itemMetadataAppID(item))
+        }
+        return iconName(for: itemMetadataName(item))
     }
 
     private func handleItemTap(_ item: ProjectWorkspaceItem) {

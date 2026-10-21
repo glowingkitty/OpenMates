@@ -1790,3 +1790,8 @@ context_unavailable:
   en: Original context unavailable
   de: Ursprünglicher Kontext nicht verfügbar
   verified_by_human: []
+summary_availability_unavailable:
+  context: Older usage availability is unknown on a server without summary pagination metadata; requesting another window remains possible
+  en: This server cannot check for older usage yet. You can still request an older time window.
+  de: Dieser Server kann noch nicht prüfen, ob ältere Nutzungsdaten vorliegen. Du kannst trotzdem einen älteren Zeitraum anfordern.
+  verified_by_human: []

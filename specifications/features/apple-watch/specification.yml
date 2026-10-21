@@ -1,190 +1,277 @@
 schema_version: 1
 id: feature.apple-watch
-version: 3
+version: 6
 status: draft
 title: Apple Watch companion
-summary: >
-  The Apple Watch companion follows the approved compact Watch design for
-  iPhone-first pairing, private Task browsing and editing, compact Workflow
-  viewing and node editing, and private Chats with text and audio replies.
+summary: 'The Apple Watch companion follows the approved compact Watch design for iPhone-first pairing, private Task browsing
+  and editing, compact Workflow viewing and node editing, and private Chats with text and audio replies.
 
+  '
 scope:
   includes:
-    - Watch pairing through the matching iPhone with a prominent short-URL and manual pair-code fallback.
-    - Watch Chat, Task, and Workflow navigation and private lists.
-    - A horizontally paged Tasks kanban board with canonical iPhone sections, vertical Digital Crown scrolling, and native Task details.
-    - Editing the title, description, status, and priority of an existing editable personal Task.
-    - Compact Workflow details with expandable nodes and editing of an existing personal Workflow's node configuration and input references.
-    - Privacy-preserving Task and Workflow handoff to the paired iPhone.
-    - Saved-chat browsing, search, new chat, text replies, and audio replies.
-    - Compact Watch layout and accessible controls for these surfaces.
+  - Signed-out compact Chats workspace with public bundled examples, local guest text conversations using the public free
+    budget, and explicit Login entry.
+  - Watch pairing through the matching iPhone with a prominent short-URL and manual pair-code fallback.
+  - Watch Chat, Task, and Workflow navigation and private lists.
+  - A horizontally paged Tasks kanban board with canonical iPhone sections, vertical Digital Crown scrolling, and native Task
+    details.
+  - Editing the title, description, status, and priority of an existing editable personal Task.
+  - Compact Workflow details with expandable nodes and editing of an existing personal Workflow's node configuration and input
+    references.
+  - Privacy-preserving Task and Workflow handoff to the paired iPhone.
+  - Saved-chat browsing, search, new chat, text replies, and audio replies.
+  - Persistent phone, keyboard and microphone actions in new and existing chats, with supported chat-bound calling and bundled
+    local editable transcription.
+  - Compact Watch layout and accessible controls for these surfaces.
   excludes:
-    - Watch Task or Workflow creation, Workflow execution, or automatically changing activation when editing.
-    - Mutating Team Tasks, read-only Tasks, or workflow-run projections on Watch.
-    - On-device audio transcription or a post-recording attachment editor.
-    - Changes to the shared pair-login, encrypted chat, or server transcription contracts.
-
+  - Watch Task or Workflow creation, Workflow execution, or automatically changing activation when editing.
+  - Mutating Team Tasks, read-only Tasks, or workflow-run projections on Watch.
+  - Automatic cloud fallback from local transcription, duplicate call transcript submission, or unverified physical Watch
+    call networking.
+  - Changes to the shared pair-login, encrypted chat, or server transcription contracts.
+  - Main-app Daily Inspiration carousels, expanded introductions, and interest-topic selection on Watch.
+  - Changes to anonymous chat admission, budget metering, or offline send and replay behavior; their existing owning contracts
+    and dependencies continue to apply.
 relationships:
-  related_specifications: [feature.auth, feature.chats, feature.chat-navigation, feature.message-input, feature.tasks, feature.workflows, feature.apple-notifications]
-
+  related_specifications:
+  - feature.auth
+  - feature.chats
+  - feature.chat-navigation
+  - feature.message-input
+  - feature.tasks
+  - feature.workflows
+  - feature.apple-notifications
+  - feature.landing-onboarding
+  - feature.billing
+  - feature.video-call
+  - feature.apple-local-model-lab
 assertions:
-  - id: apple-watch.pairing.iphone-first-fallback
-    type: behavior
-    must: >
-      An unpaired Watch offers approval on a matching authenticated iPhone first.
-      If approval has not started after a few seconds, or is denied or fails, the
-      Watch reveals the short-URL fallback; the user can also reveal it directly.
-      The fallback highlights the pair code, offers manual code entry instead of
-      a QR control, and supports a validated self-hosted server. The login screen
-      uses the OpenMates favicon and Lexend Deca typography shown in the design.
-      Only acknowledgments for the current pair attempt can change its screen.
-    depends_on: [examples.pairing]
-  - id: apple-watch.pairing.private-session
-    type: invariant
-    must: >
-      Watch pairing exchanges only the opaque token, PIN, and required server
-      identity over WatchConnectivity, rejects malformed, stale, or wrong-server
-      approvals, and stores a usable client master key only after successful
-      encrypted pair-login completion.
-    depends_on: [examples.pairing_privacy]
-  - id: apple-watch.hub.compact-navigation
-    type: behavior
-    must: >
-      The compact Watch hub presents Chats, Tasks, and Workflows as reachable
-      sections with readable rows, search and new affordances where shown in the
-      approved design, and accessible controls without clipping essential content.
-    depends_on: [examples.hub]
-  - id: apple-watch.lists.read-only-private
-    type: behavior
-    must: >
-      An authenticated Watch lists readable client-decrypted Tasks and Workflows,
-      including workflow-run projections where available, without exposing
-      ciphertext or offering mutations in the lists. Tasks use the iPhone kanban section
-      order: Backlog, To do, In progress, Blocked, and Done. Swiping horizontally
-      changes sections while the Digital Crown scrolls the current section
-      vertically. Tapping a Task opens its readable private details on Watch.
-      Tapping a Workflow opens its compact details on Watch. Loading,
-      empty, and failure states remain visible.
-    depends_on: [examples.lists]
-  - id: apple-watch.tasks.edit-private
-    type: behavior
-    must: >
-      A Task detail offers editing of its title, description, status, and priority
-      only for an existing editable personal Task. Saving uses the existing
-      authenticated versioned update contract, encrypts private text with that
-      Task's key, and updates the displayed Task and kanban section only after a
-      valid server response. Cancel makes no changes. Failed saves preserve the
-      edit for retry and show failure. Account, session, or server changes prevent
-      stale requests and responses from publishing cookies, private content, or
-      apparent success. Team Tasks, read-only Tasks, and workflow-run projections
-      have no Edit control.
-    depends_on: [examples.task_editing]
-  - id: apple-watch.workflows.compact-editor
-    type: behavior
-    must: >
-      A personal Workflow opens a vertically scrollable compact graph on Watch.
-      Its trigger, app-skill, Ask AI, Check, and Send message nodes can expand to
-      show their readable configuration, input references, and actual connections
-      including conditional branches. Editable personal nodes offer compact
-      configuration and input-reference controls. Saving preserves graph fields
-      and connections outside the edit, uses the existing authenticated update
-      contract, and publishes success only after an accepted response. Cancel
-      makes no changes; failure retains the edit for retry. A detected intervening
-      Workflow change requires reloading rather than overwriting it. Editing does
-      not execute or automatically activate a Workflow. The Digital Crown scrolls
-      the view; Back returns to the Workflow list and Open on iPhone remains
-      explicit. Loading, empty, and failure with retry are visible. A changed
-      account, session, server, or selected Workflow discards stale detail
-      responses; unsupported Team context fails closed.
-    depends_on: [examples.workflow_details]
-  - id: apple-watch.handoff.exact-private
-    type: behavior
-    must: >
-      Choosing Open on iPhone in a Task or Workflow detail view on Watch
-      sends only an item kind, opaque id, and
-      server identity to the paired iPhone. The iPhone accepts only a matching
-      server profile and valid identifier, then routes the user to the exact HTTPS
-      web item; collection and settings handoffs use that profile's web origin.
-      Titles, private content, and arbitrary URLs are absent from the handoff.
-    depends_on: [examples.handoff]
-  - id: apple-watch.chats.browse-search-open
-    type: behavior
-    must: >
-      The Watch shows saved decryptable chats in recent order, searches across
-      available pages beyond the initial small window, keeps useful local chat
-      content through temporary network loss, and opens the selected conversation
-      without showing content from another or incognito chat.
-    depends_on: [examples.chats]
-  - id: apple-watch.chats.new-text-reply
-    type: behavior
-    must: >
-      The Watch can start a new chat and send text in a selected conversation
-      through the ordinary client-encrypted preflight and inference path.
-      Failed or uncertain submission preserves the exact unsent encrypted turn
-      for safe retry, and server content is decrypted only on the client.
-    depends_on: [examples.replies]
-  - id: apple-watch.chats.audio-reply
-    type: behavior
-    must: >
-      A Watch conversation offers a focused recording screen with cancel, timer,
-      and one Send action. Send uploads the recording for the same server
-      transcription and message processing used by iPhone and web, then persists
-      a normal encrypted audio-recording embed in the original selected chat so
-      it can appear on other clients; the Watch does not transcribe on device.
-    depends_on: [examples.audio]
-  - id: apple-watch.chats.compact-layout
-    type: behavior
-    must: >
-      The Watch Chat list, opened transcript, embed previews, text composer,
-      and audio action remain visible and usable within the Watch viewport.
-      Transcript text defaults to a scalable 15 points. Long-pressing a message
-      offers bounded Zoom in and Zoom out controls, with only the chosen text
-      size preference persisted. Preview markers remain in their original
-      positions between message text blocks. Consecutive embed groups scroll
-      horizontally within the viewport, using iPhone group ordering. All supported embed
-      preview families share a 156-point-wide vertical layout: a bounded
-      payload visual above a full-width gradient app-icon bar, with a centered
-      title and available metadata below. Sheet previews show bounded real
-      cells and the actual declared cell count when available. Actual message
-      embed markers are merged with supplied references, including when that
-      reference list is empty or partial. A missing decrypted payload shows an
-      unavailable preview and preserves the continuation action without
-      fabricating content.
-    depends_on: [examples.chat_layout]
-  - id: apple-watch.embeds.read-only-fullscreen
-    type: behavior
-    must: >
-      Tapping an embed opens read-only Watch detail using the selected hydrated
-      payload. Available text, code, full sheet cells, ordered result children,
-      thumbnails, and valid map coordinates are readable within a scrollable
-      Watch viewport. The detail offers Back and explicit Open on iPhone, and
-      does not offer content edits or execution. Missing payloads and unsupported
-      remote content remain visibly unavailable. Thumbnails load only on visible
-      demand, with bounded transport and image decoding; cached bytes are
-      encrypted and fenced to the current personal account and server. Automatic
-      bulk original-binary downloads are excluded.
-    depends_on: [examples.chat_layout]
-  - id: apple-watch.offline.recent-cohort
-    type: behavior
-    must: >
-      After a successful online maintenance pass, the exact twenty most recently
-      active ordinary personal conversations are available on Watch without a
-      network connection, ordered by the authoritative overall activity timestamp
-      with stable identifier ties independently of pinning. Each complete receipt
-      retains the full encrypted transcript, embed payloads, wrapped keys, and
-      supplemental content; metadata or a visible message window alone cannot
-      count as complete. Partial or mismatched server responses never replace a
-      complete receipt. Maintenance runs serially while the app is active and
-      navigation is idle, yields to foreground navigation, and stops on background,
-      logout, account, or server changes. Offline reading decrypts bounded
-      fifty-message pages and the selected page's referenced preview payloads,
-      without publishing all twenty transcripts into Watch memory. Automatic
-      bulk binary downloads are excluded; an unavailable binary or missing payload
-      remains visibly unavailable with continuation on iPhone. Durable cache
-      content is encrypted and scoped to the account and server, and logout
-      removes the cohort cache.
-    depends_on: [examples.offline_cohort]
+- id: apple-watch.guest.compact-workspace
+  type: behavior
+  must: 'A signed-out Watch opens the compact Chats workspace directly. The visible create, search, and settings action row
+    is followed by a Login button and then the allowlisted bundled public example chats. Search filters this public catalog
+    and clearing the search restores it. Opening an example shows its public transcript and available embed previews within
+    the Watch viewport; Back returns to the guest workspace. Existing workspace navigation and the action row remain reachable.
+    This compact Watch entry does not require the main-app Daily Inspiration carousel, expanded introductions, or interest-topic
+    controls. Guest creation and submission remain governed by their existing admission and offline send/replay contracts
+    and dependencies.
 
+    '
+  depends_on:
+  - examples.guest_workspace
+- id: apple-watch.guest.public-inference
+  type: behavior
+  must: 'A signed-out Watch can create and reopen its own encrypted local guest conversations and edit text without entering
+    pairing. Explicit Send checks the official cloud''s current public free-usage admission and sends only the selected guest
+    text and its bounded local history through that public inference endpoint, using a separate install-local anonymous identity.
+    The server''s available daily remaining percentage is shown without inventing a local allowance. Disabled, exhausted or
+    unavailable admission preserves the draft and offers Login. No authenticated runtime, credentials, private cache or account
+    send queue supplies guest inference. Local saving must succeed before dispatch. Offline draft recovery and status refresh
+    never submit automatically. A pending POST with an ambiguous outcome, including process loss or departure, remains encrypted
+    and visibly unconfirmed; it is never replayed as if its client identifier guaranteed idempotency. A validated completed
+    reply belongs to the originating guest conversation, and a departed guest view cannot publish a late result.
+
+    '
+  depends_on:
+  - examples.guest_inference
+- id: apple-watch.pairing.explicit-entry-back
+  type: behavior
+  must: 'Pairing begins only after the signed-out user chooses Login, using the existing iPhone-first approval and short-URL
+    fallback. A visible Back action returns to the guest workspace. Leaving pairing cancels its active initiation, polling,
+    fallback, and issued pair attempt; late approvals or completions from that attempt cannot change the guest screen or authenticated
+    identity. Returning to Login starts a current attempt. Successful current pairing enters the existing authenticated Watch
+    workspace.
+
+    '
+  depends_on:
+  - examples.guest_pairing
+- id: apple-watch.guest.account-isolation
+  type: invariant
+  must: 'Guest discovery, search, and example reading use only the explicit bundled public-example catalog and separately
+    encrypted local guest conversations, excluding retired introductions, and never read or display private account caches
+    or start authenticated chat synchronization, account mutations, or private handoffs. Public example navigation cannot
+    replace private last-opened state or enter an authenticated send/retry queue. A valid cached authenticated account continues
+    through existing restoration, including permitted offline use after a transient refresh failure; guest entry must not
+    sign it out, erase its keys, cookies, or caches, or replace its authenticated workspace. Existing explicit revocation
+    cleanup remains governed by the authentication contract.
+
+    '
+  depends_on:
+  - examples.guest_isolation
+- id: apple-watch.pairing.iphone-first-fallback
+  type: behavior
+  must: 'An unpaired Watch offers approval on a matching authenticated iPhone first. If approval has not started after a few
+    seconds, or is denied or fails, the Watch reveals the short-URL fallback; the user can also reveal it directly. The fallback
+    highlights the pair code, offers manual code entry instead of a QR control, and supports a validated self-hosted server.
+    The login screen uses the OpenMates favicon and Lexend Deca typography shown in the design. Only acknowledgments for the
+    current pair attempt can change its screen.
+
+    '
+  depends_on:
+  - examples.pairing
+- id: apple-watch.pairing.private-session
+  type: invariant
+  must: 'Watch pairing exchanges only the opaque token, PIN, and required server identity over WatchConnectivity, rejects
+    malformed, stale, or wrong-server approvals, and stores a usable client master key only after successful encrypted pair-login
+    completion.
+
+    '
+  depends_on:
+  - examples.pairing_privacy
+- id: apple-watch.hub.compact-navigation
+  type: behavior
+  must: 'The compact Watch hub presents Chats, Tasks, and Workflows as reachable sections with readable rows, search and new
+    affordances where shown in the approved design, and accessible controls without clipping essential content.
+
+    '
+  depends_on:
+  - examples.hub
+- id: apple-watch.lists.read-only-private
+  type: behavior
+  must: 'An authenticated Watch lists readable client-decrypted Tasks and Workflows, including workflow-run projections where
+    available, without exposing ciphertext or offering mutations in the lists. Tasks use the iPhone kanban section order:
+    Backlog, To do, In progress, Blocked, and Done. Swiping horizontally changes sections while the Digital Crown scrolls
+    the current section vertically. Tapping a Task opens its readable private details on Watch. Tapping a Workflow opens its
+    compact details on Watch. Loading, empty, and failure states remain visible.
+
+    '
+  depends_on:
+  - examples.lists
+- id: apple-watch.tasks.edit-private
+  type: behavior
+  must: 'A Task detail offers editing of its title, description, status, and priority only for an existing editable personal
+    Task. Saving uses the existing authenticated versioned update contract, encrypts private text with that Task''s key, and
+    updates the displayed Task and kanban section only after a valid server response. Cancel makes no changes. Failed saves
+    preserve the edit for retry and show failure. Account, session, or server changes prevent stale requests and responses
+    from publishing cookies, private content, or apparent success. Team Tasks, read-only Tasks, and workflow-run projections
+    have no Edit control.
+
+    '
+  depends_on:
+  - examples.task_editing
+- id: apple-watch.workflows.compact-editor
+  type: behavior
+  must: 'A personal Workflow opens a vertically scrollable compact graph on Watch. Its trigger, app-skill, Ask AI, Check,
+    and Send message nodes can expand to show their readable configuration, input references, and actual connections including
+    conditional branches. Editable personal nodes offer compact configuration and input-reference controls. Saving preserves
+    graph fields and connections outside the edit, uses the existing authenticated update contract, and publishes success
+    only after an accepted response. Cancel makes no changes; failure retains the edit for retry. A detected intervening Workflow
+    change requires reloading rather than overwriting it. Editing does not execute or automatically activate a Workflow. The
+    Digital Crown scrolls the view; Back returns to the Workflow list and Open on iPhone remains explicit. Loading, empty,
+    and failure with retry are visible. A changed account, session, server, or selected Workflow discards stale detail responses;
+    unsupported Team context fails closed.
+
+    '
+  depends_on:
+  - examples.workflow_details
+- id: apple-watch.handoff.exact-private
+  type: behavior
+  must: 'Choosing Open on iPhone in a Task or Workflow detail view on Watch sends only an item kind, opaque id, and server
+    identity to the paired iPhone. The iPhone accepts only a matching server profile and valid identifier, then routes the
+    user to the exact HTTPS web item; collection and settings handoffs use that profile''s web origin. Titles, private content,
+    and arbitrary URLs are absent from the handoff.
+
+    '
+  depends_on:
+  - examples.handoff
+- id: apple-watch.chats.browse-search-open
+  type: behavior
+  must: 'The Watch shows saved decryptable chats in recent order, searches across available pages beyond the initial small
+    window, keeps useful local chat content through temporary network loss, and opens the selected conversation without showing
+    content from another or incognito chat.
+
+    '
+  depends_on:
+  - examples.chats
+- id: apple-watch.chats.new-text-reply
+  type: behavior
+  must: 'The Watch can start a new chat and send text in a selected conversation through the ordinary client-encrypted preflight
+    and inference path. Failed or uncertain submission preserves the exact unsent encrypted turn for safe retry, and server
+    content is decrypted only on the client.
+
+    '
+  depends_on:
+  - examples.replies
+- id: apple-watch.chats.audio-reply
+  type: behavior
+  must: 'A Watch conversation offers focused recording with cancel, timer and explicit finish and Send actions. Finishing
+    prepares an editable draft; recording and transcription alone never submit a turn. Explicit Send uses the original selected
+    chat and, when audio attachment is chosen, persists one normal client-encrypted audio-recording embed readable on other
+    clients. A selected local transcript never triggers an implicit server transcription fallback or a second user turn. Existing
+    explicitly online audio processing retains its shared authentication, encryption and transcription contract.
+
+    '
+  depends_on:
+  - examples.audio
+- id: apple-watch.chats.input-actions
+  type: behavior
+  must: 'New and existing Watch chats keep one reachable bottom row of phone, keyboard and microphone actions. Existing text
+    does not replace the microphone. Keyboard edits the current draft; microphone records without discarding it. Phone starts
+    or returns to the same chat-bound call only when the physical Watch audio and networking route is verified and the shared
+    consent, authorization and audio-ownership gates permit it. Unsupported routes remain explicitly unavailable. Active call
+    capture, recording and assistant playback cannot compete for the same audio owner. Typing into the bound live call uses
+    that call once; another chat retains ordinary text behavior, and rejected input remains recoverable.
+
+    '
+  depends_on:
+  - examples.input_actions
+- id: apple-watch.chats.local-transcription
+  type: behavior
+  must: 'Supported Watch recording uses the included Whistle model locally to append editable transcript text to the existing
+    draft before explicit Send, with an explicit choice whether to attach audio. Finishing or transcribing starts no upload,
+    server transcription or ordinary inference. The pending text and recording are retained only through the existing encrypted
+    scoped draft boundary. Cancellation, failure, backgrounding or account/server changes suppress late results, preserve
+    separately owned draft content and do not silently choose an online provider. Local captions never replace or duplicate
+    a live call''s broker-issued canonical transcript. Unsupported native slices remain visibly unavailable; injected tests
+    do not qualify physical Watch performance, routes, accuracy or resource use.
+
+    '
+  depends_on:
+  - examples.local_transcription
+- id: apple-watch.chats.compact-layout
+  type: behavior
+  must: 'The Watch Chat list, opened transcript, embed previews, text composer, and audio action remain visible and usable
+    within the Watch viewport. Each Chat list row shows only a category-gradient circle containing the chat icon and its title
+    beside it, without category or summary subtitles. Transcript text defaults to a scalable 15 points. Long-pressing a message
+    offers bounded Zoom in and Zoom out controls, with only the chosen text size preference persisted. Preview markers remain
+    in their original positions between message text blocks. Consecutive embed groups scroll horizontally within the viewport,
+    using iPhone group ordering. All supported embed preview families share a 156-point-wide vertical layout: a bounded payload
+    visual above a full-width gradient app-icon bar, with a centered title and available metadata below. Sheet previews show
+    bounded real cells and the actual declared cell count when available. Actual message embed markers are merged with supplied
+    references, including when that reference list is empty or partial. A missing decrypted payload shows an unavailable preview
+    and preserves the continuation action without fabricating content.
+
+    '
+  depends_on:
+  - examples.chat_layout
+- id: apple-watch.embeds.read-only-fullscreen
+  type: behavior
+  must: 'Tapping an embed opens read-only Watch detail using the selected hydrated payload. Available text, code, full sheet
+    cells, ordered result children, thumbnails, and valid map coordinates are readable within a scrollable Watch viewport.
+    The detail offers Back and explicit Open on iPhone, and does not offer content edits or execution. Missing payloads and
+    unsupported remote content remain visibly unavailable. Thumbnails load only on visible demand, with bounded transport
+    and image decoding; cached bytes are encrypted and fenced to the current personal account and server. Automatic bulk original-binary
+    downloads are excluded.
+
+    '
+  depends_on:
+  - examples.chat_layout
+- id: apple-watch.offline.recent-cohort
+  type: behavior
+  must: 'After a successful online maintenance pass, the exact twenty most recently active ordinary personal conversations
+    are available on Watch without a network connection, ordered by the authoritative overall activity timestamp with stable
+    identifier ties independently of pinning. Each complete receipt retains the full encrypted transcript, embed payloads,
+    wrapped keys, and supplemental content; metadata or a visible message window alone cannot count as complete. Partial or
+    mismatched server responses never replace a complete receipt. Maintenance runs serially while the app is active and navigation
+    is idle, yields to foreground navigation, and stops on background, logout, account, or server changes. Offline reading
+    decrypts bounded fifty-message pages and the selected page''s referenced preview payloads, without publishing all twenty
+    transcripts into Watch memory. Automatic bulk binary downloads are excluded; an unavailable binary or missing payload
+    remains visibly unavailable with continuation on iPhone. Durable cache content is encrypted and scoped to the account
+    and server, and logout removes the cohort cache.
+
+    '
+  depends_on:
+  - examples.offline_cohort
 applies_to:
   rest_api:
     required: false
@@ -196,26 +283,44 @@ applies_to:
     required: false
     role: SDKs do not own Watch controls or iPhone handoff.
     implementations:
-      npm: {required: false}
-      pip: {required: false}
+      npm:
+        required: false
+      pip:
+        required: false
   gui:
     required: true
     implementations:
-      web: {required: false}
-      apple: {required: true}
-
+      web:
+        required: false
+      apple:
+        required: true
 examples:
   file: examples.yml
-  required_groups: [pairing, pairing_privacy, hub, lists, task_editing, workflow_details, handoff, chats, replies, audio, chat_layout, offline_cohort]
-
+  required_groups:
+  - guest_inference
+  - guest_workspace
+  - guest_pairing
+  - guest_isolation
+  - pairing
+  - pairing_privacy
+  - hub
+  - lists
+  - task_editing
+  - workflow_details
+  - handoff
+  - chats
+  - replies
+  - audio
+  - input_actions
+  - local_transcription
+  - chat_layout
+  - offline_cohort
 approval_source:
-  instruction: >
-    Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae
-    on 2026-10-03 authorizes the mobile Watch embed-preview hierarchy and
-    scalable transcript text, with the latest user overriding the default to
-    approximately 14–15 points and authorizing long-press text zoom, previews
-    in original message positions, horizontal groups, and read-only Watch embed
-    fullscreen including available thumbnails, text, and maps. The latest user
-    instruction extends full offline availability of the last twenty chats to
-    Apple Watch under the same no-bulk-binary scope as iPhone. Implementation is
+  instruction: 'Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03 authorizes the
+    mobile Watch embed-preview hierarchy and scalable transcript text, with the latest user overriding the default to approximately
+    14–15 points and authorizing long-press text zoom, previews in original message positions, horizontal groups, and read-only
+    Watch embed fullscreen including available thumbnails, text, and maps. The latest user instruction extends full offline
+    availability of the last twenty chats to Apple Watch under the same no-bulk-binary scope as iPhone. Implementation is
     explicitly authorized; no separate version or fingerprint approval is claimed.
+
+    '

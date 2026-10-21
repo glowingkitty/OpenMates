@@ -229,6 +229,7 @@ struct WatchHubView: View {
     private let notificationRoute: WatchNotificationRoute?
     private let onOpenItem: (WatchItemOpenRequest) -> Void
     private let onOpenSettings: () -> Void
+    private let onHardwareProbe: (() -> Void)?
     private let onCreate: (WatchHubSection) -> Void
     private let onNavigationBusyChange: (Bool) -> Void
 
@@ -246,6 +247,7 @@ struct WatchHubView: View {
         onNavigationBusyChange: @escaping (Bool) -> Void = { _ in },
         onOpenItem: @escaping (WatchItemOpenRequest) -> Void,
         onOpenSettings: @escaping () -> Void,
+        onHardwareProbe: (() -> Void)? = nil,
         onCreate: @escaping (WatchHubSection) -> Void
     ) {
         self.chatRuntime = chatRuntime
@@ -255,6 +257,7 @@ struct WatchHubView: View {
         self.notificationRoute = notificationRoute
         self.onOpenItem = onOpenItem
         self.onOpenSettings = onOpenSettings
+        self.onHardwareProbe = onHardwareProbe
         self.onCreate = onCreate
         self.onNavigationBusyChange = onNavigationBusyChange
         _dataService = StateObject(wrappedValue: WatchHubDataService(
@@ -332,6 +335,19 @@ struct WatchHubView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("watch-settings-developer-whisper")
+                        if let onHardwareProbe, ServerProfile.current() == .development, currentAccountID() != nil {
+                            Button {
+                                self.popupMessage = nil
+                                onHardwareProbe()
+                            } label: {
+                                Text(WatchLocalization.text("watch.voice_probe.title"))
+                                    .font(.omXs.weight(.semibold))
+                                    .foregroundStyle(WatchWorkspacePalette.foreground)
+                                    .padding(.vertical, .spacing2)
+                                    .frame(maxWidth: .infinity)
+                                    .background(WatchWorkspacePalette.surface, in: RoundedRectangle(cornerRadius: .radius4))
+                            }.buttonStyle(.plain).accessibilityIdentifier("watch-settings-voice-hardware-probe")
+                        }
                     }
                     Button { self.popupMessage = nil } label: {
                         Text(WatchHubCopy.done)

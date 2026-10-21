@@ -84,6 +84,31 @@ final class WatchChatLayoutUITests: XCTestCase {
         add(attachment)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-watch.embeds.read-only-fullscreen
+    func testUnopenedRecentChatRestoresOfflineThumbnailAndReceivedAudioPlayback() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-offline-cohort", "--ui-test-watch-offline-media"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-chat-offline"].waitForExistence(timeout: 30))
+        let chat = app.buttons["watch-chat-row-watch-offline-20"]
+        XCTAssertTrue(chat.waitForExistence(timeout: 5)); chat.tap()
+        let image = app.descendants(matching: .any)["watch-embed-thumbnail"].firstMatch
+        for _ in 0..<6 where !image.isHittable { app.swipeDown() }
+        XCTAssertTrue(image.waitForExistence(timeout: 10))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "ready"), object: image)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed, "Thumbnail pixels must reopen from encrypted retention while transport is offline")
+        let playback = app.buttons["watch-audio-preview-playback"]
+        for _ in 0..<6 where !playback.isHittable { app.swipeUp() }
+        XCTAssertTrue(playback.isHittable); playback.tap()
+        let playing = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "playing"), object: playback)
+        XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 15), .completed, "Received audio must play from retained bytes without a presigned URL")
+        playback.tap()
+        XCTAssertFalse(app.descendants(matching: .any)["watch-audio-preview-error"].exists)
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "Watch retained thumbnail and received audio offline"
+        attachment.lifetime = .keepAlways; add(attachment)
+    }
+
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
             let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -228,7 +253,7 @@ final class WatchChatLayoutUITests: XCTestCase {
 
     @MainActor
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.audio-reply,apple-watch.chats.compact-layout
-    func testRecordingShowsHeaderAndInsetCardWithCancelAndSend() {
+    func testRecordingShowsHeaderAndInsetCardWithCancelAndFinish() {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-watch-chat-recording"]
         app.launch()
@@ -237,7 +262,7 @@ final class WatchChatLayoutUITests: XCTestCase {
         let card = app.descendants(matching: .any)["watch-audio-recording-screen"]
         let duration = app.descendants(matching: .any)["watch-audio-recording-duration"]
         let cancel = app.buttons["watch-audio-cancel-button"]
-        let send = app.buttons["watch-audio-send-button"]
+        let send = app.buttons["watch-audio-finish-button"]
         let transcript = app.descendants(matching: .any)["watch-chat-shell"]
         XCTAssertTrue(back.waitForExistence(timeout: 12))
         XCTAssertTrue(card.exists)
@@ -245,6 +270,7 @@ final class WatchChatLayoutUITests: XCTestCase {
         XCTAssertTrue(duration.exists)
         XCTAssertTrue(cancel.isHittable)
         XCTAssertTrue(send.isHittable)
+        XCTAssertTrue(app.buttons["watch-audio-transcript-only-button"].isHittable)
         XCTAssertGreaterThan(card.frame.minY, back.frame.minY)
 
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -631,6 +657,79 @@ extension WatchChatLayoutUITests {
         XCTAssertTrue(close.isHittable)
         close.tap()
         XCTAssertTrue(card.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions,apple-watch.chats.compact-layout
+    func testFixedPhoneKeyboardMicrophoneRemainHittableInNewExistingAndTypedChats() {
+        for argument in ["--ui-test-watch-chat-layout", "--ui-test-watch-chat-new", "--ui-test-watch-chat-draft"] {
+            let app = XCUIApplication()
+            app.launchArguments = [argument, "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+            app.launch()
+            let phone = app.buttons["watch-call-button"]
+            let keyboard = app.buttons["watch-keyboard-button"]
+            let microphone = app.buttons["watch-audio-record-button"]
+            XCTAssertTrue(phone.waitForExistence(timeout: 12))
+            for action in [phone, keyboard, microphone] {
+                XCTAssertTrue(action.isHittable)
+                XCTAssertGreaterThanOrEqual(action.frame.minY, 0)
+                XCTAssertLessThanOrEqual(action.frame.maxY, app.frame.maxY)
+            }
+            XCTAssertLessThan(phone.frame.midX, keyboard.frame.midX)
+            XCTAssertLessThan(keyboard.frame.midX, microphone.frame.midX)
+            let initial = phone.frame
+            app.scrollViews["watch-chat-shell"].swipeUp()
+            XCTAssertEqual(phone.frame.minY, initial.minY, accuracy: 1)
+            phone.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["watch-audio-error"].waitForExistence(timeout: 3),
+                "Unverified physical route invokes a visible capability outcome")
+            XCTAssertTrue(keyboard.isHittable)
+            keyboard.tap()
+            // Keyboard entry is OS owned; its sheet must become visible after the
+            // real keyboard action rather than a fixture callback counter.
+            XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5)
+                || app.keyboards.firstMatch.waitForExistence(timeout: 5)
+                || app.textViews.firstMatch.waitForExistence(timeout: 5))
+            let artifact = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            artifact.name = "Watch fixed actions and OS text entry " + argument
+            artifact.lifetime = .keepAlways; add(artifact)
+            app.terminate()
+        }
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.input-actions,apple-watch.chats.local-transcription
+    func testMicrophoneStartsProductionRecorderAndCancelRestoresCompleteTypedDraft() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-draft", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let microphone = app.buttons["watch-audio-record-button"]
+        XCTAssertTrue(microphone.waitForExistence(timeout: 12))
+        let initialDraft = app.textFields["watch-message-input"].value as? String
+        XCTAssertEqual(initialDraft, "Berlin meetup draft")
+        addUIInterruptionMonitor(withDescription: "Watch recording microphone permission") { alert in
+            let allow = alert.buttons["Allow"]
+            if allow.exists { allow.tap(); return true }
+            let ok = alert.buttons["OK"]
+            if ok.exists { ok.tap(); return true }
+            return false
+        }
+        microphone.tap()
+        let recording = app.descendants(matching: .any)["watch-audio-recording-screen"]
+        XCTAssertTrue(recording.waitForExistence(timeout: 12),
+            "Requires the actual recorder/permission route; a fixture is not microphone evidence")
+        let cancel = app.buttons["watch-audio-cancel-button"]
+        XCTAssertTrue(cancel.isHittable)
+        let captured = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        captured.name = "Production Watch microphone recording before cancel"
+        captured.lifetime = .keepAlways; add(captured)
+        cancel.tap()
+        let input = app.textFields["watch-message-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, initialDraft)
+        XCTAssertTrue(app.buttons["watch-call-button"].isHittable)
+        XCTAssertTrue(app.buttons["watch-keyboard-button"].isHittable)
+        XCTAssertTrue(microphone.isHittable)
     }
 
     @MainActor

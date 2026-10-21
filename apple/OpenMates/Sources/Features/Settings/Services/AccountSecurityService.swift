@@ -1,3 +1,5 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
 // Account and security settings API contracts shared by native settings views.
 // Endpoints and payloads mirror the Svelte settings implementations and backend
 // Pydantic responses. This layer intentionally exposes failures to callers so
@@ -242,35 +244,15 @@ actor AccountSecurityService {
         return response.deletedCount
     }
 
-    func uploadProfileImage(_ jpegData: Data) async throws -> ProfileImageUploadResponse {
-        let boundary = UUID().uuidString
-        var body = Data()
-        body.append(Data("--\(boundary)\r\n".utf8))
-        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"profile.jpg\"\r\n".utf8))
-        body.append(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
-        body.append(jpegData)
-        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
-
-        let uploadBaseURL = await api.uploadBaseURL
-        var request = URLRequest(url: uploadBaseURL.appendingPathComponent("v1/upload/profile-image"))
-        request.httpMethod = "POST"
-        request.httpBody = body
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue((await api.webAppURL).absoluteString, forHTTPHeaderField: "Origin")
-        APIClient.nativeClientHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
-
-        let configuration = URLSessionConfiguration.default
-        configuration.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
-        configuration.httpShouldSetCookies = true
-        let (data, response) = try await URLSession(configuration: configuration).data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+    func uploadProfileImage(_ jpegData: Data, serverProfile: ServerProfile,
+                            expectedAccountID: String, expectedScope: UUID,
+                            expectedTeamContext: APIRequestTeamContext) async throws -> ProfileImageUploadResponse {
+        let data = try await api.uploadAccountProfileImage(data: jpegData,
+            serverProfile: serverProfile, expectedAccountID: expectedAccountID,
+            expectedScope: expectedScope, expectedTeamContext: expectedTeamContext)
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let decoded = try decoder.decode(ProfileImageUploadResponse.self, from: data)
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw await AccountSecurityError.server(decoded.detail)
-        }
-        return decoded
+        return try decoder.decode(ProfileImageUploadResponse.self, from: data)
     }
 
     func exportAccountData() async throws -> Data {

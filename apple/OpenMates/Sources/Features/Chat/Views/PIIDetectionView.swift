@@ -1,3 +1,5 @@
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.privacy-context, message-input.send.ownership
 // PII detection UI — warns user about personal data in messages.
 // Shows detected PII count with option to exclude individual entries.
 // Replaces PII with placeholders like [EMAIL_1], [PHONE_1] on send.
@@ -121,7 +123,68 @@ final class PIIPrivacySettingsStore: ObservableObject {
     }
 
     func update(_ settings: PIIPrivacySettings) {
+        adoptPrivacyScope()
+        guard self.settings != settings else { return }
         self.settings = settings
+        privacyMutationRevision &+= 1
+        NativePersonalPrivacyRuntime.shared.invalidate()
+    }
+
+    struct PrivacyMutationToken { let id: UUID; let scope: UUID }
+    private var mutationScope: UUID?
+    private var pendingPrivacyMutations = Set<UUID>()
+    private var intendedPrivacy: PIIPrivacySettings?
+    private var privacySaveFailed = false
+    private(set) var privacyMutationRevision: UInt64 = 0
+
+    private func adoptPrivacyScope() {
+        let scope = OfflineStore.shared.scopeGeneration
+        guard mutationScope != scope else { return }
+        mutationScope = scope; pendingPrivacyMutations.removeAll(); intendedPrivacy = nil; privacySaveFailed = false
+        privacyMutationRevision &+= 1
+    }
+    func beginPrivacyMutation(intended: PIIPrivacySettings) -> PrivacyMutationToken {
+        adoptPrivacyScope()
+        privacyMutationRevision &+= 1
+        intendedPrivacy = intended
+        let token = PrivacyMutationToken(id: UUID(), scope: OfflineStore.shared.scopeGeneration)
+        pendingPrivacyMutations.insert(token.id)
+        NativePersonalPrivacyRuntime.shared.invalidate()
+        return token
+    }
+    func endPrivacyMutation(_ token: PrivacyMutationToken, succeeded: Bool) {
+        adoptPrivacyScope()
+        guard token.scope == mutationScope, pendingPrivacyMutations.remove(token.id) != nil else { return }
+        privacySaveFailed = privacySaveFailed || !succeeded
+        // Every later Send still reconciles the intended policy with a fresh
+        // complete server snapshot, including uncertain/lost write responses.
+        privacyMutationRevision &+= 1
+        NativePersonalPrivacyRuntime.shared.invalidate()
+    }
+    func waitForPrivacyMutations() async throws {
+        adoptPrivacyScope()
+        let scope = mutationScope
+        for _ in 0..<120 {
+            guard scope == OfflineStore.shared.scopeGeneration else { throw NativePersonalPrivacyError.staleScope }
+            if pendingPrivacyMutations.isEmpty { return }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        throw NativePersonalPrivacyError.policyNotPersisted
+    }
+    func reconcilePrivacyPersistence(with fresh: PIIPrivacySettings, expectedRevision: UInt64) throws {
+        adoptPrivacyScope()
+        guard privacyMutationRevision == expectedRevision, pendingPrivacyMutations.isEmpty else { throw NativePersonalPrivacyError.staleScope }
+        if let intendedPrivacy {
+            func normalized(_ value: PIIPrivacySettings) -> PIIPrivacySettings {
+                PIIPrivacySettings(masterEnabled: value.masterEnabled, disabledCategories: value.disabledCategories,
+                    personalDataEntries: value.personalDataEntries.map { entry in
+                        PersonalDataForDetection(id: entry.id, textToHide: entry.textToHide, replaceWith: entry.replaceWith,
+                            additionalTexts: entry.additionalTexts.filter { !$0.isEmpty }.sorted())
+                    }.sorted { $0.id < $1.id })
+            }
+            guard normalized(intendedPrivacy) == normalized(fresh) else { throw NativePersonalPrivacyError.policyNotPersisted }
+            self.intendedPrivacy = nil; privacySaveFailed = false
+        } else if privacySaveFailed { throw NativePersonalPrivacyError.policyNotPersisted }
     }
 
     func detectionOptions() -> PIIDetectionOptions {

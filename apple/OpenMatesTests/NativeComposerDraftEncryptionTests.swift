@@ -13,6 +13,30 @@ import XCTest
 final class NativeComposerDraftEncryptionTests: XCTestCase {
     private let chatId = "synthetic-chat.composer-fixture.invalid"
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,message-input.drafts.preview-persistence
+    @MainActor
+    func testCachedStructuredTextRemainsLiteralInFormattedSearchRow() throws {
+        let literal = #"{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Literal nested JSON"}]}]}"#
+        let document: [String: Any] = ["type": "doc", "content": [
+            ["type": "paragraph", "content": [["type": "text", "text": literal]]]
+        ]]
+        let serialized = String(decoding: try JSONSerialization.data(withJSONObject: document), as: UTF8.self)
+        let service = DraftService(repository: RecordingComposerDraftRepository(),
+            legacyStore: RecordingLegacyComposerDraftStore(), masterKeyProvider: { nil })
+        service.seedUITestDraftPreview(chatId: "literal-json-draft", preview: serialized)
+        let cached = try XCTUnwrap(service.displayDraftPreviews["literal-json-draft"])
+        XCTAssertEqual(cached, literal)
+        let chat = Chat(id: "literal-json-draft", title: nil, lastMessageAt: nil,
+            createdAt: "2026-10-14T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
+            appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 0, hasNonEmptyDraft: true)
+        // ChatSearchView's production row receives this same formatted cache.
+        let row = ChatListRow(chat: chat, suppliedDraftPreview: cached, previewIsFormatted: true)
+        XCTAssertEqual(row.formattedDraftPreview, literal)
+        XCTAssertNotEqual(ChatDraftPreviewFormatter.format(cached), literal,
+            "This fixture detects accidental second parsing of a literal JSON text node")
+    }
+
+
     // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted,message-input.drafts.preview-persistence
     func testContentPolicyRejectsEmptyEditorFormatsAndPreservesAttachments() {
         for empty in [" \n\t", "```swift\n  \n```", #"{"type":"doc","content":[{"type":"paragraph"}]}"#, #"{"version":1,"nodes":[{"kind":"hardBreak"}]}"#] {
@@ -65,6 +89,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         let loaded = try await service.loadDraft(chatId: chatId)
         XCTAssertEqual(loaded?.canonicalMarkdown, source)
         XCTAssertEqual(ChatDraftPreviewFormatter.format(loaded?.preview), "[Audio]")
+        XCTAssertEqual(service.displayDraftPreviews[chatId], "[Audio]")
         let tombstones = try await repository.allDeletionVersions()
         XCTAssertNil(tombstones[chatId])
     }
@@ -86,6 +111,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         await gate.unlock(key)
         await service.reconcileAfterReconnect()
         XCTAssertEqual(service.draftPreview(chatId: chatId), "Saved synthetic preview")
+        XCTAssertEqual(service.displayDraftPreviews[chatId], "Saved synthetic preview")
         let stored = try await repository.record(chatId: chatId)
         XCTAssertEqual(stored?.encryptedMarkdown, markdown)
         XCTAssertEqual(stored?.draftVersion, 5)

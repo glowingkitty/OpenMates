@@ -1,5 +1,5 @@
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.payload.privacy-safe
+// Assertions: apple-notifications.payload.privacy-safe, apple-notifications.action.direct-reply
 // Notification Service Extension for private APNs previews.
 // APNs receives only safe fallback alert text from the backend.
 // This extension decrypts optional device-targeted preview ciphertext from the
@@ -27,9 +27,25 @@ final class NotificationService: UNNotificationServiceExtension {
         }
 
         self.bestAttemptContent = bestAttemptContent
-        if let preview = NotificationPreviewCrypto.decryptDisplay(userInfo: request.content.userInfo) {
-            if let title = preview.title { bestAttemptContent.title = title }
-            bestAttemptContent.body = preview.body
+        if let envelope = NotificationPreviewCrypto.decryptEnvelope(userInfo: request.content.userInfo) {
+            // Legacy preview-only envelopes retain display compatibility. An
+            // explicitly new but malformed/mismatched context cannot expose a
+            // different recipient's preview or authorize its reply editor.
+            var mayDisplayPreview = !envelope.hasReplyContext
+            if request.content.categoryIdentifier == "OPENMATES_CHAT_MESSAGE",
+               request.content.userInfo["type"] as? String != "workflow.run_completed",
+               let context = envelope.replyContext,
+               let digest = NotificationReplyStore.payloadDigest(userInfo: request.content.userInfo) {
+                do {
+                    try NotificationReplyStore().saveValidatedTarget(context, requestID: request.identifier,
+                        payloadDigest: digest, keyFingerprint: envelope.keyFingerprint)
+                    mayDisplayPreview = true
+                } catch { mayDisplayPreview = false }
+            }
+            if mayDisplayPreview, let preview = envelope.display {
+                if let title = preview.title { bestAttemptContent.title = title }
+                bestAttemptContent.body = preview.body
+            }
         } else if request.content.userInfo["encrypted_notification"] != nil {
             Self.logger.warning("Encrypted notification preview could not be decrypted; using safe fallback")
         }

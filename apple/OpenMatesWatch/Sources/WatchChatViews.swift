@@ -1,3 +1,7 @@
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.offline.recent-cohort, apple-watch.embeds.read-only-fullscreen
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.guest.compact-workspace
 // Specification: specifications/architecture/storage-lifecycle/specification.yml
 // Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 // Watch chat list, transcript, and composer shell.
@@ -17,7 +21,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout,
+// Assertions: apple-watch.chats.input-actions, apple-watch.chats.local-transcription,
+//             apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout,
 //             apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
@@ -29,9 +34,13 @@ import SwiftUI
 private final class WatchAudioRecorder: ObservableObject {
     @Published private(set) var isRecording = false
     @Published private(set) var duration: TimeInterval = 0
+    @Published private(set) var isArming = false
+    @Published private(set) var levels = Array(repeating: Float(0), count: 17)
+    private var generation: UInt64 = 0
     @Published var errorMessage: String?
 
     private var audioRecorder: AVAudioRecorder?
+    private var audioLease: WatchAudioOwnership.Lease?
     private var recordingURL: URL?
     private var timer: Timer?
 
@@ -44,22 +53,32 @@ private final class WatchAudioRecorder: ObservableObject {
     }
 
     func startRecording() async {
+        guard !isArming, !isRecording else { return }
+        generation &+= 1
+        let attempt = generation
+        isArming = true
+        defer { if attempt == generation { isArming = false } }
         errorMessage = nil
-        guard await requestPermission() else {
+        let granted = await requestPermission()
+        guard attempt == generation, !Task.isCancelled else { return }
+        guard granted else {
             errorMessage = WatchStrings.microphoneBlocked
             return
         }
 
         do {
+            WatchAudioPlaybackLoader.stopCurrentPlayback()
+            audioLease = try WatchAudioOwnership.shared.acquire(owner: .recording)
             try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
+            cancelRecording()
             errorMessage = error.localizedDescription
             return
         }
 
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("watch-recording-\(Int(Date().timeIntervalSince1970)).m4a")
+            .appendingPathComponent("watch-recording-\(UUID().uuidString).m4a")
         recordingURL = url
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -70,16 +89,26 @@ private final class WatchAudioRecorder: ObservableObject {
 
         do {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
+            audioRecorder?.isMeteringEnabled = true
             guard audioRecorder?.record() == true else {
+                cancelRecording()
                 errorMessage = WatchStrings.microphoneBlocked
                 return
             }
             isRecording = true
             duration = 0
             timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.duration += 0.1 }
+                Task { @MainActor in
+                    guard let self, self.isRecording else { return }
+                    self.duration = self.audioRecorder?.currentTime ?? self.duration
+                    self.audioRecorder?.updateMeters()
+                    let decibels = self.audioRecorder?.averagePower(forChannel: 0) ?? -160
+                    self.levels.removeFirst()
+                    self.levels.append(min(1, max(0, pow(10, decibels / 20))))
+                }
             }
         } catch {
+            cancelRecording()
             errorMessage = error.localizedDescription
         }
     }
@@ -90,20 +119,38 @@ private final class WatchAudioRecorder: ObservableObject {
         timer?.invalidate()
         timer = nil
         isRecording = false
+        audioRecorder = nil
+        releaseAudioLease()
         return recordingURL
     }
 
     func cancelRecording() {
-        if let url = stopRecording() {
-            try? FileManager.default.removeItem(at: url)
-        }
+        generation &+= 1
+        isArming = false
+        audioRecorder?.stop()
+        audioRecorder = nil
+        timer?.invalidate(); timer = nil
+        isRecording = false
+        if let recordingURL { try? FileManager.default.removeItem(at: recordingURL) }
         recordingURL = nil
         duration = 0
+        levels = Array(repeating: 0, count: 17)
+        releaseAudioLease()
     }
+
+    private func releaseAudioLease() {
+        guard let lease = audioLease else { return }
+        audioLease = nil
+        guard WatchAudioOwnership.shared.isCurrent(lease) else { return }
+        // Never deactivate another recorder/call's audio session on navigation.
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        WatchAudioOwnership.shared.release(lease)
+    }
+
 }
 
 @MainActor
-private enum WatchChatCopy {
+enum WatchChatCopy {
     static var chats: String { WatchLocalization.text("common.chats") }
     static var search: String { WatchLocalization.text("activity.search") }
     static var settings: String { WatchLocalization.text("common.settings") }
@@ -121,7 +168,7 @@ private enum WatchChatCopy {
 }
 
 // Watch artboards use a dedicated black, blue, and teal palette at 184 × 224 pt.
-private enum WatchChatPalette {
+enum WatchChatPalette {
     static let background = Color.black
     static let foreground = Color.white
     static let muted = Color(red: 0.68, green: 0.69, blue: 0.72)
@@ -200,6 +247,7 @@ struct WatchChatShellView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WatchChatPalette.background)
+        .environment(\.watchRetainedThumbnailLoader, { content in try await runtime.retainedThumbnailData(for: content) })
         .ignoresSafeArea(edges: .bottom)
         .task {
 #if DEBUG
@@ -433,6 +481,9 @@ private struct WatchChatThreadView: View {
     let currentUsername: String?
     @EnvironmentObject private var phoneBridge: WatchPhoneLoginBridge
     @StateObject private var audioRecorder = WatchAudioRecorder()
+    @ObservedObject private var callActions: WatchCallActionAdapter
+    @FocusState private var keyboardFocused: Bool
+    @State private var recordingTask: Task<Void, Never>?
     @State private var draft = ""
     @State private var isSending = false
     @State private var pendingRecording: (url: URL, duration: TimeInterval)?
@@ -447,11 +498,12 @@ private struct WatchChatThreadView: View {
     @State private var shareContext: WatchChatRequestContext?
 
     private var transcriptIsDisplayed: Bool {
-        !audioRecorder.isRecording && !recordingPreviewActive && continuationEmbed == nil && sharingChat == nil
+        !audioRecorder.isRecording && !recordingPreviewActive && pendingRecording == nil && !runtime.isPreparingRecordingDraft && continuationEmbed == nil && sharingChat == nil
     }
 
     init(runtime: WatchChatRuntime, currentUsername: String? = nil, showsRecordingFixture: Bool = false) {
         self.runtime = runtime
+        self.callActions = runtime.callActions
         self.currentUsername = currentUsername
         _recordingPreviewActive = State(initialValue: showsRecordingFixture)
         _draft = State(initialValue: runtime.selectedChatId.flatMap { runtime.composerDrafts[$0] } ?? "")
@@ -466,7 +518,7 @@ private struct WatchChatThreadView: View {
                     sendEmbedOpenNotification(model)
                     closeEmbedFullscreen()
                 }, onClose: closeEmbedFullscreen)
-            } else if audioRecorder.isRecording || recordingPreviewActive {
+            } else if audioRecorder.isRecording || recordingPreviewActive || pendingRecording != nil || runtime.isPreparingRecordingDraft {
                 recordingView
             } else {
                 // The Watch text-entry control can remain discoverable by AX
@@ -511,12 +563,18 @@ private struct WatchChatThreadView: View {
                 transcriptIsDisplayed ? geometricallyVisibleMessageIDs : [], chatID: chatID)
         }
         .onChange(of: runtime.selectedChatId) { _, _ in
+            cancelRecording()
+            draft = runtime.selectedChatId.flatMap { runtime.composerDrafts[$0] } ?? ""
             geometricallyVisibleMessageIDs = []
             continuationEmbed = nil
             sharingChat = nil; shareContext = nil
             transcriptScrollID = nil
             fullscreenReturnMessageID = nil
             showsMessageZoomControls = false
+        }
+        .onDisappear { cancelRecording() }
+        .onChange(of: audioRecorder.duration) { _, duration in
+            if duration >= 30, audioRecorder.isRecording { finishRecording() }
         }
         .onChange(of: transcriptIsDisplayed) { _, displayed in
             geometricallyVisibleMessageIDs = []
@@ -627,80 +685,33 @@ private struct WatchChatThreadView: View {
             }
             .id(transcriptMeasurementID)
 
-            HStack(spacing: .spacing2) {
-                Image(systemName: "keyboard")
-                    .font(.omSmall)
-                    .foregroundStyle(WatchChatPalette.blue)
-                    .accessibilityHidden(true)
-                TextField(WatchStrings.messagePlaceholder, text: $draft)
-                    .textFieldStyle(.plain)
-                    .controlSize(.small)
-                    .font(.omXs)
-                    .foregroundStyle(WatchChatPalette.foreground)
-                    .tint(WatchChatPalette.blue)
-                    .frame(height: 38)
-                    .clipped()
-                    .contentShape(Rectangle())
-                    .disabled(isSending)
-                    .accessibilityIdentifier("watch-message-input")
-
-                if draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button {
-                        Task { await audioRecorder.startRecording() }
-                    } label: {
-                        Image(systemName: "mic.fill")
-                            .font(.omSmall)
-                            .foregroundStyle(WatchChatPalette.blue)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isSending)
-                    .accessibilityIdentifier("watch-audio-record-button")
-                } else {
-                    Button {
-                        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !text.isEmpty else { return }
-                        isSending = true
-                        Task {
-                            defer { isSending = false }
-                            if await runtime.sendText(text), draft.trimmingCharacters(in: .whitespacesAndNewlines) == text { draft = "" }
-                        }
-                    } label: {
-                        Text(WatchStrings.send)
-                            .font(.omMicro)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(WatchChatPalette.foreground)
-                            .padding(.horizontal, .spacing2)
-                            .padding(.vertical, .spacing1)
-                            .background(WatchChatPalette.blue, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("watch-message-send")
-                }
-            }
-            .padding(.horizontal, .spacing4)
-            .frame(height: 38)
-            .background(WatchChatPalette.surface, in: Capsule())
-            .clipShape(Capsule())
-            .padding(.horizontal, .spacing4)
-
             if let errorMessage = audioRecorder.errorMessage ?? runtime.errorMessage, !errorMessage.isEmpty {
                 WatchStatusPill(text: errorMessage)
                     .padding(.horizontal, .spacing4)
                     .accessibilityIdentifier("watch-audio-error")
             }
-
-            if pendingRecording != nil {
-                Button(WatchStrings.retry) { Task { await retryRecording() } }
-                    .font(.omXs)
-                    .foregroundStyle(WatchChatPalette.blue)
-                    .disabled(isSending)
-                    .accessibilityIdentifier("watch-audio-retry-button")
+            if runtime.hasSelectedRecordingDraft {
+                HStack(spacing: .spacing2) {
+                    Text(WatchStrings.voiceRecording).font(.omMicro).foregroundStyle(Color.grey30)
+                    Button {
+                        Task { await runtime.removeSelectedRecordingDraft() }
+                    } label: {
+                        Image(systemName: "xmark").font(.omMicro)
+                            .frame(minWidth: .spacing12, minHeight: .spacing12)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(WatchLocalization.text("enter_message.attachments.remove_pending_file"))
+                    .accessibilityIdentifier("watch-composer-remove-recording")
+                    .disabled(isSending || runtime.isPreparingRecordingDraft)
+                }
+                .accessibilityIdentifier("watch-composer-recording-draft")
             }
-
             ForEach(runtime.pendingAudioEmbeds) { embed in
-                WatchPendingAudioEmbedView(embed: embed)
-                    .padding(.horizontal, .spacing4)
+                WatchPendingAudioEmbedView(embed: embed).padding(.horizontal, .spacing4)
             }
+            composer
+
         }
         .padding(.bottom, .spacing4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -757,10 +768,6 @@ private struct WatchChatThreadView: View {
 
     private var emptyChatWelcome: some View {
         VStack(spacing: 21) {
-            Image(systemName: "phone.fill")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(WatchChatPalette.blue)
-                .accessibilityHidden(true)
             VStack(spacing: 0) {
                 Text(WatchChatCopy.welcomeGreeting(username: currentUsername))
                 Text(WatchChatCopy.welcomePrompt)
@@ -779,9 +786,7 @@ private struct WatchChatThreadView: View {
         VStack(spacing: 3) {
             HStack(spacing: 2) {
                 Button {
-                    recordingPreviewActive = false
-                    audioRecorder.cancelRecording()
-                    Task { await runtime.leaveChat() }
+                    cancelRecording()
                 } label: {
                     HStack(spacing: 2) {
                         Image(systemName: "chevron.left")
@@ -810,10 +815,10 @@ private struct WatchChatThreadView: View {
     private var recordingCard: some View {
         VStack(spacing: 0) {
             HStack(spacing: 5.5) {
-                ForEach(0..<17, id: \.self) { index in
+                ForEach(Array(audioRecorder.levels.enumerated()), id: \.offset) { _, level in
                     Capsule()
                         .fill(WatchChatPalette.foreground)
-                        .frame(width: 3, height: CGFloat([12, 22, 16, 29, 17, 26, 12][index % 7]))
+                        .frame(width: 3, height: .spacing2 + .spacing12 * CGFloat(level))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -821,7 +826,7 @@ private struct WatchChatThreadView: View {
             .padding(.top, 8)
             .accessibilityHidden(true)
 
-            Text(WatchChatCopy.recording)
+            Text(runtime.isPreparingRecordingDraft ? WatchStrings.transcribing : WatchChatCopy.recording)
                 .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
                 .foregroundStyle(WatchChatPalette.foreground)
                 .multilineTextAlignment(.center)
@@ -841,8 +846,7 @@ private struct WatchChatThreadView: View {
 
             HStack(spacing: 8) {
                 Button {
-                    recordingPreviewActive = false
-                    audioRecorder.cancelRecording()
+                    cancelRecording()
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 28, weight: .medium))
@@ -855,9 +859,9 @@ private struct WatchChatThreadView: View {
                 .accessibilityIdentifier("watch-audio-cancel-button")
 
                 Button {
-                    Task { await sendRecording() }
+                    finishRecording()
                 } label: {
-                    Text(WatchStrings.send)
+                    Text(WatchLocalization.text("enter_message.record_audio.finish"))
                         .font(.custom(FontRegistration.fontFamily, size: 16).weight(.medium))
                         .foregroundStyle(WatchChatPalette.foreground)
                         .frame(maxWidth: .infinity)
@@ -865,10 +869,24 @@ private struct WatchChatThreadView: View {
                         .background(WatchChatPalette.orange, in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(isSending)
-                .accessibilityIdentifier("watch-audio-send-button")
+                .disabled(isSending || runtime.isPreparingRecordingDraft)
+                .accessibilityIdentifier("watch-audio-finish-button")
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, .spacing2)
+            Button {
+                finishRecording(attachAudio: false)
+            } label: {
+                Text(WatchLocalization.text("watch.chats.insert_transcript_only"))
+                    .font(.omMicro).foregroundStyle(Color.fontButton)
+                    .padding(.spacing2).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .disabled(isSending || runtime.isPreparingRecordingDraft)
+            .accessibilityIdentifier("watch-audio-transcript-only-button")
+            if let error = runtime.errorMessage, pendingRecording != nil, !runtime.isPreparingRecordingDraft {
+                Text(error).font(.omMicro).foregroundStyle(Color.fontButton)
+                    .accessibilityIdentifier("watch-audio-draft-error")
+            }
         }
         .padding(.horizontal, .spacing4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -877,26 +895,106 @@ private struct WatchChatThreadView: View {
         .accessibilityIdentifier("watch-audio-recording-screen")
     }
 
-    private func sendRecording() async {
-        guard !isSending else { return }
-        let duration = audioRecorder.duration
-        guard let url = audioRecorder.stopRecording() else { return }
-        pendingRecording = (url, duration)
-        await retryRecording()
+    private var composerPolicy: WatchComposerControlPolicy {
+        WatchComposerControlPolicy(busy: isSending || audioRecorder.isArming || runtime.isPreparingRecordingDraft,
+            callOwnsAudio: callActions.projection.ownsAudio, hasRecordingDraft: runtime.hasSelectedRecordingDraft,
+            hasText: !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
-    private func retryRecording() async {
-        guard !isSending, let pendingRecording else { return }
-        isSending = true
-        defer { isSending = false }
-        guard let data = try? Data(contentsOf: pendingRecording.url) else {
-            self.pendingRecording = nil
-            return
+    private var composer: some View {
+        VStack(spacing: .spacing2) {
+            if callActions.projection.ownsAudio {
+                Text(WatchLocalization.text(callActions.projection.phase == .connecting ? "videocall.connecting" : "videocall.conversation")
+                     + " · " + callActions.projection.elapsedText)
+                    .font(.omMicro).foregroundStyle(Color.grey30)
+                    .accessibilityIdentifier("watch-call-state")
+            }
+            HStack(spacing: .spacing2) {
+                TextField(WatchStrings.messagePlaceholder, text: $draft)
+                    .textFieldStyle(.plain).controlSize(.small)
+                    .font(.omXs).foregroundStyle(Color.fontButton)
+                    .tint(Color.buttonPrimary)
+                    .focused($keyboardFocused)
+                    .frame(height: 38).clipped().contentShape(Rectangle())
+                    .disabled(!composerPolicy.canEdit)
+                    .accessibilityIdentifier("watch-message-input")
+                if composerPolicy.canSend {
+                    Button { sendDraft() } label: {
+                        Text(runtime.hasPendingVoiceCallTypedDraft ? WatchStrings.pendingSend : WatchStrings.send).font(.omMicro).fontWeight(.semibold)
+                            .foregroundStyle(Color.fontButton)
+                            .padding(.horizontal, .spacing2).padding(.vertical, .spacing1)
+                            .background(Color.buttonPrimary, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-message-send")
+                    .disabled(runtime.hasPendingVoiceCallTypedDraft)
+                }
+            }
+            .padding(.horizontal, .spacing4)
+            .background(Color.grey90, in: Capsule())
+            WatchComposerActionBar(policy: composerPolicy, call: callActions.projection, tint: WatchChatPalette.blue,
+                onCall: { keyboardFocused = false; Task { await runtime.activateCallAction() } },
+                onKeyboard: { keyboardFocused = true },
+                onRecord: {
+                    if callActions.projection.phase == .live {
+                        Task { await callActions.toggleMuted() }
+                        return
+                    }
+                    guard runtime.beginRecordingCapture() else { return }
+                    keyboardFocused = false
+                    Task { @MainActor in
+                        await audioRecorder.startRecording()
+                        if !audioRecorder.isRecording { runtime.endRecordingCapture() }
+                    }
+                })
         }
-        if await runtime.sendAudioRecording(data: data, filename: pendingRecording.url.lastPathComponent,
-                                            duration: pendingRecording.duration) {
-            try? FileManager.default.removeItem(at: pendingRecording.url)
-            self.pendingRecording = nil
+        .padding(.horizontal, .spacing4)
+        .accessibilityIdentifier("watch-composer")
+    }
+
+    private func sendDraft() {
+        guard composerPolicy.canSend else { return }
+        let text = draft
+        isSending = true
+        Task { @MainActor in
+            defer { isSending = false }
+            if await runtime.sendText(text), draft == text { draft = "" }
+        }
+    }
+
+    private func finishRecording(attachAudio: Bool = true) {
+        guard !isSending, !runtime.isPreparingRecordingDraft else { return }
+        if pendingRecording == nil {
+            let duration = min(30, audioRecorder.duration)
+            guard let url = audioRecorder.stopRecording() else { return }
+            pendingRecording = (url, duration)
+            runtime.endRecordingCapture()
+        }
+        guard let recording = pendingRecording else { return }
+        recordingTask = Task { @MainActor in
+            if await runtime.prepareRecordingDraft(fileURL: recording.url, duration: recording.duration, attachAudio: attachAudio) {
+                try? FileManager.default.removeItem(at: recording.url)
+                pendingRecording = nil
+                recordingPreviewActive = false
+                draft = runtime.selectedChatId.flatMap { runtime.composerDrafts[$0] } ?? draft
+                keyboardFocused = true
+            }
+        }
+    }
+
+    private func cancelRecording() {
+        recordingTask?.cancel()
+        let task = recordingTask
+        recordingTask = nil
+        let recording = pendingRecording
+        pendingRecording = nil
+        recordingPreviewActive = false
+        Task { @MainActor in
+            await runtime.cancelRecordingDraftPreparation()
+            await task?.value
+            if let recording { try? FileManager.default.removeItem(at: recording.url) }
+            audioRecorder.cancelRecording()
+            runtime.endRecordingCapture()
         }
     }
 
@@ -961,7 +1059,7 @@ private struct WatchChatHeader: View {
     }
 }
 
-private struct WatchChatRow: View {
+struct WatchChatRow: View {
     let chat: WatchChatSummary
 
     var body: some View {
@@ -986,7 +1084,7 @@ private struct WatchChatRow: View {
     }
 }
 
-private struct WatchMessageBubble: View {
+struct WatchMessageBubble: View {
     let message: WatchChatMessage
     let onOpenEmbed: (WatchEmbedPreviewModel) -> Void
     let loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)?
@@ -1053,12 +1151,13 @@ private struct WatchMessageBubble: View {
 
 /// This menu belongs to the viewport, not the message height. Long messages
 /// and embedded cards cannot move its actions underneath the fixed composer.
-private struct WatchMessageZoomControls: View {
+struct WatchMessageZoomControls: View {
     let onClose: () -> Void
-    let onShare: () -> Void
+    var onShare: (() -> Void)? = nil
     @AppStorage("watch.transcript.zoom") private var zoomLevel = 0
     var body: some View {
         VStack(spacing: .spacing2) {
+            if let onShare {
             Button(action: onShare) {
                 HStack(spacing: .spacing2) {
                     Icon("share", size: 18)
@@ -1066,6 +1165,7 @@ private struct WatchMessageZoomControls: View {
                 }.frame(maxWidth: .infinity, minHeight: 38).contentShape(Rectangle())
             }
             .accessibilityIdentifier("watch-message-share")
+            }
             HStack(spacing: .spacing2) {
             zoomButton(increase: false)
             zoomButton(increase: true)

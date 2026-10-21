@@ -1,5 +1,7 @@
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
 // Production sidebar content, independently renderable with in-memory inputs.
 // Web: chats/Chats.svelte .activity-history-wrapper/.group-title, chats/Chat.svelte.
 // Account loading/filtering, hidden-chat authentication and shell width stay with
@@ -16,7 +18,7 @@ import AppKit
 struct ChatSidebarDraftContext<Content: View>: View {
     @ObservedObject private var drafts = DraftService.shared
     @ViewBuilder let content: ([String: String]) -> Content
-    var body: some View { content(drafts.draftPreviews) }
+    var body: some View { content(drafts.displayDraftPreviews) }
 }
 
 struct ChatSidebarSection: Identifiable {
@@ -56,6 +58,37 @@ struct ChatSidebarContent<SearchContent: View>: View {
     let actions: ChatSidebarActions
     let refresh: () async -> Void
     @ViewBuilder let searchContent: () -> SearchContent
+
+    init(projectNavigation: ChatProjectNavigationContext? = nil, recentActiveChats: [Chat] = [],
+         revealRunningRequest: Int = 0, showsHiddenChatsButton: Bool = true,
+         processingChatIDs: Set<String> = [], userSections: [ChatSidebarSection],
+         publicSections: [ChatSidebarSection], selectedChatID: String?, draftPreviews: [String: String],
+         previewsAreFormatted: Bool = false, showSearch: Bool, emptyMessage: String?, loadMore: ChatSidebarLoadMore?,
+         actions: ChatSidebarActions, refresh: @escaping () async -> Void,
+         @ViewBuilder searchContent: @escaping () -> SearchContent) {
+        self.projectNavigation = projectNavigation
+        self.recentActiveChats = recentActiveChats
+        self.revealRunningRequest = revealRunningRequest
+        self.showsHiddenChatsButton = showsHiddenChatsButton
+        self.processingChatIDs = processingChatIDs
+        let previews = previewsAreFormatted ? draftPreviews : draftPreviews.mapValues { ChatDraftPreviewFormatter.format($0) }
+        self.draftPreviews = previews
+        self.userSections = userSections.compactMap { section in
+            let chats = section.chats.filter { chat in
+                ChatSidebarDisplayPolicy.isPresentationReady(chat, preview: previews[chat.id],
+                    processing: processingChatIDs.contains(chat.id) || projectNavigation?.runningIDs.contains(chat.id) == true)
+            }
+            return chats.isEmpty ? nil : ChatSidebarSection(id: section.id, title: section.title, chats: chats)
+        }
+        self.publicSections = publicSections
+        self.selectedChatID = selectedChatID
+        self.showSearch = showSearch
+        self.emptyMessage = emptyMessage
+        self.loadMore = loadMore
+        self.actions = actions
+        self.refresh = refresh
+        self.searchContent = searchContent
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -170,7 +203,7 @@ private struct ChatSidebarRowButton: View {
         Button {
             if !selectionGate.suppressSelection { onSelect() }
         } label: {
-            ChatListRow(chat: chat, suppliedDraftPreview: draftPreview, processing: processing, activeSubChatCount: activeSubChatCount)
+            ChatListRow(chat: chat, suppliedDraftPreview: draftPreview, processing: processing, activeSubChatCount: activeSubChatCount, previewIsFormatted: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(selected ? Color.grey0 : hovering ? Color.grey10 : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 8))

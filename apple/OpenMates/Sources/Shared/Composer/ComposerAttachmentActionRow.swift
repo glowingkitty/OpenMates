@@ -1,3 +1,10 @@
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.actions.visibility, message-input.layout.responsive-parity
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+// CSS: ActionButtons.svelte — .action-buttons, .right-buttons, .send-button
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 import SwiftUI
 
 // Measured ActionButtons.svelte:176x180 menu,4x41 rows,padding8,radius20.
@@ -38,8 +45,10 @@ struct ComposerAttachmentActionRow<Model: View, Speech: View, Record: View, Subm
             model()
             Spacer(minLength: 0)
             speech()
-            submit()
+            // Keep the record control mounted in one slot as Send appears or
+            // disappears, preserving its press/hold gesture lifecycle.
             record()
+            submit()
         }.frame(height: 40).padding(.horizontal, 16).padding(.bottom, 16)
     }
     private var menu: some View {

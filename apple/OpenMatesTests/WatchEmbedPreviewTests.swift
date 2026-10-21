@@ -7,6 +7,24 @@ import CryptoKit
 @testable import OpenMates
 
 final class WatchEmbedPreviewTests: XCTestCase {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-watch.embeds.read-only-fullscreen
+    func testRetainedMediaIdentityBindsChatHydratedContentAndVersionAndValidatesRealThumbnail() throws {
+        func model(chat: String, url: String = "https://example.invalid/image.png", version: Int = 1) -> WatchEmbedPreviewModel {
+            WatchEmbedPreviewMapper.makeModel(for: WatchEmbedRef(id: "image", type: "image", status: "finished", data: [
+                "thumbnail_url": AnyCodable(url), "version_number": AnyCodable(version)]), chatId: chat)
+        }
+        let original = try XCTUnwrap(model(chat: "chat").detailContent.retainedMediaKey)
+        XCTAssertEqual(original, model(chat: "chat").detailContent.retainedMediaKey)
+        XCTAssertNotEqual(original, model(chat: "other").detailContent.retainedMediaKey)
+        XCTAssertNotEqual(original, model(chat: "chat", version: 2).detailContent.retainedMediaKey)
+        XCTAssertNotEqual(original, model(chat: "chat", url: "https://example.invalid/changed.png").detailContent.retainedMediaKey)
+        XCTAssertFalse(original.contains("https")); XCTAssertFalse(original.contains("chat"))
+        XCTAssertTrue(WatchRetainedMedia.validThumbnail(WatchOfflineFixtureTransport.thumbnail))
+        XCTAssertFalse(WatchRetainedMedia.validThumbnail(Data("not an image".utf8)))
+        XCTAssertFalse(WatchRetainedMedia.validThumbnail(Data(repeating: 0, count: WatchRetainedMedia.thumbnailLimit + 1)))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testEveryRegisteredPreviewGlyphPolicyAcceptsCanonicalAndGenericWireIdentity() {
         XCTAssertFalse(GeneratedWebEmbedPreviewIconPolicy.assets.isEmpty)

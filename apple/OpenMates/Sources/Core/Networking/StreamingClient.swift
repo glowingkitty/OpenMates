@@ -129,6 +129,9 @@ actor StreamingClient {
         case chunk(chatId: String, messageId: String, sequence: Int, content: String, isFinal: Bool, userMessageId: String?, category: String?, modelName: String?, rejectionReason: String?)
         case thinkingChunk(chatId: String, messageId: String, content: String)
         case thinkingComplete(chatId: String, messageId: String)
+        /// Local typed projection of existing ai_message_update finality fields.
+        /// Emitted immediately before its final chunk; not a new wire message.
+        case messageFinality(chatId: String, messageId: String, taskId: String?, continuesTurn: Bool)
         case messageReady(chatId: String, messageId: String)
         case preprocessingStep(chatId: String, step: String, data: [String: Any]?)
         case typingEnded(chatId: String, messageId: String?)
@@ -208,10 +211,11 @@ actor StreamingClient {
             for stream in streams.values { stream.continuation.yield(event) }
         }
         pruneReplay()
+        let activityEvent = entry.snapshot.activityEvent(for: event)
         await MainActor.run {
             guard self.sessionGate.isCurrent(expected), !Task.isCancelled,
                   let scope = ActiveChatsCoordinator.shared.currentScope else { return }
-            ActiveChatsCoordinator.shared.consume(event, chatID: chatId, scope: scope)
+            if let activityEvent { ActiveChatsCoordinator.shared.consume(activityEvent, chatID: chatId, scope: scope) }
         }
     }
     func dispatchToAll(_ event: StreamEvent, session: StreamingSessionGeneration? = nil) {
@@ -258,8 +262,9 @@ actor StreamingClient {
 /// Reuses the real consumer lifecycle to reject stale/out-of-order replay chunks.
 private struct ChatStreamReplaySnapshot {
     private enum Slot: Hashable {
-        case task, typing, chunk, thinking, thinkingComplete, ready, preprocessing,
-             ended, queued, cancel, postProcessing, error
+        case task, typing, chunk, thinking, thinkingComplete, ready,
+             ended, queued, cancel, postProcessing, finality, error
+        case preprocessing(String)
     }
     private struct Entry { let order: UInt64; let event: StreamingClient.StreamEvent }
     private var entries: [Slot: Entry] = [:]
@@ -271,6 +276,21 @@ private struct ChatStreamReplaySnapshot {
     private var category: String?
     private var modelName: String?
     private var rejectionReason: String?
+
+    func activityEvent(for event: StreamingClient.StreamEvent) -> StreamingClient.StreamEvent? {
+        if lifecycle.awaitsAsyncSkillContinuation {
+            switch event {
+            case .messageReady, .typingEnded: return nil
+            default: break
+            }
+        }
+        if case .chunk(let chat, let id, let sequence, let content, let final, let user, let category, let model, let rejection) = event,
+           final, lifecycle.awaitsAsyncSkillContinuation {
+            return .chunk(chatId: chat, messageId: id, sequence: sequence, content: content,
+                isFinal: false, userMessageId: user, category: category, modelName: model, rejectionReason: rejection)
+        }
+        return event
+    }
 
     var events: [StreamingClient.StreamEvent] { entries.values.sorted { $0.order < $1.order }.map(\.event) }
     func replayEvents(excludingMaterializedFinalMessageIDs messageIDs: Set<String>) -> [StreamingClient.StreamEvent] {
@@ -345,8 +365,9 @@ private struct ChatStreamReplaySnapshot {
             slot = .thinking
             replayEvent = .thinkingChunk(chatId: chat, messageId: id, content: lifecycle.thinkingContent)
         case .thinkingComplete: slot = .thinkingComplete
+        case .messageFinality: slot = .finality
         case .messageReady: slot = .ready
-        case .preprocessingStep: slot = .preprocessing
+        case .preprocessingStep(_, let step, _): slot = .preprocessing(step)
         case .typingEnded: slot = .ended
         case .messageQueued: slot = .queued
         case .cancelRequested: slot = .cancel
@@ -414,6 +435,7 @@ final class OrderedStreamEventDispatcher {
         }
     }
     func enqueue(_ event: StreamingClient.StreamEvent, for chatId: String) {
+        NativeChatSendTiming.shared.serverEventReceived(event, chatID: chatId)
         pendingEvents.append((event, chatId, client.sessionGeneration))
         guard drainTask == nil else { return }
         let expectedGeneration = generation

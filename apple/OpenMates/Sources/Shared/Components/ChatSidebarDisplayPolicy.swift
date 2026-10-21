@@ -1,7 +1,7 @@
 // Display-only counterpart for chats/Chats.svelte and utils/chatGroupUtils.ts.
 // Sorting, hidden/subchat filtering and static sections remain with the caller.
 // Specification: specifications/architecture/drafts/specification.yml
-// Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative
+// Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative, drafts.established-chat.presentation-unchanged
 import Foundation
 
 enum ChatSidebarDisplayPolicy {
@@ -13,13 +13,40 @@ enum ChatSidebarDisplayPolicy {
             chat.teamId == teamID && chat.parentId == nil && chat.isSubChat != true
     }
 
+    static func hasGeneratedMetadata(_ chat: Chat) -> Bool {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return (!title.isEmpty && title.lowercased() != "untitled chat") || (chat.titleV ?? 0) > 0 ||
+            [chat.encryptedTitle, chat.chatSummary, chat.encryptedChatSummary, chat.category,
+             chat.encryptedCategory, chat.icon, chat.encryptedIcon].contains { $0?.isEmpty == false }
+    }
+
+    static func hasChatContent(_ chat: Chat) -> Bool {
+        (chat.messagesV ?? 0) > 0 || chat.lastVisibleMessageId != nil || hasGeneratedMetadata(chat)
+    }
+
+    /// A legacy/partial metadata record can omit presence while its saved preview
+    /// is already readable. Explicit false always fences a stale cached preview.
+    static func hasDraftContent(_ chat: Chat, preview: String?) -> Bool {
+        chat.hasNonEmptyDraft ?? (preview?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+    }
+
+    /// Input is already formatted at the draft update or renderer initialization
+    /// boundary. No JSON/markdown parsing or persistence belongs in this predicate.
+    static func isPresentationReady(_ chat: Chat, preview: String?, processing: Bool = false) -> Bool {
+        if processing || (chat.messagesV ?? 0) > 0 || chat.lastVisibleMessageId != nil { return true }
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !title.isEmpty && title.lowercased() != "untitled chat" { return true }
+        // Generated identity still waiting to decrypt must not become New Chat.
+        guard !hasGeneratedMetadata(chat) else { return false }
+        return hasDraftContent(chat, preview: preview) && preview?.isEmpty == false
+    }
+
     /// The web draft-only row has no title/profile, only its status and preview.
     static func isDraftOnly(_ chat: Chat, preview: String?) -> Bool {
         let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let hasTitle = !title.isEmpty && title.lowercased() != "untitled chat"
-        let hasDraft = chat.hasNonEmptyDraft
-            ?? (preview?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
-        return hasDraft && !hasTitle && (chat.messagesV ?? 0) == 0 && chat.lastVisibleMessageId == nil
+        let hasDraft = hasDraftContent(chat, preview: preview)
+        return hasDraft && !hasTitle && !hasGeneratedMetadata(chat) && (chat.messagesV ?? 0) == 0 && chat.lastVisibleMessageId == nil
     }
 
     /// Web category badges hide while processing and cap their numeral at 9+.

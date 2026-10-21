@@ -1,9 +1,108 @@
 import CryptoKit
+import Combine
 import XCTest
 @testable import OpenMates
 
 @MainActor
 final class ProjectsWorkspaceTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.focus.inferred-consent
+    func testRequestContextPreparationReusesFreshFocusWithoutPendingConsent() async throws {
+        let store = PendingProjectFocusStore()
+        var focusReads = 0
+        let first = Data(#"{"focus":null}"#.utf8)
+        let prepared = try await NativeProjectAuthoringClient.prepareRequestContext(
+            acceptedPlan: { nil }, personalRules: { Data("[]".utf8) },
+            currentFocus: { focusReads += 1; return first },
+            clearInactiveFocus: { _ in store.clearAfterNoActiveBase(chatID: "chat") },
+            confirmPending: { try await store.confirmBeforeContext(chatID: "chat") })
+        XCTAssertEqual(focusReads, 1, "An ordinary send needs one fresh metadata read before any Project bodies")
+        XCTAssertEqual(prepared.currentFocus, first)
+        XCTAssertNil(prepared.acceptedPlan)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.focus.inferred-consent,focus-modes.countdown
+    func testRequestContextPreparationRefreshesBindingAfterPendingActivation() async throws {
+        let store = PendingProjectFocusStore(), scope = UUID()
+        let projectID = "11111111-1111-4111-8111-111111111111"
+        let embedID = UUID().uuidString.lowercased()
+        var activated = false, focusReads = 0
+        store.configure(scope: scope, complete: { record in
+            try store.beginCommit(record)
+            activated = true
+        }, reject: { _ in XCTFail("Accepted pending focus must not be rejected") })
+        defer { store.reset() }
+        store.ingest(fields: ["chat_id": "chat", "embed_id": embedID,
+            "focus_id": "project-" + projectID, "expires_at": Date().timeIntervalSince1970 - 1], scope: scope)
+        let previous = Data(#"{"focus":null}"#.utf8)
+        let current = Data(("{\"focus\":{\"active\":true,\"project_id\":\"" + projectID + "\"}}").utf8)
+        let prepared = try await NativeProjectAuthoringClient.prepareRequestContext(
+            acceptedPlan: { nil }, personalRules: { Data("[]".utf8) },
+            currentFocus: {
+                focusReads += 1
+                if focusReads == 1 { return previous }
+                XCTAssertTrue(activated, "A second read must follow actual accepted activation")
+                XCTAssertEqual(store.entry(chatID: "chat", embedID: embedID)?.status, .activated)
+                return current
+            }, clearInactiveFocus: { _ in store.clearAfterNoActiveBase(chatID: "chat") },
+            confirmPending: { try await store.confirmBeforeContext(chatID: "chat") })
+        XCTAssertEqual(focusReads, 2)
+        XCTAssertEqual(prepared.currentFocus, current, "Pre-activation authority cannot supply the Project context")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,chats.direction.reviewed-correction
+    func testRequestContextPreparationStartsIndependentReadsBeforeEitherCompletes() async throws {
+        let planStarted = expectation(description: "Plan read started")
+        let focusStarted = expectation(description: "Focus read started")
+        let rulesPrepared = expectation(description: "Local rules prepared")
+        var planContinuation: CheckedContinuation<Data?, Never>?
+        var focusContinuation: CheckedContinuation<Data, Never>?
+        var released = false
+        let plan = Data(#"{"summary":"Approved goal"}"#.utf8)
+        let focus = Data(#"{"focus":null}"#.utf8)
+        let operation = Task {
+            try await NativeProjectAuthoringClient.prepareRequestContext(
+                acceptedPlan: {
+                    planStarted.fulfill()
+                    if released { return plan }
+                    return await withCheckedContinuation { planContinuation = $0 }
+                }, personalRules: { rulesPrepared.fulfill(); return Data("[]".utf8) },
+                currentFocus: {
+                    focusStarted.fulfill()
+                    if released { return focus }
+                    return await withCheckedContinuation { focusContinuation = $0 }
+                }, clearInactiveFocus: { _ in }, confirmPending: { false })
+        }
+        await fulfillment(of: [planStarted, focusStarted, rulesPrepared], timeout: 2)
+        released = true
+        planContinuation?.resume(returning: plan)
+        focusContinuation?.resume(returning: focus)
+        let prepared = try await operation.value
+        XCTAssertEqual(prepared.acceptedPlan, plan)
+        XCTAssertEqual(prepared.currentFocus, focus)
+        XCTAssertEqual(prepared.personalRules, Data("[]".utf8))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.focus.inferred-consent,focus-modes.countdown
+    func testRequestContextPreparationRejectsCancelledConsentWithoutRefreshing() async throws {
+        let store = PendingProjectFocusStore(), scope = UUID()
+        let embedID = UUID().uuidString.lowercased()
+        var focusReads = 0
+        store.configure(scope: scope, complete: { _ in XCTFail("Cancelled focus cannot activate") }, reject: { _ in })
+        defer { store.reset() }
+        store.ingest(fields: ["chat_id": "chat", "embed_id": embedID,
+            "focus_id": "project-11111111-1111-4111-8111-111111111111",
+            "expires_at": Date().timeIntervalSince1970 + 60], scope: scope)
+        store.cancel(chatID: "chat", embedID: embedID)
+        do {
+            _ = try await NativeProjectAuthoringClient.prepareRequestContext(
+                acceptedPlan: { nil }, personalRules: { Data("[]".utf8) },
+                currentFocus: { focusReads += 1; return Data(#"{"focus":{"active":true}}"#.utf8) },
+                clearInactiveFocus: { _ in }, confirmPending: { try await store.confirmBeforeContext(chatID: "chat") })
+            XCTFail("Cancelled consent cannot return a context snapshot")
+        } catch {}
+        XCTAssertEqual(focusReads, 1, "Rejected consent must stop before any post-confirmation read")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
     func testAllContextMaintenanceResumeSkipsCompletedPersonalAndTeamInventories() throws {
         var scheduler = NativeWorkspaceAllContextMaintenancePolicy()
@@ -652,13 +751,13 @@ final class ProjectsWorkspaceTests: XCTestCase {
             capabilities: ["read"], status: status, sessionID: "source-session", keyEpoch: 1)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context,projects.files.connected-embed-previews
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,projects.access.explicit-context,projects.files.connected-embed-previews
     func testSourceRefreshRecoversPresenceAndClosesDisconnectedBrowser() async {
         let service = ProjectsWorkspaceMockService()
         let project = makeProject(id: "source-project", name: "Project")
         func source(_ status: String, session: String?) -> ProjectWorkspaceSource {
             ProjectWorkspaceSource(id: "source", kind: "local_git_repository", name: "Source",
-                metadata: [:], capabilities: [], status: status, sessionID: session, keyEpoch: session == nil ? nil : 1)
+                metadata: [:], capabilities: ["read"], status: status, sessionID: session, keyEpoch: session == nil ? nil : 1)
         }
         service.listResult = [project]
         service.contentsResult = ProjectWorkspaceContents(folders: [], items: [],
@@ -667,7 +766,11 @@ final class ProjectsWorkspaceTests: XCTestCase {
         await store.load(accountId: "account-a")
         await store.selectProject(project.id)
         await store.openRemoteSource("source")
-        XCTAssertNil(store.activeRemoteSourceID, "An offline source cannot open a browser")
+        XCTAssertEqual(store.activeRemoteSourceID, "source", "Readable offline sources open a metadata-only browser")
+        XCTAssertTrue(store.remoteMetadataOnly)
+        XCTAssertTrue(store.remoteEntries.isEmpty, "Missing cached metadata must not invent directory entries")
+        XCTAssertNotNil(store.remoteError, "An uncached offline source must expose unavailable content")
+        XCTAssertNil(store.sources.first?.sessionID, "Offline browsing must not restore live source authority")
 
         service.sourcesResult = [source("connected", session: "session-one")]
         await store.refreshSourceStatus()
@@ -1805,7 +1908,10 @@ final class ProjectsWorkspaceTests: XCTestCase {
         await reopened.configure(scope: scope, masterKey: masterKey)
         let restored = try await reopened.projectReadme(projectID: project.id, binding: binding, scope: scope)
         XCTAssertEqual(restored?.markdown, document.markdown)
-        XCTAssertEqual(restored?.images["logo.png"], image)
+        XCTAssertTrue(restored?.images.isEmpty == true, "Metadata reopen must not materialize original images")
+        let restoredImage = try await reopened.projectReadmeImage(source: "logo.png", document: document,
+            projectID: project.id, binding: binding, scope: scope)
+        XCTAssertEqual(restoredImage, image)
         XCTAssertNil(restored?.document.sourceSessionID, "Device retention must never preserve live request authority")
         let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)!.allObjects.compactMap { $0 as? URL }
         for file in files where file.pathExtension == "aesgcm" {
@@ -1843,7 +1949,7 @@ final class ProjectsWorkspaceTests: XCTestCase {
         await cache.configure(scope: scope, masterKey: SymmetricKey(size: .bits256))
         let document = ProjectWorkspaceReadme(markdown: "First", truncated: false, origin: "stored")
         try await cache.retainProjectReadme(document, projectID: "p", binding: "metadata", scope: scope)
-        for index in 0..<9 {
+        for index in 0..<12 {
             try await cache.retainProjectReadmeImage(Data([UInt8(index)]), source: "image-\(index)",
                 document: document, projectID: "p", binding: "metadata", scope: scope)
         }
@@ -1853,8 +1959,12 @@ final class ProjectsWorkspaceTests: XCTestCase {
             XCTFail("Oversized images must be rejected")
         } catch { }
         let bounded = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
-        XCTAssertEqual(bounded?.images.count, 8)
-        XCTAssertEqual(bounded?.images["image-0"], Data([0]))
+        XCTAssertTrue(bounded?.images.isEmpty == true)
+        for index in 0..<12 {
+            let bytes = try await cache.projectReadmeImage(source: "image-\(index)", document: document,
+                projectID: "p", binding: "metadata", scope: scope)
+            XCTAssertEqual(bytes, Data([UInt8(index)]), "Every eligible image, including those after eight, reopens independently")
+        }
         let gate = WorkspaceOfflineGETGate()
         let cancelled = Task {
             _ = await gate.fetch()
@@ -1868,7 +1978,9 @@ final class ProjectsWorkspaceTests: XCTestCase {
         catch is CancellationError { }
         let preserved = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
         XCTAssertEqual(preserved?.markdown, "First")
-        XCTAssertEqual(preserved?.images.count, 8)
+        let preservedLastImage = try await cache.projectReadmeImage(source: "image-11", document: document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(preservedLastImage, Data([11]))
         let changed = ProjectWorkspaceReadme(markdown: "Changed", truncated: false, origin: "stored")
         try await cache.retainProjectReadme(changed, projectID: "p", binding: "metadata", scope: scope)
         try await cache.retainProjectReadmeImage(Data([9]), source: "stale-image", document: document,
@@ -1876,6 +1988,250 @@ final class ProjectsWorkspaceTests: XCTestCase {
         let replaced = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
         XCTAssertEqual(replaced?.markdown, "Changed")
         XCTAssertEqual(replaced?.images.count, 0, "Late images cannot attach to a replacement README")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,apple-workspaces.isolation
+    func testLegacyReadmeImageMigrationFailurePreservesReadableBytesThenRetries() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = maintenanceScope()
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        let key = SymmetricKey(size: .bits256)
+        await cache.configure(scope: scope, masterKey: key)
+        let legacy = ProjectReadmeOfflineSnapshot(binding: "metadata", markdown: "![Logo](logo.png)", truncated: false,
+            origin: "stored", sourceID: nil, sourceKeyEpoch: nil, images: ["logo.png": Data([1, 2, 3])])
+        try await cache.retain(namespace: "project-readme:p", path: "document", data: JSONEncoder().encode(legacy), scope: scope)
+        let imageRoot = directory.appendingPathComponent(scope.directoryID).appendingPathComponent("readme-images")
+        try Data([0]).write(to: imageRoot) // Force the new object directory creation to fail.
+        let read = try await cache.projectReadmeImage(source: "logo.png", document: legacy.document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(read, Data([1, 2, 3]))
+        let unchangedData = try await cache.read(namespace: "project-readme:p", path: "document", scope: scope)
+        let unchanged = try XCTUnwrap(unchangedData)
+        XCTAssertEqual(try JSONDecoder().decode(ProjectReadmeOfflineSnapshot.self, from: unchanged).images, legacy.images,
+                       "A failed migration must preserve the complete legacy envelope")
+        try FileManager.default.removeItem(at: imageRoot)
+        let migrated = try await cache.projectReadmeImage(source: "logo.png", document: legacy.document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(migrated, read)
+        let compact = try await cache.read(namespace: "project-readme:p", path: "document", scope: scope)
+        let compactData = try XCTUnwrap(compact)
+        XCTAssertTrue(try JSONDecoder().decode(ProjectReadmeOfflineSnapshot.self, from: compactData).images.isEmpty)
+        let reopened = NativeWorkspaceOfflineCache(directory: directory)
+        await reopened.configure(scope: scope, masterKey: key)
+        let restored = try await reopened.projectReadmeImage(source: "logo.png", document: legacy.document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(restored, read)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,apple-workspaces.isolation
+    func testLegacyReadmeCompactionRetriesObjectHitAfterSecondWriteFailureAndReopen() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = maintenanceScope()
+        let key = SymmetricKey(size: .bits256)
+        let fault = ReadmeMetadataWriteFault()
+        let cache = NativeWorkspaceOfflineCache(directory: directory, writeCiphertext: { data, url in try fault.write(data, to: url) })
+        await cache.configure(scope: scope, masterKey: key)
+        let legacy = ProjectReadmeOfflineSnapshot(binding: "metadata", markdown: "![Logo](logo.png)", truncated: false,
+            origin: "stored", sourceID: nil, sourceKeyEpoch: nil, images: ["logo.png": Data([1, 2, 3])])
+        try await cache.retain(namespace: "project-readme:p", path: "document", data: JSONEncoder().encode(legacy), scope: scope)
+        fault.setFailingMetadata(true)
+        let migrated = try await cache.projectReadmeImage(source: "logo.png", document: legacy.document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(migrated, legacy.images["logo.png"])
+        XCTAssertEqual(fault.imageWrites, 1, "The independent object write must succeed before the injected metadata failure")
+        XCTAssertEqual(fault.failedMetadataWrites, 1)
+        let retained = try await cache.read(namespace: "project-readme:p", path: "document", scope: scope)
+        XCTAssertEqual(try JSONDecoder().decode(ProjectReadmeOfflineSnapshot.self, from: XCTUnwrap(retained)).images, legacy.images)
+        let reopened = NativeWorkspaceOfflineCache(directory: directory, writeCiphertext: { data, url in try fault.write(data, to: url) })
+        await reopened.configure(scope: scope, masterKey: key)
+        let stillReadable = try await reopened.projectReadmeImage(source: "logo.png", document: legacy.document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(stillReadable, migrated, "An object hit remains readable while compaction still fails")
+        XCTAssertEqual(fault.imageWrites, 1, "An existing image must not be rewritten to retry metadata")
+        XCTAssertEqual(fault.failedMetadataWrites, 2, "Reopening an object hit must retry the failed second write")
+        fault.setFailingMetadata(false)
+        let recovered = try await reopened.projectReadmeImage(source: "logo.png", document: legacy.document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(recovered, migrated)
+        let compacted = try await reopened.read(namespace: "project-readme:p", path: "document", scope: scope)
+        XCTAssertTrue(try JSONDecoder().decode(ProjectReadmeOfflineSnapshot.self, from: XCTUnwrap(compacted)).images.isEmpty)
+        XCTAssertEqual(fault.imageWrites, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.local-first
+    func testReadmeImageViewportResidencyBoundsEagerParagraphListAndTableRows() {
+        let viewport = CGRect(x: 0, y: 0, width: 390, height: 844)
+        // These rows are all mounted, as in one large paragraph/list/Grid.
+        let rows = (0..<100).map { CGRect(x: 0, y: CGFloat($0) * 200, width: 350, height: 180) }
+        let initiallyVisible = rows.indices.filter { ProjectReadmeImageResidency.isVisible(frame: rows[$0], viewport: viewport) }
+        XCTAssertEqual(initiallyVisible, [0, 1, 2, 3, 4])
+        XCTAssertFalse(ProjectReadmeImageResidency.isVisible(frame: rows[99], viewport: viewport))
+        let afterScroll = rows.map { $0.offsetBy(dx: 0, dy: -19_800) }
+        let visibleAfterScroll = afterScroll.indices.filter { ProjectReadmeImageResidency.isVisible(frame: afterScroll[$0], viewport: viewport) }
+        XCTAssertEqual(visibleAfterScroll, [99], "The last image is eligible on entry without retaining earlier eager rows")
+        XCTAssertFalse(ProjectReadmeImageResidency.isVisible(frame: afterScroll[0], viewport: viewport))
+        let tableViewport = ProjectReadmeImageResidency.clipped(viewport, to: CGRect(x: 20, y: 20, width: 250, height: 500))
+        XCTAssertFalse(ProjectReadmeImageResidency.isVisible(frame: CGRect(x: 280, y: 30, width: 80, height: 80), viewport: tableViewport),
+                       "A cell inside the window but outside a narrower horizontal table clip cannot retain pixels")
+        XCTAssertTrue(ProjectReadmeImageResidency.isVisible(frame: CGRect(x: 30, y: 30, width: 80, height: 80), viewport: tableViewport))
+        XCTAssertFalse(ProjectReadmeImageResidency.isVisible(frame: rows[0], viewport: .zero))
+        XCTAssertFalse(ProjectReadmeImageResidency.isVisible(frame: rows[0], viewport: .infinite))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.isolation
+    func testAllReadmeImageObjectsReopenWithinScopeAndRejectLateOldDocumentWrites() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = maintenanceScope()
+        let key = SymmetricKey(size: .bits256)
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        await cache.configure(scope: scope, masterKey: key)
+        let old = ProjectWorkspaceReadme(markdown: "Old", truncated: false, origin: "stored")
+        let current = ProjectWorkspaceReadme(markdown: "Current", truncated: false, origin: "connected", sourceID: "host", sourceKeyEpoch: 2)
+        try await cache.retainProjectReadme(old, projectID: "p", binding: "metadata", scope: scope)
+        try await cache.retainProjectReadmeImage(Data([1]), source: "old.png", document: old, projectID: "p", binding: "metadata", scope: scope)
+        try await cache.retainProjectReadme(current, projectID: "p", binding: "metadata", scope: scope)
+        for index in 0..<12 {
+            try await cache.retainProjectReadmeImage(Data([UInt8(index)]), source: "image-\(index).png", document: current,
+                projectID: "p", binding: "metadata", scope: scope)
+        }
+        try await cache.retainProjectReadmeImage(Data([99]), source: "image-11.png", document: old,
+            projectID: "p", binding: "metadata", scope: scope)
+        let reopened = NativeWorkspaceOfflineCache(directory: directory)
+        await reopened.configure(scope: scope, masterKey: key)
+        for index in 0..<12 {
+            let bytes = try await reopened.projectReadmeImage(source: "image-\(index).png", document: current,
+                projectID: "p", binding: "metadata", scope: scope)
+            XCTAssertEqual(bytes, Data([UInt8(index)]))
+        }
+        let stale = try await reopened.projectReadmeImage(source: "old.png", document: old, projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertNil(stale)
+        let rotated = try await reopened.projectReadmeImage(source: "image-11.png", document: current, projectID: "p", binding: "rotated-project-key", scope: scope)
+        XCTAssertNil(rotated)
+        let imageRoot = directory.appendingPathComponent(scope.directoryID).appendingPathComponent("readme-images")
+        let projectDirs = try FileManager.default.contentsOfDirectory(at: imageRoot, includingPropertiesForKeys: nil)
+        XCTAssertEqual(projectDirs.count, 1)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(at: projectDirs[0], includingPropertiesForKeys: nil).count, 1,
+                       "Successful replacement prunes the old document generation; a late old-image write cannot resurrect it")
+        for foreign in [NativeWorkspaceOfflineScope(accountID: "other", server: scope.server, teamID: scope.teamID, accountGeneration: UUID(), teamEpoch: 0),
+                        NativeWorkspaceOfflineScope(accountID: scope.accountID, server: "https://other.invalid", teamID: scope.teamID, accountGeneration: UUID(), teamEpoch: 0),
+                        NativeWorkspaceOfflineScope(accountID: scope.accountID, server: scope.server, teamID: "other-team", accountGeneration: UUID(), teamEpoch: 1)] {
+            await reopened.configure(scope: foreign, masterKey: key)
+            let unavailable = try await reopened.projectReadmeImage(source: "image-11.png", document: current,
+                projectID: "p", binding: "metadata", scope: foreign)
+            XCTAssertNil(unavailable)
+        }
+        await reopened.configure(scope: scope, masterKey: key)
+        try await reopened.clearProjectReadme(projectID: "p", scope: scope)
+        let cleared = try await reopened.projectReadmeImage(source: "image-11.png", document: current, projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertNil(cleared)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(at: projectDirs[0], includingPropertiesForKeys: nil).count, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,apple-workspaces.maintenance
+    func testPartialAndOfflineReadmeMaintenancePreservesAllPreviouslyRetainedImages() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = maintenanceScope()
+        let cache = NativeWorkspaceOfflineCache(directory: directory)
+        await cache.configure(scope: scope, masterKey: SymmetricKey(size: .bits256))
+        let document = ProjectWorkspaceReadme(markdown: (0..<12).map { "![Image \($0)](image-\($0).png)" }.joined(separator: "\n\n"),
+            truncated: false, origin: "stored")
+        for id in ["partial", "offline"] {
+            try await cache.retainProjectReadme(document, projectID: id, binding: "metadata", scope: scope)
+            for index in 0..<12 {
+                try await cache.retainProjectReadmeImage(Data([UInt8(index)]), source: "image-\(index).png", document: document,
+                    projectID: id, binding: "metadata", scope: scope)
+            }
+        }
+        var cleared = 0
+        let complete = try await ProjectReadmeOfflineMaintenance.fill(projectIDs: ["partial", "offline"], load: { id in
+            if id == "offline" { throw ProjectsWorkspaceError.sourceOffline }
+            return document
+        }, readImage: { _, _, source in
+            if source == "image-11.png" { throw URLError(.networkConnectionLost) }
+            return Data([42])
+        }, save: { id, readme in
+            try await cache.retainProjectReadme(readme, projectID: id, binding: "metadata", scope: scope)
+        }, saveImage: { id, readme, source, bytes in
+            try await cache.retainProjectReadmeImage(bytes, source: source, document: readme, projectID: id, binding: "metadata", scope: scope)
+        }, clear: { _ in cleared += 1 }, validate: {})
+        XCTAssertFalse(complete)
+        XCTAssertEqual(cleared, 0)
+        for id in ["partial", "offline"] {
+            let last = try await cache.projectReadmeImage(source: "image-11.png", document: document,
+                projectID: id, binding: "metadata", scope: scope)
+            XCTAssertEqual(last, Data([11]), "A failed refresh after image eight and an offline host both preserve prior bounded bytes")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.isolation,apple-workspaces.local-first
+    func testReadmePresentationIdentityRejectsSameURLAfterProjectKeyAndAccountChanges() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "same-project", name: "Project")
+        service.listResult = [project]
+        service.cachedContentsResult = .init(folders: [], items: [], sources: [])
+        service.contentsError = URLError(.notConnectedToInternet)
+        service.cachedReadmeResult = .init(binding: "fixture", markdown: "![Logo](same.png)", truncated: false,
+            origin: "stored", sourceID: nil, sourceKeyEpoch: nil, images: [:])
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "account-a")
+        await store.selectProject(project.id)
+        guard case .ready(let document) = store.readme else { return XCTFail("Cached document required") }
+        let original = store.readmePresentationIdentity(document)
+        try await store.validateReadmePresentation(document, identity: original)
+        XCTAssertEqual(store.readmePresentationIdentity(document), original, "Ordinary validation must keep row identity stable")
+        service.listResult = [makeProject(id: project.id, name: project.name)] // Same URL and ID, different Project key.
+        await store.load(accountId: "account-a")
+        XCTAssertNotEqual(store.readmePresentationIdentity(document), original)
+        do { try await store.validateReadmePresentation(document, identity: original); XCTFail("Old decoded pixels must reject a new Project key") }
+        catch { guard case .accountChanged? = error as? ProjectsWorkspaceError else { return XCTFail("Expected presentation fence rejection") } }
+        store.reset(accountId: "account-b")
+        XCTAssertNotEqual(store.readmePresentationIdentity(document), original)
+        do { try await store.validateReadmePresentation(document, identity: original); XCTFail("Old decoded pixels must reject a new account") }
+        catch { guard case .accountChanged? = error as? ProjectsWorkspaceError else { return XCTFail("Expected presentation fence rejection") } }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.maintenance,apple-workspaces.isolation
+    func testReadmeForegroundImageQueueSerializesEveryReferenceAndSkipsCancelledRows() async throws {
+        let queue = ProjectReadmeImageLoadQueue()
+        let gate = WorkspaceOfflineGETGate()
+        var active = 0, maximumActive = 0, dispatched: [String] = []
+        let first = Task { try await queue.load("first") { source in
+            dispatched.append(source)
+            active += 1; maximumActive = max(maximumActive, active)
+            let bytes = await gate.fetch()
+            active -= 1
+            return bytes
+        } }
+        await gate.waitUntilStarted()
+        let cancelled = Task { try await queue.load("cancelled") { source in
+            dispatched.append(source)
+            return Data([99])
+        } }
+        let remaining = (0..<12).map { index in Task { try await queue.load("image-\(index)") { source in
+            dispatched.append(source)
+            active += 1; maximumActive = max(maximumActive, active)
+            await Task.yield()
+            active -= 1
+            return Data([UInt8(index)])
+        } } }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(dispatched, ["first"], "Visible rows must not fan out while an image read is suspended")
+        cancelled.cancel()
+        do { _ = try await cancelled.value; XCTFail("Cancelled queued rows must stop before a read") }
+        catch is CancellationError { }
+        await gate.finish()
+        _ = try await first.value
+        for (index, request) in remaining.enumerated() {
+            let bytes = try await request.value
+            XCTAssertEqual(bytes, Data([UInt8(index)]))
+        }
+        XCTAssertEqual(maximumActive, 1)
+        XCTAssertEqual(dispatched.count, 13)
+        XCTAssertFalse(dispatched.contains("cancelled"))
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first
@@ -1905,11 +2261,144 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertEqual(image, ProjectsWorkspacePreviewFixture.readmeImageData)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.local-first,projects.files.connected-embed-previews,projects.access.explicit-context
+    func testOfflineSourceBrowsesCachedUnexpandedFolderWithoutLoadingFileOrEmbedBodies() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "cached-hierarchy", name: "Project")
+        let offline = ProjectWorkspaceSource(id: "source", kind: "remote_folder", name: "Source", metadata: [:],
+            capabilities: ["read"], status: "disconnected", sessionID: nil, keyEpoch: nil)
+        let item = ProjectWorkspaceItem(id: "metadata", kind: "embed", targetID: "embed", name: "Report.pdf",
+            metadata: ["embed_type": "pdf"], folderHash: nil, position: 0, createdAt: 1)
+        service.listResult = [project]
+        service.contentsResult = .init(folders: [], items: [item], sources: [offline])
+        service.cachedRemoteDirectories = [
+            ".": .init(entries: [ProjectOfflineMetadataEntry(ProjectRemoteEntry(path: "folder", kind: "directory", sizeBytes: nil, childFileCount: nil, childFolderCount: nil, childSummaryTruncated: false))], complete: true),
+            "folder": .init(entries: [ProjectOfflineMetadataEntry(remoteEntry("folder/unopened.txt"))], complete: true)
+        ]
+        let store = ProjectsWorkspaceStore(service: service, listSourceRoot: { _, _, _ in
+            XCTFail("Offline metadata browsing must not make a source request")
+            throw ProjectsWorkspaceError.sourceOffline
+        }, validateFence: { _ in })
+        await store.load(accountId: "owner")
+        await store.selectProject(project.id)
+        await store.loadItemEmbedPreview(item)
+        XCTAssertEqual(service.openLinkedEmbedReads, 0, "Thin entry metadata must not trigger full body preload")
+        XCTAssertTrue(store.itemEmbedPreviews.isEmpty)
+        await store.openRemoteSource(offline.id)
+        XCTAssertTrue(store.remoteMetadataOnly)
+        XCTAssertEqual(store.remoteEntries.map(\.path), ["folder"])
+        await store.browseRemote(path: "folder")
+        XCTAssertEqual(store.remoteEntries.map(\.path), ["folder/unopened.txt"])
+        XCTAssertEqual(store.remotePath, "folder")
+        XCTAssertNil(store.remoteError)
+        await store.openRemoteFile(remoteEntry("folder/unopened.txt"))
+        await store.downloadRemoteFile("folder/unopened.txt")
+        await store.transferRemote(["folder/unopened.txt"], move: true, destinationPath: ".")
+        XCTAssertNil(store.remoteText)
+        XCTAssertNil(store.remoteDownloadURL)
+        XCTAssertFalse(store.isSaving)
+        XCTAssertEqual(service.openLinkedEmbedReads, 0)
+        XCTAssertNil(store.sources.first?.sessionID, "Cached metadata cannot restore host authority")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first,apple-workspaces.isolation,projects.access.explicit-context,projects.files.connected-embed-previews
+    func testFreshContentsRestoreSourceAuthorityAndReadmeWhenSettingsRefreshFails() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "partial-refresh", name: "Project")
+        let connected = readmeSource("source")
+        let disconnected = ProjectWorkspaceSource(id: connected.id, kind: connected.kind, name: connected.name,
+            metadata: [:], capabilities: connected.capabilities, status: "disconnected", sessionID: nil, keyEpoch: connected.keyEpoch)
+        service.listResult = [project]
+        service.cachedContentsResult = .init(folders: [], items: [], sources: [disconnected])
+        service.cachedSettingsResult = .init(writeMode: .alwaysAsk, selectionRequired: true,
+            focusID: "retained-focus", focusInstruction: "Retained")
+        service.settingsError = ProjectsWorkspaceError.invalidResponse
+        service.contentsResult = .init(folders: [
+            .init(id: "fresh-folder", name: "Fresh files", parentHash: nil, position: 0, createdAt: 1)
+        ], items: [
+            .init(id: "fresh-readme", kind: "embed", targetID: "readme", name: "README.md",
+                  metadata: [:], folderHash: nil, position: 0, createdAt: 1)
+        ], sources: [connected])
+        service.storedFileResult = ["code": "# Fresh README"]
+        let rootRead = expectation(description: "Fresh source root read")
+        let store = ProjectsWorkspaceStore(service: service, listSourceRoot: { _, source, fence in
+            XCTAssertEqual(fence.accountID, "owner")
+            XCTAssertEqual(source, connected, "Only fresh metadata can restore live request authority")
+            rootRead.fulfill()
+            return .init(entries: [self.remoteEntry("fresh.txt")], omitted: 0, excluded: 0, nextCursor: nil)
+        }, validateFence: { _ in })
+        let readmeReady = expectation(description: "Fresh README published")
+        let rootPreviewReady = expectation(description: "Fresh source root published")
+        let readmeObservation = store.$readme.sink { state in
+            if case .ready(let document) = state, document.markdown == "# Fresh README" { readmeReady.fulfill() }
+        }
+        let rootObservation = store.$sourceRootPreviews.sink { previews in
+            if previews[connected.id]?.first?.path == "fresh.txt" { rootPreviewReady.fulfill() }
+        }
+        defer { readmeObservation.cancel(); rootObservation.cancel() }
+        await store.load(accountId: "owner")
+        await store.selectProject(project.id)
+        await fulfillment(of: [rootRead, readmeReady, rootPreviewReady], timeout: 2)
+        XCTAssertEqual(store.folders.map(\.id), ["fresh-folder"])
+        XCTAssertEqual(store.items.map(\.id), ["fresh-readme"])
+        XCTAssertEqual(store.sources, [connected])
+        XCTAssertEqual(store.sourceRootPreviews[connected.id]?.map(\.path), ["fresh.txt"])
+        XCTAssertEqual(store.settings?.writeMode, .alwaysAsk)
+        XCTAssertEqual(store.settings?.focusID, "retained-focus")
+        XCTAssertEqual(store.errorMessage, AppStrings.projectError(ProjectsWorkspaceError.invalidResponse))
+        XCTAssertFalse(store.isLoadingDetail)
+        guard case .ready(let document) = store.readme else { return XCTFail("Fresh contents must still discover the README") }
+        XCTAssertEqual(document.markdown, "# Fresh README")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first
+    func testFreshSettingsPublishWhenContentsRefreshFailsAndKeepCachedReadme() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "partial-settings", name: "Project")
+        service.listResult = [project]
+        service.cachedContentsResult = .init(folders: [
+            .init(id: "retained-folder", name: "Retained", parentHash: nil, position: 0, createdAt: 1)
+        ], items: [], sources: [])
+        service.cachedReadmeResult = .init(binding: "fixture", markdown: "# Retained", truncated: false,
+            origin: "stored", sourceID: nil, sourceKeyEpoch: nil, images: [:])
+        service.contentsError = URLError(.notConnectedToInternet)
+        service.settingsResult = .init(writeMode: .alwaysAsk, selectionRequired: true,
+            focusID: "fresh-focus", focusInstruction: "Fresh")
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "owner")
+        await store.selectProject(project.id)
+        XCTAssertEqual(store.folders.map(\.id), ["retained-folder"])
+        XCTAssertEqual(store.settings?.writeMode, .alwaysAsk)
+        XCTAssertEqual(store.settings?.focusID, "fresh-focus")
+        XCTAssertNil(store.errorMessage)
+        XCTAssertFalse(store.isLoadingDetail)
+        guard case .ready(let document) = store.readme else { return XCTFail("Retained README must remain readable") }
+        XCTAssertEqual(document.markdown, "# Retained")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first,apple-workspaces.isolation
+    func testCancelledSettingsRefreshDoesNotShowErrorOrDiscardFreshContents() async throws {
+        let service = ProjectsWorkspaceMockService()
+        let project = makeProject(id: "cancelled-settings", name: "Project")
+        service.listResult = [project]
+        service.settingsError = CancellationError()
+        service.contentsResult = .init(folders: [
+            .init(id: "fresh", name: "Fresh", parentHash: nil, position: 0, createdAt: 1)
+        ], items: [], sources: [])
+        let store = ProjectsWorkspaceStore(service: service, validateFence: { _ in })
+        await store.load(accountId: "owner")
+        await store.selectProject(project.id)
+        XCTAssertEqual(store.folders.map(\.id), ["fresh"])
+        XCTAssertNil(store.errorMessage)
+        XCTAssertFalse(store.isLoadingDetail)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.maintenance
-    func testBackgroundReadmeFillVisitsEveryProjectAndBoundsReferencedImageReads() async throws {
+    func testBackgroundReadmeFillVisitsEveryProjectAndAllSafeReferencedImages() async throws {
         var visited: [String] = [], saved: [String] = [], images: [String] = [], cleared: [String] = []
         let markdown = "# Overview\n\n```markdown\n![Literal](not-an-image.png)\n```\n\n" +
-            (0..<12).map { "![Image \($0)](images/\($0).png)" }.joined(separator: "\n\n")
+            (0..<12).map { "![Image \($0)](images/\($0).png)" }.joined(separator: "\n\n") +
+            "\n\n![Duplicate](images/11.png)\n\n![Unsafe](../private.png)\n\n[Unrelated file](report.pdf)"
         let complete = try await ProjectReadmeOfflineMaintenance.fill(projectIDs: ["offline", "first", "empty", "last"], load: { id in
             visited.append(id)
             if id == "offline" { throw ProjectsWorkspaceError.sourceOffline }
@@ -1924,8 +2413,8 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertEqual(visited, ["offline", "first", "empty", "last"])
         XCTAssertEqual(saved, ["first", "last"], "One unavailable host cannot suppress another Project's cache")
         XCTAssertEqual(cleared, ["empty"], "Only authoritative empty reads reconcile retained overviews")
-        XCTAssertEqual(images.count, 16)
-        XCTAssertFalse(images.contains { $0.contains("not-an-image") || $0.hasSuffix("/8.png") })
+        let expected = ["first", "last"].flatMap { id in (0..<12).map { id + ":images/\($0).png" } }
+        XCTAssertEqual(images, expected, "Deduplicate safe references, exclude code/unsafe/unrelated files, and retain references after eight")
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.isolation,apple-workspaces.maintenance
@@ -1938,6 +2427,10 @@ final class ProjectsWorkspaceTests: XCTestCase {
         await cache.configure(scope: scope, masterKey: SymmetricKey(size: .bits256))
         let document = ProjectWorkspaceReadme(markdown: "Previous complete README", truncated: false, origin: "stored")
         try await cache.retainProjectReadme(document, projectID: "p", binding: "metadata", scope: scope)
+        for index in 0..<12 {
+            try await cache.retainProjectReadmeImage(Data([UInt8(index)]), source: "image-\(index).png", document: document,
+                projectID: "p", binding: "metadata", scope: scope)
+        }
         let gate = WorkspaceOfflineGETGate()
         var clearCount = 0
         let maintenance = Task {
@@ -1955,6 +2448,9 @@ final class ProjectsWorkspaceTests: XCTestCase {
         XCTAssertEqual(clearCount, 0)
         let retained = try await cache.projectReadme(projectID: "p", binding: "metadata", scope: scope)
         XCTAssertEqual(retained?.markdown, document.markdown)
+        let retainedImage = try await cache.projectReadmeImage(source: "image-11.png", document: document,
+            projectID: "p", binding: "metadata", scope: scope)
+        XCTAssertEqual(retainedImage, Data([11]), "Cancellation must preserve images after the obsolete eight-image cutoff")
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-workspaces.offline-complete,apple-workspaces.maintenance
@@ -1993,13 +2489,27 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     var cachedListResult: [ProjectWorkspaceProject]?
     var cachedContentsResult: ProjectWorkspaceContents?
     var omitCachedSettings = false
+    var cachedSettingsResult: ProjectWorkspaceSettings?
+    var settingsResult: ProjectWorkspaceSettings?
+    var settingsError: Error?
+    var openLinkedEmbedReads = 0
+    var cachedRemoteDirectories: [String: ProjectOfflineDirectory] = [:]
+    func cachedRemoteDirectory(path: String, project: ProjectWorkspaceProject, source: ProjectWorkspaceSource,
+                               fence: ProjectsWorkspaceFence) async throws -> ProjectOfflineDirectory? { cachedRemoteDirectories[path] }
     var contentsError: Error?
     var cachedReadmeResult: ProjectReadmeOfflineSnapshot?
     func cachedReadme(project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> ProjectReadmeOfflineSnapshot? { cachedReadmeResult }
+    func cachedReadmeImage(source: String, document: ProjectWorkspaceReadme, project: ProjectWorkspaceProject, contents: ProjectWorkspaceContents, fence: ProjectsWorkspaceFence) async throws -> Data? {
+        guard let cachedReadmeResult, cachedReadmeResult.markdown == document.markdown,
+              cachedReadmeResult.truncated == document.truncated, cachedReadmeResult.origin == document.origin,
+              cachedReadmeResult.sourceID == document.sourceID, cachedReadmeResult.sourceKeyEpoch == document.sourceKeyEpoch else { return nil }
+        return cachedReadmeResult.images[source]
+    }
     func cachedProjects(accountID: String, teamID: String?) async throws -> [ProjectWorkspaceProject]? { cachedListResult }
     func cachedContents(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceContents? { cachedContentsResult }
     func cachedSettings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings? {
-        cachedContentsResult == nil || omitCachedSettings ? nil : ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false, focusID: nil, focusInstruction: nil)
+        if let cachedSettingsResult { return cachedSettingsResult }
+        return cachedContentsResult == nil || omitCachedSettings ? nil : ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false, focusID: nil, focusInstruction: nil)
     }
     var suspendContents = false
     var contentsResult: ProjectWorkspaceContents?
@@ -2058,7 +2568,9 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     }
 
     func settings(project: ProjectWorkspaceProject, fence: ProjectsWorkspaceFence) async throws -> ProjectWorkspaceSettings {
-        ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false,
+        if let settingsError { throw settingsError }
+        if let settingsResult { return settingsResult }
+        return ProjectWorkspaceSettings(writeMode: .applyAndShow, selectionRequired: false,
             focusID: nil, focusInstruction: nil)
     }
 
@@ -2096,7 +2608,8 @@ private final class ProjectsWorkspaceMockService: ProjectsWorkspaceServing {
     }
     func openLinkedEmbed(_ item: ProjectWorkspaceItem, project: ProjectWorkspaceProject,
                          fence: ProjectsWorkspaceFence) async throws -> EmbedRecord {
-        await withCheckedContinuation { embedContinuation = $0 }
+        openLinkedEmbedReads += 1
+        return await withCheckedContinuation { embedContinuation = $0 }
     }
 }
 
@@ -2154,4 +2667,32 @@ private actor WorkspaceOfflineGETGate {
         await withCheckedContinuation { started.append($0) }
     }
     func finish() { finished = true; waiter?.resume(returning: Data("response".utf8)); waiter = nil }
+}
+
+/// Inject failure at the real encrypted metadata write, after the independent
+/// image object has reached disk. Locking keeps the writer closure Sendable.
+private final class ReadmeMetadataWriteFault: @unchecked Sendable {
+    private let lock = NSLock()
+    private var failingMetadata = false
+    private var imageWriteCount = 0
+    private var failedMetadataWriteCount = 0
+
+    var imageWrites: Int { lock.lock(); defer { lock.unlock() }; return imageWriteCount }
+    var failedMetadataWrites: Int { lock.lock(); defer { lock.unlock() }; return failedMetadataWriteCount }
+
+    func setFailingMetadata(_ value: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        failingMetadata = value
+    }
+
+    func write(_ data: Data, to url: URL) throws {
+        let image = url.pathComponents.contains("readme-images")
+        lock.lock()
+        let fail = failingMetadata && !image
+        if image { imageWriteCount += 1 }
+        if fail { failedMetadataWriteCount += 1 }
+        lock.unlock()
+        if fail { throw CocoaError(.fileWriteNoPermission) }
+        try data.write(to: url, options: .atomic)
+    }
 }

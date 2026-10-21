@@ -543,7 +543,7 @@ private struct ChatSettingsUsageDisplayRow: View {
     }
 }
 
-private struct ChatSettingsLLMReceipt: View {
+struct ChatSettingsLLMReceipt: View {
     let receipt: LLMUsageBreakdown
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing2) {

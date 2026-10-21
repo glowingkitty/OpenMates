@@ -1,3 +1,5 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
 // Full settings screen — mirrors the web app's settings panel from settingsRoutes.ts.
 // Product UI must use OpenMates primitives instead of default platform List/Form chrome.
 // ALL navigation targets are native SwiftUI views — no web redirects.
@@ -60,6 +62,7 @@ enum SettingsRouteInventory {
         "billing/auto-topup/low-balance",
         "billing/auto-topup/monthly",
         "billing/invoices",
+        "billing/usage",
         "billing/referral-code",
         "billing/gift-cards",
         "billing/gift-cards/redeem",
@@ -157,6 +160,7 @@ enum SettingsRouteInventory {
         "billing/auto-topup/low-balance",
         "billing/auto-topup/monthly",
         "billing/invoices",
+        "billing/usage",
         "billing/referral-code",
         "billing/gift-cards",
         "billing/gift-cards/redeem",
@@ -363,6 +367,7 @@ struct SettingsView: View {
     var onClose: (() -> Void)?
     var onOpenExampleChat: ((String) -> Void)?
     var memoriesEmbedRecords: [String: EmbedRecord]
+    var usageContext: BillingUsageContext
     var onOpenMemoryEmbed: ((EmbedRecord) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
@@ -420,9 +425,11 @@ struct SettingsView: View {
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil,
         memoriesEmbedRecords: [String: EmbedRecord] = [:],
+        usageContext: BillingUsageContext = .init(),
         onOpenMemoryEmbed: ((EmbedRecord) -> Void)? = nil
     ) {
         self.projectID = projectID
+        self.usageContext = usageContext
         #if DEBUG
         self.teamContext = TeamWorkspaceContext.homeRosterUIFixtureIfRequested() ?? teamContext
         #else
@@ -477,6 +484,13 @@ struct SettingsView: View {
     private var isAuthenticated: Bool {
         isolatedAccountPreview || (!isolatedNavigation && (settingsUser != nil || AccountSettingsUITestFixture.enabled))
     }
+    // Billing never inherits unrelated account/header preview authentication.
+    private var canAccessBilling: Bool { settingsUser != nil || BillingUITestFixture.enabled }
+    // Filter before rendering so an initial referral request or auth loss cannot
+    // expose the account page while onAppear/onChange navigation catches up.
+    private var visibleDestination: SettingsDestination? {
+        destination == .billing && !canAccessBilling ? nil : destination
+    }
     private var isAdmin: Bool {
         !isolatedNavigation && (settingsUser?.isAdmin == true
             || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture"))
@@ -484,18 +498,87 @@ struct SettingsView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            settingsWithRouteUpdates(size: geometry.size)
+        }
+    }
+
+    private func settingsWithIncomingRequests(size: CGSize) -> some View {
+        settingsShell(size: size)
+        .onChange(of: reportIssuePrefill) { _, newPrefill in
+            guard let newPrefill else { return }
+            activeReportIssuePrefill = newPrefill
+            navigateTo(.reportIssue)
+        }
+        .onChange(of: referralCodeRequest) { _, newValue in
+            guard newValue != activeReferralCodeRequest else { return }
+            activeReferralCodeRequest = newValue
+            navigateTo(.billing)
+        }
+        .onChange(of: shareChatId) { _, newChatId in
+            guard newChatId != nil else { return }
+            navigateTo(.shared)
+        }
+        .onChange(of: embedShareTarget?.requestID) { _, request in
+            activeEmbedShareTarget = embedShareTarget
+            guard request != nil else { sharedChildNavigation = nil; return }
+            navigateTo(.shared)
+        }
+    }
+
+    private func settingsWithNavigationRequests(size: CGSize) -> some View {
+        settingsWithIncomingRequests(size: size)
+        .onChange(of: forkContext?.id) { _, id in
+            guard id != nil else { return }
+            navigateTo(.fork)
+        }
+        .onChange(of: messageSettingsTarget) { _, newTarget in
+            guard let newTarget else { return }
+            activeMessageSettingsTarget = newTarget
+            switch newTarget {
+            case .mate: navigateTo(.mates)
+            case .model: navigateTo(.ai)
+            }
+        }
+        .onChange(of: projectID) { _, id in
+            guard id != nil else { return }
+            navigateTo(.projects)
+        }
+    }
+
+    private func settingsWithRouteUpdates(size: CGSize) -> some View {
+        settingsWithNavigationRequests(size: size)
+        .onChange(of: deepLinkPath) { _, _ in applyDeepLink() }
+        .onChange(of: deepLinkRequest) { _, _ in applyDeepLink() }
+        .onChange(of: isAuthenticated) { _, _ in applyDeepLink() }
+        .onChange(of: canAccessBilling) { _, allowed in
+            if !allowed, destination == .billing {
+                destination = nil
+                activeDeepLinkRoute = nil
+            }
+        }
+        .onChange(of: isAdmin) { _, _ in applyDeepLink() }
+        .onAppear(perform: settingsDidAppear)
+    }
+
+    private func settingsDidAppear() {
+        applyDeepLink()
+        guard !isolatedNavigation else { return }
+        if deepLinkPath == nil, projectID != nil { navigateTo(.projects) }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
+            IncognitoExplainerSeenState().resetForUITestingOnce()
+        }
+        if isAuthenticated {
+            Task { await accountLearningMode.loadAccountStatus() }
+        }
+    }
+
+    private func settingsShell(size: CGSize) -> some View {
         ZStack {
             VStack(spacing: 0) {
-                settingsBannerShell(viewportWidth: viewportWidth ?? geometry.size.width, viewportHeight: geometry.size.height)
-                    .overlay(alignment: .bottom) {
-                        if isAuthenticated, destination == nil, let teamContext {
-                            TeamWorkspaceContextSelector(context: teamContext, isCollapsed: homeScrollTop > 30)
-                                .padding(.bottom, .spacing3)
-                        }
-                    }
+                settingsBannerShell(viewportWidth: viewportWidth ?? size.width, viewportHeight: size.height)
 
                 ZStack {
-                    if let destination {
+                    if let destination = visibleDestination {
                         settingsDestinationContent(destination)
                             .id("\(destination.pageAccessibilityIdentifier)|\(activeDeepLinkRoute?.path ?? "")|\(activeDeepLinkRevision)")
                             .transition(.move(edge: navigationDirection == .forward ? .trailing : .leading))
@@ -523,56 +606,22 @@ struct SettingsView: View {
                 incognitoOverlay
             }
         }
-        .onChange(of: reportIssuePrefill) { _, newPrefill in
-            guard let newPrefill else { return }
-            activeReportIssuePrefill = newPrefill
-            navigateTo(.reportIssue)
-        }
-        .onChange(of: referralCodeRequest) { _, newValue in
-            guard newValue != activeReferralCodeRequest else { return }
-            activeReferralCodeRequest = newValue
-            navigateTo(.billing)
-        }
-        .onChange(of: shareChatId) { _, newChatId in
-            guard newChatId != nil else { return }
-            navigateTo(.shared)
-        }
-        .onChange(of: embedShareTarget?.requestID) { _, request in
-            activeEmbedShareTarget = embedShareTarget
-            guard request != nil else { sharedChildNavigation = nil; return }
-            navigateTo(.shared)
-        }
-        .onChange(of: forkContext?.id) { _, id in
-            guard id != nil else { return }
-            navigateTo(.fork)
-        }
-        .onChange(of: messageSettingsTarget) { _, newTarget in
-            guard let newTarget else { return }
-            activeMessageSettingsTarget = newTarget
-            switch newTarget {
-            case .mate: navigateTo(.mates)
-            case .model: navigateTo(.ai)
+        // Web TeamContextPicker portals its menu outside the scrolling rows.
+        // Resolve the trigger anchor here so scrolling cannot clip the picker.
+        .overlayPreferenceValue(SettingsTeamPickerOverlayKey.self) { presentations in
+            GeometryReader { canvas in
+                if let presentation = presentations.first {
+                    let frame = SettingsTeamMenuBounds.frame(trigger: canvas[presentation.trigger],
+                        canvas: canvas.size, contentHeight: presentation.contentHeight)
+                    Color.clear
+                        .contentShape(SettingsTeamPickerDismissRegion(trigger: canvas[presentation.trigger]), eoFill: true)
+                        .onTapGesture(perform: presentation.dismiss)
+                    presentation.content
+                        .frame(width: frame.width, height: frame.height)
+                        .position(x: frame.midX, y: frame.midY)
+                        .transition(.opacity.combined(with: .offset(y: -4)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                }
             }
-        }
-        .onChange(of: projectID) { _, id in
-            guard id != nil else { return }
-            navigateTo(.projects)
-        }
-        .onChange(of: deepLinkPath) { _, _ in applyDeepLink() }
-        .onChange(of: deepLinkRequest) { _, _ in applyDeepLink() }
-        .onChange(of: isAuthenticated) { _, _ in applyDeepLink() }
-        .onChange(of: isAdmin) { _, _ in applyDeepLink() }
-        .onAppear {
-            applyDeepLink()
-            guard !isolatedNavigation else { return }
-            if deepLinkPath == nil, projectID != nil { navigateTo(.projects) }
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
-                IncognitoExplainerSeenState().resetForUITestingOnce()
-            }
-            if isAuthenticated {
-                Task { await accountLearningMode.loadAccountStatus() }
-            }
-        }
         }
     }
 
@@ -588,7 +637,8 @@ struct SettingsView: View {
         sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
-        guard route.canOpen(authenticated: isAuthenticated || BillingUITestFixture.enabled, admin: isAdmin) else {
+        let routeAuthenticated = route.topLevel == "billing" ? canAccessBilling : isAuthenticated
+        guard route.canOpen(authenticated: routeAuthenticated, admin: isAdmin) else {
             destination = nil
             if route.requiresAuthentication && !isAuthenticated {
                 NotificationCenter.default.post(name: .openAuth, object: nil)
@@ -679,7 +729,7 @@ struct SettingsView: View {
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
 
-                    if isAuthenticated || BillingUITestFixture.enabled {
+                    if canAccessBilling {
                         row(.billing, AppStrings.settingsBilling, icon: "billing")
                     }
 
@@ -738,7 +788,7 @@ struct SettingsView: View {
         // Reuse the existing collapsed banner rather than clipping its hero.
         let usesCompactBanner = viewportHeight < 400
         return VStack(spacing: 0) {
-            if let destination {
+            if let destination = visibleDestination {
                 SettingsStandardBanner(
                     destination: destination,
                     scrollTop: usesCompactBanner ? max(80, destinationScrollTop) : destinationScrollTop,
@@ -784,6 +834,7 @@ struct SettingsView: View {
                 }
             } else {
                 SettingsMainBanner(
+                    viewportWidth: viewportWidth,
                     username: settingsUser?.username ?? AppStrings.guest,
                     profileUserId: settingsUser?.id,
                     profileImageUrl: settingsUser?.profileImageUrl,
@@ -908,6 +959,10 @@ struct SettingsView: View {
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
+        guard destination != .billing || canAccessBilling else {
+            NotificationCenter.default.post(name: .openAuth, object: nil)
+            return
+        }
         if destination != .shared { activeEmbedShareTarget = nil }
         aiChildNavigation = nil
         teamChildNavigation = nil
@@ -1020,7 +1075,7 @@ struct SettingsView: View {
 
     private var shellPageAccessibilityIdentifier: String {
         if destination == .shared, shareChatId != nil || sharedChildNavigation != nil { return "settings-shared-share-settings" }
-        return destination?.pageAccessibilityIdentifier ?? "settings-panel"
+        return visibleDestination?.pageAccessibilityIdentifier ?? "settings-panel"
     }
 
     @ViewBuilder
@@ -1099,7 +1154,7 @@ struct SettingsView: View {
                 onChildNavigationChanged: { accountChildNavigation = $0 })
         case .interface: SettingsInterfaceSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .privacy: SettingsPrivacyContentView(deepLinkPath: activeDeepLinkRoute?.childPath)
-        case .billing: SettingsBillingView(referralCodeRequest: activeReferralCodeRequest, deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .billing: SettingsBillingView(referralCodeRequest: activeReferralCodeRequest, deepLinkPath: activeDeepLinkRoute?.childPath, usageContext: usageContext)
         case .notifications: SettingsNotificationsView(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .developers: SettingsDeveloperView(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .server: SettingsServerView(deepLinkPath: activeDeepLinkRoute?.childPath)
@@ -1107,7 +1162,8 @@ struct SettingsView: View {
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
-                referralCodeRequest: activeReferralCodeRequest
+                referralCodeRequest: activeReferralCodeRequest,
+                usageContext: usageContext
             )
         }
         }
@@ -1455,7 +1511,8 @@ struct SettingsView: View {
         @ViewBuilder
         func view(
             reportIssuePrefill: ReportIssuePrefill? = nil,
-            referralCodeRequest: Int = 0
+            referralCodeRequest: Int = 0,
+            usageContext: BillingUsageContext = .init()
         ) -> some View {
             switch self {
             case .pricing: SettingsPricingView()
@@ -1465,7 +1522,7 @@ struct SettingsView: View {
             case .projects: SettingsProjectsView()
             case .teams: SettingsTeamsView()
             case .mates: SettingsMatesView()
-            case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
+            case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest, usageContext: usageContext)
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
             case .fork: EmptyView()
@@ -1508,6 +1565,7 @@ private struct SettingsHomeScrollOffsetPreferenceKey: PreferenceKey {
 }
 
 private struct SettingsMainBanner: View {
+    let viewportWidth: CGFloat
     let username: String
     let profileUserId: String?
     let profileImageUrl: String?
@@ -1524,7 +1582,10 @@ private struct SettingsMainBanner: View {
     }
 
     private var isCollapsed: Bool { progress > 0.5 }
-    private var height: CGFloat { 190 - (190 - 72) * progress }
+    private var height: CGFloat {
+        let expanded = SettingsMainBannerLayout.expandedHeight(viewportWidth: viewportWidth)
+        return expanded - (expanded - 72) * progress
+    }
     private var avatarSize: CGFloat { 56 - 24 * progress }
     private var nameSize: CGFloat { 20 - 3 * progress }
 
@@ -1604,7 +1665,8 @@ private struct SettingsMainBanner: View {
     @ViewBuilder
     private var avatarControl: some View {
         if isAuthenticated {
-            Button(action: onAvatarClick) { avatar }
+            // Web .avatar-slot-clickable has 3px padding around the 56/32px circle.
+            Button(action: onAvatarClick) { avatar.padding(3) }
                 .buttonStyle(.plain)
                 .accessibilityLabel(AppStrings.profilePicture)
                 .accessibilityIdentifier("settings-profile-avatar")
@@ -1636,8 +1698,8 @@ private struct SettingsMainBanner: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if isAuthenticated, let profileImageUrl = effectiveProfileImageUrl {
-            AuthenticatedProfileImage(urlString: profileImageUrl) {
+        if isAuthenticated, let profileUserId {
+            SettingsProfileAvatar(ownerID: profileUserId, rawURL: profileImageUrl) {
                 defaultAvatar
             }
             .frame(width: avatarSize, height: avatarSize)
@@ -1646,19 +1708,6 @@ private struct SettingsMainBanner: View {
         } else {
             defaultAvatar
         }
-    }
-
-    private var effectiveProfileImageUrl: String? {
-        if let profileImageUrl,
-           !profileImageUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return profileImageUrl
-        }
-        guard let profileUserId,
-              !profileUserId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let encodedUserId = profileUserId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
-            return nil
-        }
-        return "/v1/users/\(encodedUserId)/profile-image"
     }
 
     private var defaultAvatar: some View {
@@ -2760,18 +2809,26 @@ struct SettingsDeleteAccountView: View {
     private func deleteAccount() {
         isDeleting = true
         error = nil
+        let markerFence = authManager.currentUser.map { UserTasksAccountFence(accountID: $0.id) }
+        let deletionCleanup = markerFence.map { AccountDeletionCleanup(fence: $0) }
         Task {
+            defer { isDeleting = false }
             do {
+                guard let markerFence else { throw CancellationError() }
+                try await markerFence.check()
                 let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/account/delete",
-                    body: ["password": password]
+                    .post, path: "/v1/settings/account/delete", serverProfile: markerFence.serverProfile,
+                    body: ["password": password], expectedAccountID: markerFence.accountID,
+                    expectedScope: markerFence.scope, expectedTeamContext: markerFence.requestTeamContext
                 )
+                // The account is already deleted server-side. Compare captured
+                // local identity instead of requesting another authenticated check.
+                guard deletionCleanup?.eraseConfirmed(currentAccountID: authManager.currentUser?.id) == true else { return }
                 await authManager.logout()
             } catch {
                 self.error = error.localizedDescription
                 AccessibilityAnnouncement.announce(error.localizedDescription)
             }
-            isDeleting = false
         }
     }
 }
@@ -2833,12 +2890,16 @@ private struct SettingsTeamQuickAction: View {
     let createTeam: () -> Void
     @State private var pickerOpen = false
     @State private var expanded = false
-    @State private var recentTeamID: String?
+    @State private var selection = SettingsTeamQuickSelection()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var readableTeams: [TeamWorkspaceTeam] {
         let values = context.teams.filter(\.canRead)
-        return values.filter { $0.id == recentTeamID } + values.filter { $0.id != recentTeamID }
+        return values.filter { $0.id == selection.preferredID } + values.filter { $0.id != selection.preferredID }
+    }
+    private var selectedTeam: TeamWorkspaceTeam? {
+        let id = selection.selectedID(activeID: context.teamID, readableIDs: readableTeams.map(\.id))
+        return readableTeams.first { $0.id == id }
     }
 
     var body: some View {
@@ -2856,16 +2917,21 @@ private struct SettingsTeamQuickAction: View {
             if !readableTeams.isEmpty {
                 Button { setPickerOpen(!pickerOpen); expanded = false } label: {
                     HStack(spacing: .spacing2) {
-                        SettingsTeamContextAvatar(team: context.selectedTeam, size: 24, context: context)
+                        SettingsTeamContextAvatar(team: selectedTeam, size: 24, context: context)
                         Icon("chevron-down", size: 10).foregroundStyle(Color.fontButton)
                     }.padding(.spacing1).frame(minWidth: .spacing24, minHeight: 41)
                         .background(LinearGradient.primary).clipShape(Capsule())
-                }.buttonStyle(.plain).disabled(context.isLoading && context.teams.isEmpty)
+                }.buttonStyle(.plain).disabled(context.isLoading)
                     .accessibilityLabel(AppStrings.settingsQuickSwitchTeam)
-                    .accessibilityValue(context.selectedTeam?.name ?? AppStrings.settingsQuickPersonal)
+                    .accessibilityValue(selectedTeam?.name ?? AppStrings.teamsTitle)
                     .accessibilityIdentifier("team-quick-context-dropdown")
+                    .anchorPreference(key: SettingsTeamPickerOverlayKey.self, value: .bounds) { anchor in
+                        pickerOpen ? [SettingsTeamPickerOverlay(trigger: anchor,
+                            contentHeight: SettingsTeamMenuBounds.contentHeight(teamCount: readableTeams.count, expanded: expanded),
+                            content: AnyView(pickerMenu), dismiss: { setPickerOpen(false) })] : []
+                    }
                 OMToggle(isOn: Binding(get: { context.teamID != nil }, set: { _ in toggleContext() }),
-                    disabled: context.isLoading && context.teams.isEmpty,
+                    disabled: context.isLoading,
                     accessibilityIdentifier: "team-quick-toggle")
                     .accessibilityLabel(AppStrings.teamsTitle)
             } else if context.showsTeamCreation {
@@ -2881,71 +2947,75 @@ private struct SettingsTeamQuickAction: View {
             }
         }
         .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
-        .overlay(alignment: .topTrailing) {
-            if pickerOpen {
-                ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: .spacing6) {
-                    ForEach(expanded ? readableTeams : Array(readableTeams.prefix(5))) { team in
-                        contextOption(team.id, label: team.name, team: team)
-                    }
-                    contextOption(nil, label: AppStrings.settingsQuickPersonal, team: nil)
-                    if readableTeams.count > 5 && !expanded {
-                        Button(AppStrings.settingsQuickMoreTeams) { expanded = true }.frame(height: 39).buttonStyle(.plain)
-                            .accessibilityIdentifier("team-context-show-more")
-                    }
-                    Button { setPickerOpen(false); createTeam() } label: {
-                        HStack(spacing: .spacing8) { Icon("create", size: 22); Text(AppStrings.teamsNewTeam) }
-                            .padding(.leading, .spacing4).frame(height: 22)
-                            .foregroundStyle(Color.fontButton.opacity(0.7))
-                    }.buttonStyle(.plain).padding(.top, 3).accessibilityIdentifier("team-context-new-team")
-                }
-                .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontButton)
-                // TeamContextPicker computed padding: 13px 13px 17px (no token).
-                .padding(.horizontal, 13).padding(.top, 13).padding(.bottom, 17)
-                }
-                .frame(width: 185, height: SettingsTeamMenuBounds.height(teamCount: readableTeams.count,
-                    expanded: expanded, viewportHeight: viewportHeight))
-                .accessibilityIdentifier("team-context-menu-scroll")
-                .background(LinearGradient.primary).clipShape(RoundedRectangle(cornerRadius: 22))
-                .shadow(color: .black.opacity(0.25), radius: 4, y: 4)
-                .transition(.opacity.combined(with: .offset(y: -4)).combined(with: .scale(scale: 0.98, anchor: .top)))
-                .offset(x: -CGFloat.spacing5, y: 52)
-                .accessibilityIdentifier("team-context-menu")
-            }
-        }
-        .onAppear { recentTeamID = context.teamID }
-        .onChange(of: context.teamID) { _, id in if let id { recentTeamID = id }; setPickerOpen(false) }
-        .onChange(of: context.loadedAccountID) { _, _ in recentTeamID = nil; setPickerOpen(false) }
+        .onAppear { selection.remember(context.teamID) }
+        .onChange(of: context.teamID) { _, id in selection.remember(id); setPickerOpen(false) }
+        .onChange(of: context.loadedAccountID) { _, _ in selection = SettingsTeamQuickSelection(); setPickerOpen(false) }
         .onChange(of: context.rosterEpoch) { _, _ in
-            if let recentTeamID, !context.teams.contains(where: { $0.id == recentTeamID && $0.canRead }) { self.recentTeamID = nil }
+            selection.reconcile(readableIDs: context.teams.filter(\.canRead).map(\.id))
+            if readableTeams.isEmpty { setPickerOpen(false) }
         }
+        .onChange(of: context.isLoading) { _, loading in if loading { setPickerOpen(false) } }
+        // Keep the row identity on its own AX container so SwiftUI preserves
+        // the open, create, picker and toggle control identifiers below it.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings-teams-item")
     }
 
-    private func contextOption(_ id: String?, label: String, team: TeamWorkspaceTeam?) -> some View {
+    private var pickerMenu: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: .spacing6) {
+                ForEach(expanded ? readableTeams : Array(readableTeams.prefix(5))) { team in
+                    contextOption(team)
+                }
+                if readableTeams.count > 5 && !expanded {
+                    Button(AppStrings.settingsQuickMoreTeams) { expanded = true }.frame(height: 39).buttonStyle(.plain)
+                        .accessibilityIdentifier("team-context-show-more")
+                }
+                Button { setPickerOpen(false); createTeam() } label: {
+                    HStack(spacing: .spacing8) { Icon("create", size: 22); Text(AppStrings.teamsNewTeam) }
+                        .padding(.leading, .spacing4).frame(height: 22)
+                        .foregroundStyle(Color.fontButton.opacity(0.7))
+                }.buttonStyle(.plain).padding(.top, 3).accessibilityIdentifier("team-context-new-team")
+            }
+            .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontButton)
+            // TeamContextPicker computed padding: 13px 13px 17px (no token).
+            .padding(.horizontal, 13).padding(.top, 13).padding(.bottom, 17)
+
+        }
+        .background(LinearGradient.primary).clipShape(RoundedRectangle(cornerRadius: 22))
+        .shadow(color: .black.opacity(0.25), radius: 4, y: 4)
+        .accessibilityIdentifier("team-context-menu")
+    }
+
+    private func contextOption(_ team: TeamWorkspaceTeam) -> some View {
         Button {
+            guard !context.isLoading else { return }
             setPickerOpen(false)
-            if let id { recentTeamID = id }
-            Task { await context.selectTeam(id) }
+            let activate = selection.choose(team.id, activeID: context.teamID)
+            if activate { Task { await context.selectTeam(team.id) } }
         } label: {
             HStack(spacing: 7) {
                 SettingsTeamContextAvatar(team: team, size: 39, context: context)
-                Text(label).lineLimit(1)
+                Text(team.name).lineLimit(1)
             }.frame(height: 39).frame(maxWidth: .infinity, alignment: .leading)
         }.buttonStyle(.plain)
-            .accessibilityIdentifier(id.map { "team-context-option-" + $0 } ?? "team-context-personal")
+            .accessibilityValue(selectedTeam?.id == team.id ? "1" : "0")
+            .accessibilityIdentifier("team-context-option-" + team.id)
     }
 
     private func setPickerOpen(_ open: Bool) {
+        guard !open || (!context.isLoading && !readableTeams.isEmpty) else { return }
         withAnimation(reduceMotion ? nil : open ? .easeOut(duration: 0.18) : .easeIn(duration: 0.18)) {
             pickerOpen = open
         }
     }
 
     private func toggleContext() {
+        guard !context.isLoading, let selectedTeam else { return }
         setPickerOpen(false)
-        if context.teamID != nil { Task { await context.selectTeam(nil) } }
-        else if let team = readableTeams.first { recentTeamID = team.id; Task { await context.selectTeam(team.id) } }
-        else { createTeam() }
+        selection.remember(selectedTeam.id)
+        let nextID = context.teamID == nil ? selectedTeam.id : nil
+        Task { await context.selectTeam(nextID) }
     }
 }
 
@@ -3001,21 +3071,20 @@ struct SettingsTeamContextAvatar: View {
 }
 
 private extension AppStrings {
-    static var settingsQuickPersonal: String { localized("settings.personal_context") }
     static var settingsQuickSwitchTeam: String { localized("settings.switch_team_context") }
     static var settingsQuickMoreTeams: String { localized("settings.show_more_teams") }
 }
 
 
-// Web: max-height:min(30rem,calc(100vh - 1rem)); native additionally reserves
-// the52pt trigger row so its below-trigger overlay fits inside the scroll canvas.
+// Web: max-height:min(30rem,calc(100vh - 1rem)); fixed portal placement
+// follows the trigger's left edge, clamps to 8px, and flips above when needed.
 enum SettingsTeamMenuBounds {
-    // Browser: 39px team/Personal rows, 12px gaps, 22px New team plus 3px
+    // Browser: 39px team rows, 12px gaps, 22px New team plus 3px
     // top margin; padding 13+17. A cap bounds scrolling, never adds empty space.
     static func contentHeight(teamCount: Int, expanded: Bool) -> CGFloat {
         let visible = expanded ? max(0, teamCount) : min(5, max(0, teamCount))
         let showMore = teamCount > 5 && !expanded
-        let rows = visible + 1 + (showMore ? 1 : 0)
+        let rows = visible + (showMore ? 1 : 0)
         return 30 + CGFloat(rows) * 39 + CGFloat(rows) * 12 + 3 + 22
     }
 
@@ -3024,6 +3093,86 @@ enum SettingsTeamMenuBounds {
     }
 
     static func maximumHeight(viewportHeight: CGFloat) -> CGFloat {
-        min(CGFloat.spacing24 * 10, max(0, viewportHeight - 52 - CGFloat.spacing8))
+        min(CGFloat.spacing24 * 10, max(0, viewportHeight - CGFloat.spacing8))
+    }
+
+    static func frame(trigger: CGRect, canvas: CGSize, contentHeight: CGFloat) -> CGRect {
+        // Keep the whole scrollable menu inside the canvas even when neither
+        // side can fit it. On canvases smaller than the two 8px margins, collapse
+        // the available region to the center rather than returning an outside origin.
+        let canvasWidth = max(0, canvas.width)
+        let canvasHeight = max(0, canvas.height)
+        let insetX = min(8, canvasWidth / 2)
+        let insetY = min(8, canvasHeight / 2)
+        let right = canvasWidth - insetX
+        let bottom = canvasHeight - insetY
+        let width = min(185, max(0, right - insetX))
+        let height = max(0, min(contentHeight,
+            min(maximumHeight(viewportHeight: canvasHeight), bottom - insetY)))
+        let left = max(insetX, min(trigger.minX, right - width))
+        let roomBelow = bottom - trigger.maxY
+        let roomAbove = trigger.minY - insetY
+        let gap: CGFloat = 6
+        let preferredTop: CGFloat
+        if roomBelow >= height + gap {
+            preferredTop = trigger.maxY + gap
+        } else if roomAbove >= height + gap {
+            preferredTop = trigger.minY - height - gap
+        } else {
+            preferredTop = roomBelow >= roomAbove
+                ? trigger.maxY + gap : trigger.minY - height - gap
+        }
+        let top = max(insetY, min(preferredTop, bottom - height))
+        return CGRect(x: left, y: top, width: width, height: height)
+    }
+}
+
+private struct SettingsTeamPickerOverlay {
+    let trigger: Anchor<CGRect>
+    let contentHeight: CGFloat
+    let content: AnyView
+    let dismiss: () -> Void
+}
+
+private struct SettingsTeamPickerOverlayKey: PreferenceKey {
+    static var defaultValue: [SettingsTeamPickerOverlay] { [] }
+    static func reduce(value: inout [SettingsTeamPickerOverlay], nextValue: () -> [SettingsTeamPickerOverlay]) {
+        value += nextValue()
+    }
+}
+
+// The picker is a remembered team choice. Personal mode is controlled solely by
+// the adjacent toggle; changing the picker while off never changes workspace.
+struct SettingsTeamQuickSelection {
+    private(set) var preferredID: String?
+
+    mutating func remember(_ id: String?) { if let id { preferredID = id } }
+    mutating func reconcile(readableIDs: [String]) {
+        if let preferredID, !readableIDs.contains(preferredID) { self.preferredID = nil }
+    }
+    func selectedID(activeID: String?, readableIDs: [String]) -> String? {
+        if let activeID, readableIDs.contains(activeID) { return activeID }
+        if let preferredID, readableIDs.contains(preferredID) { return preferredID }
+        return readableIDs.first
+    }
+    mutating func choose(_ id: String, activeID: String?) -> Bool {
+        preferredID = id
+        return activeID != nil && activeID != id
+    }
+}
+
+private struct SettingsTeamPickerDismissRegion: Shape {
+    let trigger: CGRect
+    func path(in rect: CGRect) -> Path {
+        var path = Path(rect)
+        path.addRect(trigger)
+        return path
+    }
+}
+
+// SettingsMainHeader uses window.innerWidth, independent of the settings panel.
+enum SettingsMainBannerLayout {
+    static func expandedHeight(viewportWidth: CGFloat) -> CGFloat {
+        viewportWidth <= 730 ? 190 : 240
     }
 }

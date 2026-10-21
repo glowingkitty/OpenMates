@@ -3,7 +3,8 @@
 Successful core relevant Apple E2E tests must retain playable video for user review.
 The `OpenMates_Core_UI_Evidence` scheme uses `apple/OpenMatesCoreUI.xctestplan`.
 It selects account-free guest/interests, offline-capability controls, and model
-transfer/verification tests. Extend the selected core cases as approved Watch,
+transfer/verification, embed footer geometry, README image retention, draft display,
+and inspiration startup tests. Extend the selected core cases as approved Watch,
 storage, and offline-send work becomes executable; do not select the whole suite.
 
 ## Capture and delivery

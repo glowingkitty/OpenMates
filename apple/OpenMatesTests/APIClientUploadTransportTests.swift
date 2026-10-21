@@ -118,9 +118,14 @@ final class APIClientUploadTransportTests: XCTestCase {
         }
         storage.setCookie(try cookie("fixture-expired"))
         let renewed = try cookie("fixture-renewed")
+        let accepted = try JSONDecoder().decode(SessionResponse.self,
+            from: Data(#"{"success":true,"user":{"id":"audio-fixture-account","username":"Fixture"},"wsToken":"fixture-token"}"#.utf8))
         var validation: CheckedContinuation<SessionResponse, Error>?
+        var validations = 0
         let api = APIClient(session: transport, uploadSession: transport, cookieStorage: storage)
         let auth = AuthManager(api: api, sessionValidator: { _, _ in
+            validations += 1
+            if validations == 1 { return accepted }
             recoveryStarted.fulfill()
             let response = try await withCheckedThrowingContinuation { validation = $0 }
             storage.setCookie(renewed)
@@ -129,17 +134,20 @@ final class APIClientUploadTransportTests: XCTestCase {
         auth.currentUser = try JSONDecoder().decode(UserProfile.self,
             from: Data(#"{"id":"audio-fixture-account","username":"Fixture"}"#.utf8))
         auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        XCTAssertTrue(auth.hasNetworkAuthority)
+        XCTAssertEqual(validations, 1)
         let upload = Task {
             try await api.uploadFile(data: Data([1, 2, 3]), filename: "fixture.m4a", contentType: "audio/mp4", chatId: "fixture-chat")
         }
         await fulfillment(of: [firstRequest, recoveryStarted], timeout: 2)
         XCTAssertEqual(fixture.requests.count, 1, "The upload must not race the suspended refresh")
         guard let validation else { upload.cancel(); return XCTFail("Expected suspended session recovery") }
-        validation.resume(returning: try JSONDecoder().decode(SessionResponse.self,
-            from: Data(#"{"success":true,"user":{"id":"audio-fixture-account","username":"Fixture"},"wsToken":"fixture-token"}"#.utf8)))
+        validation.resume(returning: accepted)
         let data = try await upload.value
         XCTAssertEqual(data, Data(#"{"ok":true}"#.utf8))
         XCTAssertEqual(fixture.requests.count, 2)
+        XCTAssertEqual(validations, 2, "The rejected upload must recover exactly once after bootstrap")
         XCTAssertEqual(fixture.requests.map { $0.value(forHTTPHeaderField: "Cookie") },
             ["auth_refresh_token=fixture-expired", "auth_refresh_token=fixture-renewed"])
         XCTAssertTrue(fixture.requests.allSatisfy { $0.httpMethod == "POST" && $0.url?.path == "/v1/upload/file" })
@@ -197,6 +205,14 @@ final class APIClientUploadTransportTests: XCTestCase {
             ServerConfiguration.current = originalProfile
         }
         let api = APIClient(session: transport, cookieStorage: try XCTUnwrap(configuration.httpCookieStorage))
+        let accepted = try JSONDecoder().decode(SessionResponse.self,
+            from: Data(#"{"success":true,"user":{"id":"audio-batch-fixture-account","username":"Fixture"},"wsToken":"fixture-token"}"#.utf8))
+        let auth = AuthManager(api: api, sessionValidator: { _, _ in accepted },
+            profileCacheWriter: { _ in }, sessionMasterKeyAvailable: { _ in true }, sessionScopeActivator: { _ in })
+        auth.currentUser = accepted.user
+        auth.state = .authenticated
+        await auth.validateSessionAfterOfflineBootstrap()
+        XCTAssertTrue(auth.hasNetworkAuthority)
         let _: Data = try await api.request(.post, path: AudioRecordingUploadService.batchTranscriptionPath,
             body: ["requests": []] as [String: Any])
         await fulfillment(of: [requestStarted], timeout: 2)
@@ -205,6 +221,7 @@ final class APIClientUploadTransportTests: XCTestCase {
         XCTAssertEqual(request.url?.absoluteString, "https://api.dev.openmates.org/v1/apps/audio/skills/transcribe")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Origin"), "https://app.dev.openmates.org")
         XCTAssertEqual(request.httpMethod, "POST")
+        withExtendedLifetime(auth) {}
     }
 
     // contract-test: supporting surface=gui.apple assertions=projects.access.explicit-context

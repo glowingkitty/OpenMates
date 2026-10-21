@@ -14,8 +14,8 @@ struct PairV2Authorization: Sendable {
 }
 
 enum PairSessionDeadlineStore {
-    private static let userKey = "openmates.apple.pair_deadline_user"
-    private static let deadlineKey = "openmates.apple.pair_deadline_seconds"
+    static let userKey = "openmates.apple.pair_deadline_user"
+    static let deadlineKey = "openmates.apple.pair_deadline_seconds"
 
     static func save(userID: String, deadline: Int?) {
         clear()
@@ -43,7 +43,7 @@ enum PairSessionDeadlineStore {
 }
 
 enum PairPendingAckStore {
-    private static let key = "openmates.apple.pair_pending_ack_user"
+    static let key = "openmates.apple.pair_pending_ack_user"
 
     static func mark(userID: String, defaults: UserDefaults = .standard) { defaults.set(userID, forKey: key) }
     static func userID(defaults: UserDefaults = .standard) -> String? { defaults.string(forKey: key) }
@@ -65,7 +65,7 @@ enum PairPendingAckStore {
 }
 
 enum PairVerifiedAccountStore {
-    private static let key = "openmates.apple.pair_verified_account"
+    static let key = "openmates.apple.pair_verified_account"
 
     private struct Record: Codable {
         let userID: String
@@ -380,8 +380,15 @@ enum PairV2Runtime {
             }
             try Task.checkCancellation()
             stage = "account_persist"
-            try PairVerifiedAccountStore.save(userID: bundle.userId, hashedEmail: bundle.hashedEmail,
-                emailSalt: bundle.userEmailSalt, encryptedEmail: bundle.accountContext.encryptedEmailWithMasterKey)
+            let verifiedUserID = bundle.userId, verifiedHash = bundle.hashedEmail
+            let verifiedSalt = bundle.userEmailSalt, verifiedEmail = bundle.accountContext.encryptedEmailWithMasterKey
+            try await MainActor.run {
+                try Task.checkCancellation()
+                guard WatchPairReceiverAuthority.current?.isCurrent() != false else { throw CancellationError() }
+                try PairVerifiedAccountStore.save(userID: verifiedUserID, hashedEmail: verifiedHash,
+                    emailSalt: verifiedSalt, encryptedEmail: verifiedEmail)
+                WatchPairReceiverAuthority.current?.verifiedDidPersist()
+            }
             return PairLoginResult(loginResponse: login, masterKey: masterKey, serverProfile: serverProfile)
         } catch {
             NativeDiagnostics.error("phase=receiver.complete.failed stage=\(stage) errorType=\(type(of: error))", category: "pair_login")

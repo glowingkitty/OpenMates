@@ -3,6 +3,8 @@
 // optional skill icon or title favicon, and title/status text.
 // Specification: specifications/features/message-input/specification.yml
 // Assertion: message-input.recording.lifecycle
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
@@ -119,6 +121,9 @@ struct EmbedBasicInfoBar: View {
                         .lineSpacing(subtitle == nil ? 2.4 : 0)
                         .padding(.vertical, subtitle == nil ? 1.2 : 0)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        #if DEBUG
+                        .background(EmbedPreviewGeometryProbe(name: "title"))
+                        #endif
                 }
 
                 if let subtitle {

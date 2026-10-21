@@ -1,10 +1,10 @@
 schema_version: 1
 id: feature.focus-modes
-version: 4
+version: 2
 status: draft
 title: Focus Modes — Shared Operation and Display
-summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical
-  display for all focus modes.
+summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical display
+  for all focus modes.
 scope:
   includes:
   - Shared focus activation, cancellation, deactivation, per-request system prompts and historical events.
@@ -12,216 +12,208 @@ scope:
   - Web focus activation display, details/off interactions and Career insights banner placement.
   - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
-  - Natural-request proposals for opted-in public focus modes, retaining the shared cancellable activation transition.
   - Project base/specialist display, Focus/phase context refresh and Project-only recommendation/background authoring lifecycle.
-  - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation
-    of read access to files already shown in the chat after deactivation.
+  - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation of read access
+    to files already shown in the chat after deactivation.
   - Learning follow-ups and phased Learn topic and Test knowledge tutoring that use learner attempts as evidence.
   excludes:
-  - Exact authored focus prompt wording and conversational tactics; these belong to app instruction
-    implementation.
-  - Changes to individual focus instruction content, career guidance/disclaimer policy, or selection of remaining
-    models and mates.
-  - New public access to private Focus content, bypassed authentication, altered rate/credit policy, and changes to encryption protocol.
+  - Exact authored focus prompt wording and conversational tactics; these belong to app instruction implementation.
+  - Changes to individual focus instruction content, career guidance/disclaimer policy, or selection of remaining models and
+    mates.
+  - New public access to private Focus content, bypassed authentication, altered rate/credit policy, and changes to encryption
+    protocol.
 assertions:
 - id: focus-modes.project-write-gate
   type: security
-  must: Every chat-initiated Project file mutation must deterministically check that this chat currently has an
-    active focus stored in the target Project. Prompt text, preprocessor recommendations, past activation events,
-    another chat's state, and a matching display name cannot substitute for that active Project-bound state. The
-    requirement applies equally to OpenMates-stored and remote Project files; all other write permissions and guards
-    still apply.
+  must: Every chat-initiated Project file mutation must deterministically check that this chat currently has an active focus
+    stored in the target Project. Prompt text, preprocessor recommendations, past activation events, another chat's state,
+    and a matching display name cannot substitute for that active Project-bound state. The requirement applies equally to
+    OpenMates-stored and remote Project files; all other write permissions and guards still apply.
   depends_on:
   - examples.project_write_gate
 - id: focus-modes.project-off-read-preserved
   type: behavior
-  must: After a Project focus is deactivated, new chat file-write requests to that Project are denied and its active
-    instruction is excluded from subsequent system prompts. Files already shown in the chat remain readable within
-    their existing authorized access; deactivation does not erase chat content or grant broader Project reads. Re-reading
-    a historical focus event or displayed file cannot restore write authority.
+  must: After a Project focus is deactivated, new chat file-write requests to that Project are denied and its active instruction
+    is excluded from subsequent system prompts. Files already shown in the chat remain readable within their existing authorized
+    access; deactivation does not erase chat content or grant broader Project reads. Re-reading a historical focus event or
+    displayed file cannot restore write authority.
   depends_on:
   - examples.project_off_read
 - id: focus-modes.activation
   type: behavior
-  must: A suggested or relevant focus is not active merely because it was discovered or an activation embed finished
-    rendering. A pending activation becomes active only through its accepted activation transition; rejecting a
-    genuinely pending request resumes without applying its instructions.
+  must: A suggested or relevant focus is not active merely because it was discovered or an activation embed finished rendering.
+    A pending activation becomes active only through its accepted activation transition; rejecting a genuinely pending request
+    resumes without applying its instructions.
   depends_on:
   - examples.activation
-- id: focus-modes.natural-request
-  type: behavior
-  must: When a natural request uniquely matches an opted-in public focus mode, propose its normal cancellable activation before beginning the substantive answer. Simple lookups, ambiguous matches, an existing focus, exact user skill selections and continuation or rejection turns retain their normal path. The proposal alone never applies focus instructions, grants private access or starts research child chats; those require accepted active state.
-  depends_on:
-  - examples.natural_request
 - id: focus-modes.full-instruction
   type: invariant
-  must: Every request while a focus is active includes its full global instruction. For an unphased focus this is
-    the full configured instruction. A phased focus additionally includes only the current phase with its full instructions
-    and transition requirements; all previous and future phases are represented by IDs and titles. A Project base
-    remains active when a specialist focus adds its instructions. Activation continuations and resumed chats follow
-    the same rule.
+  must: Every request while a focus is active includes its full global instruction. For an unphased focus this is the full
+    configured instruction. A phased focus additionally includes only the current phase with its full instructions and transition
+    requirements; all previous and future phases are represented by IDs and titles. A Project base remains active when a specialist
+    focus adds its instructions. Activation continuations and resumed chats follow the same rule.
   depends_on:
   - examples.full_instruction
 - id: focus-modes.off-instruction
   type: invariant
-  must: After a focus is switched off, its focus instruction must be excluded from all subsequent inference system
-    prompts, including any continuation after AI-initiated deactivation. Clear effective prompt state as well as
-    active metadata; historical activation events must not reintroduce the instruction.
+  must: After a focus is switched off, its focus instruction must be excluded from all subsequent inference system prompts,
+    including any continuation after AI-initiated deactivation. Clear effective prompt state as well as active metadata; historical
+    activation events must not reintroduce the instruction.
   depends_on:
   - examples.off_instruction
 - id: focus-modes.history-events
   type: invariant
-  must: Activation, deactivation and phase changes remain as persisted system history facts identifying the focus
-    and transition without full instructions or private requirement evidence. A phase title links to that focus
-    detail page. Rendering or opening a historical event never changes phase or restores authority.
+  must: Activation, deactivation and phase changes remain as persisted system history facts identifying the focus and transition
+    without full instructions or private requirement evidence. A phase title links to that focus detail page. Rendering or
+    opening a historical event never changes phase or restores authority.
   depends_on:
   - examples.history_events
 - id: focus-modes.countdown
   type: behavior
-  must: Show countdown and cancellation controls only for a positively established live pending cancellable activation
-    in the current conversation. Completed, shared, example, unknown, and historical records must not start or replay
-    a countdown on render, remount, or reload. Render completion alone does not establish activation completion.
+  must: Show countdown and cancellation controls only for a positively established live pending cancellable activation in
+    the current conversation. Completed, shared, example, unknown, and historical records must not start or replay a countdown
+    on render, remount, or reload. Render completion alone does not establish activation completion.
   depends_on:
   - examples.countdown
 - id: focus-modes.history-side-effects
   type: invariant
-  must: Rendering historical focus content must not activate or reject a focus, write current chat focus metadata,
-    or dispatch cancellation. Asynchronous live activation callbacks must remain bound to their originating chat
-    and request rather than whichever chat is currently displayed.
+  must: Rendering historical focus content must not activate or reject a focus, write current chat focus metadata, or dispatch
+    cancellation. Asynchronous live activation callbacks must remain bound to their originating chat and request rather than
+    whichever chat is currently displayed.
   depends_on:
   - examples.history_side_effects
 - id: focus-modes.controls
   type: behavior
-  must: Current active focus state drives the named active banner and off control. Details show focus information
-    without activating it. Deactivation by the existing banner or context-menu interaction updates current state
-    and removes active-only controls; historical records remain distinguishable from a currently active focus.
+  must: Current active focus state drives the named active banner and off control. Details show focus information without
+    activating it. Deactivation by the existing banner or context-menu interaction updates current state and removes active-only
+    controls; historical records remain distinguishable from a currently active focus.
   depends_on:
   - examples.controls
 - id: focus-modes.restoration
   type: privacy
-  must: Current focus state belongs to its chat and uses existing first-party authenticated and client-encrypted
-    persistence/sync boundaries. Reopening an active chat restores its active focus for subsequent requests; reopening
-    an off chat keeps it off. Reading shared/example history cannot assign active focus to another conversation.
-    No new public endpoint or plaintext durable focus storage is authorized.
+  must: Current focus state belongs to its chat and uses existing first-party authenticated and client-encrypted persistence/sync
+    boundaries. Reopening an active chat restores its active focus for subsequent requests; reopening an off chat keeps it
+    off. Reading shared/example history cannot assign active focus to another conversation. No new public endpoint or plaintext
+    durable focus storage is authorized.
   depends_on:
   - examples.restoration
 - id: focus-modes.banner-placement
   type: behavior
-  must: On web, position the Career insights active banner approximately 10 CSS pixels above its pre-fix composer
-    position, with readable label and usable controls and no overlap on phone and laptop. Apply the lift to the
-    active focus banner without shifting unrelated incognito or IdeaBucket pills.
+  must: On web, position the Career insights active banner approximately 10 CSS pixels above its pre-fix composer position,
+    with readable label and usable controls and no overlap on phone and laptop. Apply the lift to the active focus banner
+    without shifting unrelated incognito or IdeaBucket pills.
   depends_on:
   - examples.banner_placement
 - id: focus-modes.specializations
   type: invariant
-  must: Individual focus specifications coexist with and reference feature.focus-modes@1 for shared operation, prompt
-    inclusion/exclusion, history, display, and interactions. They define observable focus-specific agent/product
-    guarantees with concrete examples, without duplicating or weakening the shared lifecycle contract. Exact prompt
-    wording and tactics remain in app instruction implementation. This shared contract does not change career guidance,
-    disclaimer wording, or model/mate selection policies.
+  must: Individual focus specifications coexist with and reference feature.focus-modes@1 for shared operation, prompt inclusion/exclusion,
+    history, display, and interactions. They define observable focus-specific agent/product guarantees with concrete examples,
+    without duplicating or weakening the shared lifecycle contract. Exact prompt wording and tactics remain in app instruction
+    implementation. This shared contract does not change career guidance, disclaimer wording, or model/mate selection policies.
   depends_on:
   - examples.specializations
 - id: focus-modes.retired-welcome-and-suki
   type: behavior
-  must: The Welcome focus mode and its dedicated Suki mate are absent from selectable web and Apple catalogs, and
-    signup does not create a Welcome chat. New requests cannot route to Suki or activate Welcome; an OpenMates platform
-    question uses General Knowledge when no specialized mate applies. Existing chats that used Suki remain readable.
+  must: The Welcome focus mode and its dedicated Suki mate are absent from selectable web and Apple catalogs, and signup does
+    not create a Welcome chat. New requests cannot route to Suki or activate Welcome; an OpenMates platform question uses
+    General Knowledge when no specialized mate applies. Existing chats that used Suki remain readable.
   depends_on:
   - examples.retirement
 - id: focus-modes.phases
   type: behavior
-  must: Focus text may define ordered versioned phases with stable IDs, titles, instructions and requirements. Jev
-    evaluates all current requirements after an actual user response, a completed tool batch and a completed assistant
-    response; uncertainty or provider failure retains the phase. All requirements must be met to automatically advance
-    one phase; user-confirmation requirements depend on actual user input, never assistant or tool self-approval.
-    An explicit user request can return to an earlier phase, without immediately advancing again in the same turn.
-    Current encrypted phase state restores progress independently of historical rendering. Web and Apple focus details
-    show phases and requirements; active chat chrome retains the existing focus display. Each focus defines its
-    own intake and pacing, waiting for actual user answers and considering further research as needed. Users can
-    skip remaining questions or ask them together; no shared question-count minimum is enforced.
+  must: Focus text may define ordered versioned phases with stable IDs, titles, instructions and requirements. Jev evaluates
+    all current requirements after an actual user response, a completed tool batch and a completed assistant response; uncertainty
+    or provider failure retains the phase. All requirements must be met to automatically advance one phase; user-confirmation
+    requirements depend on actual user input, never assistant or tool self-approval. An explicit user request can return to
+    an earlier phase, without immediately advancing again in the same turn. Current encrypted phase state restores progress
+    independently of historical rendering. Web and Apple focus details show phases and requirements; active chat chrome retains
+    the existing focus display. Each focus defines its own intake and pacing, waiting for actual user answers and considering
+    further research as needed. Users can skip remaining questions or ask them together; no shared question-count minimum
+    is enforced.
   depends_on:
   - examples.phases
 - id: focus-modes.learning.progress-and-suggestions
   type: behavior
-  must: Study Learn topic and Test knowledge use the shared phased lifecycle with a brief goal intake, teaching
-    or assessment, learner practice, a fresh independent check and review as appropriate. Progress requires learner
-    evidence rather than assistant claims or merely saying I understand; skipped stages remain unassessed. Learning-mode
-    follow-ups prefer hints, learner attempts and retrieval practice, never expose the answer to an unanswered exercise
-    or bypass the teaching policy. Each focus controls its own intake length; there is no shared five-round intake
-    requirement.
+  must: Study Learn topic and Test knowledge use the shared phased lifecycle with a brief goal intake, teaching or assessment,
+    learner practice, a fresh independent check and review as appropriate. Progress requires learner evidence rather than
+    assistant claims or merely saying I understand; skipped stages remain unassessed. Learning-mode follow-ups prefer hints,
+    learner attempts and retrieval practice, never expose the answer to an unanswered exercise or bypass the teaching policy.
+    Each focus controls its own intake length; there is no shared five-round intake requirement.
   depends_on:
   - examples.learning_progress
 - id: focus-modes.project-specialist-composition
   type: behavior
-  must: An active Project base remains effective when one specialist Focus is activated or switched. Apply
-    both instruction layers, showing only the specialist as Project name | Focus name; shorten visually when
-    space requires while retaining full identity. Switching specialists retains Project authority. Turning
-    off the Project clears its specialist and future Project-only instructions/context; shared deactivation
-    guards still apply.
+  must: An active Project base remains effective when one specialist Focus is activated or switched. Apply both instruction
+    layers, showing only the specialist as Project name | Focus name; shorten visually when space requires while retaining
+    full identity. Switching specialists retains Project authority. Turning off the Project clears its specialist and future
+    Project-only instructions/context; shared deactivation guards still apply.
   depends_on:
   - examples.project_specialist
 - id: focus-modes.context-reselection
   type: behavior
-  must: After any authoritative Focus activation or active-phase change, reselect relevant permitted app skills,
-    saved Workflows, Memories and available context before main processing continues. Use the effective
-    instructions and current phase. Rejected, stale or revoked activation cannot trigger Project-private loading;
-    unchanged-phase tool results do not add a phase-transition reselection. Selection never runs a Workflow
-    or grants access.
+  must: After any authoritative Focus activation or active-phase change, reselect relevant permitted app skills, saved Workflows,
+    Rule guides and available context before main processing continues. Use the effective instructions and current phase.
+    Rejected, stale or revoked activation cannot trigger Project-private loading; unchanged-phase tool results do not add
+    a phase-transition reselection. Selection never runs a Workflow or grants access.
   depends_on:
   - examples.context_reselection
 - id: focus-modes.project-recommendation-catalog
   type: behavior
-  must: After a completed assistant response in an authorized Project, Jev assesses chat context against the
-    eligible Project Focus catalog of titles and summaries, including inactive Focuses. It may select existing
-    IDs for full inspection or recommend a useful non-overlapping new Project Focus and expose Create directly.
-    Improvement proposals for public/app Focuses or personal/global Focuses outside Projects are excluded.
-    Catalog assessment performs no generative authoring.
+  must: After a completed assistant response in an authorized Project, Jev assesses chat context against the eligible Project
+    Focus catalog of titles and summaries, including inactive Focuses. It may select existing IDs for full inspection or recommend
+    a useful non-overlapping new Project Focus and expose Create directly. Improvement proposals for public/app Focuses or
+    personal/global Focuses outside Projects are excluded. Catalog assessment performs no generative authoring.
   depends_on:
   - examples.recommendation_catalog
 - id: focus-modes.project-recommendation-full-assessment
   type: behavior
-  must: For selected existing Project Focus candidates, authorized loading supplies their full instructions
-    to a second Jev assessment against chat context. Show Update only when that assessment confirms a useful
-    improvement. Unselected, inaccessible, unavailable, no-change or uncertain candidates cannot produce an
-    Update recommendation. Inspecting a Focus neither activates it nor starts authoring.
+  must: For selected existing Project Focus candidates, authorized loading supplies their full instructions to a second Jev
+    assessment against chat context. Show Update only when that assessment confirms a useful improvement. Unselected, inaccessible,
+    unavailable, no-change or uncertain candidates cannot produce an Update recommendation. Inspecting a Focus neither activates
+    it nor starts authoring.
   depends_on:
   - examples.recommendation_full
 - id: focus-modes.project-authoring-click
   type: behavior
-  must: Only pressing a validated Create or Update recommendation button starts the scoped background LLM authoring
-    request. Provide authorized chat history and dedicated Focus creation/update instructions, plus the full
-    target and expected revision for updates. Chat continues independently, and no separate regular chat is
-    created. Repeated delivery of the same click starts one job. A new Focus is not implicitly activated.
+  must: Only pressing a validated Create or Update recommendation button starts the scoped background LLM authoring request.
+    Provide authorized chat history and dedicated Focus creation/update instructions, plus the full target and expected revision
+    for updates. Chat continues independently, and no separate regular chat is created. Repeated delivery of the same click
+    starts one job. A new Focus is not implicitly activated.
   depends_on:
   - examples.authoring_click
 - id: focus-modes.project-authoring-persistence
   type: privacy
-  must: Background authoring validates the Focus document and current Project authority, preserves client-encrypted
-    durable content, and respects existing file-write and base-revision guards. Private chat/instruction text
-    cannot appear in plaintext durable job metadata or notifications. A result is ready only after saved content
-    is reachable in the Project workspace and Focus embed; revocation, failure or concurrent edits cannot produce
-    silent overwrite or false success.
+  must: Background authoring validates the Focus document and current Project authority, preserves client-encrypted durable
+    content, and respects existing file-write and base-revision guards. Private chat/instruction text cannot appear in plaintext
+    durable job metadata or notifications. A result is ready only after saved content is reachable in the Project workspace
+    and Focus embed; revocation, failure or concurrent edits cannot produce silent overwrite or false success.
   depends_on:
   - examples.authoring_persistence
 - id: focus-modes.updated-followup-revision
   type: invariant
-  must: The next follow-up with an updated Focus active resolves and uses its saved revision, refreshing effective
-    instructions, phase compatibility and selected context. Already-running responses retain their original
-    instruction snapshot. Cache entries or historical activation events cannot restore an older definition.
+  must: The next follow-up with an updated Focus active resolves and uses its saved revision, refreshing effective instructions,
+    phase compatibility and selected context. Already-running responses retain their original instruction snapshot. Cache
+    entries or historical activation events cannot restore an older definition.
   depends_on:
   - examples.updated_followup
-
+- id: focus-modes.natural-request
+  type: behavior
+  must: When a natural request uniquely matches an opted-in public focus mode, propose its normal cancellable activation before
+    beginning the substantive answer. Simple lookups, ambiguous matches, an existing focus, exact user skill selections and
+    continuation or rejection turns retain their normal path. The proposal alone never applies focus instructions, grants
+    private access or starts research child chats; those require accepted active state.
+  depends_on:
+  - examples.natural_request
 applies_to:
   rest_api:
     required: true
-    role: Existing first-party authenticated inference and WebSocket paths only, retaining current rate/credit/budget
-      limits and encrypted durable material; decrypted instructions are transient inference context. No new access
-      surface.
+    role: Existing first-party authenticated inference and WebSocket paths only, retaining current rate/credit/budget limits
+      and encrypted durable material; decrypted instructions are transient inference context. No new access surface.
   cli:
     required: true
     parity: semantic
-    role: Verify active/off prompts and history through supported real chat commands; browser countdown/pixel geometry
-      is not a terminal UI requirement.
+    role: Verify active/off prompts and history through supported real chat commands; browser countdown/pixel geometry is
+      not a terminal UI requirement.
   sdks:
     required: true
     parity: semantic

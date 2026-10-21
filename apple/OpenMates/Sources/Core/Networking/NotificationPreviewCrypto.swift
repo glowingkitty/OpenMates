@@ -1,5 +1,5 @@
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.payload.privacy-safe, apple-notifications.preview.readable
+// Assertions: apple-notifications.payload.privacy-safe, apple-notifications.preview.readable, apple-notifications.action.direct-reply
 // Device-local notification preview encryption helpers.
 // Keeps the APNs notification private key in Keychain and exposes only the
 // public key to the backend for encrypted preview payloads.
@@ -14,6 +14,12 @@ enum NotificationPreviewCrypto {
     struct Display: Equatable {
         let title: String?
         let body: String
+    }
+    struct Envelope {
+        let display: Display?
+        let replyContext: NotificationReplyContext?
+        let hasReplyContext: Bool
+        let keyFingerprint: String
     }
     static let encryptionVersion = "x25519-aesgcm-v1"
 
@@ -45,6 +51,7 @@ enum NotificationPreviewCrypto {
     }
 
     static func clearPrivateKey() {
+        NotificationReplyStore().revoke()
         #if os(macOS)
         NotificationPreviewKeychain().clear()
         #else
@@ -57,22 +64,29 @@ enum NotificationPreviewCrypto {
     }
 
     static func decryptDisplay(userInfo: [AnyHashable: Any]) -> Display? {
+        decryptEnvelope(userInfo: userInfo)?.display
+    }
+
+    static func decryptEnvelope(userInfo: [AnyHashable: Any]) -> Envelope? {
         #if os(macOS)
-        // Extensions never query the legacy keychain or create a replacement key.
         guard let privateKeyData = try? NotificationPreviewKeychain().loadShared() else { return nil }
         #else
         guard let privateKeyData = try? KeychainHelper.load(key: privateKeyKeychainKey) else { return nil }
         #endif
-        return decryptDisplay(userInfo: userInfo, privateKeyData: privateKeyData)
+        return decryptEnvelope(userInfo: userInfo, privateKeyData: privateKeyData)
     }
 
-    // Explicit key input lets synthetic tests exercise the actual authenticated
-    // ciphertext path without reading or replacing the device's Keychain key.
+    // Explicit key input lets tests use authenticated ciphertext without changing
+    // the device keychain. No content extension links this decryption helper.
     static func decryptPreview(userInfo: [AnyHashable: Any], privateKeyData: Data) -> String? {
         decryptDisplay(userInfo: userInfo, privateKeyData: privateKeyData)?.body
     }
 
     static func decryptDisplay(userInfo: [AnyHashable: Any], privateKeyData: Data) -> Display? {
+        decryptEnvelope(userInfo: userInfo, privateKeyData: privateKeyData)?.display
+    }
+
+    static func decryptEnvelope(userInfo: [AnyHashable: Any], privateKeyData: Data) -> Envelope? {
         guard let encrypted = userInfo["encrypted_notification"] as? [String: Any],
               encrypted["version"] as? String == encryptionVersion,
               let ephemeralPublicKeyValue = encrypted["ephemeral_public_key"] as? String,
@@ -101,10 +115,24 @@ enum NotificationPreviewCrypto {
                 tag: encryptedData.suffix(16)
             )
             let plaintext = try AES.GCM.open(sealedBox, using: symmetricKey)
-            return displayFromDecryptedEnvelope(plaintext)
+            guard let fields = try? JSONSerialization.jsonObject(with: plaintext) as? [String: Any] else { return nil }
+            let context = (try? JSONDecoder().decode(ReplyEnvelope.self, from: plaintext))?.replyContext
+            return Envelope(display: displayFromDecryptedEnvelope(plaintext),
+                replyContext: context.flatMap { $0.isValid ? $0 : nil },
+                hasReplyContext: fields["reply_context"] != nil,
+                keyFingerprint: NotificationReplyStore.digest(privateKey.publicKey.rawRepresentation))
         } catch {
             return nil
         }
+    }
+
+    private struct ReplyEnvelope: Decodable {
+        let replyContext: NotificationReplyContext?
+        enum CodingKeys: String, CodingKey { case replyContext = "reply_context" }
+    }
+
+    static func publicKeyFingerprint(_ value: String) -> String? {
+        decodeBase64URL(value).map(NotificationReplyStore.digest)
     }
 
     // Treat decrypted content as display input, not trusted protocol-free prose.

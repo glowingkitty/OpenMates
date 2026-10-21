@@ -25,7 +25,7 @@ struct DevSidebarComponentFixture: View {
     @State private var lastActiveID: String?
     private let userChats: [Chat]
     private let publicSections: [ChatSidebarSection]
-    private let drafts = ["sidebar-draft": "A local draft kept in memory", "sidebar-pure-draft": "A preview without a generated title"]
+    private let drafts = ["sidebar-draft": "A local draft kept in memory", "sidebar-pure-draft": "Before ```json\n{\"type\":\"audio-recording\",\"embed_id\":\"fixture-audio\"}\n``` after ```json\n{\"type\":\"image\",\"embed_id\":\"fixture-image\"}\n``` describe it"].mapValues { ChatDraftPreviewFormatter.format($0) }
 
     init(variant: String) {
         self.variant = variant
@@ -113,7 +113,7 @@ struct DevSidebarComponentFixture: View {
             recentActiveChats: ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: userChats, limit: limit,
                 selectedChatID: selected?.id, lastActiveChatID: lastActiveID),
             userSections: userSections, publicSections: publicSections,
-            selectedChatID: selected?.id, draftPreviews: drafts, showSearch: showSearch,
+            selectedChatID: selected?.id, draftPreviews: drafts, previewsAreFormatted: true, showSearch: showSearch,
             emptyMessage: variant == "empty" ? AppStrings.noChats : nil,
             loadMore: sidebarLoadMore, actions: sidebarActions, refresh: {}) {
                 sidebarSearch
@@ -225,7 +225,9 @@ struct DevSidebarComponentFixture: View {
          DevHistoryWelcomeData.chat("sidebar-draft", title: "A weekend in Berlin", draft: 1),
          DevHistoryWelcomeData.chat("sidebar-long", title: "Understanding the performance of a long conversation and its many source previews"),
          DevHistoryWelcomeData.chat("sidebar-final", title: "Latest local conversation"),
-         DevHistoryWelcomeData.chat("sidebar-pure-draft", messages: 0, draft: 1)]
+         DevHistoryWelcomeData.chat("sidebar-pure-draft", messages: 0, draft: 1),
+         DevHistoryWelcomeData.chat("sidebar-empty-shell", messages: 0),
+         DevHistoryWelcomeData.chat("sidebar-pending-draft", messages: 0, draft: 19)]
     }
     private static let fixtureNow = Date(timeIntervalSince1970: 1_789_214_400) // 2026-09-12 12:00 UTC
     private static var fixtureCalendar: Calendar {

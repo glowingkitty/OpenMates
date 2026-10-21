@@ -268,8 +268,14 @@ struct NativeComposerEditorView: UIViewRepresentable {
             publishMeasuredHeight(resolvedHeight(for: textView, width: textView.bounds.width))
         }
         if isFocused.wrappedValue, !textView.isFirstResponder {
+            #if DEBUG && !OPENMATES_SHARE_EXTENSION
+            (textView as? NativeComposerFocusProbeTextView)?.recordFocusProbe(phase: 9)
+            #endif
             textView.becomeFirstResponder()
         } else if !isFocused.wrappedValue, textView.isFirstResponder {
+            #if DEBUG && !OPENMATES_SHARE_EXTENSION
+            (textView as? NativeComposerFocusProbeTextView)?.recordFocusProbe(phase: 10)
+            #endif
             textView.resignFirstResponder()
         }
     }
@@ -311,6 +317,9 @@ struct NativeComposerEditorView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: UITextView, coordinator: Coordinator) {
+        #if DEBUG && !OPENMATES_SHARE_EXTENSION
+        (uiView as? NativeComposerFocusProbeTextView)?.recordFocusProbe(phase: 12)
+        #endif
         coordinator.boundsObservation?.invalidate()
         coordinator.boundsObservation = nil
         coordinator.adapter.onScroll = { _ in }

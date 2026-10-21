@@ -183,6 +183,17 @@ models:
         - is_opened
         - opened_chat_id
 assertions:
+- id: daily-inspiration.apple-startup-offline
+  type: behavior
+  must: >-
+    The authenticated Apple welcome screen shows the Daily Inspiration banner
+    immediately. While no usable content is available for the current account,
+    server and team, it shows a noninteractive general-knowledge gradient.
+    Current-context inspirations restored from encrypted device storage remain
+    available offline for up to 72 hours after generation. Expired or other-context
+    personal content never appears. Loaded content replaces the gradient smoothly
+    within the same banner space and respects Reduce Motion.
+  depends_on: [examples.apple_startup_offline]
 - id: daily-inspiration.authenticated-continuity
   type: behavior
   must: Authenticated web recovery writes an authenticated-compatible fallback synchronously whenever
@@ -268,8 +279,8 @@ applies_to:
       web:
         required: true
       apple:
-        required: false
-        role: consumes daily records but is not required for web fallback continuity
+        required: true
+        role: owns apple-startup-offline; existing web-specific fallback composition remains web-only
 examples:
   file: examples.yml
   required_groups:

@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first
 #if DEBUG
 import CryptoKit
 import Foundation
@@ -8,6 +10,24 @@ import Foundation
 enum ProjectsWorkspacePreviewFixture {
     // Public synthetic bytes distinguish the full original from its bounded preview.
     static let readmeImageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAIAAAD4YuoOAAAAI0lEQVR4nGPwCb1EU8QwasGoBUPAgod3/tMUjVowasEQsAAA1wUvPSb5obMAAAAASUVORK5CYII=")!
+    static let readmeImagePaths = Set((0..<100).map { "assets/readme-preview-\($0).png" })
+    static let manyImageReadme = "# All README images\n\n" + (0..<12).map {
+        "![README image \($0)](assets/readme-preview-\($0).png)"
+    }.joined(separator: "\n\n")
+    static func denseImageReadme(shape: String) -> String {
+        let images = (0..<100).map { "![README image \($0)](assets/readme-preview-\($0).png)" }
+        switch shape {
+        case "wide-table":
+            // Intrinsic unbroken headers make the real Grid wider than the
+            // phone viewport; no fixture-only width or renderer is installed.
+            let wide = String(repeating: "W", count: 48)
+            return "# Wide README table\n\n| Left_\(wide) | Middle_\(wide) | Right_\(wide) |\n| --- | --- | --- |\n" +
+                "| ![Wide table left](assets/readme-preview-0.png) | ![Wide table middle](assets/readme-preview-1.png) | ![Wide table right](assets/readme-preview-2.png) |"
+        case "list": return "# Dense README list\n\n" + images.map { "- " + $0 }.joined(separator: "\n")
+        case "table": return "# Dense README table\n\n| Image |\n| --- |\n" + images.map { "| " + $0 + " |" }.joined(separator: "\n")
+        default: return "# Dense README paragraph\n\n" + images.joined(separator: " ")
+        }
+    }
     static let originalText = String(repeating: String(repeating: "public fixture line ", count: 1_000) + "\n",
         count: 12) + "ORIGINAL FILE END\n"
     private static let previewByteLimit = 180 * 1024
@@ -113,10 +133,10 @@ enum ProjectsWorkspacePreviewFixture {
         }
         let sourceKind = variant == "localFolderSource" ? "local_folder" : "local_git_repository"
         let hasSource = ["connectedSource", "localFolderSource", "multipleSources",
-            "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"].contains(variant)
+            "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource"].contains(variant)
         let source = ProjectWorkspaceSource(id: "source-preview", kind: sourceKind,
             name: "OpenMates repository", metadata: ["root": "/workspace/OpenMates"],
-            capabilities: ["read"], status: variant == "offlineConnectedSource" ? "offline" : "connected",
+            capabilities: ["read"], status: ["offlineConnectedSource", "offlineCachedSource"].contains(variant) ? "offline" : "connected",
             sessionID: nil, keyEpoch: nil)
         var sources = hasSource ? [source] : []
         if variant == "multipleSources" {
@@ -124,7 +144,7 @@ enum ProjectsWorkspacePreviewFixture {
                 name: "Second repository", metadata: source.metadata, capabilities: ["read"],
                 status: "connected", sessionID: nil, keyEpoch: nil))
         }
-        let remoteEntries: [ProjectRemoteEntry]
+        var remoteEntries: [ProjectRemoteEntry]
         if variant == "truncatedConnectedSource" {
             remoteEntries = [entry("large.txt", kind: "file", size: originalText.utf8.count)]
         } else if variant == "rootFiles" {
@@ -152,9 +172,22 @@ enum ProjectsWorkspacePreviewFixture {
                 childFileSizeBytes: 2048),
                 entry("README.md", kind: "file", size: 1024)]
         }
-        let readme: ProjectsWorkspaceStore.ReadmeState = ProcessInfo.processInfo.arguments.contains("--ui-test-project-readme-failed") ? .failed : variant == "offlineConnectedSource" ? .unavailable : variant == "readme"
+        if variant == "offlineCachedSource" {
+            // Explicit retained directory descriptions, independent of the
+            // bounded child summary shown on the root folder card.
+            remoteEntries += [entry("frontend/app.ts", kind: "file", size: 2048),
+                entry("frontend/src", kind: "directory")]
+        }
+        var readme: ProjectsWorkspaceStore.ReadmeState = ProcessInfo.processInfo.arguments.contains("--ui-test-project-readme-failed") ? .failed : variant == "offlineConnectedSource" ? .unavailable : variant == "readme"
             ? .ready(ProjectWorkspaceReadme(markdown: "# OpenMates\n\nA private workspace for planning, research, and shipping useful work.\n\n## What we are building\n\n- Calm collaboration\n- Useful project context\n- Clear next steps\n\n```swift\nlet project = \"OpenMates\"\n```\n\n![Project overview preview][project image]\n\n- Reference image: ![List preview][project image]\n\n| Feature | Status |\n| --- | --- |\n| Documentation | Ready |\n\n[project image]: assets/readme-preview.png",
                 truncated: false, origin: "stored")) : .empty
+        if variant == "readme", ProcessInfo.processInfo.arguments.contains("--ui-test-project-readme-many-images") {
+            let arguments = ProcessInfo.processInfo.arguments
+            let shapeIndex = arguments.firstIndex(of: "--ui-test-project-readme-image-shape")
+            let shape = shapeIndex.flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
+            readme = .ready(.init(markdown: shape.map { denseImageReadme(shape: $0) } ?? manyImageReadme,
+                truncated: false, origin: "stored"))
+        }
         let previews = sources.reduce(into: [String: [ProjectRemoteEntry]]()) { result, source in
             guard source.status == "connected" else { return }
             result[source.id] = Array(remoteEntries.prefix(3))

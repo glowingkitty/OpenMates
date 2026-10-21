@@ -20,6 +20,63 @@ final class ComposerVisualParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
+    func testWelcomeMicrophoneYieldsTrailingPositionToSendAcrossDraftTransitions() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = launchFocusedWelcomeComposer()
+        try assertMicrophoneDraftTransitions(in: app, hasSpeechControl: false)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
+    func testSavedChatMicrophoneStaysBesideSpeechAndBeforeSendAcrossDraftTransitions() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-composer-focus-trace"]
+        app.launch()
+        let latest = app.textViews.matching(NSPredicate(format: "value CONTAINS %@",
+            "Latest assistant response visible after bounded open")).firstMatch
+        XCTAssertTrue(latest.waitForExistence(timeout: 12))
+        let editor = try NativeUITestElementResolution.requireVisible(
+            app.textViews.matching(identifier: "message-editor"), in: app)
+        editor.tap()
+        let focusedAfterEdgeTap = app.buttons["chat-composer-cancel"].waitForExistence(timeout: 5)
+        if !focusedAfterEdgeTap {
+            attachComposerControlDiagnostics(in: app, stage: "saved-chat-initial-editor-edge-tap")
+        }
+        XCTAssertTrue(focusedAfterEdgeTap)
+        try assertMicrophoneDraftTransitions(in: app, hasSpeechControl: true)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
+    func testWelcomePersistentRecordHintKeepsMicrophoneBeforeTrailingSend() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = launchFocusedWelcomeComposer(extraArguments: [
+            "--ui-test-welcome-mic-granted", "--ui-test-welcome-record-hint"
+        ])
+        try assertMicrophoneDraftTransitions(in: app, hasSpeechControl: false, hasRecordHint: true)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
+    func testSavedChatPersistentRecordHintKeepsMicrophoneBesideSpeechBeforeTrailingSend() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-chat-mic-granted",
+            "--ui-test-chat-record-hint"]
+        app.launch()
+        let latest = app.textViews.matching(NSPredicate(format: "value CONTAINS %@",
+            "Latest assistant response visible after bounded open")).firstMatch
+        XCTAssertTrue(latest.waitForExistence(timeout: 12))
+        let editor = try NativeUITestElementResolution.requireVisible(
+            app.textViews.matching(identifier: "message-editor"), in: app)
+        editor.tap()
+        XCTAssertTrue(app.buttons["chat-composer-cancel"].waitForExistence(timeout: 5))
+        try assertMicrophoneDraftTransitions(in: app, hasSpeechControl: true, hasRecordHint: true)
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testActiveFocusPillHasHumanLabelAndOperableSettingsAndUndoToggle() {
         let app = XCUIApplication()
@@ -88,6 +145,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         currentEditor.tap()
         let focusedAfterSingleTap = app.buttons["chat-composer-cancel"].waitForExistence(timeout: 5)
         if !focusedAfterSingleTap {
+            attachComposerControlDiagnostics(in: app, stage: "single-editor-tap-focus-missing")
             let field = element(in: app, identifier: "message-field")
             let diagnostic = XCTAttachment(string: String(describing: field.value))
             diagnostic.name = "Single native editor tap geometry"
@@ -174,10 +232,10 @@ final class ComposerVisualParityUITests: XCTestCase {
         }
         editor.tap()
         editor.typeText("Synthetic microphone placement")
-        let typedMic = app.buttons["record-audio-button"]
+        let typedMic = element(in: app, identifier: "action-buttons").buttons["record-audio-button"]
         let typedSend = app.buttons["send-button"]
         XCTAssertTrue(typedMic.isHittable); XCTAssertTrue(typedSend.exists)
-        XCTAssertLessThan(typedSend.frame.midX, typedMic.frame.midX)
+        XCTAssertLessThanOrEqual(typedMic.frame.maxX, typedSend.frame.minX)
         XCTAssertGreaterThan(typedMic.frame.midY, field.frame.midY)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product composer UI must not render default List/table chrome")
 
@@ -231,7 +289,11 @@ final class ComposerVisualParityUITests: XCTestCase {
         let field = element(in: app, identifier: "message-field")
         let suggestions = element(in: app, identifier: "new-chat-suggestions")
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertTrue(suggestions.waitForExistence(timeout: 5))
+        let suggestionsAppeared = suggestions.waitForExistence(timeout: 5)
+        if !suggestionsAppeared {
+            attachComposerControlDiagnostics(in: app, stage: "welcome-suggestions-missing-after-focus")
+        }
+        XCTAssertTrue(suggestionsAppeared)
         let initialHeight = field.frame.height
 
         editor.typeText("First line")
@@ -274,10 +336,10 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         let sendButton = app.buttons["send-button"]
         XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
-        let mic = app.buttons["record-audio-button"]
+        let mic = element(in: app, identifier: "action-buttons").buttons["record-audio-button"]
         XCTAssertTrue(mic.exists)
-        XCTAssertLessThan(sendButton.frame.midX, mic.frame.midX,
-            "Typed Welcome microphone must stay to the right of Send")
+        XCTAssertLessThanOrEqual(mic.frame.maxX, sendButton.frame.minX,
+            "Typed Welcome microphone must stay to the left of Send")
         XCTAssertFalse(app.buttons["message-input-fullscreen-button"].exists,
             "The expand icon stays absent through the full three-line boundary")
         XCTAssertLessThanOrEqual(
@@ -405,10 +467,10 @@ final class ComposerVisualParityUITests: XCTestCase {
                 XCTAssertFalse(card.buttons["native-composer-preview-action-visible"].exists)
             }
             XCTAssertTrue(app.buttons["composer-attachment-toggle"].isHittable)
-            let mic = app.buttons["record-audio-button"]
+            let mic = element(in: app, identifier: "action-buttons").buttons["record-audio-button"]
             let submit = app.buttons["send-button"]
             XCTAssertTrue(mic.isHittable); XCTAssertTrue(submit.isHittable)
-            XCTAssertLessThan(submit.frame.midX, mic.frame.midX)
+            XCTAssertLessThanOrEqual(mic.frame.maxX, submit.frame.minX)
             XCTAssertGreaterThan(mic.frame.midY, field.frame.midY)
             attachScreenshot(name: "\(orientation) native editor scrolled to complete \(type) footer")
         }
@@ -593,6 +655,163 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
 
         attachScreenshot(name: "Shared composer quick capture contract")
+    }
+
+    private func assertMicrophoneDraftTransitions(in app: XCUIApplication, hasSpeechControl: Bool,
+                                                   hasRecordHint: Bool = false) throws {
+        // Exercise the production parent composers, including their narrow and
+        // wide action rows, without starting capture or submitting a message.
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            let landscape = orientation == .landscapeLeft
+            let rotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = app.windows.firstMatch.frame
+                return landscape ? frame.width > frame.height : frame.height > frame.width
+            }, object: app)
+            XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
+            let editor = try NativeUITestElementResolution.requireVisible(
+                app.textViews.matching(identifier: "message-editor"), in: app)
+            XCTAssertEqual(editor.value as? String, "")
+            assertMicrophoneActionGeometry(in: app, hasSend: false, hasSpeechControl: hasSpeechControl, hasRecordHint: hasRecordHint)
+            editor.tap()
+            editor.typeText("Mic order")
+            assertMicrophoneActionGeometry(in: app, hasSend: true, hasSpeechControl: hasSpeechControl, hasRecordHint: hasRecordHint)
+            editor.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Mic order".count))
+            XCTAssertEqual(editor.value as? String, "")
+            assertMicrophoneActionGeometry(in: app, hasSend: false, hasSpeechControl: hasSpeechControl, hasRecordHint: hasRecordHint)
+        }
+    }
+
+    private func assertMicrophoneActionGeometry(in app: XCUIApplication, hasSend: Bool,
+                                                hasSpeechControl: Bool, hasRecordHint: Bool = false,
+                                                file: StaticString = #filePath, line: UInt = #line) {
+        let row = element(in: app, identifier: "action-buttons")
+        let field = element(in: app, identifier: "message-field")
+        // Retained, hidden draft-preview controls can still occur in XCTest's
+        // snapshot. Resolve this production action lane, not a global duplicate.
+        let mic = row.buttons["record-audio-button"]
+        let send = row.buttons["send-button"]
+        let speech = row.buttons["assistant-speech-toggle"]
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard row.exists, field.exists, mic.exists, mic.isHittable, mic.frame.width > 18,
+                  send.exists == hasSend else { return false }
+            let trailing = hasSend ? send : mic
+            guard (!hasSend || send.isHittable),
+                  row.frame.insetBy(dx: -2, dy: -2).contains(mic.frame),
+                  abs(field.frame.maxX - trailing.frame.maxX - 16) <= 3 else { return false }
+            if hasSend {
+                guard mic.frame.maxX <= send.frame.minX,
+                      abs(mic.frame.midY - send.frame.midY) <= 3 else { return false }
+            }
+            if hasSpeechControl {
+                guard speech.exists, speech.frame.width > 18,
+                      speech.frame.maxX <= mic.frame.minX,
+                      mic.frame.minX - speech.frame.maxX <= 20,
+                      abs(speech.frame.midY - mic.frame.midY) <= 3 else { return false }
+            }
+            return true
+        }, object: app)
+        let result = XCTWaiter.wait(for: [settled], timeout: 5)
+        if result != .completed {
+            // Emit before the fail-fast assertion, while the failed presentation
+            // is still mounted. No labels, draft values, or AX dumps are read.
+            let rowFrame = row.exists ? row.frame : .zero
+            let fieldFrame = field.exists ? field.frame : .zero
+            let micFrame = mic.exists ? mic.frame : .zero
+            let sendFrame = send.exists ? send.frame : .zero
+            let speechFrame = speech.exists ? speech.frame : .zero
+            let trailingFrame = hasSend ? sendFrame : micFrame
+            attachComposerControlDiagnostics(in: app, stage: "mic-action-geometry", details: [
+                "expectsSend": hasSend, "expectsSpeech": hasSpeechControl,
+                "rowExists": row.exists, "micExists": mic.exists,
+                "micHittable": mic.exists && mic.isHittable,
+                "micWidthOver18": micFrame.width > 18,
+                "sendPresenceMatches": send.exists == hasSend,
+                "sendHittableWhenRequired": !hasSend || (send.exists && send.isHittable),
+                "rowContainsMic": rowFrame.insetBy(dx: -2, dy: -2).contains(micFrame),
+                "rowTrailingInset": Double(rowFrame.maxX - trailingFrame.maxX),
+                // AX action-buttons is its children's union. The actual field
+                // includes the 16pt padding whose visual placement is required.
+                "trailingInset": Double(fieldFrame.maxX - trailingFrame.maxX),
+                "trailingInsetMatches16": abs(fieldFrame.maxX - trailingFrame.maxX - 16) <= 3,
+                "micBeforeSend": micFrame.maxX <= sendFrame.minX,
+                "micSendMidYDelta": Double(abs(micFrame.midY - sendFrame.midY)),
+                "speechExists": speech.exists, "speechWidthOver18": speechFrame.width > 18,
+                "speechBeforeMic": speechFrame.maxX <= micFrame.minX,
+                "speechMicGap": Double(micFrame.minX - speechFrame.maxX),
+                "speechMicMidYDelta": Double(abs(speechFrame.midY - micFrame.midY))
+            ])
+        }
+        XCTAssertEqual(result, .completed,
+            "Mic must be visible beside speech, with Send alone taking the trailing position when present",
+            file: file, line: line)
+        if hasRecordHint {
+            let hint = app.staticTexts["press-hold-label"]
+            XCTAssertTrue(hint.waitForExistence(timeout: 3), "Persistent localized recording guidance remains exposed",
+                file: file, line: line)
+            let field = element(in: app, identifier: "message-field")
+            XCTAssertGreaterThan(hint.frame.width, 18, file: file, line: line)
+            XCTAssertGreaterThan(hint.frame.height, 8, file: file, line: line)
+            XCTAssertTrue(field.frame.insetBy(dx: -2, dy: -2).contains(hint.frame),
+                "Recording guidance must fit visibly inside the composer", file: file, line: line)
+            XCTAssertLessThanOrEqual(hint.frame.maxY, mic.frame.minY,
+                "Recording guidance must stay above the action lane", file: file, line: line)
+        }
+        let screenshot = XCUIScreen.main.screenshot()
+        assertButtonIsVisibleInScreenshot(mic, identifier: "record-audio-button", in: app,
+            screenshot: screenshot, file: file, line: line)
+        if hasSend {
+            assertButtonIsVisibleInScreenshot(send, identifier: "send-button", in: app,
+                screenshot: screenshot, file: file, line: line)
+        }
+        if hasSpeechControl {
+            assertButtonIsVisibleInScreenshot(speech, identifier: "assistant-speech-toggle", in: app,
+                screenshot: screenshot, file: file, line: line)
+        }
+        attachScreenshot(screenshot, name: hasSend ? "Mic beside speech before trailing Send" : "Empty draft trailing mic")
+    }
+
+    private func attachComposerControlDiagnostics(in app: XCUIApplication, stage: String,
+                                                   details: [String: Any] = [:]) {
+        func frameData(_ frame: CGRect) -> [Double] {
+            [Double(frame.minX), Double(frame.minY), Double(frame.width), Double(frame.height)]
+        }
+        let identifiers = [
+            "action-buttons", "message-field", "message-composer", "message-editor",
+            "message-input-idle-actions", "message-input-retained-editor-field",
+            "message-draft-preview-surface", "message-draft-summary",
+            "composer-attachment-toggle", "composer-model-selector", "record-audio-button",
+            "assistant-speech-toggle", "assistant-speech-toggle-status", "send-button",
+            "press-hold-label", "chat-composer-cancel", "new-chat-draft-dismiss-button",
+            "chat-composer-workspace-backdrop", "new-chat-suggestions",
+            "offline-ai-model-pack-notification"
+        ]
+        var elements: [[String: Any]] = []
+        for identifier in identifiers {
+            let query = app.descendants(matching: .any).matching(identifier: identifier)
+            // Bound collection and inspect only known controls. Never read their
+            // labels/values, which can contain draft text or account details.
+            let matches = query.allElementsBoundByIndex
+            let controls = matches.prefix(8).map { control -> [String: Any] in
+                let exists = control.exists
+                return ["identifier": control.identifier, "type": control.elementType.rawValue,
+                        "exists": exists, "hittable": exists && control.isHittable,
+                        "enabled": exists && control.isEnabled,
+                        "frame": frameData(exists ? control.frame : .zero)]
+            }
+            elements.append(["identifier": identifier, "count": matches.count, "controls": controls])
+        }
+        let data: [String: Any] = ["stage": stage, "details": details, "elements": elements,
+            "windowFrame": frameData(app.windows.firstMatch.frame),
+            "keyboardCount": app.keyboards.count]
+        if let json = try? JSONSerialization.data(withJSONObject: data, options: [.prettyPrinted, .sortedKeys]),
+           let text = String(data: json, encoding: .utf8) {
+            let attachment = XCTAttachment(string: text)
+            attachment.name = "Composer safe control geometry - \(stage)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        attachScreenshot(name: "Composer failed control presentation - \(stage)")
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {

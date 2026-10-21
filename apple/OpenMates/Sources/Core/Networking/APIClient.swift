@@ -1,3 +1,7 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.access.authenticated-first-party
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.explicit-entry-back
 // HTTP API client for the OpenMates backend.
 // Handles auth tokens, cookie-based sessions, and JSON encoding/decoding.
 // Supports both Encodable bodies and raw dictionary bodies.
@@ -193,6 +197,18 @@ actor APIClient {
         try await uploadFile(data: data, filename: filename, contentType: contentType,
                              optionalChatID: nil, serverProfile: serverProfile,
                              expectedAccountID: expectedAccountID, expectedScope: expectedScope)
+    }
+
+    func uploadAccountProfileImage(data: Data, serverProfile: ServerProfile,
+                                   expectedAccountID: String, expectedScope: UUID,
+                                   expectedTeamContext: APIRequestTeamContext) async throws -> Data {
+        let response = try await uploadFile(data: data, filename: "profile.jpg", contentType: "image/jpeg",
+            optionalChatID: nil, serverProfile: serverProfile, expectedAccountID: expectedAccountID,
+            expectedScope: expectedScope, endpoint: "v1/upload/profile-image",
+            expectedTeamContext: expectedTeamContext)
+        try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+        try await checkTeamContext(expectedTeamContext)
+        return response
     }
 
     func uploadTeamProfileImage(data: Data, encryptedMetadata: String, teamID: String,
@@ -815,6 +831,12 @@ actor APIClient {
                 return pinned
             }
         }
+        if dispatchedRequest.url?.path.hasPrefix("/v1/auth/pair/v2/complete/") == true {
+            let prepared = dispatchedRequest
+            dispatchedRequest = await MainActor.run {
+                Self.preparePairCompletionRequest(prepared, cookieStorage: cookieStorage)
+            }
+        }
         try Task.checkCancellation()
         let sentRequest = dispatchedRequest
         let cookieURL = cookieAuthenticationURL
@@ -865,8 +887,13 @@ actor APIClient {
         } else if let explicitMutationProfile {
             await MainActor.run {
                 guard ServerProfile.current() == explicitMutationProfile else { return }
-                Self.reconcileExplicitSessionCookies(httpResponse, request: sentRequest,
-                    profile: explicitMutationProfile, cookieStorage: cookieStorage)
+                if sentRequest.url?.path.hasPrefix("/v1/auth/pair/v2/complete/") == true {
+                    Self.publishPairCompletionCookies(httpResponse, request: sentRequest,
+                        profile: explicitMutationProfile, cookieStorage: cookieStorage)
+                } else {
+                    Self.reconcileExplicitSessionCookies(httpResponse, request: sentRequest,
+                        profile: explicitMutationProfile, cookieStorage: cookieStorage)
+                }
             }
         }
         guard (200...299).contains(httpResponse.statusCode) else {
@@ -979,6 +1006,24 @@ actor APIClient {
             scopeURLs: [authURL, url], cookieStorage: cookieStorage)
         guard let successor, !successor.isEmpty, successor != current else { return false }
         return Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value == successor
+    }
+
+    // Specification: specifications/features/apple-watch/specification.yml
+    // Assertion: apple-watch.pairing.explicit-entry-back
+    // Disable automatic cookie acceptance for pair completion, then publish only
+    // on the still-running receiver task. Other login/logout handling is unchanged.
+    @MainActor static func preparePairCompletionRequest(_ request: URLRequest, cookieStorage: HTTPCookieStorage) -> URLRequest {
+        var pinned = request
+        pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage)
+        return pinned
+    }
+
+    @MainActor static func publishPairCompletionCookies(_ response: HTTPURLResponse, request: URLRequest,
+        profile: ServerProfile, cookieStorage: HTTPCookieStorage) {
+        guard !Task.isCancelled, ServerProfile.current() == profile,
+              WatchPairReceiverAuthority.current?.isCurrent() != false else { return }
+        reconcileExplicitSessionCookies(response, request: request, profile: profile, cookieStorage: cookieStorage)
+        WatchPairReceiverAuthority.current?.cookiesDidPublish()
     }
 
     /// Explicit login/logout already owns cookie creation/deletion. Reconcile

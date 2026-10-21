@@ -7,6 +7,132 @@ import XCTest
 @testable import OpenMates
 
 final class WorkflowsParityTests: XCTestCase {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.run-target,workflows.access.boundaries
+    func testPersonalCompletionScopeSelectsExactRunWithoutTeamListOrDetailQuery() async throws {
+        // A live account is never used: reset only the in-memory context and inject all detail reads.
+        let owner = "synthetic-completion-owner"
+        let context = TeamWorkspaceContext.shared
+        context.reset(accountID: owner)
+        defer { context.reset(accountID: nil) }
+        let scope = WorkflowAPIOperationScope.capture(accountID: owner)
+        XCTAssertNil(scope.teamContext.teamID)
+        XCTAssertEqual(WorkflowAPIRequestFactory.listPath(teamID: scope.teamContext.teamID), "/v1/workflows")
+        let workflow = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
+        let run = try JSONDecoder().decode(WorkflowRunDetail.self, from: runFixtureData())
+        var paths: [String] = []
+        let store = WorkflowStore(detailRequest: { id, captured in
+            XCTAssertNil(captured.teamContext.teamID)
+            XCTAssertEqual(captured.teamContext.epoch, scope.teamContext.epoch)
+            paths.append(WorkflowAPIRequestFactory.workflowPath(id, teamID: captured.teamContext.teamID))
+            return workflow
+        }, runsRequest: { id, captured in
+            XCTAssertNil(captured.teamContext.teamID)
+            paths.append(WorkflowAPIRequestFactory.runsPath(id))
+            return [WorkflowRunSummary(detail: run)]
+        }, runDetailRequest: { workflowID, runID, captured in
+            XCTAssertNil(captured.teamContext.teamID)
+            XCTAssertEqual(captured.teamContext.epoch, scope.teamContext.epoch)
+            paths.append(WorkflowAPIRequestFactory.runDetailPath(workflowId: workflowID, runId: runID))
+            return run
+        })
+        store.reset(accountId: owner)
+        await store.select(id: workflow.id)
+        await store.selectRun(run.id)
+        XCTAssertEqual(store.selectedWorkflow?.id, workflow.id)
+        XCTAssertEqual(store.selectedRunDetail?.id, run.id)
+        XCTAssertTrue(paths.contains("/v1/workflows/\(workflow.id)"))
+        XCTAssertTrue(paths.contains("/v1/workflows/\(workflow.id)/runs/\(run.id)"))
+        XCTAssertFalse(paths.contains { $0.contains("team_id") })
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.run-target,workflows.access.boundaries
+    func testCompletionOwnedContextRefreshCannotClearExactOlderRunAfterSuspendedHighlightSetup() async throws {
+        let owner = "synthetic-highlight-completion-owner"
+        let context = TeamWorkspaceContext.shared
+        context.reset(accountID: owner)
+        defer { context.reset(accountID: nil) }
+        let origin = context.snapshot
+        let workflow = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
+        var payload = try jsonObject(runFixtureData())
+        payload["id"] = "older-completion-run"
+        let run = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        let store = WorkflowStore(detailRequest: { _, _ in workflow }, runsRequest: { _, _ in [] },
+                                  runDetailRequest: { _, _, _ in run })
+        store.reset(accountId: owner)
+        var handoff: WorkflowCompletionPersonalHandoff? = .init(
+            route: .init(workflowID: workflow.id, runID: run.id, chatID: nil, messageID: nil, deliveryID: nil),
+            identity: .init(accountID: owner, profile: ServerProfile.current(),
+                offlineScope: OfflineStore.shared.scopeGeneration, authorityGeneration: UUID()))
+        // This is the context event's capture point, before highlight setup can suspend.
+        let refresh = WorkflowCompletionContextRefresh(completionOwnedEvent: handoff?.ownsRouting == true)
+        let entered = expectation(description: "highlight configure suspended")
+        let gate = CompletionContextRefreshGate(entered: entered)
+        var genericLoads = 0
+        let refreshing = Task {
+            await refresh.run(isCurrent: { context.isCurrent(origin) }, configureHighlights: {
+                await gate.suspend()
+            }, loadWorkspace: {
+                genericLoads += 1
+                // Apply the actual selection-clearing effect of an authoritative list missing this Workflow.
+                store.clearSelection()
+            })
+        }
+        await fulfillment(of: [entered], timeout: 2)
+        await store.select(id: workflow.id)
+        await store.selectRun(run.id)
+        XCTAssertEqual(store.selectedRunDetail?.id, run.id)
+        XCTAssertFalse(store.workflows.contains { $0.id == workflow.id },
+            "The exact completion target is outside the generic library inventory")
+        handoff = nil // Successful completion consumes its pending route while highlight configuration is suspended.
+        XCTAssertNil(handoff)
+        gate.resume()
+        await refreshing.value
+        XCTAssertEqual(genericLoads, 0, "Live ownership disappearing must not rearm the originating event's generic load")
+        XCTAssertEqual(store.selectedWorkflow?.id, workflow.id)
+        XCTAssertEqual(store.selectedRunDetail?.id, run.id, "The exact older run survives delayed highlight setup")
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=notifications.workflow-run.run-target,workflows.access.boundaries
+    func testContextRefreshFencesOriginatingEpochAndPreservesOrdinaryWorkspaceRefresh() async {
+        let context = TeamWorkspaceContext.shared
+        context.reset(accountID: "synthetic-highlight-origin")
+        defer { context.reset(accountID: nil) }
+        let origin = context.snapshot
+        let refresh = WorkflowCompletionContextRefresh(completionOwnedEvent: false)
+        let entered = expectation(description: "ordinary highlight configure suspended")
+        let gate = CompletionContextRefreshGate(entered: entered)
+        var loads = 0
+        let refreshing = Task {
+            await refresh.run(isCurrent: { context.isCurrent(origin) },
+                configureHighlights: { await gate.suspend() }, loadWorkspace: { loads += 1 })
+        }
+        await fulfillment(of: [entered], timeout: 2)
+        context.reset(accountID: "synthetic-highlight-replacement")
+        XCTAssertNotEqual(context.contextEpoch, origin.epoch)
+        gate.resume()
+        await refreshing.value
+        XCTAssertEqual(loads, 0, "The old context event cannot load the replacement workspace after an await")
+        let current = context.snapshot
+        await refresh.run(isCurrent: { context.isCurrent(current) },
+            configureHighlights: {}, loadWorkspace: { loads += 1 })
+        XCTAssertEqual(loads, 1, "An ordinary event with unchanged context still loads its workspace")
+    }
+
+    @MainActor
+    private final class CompletionContextRefreshGate {
+        let entered: XCTestExpectation
+        private var continuation: CheckedContinuation<Void, Never>?
+        init(entered: XCTestExpectation) { self.entered = entered }
+        func suspend() async {
+            await withCheckedContinuation { continuation = $0; entered.fulfill() }
+        }
+        func resume() { continuation?.resume(); continuation = nil }
+    }
+
+
     // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target
     func testCompletionRouteSelectsExactOlderRunAndShowsUnknownRunUnavailable() throws {
         var olderPayload = try jsonObject(runFixtureData())

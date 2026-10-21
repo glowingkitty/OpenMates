@@ -4,6 +4,60 @@ import XCTest
 @testable import OpenMates
 
 final class WatchHubDataServiceTests: XCTestCase {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-workspaces.isolation
+    func testCohortMediaPrunePreservesOtherCategoriesAndRejectsOldClaimsOwnerServerAndQuota() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let parent = WatchHubOfflineCache(directory: directory)
+        let media = WatchHubOfflineCache(directory: directory.appendingPathComponent("media"), cohortPartition: true, byteLimit: 1024)
+        let scope = WatchWorkflowDetailScope.capture(accountID: "synthetic-owner")
+        let master = SymmetricKey(size: .bits256)
+        try await parent.save(Data("workflow".utf8), key: "workflow", scope: scope, masterKey: master)
+        let first = try await media.retainCohort(keys: ["image-a", "audio-b"], scope: scope)
+        try await media.save(Data("image".utf8), key: "image-a", scope: scope, masterKey: master, cohort: first)
+        try await media.save(Data("audio".utf8), key: "audio-b", scope: scope, masterKey: master, cohort: first)
+        let second = try await media.retainCohort(keys: ["image-a"], scope: scope)
+        XCTAssertNotEqual(first, second)
+        do { try await media.save(Data("late".utf8), key: "audio-b", scope: scope, masterKey: master, cohort: first); XCTFail("Old cohort claim restored an evicted asset") }
+        catch is CancellationError { }
+        let removed = await media.load(key: "audio-b", scope: scope, masterKey: master)
+        let retained = await media.load(key: "image-a", scope: scope, masterKey: master)
+        let workflow = await parent.load(key: "workflow", scope: scope, masterKey: master)
+        XCTAssertNil(removed); XCTAssertEqual(retained, Data("image".utf8)); XCTAssertEqual(workflow, Data("workflow".utf8))
+        let foreign = await media.load(key: "image-a", scope: .capture(accountID: "other"), masterKey: master)
+        let server = WatchWorkflowDetailScope(accountID: scope.accountID, profile: .custom(domain: "other.invalid"), generation: scope.generation, teamID: nil)
+        let otherServer = await media.load(key: "image-a", scope: server, masterKey: master)
+        let wrongKey = await media.load(key: "image-a", scope: scope, masterKey: SymmetricKey(size: .bits256))
+        XCTAssertNil(foreign); XCTAssertNil(otherServer); XCTAssertNil(wrongKey)
+        do { try await media.save(Data(repeating: 3, count: 1500), key: "image-a", scope: scope, masterKey: master, cohort: second); XCTFail("Quota must reject incomplete media retention") } catch { }
+        let preserved = await media.load(key: "image-a", scope: scope, masterKey: master)
+        XCTAssertEqual(preserved, retained)
+        do { _ = try await parent.retainCohort(keys: [], scope: scope); XCTFail("Generic Hub categories must never be pruned as media") } catch { }
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.offline.recent-cohort,apple-workspaces.isolation
+    func testParentEraseFencesSuspendedChildMediaWriteAcrossActorInstances() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let fence = WatchHubCacheDiskFence()
+        let gate = WatchHubCacheValidationGate()
+        let parent = WatchHubOfflineCache(directory: directory, erasureFence: fence)
+        let child = WatchHubOfflineCache(directory: directory.appendingPathComponent("media"), cohortPartition: true,
+            erasureFence: fence, verifyScope: { _ in await gate.check() })
+        let scope = WatchWorkflowDetailScope.capture(accountID: "erase-child-owner")
+        let master = SymmetricKey(size: .bits256)
+        let pending = Task { try await child.save(Data("private audio".utf8), key: "audio", scope: scope, masterKey: master) }
+        await gate.waitForSuspension()
+        try await parent.removeAll()
+        await gate.resume()
+        do { try await pending.value; XCTFail("A separate child actor recreated erased media") } catch is CancellationError { }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+        let reopened = await child.load(key: "audio", scope: scope, masterKey: master)
+        XCTAssertNil(reopened)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
     func testPullRefreshRequiresFingerTopOverscrollAndOneRelease() {
         var pull = WatchPullRefreshGesture()

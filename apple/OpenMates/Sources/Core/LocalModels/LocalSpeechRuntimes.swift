@@ -131,11 +131,6 @@ final class LocalModelRunMeasurement: @unchecked Sendable {
     }
 }
 
-/// Categories intentionally exclude source text, filenames and library diagnostics.
-enum LocalSpeechRuntimeError: Error, Sendable {
-    case invalidRequest, unavailableRuntime, invalidAssets, invalidOutput, busy
-}
-
 actor WhisperKitLocalRuntime: LocalModelRuntime {
     private var running = false
     private var generation: UInt64 = 0
@@ -262,31 +257,6 @@ private struct LocalWhisperTokenizer: WhisperTokenizer, Sendable {
 }
 
 #endif
-
-// A native speech call keeps its lease until it has actually drained. This
-// prevents a cancelled warm TTS call and a new Whisper load from retaining both
-// speech engines alongside enhanced anonymization.
-final class LocalSpeechInferenceOwnership: @unchecked Sendable {
-    static let shared = LocalSpeechInferenceOwnership()
-    private let lock = NSLock()
-    private var owner: UUID?
-    func acquire(_ id: UUID) throws {
-        lock.lock(); defer { lock.unlock() }
-        guard owner == nil || owner == id else { throw LocalSpeechRuntimeError.busy }
-        owner = id
-    }
-    func release(_ id: UUID) {
-        lock.lock(); defer { lock.unlock() }
-        if owner == id { owner = nil }
-    }
-}
-
-// Production composer adapter. One engine per capture, retained across bounded
-// PCM windows and released when capture finishes or its generation is cancelled.
-protocol LocalPCMTranscribing: Sendable {
-    func transcribe(_ samples: [Float]) async throws -> String
-    func unload() async
-}
 
 actor WhisperKitComposerRuntime: LocalPCMTranscribing {
     private let ownerID = UUID()

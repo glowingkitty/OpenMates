@@ -1,3 +1,5 @@
+// Specification: specifications/features/billing/specification.yml
+// Assertions: billing.usage.landing-complete, billing.access.authenticated-first-party
 // Offline persistence layer — stores chats, messages, and embeds locally using SwiftData.
 // Enables full offline access to previously loaded conversations.
 // Syncs with the in-memory ChatStore and resolves conflicts on reconnection.
@@ -154,6 +156,12 @@ final class PersistedChat {
 final class PersistedMessage {
     @Attribute(.unique) var id: String
     var serverMessageId: String?
+    var userMessageId: String?
+    var queueRevision: Int?
+    var queueMode: String?
+    var queueDispatchStatus: String?
+    var queueDispatchMode: String?
+    var deliveryStatus: String?
     var chatId: String
     var role: String
     var content: String?
@@ -180,6 +188,10 @@ final class PersistedMessage {
     init(from message: Message) {
         self.id = message.id
         self.serverMessageId = message.serverMessageId
+        self.userMessageId = message.userMessageId
+        self.queueRevision = message.queueRevision; self.queueMode = message.queueMode
+        self.queueDispatchStatus = message.queueDispatchStatus; self.queueDispatchMode = message.queueDispatchMode
+        self.deliveryStatus = message.deliveryStatus
         self.chatId = message.chatId
         self.role = message.role.rawValue
         self.content = message.content
@@ -226,7 +238,9 @@ final class PersistedMessage {
             encryptedThinkingContent: encryptedThinkingContent,
             encryptedThinkingSignature: encryptedThinkingSignature,
             thinkingTokenCount: thinkingTokenCount,
-            renderDocument: renderDocument, serverMessageId: serverMessageId
+            renderDocument: renderDocument, serverMessageId: serverMessageId, userMessageId: userMessageId,
+            queueRevision: queueRevision, queueMode: queueMode, queueDispatchStatus: queueDispatchStatus,
+            queueDispatchMode: queueDispatchMode, deliveryStatus: deliveryStatus
         )
     }
 }
@@ -727,6 +741,15 @@ final class OfflineStore: ObservableObject {
                     existingById.removeValue(forKey: alias)
                 }
                 if let existing = existingById[message.id] {
+                    if let old = existing.queueRevision, let incoming = message.queueRevision, incoming < old { continue }
+                    if existing.queueDispatchStatus == "queued", message.queueRevision == existing.queueRevision,
+                       let incoming = message.encryptedContent, let stored = existing.encryptedContent, incoming != stored { continue }
+                    existing.userMessageId = message.userMessageId ?? existing.userMessageId
+                    if message.queueRevision != nil || message.queueDispatchStatus != nil {
+                        existing.queueRevision = message.queueRevision; existing.queueMode = message.queueMode
+                        existing.queueDispatchStatus = message.queueDispatchStatus; existing.queueDispatchMode = message.queueDispatchMode
+                    }
+                    existing.deliveryStatus = message.deliveryStatus ?? existing.deliveryStatus
                     existing.serverMessageId = message.serverMessageId ?? existing.serverMessageId
                     let sameCiphertext = message.encryptedContent != nil && message.encryptedContent == existing.encryptedContent
                     existing.content = message.content ?? (sameCiphertext ? existing.content : nil)
@@ -739,6 +762,10 @@ final class OfflineStore: ObservableObject {
                     existing.encryptedSenderName = message.encryptedSenderName
                     existing.encryptedCategory = message.encryptedCategory
                     existing.encryptedModelName = message.encryptedModelName
+                    if message.queueRevision != nil || message.queueDispatchStatus != nil {
+                        existing.piiMappingsJSON = try? encoder.encode(message.piiMappings)
+                        existing.encryptedPIIMappings = message.encryptedPIIMappings
+                    }
                     existing.embedRefsJSON = try? encoder.encode(message.embedRefs)
                     existing.renderDocumentJSON = try? encoder.encode(message.renderDocumentForDisplay)
                 } else {
@@ -1182,6 +1209,9 @@ final class OfflineStore: ObservableObject {
     }
 
     func deleteChat(_ chatId: String, preservingDraftTombstone: Bool = false) {
+        if self === Self.shared, !preservingDraftTombstone, let activeScopeId {
+            BillingUsageDraftAudioRegistry.shared.removeDeletedChat(chatID: chatId, cacheScopeID: activeScopeId)
+        }
         recentContentFence.invalidate(chatID: chatId)
         chatDeletionVersions[chatId, default: 0] += 1
         if self === Self.shared {
@@ -1253,6 +1283,9 @@ final class OfflineStore: ObservableObject {
 
     func clearAll() {
         guard let context = modelContext else { return }
+        if self === Self.shared, let activeScopeId {
+            BillingUsageDraftAudioRegistry.shared.eraseCacheScope(activeScopeId)
+        }
         if self === Self.shared {
             CodeRunOutputStore.shared.clearAll()
             OwnerEmbedPIIStore.shared.clearAll()

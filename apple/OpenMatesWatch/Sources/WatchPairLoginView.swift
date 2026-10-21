@@ -11,7 +11,7 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.pairing.iphone-first-fallback
+// Assertions: apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.explicit-entry-back
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -53,11 +53,14 @@ final class WatchPairLoginState: ObservableObject {
     var initiationTask: Task<Void, Never>?
     var pollTask: Task<Void, Never>?
     var fallbackTask: Task<Void, Never>?
+    var completionTask: Task<Void, Never>?
+    var isActive = true
 
     deinit {
         initiationTask?.cancel()
         pollTask?.cancel()
         fallbackTask?.cancel()
+        completionTask?.cancel()
     }
 
     func failCompletion(_ error: Error) {
@@ -70,8 +73,22 @@ final class WatchPairLoginState: ObservableObject {
         isSubmitting = false
     }
 
+    func cancelAttempt() -> (token: String, profile: ServerProfile)? {
+        isActive = false
+        attemptState.invalidate()
+        initiationTask?.cancel(); pollTask?.cancel(); fallbackTask?.cancel(); completionTask?.cancel()
+        initiationTask = nil; pollTask = nil; fallbackTask = nil; completionTask = nil
+        let issued = token.flatMap { token in activeTokenServerProfile.map { (token, $0) } }
+        token = nil; activeTokenServerProfile = nil; pairURLString = nil
+        pin = ""; phonePINAccepted = false; isSubmitting = false
+        return issued
+    }
+
     @discardableResult
     func beginAttempt(serverProfile: ServerProfile) -> Int {
+        isActive = true
+        completionTask?.cancel()
+        completionTask = nil
         initiationTask?.cancel()
         pollTask?.cancel()
         fallbackTask?.cancel()
@@ -108,10 +125,12 @@ struct WatchPairLoginView: View {
     @FocusState private var domainFieldFocused: Bool
     @FocusState private var pinFieldFocused: Bool
     @State private var selfHostedError: String?
+    private let onBack: (() -> Void)?
     private let uiTestFixture: WatchPairLoginFixtureState?
 
-    init(authStore: WatchAuthStore, uiTestFixture: WatchPairLoginFixtureState? = nil) {
+    init(authStore: WatchAuthStore, uiTestFixture: WatchPairLoginFixtureState? = nil, onBack: (() -> Void)? = nil) {
         self.authStore = authStore
+        self.onBack = onBack
         self.uiTestFixture = uiTestFixture
         let state = WatchPairLoginState()
         if let uiTestFixture {
@@ -166,6 +185,20 @@ struct WatchPairLoginView: View {
 
             ScrollView {
                 VStack(spacing: .spacing4) {
+                    if let onBack {
+                        Button {
+                            leavePairing()
+                            onBack()
+                        } label: {
+                            HStack(spacing: .spacing2) {
+                                Icon("back", size: .iconSizeSm)
+                                Text(WatchStrings.back).font(.omSmall)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .buttonStyle(.plain).foregroundStyle(Color.buttonPrimary)
+                        .accessibilityIdentifier("watch-pair-guest-back")
+                    }
                     if showSelfHostedInput {
                         selfHostedConnectionView
                     } else if pairState.status == .ready {
@@ -245,8 +278,9 @@ struct WatchPairLoginView: View {
             )
             startPairingIfNeeded()
         }
+        .onDisappear { leavePairing() }
         .onChange(of: phoneBridge.isPhoneReachable) { _, isReachable in
-            if isReachable { sendPhoneLoginRequestIfPossible() }
+            if isReachable && pairState.isActive { sendPhoneLoginRequestIfPossible() }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-pair-login")
@@ -528,6 +562,15 @@ struct WatchPairLoginView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
 
+    private func leavePairing() {
+        let authenticated = authStore.state == .authenticated
+        let issued = pairState.cancelAttempt()
+        phoneBridge.stopPairingCallbacks(clearReceipts: !authenticated)
+        if !authenticated, uiTestFixture == nil, let issued {
+            Task { await PairV2Runtime.cancel(token: issued.token, serverProfile: issued.profile) }
+        }
+    }
+
     private func startPairingIfNeeded() {
         NativeDiagnostics.info(
             "phase=view.initiateIfNeeded hasToken=\(pairState.token != nil) status=\(pairState.status)",
@@ -726,7 +769,7 @@ struct WatchPairLoginView: View {
     }
 
     private func sendPhoneLoginRequestIfPossible() {
-        guard let token = pairState.token,
+        guard pairState.isActive, let token = pairState.token,
               pairState.status == .waiting,
               let serverProfile = pairState.activeTokenServerProfile,
               serverProfile == pairState.serverProfile,
@@ -767,7 +810,7 @@ struct WatchPairLoginView: View {
     }
 
     private func handlePhoneAcknowledgment(_ acknowledgment: WatchPairLoginAcknowledgment) {
-        guard acknowledgment.token == pairState.token,
+        guard pairState.isActive, acknowledgment.token == pairState.token,
               pairState.status == .waiting else { return }
         switch acknowledgment.kind {
         case .offered:
@@ -790,7 +833,7 @@ struct WatchPairLoginView: View {
     }
 
     private func handlePhoneApproval(_ approval: WatchPairLoginApproval) -> Bool {
-        guard pairState.activeTokenServerProfile == pairState.serverProfile,
+        guard pairState.isActive, pairState.activeTokenServerProfile == pairState.serverProfile,
               WatchPairLoginConnectivityPayload.canReceiveApproval(
                 approval, token: pairState.token, status: pairState.status) else {
             NativeDiagnostics.warning(
@@ -831,7 +874,7 @@ struct WatchPairLoginView: View {
     }
 
     private func submitPinIfReady() {
-        guard pairState.status == .ready,
+        guard pairState.isActive, pairState.status == .ready,
               !pairState.isSubmitting,
               pairState.pin.count == 6,
               let token = pairState.token,
@@ -840,29 +883,31 @@ struct WatchPairLoginView: View {
         pairState.isSubmitting = true
         pairState.errorMessage = nil
 
-        Task {
+        let generation = pairState.attemptState.generation
+        pairState.completionTask = Task {
             do {
-                let result = try await PairLoginRuntime.complete(
-                    token: token,
-                    pin: pairState.pin,
-                    stayLoggedIn: true,
-                    serverProfile: serverProfile
-                )
-                guard pairState.token == token,
-                      pairState.activeTokenServerProfile == serverProfile,
-                      pairState.serverProfile == serverProfile else { return }
-                try await authStore.completePairLogin(result) {
+                try await authStore.completePairLogin(serverProfile: serverProfile, isCurrent: {
+                    pairState.isActive && pairState.token == token &&
+                    pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile)
+                }, complete: {
+                    try await PairLoginRuntime.complete(token: token, pin: pairState.pin,
+                        stayLoggedIn: true, serverProfile: serverProfile)
+                }, acknowledge: {
                     try await PairLoginRuntime.acknowledge(token: token, serverProfile: serverProfile)
-                }
+                })
                 pairState.pin = ""
             } catch PairLoginRuntimeError.completeFailed(let kind) {
-                guard pairState.token == token,
+                guard !Task.isCancelled, pairState.isActive,
+                      pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
+                      pairState.token == token,
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
                 phoneBridge.clearPairingReceipts()
                 handlePairCompleteFailure(kind)
             } catch {
-                guard pairState.token == token,
+                guard !Task.isCancelled, pairState.isActive,
+                      pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
+                      pairState.token == token,
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
                 phoneBridge.clearPairingReceipts()

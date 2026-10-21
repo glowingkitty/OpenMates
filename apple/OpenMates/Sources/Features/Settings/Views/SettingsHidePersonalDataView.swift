@@ -1,3 +1,5 @@
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.privacy-context, message-input.send.ownership
 // Hide personal data settings — manages PII category toggles and custom entries.
 // Mirrors the web SettingsHidePersonalData.svelte privacy surface while using
 // native OpenMates primitives instead of stock List/Form/Toggle/Menu chrome.
@@ -458,9 +460,15 @@ final class ApplePrivacySettingsService: ObservableObject {
 
     func deleteEntry(_ entry: ApplePrivacyPersonalDataEntry) async {
         errorMessage = nil
+        let desired = ApplePrivacySettingsState(detectionSettings: state.detectionSettings,
+            entries: state.entries.filter { $0.id != entry.id }, locationImpreciseByDefault: state.locationImpreciseByDefault)
+        let mutation = PIIPrivacySettingsStore.shared.beginPrivacyMutation(intended: desired.detectorSettings)
+        var succeeded = false
+        defer { PIIPrivacySettingsStore.shared.endPrivacyMutation(mutation, succeeded: succeeded) }
         do {
             let _: Data = try await api.request(.delete, path: "/v1/sdk/memories/\(Self.pathComponent(entry.id))")
             entryRecords[entry.id] = nil
+            succeeded = true
             publish(ApplePrivacySettingsState(
                 detectionSettings: state.detectionSettings,
                 entries: state.entries.filter { $0.id != entry.id },
@@ -473,6 +481,11 @@ final class ApplePrivacySettingsService: ObservableObject {
 
     private func save(settings: ApplePIIDetectionSettings) async {
         errorMessage = nil
+        let desired = ApplePrivacySettingsState(detectionSettings: settings, entries: state.entries,
+            locationImpreciseByDefault: state.locationImpreciseByDefault)
+        let mutation = PIIPrivacySettingsStore.shared.beginPrivacyMutation(intended: desired.detectorSettings)
+        var succeeded = false
+        defer { PIIPrivacySettingsStore.shared.endPrivacyMutation(mutation, succeeded: succeeded) }
         do {
             guard let masterKey = try await currentMasterKey() else { return }
             let now = PrivacyMemoryRecord.nowSeconds
@@ -496,6 +509,7 @@ final class ApplePrivacySettingsService: ObservableObject {
             )
             try await store(record)
             settingsRecord = record
+            succeeded = true
             publish(ApplePrivacySettingsState(
                 detectionSettings: settings,
                 entries: state.entries,
@@ -508,6 +522,11 @@ final class ApplePrivacySettingsService: ObservableObject {
 
     private func save(entry: ApplePrivacyPersonalDataEntry) async {
         errorMessage = nil
+        let desired = ApplePrivacySettingsState(detectionSettings: state.detectionSettings,
+            entries: state.entries.filter { $0.id != entry.id } + [entry], locationImpreciseByDefault: state.locationImpreciseByDefault)
+        let mutation = PIIPrivacySettingsStore.shared.beginPrivacyMutation(intended: desired.detectorSettings)
+        var succeeded = false
+        defer { PIIPrivacySettingsStore.shared.endPrivacyMutation(mutation, succeeded: succeeded) }
         do {
             guard let masterKey = try await currentMasterKey() else { return }
             let now = PrivacyMemoryRecord.nowSeconds
@@ -535,6 +554,7 @@ final class ApplePrivacySettingsService: ObservableObject {
             )
             try await store(record)
             entryRecords[entry.id] = record
+            succeeded = true
             var savedEntry = entry
             savedEntry.createdAt = record.createdAt
             savedEntry.updatedAt = record.updatedAt

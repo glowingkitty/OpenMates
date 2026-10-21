@@ -105,6 +105,22 @@ enum RealAccountUITestSupport {
         }
     }
 
+    // The retained settings subtree can exist while translated beyond the
+    // window and disabled. Existence alone does not prove a successful open.
+    static func waitForVisibleSettingsHome(in app: XCUIApplication, timeout: TimeInterval = 8) -> Bool {
+        let panel = app.otherElements["workspace-settings"].firstMatch
+        let menu = app.scrollViews["settings-menu"].firstMatch
+        let window = app.windows.firstMatch
+        let visible = NSPredicate { _, _ in
+            guard panel.exists, panel.isEnabled, menu.exists, menu.isEnabled,
+                  window.exists, !panel.frame.isEmpty else { return false }
+            return window.frame.insetBy(dx: -1, dy: -1).contains(panel.frame)
+                && menu.frame.intersects(window.frame) && menu.isHittable
+        }
+        return XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: visible, object: nil)],
+            timeout: timeout) == .completed
+    }
+
     static func logIn(
         app: XCUIApplication,
         credentials: RealAccountTestCredentials,
@@ -175,6 +191,69 @@ enum RealAccountUITestSupport {
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
     }
 
+    struct SendMateTimingProof {
+        let attempt: String
+        let eventReceivedMilliseconds: Double
+        let reducerAppliedMilliseconds: Double
+        let frameOpportunityMilliseconds: Double
+        let identityObservedAt: Date
+        let actionAt: Date
+    }
+
+    static func awaitSelectedMateTiming(app: XCUIApplication, timeout: TimeInterval = 30) throws -> SendMateTimingProof {
+        let identities = app.descendants(matching: .any).matching(identifier: "message-sender-name")
+        var result: SendMateTimingProof?
+        let ready = NSPredicate { _, _ in
+            for identity in identities.allElementsBoundByIndex where identity.exists && identity.isHittable && !identity.frame.isEmpty {
+                guard let value = identity.value as? String else { continue }
+                let fields = Dictionary(value.split(separator: ";").compactMap { part -> (String, String)? in
+                    let pair = part.split(separator: "=", maxSplits: 1)
+                    return pair.count == 2 ? (String(pair[0]), String(pair[1])) : nil
+                }, uniquingKeysWith: { _, last in last })
+                guard let attempt = fields["attempt"], UUID(uuidString: attempt) != nil,
+                      let actionUnixMs = fields["actionUnixMs"].flatMap(Double.init),
+                      let received = fields["mateEventReceived"].flatMap(Double.init),
+                      let applied = fields["mateReducerApplied"].flatMap(Double.init),
+                      let frame = fields["selectedMateFrameOpportunity"].flatMap(Double.init) else { continue }
+                result = .init(attempt: attempt, eventReceivedMilliseconds: received,
+                    reducerAppliedMilliseconds: applied, frameOpportunityMilliseconds: frame, identityObservedAt: Date(),
+                    actionAt: Date(timeIntervalSince1970: actionUnixMs / 1000))
+                return true
+            }
+            return false
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: ready, object: nil)], timeout: timeout), .completed,
+            "Expected the same turn's visible, server-authoritative Mate identity and frame opportunity timing")
+        let proof = try XCTUnwrap(result)
+        XCTAssertGreaterThanOrEqual(proof.eventReceivedMilliseconds, 0)
+        XCTAssertGreaterThanOrEqual(proof.reducerAppliedMilliseconds, proof.eventReceivedMilliseconds)
+        XCTAssertGreaterThanOrEqual(proof.frameOpportunityMilliseconds, proof.reducerAppliedMilliseconds)
+        // No subtraction of login, helper return, XCTest tap or server latency.
+        // Rounding to whole milliseconds would incorrectly pass e.g. 1500.9ms.
+        XCTAssertLessThanOrEqual(proof.frameOpportunityMilliseconds, 1500,
+            "Actual Send action to authoritative Mate frame opportunity exceeded 1500ms; recorded visible frames must corroborate presentation")
+        return proof
+    }
+
+    static func deferOptionalOfflineModelOffer(app: XCUIApplication, editor: XCUIElement) -> Bool {
+        // Use the ordinary, optional Later action. Do not download multi-GB
+        // models or dismiss authentication, consent or security prompts.
+        let later = app.buttons["offline-ai-later"]
+        guard later.waitForExistence(timeout: 3) else { return true }
+        guard later.isHittable else {
+            XCTFail("The optional offline-model Later action is not reachable")
+            return false
+        }
+        later.tap()
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: later)
+        guard XCTWaiter.wait(for: [dismissed], timeout: 5) == .completed else {
+            XCTFail("The optional offline-model offer did not dismiss through Later")
+            return false
+        }
+        return focusForTextEntry(editor, in: app, identifier: "message-editor")
+    }
+
     static func sendWelcomePrompt(app: XCUIApplication, prompt: String) {
         openNewChatIfNeeded(app: app)
         guard let editor = waitForMessageEditor(in: app, timeout: 20) else {
@@ -182,6 +261,7 @@ enum RealAccountUITestSupport {
             return
         }
         guard focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        guard deferOptionalOfflineModelOffer(app: app, editor: editor) else { return }
         // Failed live runs intentionally retain their draft. Replace only this
         // test's known prompt through the real editor; preserve unknown content.
         if let restored = editor.value as? String, !restored.isEmpty {
@@ -225,6 +305,22 @@ enum RealAccountUITestSupport {
 
         let send = app.buttons["send-button"]
         XCTAssertTrue(send.waitForExistence(timeout: 5))
+        if app.launchArguments.contains("--ui-test-send-mate-timing") {
+            let row = accessibilityElement(in: app, identifier: "action-buttons")
+            let mic = row.buttons["record-audio-button"]
+            let speech = row.buttons["assistant-speech-toggle"]
+            XCTAssertTrue(mic.exists && mic.isHittable)
+            XCTAssertTrue(speech.exists, "The authenticated new composer must expose its speech control")
+            XCTAssertLessThanOrEqual(speech.frame.maxX, mic.frame.minX)
+            XCTAssertLessThanOrEqual(mic.frame.maxX, send.frame.minX)
+            XCTAssertLessThanOrEqual(mic.frame.minX - speech.frame.maxX, 20)
+            XCTAssertEqual(mic.frame.midY, send.frame.midY, accuracy: 3)
+            XCTContext.runActivity(named: "Authenticated new composer speech mic Send order") { activity in
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.lifetime = .keepAlways
+                activity.add(screenshot)
+            }
+        }
         send.tap()
 
         let userMessage = accessibilityElement(
@@ -553,6 +649,14 @@ struct RealAccountTestCredentials {
         }
 
         throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT_EMAIL/PASSWORD/OTP_KEY")
+    }
+
+    static func fromPersonalDevEnvironment() throws -> RealAccountTestCredentials {
+        // Keep the operator's established ACOUNT spelling exactly.
+        let prefix = "OPENMATES_PERSONAL_TEST_ACOUNT"
+        if let credentials = read(environment: ProcessInfo.processInfo.environment, prefix: prefix)
+            ?? read(environment: readCredentialFile(), prefix: prefix) { return credentials }
+        throw XCTSkip("Missing explicit personal development account credentials")
     }
 
     static func fromReservedSlot(_ slot: Int) throws -> RealAccountTestCredentials {

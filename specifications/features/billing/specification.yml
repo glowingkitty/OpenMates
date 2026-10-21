@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.billing
-version: 10
+version: 11
 status: draft
 title: Billing And Payments
 summary: >
@@ -237,7 +237,15 @@ assertions:
     depends_on: [examples.verified_model_prices]
   - id: billing.usage.landing-complete
     type: invariant
-    must: The Usage landing page represents every committed usage entry for the authorized billing subject exactly once, either individually or in a clearly labeled non-overlapping group; shows a concise localized description, entry count, and credits for chat, standalone app, API-key, device, workflow, workflow-test, benchmark, incognito, and otherwise unattributed usage; links only to contexts that actually exist; and makes each displayed day total equal the sum of its displayed items without double-counting app work already attributed to a chat or another context.
+    must: >
+      The Usage landing page represents every committed usage entry for the authorized billing subject exactly
+      once, either individually or in a clearly labeled non-overlapping group; shows a concise localized
+      description, entry count, and credits for chat, standalone app, API-key, device, workflow, workflow-test,
+      benchmark, incognito, and otherwise unattributed usage; links only to contexts that actually exist; and
+      makes each displayed day total equal the sum of its displayed items without double-counting app work already
+      attributed to a chat or another context. On Apple, daily or monthly Usage history expands through bounded
+      windows with truthful availability and preserves visible labels and totals. A discarded draft recording is
+      labeled unsent only from explicit scoped local allocation evidence, never from a usage row alone.
     depends_on: [models.UsageLandingItem, examples.usage_landing]
   - id: billing.self-host.cloud-guard
     type: invariant
