@@ -96,8 +96,8 @@
     <div data-testid="business-financial-result-preview" class="catalog-result-preview">
       <ResultEmbedCard title={title} sourceLabel={subtitle} textFirst={true}>
         {#snippet badge()}{#if filed}<EmbedCalendarDate date={filed} />{/if}{/snippet}
-        {#snippet facts()}{#if revenue != null}<ResultEmbedInfo icon="ChartNoAxesCombined" label={$text('embeds.business.company_financials.revenue')} value={formatMoney(revenue)}>{#snippet children()}{formatMoney(revenue)} · {periodLabel}{/snippet}</ResultEmbedInfo>{/if}
-{#if netIncome != null}<ResultEmbedInfo icon="Banknote" label={$text('embeds.business.company_financials.net_income')} value={formatMoney(netIncome)}>{#snippet children()}{formatMoney(netIncome)} · {periodLabel}{/snippet}</ResultEmbedInfo>{/if}
+        {#snippet facts()}{#if revenue != null}<ResultEmbedInfo icon="ChartNoAxesCombined" label={$text('embeds.business.company_financials.revenue')}>{#snippet children()}{formatMoney(revenue)} · {periodLabel}{/snippet}</ResultEmbedInfo>{/if}
+{#if netIncome != null}<ResultEmbedInfo icon="Banknote" label={$text('embeds.business.company_financials.net_income')}>{#snippet children()}{formatMoney(netIncome)} · {periodLabel}{/snippet}</ResultEmbedInfo>{/if}
 {#if filed && form}<ResultEmbedInfo icon="FileText" label="Source filing">{#snippet children()}{form}{/snippet}</ResultEmbedInfo>{/if}{/snippet}
       </ResultEmbedCard>
     </div>

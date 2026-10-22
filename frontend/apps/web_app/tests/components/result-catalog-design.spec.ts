@@ -50,6 +50,49 @@ for (const width of [390, 1000]) {
         await expect(calendar.locator('strong')).toHaveText(String(new Date(suppliedDate).getUTCDate()));
         await expect(card.getByRole('button', { name: 'Published', exact: true })).toHaveCount(0);
       }
+      if (component.startsWith('business/')) {
+        const financialFacts = [
+          ['Revenue', 'USD 4.3B · FY 2025'],
+          ['Net income', 'USD 1.2B · FY 2025'],
+          ['Source filing', '10-K'],
+        ] as const;
+        for (const [label] of financialFacts) {
+          const control = card.getByRole('button', { name: label, exact: true });
+          await expect(control).toHaveText('');
+          await expect(control).toHaveCSS('width', '44px');
+          await expect(control).toHaveCSS('height', '44px');
+        }
+        // Measure the controls and both clipping ancestors in the same frame.
+        const controls = await card.evaluate(root => {
+          const content = root.querySelector('[data-testid="result-card-content"]')!;
+          const facts = content.querySelector('.card-facts')!;
+          const bounds = [root, content, facts].map(element => element.getBoundingClientRect());
+          return Array.from(facts.querySelectorAll('button')).map(button => {
+            const rect = button.getBoundingClientRect();
+            const centerX = rect.x + rect.width / 2;
+            const centerY = rect.y + rect.height / 2;
+            const points = [[centerX, centerY], [rect.left + 2, centerY], [rect.right - 2, centerY], [centerX, rect.top + 2], [centerX, rect.bottom - 2]];
+            return {
+              label: button.getAttribute('aria-label'),
+              insideBounds: bounds.every(bound => rect.left >= bound.left && rect.top >= bound.top && rect.right <= bound.right && rect.bottom <= bound.bottom),
+              hitTestable: points.every(([x, y]) => button.contains(document.elementFromPoint(x, y))),
+            };
+          });
+        });
+        expect(controls).toEqual(financialFacts.map(([label]) => ({ label, insideBounds: true, hitTestable: true })));
+        for (const [label, explanation] of financialFacts) {
+          const control = card.getByRole('button', { name: label, exact: true });
+          await control.focus();
+          await expect(page.getByRole('tooltip')).toContainText(explanation);
+          await control.press('Escape');
+          await expect(page.getByRole('tooltip')).toHaveCount(0);
+          await control.click();
+          await expect(control).toHaveAttribute('data-pinned', 'true');
+          await expect(page.getByRole('tooltip')).toContainText(explanation);
+          await control.press('Escape');
+          await expect(page.getByRole('tooltip')).toHaveCount(0);
+        }
+      }
       const box = await card.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);

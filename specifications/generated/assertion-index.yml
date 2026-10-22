@@ -36634,7 +36634,7 @@ assertions:
       surface: rest_api
     - &id4607
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 230
+      line: 273
       name: hosting and electronics keep facts and missing-data states at ${width}px
       surface: gui.web
     - &id4612
@@ -36868,7 +36868,7 @@ assertions:
       surface: rest_api
     - &id4644
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 230
+      line: 273
       name: hosting and electronics keep facts and missing-data states at ${width}px
       surface: gui.web
     tests:
@@ -37058,7 +37058,7 @@ assertions:
       surface: rest_api
     - &id4660
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 286
+      line: 329
       name: hosting and trademark collections preserve source coverage and local details
         at ${width}px
       surface: gui.web
@@ -39096,7 +39096,7 @@ assertions:
       surface: cli
     - &id4886
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 286
+      line: 329
       name: hosting and trademark collections preserve source coverage and local details
         at ${width}px
       surface: gui.web
@@ -39227,7 +39227,7 @@ assertions:
       surface: cli
     - &id4900
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 286
+      line: 329
       name: hosting and trademark collections preserve source coverage and local details
         at ${width}px
       surface: gui.web
@@ -39372,7 +39372,7 @@ assertions:
       surface: cli
     - &id4914
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 286
+      line: 329
       name: hosting and trademark collections preserve source coverage and local details
         at ${width}px
       surface: gui.web
@@ -90550,25 +90550,25 @@ assertions:
       surface: gui.web
     - &id11631
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 117
+      line: 160
       name: repository facts explain known values on focus, keyboard, tap and Escape;
         fullscreen preserves provider and contributors
       surface: gui.web
     - &id11632
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 158
+      line: 201
       name: catalogue images stay uncropped and provider action never fetches model
         files
       surface: gui.web
     - &id11633
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 205
+      line: 248
       name: jobs, financials and social posts preserve their source, evidence and
         existing details
       surface: gui.web
     - &id11634
       path: frontend/apps/web_app/tests/components/result-catalog-design.spec.ts
-      line: 230
+      line: 273
       name: hosting and electronics keep facts and missing-data states at ${width}px
       surface: gui.web
     - &id11635
