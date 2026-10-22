@@ -240,6 +240,7 @@ async def _async_generate_model(
             app_id=app_id,
             skill_id=skill_id,
             credits=estimated_credits,
+            event_id=embed_id,
             chat_id=chat_id,
             message_id=message_id,
             api_key_hash=str(api_key_hash) if api_key_hash else None,

@@ -56,6 +56,7 @@ async def _charge_vectorize_credits(
     chat_id: Optional[str],
     message_id: Optional[str],
     log_prefix: str,
+    event_id: str,
 ) -> None:
     """
     Charge a flat per-image credit fee for a successful vectorization.
@@ -152,8 +153,10 @@ async def _charge_vectorize_credits(
             },
         }
 
+        from backend.shared.python_utils.team_skill_billing import skill_billing_request
+        billing_path, charge_payload = skill_billing_request(charge_payload, None, event_id=event_id)
         async with httpx.AsyncClient(timeout=10.0) as client:
-            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            url = f"{INTERNAL_API_BASE_URL}{billing_path}"
             logger.info(
                 f"{log_prefix} Charging {credits_charged} credits for "
                 f"'{app_id}.{skill_id}' (model: {model_ref})"
@@ -481,6 +484,7 @@ async def _async_vectorize_image(
             app_id=app_id,
             skill_id=skill_id,
             model_ref=model_ref,
+            event_id=str(embed_id),
             chat_id=chat_id,
             message_id=message_id,
             log_prefix=log_prefix,

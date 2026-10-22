@@ -31,6 +31,7 @@ async def charge_model_generation_credits(
     api_key_hash: str | None,
     device_hash: str | None,
     log_prefix: str,
+    event_id: str,
 ) -> None:
     """Charge successful Hi3D generations after provider output is persisted."""
     if credits <= 0:
@@ -56,10 +57,12 @@ async def charge_model_generation_credits(
             "server_region": "global",
         },
     }
+    from backend.shared.python_utils.team_skill_billing import skill_billing_request
+    billing_path, payload = skill_billing_request(payload, None, event_id=event_id)
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/billing/charge",
+                f"{INTERNAL_API_BASE_URL}{billing_path}",
                 json=payload,
                 headers=headers,
             )

@@ -176,7 +176,7 @@ async def _async_generate_audio(
             app_id=app_id,
             skill_id=skill_id,
             task_id=task_id,
-            request_id=request_id,
+            request_id=f"child:{arguments['media_child_index']}" if arguments.get("media_batch") else request_id,
             credits=credits,
             model_ref=model_ref,
             duration_seconds=actual_duration_seconds,

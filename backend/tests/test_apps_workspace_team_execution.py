@@ -144,7 +144,7 @@ def test_worker_billing_request_never_carries_personal_account_fields() -> None:
         "usage_details": {"units_processed": 1, "workspace_type": "apps"},
     }
     assert skill_billing_request(personal, None, event_id="embed-1") == (
-        "/internal/billing/charge", personal
+        "/internal/billing/charge", {**personal, "idempotency_key": "app-skill:embed-1"}
     )
 
 
