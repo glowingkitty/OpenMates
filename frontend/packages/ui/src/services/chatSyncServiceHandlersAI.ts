@@ -48,7 +48,6 @@ import {
 import { completePersonalChatMessage } from "./personalChatTurnBarrier";
 import { refreshPersistedAssistantVersion } from "./chatRecoveryVersionRefresh";
 import { chatAfterRecoveredReply } from "./chatRecoveryVersionApply";
-import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
 import { getConnectedAccountMutationEpoch } from "./connectedAccountStorageService";
 
 const storageFailureImmediateRetryIds = new Set<string>();
@@ -2652,7 +2651,8 @@ export async function handlePostProcessingCompletedImpl(
     if (!isCurrent()) return;
     if (payload.user_message_id) {
       const messages = await chatDB.getMessagesForChat(payload.chat_id);
-      const latestUser = messages?.filter(message => message.role === 'user' && message.status !== 'failed').at(-1);
+      const userMessages = messages?.filter(message => message.role === 'user' && message.status !== 'failed');
+      const latestUser = userMessages?.[userMessages.length - 1];
       latestUserMatches = !latestUser || latestUser.message_id === payload.user_message_id;
       if (!isCurrent()) return;
     }

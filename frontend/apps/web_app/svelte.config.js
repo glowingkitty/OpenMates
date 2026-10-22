@@ -12,8 +12,8 @@ const config = {
 	},
 	kit: {
 		adapter: adapterVercel({
-			// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
-			// for more information on Vercel specific options
+			// Match our deployment target even when the build runs under Bun.
+			runtime: 'nodejs24.x'
 		}),
 		paths: {
 			// Use absolute asset paths (/_app/...) instead of relative (./_app/...).
