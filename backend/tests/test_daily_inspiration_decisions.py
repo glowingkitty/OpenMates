@@ -302,6 +302,50 @@ def completed_card(language, identity):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("language", ["en", "de"])
+@pytest.mark.parametrize("choice,confidence,allowed", [
+    ("correct", .5, True), ("wrong", 1.0, False), ("uncertain", 1.0, False),
+    ("correct", .49, False),
+])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,language-preferences.content-language
+async def test_explicit_field_language_prompt_keeps_strict_admission(language, choice, confidence, allowed):
+    row = completed_card(language, "server-source")
+
+    async def handler(request):
+        body = json.loads(request.content)
+        assert body["state"]["policy_version"] == "daily-editorial-v9"
+        questions = body["questions"]
+        for field in ("card_title", "phrase", "assistant_response", "follow_up_0", "follow_up_1", "follow_up_2"):
+            question = questions[f"candidate_000_{field}_language"]
+            instruction = question["instructions"]
+            assert f"Judge only candidate_000.evidence.{field}:" in instruction
+            assert f'target ISO language "{language}"' in instruction
+            assert "English" not in instruction
+            assert "Short headings and question fragments" in instruction
+            assert "Proper names and necessary technical terms" in instruction
+            assert "Source language is irrelevant" in instruction
+            assert "cannot excuse wrong-language prose in this field" in instruction
+            assert question["criteria"] == {
+                "correct": "This field uses the requested language.",
+                "wrong": "This field uses the wrong language or substantial untranslated prose.",
+                "uncertain": "Cannot establish the field's language.",
+            }
+        answers = native_answers(questions)
+        answers["candidate_000_card_title_language"] = {
+            "type": "choice", "choice": choice,
+            "probabilities": {choice: 1.0}, "confidence": confidence,
+        }
+        return httpx.Response(200, json={"model": "jev-1.14.0", "answers": answers})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        admitted = await decisions.review_candidates([row], Secrets(), client=JevDecisionClient(
+            secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
+    assert bool(admitted) is allowed
+    if allowed:
+        assert admitted[0]["record"] is row["record"]
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,language-preferences.content-language
 async def test_jev_reviews_completed_english_german_and_other_locales_without_another_llm():
     rows = [completed_card('en', 'english'), completed_card('de-DE', 'german'),

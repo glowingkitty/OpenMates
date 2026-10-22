@@ -34,8 +34,8 @@ from backend.apps.ai.daily_inspiration.content_filter import (
     check_daily_inspiration_entry,
     is_blocked_topic,
 )
-from backend.apps.ai.daily_inspiration.config import WRITER_INSTRUCTIONS
 from backend.apps.ai.daily_inspiration.writer import write_reviewed_cards
+from backend.apps.ai.daily_inspiration.writer_prompt import build_writer_request
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationVideo
 from backend.apps.ai.daily_inspiration.validator import validate_inspiration
 from backend.apps.ai.daily_inspiration.video_processor import find_video_candidates
@@ -526,13 +526,10 @@ async def generate_inspirations(
     video_candidates_per_slot = [slot for slot in video_candidates_per_slot if slot]
     count = len(video_candidates_per_slot)
 
-    # Filter blocked topics from the context passed to the LLM, so the model
-    # never sees them as inspiration seeds even indirectly.
-    messages = _build_generation_prompt(
-        [], video_candidates_per_slot, count, language=language,
+    request = build_writer_request(
+        "video", language, [slot[0] for slot in video_candidates_per_slot],
+        _build_tool_definition(language),
     )
-    messages.insert(0, {"role": "system", "content": WRITER_INSTRUCTIONS})
-    tool_def = _build_tool_definition(language)
 
     rejection_feedback = {}
 
@@ -545,12 +542,12 @@ async def generate_inspirations(
 
     return await write_reviewed_cards(
         writer_call=call_preprocessing_llm, accept=accept, count=count,
-        collection="inspirations", task_id=task_id, message_history=messages,
+        collection="inspirations", task_id=task_id, message_history=request["message_history"],
         source_ids=[slot[0]["youtube_id"] for slot in video_candidates_per_slot],
         raw_source_id=lambda raw: raw.get("selected_video_youtube_id", "").strip(),
         card_source_id=lambda card: card.video.youtube_id,
         rejection_feedback=rejection_feedback,
-        tool_definition=tool_def, secrets_manager=secrets_manager,
+        tool_definition=request["tool_definition"], secrets_manager=secrets_manager,
     )
 
 

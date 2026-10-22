@@ -1,14 +1,16 @@
 """Provider-free prompt experiment isolation checks."""
 # contract-test-file: infrastructure
 import copy
+from types import SimpleNamespace
 
 import pytest
 
 from backend.scripts import benchmark_daily_inspiration_prompt as experiment
 
 
-def test_experiment_restores_writer_arms_and_production_entrypoints():
+def test_experiment_restores_writer_arms_and_production_entrypoints(monkeypatch):
     base = experiment.base
+    monkeypatch.setattr(base, 'config', SimpleNamespace(WRITER_MODEL='google/gemini-3.8-flash'), raising=False)
     original = {name: getattr(base, name) for name in (
         'ARMS', 'ARM_MODELS', 'ARM_PROFILES', 'qualify_batch', 'build_manifest', 'TOPICS')}
     with pytest.raises(RuntimeError, match='stop'):
@@ -19,6 +21,13 @@ def test_experiment_restores_writer_arms_and_production_entrypoints():
             assert base.TOPICS['en'].split('|')[0] == 'Aurora borealis'
             raise RuntimeError('stop')
     assert all(getattr(base, name) is value for name, value in original.items())
+
+
+def test_original_prompt_controls_refuse_changed_runtime_before_calls(monkeypatch):
+    monkeypatch.setattr(experiment.base, 'config', SimpleNamespace(WRITER_MODEL='inception/mercury-3'), raising=False)
+    with pytest.raises(ValueError, match='Gemini-era candidate'):
+        with experiment.configured_benchmark():
+            pytest.fail('Changed production prompt silently relabeled as original control')
 
 
 @pytest.mark.parametrize('arm', ['gemini38_only', 'mercury3_only'])

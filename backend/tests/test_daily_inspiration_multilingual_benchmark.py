@@ -164,7 +164,7 @@ async def test_resumed_completed_excluded_source_fails_before_retrieval(tmp_path
 
 @pytest.mark.asyncio
 async def test_candidate_manifest_mismatch_fails_before_vault_or_provider_setup(monkeypatch, tmp_path):
-    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils'):
+    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils', 'writer_prompt'):
         monkeypatch.setattr(benchmark, name, SimpleNamespace(__file__=benchmark.__file__, POLICY_VERSION='test'), raising=False)
     expected = tmp_path / 'expected.json'
     expected.write_text(json.dumps({'wrong.py': 'wrong-hash'}))
@@ -183,7 +183,7 @@ async def test_changed_exclusion_manifest_prevents_resuming_old_writing_before_b
     write_source(previous / 'sources', 'one', 'OldVideo001')
     output = tmp_path / 'run'
     output.mkdir()
-    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils'):
+    for name in ('config', 'decisions', 'generator', 'video_processor', 'wiki_generator', 'writer', 'thumbnail_review', 'validator', 'media_coherence', 'llm_utils', 'writer_prompt'):
         monkeypatch.setattr(benchmark, name, SimpleNamespace(__file__=benchmark.__file__, POLICY_VERSION='test'), raising=False)
 
     def forbidden_manager():
@@ -406,7 +406,7 @@ async def test_single_model_diagnostic_override_is_one_attempt_and_restored(monk
     assert row['attempts'][0]['requested_model'] == benchmark.ARM_MODELS[arm]
     assert row['attempts'][0]['request_profile']['temperature'] == benchmark.ARM_PROFILES[arm]['temperature']
     assert row['attempts'][0]['request_profile']['reasoning_effort'] == benchmark.ARM_PROFILES[arm]['reasoning_effort']
-    assert writer.writer_model() == original_model == 'google/gemini-3.8-flash'
+    assert writer.writer_model() == original_model == config.WRITER_MODEL
     assert writer.MAX_WRITER_ATTEMPTS == original_limit
 
 

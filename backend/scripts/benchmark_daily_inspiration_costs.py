@@ -60,7 +60,7 @@ TOPICS = {'en': ['Volcano', 'Pollination', 'Solar eclipse'],
           'ja': ['火山', '受粉', '日食']}
 CURRENT_SOURCE_PATHS = [f'backend/apps/ai/daily_inspiration/{name}.py' for name in (
     'decisions', 'writer', 'generator', 'wiki_generator', 'video_processor',
-    'validator', 'thumbnail_review', 'config', 'media_coherence',
+    'validator', 'thumbnail_review', 'config', 'media_coherence', 'writer_prompt',
 )] + ['backend/apps/ai/utils/llm_utils.py',
       'backend/core/api/app/tasks/default_inspiration_tasks.py',
       'backend/core/api/app/tasks/daily_inspiration_tasks.py',

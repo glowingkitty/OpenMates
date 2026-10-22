@@ -30,12 +30,12 @@ def load_runtime():
     global httpx, AsyncModels, config, decisions, generator, thumbnail_review
     global video_processor, wiki_generator, writer, validator, call_preprocessing_llm
     global SecretsManager, JevDecisionClient, wikipedia
-    global llm_utils, media_coherence
+    global llm_utils, media_coherence, writer_prompt
     import httpx
     from google.genai.models import AsyncModels
     
     from backend.apps.ai.daily_inspiration import (
-        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence,
+        config, decisions, generator, thumbnail_review, video_processor, wiki_generator, writer, validator, media_coherence, writer_prompt,
     )
     from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
     from backend.apps.ai.utils import llm_utils
@@ -393,9 +393,12 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root, *, wri
     async def call(**kwargs):
         if kwargs['model_id'] != ARM_MODELS[arm] or row['attempts']:
             raise ValueError('Isolated arm permits exactly one call to its declared writer')
-        # Diagnostic control only: production remains the fixed Gemini writer.
-        if arm == 'mercury3_only':
-            kwargs = {**kwargs, 'reasoning_effort': 'low', 'temperature': .5}
+        # Diagnostic profiles are explicit, independent of the current sole writer.
+        kwargs = {**kwargs, 'temperature': ARM_PROFILES[arm]['temperature']}
+        if ARM_PROFILES[arm]['reasoning_effort'] == 'provider_default':
+            kwargs.pop('reasoning_effort', None)
+        else:
+            kwargs['reasoning_effort'] = ARM_PROFILES[arm]['reasoning_effort']
         if writer_request_transform is not None:
             kwargs = writer_request_transform(kwargs, sources, kind, language, arm)
         attempt = {'requested_model': kwargs['model_id'], 'request': kwargs['message_history'],
@@ -683,7 +686,7 @@ def build_manifest(options):
                 'arm_profiles': ARM_PROFILES, 'max_output_tokens': 4096,
                 'languages': options.languages, 'limit': options.limit, 'policy_version': decisions.POLICY_VERSION,
                 'source_sha256': {Path(module.__file__).name: hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
-                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, llm_utils)}}
+                                  for module in (config, decisions, generator, video_processor, wiki_generator, writer, thumbnail_review, validator, media_coherence, llm_utils, writer_prompt)}}
     manifest['benchmark_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     helper = Path(__file__).with_name('benchmark_daily_inspiration_costs.py')
     manifest['accounting_helper_sha256'] = hashlib.sha256(helper.read_bytes()).hexdigest()

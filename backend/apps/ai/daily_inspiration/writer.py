@@ -103,7 +103,7 @@ async def write_reviewed_cards(
         try:
             result = await asyncio.wait_for(writer_call(
                 **attempt_request, model_id=model, fallback_models=[], allow_retries=False,
-                temperature=1.0, max_output_tokens=4096,
+                temperature=.5, reasoning_effort="low", max_output_tokens=4096,
                 observability_purpose="inspiration",
                 single_attempt_timeout_seconds=ATTEMPT_TIMEOUT_SECONDS,
             ), timeout=ATTEMPT_TIMEOUT_SECONDS)

@@ -20,6 +20,11 @@ scope_notes:
   Otherwise retain Gemini and report the specific remaining cause.
 - Use scoped dev deployment for real-inference candidates; no production-server deployment or broad multilingual
   optimization.
+- Latest user steering explicitly requests further optimization to use Mercury. Integrate the clear source-bound
+  request and LOW/0.5 sole Mercury writer; verify before final dev rollout.
+- Correct Jev language-question wording to name the target language and allow headings/fragments without
+  wrongly banning English for English. Keep choices, uncertainty handling, finite-confidence threshold,
+  grounding/relevance/policy and actual pixel checks unchanged; invalidate old proof/cache.
 checks:
 - Focused provider-free prompt/source-whitelist/schema/retry and benchmark-isolation tests, scoped lint,
   isolated GitHub CI.
@@ -30,6 +35,10 @@ checks:
   source identity, actual thumbnails, supplier usage and latency.
 - If replacement is supported, cover and verify actual runtime configuration and writer integration before
   scoped dev rollout.
+- One separately identified native release smoke on four fixed public sources, freshly reviewed under
+  current gates, including the previously cancelled Mercury source; gate-only recheck of the ten clear
+  positives, five real grounding negatives and explicit wrong-language/off-topic controls. Preserve the
+  original one-attempt comparison unchanged.
 decision_notes:
 - 'The previous three-source check did not establish Mercury incapability: all responses were structured
   correctly and all five withholds appeared to be Jev false holds in source-only automated review.'
@@ -164,6 +173,21 @@ previous_v8_evidence:
     can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
     cover incomplete results. No additional paid sweeps or production-server deployment.
 evidence:
-  status: Prompt/input implementation and bounded comparison in progress.
-  policy_version: daily-editorial-v8
-  public_cache_version: v17
+  status: Clear Mercury request integrated as sole writer; final CI/native release verification pending.
+  policy_version: daily-editorial-v9
+  public_cache_version: v18
+  current_report: docs/plans/daily-inspiration-jev/mercury-prompt-evaluation-2026-10-22.md
+  diagnostic_commit: 0b8885c012fbf3de81e8888210b330a15ff5527f
+  focused_local: 292 focused tests passed; subsequent fingerprint/config checks 39 passed. Scoped lint
+    pending final selection.
+  initial_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39744938433
+  initial_ci_result: 75 focused diagnostic checks passed; receipt and evidence command retrieved, empty
+    unit recording inventory.
+  initial_native: Twelve planned sources; eleven eligible and one terminal source shortfall. Thirty-three
+    one-attempt writer rows complete, thirty-two returned structured drafts; one clearer-Mercury cancellation
+    at thirty seconds has unknown spend.
+  blind_audit: 'Labels fixed before unblinding: clear Mercury ten pass; original Mercury six pass/four
+    material/one uncertain; Gemini eight pass/two minor/one material. All material and uncertain outputs
+    withheld by unchanged v8 Jev. Automated source-only audit, not native-speaker gold.'
+  audit_report: docs/plans/daily-inspiration-jev/mercury-prompt-blind-audit-2026-10-22.json
+  cost_aggregate: docs/plans/daily-inspiration-jev/mercury-prompt-costs-2026-10-22.json

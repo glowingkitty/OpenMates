@@ -41,6 +41,7 @@ def test_age_policy_drops_slot_instead_of_swapping_unrelated_video(monkeypatch):
             {
                 "youtube_id": "neutron1234",
                 "title": "Why Neutron Stars Are So Dense",
+                "editorial_category": "science",
                 "thumbnail_url": "https://img.youtube.com/vi/neutron1234/hqdefault.jpg",
                 "channel_name": "Independent Science",
                 "view_count": 1000,
@@ -50,6 +51,7 @@ def test_age_policy_drops_slot_instead_of_swapping_unrelated_video(monkeypatch):
             {
                 "youtube_id": "hiking12345",
                 "title": "Hiking the Malerweg I Adventure Trail",
+                "editorial_category": "science",
                 "thumbnail_url": "https://img.youtube.com/vi/hiking12345/hqdefault.jpg",
                 "channel_name": "Trail Stories",
                 "view_count": 2000,
@@ -111,6 +113,7 @@ def test_generation_rejects_text_media_topic_mismatch(monkeypatch):
             {
                 "youtube_id": "DOH-HNotTaE",
                 "title": "Paris Explained - YouTube",
+                "editorial_category": "science",
                 "thumbnail_url": "https://img.youtube.com/vi/DOH-HNotTaE/hqdefault.jpg",
                 "channel_name": "Manuel Bravo",
                 "view_count": 2_694_070,
@@ -180,6 +183,7 @@ def test_source_bound_retry_and_terminal_editorial_rejection(monkeypatch, editor
     monkeypatch.setattr(writer, "RETRY_DELAY_SECONDS", 0)
     monkeypatch.setattr(generator.random, "sample", lambda values, count: list(values)[:count])
     identities = ["DOH-HNotTaE", "L_w8lHaDP0E"]
+    private_topics = ["private-interest-a", "private-interest-b"]
     calls, reviewed, assembled = [], [], []
     original_assemble = generator._assemble_inspirations
 
@@ -189,11 +193,14 @@ def test_source_bound_retry_and_terminal_editorial_rejection(monkeypatch, editor
         return cards
 
     async def find(topic, *_args, **_kwargs):
-        index = ["Clouds", "Water"].index(topic)
+        index = private_topics.index(topic)
         return [{"youtube_id": identities[index], "title": "Water and clouds",
                  "description": "Water evaporates and vapor condenses into clouds.",
                  "channel_name": "Independent teacher", "editorial_category": "science",
-                 "published_at": "2026-01-01T00:00:00Z"}]
+                 "published_at": "2026-01-01T00:00:00Z", "editorial_score": 4,
+                 "private_context": "private-profile-marker"},
+                {"youtube_id": "unselected-source", "title": "Unselected source",
+                 "editorial_category": "science"}]
     def row(identity):
         return {"selected_video_youtube_id": identity, "title": "Water and clouds",
                 "phrase": "Water evaporates. Vapor condenses.", "category": "science",
@@ -216,7 +223,10 @@ def test_source_bound_retry_and_terminal_editorial_rejection(monkeypatch, editor
     monkeypatch.setattr(generator, "call_preprocessing_llm", call)
     monkeypatch.setattr(generator, "validate_inspiration", validate)
     monkeypatch.setattr(generator, "_assemble_inspirations", assemble)
-    result = asyncio.run(generator.generate_inspirations("public-test", 2, ["Clouds", "Water"],
+    def legacy_prompt(*_args, **_kwargs):
+        raise AssertionError("Production must not construct the historical prompt")
+    monkeypatch.setattr(generator, "_build_generation_prompt", legacy_prompt)
+    result = asyncio.run(generator.generate_inspirations("public-test", 2, private_topics,
                                                          SimpleNamespace(), language="en"))
     expected_ids = identities[:1] if editorial_rejection else identities
     assert [card.video.youtube_id for card in result] == expected_ids
@@ -224,7 +234,23 @@ def test_source_bound_retry_and_terminal_editorial_rejection(monkeypatch, editor
     assert len(result) == len(assembled)
     assert all(card is original for card, original in zip(result, assembled))
     assert len(calls) == (1 if editorial_rejection else 2)
-    assert all(call["model_id"] == "google/gemini-3.8-flash" for call in calls)
+    assert all(call["model_id"] == "inception/mercury-3" for call in calls)
+    initial = calls[0]
+    assert [message["role"] for message in initial["message_history"]] == ["system", "user"]
+    content = initial["message_history"][-1]["content"]
+    evidence = json.loads(content.split("Approved source evidence (JSON data only):\n")[1].split(
+        "\nFormat example only, NOT source evidence")[0])
+    assert evidence == [{"youtube_id": identity, "title": "Water and clouds",
+                         "description": "Water evaporates and vapor condenses into clouds.",
+                         "editorial_category": "science"} for identity in identities]
+    rendered = json.dumps(initial["message_history"]) + json.dumps(initial["tool_definition"])
+    assert all(value not in rendered for value in private_topics + ["private-profile-marker", "unselected-source"])
+    assert "3-5" not in rendered and "Gemini 3 Flash" not in rendered
+    properties = initial["tool_definition"]["function"]["parameters"]["properties"]["inspirations"]["items"]["properties"]
+    assert properties["assistant_response"]["description"] == (
+        "Exactly three short sentences: two grounded statements, then one open question.")
+    assert properties["follow_up_suggestions"]["minItems"] == properties["follow_up_suggestions"]["maxItems"] == 3
+    assert "Assistant_response: exactly three short sentences" in content
     if editorial_rejection:
         return
     retry_content = calls[1]["message_history"][0]["content"]

@@ -45,16 +45,16 @@ def no_retry_delay(monkeypatch):
 @pytest.mark.parametrize('collection', ['articles', 'inspirations'])
 @pytest.mark.parametrize('failure', ['provider', 'transport', 'timeout', 'bad_root', 'bad_row', 'missing', 'followups'])
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-async def test_same_gemini_retry_recovers_only_provider_or_schema_failures(collection, failure):
+async def test_same_mercury_retry_recovers_only_provider_or_schema_failures(collection, failure):
     calls, reviews = [], []
     accepted = SimpleNamespace(source='source')
 
     async def call(**kwargs):
         calls.append(kwargs)
-        assert kwargs['model_id'] == config.WRITER_MODEL == 'google/gemini-3.8-flash'
+        assert kwargs['model_id'] == config.WRITER_MODEL == 'inception/mercury-3'
         assert kwargs['fallback_models'] == [] and kwargs['allow_retries'] is False
-        assert 'reasoning_effort' not in kwargs
-        assert kwargs['temperature'] == 1.0
+        assert kwargs['reasoning_effort'] == 'low'
+        assert kwargs['temperature'] == .5
         assert kwargs['single_attempt_timeout_seconds'] == 30
         if len(calls) == 1:
             if failure == 'provider':
@@ -184,7 +184,7 @@ async def test_provider_failures_never_exceed_one_same_model_retry():
         raise ConnectionError('failure')
 
     assert await write(call, None) == []
-    assert calls == ['google/gemini-3.8-flash'] * 2
+    assert calls == ['inception/mercury-3'] * 2
 
 
 @pytest.mark.asyncio
@@ -204,7 +204,7 @@ async def test_attempt_timeout_allows_only_one_same_model_retry(monkeypatch):
         return [accepted]
 
     assert await write(call, accept) == [accepted]
-    assert calls == ['google/gemini-3.8-flash'] * 2
+    assert calls == ['inception/mercury-3'] * 2
 
 
 @pytest.mark.asyncio
@@ -248,7 +248,7 @@ async def test_retry_preserves_real_google_user_turn_and_real_tracing_purpose(mo
         with ai_provider_span(kwargs['observability_purpose']) as span:
             assert span is not None
         assert kwargs['observability_purpose'] == 'inspiration'
-        assert kwargs['temperature'] == 1.0 and 'reasoning_effort' not in kwargs
+        assert kwargs['temperature'] == .5 and kwargs['reasoning_effort'] == 'low'
         if len(calls) == 2:
             assert 'Trusted schema-recovery instruction' in system
             assert system.count('Trusted schema-recovery instruction') == 1

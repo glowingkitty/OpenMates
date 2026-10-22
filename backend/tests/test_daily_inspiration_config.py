@@ -10,12 +10,12 @@ import pytest
 from backend.apps.ai.daily_inspiration import config
 
 
-@pytest.mark.parametrize('legacy_override', ['inception/mercury-3', 'google/gemini-3.5-flash-lite',
+@pytest.mark.parametrize('legacy_override', ['google/gemini-3.8-flash', 'google/gemini-3.5-flash-lite',
                                              'mistral/mistral-small-latest', 'unrecognized/model'])
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_sole_writer_ignores_legacy_environment_selection(monkeypatch, legacy_override):
     monkeypatch.setenv('DAILY_INSPIRATION_WRITER_MODEL', legacy_override)
-    assert config.WRITER_MODEL == config.writer_model() == 'google/gemini-3.8-flash'
+    assert config.WRITER_MODEL == config.writer_model() == 'inception/mercury-3'
 
 
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults

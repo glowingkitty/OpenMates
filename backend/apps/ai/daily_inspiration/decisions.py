@@ -6,6 +6,7 @@ Only reviewed items proceed; outages retain the existing static feed fallback.
 from __future__ import annotations
 
 import logging
+import json
 import math
 from typing import Any
 
@@ -16,7 +17,7 @@ from backend.apps.ai.daily_inspiration.thumbnail_review import review_thumbnails
 from backend.shared.providers.typesafe.models import ChoiceAnswer, ScoreAnswer
 
 logger = logging.getLogger(__name__)
-POLICY_VERSION = "daily-editorial-v8"
+POLICY_VERSION = "daily-editorial-v9"
 EDITORIAL_POLICY = (
     "Public educational feed. Reject conspiracy theories promoted as fact, pseudoscience, "
     "miracle cures, unsupported sensational claims and obvious misleading clickbait. "
@@ -146,10 +147,12 @@ def build_review_batches(candidates: list[dict[str, Any]], *, topic: str = "", r
                 if candidate.get("language"):
                     questions[f"{key}_{field}_language"] = {
                         "type": "choice",
-                        "instructions": (f"Is only {key}.evidence.{field} naturally in its requested "
-                                         "ISO language? Other generated fields cannot excuse an English "
-                                         "sentence in this field. Proper names and necessary technical "
-                                         "terms may remain untranslated. Source language may differ."),
+                        "instructions": (f"Judge only {key}.evidence.{field}: is it naturally in target "
+                                         f"ISO language {json.dumps(candidate['language'])}? "
+                                         "Short headings and question fragments are valid language use. "
+                                         "Proper names and necessary technical terms may remain untranslated. "
+                                         "Source language is irrelevant to this field's target language. "
+                                         "Other generated fields cannot excuse wrong-language prose in this field."),
                         "criteria": {"correct": "This field uses the requested language.",
                                      "wrong": "This field uses the wrong language or substantial untranslated prose.",
                                      "uncertain": "Cannot establish the field's language."},

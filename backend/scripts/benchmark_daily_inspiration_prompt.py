@@ -39,6 +39,8 @@ def transform_request(request, sources, kind, language, arm):
 @contextmanager
 def configured_benchmark():
     """Restore every diagnostic seam even on failure; never alter account defaults."""
+    if hasattr(base, 'config') and base.config.WRITER_MODEL != 'google/gemini-3.8-flash':
+        raise ValueError('Original-prompt controls require the reviewed Gemini-era candidate')
     qualify, build_manifest = base.qualify_batch, base.build_manifest
 
     async def qualify_prompt(*args, **kwargs):
