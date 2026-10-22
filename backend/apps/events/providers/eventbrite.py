@@ -22,6 +22,7 @@ import secrets
 import time
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
@@ -77,6 +78,101 @@ class _TextExtractor(HTMLParser):
 
     def get_text(self) -> str:
         return re.sub(r"\s+", " ", " ".join(self.parts)).strip()
+
+
+class _DescriptionMarkdownExtractor(HTMLParser):
+    """Keep provider formatting as inert Markdown, without executable HTML."""
+
+    _BLOCKED = {"script", "style", "iframe", "object", "embed", "svg", "math", "template", "noscript"}
+    _PARAGRAPHS = {"p", "div", "section", "article", "blockquote"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: List[str] = []
+        self.suppressed = 0
+        self.lists: List[Tuple[str, int]] = []
+        self.links: List[Optional[str]] = []
+
+    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
+        if tag in self._BLOCKED:
+            self.suppressed += 1
+        if self.suppressed:
+            return
+        if tag in self._PARAGRAPHS or re.fullmatch(r"h[1-6]", tag):
+            self.parts.append("\n\n")
+        elif tag == "br":
+            self.parts.append("\n")
+        elif tag in {"strong", "b"}:
+            self.parts.append("**")
+        elif tag in {"em", "i"}:
+            self.parts.append("*")
+        elif tag in {"ul", "ol"}:
+            self.parts.append("\n" if self.lists else "\n\n")
+            self.lists.append((tag, 0))
+        elif tag == "li":
+            if self.lists:
+                self.lists[-1] = (self.lists[-1][0], self.lists[-1][1] + 1)
+            marker = f"{self.lists[-1][1]}." if self.lists and self.lists[-1][0] == "ol" else "-"
+            self.parts.append(f"\n{'  ' * max(0, len(self.lists) - 1)}{marker} ")
+        elif tag == "a":
+            href = dict(attrs).get("href") or ""
+            # Strip controls before checking the scheme (e.g. java\nscript:).
+            href = re.sub(r"[\x00-\x1f\x7f]+", "", href).strip()
+            try:
+                parsed = urlsplit(href)
+                safe = href if href and parsed.scheme.lower() in {"", "http", "https", "mailto", "tel"} else None
+            except ValueError:
+                safe = None
+            self.links.append(safe)
+            if safe:
+                self.parts.append("[")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._BLOCKED and self.suppressed:
+            self.suppressed -= 1
+            return
+        if self.suppressed:
+            return
+        if tag in self._PARAGRAPHS or re.fullmatch(r"h[1-6]", tag):
+            self.parts.append("\n\n")
+        elif tag in {"strong", "b"}:
+            self.parts.append("**")
+        elif tag in {"em", "i"}:
+            self.parts.append("*")
+        elif tag in {"ul", "ol"}:
+            if self.lists:
+                self.lists.pop()
+            self.parts.append("\n")
+        elif tag == "a" and self.links:
+            href = self.links.pop()
+            if href:
+                href = urljoin(_BASE_URL, href)
+                href = href.replace("<", "%3C").replace(">", "%3E").replace(" ", "%20")
+                self.parts.append(f"](<{href}>)")
+
+    def handle_data(self, data: str) -> None:
+        if self.suppressed:
+            return
+        text = re.sub(r"\s+", " ", data)
+        # Only formatter-generated Markdown can carry emphasis or links.
+        self.parts.append(re.sub(r"([\\`*_\[\]<>])", r"\\\1", text))
+
+    def get_markdown(self) -> str:
+        value = "".join(self.parts)
+        value = re.sub(r"[ \t]+\n", "\n", value)
+        value = re.sub(r"\n[ \t]*\n", "\n\n", value)
+        return re.sub(r"\n{3,}", "\n\n", value).strip()
+
+
+def _format_description(value: str) -> str:
+    """Preserve plain Markdown and safely translate HTML description modules."""
+    value = html.unescape(value)
+    if not re.search(r"</?[a-zA-Z][a-zA-Z0-9]*(?:\s|/?>)", value):
+        return value.strip()
+    parser = _DescriptionMarkdownExtractor()
+    parser.feed(value)
+    parser.close()
+    return parser.get_markdown()
 
 
 async def search_events_async(
@@ -346,10 +442,10 @@ def _extract_structured_description(page_html: str) -> Optional[str]:
             decoded = json.loads(f'"{raw}"')
         except json.JSONDecodeError:
             decoded = raw
-        text = _strip_tags(decoded)
+        text = _format_description(decoded)
         if text:
             text_fragments.append(text)
-    description = "\n".join(text_fragments).strip()
+    description = "\n\n".join(text_fragments).strip()
     return description or None
 
 
