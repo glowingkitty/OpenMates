@@ -93,7 +93,14 @@ against English sentences even for English targets. The v9 question names the
 target language explicitly and permits normal headings/fragments and necessary
 names/terms. Choices, uncertainty handling, finite-confidence threshold, source
 policy, grounding, follow-up relevance and actual pixel checks stay unchanged.
-Old proofs and defaults caches are invalidated (`daily-editorial-v9`, `v18`).
+The v9 release diagnostic then exposed a real qualifier error in an original-
+Mercury negative: “mostly near the poles” became “only near the poles.” It was
+admitted, so that gate diagnostic failed and is preserved as failed evidence.
+The bounded v10 repair makes every existing grounding question explicitly check
+scope, qualifiers, quantifiers and causal roles, including premises hidden in
+questions. Usually/mostly cannot entail always/only/all. No confidence threshold
+or verdict choice was changed. Old proofs and defaults caches are invalidated
+(`daily-editorial-v10`, `v19`).
 
 Both runtime generators now use the clearer packet and cleaned schema. The sole
 writer is `inception/mercury-3`, LOW reasoning, temperature 0.5, a 4,096-token cap
@@ -119,20 +126,54 @@ Search/API/infra charges are unmetered; credits are not subtracted. The original
 pre-Jev architecture's historical full-refresh replay is a different workload
 and cannot establish a savings percentage for this cohort.
 
+The separate [four-card runtime check](mercury-release-check-2026-10-22.json)
+recorded **$0.001233830 writer + $0.000802914 production Jev = $0.002036744**,
+or $0.000509186 per card for writing/admission. All four calls returned valid
+cards and were admitted, including the previously cancelled source. Source
+revalidation cost $0.000423444 separately. No cancellation or unpriced native
+response occurred in this check; the earlier cancellation still remains unknown.
+At regular Mercury rates its writing/admission total is $0.003270574. The gate
+diagnostic's separate control/locale costs are not production card prices.
+
 ## Current rollout verification
 
-- **292 focused tests passed locally and in [CI run 39747886416](https://github.com/glowingkitty/OpenMates/actions/runs/39747886416)**.
-  Subsequent fingerprint/config checks passed 39 tests; these overlap and are
-  not added. Scoped Ruff and independent integration review passed.
+- **297 focused tests passed locally and in [CI run 39750076090](https://github.com/glowingkitty/OpenMates/actions/runs/39750076090)**.
+  The preceding Mercury integration passed 292 checks in CI run 39747886416;
+  counts overlap and are not added. Scoped Ruff and independent integration
+  review passed.
 - Implementation deployed to dev as
   `32d62b7f4adf328ce5530d6f71ef670eaffc35d1`. All 25 scoped files matched tested
   candidate `38c5bbec12b2ad31aef6dce150f17a2c5447ffad`; three unrelated local
   dispatcher-adoption files were excluded. CI receipt/evidence retrieval
   completed with no unit recording inventory.
 - Runtime reload `docker-88327cf3` completed with all seventeen consumers
-  healthy. Final exact-source readiness and the bounded v9 release diagnostic
-  are in progress. The latter includes the previously timed-out source, four
-  production writing calls and nineteen separate native Jev-only controls.
+  healthy; exact-source readiness passed for the Mercury integration commit.
+  The v9 native check made four production Mercury calls, all valid/admitted,
+  with zero provider, schema or formatting failures. Its nineteen separate Jev
+  controls were all available: six of ten positives admitted, four of five
+  material negatives withheld, and all four wrong-language/off-topic negatives
+  withheld. The qualifier false admission means the gate check failed.
+- The v10 repair is deployed as
+  `161e2df3f927cf615d70c3fec8575c9086bc189c`. All fifteen scoped paths matched CI
+  candidate `614628cfee1e969bbca63712b3684320122e6bb7`; receipt/evidence retrieval
+  completed with empty unit recording inventory. Runtime operation
+  `docker-e7ca37eb` completed with all seventeen consumers healthy; fourteen
+  exact module hashes matched before native calls. Exact-source frontend
+  readiness passed for this commit.
+- The [final v10 native check](mercury-v10-gates-2026-10-22.json) passed:
+  all twenty-four decisions were available, **all ten negatives were withheld**,
+  and **eleven of fourteen positives were admitted**, including all four actual
+  Mercury runtime drafts. Both the known German qualifier error and the added
+  English exclusivity mutation were withheld. Saved public evidence/drafts and
+  actual thumbnail pixels received fresh native decisions; no new writer calls
+  or reruns were made. Twenty-eight Jev responses cost $0.004169046, with no
+  unknown usage or provider errors. The failed v9 result is retained.
+
+The remaining three valid-draft holds make conservative Jev yield a
+**medium-priority improvement**, rather than a blocker for this English/German
+dev rollout. Thresholds remain unchanged. Localized public recovery and retention
+of the previous personal set cover incomplete personal results; no further paid
+sweeps are required for this delivery.
 
 The comparison is small and focused on English/German, not twenty-language
 quality certification. No production-server deployment was performed.

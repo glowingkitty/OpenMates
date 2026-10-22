@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: daily-inspiration-jev
 title: Evaluate clearer Mercury writing against Gemini with unchanged Jev gates
-status: implementing
+status: verified
 goal: Optimize the prompting and input given to Mercury 3 so the model has clearer instructions, evaluate
   whether this fixes the issues, and decide whether it can replace Gemini 3.8 Flash for daily inspirations.
 scope_notes:
@@ -176,14 +176,14 @@ previous_v8_evidence:
     can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
     cover incomplete results. No additional paid sweeps or production-server deployment.
 evidence:
-  status: Mercury writer verified and deployed; v9 gate exposed one qualifier false admission. Bounded
-    v10 grounding clarification implemented; final CI/native gate check pending.
+  status: Sole Mercury writer and bounded v10 grounding clarification verified and deployed to dev.
+    Final native checks passed; failed v9 evidence retained. No production-server deployment.
   policy_version: daily-editorial-v10
   public_cache_version: v19
   current_report: docs/plans/daily-inspiration-jev/mercury-prompt-evaluation-2026-10-22.md
   diagnostic_commit: 0b8885c012fbf3de81e8888210b330a15ff5527f
-  focused_local: 292 focused tests passed; subsequent fingerprint/config checks 39 passed. Scoped lint
-    pending final selection.
+  focused_local: Final focused selection passed all 297 checks; scoped Ruff passed. Earlier selections
+    overlap and are not added.
   initial_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39744938433
   initial_ci_result: 75 focused diagnostic checks passed; receipt and evidence command retrieved, empty
     unit recording inventory.
@@ -195,12 +195,16 @@ evidence:
     withheld by unchanged v8 Jev. Automated source-only audit, not native-speaker gold.'
   audit_report: docs/plans/daily-inspiration-jev/mercury-prompt-blind-audit-2026-10-22.json
   cost_aggregate: docs/plans/daily-inspiration-jev/mercury-prompt-costs-2026-10-22.json
-  implementation_commit: 32d62b7f4adf328ce5530d6f71ef670eaffc35d1
-  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39747886416
-  isolated_ci_result: 292 focused runtime checks passed; all 25 scoped paths matched tested candidate;
-    receipt/evidence command retrieved with empty unit recording inventory.
-  runtime: docker-88327cf3 all seventeen consumers healthy; fourteen runtime hashes verified before the
-    v9 native release diagnostic.
+  mercury_integration_commit: 32d62b7f4adf328ce5530d6f71ef670eaffc35d1
+  implementation_commit: 161e2df3f927cf615d70c3fec8575c9086bc189c
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39750076090
+  isolated_ci_source: 614628cfee1e969bbca63712b3684320122e6bb7
+  isolated_ci_result: All 297 focused checks passed; all fifteen scoped paths matched the tested candidate.
+    Three unrelated dispatcher-adoption files were excluded. Receipt/evidence command retrieved with
+    empty unit recording inventory. Independent integration review found no material issues.
+  runtime: Final docker-e7ca37eb operation completed with all seventeen consumers healthy; fourteen exact
+    module hashes verified before the v10 native diagnostic. Exact-source frontend readiness passed for
+    implementation commit 161e2df3f927cf615d70c3fec8575c9086bc189c.
   v9_native: All four fresh source gates eligible, all four Mercury writing calls parsed and admitted;
     previously cancelled source recovered. All nineteen controls available; six of ten positives admitted,
     four of five material negatives withheld and all four wrong-language/off-topic negatives withheld.
@@ -209,3 +213,14 @@ evidence:
   v10_repair: Clarify scope, qualifiers/quantifiers and causal roles locally in every existing grounding
     question; usually/mostly does not imply always/only/all, including question premises. Choices and
     confidence threshold unchanged. New native-boundary unit cases green.
+  v10_native: All twenty-four decisions available; all ten negatives withheld, including the known German
+    qualifier error and added English exclusivity mutation. Eleven of fourteen positives admitted,
+    including all four completed actual Mercury runtime drafts. Fresh native decisions and thumbnail
+    pixels on saved evidence; no new writer/discovery calls or reruns.
+  v10_gate_report: docs/plans/daily-inspiration-jev/mercury-v10-gates-2026-10-22.json
+  v10_gate_cost: USD0.004169046 for twenty-eight native Jev responses; no unknown usage or provider errors.
+    Diagnostic expense, not a production card price.
+  remaining_work: Medium-priority conservative Jev yield calibration for three valid-draft holds and
+    the previously recorded recent German-video discovery improvement. Localized recovery and prior
+    personal-set retention cover incomplete results. Practical English/German scope delivered; no further
+    paid sweeps or twenty-language quality certification required for this outcome.
