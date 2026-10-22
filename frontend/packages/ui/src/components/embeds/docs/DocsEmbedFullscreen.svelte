@@ -48,10 +48,11 @@
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
-  import { hydrateEmbedLinks, hydrateWikiLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
+  import { hydrateEmbedLinks, hydrateWikiLinks, replaceEmbedRefsWithUrls } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
+  import { docsDownloadFilename, fetchDocxDownloadArtifact, prepareDocsDownload, triggerDocsDownload } from './docsDownload';
 
   /**
    * Props for document embed fullscreen
@@ -226,7 +227,7 @@
     if (extracted) return extracted;
     return generateFilenameFromTitle(displayTitle);
   });
-  let downloadFilename = $derived((displayFilename || 'document').replace(/\.docx$/i, '') + '.docx');
+  let downloadFilename = $derived(docsDownloadFilename(displayFilename));
 
   // Calculate word count from content if not provided
   let actualWordCount = $derived.by(() => {
@@ -261,7 +262,6 @@
   const PAGE_GAP = 32;
   const PAGE_MARGIN_Y = 96;
   const SPACER_HEIGHT = PAGE_MARGIN_Y + PAGE_GAP + PAGE_MARGIN_Y; // 224px
-  const DOWNLOAD_URL_REVOKE_DELAY_MS = 60_000;
 
   // =============================================
   // Zoom State
@@ -405,11 +405,7 @@
     if (!docxS3Key || !aesKey) return;
 
     let cancelled = false;
-    const promise = fetchAndDecryptDocArtifact(
-      docxS3Key,
-      aesKey,
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    );
+    const promise = fetchDocxDownloadArtifact(docxS3Key, aesKey);
     preparedDocxDownloadPromise = promise;
     promise
       .then((docxBlob) => {
@@ -661,21 +657,6 @@
   // Action Handlers
   // =============================================
 
-  function triggerBlobDownload(blob: Blob, downloadFilename: string): void {
-    const url = URL.createObjectURL(blob);
-    triggerPreparedDownloadUrl(url, downloadFilename);
-    window.setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_REVOKE_DELAY_MS);
-  }
-
-  function triggerPreparedDownloadUrl(url: string, downloadFilename: string): void {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = downloadFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-
   async function handleCopy() {
     try {
       const contentToCopy = piiRevealed && hasPII
@@ -695,72 +676,25 @@
 
   async function handleDownload() {
     try {
-      console.debug('[DocsEmbedFullscreen] Starting document download as .docx');
-
-      if (docxS3Key && aesKey) {
-        if (preparedDocxDownloadUrl) {
-          triggerPreparedDownloadUrl(preparedDocxDownloadUrl, downloadFilename);
-        } else {
-          const docxBlob = preparedDocxDownloadPromise
-            ? await preparedDocxDownloadPromise
-            : await fetchAndDecryptDocArtifact(
-                docxS3Key,
-                aesKey,
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              );
-          triggerBlobDownload(docxBlob, downloadFilename);
-        }
-        notificationStore.success('Document downloaded successfully');
-        return;
-      }
-
-      const { asBlob } = await import('html-docx-js-typescript');
-
-      let downloadHtmlContent = piiRevealed && hasPII
-        ? sanitizeDocumentHtml(restorePIIInText(htmlContent, piiMappings))
-        : sanitizeDocumentHtml(replacePIIOriginalsWithPlaceholders(htmlContent, piiMappings));
-
-      downloadHtmlContent = await replaceEmbedRefsWithUrlsInHtml(downloadHtmlContent);
-
-      const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>${displayTitle || 'Document'}</title>
-  <style>
-    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #333; }
-    h1 { font-size: 20pt; margin-bottom: 0.5em; }
-    h2 { font-size: 16pt; margin-top: 1.5em; }
-    h3 { font-size: 13pt; margin-top: 1.2em; }
-    p { margin: 0.5em 0; }
-    ul, ol { padding-left: 2em; }
-    blockquote { border-left: 3px solid #ccc; margin: 1em 0; padding: 0.5em 1em; color: var(--color-grey-70); }
-    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-    th, td { border: 1px solid #999; padding: var(--spacing-3) var(--spacing-5); text-align: left; }
-    th { background: #f0f0f0; font-weight: bold; }
-    code { font-family: 'Courier New', monospace; background: #f5f5f5; padding: var(--spacing-1) var(--spacing-2); font-size: 10pt; }
-    pre { background: #f5f5f5; padding: var(--spacing-6); font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
-    a { color: #0563C1; }
-    img { max-width: 100%; }
-  </style>
-</head>
-<body>
-${downloadHtmlContent}
-</body>
-</html>`;
-
-      const docxBlob = await asBlob(fullHtml, {
-        margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-      }) as Blob;
-
-      triggerBlobDownload(docxBlob, downloadFilename);
-
+      const download = await prepareDocsDownload({
+        filename: displayFilename,
+        title: displayTitle,
+        htmlContent,
+        piiMappings: allPIIMappings,
+        piiRevealed,
+        docxS3Key,
+        aesKey,
+        preparedUrl: preparedDocxDownloadUrl,
+        preparedPromise: preparedDocxDownloadPromise,
+      });
+      triggerDocsDownload(download);
       notificationStore.success('Document downloaded successfully');
     } catch (error) {
       console.error('[DocsEmbedFullscreen] Failed to download document:', error);
       notificationStore.error('Failed to download document');
     }
   }
+
 </script>
 
 <UnifiedEmbedFullscreen

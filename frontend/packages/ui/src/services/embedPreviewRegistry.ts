@@ -1,3 +1,4 @@
+import { normalizeEventResult } from '../components/embeds/events/eventResult';
 import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
 import { searchResultImageUrl } from '../utils/searchPreviewImages';
 import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
@@ -257,6 +258,7 @@ resolvers.set("web-website", async ({ embedId, decodedContent, embedData, onFull
       description: firstText(decodedContent.description, decodedContent.snippet),
       favicon: firstText(nestedRecord(decodedContent, 'meta_url')?.favicon, decodedContent['meta_url.favicon'], decodedContent.meta_url_favicon, decodedContent.favicon_url, decodedContent.favicon),
       image: searchResultImageUrl(decodedContent),
+      ...(appId === 'news' ? {publicationDate: firstText(decodedContent.publication_date, decodedContent.published_at, decodedContent.page_age, decodedContent.age)} : {}),
       status: status === "cancelled" ? "error" : status,
       onFullscreen,
     },
@@ -424,7 +426,7 @@ const eventResolver: PreviewResolver = async ({
     component,
     props: {
       id: embedId,
-      event: decodedContent,
+      event: normalizeEventResult(decodedContent, embedId),
       isMobile: false,
       onFullscreen,
     },
@@ -808,6 +810,7 @@ const travelConnectionResolver: PreviewResolver = async ({
   return {
     component,
     props: {
+      connection: decodedContent,
       id: embedId,
       price: decodedContent.price ?? decodedContent.total_price,
       currency: decodedContent.currency || "EUR",

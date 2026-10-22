@@ -14,10 +14,16 @@
 -->
 
 <script lang="ts">
+  import { getContext, onDestroy } from 'svelte';
+  import { notificationStore } from '../../../stores/notificationStore';
+  import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  import { prepareDocsDownload, triggerDocsDownload } from './docsDownload';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import {
     sanitizeDocumentHtml,
+    docxModelToHtml,
     extractDocumentTitle,
     extractDocumentFilename,
     generateFilenameFromTitle,
@@ -79,11 +85,25 @@
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localTaskId = $state<string | undefined>(undefined);
   let localScreenshotS3Keys = $state<Record<string, string> | undefined>(undefined);
+  let localDocxS3Key = $state<string | undefined>(undefined);
+  let downloading = $state(false);
+  let alive = true;
+  onDestroy(() => { alive = false; });
+  const sourceChat = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   let localAesKey = $state<string | undefined>(undefined);
   let localPreviewPageUrls = $state<Record<string, string> | undefined>(undefined);
   let storeResolved = $state(false);
   let firstPageUrl = $state<string | undefined>(undefined);
   let contentEl: HTMLDivElement | undefined = $state(undefined);
+
+  $effect(() => {
+    // A reused preview must never download a previous document's artifact.
+    void id;
+    localDocxS3Key = undefined;
+    localAesKey = undefined;
+    downloading = false;
+    storeResolved = false;
+  });
 
   // Initialize local state from props
   $effect(() => {
@@ -206,6 +226,8 @@
     task_id?: string;
     screenshot_s3_keys?: Record<string, string>;
     aes_key?: string;
+    docx_s3_key?: string;
+    docx_model?: unknown;
   }
 
   $effect(() => {
@@ -249,6 +271,8 @@
     if (data.decodedContent) {
       if (data.decodedContent.html !== undefined) {
         localHtmlContent = data.decodedContent.html || '';
+      } else if (data.decodedContent.docx_model) {
+        localHtmlContent = docxModelToHtml(data.decodedContent.docx_model);
       }
       if (data.decodedContent.title !== undefined) {
         localTitle = data.decodedContent.title;
@@ -265,6 +289,9 @@
       if (data.decodedContent.screenshot_s3_keys !== undefined) {
         localScreenshotS3Keys = data.decodedContent.screenshot_s3_keys;
       }
+      if (data.decodedContent.docx_s3_key !== undefined) {
+        localDocxS3Key = data.decodedContent.docx_s3_key;
+      }
       if (data.decodedContent.aes_key !== undefined) {
         localAesKey = data.decodedContent.aes_key;
       }
@@ -278,6 +305,42 @@
     }
   }
   
+  async function handleDownload() {
+    if (downloading) return;
+    const originId = id;
+    downloading = true;
+    try {
+      // Renderer props can contain only the HTML preview. Read the existing
+      // scoped embed record so an authoritative encrypted DOCX stays preferred.
+      if (!localDocxS3Key && id && !needsSignup) {
+        const embed = await resolveEmbed(id, { chatId: sourceChat?.chatId ?? undefined });
+        if (!alive || originId !== id) return;
+        if (embed?.content) {
+          const decodedContent = await decodeToonContent(embed.content);
+          if (!alive || originId !== id) return;
+          if (decodedContent) handleEmbedDataUpdated({ status: embed.status, decodedContent });
+        }
+      }
+      const download = await prepareDocsDownload({
+        filename: displayFilename,
+        title: displayTitle,
+        htmlContent,
+        piiMappings: embedPIIState.mappings,
+        piiRevealed: embedPIIState.revealed,
+        docxS3Key: localDocxS3Key,
+        aesKey,
+      });
+      if (!alive || originId !== id) return;
+      triggerDocsDownload(download);
+      notificationStore.success('Document downloaded successfully');
+    } catch (error) {
+      console.error('[DocsEmbedPreview] Failed to download document:', error);
+      if (alive && originId === id) notificationStore.error('Failed to download document');
+    } finally {
+      if (alive && originId === id) downloading = false;
+    }
+  }
+
   // Handle stop button click (not applicable for documents, but included for API consistency)
   async function handleStop() {
     console.debug('[DocsEmbedPreview] Stop requested (not applicable for documents)');
@@ -285,6 +348,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  previewTools={true}
   {id}
   appId="docs"
   skillId="doc"
@@ -300,6 +364,13 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
+  {#snippet resultPrimaryAction()}
+    {#if status === 'finished'}
+      <button type="button" aria-label={$text('common.download')} title={$text('common.download')} data-testid="preview-download" disabled={downloading} onclick={(event) => { event.stopPropagation(); void handleDownload(); }}>
+        <span class="clickable-icon icon_download" aria-hidden="true"></span>
+      </button>
+    {/if}
+  {/snippet}
   {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
     <div class="doc-details" class:mobile={isMobileLayout}>
       {#if displayedFirstPageUrl}

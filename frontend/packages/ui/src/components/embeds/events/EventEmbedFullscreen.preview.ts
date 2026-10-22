@@ -18,10 +18,10 @@ const sampleEvent = {
   description:
     "Join us for an evening of talks on large language models, RAG architectures, " +
     "and deploying AI to production. Speakers from leading Berlin AI companies.\n\n" +
-    "Schedule:\n- 18:30 Doors open\n- 19:00 Talk 1: LLMs in Production\n" +
+    "**Schedule**\n\n- 18:30 Doors open\n- 19:00 Talk 1: LLMs in Production\n" +
     "- 19:45 Talk 2: RAG Architectures\n- 20:30 Networking\n\n" +
     "This is a beginner-friendly event — no prior ML experience required. " +
-    "Light refreshments will be provided.",
+    "Light refreshments will be provided. [Read the event guide](https://example.com/event-guide).",
   url: "https://www.meetup.com/example-ai-berlin/events/preview",
   date_start: "2026-03-15T19:00:00+01:00",
   date_end: "2026-03-15T22:00:00+01:00",
@@ -117,6 +117,25 @@ export default defaultProps;
 
 /** Named variants */
 export const variants = {
+  projectedPrivacy: {
+    data: { decodedContent: { ...sampleEvent,
+      aes_key: 'event-private-crypto-sentinel', aes_nonce: 'event-private-crypto-sentinel',
+      s3_base_url: 'event-private-storage-sentinel', files: { original: { s3_key: 'event-private-storage-sentinel' } },
+      organizer_name: sampleEvent.organizer.name,
+      organizer_private_encryption: 'flat-private-crypto-sentinel', venue_s3_key: 'flat-private-storage-sentinel',
+      organizer: { ...sampleEvent.organizer, aes_key: 'organizer-private-crypto-sentinel', storage: { bucket: 'organizer-private-storage-sentinel' } },
+      venue: { ...sampleEvent.venue, aes_nonce: 'venue-private-crypto-sentinel', files: { original: 'venue-private-storage-sentinel' } },
+      fee: { amount: 0, currency: 'EUR', encryption: 'fee-private-crypto-sentinel', storage_key: 'fee-private-storage-sentinel' },
+    } }, onClose: () => {},
+  },
+  formattedHtml: {
+    data: { decodedContent: { ...sampleEvent,
+      description: '<p>Join our <strong>Book Lovers Social meetup!</strong></p><p>Today’s speaker: <em>Matt Damon</em>.</p><ol><li>Read the <a href="https://example.com/reading">reading guide</a>.</li><li>Share your favourite chapter.</li></ol><p>Bring questions.<br>Everyone is welcome.</p><script>window.__eventDescriptionUnsafe = true</script><a href="javascript:alert(1)">Unsafe link</a><img src="/event-description-must-not-load.png" onerror="alert(1)">',
+    } }, onClose: () => {},
+  },
+  overnightTimezone: {
+    data: { decodedContent: { ...sampleEvent, date_start: '2026-03-15T23:30:00+09:00', date_end: '2026-03-16T01:00:00+09:00', timezone: 'Asia/Tokyo' } }, onClose: () => {},
+  },
   unknownFee: {
     data: { decodedContent: { ...sampleEvent, is_paid: undefined, fee: undefined, image_url: null } },
     onClose: () => {},

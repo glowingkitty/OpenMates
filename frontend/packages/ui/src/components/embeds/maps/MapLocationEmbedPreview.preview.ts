@@ -14,6 +14,7 @@ const defaultProps = {
   userRatingCount: 1832,
   placeType: "Coffee Shop",
   isSelected: false,
+  imageUrl: "/store-examples/home-1.webp",
   status: "finished" as const,
   isMobile: false,
   onFullscreen: () => {},
@@ -23,6 +24,7 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   discovery: {
     ...defaultProps,
     id: 'preview-map-place-discovery', displayName: 'Historic ruins', placeType: 'Ruins',

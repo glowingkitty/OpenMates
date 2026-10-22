@@ -12,6 +12,7 @@ scope:
   - Reuse shared preview/fullscreen, fact, tooltip, map, media and composer structures.
   - Preserve specialized Code, Docs and Sheets designs and existing product behavior.
   - Exclude calendar views and new additional-results behavior from this phase.
+  - Apply the user’s screenshot corrections to sizing, corners, grouped navigation, calendar badges, media fitting, facts, gallery, tooltips, followup and memory actions.
 references:
   - docs/design-guide/result-embeds.md
   - specifications/features/app-skills/home-search/specification.yml
@@ -29,3 +30,6 @@ verification:
     - Inspect artifacts against supplied PDF designs.
     - Scoped dev deployment and reviewed phone/laptop visual smoke.
     - Provide deployed previews and selected successful E2E recordings.
+
+deferred:
+  - More events from the organizer, after the corrected design is applied and reviewed.

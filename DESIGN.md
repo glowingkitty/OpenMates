@@ -388,17 +388,17 @@ Use `UnifiedEmbedPreview.svelte`.
 | Surface | `--color-grey-25`. |
 | Radius | `30px`. |
 | Shadow | Floating two-layer shadow. |
-| Layout | `BasicInfosBar` at the top, details section below, for every preview status and size. |
-| Text selection | Disabled; preview acts as one interactive object. |
+| Layout | Result cards follow `docs/design-guide/result-embeds.md`; specialized previews retain `BasicInfosBar` and their existing content layout. |
+| Text selection | Assistant result content stays selectable; Expand opens fullscreen. Clickable result collections retain card activation. |
 | Skill source images | A compact horizontal “Image used” strip appears above skill details when `input_embed_ids` is present; each thumbnail opens the original image viewer. |
-| Finished state | Pointer cursor, keyboard activation, hover/tilt, active press. |
+| Finished state | Pointer cursor, keyboard activation, hover/tilt and active press only when the card itself opens fullscreen. |
 | Error state | Error border and error-tinted background. |
 
 Preview interaction:
 
 | State | Rule |
 |---|---|
-| Hover | Subtle 3D tilt toward pointer, max about `3deg`; large previews max about `1deg`. |
+| Hover | Clickable cards only: subtle 3D tilt toward pointer, max about `3deg`; large previews max about `1deg`. |
 | Hover scale | Slight press-in feel around `0.985`; large cards around `0.995`. |
 | Active | Scale to about `0.96`. |
 | Reduced motion | Disable tilt/scroll-driven effects. |

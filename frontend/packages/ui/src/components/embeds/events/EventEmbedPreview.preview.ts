@@ -100,6 +100,9 @@ export default defaultProps;
 
 /** Named variants */
 export const variants = {
+  timezoneBoundary: {
+    ...defaultProps, event: { ...sampleEvent, date_start: '2026-03-16T00:30:00+09:00', timezone: 'Asia/Tokyo', organizer: {name: 'Berlin Lingua Hub International Language Exchange Community'} },
+  },
   chat: { ...defaultProps, resultContext: 'chat' as const },
   /** Online event */
   online: {

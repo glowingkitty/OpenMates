@@ -21,6 +21,8 @@
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
   import { highlightToElement, highlightToLines } from './codeHighlighting';
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { notificationStore } from '../../../stores/notificationStore';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
@@ -373,9 +375,19 @@
   async function handleStop() {
     // Code embeds don't have cancellable tasks, but we include this for API consistency
   }
+  async function copyPreviewContent() {
+    try {
+      const result = await copyToClipboard(renderCodeContent);
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      notificationStore.success($text('embeds.copied_to_clipboard'));
+    } catch {
+      notificationStore.error($text('embeds.copy_failed'));
+    }
+  }
 </script>
 
 <UnifiedEmbedPreview
+  previewTools={true}
   {id}
   {presentationOnly}
   {appId}
@@ -392,6 +404,10 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
+  {#snippet resultPrimaryAction()}
+    {#if status === 'finished' && !!renderCodeContent}<button type="button" aria-label={$text('common.copy')} title={$text('common.copy')} data-testid="preview-copy" onclick={(event) => { event.stopPropagation(); void copyPreviewContent(); }}><span class="clickable-icon icon_copy" aria-hidden="true"></span></button>{/if}
+  {/snippet}
+
 	  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
 	    {(isLargePreview = isLargeLayout, undefined)}
 	    <div class="code-details" class:mobile={isMobileLayout}>

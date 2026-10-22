@@ -11,8 +11,8 @@
 -->
 
 <script lang="ts">
+  import { normalizeEventResult, projectVisibleEventResult } from './eventResult';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
-  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
@@ -22,41 +22,6 @@
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-
-  interface EventResult {
-    embed_id: string;
-    id?: string;
-    provider?: string;
-    title?: string;
-    description?: string;
-    url?: string;
-    date_start?: string;
-    date_end?: string;
-    timezone?: string;
-    event_type?: string;
-    venue?: {
-      name?: string;
-      address?: string;
-      city?: string;
-      state?: string;
-      country?: string;
-      lat?: number;
-      lon?: number;
-    };
-    organizer?: {
-      id?: string;
-      name?: string;
-      slug?: string;
-    };
-    rsvp_count?: number;
-    is_paid?: boolean;
-    fee?: {
-      amount?: number;
-      currency?: string;
-    };
-    image_url?: string | null;
-    cover_url?: string | null;
-  }
 
   interface Props {
     /** Raw embed data containing decodedContent */
@@ -86,211 +51,83 @@
   // (venue_lat, venue_lon, etc. — from _flatten_for_toon_tabular in embed_service.py).
   let dc = $derived(data.decodedContent);
 
-  /** Parse a number from unknown value (handles TOON string→number edge cases). */
-  function asNumber(v: unknown): number | undefined {
-    if (typeof v === 'number' && Number.isFinite(v)) return v;
-    if (typeof v === 'string') { const n = Number(v); if (Number.isFinite(n)) return n; }
-    return undefined;
+  let event = $derived(normalizeEventResult(dc ?? {}, embedId || data.focusChildEmbedId));
+  let followupResult = $derived(projectVisibleEventResult(event));
+
+  function eventDate(value: string | undefined): Date | undefined {
+    if (!value) return undefined;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? undefined : date;
   }
-
-  function asString(v: unknown): string | undefined {
-    return typeof v === 'string' ? v : undefined;
+  function formatEventDate(value: string | undefined, options: Intl.DateTimeFormatOptions) {
+    const date = eventDate(value);
+    if (!date) return '';
+    try { return new Intl.DateTimeFormat(undefined, { ...options, timeZone: event.timezone }).format(date); }
+    catch { return new Intl.DateTimeFormat(undefined, options).format(date); }
   }
-
-  let event: EventResult = $derived.by(() => {
-    // Venue: try nested object first, fall back to flat TOON fields (venue_lat, venue_lon, etc.)
-    let venue: EventResult['venue'] | undefined;
-    const rawVenue = dc.venue;
-    if (rawVenue && typeof rawVenue === 'object') {
-      const v = rawVenue as Record<string, unknown>;
-      venue = {
-        name: asString(v.name), address: asString(v.address),
-        city: asString(v.city), state: asString(v.state), country: asString(v.country),
-        lat: asNumber(v.lat), lon: asNumber(v.lon),
-      };
-    } else if (dc.venue_city || dc.venue_country || dc.venue_lat != null) {
-      venue = {
-        name: asString(dc.venue_name), address: asString(dc.venue_address),
-        city: asString(dc.venue_city), state: asString(dc.venue_state), country: asString(dc.venue_country),
-        lat: asNumber(dc.venue_lat), lon: asNumber(dc.venue_lon),
-      };
-    }
-
-    // Organizer: nested or flat
-    let organizer: EventResult['organizer'] | undefined;
-    const rawOrg = dc.organizer;
-    if (rawOrg && typeof rawOrg === 'object') {
-      const o = rawOrg as Record<string, unknown>;
-      organizer = { id: asString(o.id), name: asString(o.name), slug: asString(o.slug) };
-    } else if (dc.organizer_name) {
-      organizer = { id: asString(dc.organizer_id), name: asString(dc.organizer_name), slug: asString(dc.organizer_slug) };
-    }
-
-    // Fee: nested or flat
-    let fee: EventResult['fee'] | undefined;
-    const rawFee = dc.fee;
-    if (rawFee && typeof rawFee === 'object') {
-      const f = rawFee as Record<string, unknown>;
-      fee = { amount: asNumber(f.amount), currency: asString(f.currency) };
-    } else if (dc.fee_amount != null) {
-      fee = { amount: asNumber(dc.fee_amount), currency: asString(dc.fee_currency) };
-    }
-
-    return {
-      embed_id: asString(dc.embed_id) || (embedId || ''),
-      id: asString(dc.id),
-      provider: asString(dc.provider),
-      title: asString(dc.title),
-      description: asString(dc.description),
-      url: asString(dc.url),
-      date_start: asString(dc.date_start),
-      date_end: asString(dc.date_end),
-      timezone: asString(dc.timezone),
-      event_type: asString(dc.event_type),
-      venue,
-      organizer,
-      rsvp_count: asNumber(dc.rsvp_count),
-      is_paid: typeof dc.is_paid === 'boolean' ? dc.is_paid : undefined,
-      fee,
-      image_url: asString(dc.image_url) ?? null,
-    };
+  function dayKey(date: Date) {
+    try { return date.toLocaleDateString('en-CA', { timeZone: event.timezone }); }
+    catch { return date.toLocaleDateString('en-CA'); }
+  }
+  let timeRange = $derived.by(() => {
+    const start = eventDate(event.date_start);
+    const end = eventDate(event.date_end);
+    if (!start) return '';
+    const options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+    const startTime = formatEventDate(event.date_start, options);
+    if (!end) return startTime;
+    const endTime = formatEventDate(event.date_end, options);
+    return dayKey(start) === dayKey(end) ? `${startTime} – ${endTime}` : `${formatEventDate(event.date_start, {month: 'short', day: 'numeric'})} ${startTime} – ${formatEventDate(event.date_end, {month: 'short', day: 'numeric'})} ${endTime}`;
   });
+  let dateLabel = $derived.by(() => {
+    const start = eventDate(event.date_start);
+    if (!start) return '';
+    const now = new Date();
+    if (dayKey(start) === dayKey(now)) return 'Today';
+    const tomorrow = new Date(now.getTime() + 86400000);
+    if (dayKey(start) === dayKey(tomorrow)) return 'Tomorrow';
+    return formatEventDate(event.date_start, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  });
+  let headerTitle = $derived(event.title || '');
+  let headerSubtitle = $derived(event.organizer?.name ? `by ${event.organizer.name}` : undefined);
+  let isOnline = $derived(event.event_type === 'ONLINE');
+  let venueAddress = $derived([event.venue?.name, event.venue?.address, [event.venue?.city, event.venue?.state, event.venue?.country].filter(Boolean).join(', ')].filter(Boolean).join('\n'));
 
-  // ── Display helpers ──
-
-  interface DateTimeDisplay {
-    relativeLabel: string;
-    lines: string[];
-  }
-
-  function parseDate(dateStr: string | undefined): Date | null {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? null : date;
-  }
-
-  function isSameCalendarDay(start: Date, end: Date): boolean {
-    return start.getFullYear() === end.getFullYear()
-      && start.getMonth() === end.getMonth()
-      && start.getDate() === end.getDate();
-  }
-
-  function formatDateOnly(dateStr: string | undefined): string {
-    const date = parseDate(dateStr);
-    if (!date) return '';
-    return date.toLocaleDateString(undefined, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  }
-
-  function formatTimeOnly(dateStr: string | undefined): string {
-    const date = parseDate(dateStr);
-    if (!date) return '';
-    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  }
-
-  function formatDateTime(dateStr: string | undefined): string {
-    const date = parseDate(dateStr);
-    if (!date) return '';
-    return `${formatDateOnly(dateStr)} ${formatTimeOnly(dateStr)}`;
-  }
-
-  function buildDateTimeDisplay(startStr: string | undefined, endStr: string | undefined): DateTimeDisplay {
-    const start = parseDate(startStr);
-    if (!start) {
-      return { relativeLabel: '', lines: [] };
-    }
-
-    const end = parseDate(endStr);
-    const relativeDayLabel = getRelativeDayLabel(startStr);
-    const relativeLabel = relativeDayLabel === 'today'
-      ? 'Today'
-      : relativeDayLabel === 'tomorrow'
-        ? 'Tomorrow'
-        : '';
-
-    if (end && !isSameCalendarDay(start, end)) {
-      return {
-        relativeLabel: '',
-        lines: [formatDateTime(startStr), `to ${formatDateTime(endStr)}`],
-      };
-    }
-
-    const dateLine = formatDateOnly(startStr);
-    const startTime = formatTimeOnly(startStr);
-    const endTime = formatTimeOnly(endStr);
-    const timeLine = endTime ? `${startTime} to ${endTime}` : startTime;
-
-    return {
-      relativeLabel,
-      lines: [dateLine, timeLine].filter(Boolean),
+  // Provider descriptions can be Markdown or HTML. Convert only sanitized HTML;
+  // the existing MarkdownContent renderer performs its own final sanitization.
+  let descriptionMarkdown = $state('');
+  function htmlDescriptionToMarkdown(safeHtml: string): string {
+    const doc = new DOMParser().parseFromString(safeHtml, 'text/html');
+    const escapeText = (value: string) => value.replace(/([\\`*_[\]<>])/g, '\\$1');
+    const convert = (node: Node, depth = 0): string => {
+      if (node.nodeType === Node.TEXT_NODE) return escapeText(node.textContent || '');
+      if (!(node instanceof Element)) return '';
+      const content = () => Array.from(node.childNodes).map(child => convert(child, depth)).join('');
+      const tag = node.tagName.toLowerCase();
+      if (tag === 'br') return '\n';
+      if (tag === 'strong' || tag === 'b') return `**${content()}**`;
+      if (tag === 'em' || tag === 'i') return `*${content()}*`;
+      if (tag === 'a') { const href = node.getAttribute('href'); return href ? `[${content()}](<${href.replace(/>/g, '%3E')}>)` : content(); }
+      if (tag === 'ul' || tag === 'ol') return '\n' + Array.from(node.children).filter(child => child.tagName === 'LI').map((child, index) => `${'  '.repeat(depth)}${tag === 'ol' ? `${index + 1}.` : '-'} ${Array.from(child.childNodes).map(item => convert(item, depth + 1)).join('').trim()}`).join('\n') + '\n';
+      if (tag === 'p' || tag === 'div' || /^h[1-6]$/.test(tag)) return `\n\n${content()}\n\n`;
+      if (tag === 'blockquote') return `\n\n> ${content().trim().replace(/\n/g, '\n> ')}\n\n`;
+      return content();
     };
+    return Array.from(doc.body.childNodes).map(node => convert(node)).join('').replace(/\n{3,}/g, '\n\n').trim();
   }
-
-  function formatShortDate(dateStr: string | undefined): string {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '';
-      return d.toLocaleDateString(undefined, {
-        weekday: 'short', month: 'short', day: 'numeric',
-      }) + ' · ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    } catch { return ''; }
-  }
-
-  /**
-   * Compare a Date to today/tomorrow (date portion only, local time).
-   * Returns 'today' | 'tomorrow' | null.
-   */
-  function getRelativeDayLabel(dateStr: string | undefined): 'today' | 'tomorrow' | null {
-    if (!dateStr) return null;
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return null;
-      const now = new Date();
-      const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-      if (eventDay.getTime() === today.getTime())    return 'today';
-      if (eventDay.getTime() === tomorrow.getTime()) return 'tomorrow';
-      return null;
-    } catch { return null; }
-  }
-
-  function getShortLocation(ev: EventResult): string {
-    if (ev.event_type === 'ONLINE') return 'Online';
-    if (!ev.venue) return '';
-    const parts: string[] = [];
-    if (ev.venue.city) parts.push(ev.venue.city);
-    if (ev.venue.country) parts.push(ev.venue.country);
-    return parts.join(', ');
-  }
-
-  function getVenueAddress(ev: EventResult): string {
-    const v = ev.venue;
-    if (!v) return '';
-    const parts: string[] = [];
-    if (v.name) parts.push(v.name);
-    if (v.address) parts.push(v.address);
-    const cityLine: string[] = [];
-    if (v.city) cityLine.push(v.city);
-    if (v.state) cityLine.push(v.state);
-    if (v.country) cityLine.push(v.country);
-    if (cityLine.length) parts.push(cityLine.join(', '));
-    return parts.join('\n');
-  }
-
-  let headerTitle    = $derived(event.title || '');
-  let shortDate      = $derived(formatShortDate(event.date_start));
-  let shortLocation  = $derived(getShortLocation(event));
-  let headerSubtitle = $derived([shortDate, shortLocation].filter(Boolean).join(' · '));
-
-  let isOnline          = $derived(event.event_type === 'ONLINE');
-  let dateTimeDisplay   = $derived(buildDateTimeDisplay(event.date_start, event.date_end));
-  let venueAddress  = $derived(getVenueAddress(event));
+  $effect(() => {
+    const description = event.description || '';
+    let current = true;
+    if (!/<\/?(?:p|br|div|ul|ol|li|strong|b|em|i|a|h[1-6])(?:\s|>)/i.test(description)) descriptionMarkdown = description;
+    else {
+      descriptionMarkdown = '';
+      void import('dompurify').then(({ default: purifier }) => {
+        const safe = purifier.sanitize(description, { ALLOWED_TAGS: ['p', 'div', 'br', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'a', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'], ALLOWED_ATTR: ['href', 'title'] });
+        if (current) descriptionMarkdown = htmlDescriptionToMarkdown(safe);
+      }).catch(() => { if (current) descriptionMarkdown = description.replace(/<[^>]*>/g, ''); });
+    }
+    return () => { current = false; };
+  });
 
   // Map data — only when venue has coordinates
   let mapCenter = $derived(
@@ -426,7 +263,7 @@
   {/snippet}
 <ResultEmbedFullscreen
   media={eventImageUrl ? resultMedia : undefined}
-  result={event as unknown as Record<string, unknown>}
+  result={followupResult}
   appId="events"
   skillId="event"
   {onClose}
@@ -447,7 +284,7 @@
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
+        <EmbedHeaderCtaButton label={$text(savedMemoryEntry ? 'embeds.forget_memory' : 'embeds.add_memory')} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedEvent} testId="save-embed-cta" />
       {/if}
       {#if event.url && openButtonText}
         <EmbedHeaderCtaButton label={openButtonText} onclick={handleOpenEvent} testId="external-provider-cta" />
@@ -456,184 +293,39 @@
   {/snippet}
 
   {#snippet summary()}
-    {#if event.is_paid === false || feeDisplay}<ResultEmbedInfo icon="euro" label="Event fee" value={event.is_paid === false ? 'Free' : feeDisplay}>{event.is_paid === false ? 'Listed as free by the provider.' : feeDisplay}</ResultEmbedInfo>{/if}
-    {#if dateTimeDisplay.lines.length}<ResultEmbedInfo icon="calendar" label="Date and time" value={dateTimeDisplay.lines[0]} caption={dateTimeDisplay.relativeLabel || undefined}>{dateTimeDisplay.lines.join(' · ')}</ResultEmbedInfo>{/if}
-    {#if event.rsvp_count != null}<ResultEmbedInfo icon="users" label="RSVP count" value={event.rsvp_count.toLocaleString()} caption="RSVPs">Provider RSVP count; attendance may differ.</ResultEmbedInfo>{/if}
+    <div class="event-facts" data-testid="event-facts" aria-label="Event facts">
+      {#if event.is_paid === false || feeDisplay}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-money)" aria-hidden="true"></span><strong>{event.is_paid === false ? $text('embeds.models3d.search.free') : feeDisplay}</strong></div>{/if}
+      {#if timeRange}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-calendar)" aria-hidden="true"></span><span><strong data-testid="event-time-range">{timeRange}</strong><small data-testid="event-date-label">{dateLabel}</small></span></div>{/if}
+      {#if event.rsvp_count != null}<div class="event-fact"><span class="clickable-icon event-icon" style:width="20px" style:height="20px" style:mask-image="var(--icon-url-team)" aria-hidden="true"></span><span><strong>{event.rsvp_count.toLocaleString()}</strong><small>{$text('guest_onboarding.landing_actionable_event_rsvps')}</small></span></div>{/if}
+    </div>
   {/snippet}
 
-  {#snippet detailContent()}
-
-    <!-- Type badge + RSVP row + source -->
-    <div class="event-meta-row">
-      {#if event.event_type}
-        <span class="event-type-badge" class:online={isOnline}>
-          {isOnline ? 'Online' : 'In Person'}
-        </span>
-      {/if}
-      {#if event.is_paid && feeDisplay}
-        <span class="event-fee-badge">{feeDisplay}</span>
-      {:else if event.is_paid === false}
-        <span class="event-free-badge">Free</span>
-      {/if}
-      {#if event.rsvp_count != null && event.rsvp_count > 0}
-        <span class="event-rsvp">{event.rsvp_count.toLocaleString()} RSVPs</span>
-      {/if}
-      {#if providerLabel}
-        <span class="event-source-badge">{providerLabel}</span>
-      {/if}
+  {#snippet identity()}
+    <div class="event-identities" data-testid="event-identity-cards">
+      {#if event.organizer?.name}<div class="event-identity" data-testid="event-organizer-card"><span class="clickable-icon event-icon" style:width="28px" style:height="28px" style:mask-image="var(--icon-url-user)" aria-hidden="true"></span><span><small>{$text('result_embed.event_organized_by')}</small><strong>{event.organizer.name}</strong></span></div>{/if}
+      {#if isOnline || venueAddress}<div class="event-identity" data-testid="event-venue-card"><span class="clickable-icon event-icon" style:width="28px" style:height="28px" style:mask-image="var(--icon-url-maps)" aria-hidden="true"></span><span><small>{$text('result_embed.event_at')}</small>{#if isOnline}<strong>{$text('embeds.online_event')}</strong>{:else}<strong>{event.venue?.name || $text('common.location')}</strong><span class="venue-address">{[event.venue?.address, [event.venue?.city, event.venue?.state, event.venue?.country].filter(Boolean).join(', ')].filter(Boolean).join('\n')}</span>{/if}</span></div>{/if}
     </div>
-
-    <!-- Full date/time — show Today/Tomorrow label when applicable -->
-    {#if dateTimeDisplay.lines.length > 0}
-      <div class="event-section">
-        <div class="section-label">Date & Time</div>
-        {#if dateTimeDisplay.relativeLabel}
-          <div class="section-value date-relative">{dateTimeDisplay.relativeLabel}</div>
-        {/if}
-        {#each dateTimeDisplay.lines as dateTimeLine}
-          <div class="section-value">{dateTimeLine}</div>
-        {/each}
-      </div>
-    {/if}
-
-    <!-- Venue / Location -->
-    {#if isOnline}
-      <div class="event-section">
-        <div class="section-label">Location</div>
-        <div class="section-value">Online event</div>
-      </div>
-    {:else if venueAddress}
-      <div class="event-section">
-        <div class="section-label">Location</div>
-        <div class="section-value venue-address">{venueAddress}</div>
-      </div>
-    {/if}
-
-    <!-- Organizer -->
-    {#if event.organizer?.name}
-      <div class="event-section">
-        <div class="section-label">Organizer</div>
-        <div class="section-value">{event.organizer.name}</div>
-      </div>
-    {/if}
-
-    <!-- Description -->
-    {#if event.description}
-      <div class="event-section">
-        <div class="section-label">About</div>
-        <MarkdownContent content={event.description} />
-      </div>
-    {/if}
+  {/snippet}
+  {#snippet detailContent()}
+    {#if descriptionMarkdown}<div class="event-description" data-testid="event-description"><MarkdownContent content={descriptionMarkdown} /></div>{/if}
   {/snippet}
 </ResultEmbedFullscreen>
 
 <style>
-  .event-image {
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    display: block;
-    border-radius: var(--radius-5);
-  }
-
-  .event-meta-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--spacing-4);
-  }
-
-  .event-type-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--spacing-2) var(--spacing-6);
-    border-radius: 100px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--color-app-events-start, #a20000);
-    color: #fff; /* intentional: always white on brand colour */
-  }
-
-  .event-type-badge.online {
-    background: #1a6b5a; /* intentional: brand teal for online events */
-  }
-
-  .event-fee-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--spacing-2) var(--spacing-6);
-    border-radius: 100px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: var(--color-grey-20);
-    color: var(--color-font-primary);
-  }
-
-  .event-free-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--spacing-2) var(--spacing-6);
-    border-radius: 100px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: rgba(34, 197, 94, 0.15);
-    color: var(--color-font-primary);
-  }
-
-  .event-rsvp {
-    font-size: 0.8125rem;
-    color: var(--color-grey-60);
-  }
-
-  .event-source-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--spacing-2) var(--spacing-6);
-    border-radius: 100px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: var(--color-grey-20);
-    color: var(--color-font-secondary);
-    border: 1px solid var(--color-grey-25);
-  }
-
-  .event-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-
-  .section-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-grey-60);
-  }
-
-  .section-value {
-    font-size: 0.9375rem;
-    color: var(--color-font-primary);
-    line-height: 1.5;
-  }
-
-  .venue-address {
-    white-space: pre-line;
-    font-size: 0.875rem;
-  }
-
-
-  /* Today / Tomorrow label — larger than the regular date value */
-  .date-relative {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-  }
-
-  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="event"]) {
-    -webkit-mask-image: url('@openmates/ui/static/icons/event.svg');
-    mask-image: url('@openmates/ui/static/icons/event.svg');
-  }
+  .event-image { width: 100%; height: var(--result-media-height); min-height: 0; object-fit: contain; display: block; border-radius: var(--radius-5); background: var(--color-grey-90); }
+  :global([data-theme="dark"]) .event-image { background: var(--color-grey-30); }
+  .event-icon { background: currentColor; cursor: inherit; flex-shrink: 0; }
+  .event-facts { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--spacing-6); padding: var(--spacing-2); color: var(--color-font-secondary); }
+  .event-fact { display: flex; align-items: center; gap: var(--spacing-2); font-size: var(--font-size-small); }
+  .event-fact > span { display: flex; flex-direction: column; line-height: 1.25; }
+  .event-fact small { font-size: var(--font-size-xxs); font-weight: 600; }
+  .event-identities { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-3); width: 100%; margin-bottom: var(--spacing-8); }
+  .event-identity { display: flex; align-items: center; justify-content: center; gap: var(--spacing-3); min-width: 0; padding: var(--spacing-4); border-radius: var(--radius-4); background: var(--color-grey-0); font-size: var(--font-size-small); }
+  .event-identity:only-child { grid-column: 1 / -1; }
+  .event-identity > span { min-width: 0; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+  .event-identity small { color: var(--color-font-secondary); font-size: var(--font-size-xxs); }
+  .event-identity strong { color: var(--color-primary-start); }
+  .event-identity[data-testid="event-venue-card"] .event-icon { color: var(--color-app-events-start); }
+  .venue-address { white-space: pre-line; line-height: 1.35; font-size: var(--font-size-xxs); }
+  .event-description { line-height: 1.5; }
 </style>

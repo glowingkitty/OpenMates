@@ -16,6 +16,7 @@
 -->
 
 <script lang="ts">
+  import EmbedChevron from '../EmbedChevron.svelte';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -248,8 +249,8 @@
       <div class="image-gallery" data-testid="stay-gallery">
         <img class="gallery-image" src={currentImage} alt={name} loading="lazy" />
         {#if allImages.length > 1}
-          <button class="gallery-nav gallery-prev" onclick={prevImage} aria-label="Previous image">&#x2039;</button>
-          <button class="gallery-nav gallery-next" onclick={nextImage} aria-label="Next image">&#x203a;</button>
+          <button type="button" class="gallery-nav gallery-prev" onclick={prevImage} aria-label="Previous image"><EmbedChevron direction="previous" /></button>
+          <button type="button" class="gallery-nav gallery-next" onclick={nextImage} aria-label="Next image"><EmbedChevron direction="next" /></button>
           <div class="gallery-counter" data-testid="stay-gallery-counter">{currentImageIndex + 1} / {allImages.length}</div>
         {/if}
       </div>
@@ -277,7 +278,7 @@
   {#snippet embedHeaderCta()}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedStay} testId="save-embed-cta" />
+        <EmbedHeaderCtaButton label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedStay} testId="save-embed-cta" />
       {/if}
       {#if bookingUrl}
         <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', 'Google Hotels')} onclick={handleBooking} testId="external-provider-cta" />
@@ -423,39 +424,33 @@
   .image-gallery {
     position: relative;
     width: 100%;
+    height: var(--result-media-height);
     border-radius: var(--radius-5);
     overflow: hidden;
-    background: var(--color-grey-10);
+    background: var(--color-grey-90);
   }
+  :global([data-theme="dark"]) .image-gallery { background: var(--color-grey-30); }
   .gallery-image {
     width: 100%;
-    height: 180px;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
     display: block;
   }
   .gallery-nav {
+    all: unset;
     box-sizing: border-box;
-    min-width: 32px;
-    max-width: 32px;
-    min-height: 32px;
-    max-height: 32px;
-    padding: 0;
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: var(--font-size-h3-mobile);
+    width: 36px;
+    height: 44px;
+    display: grid;
+    place-items: center;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: var(--color-font-button);
     z-index: var(--z-index-raised-2);
   }
+  .gallery-nav:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
   .gallery-prev { left: 8px; }
   .gallery-next { right: 8px; }
   .gallery-counter {

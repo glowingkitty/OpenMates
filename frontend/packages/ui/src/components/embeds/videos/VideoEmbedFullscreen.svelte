@@ -633,7 +633,7 @@
     {#if likeCount}<ResultEmbedInfo icon="thumbs-up" label={formatLikeCount(likeCount)} value={formatLikeCount(likeCount)} />{/if}
   {/snippet}
   {#snippet media()}
-    <div class="video-container">
+    <div class="video-container" class:with-playback-actions={isVideoPlaying && !!videoId && !!embedUrl}>
       <!-- Video thumbnail with play button -->
       <!-- Only show thumbnail when video is NOT playing -->
       {#if !isVideoPlaying && videoId && thumbnailUrl}
@@ -773,6 +773,8 @@
      =========================================== */
   
   .video-container {
+    --video-action-height: 41px;
+    --video-extra-media-height: 0px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -781,6 +783,12 @@
     margin-top: 0;
   }
   
+  /* Budget the separately visible PiP rail as well as the actual player.
+     The shared media allowance already excludes the measured followup field. */
+  .video-container.with-playback-actions {
+    --video-extra-media-height: calc(var(--video-action-height) + var(--spacing-8) + 8px);
+  }
+
   /* ===========================================
      Video Thumbnail with Play Button
      =========================================== */
@@ -788,7 +796,7 @@
   .video-thumbnail-wrapper {
     position: relative;
     width: 100%;
-    max-width: max(21.333rem, calc((var(--result-fullscreen-height, 100dvh) - 27rem) * 16 / 9));
+    max-width: calc(max(1rem, calc(var(--result-media-max-height, max(12rem, calc(100dvh - 27rem))) - var(--video-extra-media-height))) * 16 / 9);
     aspect-ratio: 16 / 9;
     border-radius: var(--radius-7);
     overflow: hidden;
@@ -961,7 +969,7 @@
      The actual video is rendered by VideoIframe in ActiveChat. */
   .video-playing-spacer {
     width: 100%;
-    max-width: max(21.333rem, calc((var(--result-fullscreen-height, 100dvh) - 27rem) * 16 / 9));
+    max-width: calc(max(1rem, calc(var(--result-media-max-height, max(12rem, calc(100dvh - 27rem))) - var(--video-extra-media-height))) * 16 / 9);
     aspect-ratio: 16 / 9;
     margin-top: 0;
     /* Transparent - the actual video is shown by VideoIframe */
@@ -1026,7 +1034,7 @@
     cursor: pointer;
     transition: all var(--duration-fast) var(--easing-in-out);
     width: 41px;
-    height: 41px;
+    height: var(--video-action-height);
     display: inline-flex;
     align-items: center;
     justify-content: center;

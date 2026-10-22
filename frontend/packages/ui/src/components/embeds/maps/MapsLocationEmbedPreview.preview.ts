@@ -29,6 +29,7 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   brokenImage: {
     ...defaultProps,
     id: 'preview-maps-location-broken-image', mapImageUrl: '/maps-fixture-missing-image.png',

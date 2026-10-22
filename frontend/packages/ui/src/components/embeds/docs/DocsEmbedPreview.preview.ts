@@ -52,6 +52,7 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  tools: { ...defaultProps, previewPageUrls: undefined, onFullscreen: () => console.info('[Preview] specialized expanded') },
 	/** Processing state — shows loading animation */
 	processing: {
 		id: 'preview-docs-processing',

@@ -57,6 +57,7 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  tools: { ...defaultProps, onFullscreen: () => console.info('[Preview] specialized expanded') },
 	/** Citation targets remain in saved data; headings show their readable labels. */
 	citationHeaders: {
 		...defaultProps,

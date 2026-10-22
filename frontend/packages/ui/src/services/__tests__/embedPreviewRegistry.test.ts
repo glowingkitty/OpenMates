@@ -8,12 +8,13 @@ import { describe, expect, it, vi } from 'vitest';
 // These unit checks verify renderer selection and its props. The real Svelte
 // components are exercised by the bare preview and route E2E specs; importing
 // their authentication/runtime graph here would obscure that small contract.
-const previews = vi.hoisted(() => ({ website: () => {}, news: () => {}, connection: () => {}, place: () => {}, search: () => {} }));
+const previews = vi.hoisted(() => ({ website: () => {}, news: () => {}, connection: () => {}, place: () => {}, search: () => {}, event: () => {} }));
 vi.mock('../../components/embeds/web/WebSearchEmbedPreview.svelte', () => ({ default: previews.search }));
 vi.mock('../../components/embeds/news/NewsEmbedPreview.svelte', () => ({ default: previews.news }));
 vi.mock('../../components/embeds/web/WebsiteEmbedPreview.svelte', () => ({ default: previews.website }));
 vi.mock('../../components/embeds/travel/TravelConnectionEmbedPreview.svelte', () => ({ default: previews.connection }));
 vi.mock('../../components/embeds/maps/MapLocationEmbedPreview.svelte', () => ({ default: previews.place }));
+vi.mock('../../components/embeds/events/EventEmbedPreview.svelte', () => ({ default: previews.event }));
 import { embedPreviewRegistry, parentPreviewProps, pdfPreviewProps } from '../embedPreviewRegistry';
 
 function metadataFor(decodedContent: Record<string, unknown>) {
@@ -254,4 +255,13 @@ it('resolves uploaded project PDFs through the existing PDF preview', () => {
     isMobile: false,
     onFullscreen,
   });
+});
+
+// contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+it('normalizes flattened event child data through the shared registry', async () => {
+  const resolved = await embedPreviewRegistry.resolve({ embedId: 'flat-event', embedData: { type: 'event', status: 'finished', app_id: 'events', skill_id: 'search' },
+    decodedContent: { organizer_name: 'Berlin Lingua Hub', venue_name: 'Community space', fee_amount: '0', fee_currency: 'EUR', rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin' }, onFullscreen: () => {},
+  });
+  expect(resolved?.component).toBe(previews.event);
+  expect(resolved?.props.event).toMatchObject({ embed_id: 'flat-event', organizer: {name: 'Berlin Lingua Hub'}, venue: {name: 'Community space'}, fee: {amount: 0, currency: 'EUR'}, rsvp_count: 80, date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin' });
 });

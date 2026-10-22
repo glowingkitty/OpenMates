@@ -6,7 +6,8 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import WeatherConditionIcon from './WeatherConditionIcon.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
@@ -60,11 +61,11 @@
   let icon = $derived(typeof content.icon === 'string' ? content.icon : '');
   let temperatureMinC = $derived(typeof content.temperature_min_c === 'number' ? content.temperature_min_c : undefined);
   let temperatureMaxC = $derived(typeof content.temperature_max_c === 'number' ? content.temperature_max_c : undefined);
-  let precipitationTotalMm = $derived(typeof content.precipitation_total_mm === 'number' ? content.precipitation_total_mm : 0);
+  let precipitationTotalMm = $derived(typeof content.precipitation_total_mm === 'number' ? content.precipitation_total_mm : undefined);
   let precipitationProbabilityMaxPct = $derived(
-    typeof content.precipitation_probability_max_pct === 'number' ? content.precipitation_probability_max_pct : 0
+    typeof content.precipitation_probability_max_pct === 'number' ? content.precipitation_probability_max_pct : undefined
   );
-  let rainHours = $derived(typeof content.rain_hours === 'number' ? content.rain_hours : 0);
+  let rainHours = $derived(typeof content.rain_hours === 'number' ? content.rain_hours : undefined);
   let windSpeedMaxKmh = $derived(typeof content.wind_speed_max_kmh === 'number' ? content.wind_speed_max_kmh : undefined);
   let cloudCoverAvgPct = $derived(typeof content.cloud_cover_avg_pct === 'number' ? content.cloud_cover_avg_pct : undefined);
   let humidityAvgPct = $derived(typeof content.relative_humidity_avg_pct === 'number' ? content.relative_humidity_avg_pct : undefined);
@@ -93,315 +94,74 @@
   function formatNumber(value?: number, suffix = ''): string {
     return value === undefined ? '—' : `${Math.round(value)}${suffix}`;
   }
+  // The decoded envelope may include storage fields alongside forecast data.
+  let visibleContext = $derived({
+    date, location_name: locationName, provider, condition,
+    temperature_min_c: temperatureMinC, temperature_max_c: temperatureMaxC,
+    precipitation_total_mm: precipitationTotalMm, precipitation_probability_max_pct: precipitationProbabilityMaxPct,
+    rain_hours: rainHours, wind_speed_max_kmh: windSpeedMaxKmh, cloud_cover_avg_pct: cloudCoverAvgPct,
+    relative_humidity_avg_pct: humidityAvgPct,
+    hourly: hourly.map((row) => ({
+      time: typeof row.time === 'string' ? row.time : undefined,
+      temperature_c: typeof row.temperature_c === 'number' ? row.temperature_c : undefined,
+      precipitation_mm: typeof row.precipitation_mm === 'number' ? row.precipitation_mm : undefined,
+      precipitation_probability_pct: typeof row.precipitation_probability_pct === 'number' ? row.precipitation_probability_pct : undefined,
+      wind_speed_kmh: typeof row.wind_speed_kmh === 'number' ? row.wind_speed_kmh : undefined,
+    })),
+  });
 </script>
 
-<UnifiedEmbedFullscreen
-  appId="weather"
-  skillId="weather_day"
-  skillIconName="weather"
-  showSkillIcon={true}
-  embedHeaderTitle={date || $text('apps.weather.day')}
-  embedHeaderSubtitle={[locationName, provider].filter(Boolean).join(' · ')}
-  {onClose}
-  currentEmbedId={embedId}
-  {hasPreviousEmbed}
-  {hasNextEmbed}
-  {onNavigatePrevious}
-  {onNavigateNext}
-  {navigateDirection}
-  {showChatButton}
-  {onShowChat}
+<ResultEmbedFullscreen appId="weather" skillId="weather_day" skillIconName="weather" showSkillIcon={true}
+  embedHeaderTitle={formattedDate} embedHeaderSubtitle={[locationName, provider].filter(Boolean).join(' · ')}
+  result={visibleContext} {onClose} currentEmbedId={embedId} {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext} {navigateDirection} {showChatButton} {onShowChat}
 >
-  {#snippet content()}
+  {#snippet summary()}
+    <div class="weather-summary" data-testid="weather-day-fullscreen-summary">
+      <ResultEmbedInfo icon="thermometer" label={$text('result_embed.temperature')} value={formatTemp(temperatureMinC, temperatureMaxC)}><p>{formatTemp(temperatureMinC, temperatureMaxC)}</p></ResultEmbedInfo>
+      <ResultEmbedInfo icon="cloud-rain" label={$text('result_embed.rain_chance')} value={formatNumber(precipitationProbabilityMaxPct, '%')}>
+        <p>{$text('result_embed.precipitation')}: {precipitationTotalMm == null ? '—' : `${precipitationTotalMm} mm`}</p>
+        <p>{$text('result_embed.rain_hours')}: {rainHours == null ? '—' : `${rainHours}h`}</p>
+      </ResultEmbedInfo>
+      {#if windSpeedMaxKmh != null}<ResultEmbedInfo icon="wind" label={$text('result_embed.wind')} value={formatNumber(windSpeedMaxKmh, ' km/h')}><p>{formatNumber(windSpeedMaxKmh, ' km/h')}</p></ResultEmbedInfo>{/if}
+    </div>
+  {/snippet}
+  {#snippet detailContent()}
     <div class="weather-day-fullscreen" data-testid="weather-day-fullscreen">
-      <section class="summary-card" data-testid="weather-day-fullscreen-summary">
-        <div class="summary-copy">
-          <p class="summary-kicker">{formattedDate}</p>
-          <h3>{formatCondition(condition)}</h3>
-          <p class="summary-location">{[locationName, provider].filter(Boolean).join(' · ')}</p>
-          <p class="summary-temp">{formatTemp(temperatureMinC, temperatureMaxC)}</p>
-        </div>
-        <WeatherConditionIcon {icon} {condition} size="hero" />
-      </section>
-
-      <section class="metric-grid" aria-label="Weather summary metrics">
-        <article class="metric-card">
-          <span class="metric-label">Rain chance</span>
-          <strong>{precipitationProbabilityMaxPct}%</strong>
-          <span>{precipitationTotalMm} mm · {rainHours}h</span>
-        </article>
-        <article class="metric-card">
-          <span class="metric-label">Wind</span>
-          <strong>{formatNumber(windSpeedMaxKmh, ' km/h')}</strong>
-          <span>Max speed</span>
-        </article>
-        <article class="metric-card">
-          <span class="metric-label">Clouds</span>
-          <strong>{formatNumber(cloudCoverAvgPct, '%')}</strong>
-          <span>Average cover</span>
-        </article>
-        <article class="metric-card">
-          <span class="metric-label">Humidity</span>
-          <strong>{formatNumber(humidityAvgPct, '%')}</strong>
-          <span>Average</span>
-        </article>
-      </section>
-
-      <section class="hourly-card" aria-label="Hourly weather forecast" data-testid="weather-hourly-table">
-        <div class="section-heading">
-          <h4>Hourly forecast</h4>
-          <span>{hourly.length} entries</span>
-        </div>
-        {#if hourly.length > 0}
-          <div class="hourly-strip">
-            {#each hourly as row}
-              <div class="hour-row" data-testid="weather-hourly-row">
-                <span class="hour-time">{row.time}</span>
-                <WeatherConditionIcon icon={row.icon || icon} condition={row.condition || condition} size="sm" />
-                <strong>{row.temperature_c ?? '—'}°</strong>
-                <span>{row.precipitation_probability_pct ?? 0}% rain</span>
-                <span>{row.precipitation_mm ?? 0} mm</span>
-                <span>{row.wind_speed_kmh ?? '—'} km/h</span>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <p class="empty-hourly">No hourly data available.</p>
-        {/if}
+      <div class="weather-identity">
+        {#if icon || condition}<WeatherConditionIcon {icon} {condition} size="hero" />{/if}
+        {#if condition}<p class="result-description">{formatCondition(condition)}</p>{/if}
+        {#if locationName}<div class="result-location">{locationName}</div>{/if}
+      </div>
+      <div class="result-icon-row">
+        {#if precipitationTotalMm != null}<ResultEmbedInfo icon="droplets" label={$text('result_embed.precipitation')} value={`${precipitationTotalMm} mm`}><p>{precipitationTotalMm} mm</p></ResultEmbedInfo>{/if}
+        {#if rainHours != null}<ResultEmbedInfo icon="clock" label={$text('result_embed.rain_hours')} value={`${rainHours}h`}><p>{rainHours}h</p></ResultEmbedInfo>{/if}
+        {#if cloudCoverAvgPct != null}<ResultEmbedInfo icon="cloud" label={$text('result_embed.clouds')} value={formatNumber(cloudCoverAvgPct, '%')}><p>{formatNumber(cloudCoverAvgPct, '%')}</p></ResultEmbedInfo>{/if}
+        {#if humidityAvgPct != null}<ResultEmbedInfo icon="droplet" label={$text('result_embed.humidity')} value={formatNumber(humidityAvgPct, '%')}><p>{formatNumber(humidityAvgPct, '%')}</p></ResultEmbedInfo>{/if}
+      </div>
+      <section class="hourly-card" aria-label={$text('result_embed.hourly_forecast')} data-testid="weather-hourly-table">
+        <h3>{$text('result_embed.hourly_forecast')} ({hourly.length})</h3>
+        {#if hourly.length > 0}<div class="hourly-strip">
+          {#each hourly as row}<div class="hour-row" data-testid="weather-hourly-row">
+            <span class="hour-time">{row.time}</span>
+            <WeatherConditionIcon icon={row.icon || icon} condition={row.condition || condition} size="sm" />
+            <strong>{row.temperature_c ?? '—'}°</strong>
+            <span>{row.precipitation_probability_pct ?? '—'}%</span>
+            <span>{row.precipitation_mm ?? '—'} mm</span>
+            <span>{row.wind_speed_kmh ?? '—'} km/h</span>
+          </div>{/each}
+        </div>{:else}<p class="empty-hourly">{$text('result_embed.no_hourly_data')}</p>{/if}
       </section>
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
-
+</ResultEmbedFullscreen>
 <style>
-  .weather-day-fullscreen {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 20px clamp(8px, 3vw, 16px) 120px;
-    width: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    box-sizing: border-box;
-  }
-
-  .summary-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    min-height: 245px;
-    border-radius: 32px;
-    border: 1px solid color-mix(in srgb, var(--color-app-weather) 24%, var(--color-grey-20));
-    background:
-      radial-gradient(circle at 88% 22%, color-mix(in srgb, var(--color-app-weather) 38%, transparent), transparent 34%),
-      radial-gradient(circle at 10% 10%, color-mix(in srgb, #ffffff 72%, transparent), transparent 35%),
-      linear-gradient(135deg, color-mix(in srgb, var(--color-app-weather) 28%, var(--color-grey-0)), var(--color-grey-0));
-    box-shadow: 0 22px 55px color-mix(in srgb, var(--color-grey-100) 13%, transparent);
-    padding: 28px;
-    overflow: hidden;
-  }
-
-  .summary-copy {
-    min-width: 0;
-  }
-
-  .summary-kicker,
-  .summary-location {
-    margin: 0;
-    color: var(--color-grey-70);
-    font-size: 14px;
-  }
-
-  .summary-card h3 {
-    margin: 8px 0 0;
-    color: var(--color-grey-100);
-    font-size: clamp(30px, 5vw, 54px);
-    line-height: 1;
-    text-transform: capitalize;
-  }
-
-  .summary-temp {
-    margin: 18px 0 0;
-    color: var(--color-grey-100);
-    font-size: clamp(34px, 6vw, 64px);
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .metric-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .metric-card,
-  .hourly-card {
-    border-radius: 22px;
-    border: 1px solid var(--color-grey-20);
-    background: color-mix(in srgb, var(--color-grey-0) 92%, transparent);
-    box-shadow: 0 12px 32px color-mix(in srgb, var(--color-grey-100) 7%, transparent);
-  }
-
-  .metric-card {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 16px;
-    color: var(--color-grey-70);
-    font-size: 13px;
-  }
-
-  .metric-label {
-    color: var(--color-grey-60);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  .metric-card strong {
-    color: var(--color-grey-100);
-    font-size: 22px;
-    line-height: 1.1;
-  }
-
-  .hourly-card {
-    padding: 16px;
-    overflow: hidden;
-  }
-
-  .section-heading {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .section-heading h4 {
-    margin: 0;
-    color: var(--color-grey-100);
-    font-size: 17px;
-  }
-
-  .section-heading span,
-  .empty-hourly {
-    color: var(--color-grey-60);
-    font-size: 13px;
-  }
-
-  .hourly-strip {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding: 2px 2px 8px;
-    scrollbar-width: thin;
-  }
-
-  .hour-row {
-    display: flex;
-    min-width: 96px;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    border-radius: 18px;
-    background:
-      radial-gradient(circle at 50% 15%, color-mix(in srgb, var(--color-app-weather) 18%, transparent), transparent 55%),
-      var(--color-grey-10);
-    border: 1px solid color-mix(in srgb, var(--color-app-weather) 12%, var(--color-grey-20));
-    color: var(--color-grey-70);
-    font-size: 12px;
-    padding: 11px 9px;
-    text-align: center;
-  }
-
-  .hour-row strong,
-  .hour-time {
-    color: var(--color-grey-100);
-  }
-
-  .hour-row strong {
-    font-size: 18px;
-    line-height: 1;
-  }
-
-  .hour-time {
-    font-weight: 600;
-  }
-
-  .empty-hourly {
-    margin: 0;
-  }
-
-  @container fullscreen (max-width: 720px) {
-    .summary-card {
-      min-height: 220px;
-      padding: 22px;
-    }
-
-    .metric-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @container fullscreen (max-width: 520px) {
-    .weather-day-fullscreen {
-      gap: 12px;
-      padding: 14px 8px 96px;
-    }
-
-    .summary-card {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 6px;
-      min-height: 0;
-      border-radius: 24px;
-      padding: 18px;
-    }
-
-    .summary-card h3 {
-      font-size: clamp(24px, 10vw, 38px);
-    }
-
-    .summary-temp {
-      margin-top: 12px;
-      font-size: clamp(30px, 12vw, 48px);
-    }
-
-    .summary-kicker,
-    .summary-location {
-      font-size: 12px;
-    }
-
-    .metric-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .metric-card {
-      border-radius: 18px;
-      padding: 12px;
-      font-size: 12px;
-    }
-
-    .metric-card strong {
-      font-size: 18px;
-    }
-
-    .metric-label {
-      font-size: 10px;
-    }
-
-    .hourly-card {
-      border-radius: 18px;
-      padding: 12px;
-    }
-
-    .hour-row {
-      min-width: 82px;
-      border-radius: 15px;
-      padding: 9px 7px;
-      font-size: 11px;
-    }
-  }
+ .weather-summary, .weather-identity { display:flex; align-items:center; justify-content:center; gap:var(--spacing-4); flex-wrap:wrap; }
+ .weather-day-fullscreen { width:100%; display:flex; flex-direction:column; gap:var(--spacing-8); }
+ .weather-identity { flex-direction:column; text-align:center; }
+ .hourly-card { width:100%; min-width:0; }
+ h3 { font-size:var(--font-size-small); margin:0 0 var(--spacing-4); }
+ .hourly-strip { display:flex; gap:var(--spacing-3); overflow-x:auto; padding-block:var(--spacing-2); }
+ .hour-row { display:flex; flex:0 0 6rem; flex-direction:column; align-items:center; gap:var(--spacing-2); padding:var(--spacing-4); background:var(--color-grey-0); border-radius:var(--radius-4); font-size:var(--font-size-xs); }
+ .hour-time { font-weight:600; }
+ .empty-hourly { color:var(--color-font-secondary); font-size:var(--font-size-small); }
 </style>

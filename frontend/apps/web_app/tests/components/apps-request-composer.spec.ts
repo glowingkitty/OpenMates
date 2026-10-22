@@ -208,3 +208,37 @@ test('Apps result host preserves the image renderer privacy projection in actual
   }
   await testInfo.attach('AppsResultFullscreen-image-projected-followup', { body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png' });
 });
+
+// contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen,events-search.surface-parity
+test('event fullscreen forwards visible event fields while excluding raw and nested transport metadata', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await page.route('**/v1/apps/workspace/interpret', route => route.fulfill({ status: 503, json: { detail: 'isolated component request' } }));
+  await page.goto('/dev/preview/embeds/events/EventEmbedFullscreen?chrome=0&width=700&variant=projectedPrivacy');
+  await waitForComponentPreview(page);
+  await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+  await expect(page.getByTestId('event-organizer-card')).toContainText('AI Berlin Community');
+  await expect(page.getByTestId('event-venue-card')).toContainText('Factory Berlin');
+  await page.getByTestId('apps-request-textarea').fill('What should I know about this event?');
+  const pending = page.waitForRequest('**/v1/apps/workspace/interpret');
+  await page.getByTestId('apps-request-submit').click();
+  const request = await pending;
+  const payload = request.postDataJSON();
+  const result = payload.context.result;
+  expect(payload.app_id).toBe('events');
+  expect(result).toMatchObject({
+    embed_id: 'preview-event-fullscreen-1', title: 'AI & Machine Learning Berlin Meetup – Spring Edition',
+    provider: 'meetup', date_start: '2026-03-15T19:00:00+01:00', date_end: '2026-03-15T22:00:00+01:00', timezone: 'Europe/Berlin',
+    organizer: { id: 'org-ai-berlin', name: 'AI Berlin Community', slug: 'ai-berlin' },
+    venue: { name: 'Factory Berlin', address: 'Rheinsberger Str. 76-77', city: 'Berlin', country: 'Germany', lat: 52.5393, lon: 13.4028 },
+    fee: { amount: 0, currency: 'EUR' }, rsvp_count: 142, is_paid: false,
+  });
+  expect(Object.keys(result.organizer).sort()).toEqual(['id', 'name', 'slug']);
+  expect(Object.keys(result.venue).sort()).toEqual(['address', 'city', 'country', 'lat', 'lon', 'name']);
+  expect(Object.keys(result.fee).sort()).toEqual(['amount', 'currency']);
+  const serialized = JSON.stringify(result);
+  for (const scope of ['event', 'flat', 'organizer', 'venue', 'fee']) {
+    for (const kind of ['crypto', 'storage']) expect(serialized).not.toContain(`${scope}-private-${kind}-sentinel`);
+  }
+  for (const key of ['aes_key', 'aes_nonce', 's3_base_url', 'files', 'organizer_name', 'organizer_private_encryption', 'venue_s3_key']) expect(result).not.toHaveProperty(key);
+  await testInfo.attach('EventFullscreen-projected-followup', { body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+});

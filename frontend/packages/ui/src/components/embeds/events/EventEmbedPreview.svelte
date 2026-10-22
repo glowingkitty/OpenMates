@@ -20,6 +20,8 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
+  import { text } from '../../../i18n/translations';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   /**
@@ -84,108 +86,20 @@
     id,
     event,
     isMobile = false,
-    onlineLabel = 'Online',
-    inPersonLabel = 'In Person',
+    onlineLabel: _onlineLabel = 'Online',
+    inPersonLabel: _inPersonLabel = 'In Person',
     rsvpLabel = 'RSVPs',
     onFullscreen,
   }: Props = $props();
 
-  // ── Display helpers ──────────────────────────────────────────────────────────
-
-  interface EventDateParts {
-    date: string;
-    time: string;
-  }
-
-  /**
-   * Format a date_start ISO string to short readable date and time lines.
-   * Shows relative day labels for today/tomorrow.
-   */
-  function formatEventDateParts(dateStr: string | undefined): EventDateParts {
-    if (!dateStr) return { date: '', time: '' };
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return { date: '', time: '' };
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const startOfDayAfterTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
-      const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-      const monthDay = d.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-      });
-      const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-
-      if (dateOnly.getTime() === startOfToday.getTime()) {
-        return { date: `Today, ${monthDay}`, time };
-      }
-
-      if (dateOnly.getTime() === startOfTomorrow.getTime()) {
-        return { date: `Tomorrow, ${monthDay}`, time };
-      }
-
-      const dayLabel =
-        dateOnly >= startOfDayAfterTomorrow
-          ? d.toLocaleDateString(undefined, {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-            })
-          : monthDay;
-
-      return { date: dayLabel, time };
-    } catch {
-      return { date: '', time: '' };
-    }
-  }
-
-  /**
-   * Return short location: "Online" for ONLINE events, "City, Country" for physical.
-   */
-  function getEventLocation(ev: EventResult): string {
-    if (ev.event_type === 'ONLINE') return onlineLabel;
-    if (!ev.venue) return '';
-    const parts: string[] = [];
-    if (ev.venue.city) parts.push(ev.venue.city);
-    if (ev.venue.country) parts.push(ev.venue.country);
-    return parts.join(', ');
-  }
-
-  /**
-   * Map backend provider slugs to human-readable display names.
-   */
-  function getProviderLabel(provider: string | undefined): string {
-    switch (provider?.toLowerCase()) {
-      case 'meetup':              return 'Meetup';
-      case 'luma':                return 'Luma';
-      case 'classictic':          return 'Classictic';
-      case 'berlin_philharmonic': return 'Berlin Philharmonic';
-      case 'bachtrack':           return 'Bachtrack';
-      default:                    return provider || '';
-    }
-  }
-
-  // Derived display values
-  let eventDateParts = $derived(formatEventDateParts(event.date_start));
-  let eventLocation = $derived(getEventLocation(event));
-  let isOnline      = $derived(event.event_type === 'ONLINE');
-  let isPaid        = $derived(event.is_paid ?? false);
-  let providerLabel = $derived(getProviderLabel(event.provider));
-
-  // Format fee for display (e.g. "€12.00")
-  let feeDisplay = $derived.by(() => {
-    if (!isPaid || !event.fee) return '';
-    const amount = event.fee.amount;
-    const currency = event.fee.currency || '';
-    if (amount == null) return '';
-    try {
-      return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-    } catch {
-      return `${currency} ${amount}`;
-    }
+  let startTime = $derived.by(() => {
+    if (!event.date_start) return '';
+    const date = new Date(event.date_start);
+    if (Number.isNaN(date.getTime())) return '';
+    try { return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: event.timezone }); }
+    catch { return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
   });
+  let attribution = $derived([startTime, event.organizer?.name ? `${$text('embeds.video_by')} ${event.organizer.name}` : ''].filter(Boolean).join(', '));
 
   let eventImageUrl = $derived.by(() => {
     const rawImageUrl = event.image_url || event.cover_url;
@@ -217,19 +131,22 @@
   hasFullWidthImage={!!eventImageUrl && !event.title}
 >
   {#snippet details()}
-    <ResultEmbedCard title={event.title || 'Event'} imageUrl={eventImageUrl || undefined} imageAlt={event.title || 'Event'} description={event.description} sourceLabel={providerLabel || undefined}>
-      {#snippet badge()}{#if eventDateParts.date}<span class="date-badge">{eventDateParts.date}</span>{/if}{/snippet}
+    <ResultEmbedCard title={event.title || 'Event'} imageUrl={eventImageUrl || undefined} imageAlt={event.title || 'Event'} mediaFit="contain">
+      {#snippet badge()}{#if event.date_start}<EmbedCalendarDate date={event.date_start} timezone={event.timezone} />{/if}{/snippet}
       {#snippet facts()}
-        {#if eventDateParts.time}<span>{eventDateParts.time}</span>{/if}
-        {#if eventLocation}<span>{eventLocation}</span>{/if}
-        {#if event.event_type}<span>{isOnline ? onlineLabel : inPersonLabel}</span>{/if}
-        {#if isPaid && feeDisplay}<span>{feeDisplay}</span>{:else if event.is_paid === false}<span>Free</span>{/if}
-        {#if event.rsvp_count != null && event.rsvp_count > 0}<span>{event.rsvp_count.toLocaleString()} {rsvpLabel}</span>{/if}
+        <div class="event-preview-facts">
+          {#if attribution}<span class="event-preview-attribution" data-testid="event-preview-attribution" title={attribution}>{attribution}</span>{/if}
+          {#if event.rsvp_count != null}<span class="event-preview-rsvps" data-testid="event-preview-rsvps"><span class="clickable-icon rsvp-icon" style:mask-image="var(--icon-url-team)" aria-hidden="true"></span><span>{event.rsvp_count.toLocaleString()} {rsvpLabel}</span></span>{/if}
+        </div>
       {/snippet}
     </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-.date-badge { background: var(--color-grey-0); color: var(--color-font-primary); padding: var(--spacing-2); border-radius: var(--radius-3); font-size: 12px; }
+  .rsvp-icon { width: 16px; height: 16px; background: currentColor; cursor: inherit; }
+  .event-preview-facts { display: flex; align-items: center; gap: var(--spacing-2); min-width: 0; width: 100%; color: var(--color-font-secondary); }
+  .event-preview-attribution { display: block; flex: 1; min-width: 0; font-size: var(--font-size-xxs); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .event-preview-rsvps { display: inline-flex; flex-shrink: 0; align-items: center; gap: var(--spacing-1); font-size: var(--font-size-xxs); line-height: 1.2; }
+  @container result-card (min-width: 401px) { .event-preview-facts { flex-direction: column; align-items: flex-start; gap: var(--spacing-4); } .event-preview-attribution { flex: none; max-width: 100%; } }
 </style>

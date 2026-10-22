@@ -17,11 +17,13 @@
 -->
 
 <script lang="ts">
+  import { copyToClipboard } from '../../../utils/clipboardUtils';
+  import { notificationStore } from '../../../stores/notificationStore';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { parseSheetEmbedContent, formatTableDimensions } from './sheetEmbedContent';
+  import { parseSheetEmbedContent, formatTableDimensions, tableToTSV } from './sheetEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
-  import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks } from '../../../utils/embedLinkUtils';
+  import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks, stripWikiLinks } from '../../../utils/embedLinkUtils';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { requestEmbedFromServerOnce } from '../../../services/embedResolver';
@@ -268,9 +270,22 @@
     const cleanup = hydrateWikiLinks(tableContainerEl, { clickable: false });
     return cleanup;
   });
+  async function copyPreviewContent() {
+    try {
+      const clean = (content: string) => stripWikiLinks(stripEmbedLinks(content));
+      const headers = parsedTable.headers.map(cell => ({ ...cell, content: clean(cell.content) }));
+      const rows = parsedTable.rows.map(row => row.map(cell => ({ ...cell, content: clean(cell.content) })));
+      const result = await copyToClipboard(tableToTSV(headers, rows));
+      if (!result.success) throw new Error(result.error || 'Copy failed');
+      notificationStore.success($text('embeds.copied_to_clipboard'));
+    } catch {
+      notificationStore.error($text('embeds.copy_failed'));
+    }
+  }
 </script>
 
 <UnifiedEmbedPreview
+  previewTools={true}
   {id}
   appId="sheets"
   skillId="sheet"
@@ -285,6 +300,10 @@
   showSkillIcon={false}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
+  {#snippet resultPrimaryAction()}
+    {#if status === 'finished' && parsedTable.headers.length > 0}<button type="button" aria-label={$text('common.copy')} title={$text('common.copy')} data-testid="preview-copy" onclick={(event) => { event.stopPropagation(); void copyPreviewContent(); }}><span class="clickable-icon icon_copy" aria-hidden="true"></span></button>{/if}
+  {/snippet}
+
   {#snippet details({ isMobile: isMobileSnippet, isLarge: isLargeSnippet })}
     {(isLargePreview = isLargeSnippet, undefined)}
     <div class="sheet-preview" class:mobile={isMobileSnippet} bind:clientWidth={measuredContainerWidth}>

@@ -341,7 +341,8 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(grid).toBeVisible({ timeout: 30_000 });
 			const firstDay = grid.locator('[data-testid="embed-preview"][data-skill-id="weather_day"]').first();
 			await expect(firstDay).toBeVisible({ timeout: 30_000 });
-			await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 30_000 });
+			await expect(firstDay).toHaveAttribute('data-app-id', 'weather');
+			await expect(firstDay.locator('.result-corner')).toBeVisible({ timeout: 30_000 });
 			await firstDay.click();
 			await expect(grid).toHaveAttribute('data-selected-index', '0', { timeout: 15_000 });
 			const dayFullscreen = page.getByTestId('weather-day-fullscreen');

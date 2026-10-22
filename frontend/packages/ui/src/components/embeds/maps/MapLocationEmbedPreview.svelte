@@ -18,6 +18,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
@@ -27,6 +28,7 @@
    * individual place result fields directly.
    */
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
     /** Synthetic embed ID for this place card */
     id: string;
     /** Place display name */
@@ -54,6 +56,7 @@
   }
 
   let {
+    resultContext = 'auto',
     id,
     displayName,
     formattedAddress,
@@ -82,6 +85,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="maps"
   skillId="location"
@@ -93,143 +98,20 @@
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="place-card" data-testid="maps-place-card" class:mobile={isMobileLayout} class:selected={isSelected}>
-      {#if proxiedImageUrl}
-        <img class="place-image" src={proxiedImageUrl} alt={displayName || $text('common.location')} loading="lazy" />
-      {/if}
-
-      <!-- Place name -->
-      <div class="place-name">{displayName || $text('common.location')}</div>
-
-      <!-- Rating row -->
-      {#if ratingText != null}
-        <div class="place-rating">
-          <span class="rating-star">★</span>
-          <span class="rating-value">{ratingText}</span>
-          {#if userRatingCount != null}
-            <span class="rating-count">({userRatingCount.toLocaleString()})</span>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Type badge -->
-      {#if placeType}
-        <div class="place-type">{placeType}</div>
-      {/if}
-
-      <!-- Address -->
-      {#if formattedAddress}
-        <div class="place-address">{formattedAddress}</div>
-      {/if}
-      {#if distanceMeters != null && Number.isFinite(distanceMeters)}
-        <div class="place-address" data-testid="maps-place-distance">{distanceMeters < 1000 ? `${Math.round(distanceMeters)} m` : `${(distanceMeters / 1000).toFixed(1)} km`}</div>
-      {/if}
-      {#if dataSource}
-        <div class="place-address" data-testid="maps-place-source">{dataSource}</div>
-      {/if}
+  {#snippet details()}
+    <div class="place-card" data-testid="maps-place-card" class:selected={isSelected} data-selected={isSelected}>
+      <ResultEmbedCard title={displayName || $text('common.location')} description={formattedAddress} imageUrl={proxiedImageUrl || undefined} imageAlt={displayName || $text('common.location')} sourceLabel={placeType}>
+        {#snippet facts()}
+          {#if ratingText != null}<span>★ {ratingText}{userRatingCount != null ? ` (${userRatingCount.toLocaleString()})` : ''}</span>{/if}
+          {#if distanceMeters != null && Number.isFinite(distanceMeters)}<span data-testid="maps-place-distance">{distanceMeters < 1000 ? `${Math.round(distanceMeters)} m` : `${(distanceMeters / 1000).toFixed(1)} km`}</span>{/if}
+          {#if dataSource}<span data-testid="maps-place-source">{dataSource}</span>{/if}
+        {/snippet}
+      </ResultEmbedCard>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
-
 <style>
-  .place-card {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: var(--spacing-6) var(--spacing-8) var(--spacing-4);
-    height: 100%;
-    justify-content: center;
-  }
-
-  .place-image {
-    width: 100%;
-    height: 72px;
-    object-fit: cover;
-    border-radius: var(--radius-4);
-    margin-bottom: var(--spacing-2);
-  }
-
-  .place-card.mobile {
-    padding: var(--spacing-4) var(--spacing-5) var(--spacing-3);
-    justify-content: flex-start;
-  }
-
-  /* Selected highlight ring — shown via parent border-color change */
-  .place-card.selected .place-name {
-    color: var(--color-primary);
-  }
-
-  .place-name {
-    font-size: 0.9375rem; /* 15px */
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    /* Two-line clamp */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-
-  .place-card.mobile .place-name {
-    font-size: 0.875rem; /* 14px */
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-  }
-
-  .place-rating {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 0.8125rem; /* 13px */
-    line-height: 1.2;
-  }
-
-  .rating-star {
-    color: #f5a623; /* intentional: brand star color, not theme-dependent */
-    font-size: 0.75rem;
-  }
-
-  .rating-value {
-    font-weight: 600;
-    color: var(--color-grey-100);
-  }
-
-  .rating-count {
-    color: var(--color-grey-60);
-  }
-
-  .place-type {
-    font-size: 0.75rem; /* 12px */
-    font-weight: 500;
-    color: var(--color-grey-60);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .place-address {
-    font-size: 0.75rem; /* 12px */
-    color: var(--color-grey-70);
-    line-height: 1.4;
-    /* One-line clamp */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .place-card.mobile .place-address {
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-  }
+  .place-card { width: 100%; height: 100%; }
+  .place-card.selected { outline: 2px solid var(--color-primary); outline-offset: -2px; border-radius: var(--radius-6); }
+  .place-card.selected :global(h3) { color: var(--color-primary); }
 </style>

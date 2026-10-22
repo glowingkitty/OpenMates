@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+import EventEmbedPreview from '../../../../embeds/events/EventEmbedPreview.svelte';
 import WebsiteEmbedPreview from "../../../../embeds/web/WebsiteEmbedPreview.svelte";
 import HomeSearchEmbedPreview from '../../../../embeds/home/HomeSearchEmbedPreview.svelte';
 import WebSearchEmbedPreview from '../../../../embeds/web/WebSearchEmbedPreview.svelte';
@@ -20,7 +21,7 @@ type MountCall = [unknown, { props: Record<string, unknown> }];
 
 const svelteMountMocks = vi.hoisted(() => ({
   mount: vi.fn(() => ({ destroy: vi.fn() })),
-  unmount: vi.fn(),
+  unmount: vi.fn(async () => {}),
 }));
 
 const embedResolverMocks = vi.hoisted(() => ({
@@ -63,6 +64,28 @@ vi.mock('../../../../../services/embedFullscreenResolver', () => ({
 }));
 
 describe('GroupRenderer', () => {
+  // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
+  it('normalizes flattened persisted event children before mounting their group/reference preview', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    document.body.append(container);
+    try {
+      await renderer.render({ attrs: { id: 'event-child', type: 'events-event', contentRef: 'embed:event-child', status: 'finished' },
+        container, content, embedData: { embed_id: 'event-child', type: 'event', status: 'finished' },
+        decodedContent: { title: 'Language exchange', organizer_name: 'Berlin Lingua Hub', organizer_id: 'org-1',
+          venue_name: 'Community space', venue_lat: '52.5', venue_lon: '13.4', fee_amount: '0', fee_currency: 'EUR',
+          rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin', provider: 'meetup' },
+      });
+      expect(svelteMountMocks.mount).toHaveBeenCalledWith(EventEmbedPreview, expect.objectContaining({ props: expect.objectContaining({
+        id: 'event-child', event: expect.objectContaining({ embed_id: 'event-child', organizer: expect.objectContaining({name: 'Berlin Lingua Hub'}),
+          venue: expect.objectContaining({name: 'Community space', lat: 52.5, lon: 13.4}), fee: expect.objectContaining({amount: 0, currency: 'EUR'}),
+          rsvp_count: 80, timezone: 'Europe/Berlin', provider: 'meetup' }),
+      }) }));
+    } finally { disposeEmbedTree(container); container.remove(); }
+  });
+
   // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
   it('keeps a single failed execution visible when encrypted content has no children', async () => {
     embedResolverMocks.resolveEmbed.mockResolvedValue({ embed_id: 'failed-skill', type: 'app_skill_use', status: 'finished', content: 'failed-content' });

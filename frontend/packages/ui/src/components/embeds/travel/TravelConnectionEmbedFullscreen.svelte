@@ -1580,7 +1580,7 @@
     {/if}
     <div class="embed-header-cta-group">
       {#if $authStore.isAuthenticated}
-        <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant={savedMemoryEntry ? 'destructive' : 'secondary'} onclick={handleToggleSavedConnection} />
+        <EmbedHeaderCtaButton testId="save-embed-cta" label={savedMemoryEntry ? 'Forget' : 'Add memory'} variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry} onclick={handleToggleSavedConnection} />
       {/if}
       {#if bookingState === 'loaded' && resolvedBookingUrl}
         <EmbedHeaderCtaButton testId="booking-cta" label={$text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />

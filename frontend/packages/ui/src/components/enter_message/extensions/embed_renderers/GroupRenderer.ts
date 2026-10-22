@@ -1,6 +1,7 @@
 // Generic group renderer - handles any '*-group' embed types
 // Uses the group handler system to render groups dynamically
 
+import { normalizeEventResult } from "../../../embeds/events/eventResult";
 import EmbedsMapView from "../../../embeds/EmbedsMapView.svelte";
 import { isResultsViewLanguage, parseEmbedsMapViewBlock } from "../../../../message_parsing/embedParsing";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
@@ -28,6 +29,7 @@ import {
   type CodeFileData,
 } from "../../../../services/zipExportService";
 import { mount, unmount, disposeEmbedTree, onEmbedCleanup, isEmbedTargetDisposed } from "./mountedEmbedLifecycle";
+import GroupPreviewNavigation from "../../../embeds/GroupPreviewNavigation.svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
@@ -837,6 +839,31 @@ export class GroupRenderer implements EmbedRenderer {
       return;
     }
 
+    // Registered result groups use the same mounted cards as individual
+    // results. HTML fallbacks omit shared sizing, tools and media behavior.
+    const registeredMounter = this.individualMounters.get(baseType);
+    if (registeredMounter) {
+      await this.renderAppSkillUseGroup({
+        baseType, groupDisplayName, items: reversedItems, content,
+        mountItem: async (item, target) => {
+          let row: EmbedData | null = null;
+          let decoded: DecodedEmbedContent | null = null;
+          if (item.contentRef?.startsWith("embed:")) {
+            try {
+              const { resolveEmbed, decodeToonContent } = await import("../../../../services/embedResolver");
+              row = await resolveEmbed(item.contentRef.slice(6), { chatId: item.sourceChatId });
+              if (isEmbedTargetDisposed(target)) return;
+              if (row?.content) decoded = await decodeToonContent(row.content);
+            } catch (error) {
+              console.warn("[GroupRenderer] Could not resolve grouped result", error);
+            }
+          }
+          if (!isEmbedTargetDisposed(target)) await registeredMounter(item, row, decoded, target);
+        },
+      });
+      return;
+    }
+
     // Generate individual embed HTML for each grouped item (async)
     const groupItemsHtmlPromises = reversedItems.map((item) => {
       return this.renderIndividualItem(item, baseType);
@@ -1138,6 +1165,31 @@ export class GroupRenderer implements EmbedRenderer {
 
     indicator.replaceChildren();
 
+    // Replace navigation with the same lifetime as the indicator observer on
+    // streaming updates, rather than retaining callbacks to removed siblings.
+    scrollIndicatorCleanups.get(scrollContainer)?.();
+    const navigation = items.map((item, index) => {
+      const target = document.createElement("div");
+      target.className = "group-preview-navigation-mount";
+      item.appendChild(target);
+      const showSibling = (offset: number) => {
+        const sibling = items[(index + offset + items.length) % items.length];
+        const bounds = scrollContainer.getBoundingClientRect();
+        const siblingBounds = sibling.getBoundingClientRect();
+        scrollContainer.scrollTo({
+          left: scrollContainer.scrollWidth > scrollContainer.clientWidth + 1
+            ? scrollContainer.scrollLeft + siblingBounds.left - bounds.left : scrollContainer.scrollLeft,
+          top: scrollContainer.scrollHeight > scrollContainer.clientHeight + 1
+            ? scrollContainer.scrollTop + siblingBounds.top - bounds.top : scrollContainer.scrollTop,
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+      };
+      const instance = mount(GroupPreviewNavigation, { target, props: {
+        onPrevious: () => showSibling(-1), onNext: () => showSibling(1),
+      } });
+      return () => { void unmount(instance); target.remove(); };
+    });
+
     for (let index = 0; index < items.length; index += 1) {
       const segment = document.createElement("button");
       segment.type = "button";
@@ -1256,7 +1308,6 @@ export class GroupRenderer implements EmbedRenderer {
       });
     };
 
-    scrollIndicatorCleanups.get(scrollContainer)?.();
     let animationFrame: number | null = null;
     const scheduleUpdate = () => {
       if (animationFrame !== null) return;
@@ -1280,6 +1331,7 @@ export class GroupRenderer implements EmbedRenderer {
       }
       scrollContainer.removeEventListener("scroll", onScroll);
       resizeObserver?.disconnect();
+      navigation.forEach((dispose) => dispose());
     });
 
     scheduleUpdate();
@@ -1541,8 +1593,10 @@ export class GroupRenderer implements EmbedRenderer {
     groupDisplayName: string;
     items: EmbedNodeAttributes[];
     content: HTMLElement;
+    mountItem?: (item: EmbedNodeAttributes, target: HTMLElement) => Promise<void>;
   }): Promise<void> {
     const { baseType, groupDisplayName, content } = args;
+    const mountItem = args.mountItem ?? ((item, target) => this.mountAppSkillUsePreview(item, target));
 
     // Sort finished items so embeds with results appear before those without.
     // This ensures users see useful results first in the horizontal scroll row.
@@ -1569,7 +1623,7 @@ export class GroupRenderer implements EmbedRenderer {
       groupDisplayName,
       items,
       content,
-      mountFn: (item, target) => this.mountAppSkillUsePreview(item, target),
+      mountFn: mountItem,
     });
     if (updated) return;
 
@@ -1618,7 +1672,7 @@ export class GroupRenderer implements EmbedRenderer {
         id: item.id,
         contentRef: item.contentRef,
       });
-      await this.mountAppSkillUsePreview(item, itemWrapper);
+      await mountItem(item, itemWrapper);
     }
 
     // Safety net: reconcile header count with actual rendered items.
@@ -5730,26 +5784,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     // Reconstruct EventResult from decoded TOON content.
     // Mirrors the transformer in EventsSearchEmbedFullscreen.svelte.
-    const eventResult = {
-      embed_id: embedId,
-      id: decodedContent?.id as string | undefined,
-      provider: decodedContent?.provider as string | undefined,
-      title: decodedContent?.title as string | undefined,
-      description: decodedContent?.description as string | undefined,
-      url: decodedContent?.url as string | undefined,
-      date_start: decodedContent?.date_start as string | undefined,
-      date_end: decodedContent?.date_end as string | undefined,
-      timezone: decodedContent?.timezone as string | undefined,
-      event_type: decodedContent?.event_type as string | undefined,
-      venue: decodedContent?.venue as Record<string, unknown> | undefined,
-      organizer: decodedContent?.organizer as
-        | Record<string, unknown>
-        | undefined,
-      rsvp_count: decodedContent?.rsvp_count as number | undefined,
-      is_paid: decodedContent?.is_paid as boolean | undefined,
-      fee: decodedContent?.fee as Record<string, unknown> | undefined,
-      image_url: decodedContent?.image_url as string | null | undefined,
-    };
+    const eventResult = normalizeEventResult(decodedContent ?? {}, embedId);
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -6582,6 +6617,14 @@ export class GroupRenderer implements EmbedRenderer {
           url: decodedContent?.url as string | undefined,
           provider: decodedContent?.provider as string | undefined,
           listing_type: decodedContent?.listing_type as string | undefined,
+          available_from: decodedContent?.available_from as string | undefined,
+          lat: typeof decodedContent?.latitude === "number" ? decodedContent.latitude
+            : typeof decodedContent?.lat === "number" ? decodedContent.lat : undefined,
+          lon: typeof decodedContent?.longitude === "number" ? decodedContent.longitude
+            : typeof decodedContent?.lon === "number" ? decodedContent.lon : undefined,
+          location_area: decodedContent?.location_area,
+          location_precision: decodedContent?.location_precision as string | undefined,
+          location_approximate: decodedContent?.location_approximate !== false,
           onSelect: () =>
             this.openFullscreen(item, embedData, decodedContent),
         },
