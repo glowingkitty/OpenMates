@@ -261,6 +261,20 @@ def test_disabled_tracker_does_not_schedule_speech_work() -> None:
     assert dispatched == []
 
 
+# contract-test: supporting surface=rest_api assertions=assistant-speech.segmentation.immutable-source,assistant-speech.projection.deterministic-semantic
+def test_oversized_paragraphs_prefer_complete_sentences_and_preserve_text() -> None:
+    from backend.apps.ai.assistant_speech.streaming import _split_automatic_paragraph
+
+    first = ("A complete sentence. " * 70).strip()
+    second = ("The following sentence has more words. " * 30).strip()
+    paragraph = f"{first} {second}"
+    chunks = _split_automatic_paragraph(paragraph)
+    assert len(chunks) == 2
+    assert " ".join(chunks) == paragraph
+    assert all(len(chunk) <= 2_000 and chunk.endswith(".") for chunk in chunks)
+    assert [len(chunk) for chunk in _split_automatic_paragraph("x" * 4001)] == [2000, 2000, 1]
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.immutable-source
 def test_tracker_deterministically_splits_automatic_paragraphs_at_the_safe_bound() -> None:
     dispatched: list[dict[str, object]] = []

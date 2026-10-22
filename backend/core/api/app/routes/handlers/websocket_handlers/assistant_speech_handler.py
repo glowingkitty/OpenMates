@@ -64,7 +64,11 @@ async def handle_assistant_speech_request(
         for segment in segments
     ):
         return _error("canonical_segment_required")
-    if not await _resolve(rate_limit(user_id=user_id, chat_id=chat_id, segment_count=len(segments))):
+    # Deferred rows register chapter identities without starting provider work.
+    # Charging the whole batch here exhausts the quota before chapter two of a
+    # 20-paragraph response can request its audio through action=generate.
+    immediate_segment_count = 1 if payload.get("defer_after_first") else len(segments)
+    if not await _resolve(rate_limit(user_id=user_id, chat_id=chat_id, segment_count=immediate_segment_count)):
         return _error("rate_limited")
     for index, segment in enumerate(segments):
         if payload.get("defer_after_first") and index > 0:

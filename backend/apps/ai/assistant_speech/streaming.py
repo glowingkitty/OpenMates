@@ -269,13 +269,16 @@ def _final_paragraph(content: str, complete_paragraphs: list[str]) -> str:
 
 
 def _split_automatic_paragraph(paragraph: str) -> list[str]:
-    """Split at whitespace, with a deterministic hard split for one long token."""
+    """Prefer sentences, then whitespace, and hard-split only an oversized token."""
     if len(paragraph) <= MAX_AUTOMATIC_PARAGRAPH_LENGTH:
         return [paragraph]
     chunks: list[str] = []
     remainder = paragraph
     while len(remainder) > MAX_AUTOMATIC_PARAGRAPH_LENGTH:
-        boundary = remainder.rfind(" ", 0, MAX_AUTOMATIC_PARAGRAPH_LENGTH + 1)
+        sentences = list(re.finditer(r'''[.!?。！？]["'”’)\]]*(?:\s+|$)''', remainder[:MAX_AUTOMATIC_PARAGRAPH_LENGTH + 1]))
+        boundary = sentences[-1].start() + len(sentences[-1].group().rstrip()) if sentences else 0
+        if boundary <= 0 or boundary > MAX_AUTOMATIC_PARAGRAPH_LENGTH:
+            boundary = remainder.rfind(" ", 0, MAX_AUTOMATIC_PARAGRAPH_LENGTH + 1)
         if boundary <= 0:
             boundary = MAX_AUTOMATIC_PARAGRAPH_LENGTH
         chunks.append(remainder[:boundary].strip())

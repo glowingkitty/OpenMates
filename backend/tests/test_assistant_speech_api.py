@@ -221,6 +221,66 @@ async def test_rate_limit_is_charged_once_by_requested_segment_count() -> None:
     assert observed == [{"user_id": "owner-1", "chat_id": "chat-1", "segment_count": 2}]
 
 
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.web-paragraph-demand,assistant-speech.on-demand.generate-missing-only,assistant-speech.access.first-party-owner-scoped
+@pytest.mark.asyncio
+async def test_full_deferred_response_can_generate_each_paragraph_without_double_counting_quota() -> None:
+    used = 0
+    generated: list[int] = []
+    registered: set[int] = set()
+    sent: list[dict[str, object]] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message["payload"])
+
+    async def authorize(**_kwargs):
+        return {"chat_owner_id": "owner", "message_role": "assistant"}
+
+    async def rate_limit(**kwargs):
+        nonlocal used
+        used += kwargs["segment_count"]
+        return used <= 20
+
+    async def dispatch(**kwargs):
+        sequences = [segment["sequence"] for segment in kwargs["segments"]]
+        if kwargs["require_registered"]:
+            assert set(sequences) <= registered
+        registered.update(sequences)
+        generated.extend(sequences[:1] if kwargs["defer_after_first"] else sequences)
+        return [{"segment_id": f"segment-{sequence}", "sequence": sequence,
+                 "status": "registered" if kwargs["defer_after_first"] and index else "queued"}
+                for index, sequence in enumerate(sequences)]
+
+    async def unused(**_kwargs):
+        raise AssertionError("No lifecycle action expected")
+
+    segments = [{"source_version": 1, "sequence": sequence, "kind": "prose_paragraph",
+                 "source_hash": "server-verified", "speakable_text": f"Paragraph {sequence}."}
+                for sequence in range(20)]
+
+    async def send(**payload):
+        await handle_assistant_speech_websocket(
+            manager=Manager(), user_id="owner", device_fingerprint_hash="device",
+            payload={"chat_id": "chat", "assistant_message_id": "message", **payload},
+            authorize=authorize, rate_limit=rate_limit, budget_preflight=lambda **_kwargs: True,
+            dispatch=dispatch, retry=unused, cancel=unused, delete=unused,
+        )
+
+    await send(action="request", segments=segments, defer_after_first=True)
+    assert used == 1
+    assert generated == [0]
+    assert len(sent[-1]["segments"]) == 20
+    assert all(segment["status"] == "registered" for segment in sent[-1]["segments"][1:])
+    for segment in segments[1:]:
+        await send(action="generate", segments=[segment])
+        assert sent[-1]["status"] == "accepted"
+    assert used == 20
+    assert generated == list(range(20))
+    await send(action="generate", segments=[segments[-1]])
+    assert sent[-1] == {"status": "error", "error": "rate_limited"}
+    assert generated == list(range(20))
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.privacy.transient-plaintext-encrypted-audio
 @pytest.mark.asyncio
 async def test_rejects_client_controlled_segment_identity_and_oversized_transient_text_before_dispatch() -> None:

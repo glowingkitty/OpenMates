@@ -133,6 +133,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
         const generationRequests: number[] = [];
         const registeredSpeechSegments = new Set<string>();
         let cancelledSpeechRequests = 0;
+		const speechRejections: string[] = [];
 		const sentChatProtocolEvents: Array<{ type: string; chatId?: string }> = [];
         page.on('websocket', (socket: any) => {
             socket.on('framesent', (event: { payload: string | Buffer }) => {
@@ -158,6 +159,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
             socket.on('framereceived', (event: { payload: string | Buffer }) => {
                 try {
                     const frame = JSON.parse(String(event.payload));
+                    if (frame.type === 'assistant_speech_status' && frame.payload?.status === 'error') {
+                        speechRejections.push(frame.payload.error);
+                    }
                     if (frame.type === 'assistant_speech_status' && frame.payload?.status === 'accepted') {
                         acceptedSpeechSegments = frame.payload.segments.map((segment: { request_sequence: number; status: string }) => ({
                             request_sequence: segment.request_sequence, status: segment.status,
@@ -382,6 +386,10 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			await selectNextParagraph();
 		}
 		await expect(waveform).not.toHaveAttribute('data-segment-id', firstSegmentId || '');
+		// Moving from a short clip to prose must reach playable audio, even when
+		// the preceding request registered many deferred paragraph identities.
+		await expect(player).toHaveAttribute('data-status', 'playing', { timeout: SPEECH_TIMEOUT_MS });
+		expect(speechRejections).not.toContain('rate_limited');
 		await expect(player.locator('[data-testid="assistant-speech-waveform-region"][data-position="current"]')).toHaveCount(1);
 		await expect(player.getByTestId('assistant-speech-previous-chapter')).toBeVisible();
 		await expectNoPlayerOverlap(page, player);
