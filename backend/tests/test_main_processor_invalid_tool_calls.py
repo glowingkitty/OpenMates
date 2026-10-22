@@ -1027,6 +1027,73 @@ async def test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions(
     assert "UNRELATED_APP_INSTRUCTION" not in prompt
 
 
+def _baseline_search_test_catalog():
+    def metadata(app_id, skill_ids):
+        return SimpleNamespace(
+            instructions=[SimpleNamespace(
+                instruction=f"{app_id.upper()}_APP_GUIDANCE", for_embed_types=[], categories=[],
+            )],
+            skills=[SimpleNamespace(
+                id=skill_id, description_translation_key=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            ) for skill_id in skill_ids],
+            focuses=[],
+        )
+    return {"web": metadata("web", ["search", "read"]),
+            "images": metadata("images", ["search", "view"]),
+            "unrelated": metadata("unrelated", ["search"])}
+
+
+def _configured_baseline_search_skills():
+    import yaml
+    config = yaml.safe_load((Path(__file__).parents[1] / "apps/ai/app.yml").read_text())
+    return next(skill for skill in config["skills"] if skill["id"] == "ask")["skill_config"]["always_include_skills"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,app-skills.images.reference-handoff,web-search.surface-parity
+@pytest.mark.parametrize("selected_apps", [None, [], ["unrelated"]])
+async def test_baseline_searches_reach_provider_without_preprocessing_selection(monkeypatch, selected_apps):
+    from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
+    baseline = _configured_baseline_search_skills()
+    assert set(baseline) == {"web-search", "images-search"}
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer without needing a search."]],
+        discovered_apps_metadata=_baseline_search_test_catalog(),
+        preprocessing_overrides={"selected_app_ids": selected_apps, "relevant_app_skills": []},
+        always_include_skills=baseline + ["images-view"],
+        on_tool_generation=lambda kwargs: generate_tools_from_apps(**kwargs),
+    )
+    assert len(calls) == 1
+    assert {tool["function"]["name"] for tool in calls[0]["tools"]} == set(baseline)
+    assert "WEB_APP_GUIDANCE" in calls[0]["system_prompt"]
+    assert "IMAGES_APP_GUIDANCE" in calls[0]["system_prompt"]
+    assert "UNRELATED_APP_GUIDANCE" not in calls[0]["system_prompt"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("restriction,expected", [
+    ("exact", {"web-read"}), ("disabled", set()), ("mate-none", set()),
+    ("mate-web", {"web-search"}), ("unregistered", {"web-search"}),
+])
+async def test_baseline_searches_preserve_tool_permissions(monkeypatch, restriction, expected):
+    from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
+    metadata = _baseline_search_test_catalog()
+    if restriction == "unregistered":
+        del metadata["images"]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer."]], discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": [],
+            "relevant_app_skills": ["web-read"] if restriction == "exact" else [],
+            "user_requested_skills_only": restriction == "exact"},
+        request_overrides={"user_preferences": {"apps_enabled": False}} if restriction == "disabled" else {},
+        all_mates_configs=[SimpleNamespace(id="mate-1", default_system_prompt="Mate guidance.",
+            tools=[] if restriction == "mate-none" else ["web"])] if restriction.startswith("mate-") else [],
+        always_include_skills=_configured_baseline_search_skills(),
+        on_tool_generation=lambda kwargs: generate_tools_from_apps(**kwargs),
+    )
+    assert {tool["function"]["name"] for tool in calls[0]["tools"] or []} == expected
+
+
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
 async def test_no_tool_dispatch_prunes_only_unavailable_tool_guidance(monkeypatch) -> None:
     """Compare the actual prompts sent to the provider for identical chat context."""

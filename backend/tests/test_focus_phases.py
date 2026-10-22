@@ -631,7 +631,8 @@ def test_career_pilot_is_phased_and_user_overridable():
 # contract-test: supporting surface=rest_api assertions=focus-modes.phases,focus-modes.full-instruction
 @pytest.mark.parametrize("assigned_apps", [None, ["web"], []])
 @pytest.mark.parametrize("project", [False, True])
-def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned_apps, project):
+@pytest.mark.parametrize("selects_baseline", [False, True])
+def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned_apps, project, selects_baseline):
     """Execute the actual processor transition helper with a real phase runtime.
 
     Only tool generation/selection are replaced; the platform phase decision,
@@ -670,7 +671,8 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
 
     async def select(**kwargs):
         assert "PRIVATE_SECOND_PHASE_INSTRUCTION" in kwargs["phase_instructions"]
-        return kwargs["candidates"]
+        return [tool for tool in kwargs["candidates"]
+                if selects_baseline or tool["function"]["name"] != "web-search"]
 
     source = Path(__file__).parents[1] / "apps/ai/processing/main_processor.py"
     tree = ast.parse(source.read_text())
@@ -691,7 +693,7 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
         phase_prompt=phase_prompt, active_project_focus=project_focus, active_project_sources=[],
         build_project_focus_prompt=build_project_focus_prompt,
         without_unscoped_project_search=without_unscoped_project_search,
-        user_requested_skills_only=False,
+        user_requested_skills_only=False, baseline_skills={"web-search", "images-search"},
         assigned_app_ids=assigned_apps, discovered_apps_metadata={app: SimpleNamespace(
             skills=[SimpleNamespace(id="search")]) for app in ["web", "code", "jobs"]},
         generate_tools_from_apps=generate, translation_service=None, task_queue_blocks_plan_tools=False,

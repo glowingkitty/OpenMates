@@ -159,10 +159,12 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
         return None
     if prompt == WEB_RESEARCH_PROMPT:
         # Jev deliberately selected no apps or skills. Require the real
-        # preprocessor to recover capability before issuing a typed call.
+        # main processor to offer both baseline searches before issuing a typed call.
         search_name = next((name for name in names if name in {"web-search", "web_search"}), None)
         if not search_name:
             raise AssertionError("Explicit web research reached inference without web search")
+        if not names.intersection({"images-search", "images_search"}):
+            raise AssertionError("Main processing reached inference without baseline image search")
         results = [message for message in kwargs.get("messages") or [] if isinstance(message, dict)
                    and message.get("role") == "tool" and message.get("tool_call_id") == "web-research-search"]
         if results:

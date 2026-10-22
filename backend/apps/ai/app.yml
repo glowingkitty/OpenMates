@@ -401,6 +401,7 @@ skills:
       # Note: Keep this list minimal to avoid token waste.
       always_include_skills:
         - web-search
+        - images-search
 
 marketing_discovery:
   skills:

@@ -123,9 +123,9 @@ test.describe('App: Web / Skill: search', () => {
 
 	// S7HHQ: classifier omission must not turn explicit research into a code card.
 	// The signed replay returns zero app/skill scores and rejects main requests
-	// without web search. Search execution, result embeds and persistence are real.
+	// without both baseline search tools. Execution, embeds and persistence are real.
 	// contract-test: direct surface=gui.web assertions=web-search.surface-parity,app-skills.execution.registered-validated
-	test('German web research executes search after an empty app shortlist', async ({ page }: { page: any }) => {
+	test('Baseline web and image searches survive an empty app shortlist', async ({ page }: { page: any }) => {
 		test.setTimeout(180_000);
 		test.skip(process.env.CI !== 'true' || process.env.CI_TEST_MODE !== 'e2e'
 			|| process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the isolated provider-free product stack.');

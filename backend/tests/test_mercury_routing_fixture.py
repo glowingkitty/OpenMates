@@ -138,6 +138,9 @@ async def test_web_research_replay_requires_capability_and_real_tool_result(repl
     with pytest.raises(AssertionError, match="without web search"):
         llm_fixture(f"llm/{model}", kwargs)
     tools = [{"type": "function", "function": {"name": "web_search"}}]
+    with pytest.raises(AssertionError, match="without baseline image search"):
+        llm_fixture(f"llm/{model}", {**kwargs, "tools": tools})
+    tools.append({"type": "function", "function": {"name": "images-search"}})
     stream = await wrapped(**kwargs, tools=tools)
     chunks = [chunk async for chunk in stream]
     assert chunks[0].function_name == "web_search"

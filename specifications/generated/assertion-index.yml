@@ -559,22 +559,22 @@ assertions:
       line: 119
       name: test_reference_capability_comes_from_selected_tool_schema
       surface: rest_api
-    - &id064
-      path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2661
-      name: test_image_reference_handoff_reaches_first_dispatch_without_viewer
-      surface: rest_api
     - &id065
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2730
-      name: test_unrelated_historical_image_does_not_readd_viewer_or_image_safety
+      line: 2728
+      name: test_image_reference_handoff_reaches_first_dispatch_without_viewer
       surface: rest_api
     - &id066
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2797
+      name: test_unrelated_historical_image_does_not_readd_viewer_or_image_safety
+      surface: rest_api
+    - &id067
       path: frontend/apps/web_app/tests/skill-shopping-images.spec.ts
       line: 156
       name: an uploaded image reaches Shopping directly without an images.view prerequisite
       surface: gui.web
-    - &id067
+    - &id068
       path: frontend/apps/web_app/tests/skill-shopping-images.spec.ts
       line: 238
       name: an uploaded image reaches reverse image search without images.view
@@ -587,7 +587,12 @@ assertions:
       surface: rest_api
     - &id063
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2611
+      line: 1055
+      name: test_baseline_searches_reach_provider_without_preprocessing_selection
+      surface: gui.web
+    - &id064
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2678
       name: test_real_shopping_answer_policy_survives_every_model_dispatch
       surface: rest_api
     tests:
@@ -605,6 +610,7 @@ assertions:
     - *id065
     - *id066
     - *id067
+    - *id068
     surfaces:
       rest_api:
         direct_tests:
@@ -616,40 +622,41 @@ assertions:
         - *id059
         - *id060
         - *id061
-        - *id064
         - *id065
+        - *id066
         supporting_tests:
         - *id062
-        - *id063
+        - *id064
       gui.web:
         direct_tests:
-        - *id066
         - *id067
-        supporting_tests: []
+        - *id068
+        supporting_tests:
+        - *id063
     current_direct_proof: false
   app-skills.images.authorized-resolution:
     specification: architecture.app-skill-execution@1
     fingerprint: 2f18f0346ec8805f0cc1e89bb842ace6cb6acaf4efe374b1d474fb74f83810d6
     direct_tests:
-    - &id068
+    - &id069
       path: frontend/apps/web_app/tests/skill-shopping-images.spec.ts
       line: 156
       name: an uploaded image reaches Shopping directly without an images.view prerequisite
       surface: gui.web
-    - &id069
+    - &id070
       path: frontend/apps/web_app/tests/skill-shopping-images.spec.ts
       line: 238
       name: an uploaded image reaches reverse image search without images.view
       surface: gui.web
     supporting_tests: []
     tests:
-    - *id068
     - *id069
+    - *id070
     surfaces:
       gui.web:
         direct_tests:
-        - *id068
         - *id069
+        - *id070
         supporting_tests: []
     current_direct_proof: false
   app-skills.assistant.same-turn-completion:
@@ -657,84 +664,83 @@ assertions:
     fingerprint: 6f5b09de7a64e5ee6b1e84884adfe8ae08ad532bb56dabd0d292275c2a12594e
     direct_tests: []
     supporting_tests:
-    - &id070
+    - &id071
       path: backend/tests/test_code_image_to_html_skill.py
       line: 142
       name: test_partial_image_to_html_dispatch_returns_sent_task_without_retry
       surface: gui.web
-    - &id071
+    - &id072
       path: backend/tests/test_code_image_to_html_skill.py
       line: 172
       name: test_chat_bound_skill_reuses_placeholder_embed_id
       surface: gui.web
-    - &id072
+    - &id073
       path: backend/tests/test_code_image_to_html_task.py
       line: 152
       name: test_image_to_html_chat_completion_carries_the_final_code_reference
       surface: gui.web
-    - &id073
+    - &id074
       path: backend/tests/test_code_image_to_html_task.py
       line: 180
       name: test_image_to_html_chat_failure_notifies_the_waiting_turn_once
       surface: gui.web
-    - &id074
+    - &id075
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 214
       name: test_resume_restores_provider_tool_ids_without_a_user_message
       surface: rest_api
-    - &id075
+    - &id076
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 240
       name: test_restored_generated_child_is_trusted_at_final_answer_boundary
       surface: gui.web
-    - &id076
+    - &id077
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 368
       name: test_restored_media_completion_carries_authored_parent_and_child_aliases
       surface: rest_api
-    - &id077
+    - &id078
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 423
       name: test_native_multi_tool_transcript_keeps_sync_result_and_async_identity
       surface: rest_api
-    - &id078
+    - &id079
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 468
       name: test_resume_rejects_changed_model_or_mate_instead_of_rerouting
       surface: rest_api
-    - &id079
+    - &id080
       path: backend/tests/test_social_media_search_skill.py
       line: 126
       name: test_search_partial_dispatch_reports_only_accepted_jobs
       surface: rest_api
-    - &id080
+    - &id081
       path: backend/tests/test_stream_consumer_recovery.py
       line: 1118
       name: test_same_turn_pause_publishes_nonfinal_wait_frame_and_checkpoints_sequence
       surface: cli
-    - &id081
+    - &id082
       path: backend/tests/test_transient_agentic_context_handoff.py
       line: 30
       name: test_non_project_same_turn_completion_seals_without_project_focus
       surface: rest_api
-    - &id082
+    - &id083
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 361
       name: waits past ordinary inactivity for a bounded same-turn skill and accepts
         its later final
       surface: cli
-    - &id083
+    - &id084
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 396
       name: does not extend the current turn for foreign or malformed skill waits
       surface: cli
-    - &id084
+    - &id085
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 425
       name: restores ordinary inactivity after a resumed same-turn frame
       surface: cli
     tests:
-    - *id070
     - *id071
     - *id072
     - *id073
@@ -749,114 +755,114 @@ assertions:
     - *id082
     - *id083
     - *id084
+    - *id085
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id070
         - *id071
         - *id072
         - *id073
-        - *id075
+        - *id074
+        - *id076
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id074
-        - *id076
+        - *id075
         - *id077
         - *id078
         - *id079
-        - *id081
+        - *id080
+        - *id082
       cli:
         direct_tests: []
         supporting_tests:
-        - *id080
-        - *id082
+        - *id081
         - *id083
         - *id084
+        - *id085
     current_direct_proof: false
   app-skills.assistant.complete-result-barrier:
     specification: architecture.app-skill-execution@1
     fingerprint: b8acbcb797ce60701fcc70580cba8a22f773f339d51c33bc1c7b977aabaec4d3
     direct_tests:
-    - &id092
+    - &id093
       path: backend/tests/test_recent_work_summary_cache.py
       line: 176
       name: test_verified_same_turn_resume_uses_its_live_delivery_for_recent_work_authority
       surface: rest_api
     supporting_tests:
-    - &id085
+    - &id086
       path: backend/tests/test_async_skill_continuation.py
       line: 190
       name: test_same_turn_snapshot_preserves_legacy_admission_without_private_history
       surface: rest_api
-    - &id086
+    - &id087
       path: backend/tests/test_async_skill_continuation.py
       line: 229
       name: test_ordered_same_turn_barrier_dispatches_one_private_resume_envelope
       surface: rest_api
-    - &id087
+    - &id088
       path: backend/tests/test_async_skill_continuation.py
       line: 440
       name: test_same_turn_rejects_incomplete_recovery_identity_before_caching
       surface: rest_api
-    - &id088
-      path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2344
-      name: test_async_task_id_collection_collapses_audio_batch_alias
-      surface: rest_api
     - &id089
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2351
-      name: test_async_task_id_collection_keeps_distinct_jobs_in_order
+      line: 2411
+      name: test_async_task_id_collection_collapses_audio_batch_alias
       surface: rest_api
     - &id090
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2357
-      name: test_only_videos_create_accepts_rendering_as_async_dispatch
+      line: 2418
+      name: test_async_task_id_collection_keeps_distinct_jobs_in_order
       surface: rest_api
     - &id091
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2368
+      line: 2424
+      name: test_only_videos_create_accepts_rendering_as_async_dispatch
+      surface: rest_api
+    - &id092
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2435
       name: test_videos_create_rendering_waits_for_terminal_child_before_answer
       surface: rest_api
-    - &id093
+    - &id094
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 89
       name: test_resumed_admission_builds_strict_recovery_output_context
       surface: rest_api
-    - &id094
+    - &id095
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 119
       name: test_barrier_uses_real_cache_service_json_scalar_decoding
       surface: rest_api
-    - &id095
+    - &id096
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 149
       name: test_json_decoded_armed_marker_resumes_and_accepts_existing_numeric_marker
       surface: rest_api
-    - &id096
+    - &id097
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 170
       name: test_three_jobs_wait_for_all_terminals_in_original_order
       surface: rest_api
-    - &id097
+    - &id098
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 196
       name: test_deadline_settles_only_missing_slots_and_new_turn_fences_resume
       surface: rest_api
-    - &id098
+    - &id099
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 423
       name: test_native_multi_tool_transcript_keeps_sync_result_and_async_identity
       surface: rest_api
-    - &id099
+    - &id100
       path: backend/tests/test_stream_consumer_recovery.py
       line: 1118
       name: test_same_turn_pause_publishes_nonfinal_wait_frame_and_checkpoints_sequence
       surface: cli
     tests:
-    - *id085
     - *id086
     - *id087
     - *id088
@@ -871,86 +877,86 @@ assertions:
     - *id097
     - *id098
     - *id099
+    - *id100
     surfaces:
       rest_api:
         direct_tests:
-        - *id092
+        - *id093
         supporting_tests:
-        - *id085
         - *id086
         - *id087
         - *id088
         - *id089
         - *id090
         - *id091
-        - *id093
+        - *id092
         - *id094
         - *id095
         - *id096
         - *id097
         - *id098
+        - *id099
       cli:
         direct_tests: []
         supporting_tests:
-        - *id099
+        - *id100
     current_direct_proof: false
   app-skills.assistant.idempotent-resume:
     specification: architecture.app-skill-execution@1
     fingerprint: 9016f3923f5f1438c9cafe79fe1bf893830cc686f7ccfb2cd8beddfe118179d4
     direct_tests:
-    - &id107
+    - &id108
       path: backend/tests/test_recent_work_summary_cache.py
       line: 176
       name: test_verified_same_turn_resume_uses_its_live_delivery_for_recent_work_authority
       surface: rest_api
     supporting_tests:
-    - &id100
+    - &id101
       path: backend/tests/test_async_skill_continuation.py
       line: 124
       name: test_early_same_turn_result_is_sealed_then_joined_after_context_registration
       surface: rest_api
-    - &id101
+    - &id102
       path: backend/tests/test_async_skill_continuation.py
       line: 190
       name: test_same_turn_snapshot_preserves_legacy_admission_without_private_history
       surface: rest_api
-    - &id102
+    - &id103
       path: backend/tests/test_async_skill_continuation.py
       line: 229
       name: test_ordered_same_turn_barrier_dispatches_one_private_resume_envelope
       surface: rest_api
-    - &id103
+    - &id104
       path: backend/tests/test_delegated_primary_read.py
       line: 251
       name: test_checkpointed_pending_read_keeps_remaining_slot_and_budget_rejection_is_not_attempt
       surface: rest_api
-    - &id104
-      path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2344
-      name: test_async_task_id_collection_collapses_audio_batch_alias
-      surface: rest_api
     - &id105
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2351
-      name: test_async_task_id_collection_keeps_distinct_jobs_in_order
+      line: 2411
+      name: test_async_task_id_collection_collapses_audio_batch_alias
       surface: rest_api
     - &id106
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2368
+      line: 2418
+      name: test_async_task_id_collection_keeps_distinct_jobs_in_order
+      surface: rest_api
+    - &id107
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2435
       name: test_videos_create_rendering_waits_for_terminal_child_before_answer
       surface: rest_api
-    - &id108
+    - &id109
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 149
       name: test_json_decoded_armed_marker_resumes_and_accepts_existing_numeric_marker
       surface: rest_api
-    - &id109
+    - &id110
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 170
       name: test_three_jobs_wait_for_all_terminals_in_original_order
       surface: rest_api
     tests:
-    - *id100
     - *id101
     - *id102
     - *id103
@@ -960,289 +966,289 @@ assertions:
     - *id107
     - *id108
     - *id109
+    - *id110
     surfaces:
       rest_api:
         direct_tests:
-        - *id107
+        - *id108
         supporting_tests:
-        - *id100
         - *id101
         - *id102
         - *id103
         - *id104
         - *id105
         - *id106
-        - *id108
+        - *id107
         - *id109
+        - *id110
     current_direct_proof: false
   app-skills.assistant.bounded-private-failure:
     specification: architecture.app-skill-execution@1
     fingerprint: fb481211110582c08e3c6c6f7d5fa5edcbeb27f630e020e8967f9180a8618297
     direct_tests: []
     supporting_tests:
-    - &id110
+    - &id111
       path: backend/tests/test_async_skill_continuation.py
       line: 124
       name: test_early_same_turn_result_is_sealed_then_joined_after_context_registration
       surface: rest_api
-    - &id111
+    - &id112
       path: backend/tests/test_async_skill_continuation.py
       line: 416
       name: test_same_turn_registration_failure_cannot_return_a_pending_context
       surface: rest_api
-    - &id112
+    - &id113
       path: backend/tests/test_async_skill_continuation.py
       line: 440
       name: test_same_turn_rejects_incomplete_recovery_identity_before_caching
       surface: rest_api
-    - &id113
+    - &id114
       path: backend/tests/test_delegated_output_limit.py
       line: 19
       name: test_google_max_tokens_metadata_follows_usage_and_client_close
       surface: rest_api
-    - &id114
+    - &id115
       path: backend/tests/test_delegated_output_limit.py
       line: 79
       name: test_subchat_truncation_checkpoints_usage_before_failure_without_tools_or_retry
       surface: rest_api
-    - &id115
+    - &id116
       path: backend/tests/test_delegated_output_limit.py
       line: 102
       name: test_ordinary_turn_and_quoted_notice_do_not_become_truncation_failure
       surface: rest_api
-    - &id116
+    - &id117
       path: backend/tests/test_delegated_primary_read.py
       line: 98
       name: test_empty_or_failed_search_returns_auto_without_forced_retry
       surface: rest_api
-    - &id117
+    - &id118
       path: backend/tests/test_delegated_primary_read.py
       line: 133
       name: test_forced_final_answer_preserves_none_transport_for_research_child
       surface: rest_api
-    - &id118
+    - &id119
       path: backend/tests/test_delegated_primary_read.py
       line: 175
       name: test_actual_four_or_five_search_batch_leaves_one_admitted_primary_read
       surface: rest_api
-    - &id119
+    - &id120
       path: backend/tests/test_delegated_primary_read.py
       line: 266
       name: test_invalid_read_arguments_finish_gate_once_without_forced_retry
       surface: rest_api
-    - &id120
+    - &id121
       path: backend/tests/test_delegated_primary_read.py
       line: 340
       name: test_root_synthesis_reads_seeded_child_source_once_then_restores_auto
       surface: rest_api
-    - &id121
+    - &id122
       path: backend/tests/test_embed_version_routes.py
       line: 1657
       name: test_terminal_execution_error_is_readable_only_with_existing_owner_wrapper
       surface: rest_api
-    - &id122
+    - &id123
       path: backend/tests/test_embed_version_routes.py
       line: 1686
       name: test_reference_error_read_rejects_incomplete_or_non_execution_envelopes
       surface: rest_api
-    - &id123
+    - &id124
       path: backend/tests/test_embed_version_routes.py
       line: 1700
       name: test_reference_execution_error_still_masks_foreign_owner_and_removed_team_member
       surface: rest_api
-    - &id124
+    - &id125
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 160
       name: test_class_groups_overlap_preserve_order_and_isolate_failure
       surface: cli
-    - &id125
+    - &id126
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 206
       name: test_class_group_cancellation_drains_running_and_queued_groups
       surface: cli
-    - &id126
+    - &id127
       path: backend/tests/test_media_ccc_provider.py
       line: 29
       name: test_rejects_noncanonical_talk_urls
       surface: rest_api
-    - &id127
+    - &id128
       path: backend/tests/test_media_ccc_provider.py
       line: 34
       name: test_slug_ignores_query_and_fragment
       surface: rest_api
-    - &id128
+    - &id129
       path: backend/tests/test_media_ccc_provider.py
       line: 40
       name: test_parses_srt_and_vtt_without_cue_ids_or_markup
       surface: rest_api
-    - &id129
+    - &id130
       path: backend/tests/test_media_ccc_provider.py
       line: 47
       name: test_empty_or_invalid_captions_fail_visibly
       surface: rest_api
-    - &id130
+    - &id131
       path: backend/tests/test_media_ccc_provider.py
       line: 54
       name: test_uses_graphql_variables_and_normalizes_language_with_safe_cdn_redirect
       surface: rest_api
-    - &id131
+    - &id132
       path: backend/tests/test_media_ccc_provider.py
       line: 76
       name: test_language_preferences_choose_german_over_english_and_vtt_over_srt
       surface: rest_api
-    - &id132
+    - &id133
       path: backend/tests/test_media_ccc_provider.py
       line: 102
       name: test_missing_captions_language_or_talk_returns_explicit_error
       surface: rest_api
-    - &id133
+    - &id134
       path: backend/tests/test_media_ccc_provider.py
       line: 111
       name: test_rejects_untrusted_caption_hosts_before_request
       surface: rest_api
-    - &id134
+    - &id135
       path: backend/tests/test_media_ccc_provider.py
       line: 129
       name: test_retries_rate_limit_without_unbounded_wait
       surface: rest_api
-    - &id135
+    - &id136
       path: backend/tests/test_media_ccc_provider.py
       line: 145
       name: test_deadline_bounds_the_whole_fetch
       surface: rest_api
-    - &id136
+    - &id137
       path: backend/tests/test_media_ccc_provider.py
       line: 157
       name: test_oversized_captions_fail_visibly
       surface: rest_api
-    - &id137
+    - &id138
       path: backend/tests/test_orchestrated_terminal_failure.py
       line: 40
       name: test_budget_marker_fails_child_and_worker_without_paid_retry
       surface: rest_api
-    - &id138
+    - &id139
       path: backend/tests/test_orchestrated_terminal_failure.py
       line: 193
       name: test_real_revoked_consumer_optional_metadata_does_not_become_paused_or_success
       surface: rest_api
-    - &id139
+    - &id140
       path: backend/tests/test_orchestrated_terminal_failure.py
       line: 211
       name: test_real_insufficient_credit_notice_none_metadata_is_failed_only_for_orchestration
       surface: rest_api
-    - &id140
+    - &id141
       path: backend/tests/test_orchestrated_terminal_failure.py
       line: 259
       name: test_orchestrated_preprocessing_failure_reason_is_bounded
       surface: rest_api
-    - &id141
+    - &id142
       path: backend/tests/test_orchestrated_terminal_failure.py
       line: 276
       name: test_rejected_orchestration_reuses_fenced_failure_cleanup_before_return
       surface: rest_api
-    - &id142
+    - &id143
       path: backend/tests/test_request_embed_authorization.py
       line: 365
       name: test_owner_reloads_terminal_error_ciphertext_without_cache_or_decryption
       surface: rest_api
-    - &id143
+    - &id144
       path: backend/tests/test_request_embed_authorization.py
       line: 401
       name: test_cache_only_terminal_execution_error_is_decrypted_and_retained
       surface: rest_api
-    - &id144
+    - &id145
       path: backend/tests/test_request_embed_authorization.py
       line: 473
       name: test_non_client_terminal_envelopes_are_not_served_as_readable_execution_errors
       surface: rest_api
-    - &id145
+    - &id146
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 89
       name: test_resumed_admission_builds_strict_recovery_output_context
       surface: rest_api
-    - &id146
+    - &id147
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 196
       name: test_deadline_settles_only_missing_slots_and_new_turn_fences_resume
       surface: rest_api
-    - &id147
+    - &id148
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 279
       name: test_private_checkpoint_round_trips_one_bounded_json_copy
       surface: rest_api
-    - &id148
+    - &id149
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 294
       name: test_deadline_uses_longest_job_envelope_in_mixed_batch
       surface: rest_api
-    - &id149
+    - &id150
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 402
       name: test_preflight_rejects_large_private_transcript_before_a_job_is_queued
       surface: rest_api
-    - &id150
+    - &id151
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 468
       name: test_resume_rejects_changed_model_or_mate_instead_of_rerouting
       surface: rest_api
-    - &id151
+    - &id152
       path: backend/tests/test_transient_agentic_context_handoff.py
       line: 30
       name: test_non_project_same_turn_completion_seals_without_project_focus
       surface: rest_api
-    - &id152
+    - &id153
       path: backend/tests/test_transient_agentic_context_handoff.py
       line: 45
       name: test_non_project_completion_requires_matching_same_turn_authority
       surface: rest_api
-    - &id153
+    - &id154
       path: backend/tests/test_urban_sports_provider.py
       line: 138
       name: test_multiday_search_overlaps_dates_and_venues_without_truncating_before_filter
       surface: cli
-    - &id154
+    - &id155
       path: backend/tests/test_urban_sports_provider.py
       line: 173
       name: test_http_work_is_bounded_and_cancellation_drains_requests
       surface: cli
-    - &id155
+    - &id156
       path: backend/tests/test_urban_sports_provider.py
       line: 216
       name: test_shared_load_survives_one_cancel_and_is_retryable_after_failure
       surface: cli
-    - &id156
+    - &id157
       path: backend/tests/test_urban_sports_provider.py
       line: 262
       name: test_last_consumer_cancels_shared_load_and_can_retry
       surface: cli
-    - &id157
+    - &id158
       path: backend/tests/test_urban_sports_provider.py
       line: 302
       name: test_concurrent_dates_share_named_category_discovery
       surface: cli
-    - &id158
+    - &id159
       path: backend/tests/test_urban_sports_provider.py
       line: 329
       name: test_search_cancellation_drains_date_and_shared_venue_work
       surface: cli
-    - &id159
+    - &id160
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 361
       name: waits past ordinary inactivity for a bounded same-turn skill and accepts
         its later final
       surface: cli
-    - &id160
+    - &id161
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 396
       name: does not extend the current turn for foreign or malformed skill waits
       surface: cli
-    - &id161
+    - &id162
       path: frontend/packages/openmates-cli/tests/ws.test.ts
       line: 425
       name: restores ordinary inactivity after a resumed same-turn frame
       surface: cli
     tests:
-    - *id110
     - *id111
     - *id112
     - *id113
@@ -1294,11 +1300,11 @@ assertions:
     - *id159
     - *id160
     - *id161
+    - *id162
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id110
         - *id111
         - *id112
         - *id113
@@ -1312,7 +1318,7 @@ assertions:
         - *id121
         - *id122
         - *id123
-        - *id126
+        - *id124
         - *id127
         - *id128
         - *id129
@@ -1339,12 +1345,12 @@ assertions:
         - *id150
         - *id151
         - *id152
+        - *id153
       cli:
         direct_tests: []
         supporting_tests:
-        - *id124
         - *id125
-        - *id153
+        - *id126
         - *id154
         - *id155
         - *id156
@@ -1353,107 +1359,107 @@ assertions:
         - *id159
         - *id160
         - *id161
+        - *id162
     current_direct_proof: false
   app-skills.media.parent-children-and-attribution:
     specification: architecture.app-skill-execution@1
     fingerprint: d4416a358c3d1b58c8f35b6c20ba6f38abba18657449376515721cbcb787a059
     direct_tests:
-    - &id169
+    - &id170
       path: frontend/apps/web_app/tests/landing-audio-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id170
+    - &id171
       path: frontend/apps/web_app/tests/landing-images-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id171
+    - &id172
       path: frontend/apps/web_app/tests/landing-nutrition-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id172
+    - &id173
       path: frontend/apps/web_app/tests/landing-reviewed-media-recipes.spec.ts
       line: 22
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id173
+    - &id174
       path: frontend/apps/web_app/tests/landing-social-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id174
+    - &id175
       path: frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts
       line: 254
       name: benign prompt generates an image, safety-blocked prompts are rejected
       surface: cli
-    - &id175
+    - &id176
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 181
       name: retains generated-media file variants from Python keyed-tabular TOON
       surface: sdks.npm
-    - &id179
+    - &id180
       path: frontend/packages/ui/src/services/__tests__/generatedMediaToonCompatibility.test.ts
       line: 14
       name: decodes generated-media variants without absorbing their table into status
       surface: gui.web
     supporting_tests:
-    - &id162
+    - &id163
       path: backend/tests/test_generated_media_graph.py
       line: 21
       name: test_media_batch_seals_successful_children_and_notifies_once_after_parent
       surface: gui.web
-    - &id163
+    - &id164
       path: backend/tests/test_generated_media_graph.py
       line: 115
       name: test_standalone_media_child_never_self_parents
       surface: gui.web
-    - &id164
+    - &id165
       path: backend/tests/test_image_generation_mime.py
       line: 71
       name: test_provider_safety_mime_and_requested_storage_format_remain_distinct
       surface: rest_api
-    - &id165
+    - &id166
       path: backend/tests/test_image_generation_mime.py
       line: 132
       name: test_requested_jpeg_composites_alpha_and_palette_transparency_on_white
       surface: rest_api
-    - &id166
+    - &id167
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 17
       name: generated image fullscreen retains the complete prompt and actual model
       surface: gui.web
-    - &id167
+    - &id168
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 27
       name: generated 3D child exposes its encrypted GLB through an owner-scoped download
       surface: gui.web
-    - &id168
+    - &id169
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 44
       name: generated parent opens both actual image children and drills into the
         complete prompt and model
       surface: gui.web
-    - &id176
+    - &id177
       path: frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
       line: 34
       name: keeps generated image children in the content run while its invocation
         remains activity
       surface: gui.web
-    - &id177
+    - &id178
       path: frontend/packages/ui/src/services/__tests__/embedFullscreenResolver.test.ts
       line: 43
       name: routes %s.%s parent and historical asset separately
       surface: gui.web
-    - &id178
+    - &id179
       path: frontend/packages/ui/src/services/__tests__/embedFullscreenResolver.test.ts
       line: 61
       name: recognizes a historical snake-case preview URL and preserves Remotion
         editing
       surface: gui.web
     tests:
-    - *id162
     - *id163
     - *id164
     - *id165
@@ -1471,214 +1477,214 @@ assertions:
     - *id177
     - *id178
     - *id179
+    - *id180
     surfaces:
       gui.web:
         direct_tests:
-        - *id169
         - *id170
         - *id171
         - *id172
         - *id173
-        - *id179
+        - *id174
+        - *id180
         supporting_tests:
-        - *id162
         - *id163
-        - *id166
+        - *id164
         - *id167
         - *id168
-        - *id176
+        - *id169
         - *id177
         - *id178
+        - *id179
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id164
         - *id165
+        - *id166
       cli:
         direct_tests:
-        - *id174
+        - *id175
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id175
+        - *id176
         supporting_tests: []
     current_direct_proof: false
   app-skills.media.visible-assistant-results:
     specification: architecture.app-skill-execution@1
     fingerprint: 4a18937573a0ab0d34851d7dd9d8b7e1bb7acad72284f2eba2f95da325d6197b
     direct_tests:
-    - &id197
+    - &id198
       path: frontend/apps/web_app/tests/components/assistant-generated-media-activity.spec.ts
       line: 7
       name: ${variant} keeps one invocation summary and the genuine result
       surface: gui.web
-    - &id202
+    - &id203
       path: frontend/apps/web_app/tests/landing-audio-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id203
+    - &id204
       path: frontend/apps/web_app/tests/landing-images-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id204
+    - &id205
       path: frontend/apps/web_app/tests/landing-nutrition-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id205
+    - &id206
       path: frontend/apps/web_app/tests/landing-reviewed-media-recipes.spec.ts
       line: 22
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id206
+    - &id207
       path: frontend/apps/web_app/tests/landing-social-targeted.spec.ts
       line: 16
       name: ${appId} reviewed replacement renders its real results on ${viewport}
       surface: gui.web
-    - &id207
+    - &id208
       path: frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts
       line: 254
       name: benign prompt generates an image, safety-blocked prompts are rejected
       surface: cli
-    - &id208
+    - &id209
       path: frontend/packages/openmates-cli/tests/client.test.ts
       line: 181
       name: retains generated-media file variants from Python keyed-tabular TOON
       surface: sdks.npm
-    - &id212
+    - &id213
       path: frontend/packages/ui/src/services/__tests__/generatedMediaToonCompatibility.test.ts
       line: 14
       name: decodes generated-media variants without absorbing their table into status
       surface: gui.web
     supporting_tests:
-    - &id180
+    - &id181
       path: backend/tests/test_generated_media_graph.py
       line: 134
       name: test_search_refs_require_matching_authored_child_ids
       surface: gui.web
-    - &id181
+    - &id182
       path: backend/tests/test_generated_media_graph.py
       line: 157
       name: test_selected_bare_recipe_refs_become_large_cards_without_inventing_candidates
       surface: gui.web
-    - &id182
+    - &id183
       path: backend/tests/test_generated_media_graph.py
       line: 177
       name: test_ref_finalizer_dedups_uuid_slug_and_existing_markdown
       surface: gui.web
-    - &id183
+    - &id184
       path: backend/tests/test_generated_media_graph.py
       line: 190
       name: test_unique_authored_slug_repairs_a_wrong_random_suffix_without_guessing
       surface: gui.web
-    - &id184
+    - &id185
       path: backend/tests/test_generated_media_graph.py
       line: 202
       name: test_ambiguous_slug_cannot_fabricate_a_result_link
       surface: gui.web
-    - &id185
+    - &id186
       path: backend/tests/test_generated_media_graph.py
       line: 223
       name: test_ref_finalizer_ignores_unknown_failed_and_code_tokens
       surface: gui.web
-    - &id186
+    - &id187
       path: backend/tests/test_generated_media_graph.py
       line: 233
       name: test_named_search_results_use_bounded_whole_title_matches
       surface: gui.web
-    - &id187
+    - &id188
       path: backend/tests/test_generated_media_graph.py
       line: 251
       name: test_required_generated_output_is_appended_once_using_authored_identity
       surface: gui.web
-    - &id188
+    - &id189
       path: backend/tests/test_generated_media_graph.py
       line: 264
       name: test_authored_media_markdown_uses_one_visible_card_and_preserves_untrusted_targets
       surface: gui.web
-    - &id189
+    - &id190
       path: backend/tests/test_image_generation_mime.py
       line: 71
       name: test_provider_safety_mime_and_requested_storage_format_remain_distinct
       surface: rest_api
-    - &id190
+    - &id191
       path: backend/tests/test_image_generation_mime.py
       line: 104
       name: test_invalid_provider_raster_never_reaches_billing_or_storage
       surface: rest_api
-    - &id191
+    - &id192
       path: backend/tests/test_image_generation_mime.py
       line: 132
       name: test_requested_jpeg_composites_alpha_and_palette_transparency_on_white
       surface: rest_api
-    - &id192
+    - &id193
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 240
       name: test_restored_generated_child_is_trusted_at_final_answer_boundary
       surface: gui.web
-    - &id193
+    - &id194
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 309
       name: test_generated_refs_are_preserved_once_even_if_provider_omits_them
       surface: rest_api
-    - &id194
+    - &id195
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 320
       name: test_generated_refs_match_complete_markdown_targets_and_uuid_aliases
       surface: rest_api
-    - &id195
+    - &id196
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 337
       name: test_only_authored_successful_children_require_parent_and_child_preview
       surface: rest_api
-    - &id196
+    - &id197
       path: backend/tests/test_same_turn_skill_barrier.py
       line: 368
       name: test_restored_media_completion_carries_authored_parent_and_child_aliases
       surface: rest_api
-    - &id198
+    - &id199
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 7
       name: a generated image child displays its actual media from a public preview
         URL
       surface: gui.web
-    - &id199
+    - &id200
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 27
       name: generated 3D child exposes its encrypted GLB through an owner-scoped download
       surface: gui.web
-    - &id200
+    - &id201
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 44
       name: generated parent opens both actual image children and drills into the
         complete prompt and model
       surface: gui.web
-    - &id201
+    - &id202
       path: frontend/apps/web_app/tests/components/generated-media-child.spec.ts
       line: 56
       name: completed media parent remains a visible card with its output count
       surface: gui.web
-    - &id209
+    - &id210
       path: frontend/packages/ui/src/message_parsing/__tests__/assistantActivityRuns.test.ts
       line: 26
       name: shows one activity for repeated invocation refs while preserving distinct
         calls and results
       surface: gui.web
-    - &id210
+    - &id211
       path: frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
       line: 34
       name: keeps generated image children in the content run while its invocation
         remains activity
       surface: gui.web
-    - &id211
+    - &id212
       path: frontend/packages/ui/src/message_parsing/__tests__/publicExampleActivity.test.ts
       line: 50
       name: deduplicates echoed parent references for %s in live and saved documents
       surface: gui.web
     tests:
-    - *id180
     - *id181
     - *id182
     - *id183
@@ -1711,18 +1717,18 @@ assertions:
     - *id210
     - *id211
     - *id212
+    - *id213
     surfaces:
       gui.web:
         direct_tests:
-        - *id197
-        - *id202
+        - *id198
         - *id203
         - *id204
         - *id205
         - *id206
-        - *id212
+        - *id207
+        - *id213
         supporting_tests:
-        - *id180
         - *id181
         - *id182
         - *id183
@@ -1731,31 +1737,32 @@ assertions:
         - *id186
         - *id187
         - *id188
-        - *id192
-        - *id198
+        - *id189
+        - *id193
         - *id199
         - *id200
         - *id201
-        - *id209
+        - *id202
         - *id210
         - *id211
+        - *id212
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id189
         - *id190
         - *id191
-        - *id193
+        - *id192
         - *id194
         - *id195
         - *id196
+        - *id197
       cli:
         direct_tests:
-        - *id207
+        - *id208
         supporting_tests: []
       sdks.npm:
         direct_tests:
-        - *id208
+        - *id209
         supporting_tests: []
     current_direct_proof: false
   app-skills.media.application-screenshot:
@@ -1763,250 +1770,249 @@ assertions:
     fingerprint: 0042d99ca2bc2c1f367d41862253d19766ab06fa554cf832b8d7c6d101b614ef
     direct_tests: []
     supporting_tests:
-    - &id213
+    - &id214
       path: backend/tests/test_application_preview_streaming.py
       line: 58
       name: test_two_file_bundle_reaches_startup_with_browser_entry_files
       surface: gui.web
-    - &id214
+    - &id215
       path: backend/tests/test_e2b_application_preview.py
       line: 34
       name: test_application_preview_fixture_uses_deterministic_svelte5_runtime
       surface: gui.web
-    - &id215
+    - &id216
       path: backend/tests/test_e2b_application_preview.py
       line: 64
       name: test_minimal_svelte_preview_keeps_supplied_mounting_script
       surface: gui.web
-    - &id216
+    - &id217
       path: backend/tests/test_e2b_application_preview.py
       line: 82
       name: test_svelte_preview_preserves_custom_index_and_bootstrap
       surface: gui.web
-    - &id217
+    - &id218
       path: backend/tests/test_e2b_application_preview.py
       line: 99
       name: test_preview_planning_normalizes_files_and_frontend_commands
       surface: gui.web
-    - &id218
+    - &id219
       path: backend/tests/test_e2b_application_preview.py
       line: 114
       name: test_preview_planning_supports_fastapi_backend_entrypoint
       surface: gui.web
-    - &id219
+    - &id220
       path: backend/tests/test_e2b_application_preview.py
       line: 128
       name: test_preview_planning_does_not_add_hidden_tailwind_configs
       surface: gui.web
-    - &id220
+    - &id221
       path: backend/tests/test_e2b_application_preview.py
       line: 151
       name: test_preview_planning_keeps_existing_tailwind_configs
       surface: gui.web
-    - &id221
+    - &id222
       path: backend/tests/test_e2b_application_preview.py
       line: 170
       name: test_preview_start_command_allows_exact_e2b_vite_hosts
       surface: gui.web
-    - &id222
+    - &id223
       path: backend/tests/test_e2b_application_preview.py
       line: 185
       name: test_preview_start_command_uses_generated_vite_config
       surface: gui.web
-    - &id223
+    - &id224
       path: backend/tests/test_e2b_application_preview.py
       line: 199
       name: test_preview_writes_generated_vite_allowed_hosts_config
       surface: gui.web
-    - &id224
+    - &id225
       path: backend/tests/test_e2b_application_preview.py
       line: 229
       name: test_preview_writes_svelte_plugin_when_generated_svelte_app_has_no_vite_config
       surface: gui.web
-    - &id225
+    - &id226
       path: backend/tests/test_e2b_application_preview.py
       line: 265
       name: test_preview_writes_openmates_vite_config_even_when_app_has_existing_vite_config
       surface: gui.web
-    - &id226
+    - &id227
       path: backend/tests/test_e2b_application_preview.py
       line: 302
       name: test_preview_reads_real_screenshot_bytes_from_sandbox_hook
       surface: gui.web
-    - &id227
+    - &id228
       path: backend/tests/test_e2b_application_preview.py
       line: 312
       name: test_preview_captures_running_local_app_without_optional_hook
       surface: gui.web
-    - &id228
+    - &id229
       path: backend/tests/test_e2b_application_preview.py
       line: 342
       name: test_preview_capture_reports_browser_failure
       surface: gui.web
-    - &id229
+    - &id230
       path: backend/tests/test_e2b_application_preview.py
       line: 355
       name: test_preview_capture_rejects_untrusted_port_before_shell_interpolation
       surface: gui.web
-    - &id230
+    - &id231
       path: backend/tests/test_e2b_application_preview.py
       line: 361
       name: test_preview_capture_limits_chromium_processes_in_e2b
       surface: gui.web
-    - &id231
+    - &id232
       path: backend/tests/test_e2b_application_preview.py
       line: 370
       name: test_preview_start_reports_capture_failure_and_stops_sandbox
       surface: gui.web
-    - &id232
+    - &id233
       path: backend/tests/test_e2b_application_preview.py
       line: 415
       name: test_preview_readiness_waits_through_transient_e2b_502
       surface: gui.web
-    - &id233
+    - &id234
       path: backend/tests/test_e2b_application_preview.py
       line: 431
       name: test_preview_readiness_requires_consecutive_successes
       surface: gui.web
-    - &id234
+    - &id235
       path: backend/tests/test_e2b_application_preview.py
       line: 447
       name: test_preview_readiness_waits_through_e2b_root_404
       surface: gui.web
-    - &id235
+    - &id236
       path: backend/tests/test_e2b_application_preview.py
       line: 463
       name: test_preview_readiness_times_out_with_last_status
       surface: gui.web
-    - &id236
+    - &id237
       path: backend/tests/test_e2b_application_preview.py
       line: 474
       name: test_preview_start_command_does_not_duplicate_vite_allowed_hosts_env
       surface: gui.web
-    - &id237
+    - &id238
       path: backend/tests/test_e2b_application_preview.py
       line: 485
       name: test_preview_planning_rejects_unsafe_paths
       surface: gui.web
-    - &id238
+    - &id239
       path: backend/tests/test_e2b_application_preview.py
       line: 494
       name: test_preview_planning_rejects_secret_like_file_content
       surface: gui.web
-    - &id239
+    - &id240
       path: backend/tests/test_e2b_application_preview.py
       line: 503
       name: test_preview_planning_requires_entrypoints_and_ports
       surface: gui.web
-    - &id240
+    - &id241
       path: backend/tests/test_e2b_application_preview.py
       line: 516
       name: test_preview_exposes_ready_runtime_before_screenshot_capture
       surface: gui.web
-    - &id241
+    - &id242
       path: backend/tests/test_e2b_application_preview.py
       line: 557
       name: test_prepared_fast_path_preserves_dependency_and_custom_config_fallbacks
       surface: gui.web
-    - &id242
+    - &id243
       path: backend/tests/test_e2b_application_preview.py
       line: 586
       name: test_prepared_batch_keeps_current_source_exact_hosts_and_install_fallback
       surface: gui.web
-    - &id243
+    - &id244
       path: backend/tests/test_e2b_application_preview.py
       line: 614
       name: test_batched_setup_executes_cached_or_install_fallback_and_waits_for_server
       surface: gui.web
-    - &id244
+    - &id245
       path: backend/tests/test_e2b_application_preview.py
       line: 656
       name: test_warm_template_preserves_custom_dev_scripts
       surface: gui.web
-    - &id245
+    - &id246
       path: backend/tests/test_e2b_application_preview.py
       line: 666
       name: test_warm_activation_uploads_source_and_exact_hosts_before_content_free_signal
       surface: gui.web
-    - &id246
+    - &id247
       path: backend/tests/test_e2b_application_preview.py
       line: 689
       name: test_warm_readiness_requires_current_revision_header
       surface: gui.web
-    - &id247
+    - &id248
       path: backend/tests/test_e2b_application_preview.py
       line: 710
       name: test_warm_waiter_rejects_failed_or_stale_state_before_public_probe
       surface: gui.web
-    - &id248
+    - &id249
       path: backend/tests/test_e2b_application_preview.py
       line: 727
       name: test_warm_waiter_still_requires_public_current_revision_and_shares_deadline
       surface: gui.web
-    - &id249
+    - &id250
       path: backend/tests/test_e2b_application_preview.py
       line: 745
       name: test_alternate_port_keeps_ordinary_prepared_runtime
       surface: gui.web
-    - &id250
+    - &id251
       path: backend/tests/test_e2b_application_preview.py
       line: 759
       name: test_warm_start_keeps_custom_bootstrap_and_lifecycle_on_normal_path
       surface: gui.web
-    - &id251
+    - &id252
       path: backend/tests/test_e2b_application_preview.py
       line: 785
       name: test_preview_rejects_reserved_and_duplicate_paths_before_sandbox_creation
       surface: gui.web
-    - &id252
+    - &id253
       path: backend/tests/test_run_application_preview_task.py
       line: 718
       name: test_runtime_is_visible_before_screenshot_storage_completes
       surface: rest_api
-    - &id253
+    - &id254
       path: frontend/apps/web_app/tests/application-preview.spec.ts
       line: 73
       name: generated application embed starts explicit isolated live preview
       surface: gui.web
-    - &id254
+    - &id255
       path: frontend/apps/web_app/tests/components/application-preview-readiness.spec.ts
       line: 10
       name: fullscreen adopts a late preview once before screenshot (${responseMode})
       surface: gui.web
-    - &id255
+    - &id256
       path: frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.live.test.ts
       line: 16
       name: waits for the saved screenshot to decrypt without starting another sandbox
       surface: gui.web
-    - &id256
+    - &id257
       path: frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
       line: 118
       name: starts a missing owner screenshot without client shared context
       surface: gui.web
-    - &id257
+    - &id258
       path: frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
       line: 140
       name: reuses the creator session instead of starting a second paid preview
       surface: gui.web
-    - &id258
+    - &id259
       path: frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
       line: 156
       name: does not auto-start for %s
       surface: gui.web
-    - &id259
+    - &id260
       path: frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
       line: 236
       name: shares an in-flight paid start and notifies fullscreen opened before its
         POST response
       surface: gui.web
-    - &id260
+    - &id261
       path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       line: 1497
       name: keeps referenced application files independent while %s composites preserve
         inheritance
       surface: gui.web
     tests:
-    - *id213
     - *id214
     - *id215
     - *id216
@@ -2054,11 +2060,11 @@ assertions:
     - *id258
     - *id259
     - *id260
+    - *id261
     surfaces:
       gui.web:
         direct_tests: []
         supporting_tests:
-        - *id213
         - *id214
         - *id215
         - *id216
@@ -2097,7 +2103,7 @@ assertions:
         - *id249
         - *id250
         - *id251
-        - *id253
+        - *id252
         - *id254
         - *id255
         - *id256
@@ -2105,58 +2111,59 @@ assertions:
         - *id258
         - *id259
         - *id260
+        - *id261
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id252
+        - *id253
     current_direct_proof: false
   app-skills.execution.registered-validated:
     specification: architecture.app-skill-execution@1
     fingerprint: 16d50a42f3cb665105ea7733c8852df49a5ad556bdcd957e8023f4941fcab7d8
     direct_tests:
-    - &id361
+    - &id364
       path: backend/tests/test_models3d_search_skill.py
       line: 374
       name: test_models3d_search_rejects_removed_provider_names
       surface: rest_api
-    - &id363
+    - &id366
       path: backend/tests/test_models3d_search_skill.py
       line: 407
       name: test_models3d_app_metadata_declares_parent_child_search_embeds
       surface: rest_api
-    - &id371
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 38
-      name: test_skill_resolver_handles_mixed_app_and_skill_separators
-      surface: gui.web
-    - &id372
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 47
-      name: test_skill_resolver_preserves_underscored_skill_ids
-      surface: gui.web
-    - &id373
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 56
-      name: test_skill_resolver_handles_dot_form_app_skill_names
-      surface: gui.web
     - &id374
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 64
-      name: test_skill_resolver_handles_slash_form_app_skill_names
+      line: 36
+      name: test_skill_resolver_handles_mixed_app_and_skill_separators
       surface: gui.web
     - &id375
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 71
-      name: test_explicit_skill_mention_resolves_dot_form_from_latest_user_message
+      line: 45
+      name: test_skill_resolver_preserves_underscored_skill_ids
       surface: gui.web
     - &id376
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 81
-      name: test_explicit_skill_mention_requires_directive
+      line: 54
+      name: test_skill_resolver_handles_dot_form_app_skill_names
       surface: gui.web
     - &id377
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 91
+      line: 62
+      name: test_skill_resolver_handles_slash_form_app_skill_names
+      surface: gui.web
+    - &id378
+      path: backend/tests/test_preprocessor_skill_resolver.py
+      line: 69
+      name: test_explicit_skill_mention_resolves_dot_form_from_latest_user_message
+      surface: gui.web
+    - &id379
+      path: backend/tests/test_preprocessor_skill_resolver.py
+      line: 79
+      name: test_explicit_skill_mention_requires_directive
+      surface: gui.web
+    - &id380
+      path: backend/tests/test_preprocessor_skill_resolver.py
+      line: 89
       name: test_explicit_skill_mention_ignores_assistant_history
       surface: gui.web
     - &id418
@@ -2195,583 +2202,578 @@ assertions:
     - &id425
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 128
-      name: German web research executes search after an empty app shortlist
+      name: Baseline web and image searches survive an empty app shortlist
       surface: gui.web
     supporting_tests:
-    - &id261
+    - &id262
       path: backend/apps/ai/tests/test_search_skill_reliability.py
       line: 47
       name: test_json_request_array_preserves_groups_and_metadata
       surface: cli
-    - &id262
+    - &id263
       path: backend/apps/ai/tests/test_search_skill_reliability.py
       line: 59
       name: test_json_request_array_leaves_invalid_inputs_for_validation
       surface: cli
-    - &id263
+    - &id264
       path: backend/tests/test_answer_recovery_history.py
       line: 13
       name: test_missing_current_content_uses_latest_user_once_with_tool_evidence
       surface: gui.web
-    - &id264
+    - &id265
       path: backend/tests/test_answer_recovery_history.py
       line: 35
       name: test_missing_current_content_preserves_latest_multimodal_request
       surface: gui.web
-    - &id265
+    - &id266
       path: backend/tests/test_answer_recovery_history.py
       line: 53
       name: test_missing_current_content_bounds_multimodal_request
       surface: gui.web
-    - &id266
+    - &id267
       path: backend/tests/test_answer_recovery_history.py
       line: 73
       name: test_missing_current_content_requires_valid_user_message
       surface: gui.web
-    - &id267
+    - &id268
       path: backend/tests/test_answer_recovery_history.py
       line: 80
       name: test_invalid_explicit_current_content_is_rejected
       surface: gui.web
-    - &id268
+    - &id269
       path: backend/tests/test_answer_recovery_history.py
       line: 90
       name: test_explicit_string_and_published_prefix_stay_bounded
       surface: gui.web
-    - &id269
+    - &id270
       path: backend/tests/test_answer_recovery_integration.py
       line: 500
       name: test_fabricated_protocol_uses_clean_context_and_one_configured_alternate
       surface: gui.web
-    - &id270
+    - &id271
       path: backend/tests/test_answer_recovery_integration.py
       line: 538
       name: test_forbidden_final_tool_call_retries_same_model_with_clean_evidence
       surface: gui.web
-    - &id271
+    - &id272
       path: backend/tests/test_answer_recovery_integration.py
       line: 560
       name: test_forbidden_clean_retry_uses_one_configured_alternate
       surface: gui.web
-    - &id272
+    - &id273
       path: backend/tests/test_answer_recovery_integration.py
       line: 662
       name: test_repeated_forbidden_calls_without_alternate_fail_once_and_stop
       surface: gui.web
-    - &id273
+    - &id274
       path: backend/tests/test_answer_recovery_integration.py
       line: 688
       name: test_first_answer_partial_503_recovers_without_replaying_signed_tool_history
       surface: gui.web
-    - &id274
+    - &id275
       path: backend/tests/test_answer_recovery_integration.py
       line: 732
       name: test_partial_503_clean_recovery_exhausts_compatible_models_once
       surface: gui.web
-    - &id275
+    - &id276
       path: backend/tests/test_app_skill_rest_context.py
       line: 303
       name: test_call_app_skill_blocks_internal_skills_before_dispatch
       surface: rest_api
-    - &id276
+    - &id277
       path: backend/tests/test_audio_recording_guard.py
       line: 41
       name: test_local_recordings_never_enable_external_fallback
       surface: rest_api
-    - &id277
+    - &id278
       path: backend/tests/test_audio_recording_guard.py
       line: 55
       name: test_mixed_history_blocks_local_target_but_allows_explicit_manual_attachment
       surface: rest_api
-    - &id278
+    - &id279
       path: backend/tests/test_audio_recording_guard.py
       line: 77
       name: test_ambiguous_and_mixed_batches_cannot_forward_local_audio
       surface: rest_api
-    - &id279
+    - &id280
       path: backend/tests/test_audio_recording_guard.py
       line: 83
       name: test_recording_filename_collision_does_not_authorize_manual_fallback
       surface: rest_api
-    - &id280
+    - &id281
       path: backend/tests/test_audio_recording_guard.py
       line: 89
       name: test_manual_audio_and_legacy_untranscribed_recordings_keep_existing_routing
       surface: rest_api
-    - &id281
+    - &id282
       path: backend/tests/test_audio_recording_guard.py
       line: 95
       name: test_failed_local_recording_does_not_borrow_a_manual_transcript_or_filename
       surface: rest_api
-    - &id282
+    - &id283
       path: backend/tests/test_audio_recording_guard.py
       line: 102
       name: test_local_authority_does_not_depend_on_toon_field_order
       surface: rest_api
-    - &id283
+    - &id284
       path: backend/tests/test_code_image_to_html_skill.py
       line: 28
       name: test_dispatcher_detects_builtin_list_annotations_for_request_arrays
       surface: rest_api
-    - &id284
+    - &id285
       path: backend/tests/test_code_image_to_html_skill.py
       line: 36
       name: test_validate_image_input_rejects_image_url
       surface: rest_api
-    - &id285
+    - &id286
       path: backend/tests/test_code_image_to_html_skill.py
       line: 42
       name: test_validate_image_input_accepts_base64_png_and_defaults_correction_passes
       surface: rest_api
-    - &id286
+    - &id287
       path: backend/tests/test_code_image_to_html_skill.py
       line: 51
       name: test_validate_image_input_rejects_out_of_range_correction_passes
       surface: rest_api
-    - &id287
+    - &id288
       path: backend/tests/test_code_image_to_html_skill.py
       line: 57
       name: test_dispatch_input_resolves_uploaded_source_image
       surface: rest_api
-    - &id288
+    - &id289
       path: backend/tests/test_code_image_to_html_skill.py
       line: 72
       name: test_skill_dispatches_image_to_html_worker
       surface: rest_api
-    - &id289
+    - &id290
       path: backend/tests/test_code_image_to_html_skill.py
       line: 118
       name: test_all_image_to_html_inputs_are_validated_before_any_dispatch
       surface: rest_api
-    - &id290
+    - &id291
       path: backend/tests/test_code_image_to_html_skill.py
       line: 209
       name: test_skill_dispatches_uploaded_source_image_reference
       surface: rest_api
-    - &id291
+    - &id292
       path: backend/tests/test_code_image_to_html_task.py
       line: 63
       name: test_image_to_html_worker_generates_charges_and_returns_result
       surface: rest_api
-    - &id292
+    - &id293
       path: backend/tests/test_code_image_to_html_task.py
       line: 111
       name: test_image_to_html_worker_resolves_uploaded_source_image
       surface: rest_api
-    - &id293
+    - &id294
       path: backend/tests/test_delegated_primary_read.py
       line: 57
       name: test_search_then_required_primary_read_then_auto_even_on_read_failure
       surface: rest_api
-    - &id294
+    - &id295
       path: backend/tests/test_delegated_primary_read.py
       line: 82
       name: test_assigned_verifier_urls_require_read_without_another_search
       surface: rest_api
-    - &id295
+    - &id296
       path: backend/tests/test_delegated_primary_read.py
       line: 121
       name: test_missing_capabilities_and_forced_answer_do_not_create_a_read_loop
       surface: rest_api
-    - &id296
+    - &id297
       path: backend/tests/test_delegated_primary_read.py
       line: 175
       name: test_actual_four_or_five_search_batch_leaves_one_admitted_primary_read
       surface: rest_api
-    - &id297
+    - &id298
       path: backend/tests/test_delegated_primary_read.py
       line: 210
       name: test_multiple_search_function_calls_share_one_read_reservation
       surface: rest_api
-    - &id298
+    - &id299
       path: backend/tests/test_delegated_primary_read.py
       line: 236
       name: test_ordinary_five_search_requests_keep_existing_full_budget
       surface: rest_api
-    - &id299
+    - &id300
       path: backend/tests/test_delegated_primary_read.py
       line: 302
       name: test_server_assigned_history_urls_require_read_without_current_content
       surface: rest_api
-    - &id300
+    - &id301
       path: backend/tests/test_delegated_primary_read.py
       line: 340
       name: test_root_synthesis_reads_seeded_child_source_once_then_restores_auto
       surface: rest_api
-    - &id301
+    - &id302
       path: backend/tests/test_delegated_primary_read.py
       line: 373
       name: test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
       surface: rest_api
-    - &id302
+    - &id303
       path: backend/tests/test_embed_service_draft_events.py
       line: 102
       name: test_failed_skill_is_sealed_cached_encrypted_and_sent_for_client_persistence
       surface: gui.web
-    - &id303
+    - &id304
       path: backend/tests/test_embed_service_draft_events.py
       line: 146
       name: test_failed_skill_recovery_failure_prevents_publication
       surface: gui.web
-    - &id304
+    - &id305
       path: backend/tests/test_embed_service_versioned_updates.py
       line: 430
       name: test_audio_llm_context_preserves_local_transcription_authority
       surface: rest_api
-    - &id305
+    - &id306
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 69
       name: test_search_locations_returns_grouped_radius_results
       surface: cli
-    - &id306
+    - &id307
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 87
       name: test_search_classes_defaults_to_all_plans_and_onsite_for_radius_search
       surface: cli
-    - &id307
+    - &id308
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 104
       name: test_search_classes_accepts_flat_runtime_args
       surface: cli
-    - &id308
+    - &id309
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 118
       name: test_search_classes_explicit_plan_filter_is_visible_in_summary
       surface: cli
-    - &id309
+    - &id310
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 134
       name: test_search_classes_preserves_batch_when_dispatched_as_kwargs
       surface: cli
-    - &id310
+    - &id311
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 147
       name: test_provider_failures_are_visible_errors
       surface: cli
-    - &id311
+    - &id312
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 240
       name: test_class_optional_nulls_use_defaults_without_mutating_input
       surface: cli
-    - &id312
+    - &id313
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 262
       name: test_class_spot_filter_preserves_explicit_zero_and_positive_values
       surface: cli
-    - &id313
+    - &id314
       path: backend/tests/test_fitness_urban_sports_skills.py
       line: 275
       name: test_class_optional_default_normalization_keeps_validation_bounds
       surface: cli
-    - &id314
+    - &id315
       path: backend/tests/test_jobs_german_providers.py
       line: 78
       name: test_arbeitnow_unsupported_country_and_radius
       surface: rest_api
-    - &id315
+    - &id316
       path: backend/tests/test_jobs_german_providers.py
       line: 128
       name: test_ba_unsupported_country_and_radius_before_http
       surface: rest_api
-    - &id316
+    - &id317
       path: backend/tests/test_jobs_german_providers.py
       line: 136
       name: test_shared_retry_and_safe_error
       surface: rest_api
-    - &id317
+    - &id318
       path: backend/tests/test_jobs_impact_providers.py
       line: 38
       name: test_80k_unsupported_country_and_filters_fail_before_http
       surface: rest_api
-    - &id318
+    - &id319
       path: backend/tests/test_jobs_impact_providers.py
       line: 102
       name: test_80k_browser_config_and_algolia_request_are_bounded
       surface: rest_api
-    - &id319
+    - &id320
       path: backend/tests/test_jobs_impact_providers.py
       line: 145
       name: test_80k_changed_config_and_rate_limit_are_safe
       surface: rest_api
-    - &id320
+    - &id321
       path: backend/tests/test_jobs_jobtech_provider.py
       line: 51
       name: test_non_sweden_country_is_rejected_before_http
       surface: rest_api
-    - &id321
+    - &id322
       path: backend/tests/test_jobs_jobtech_provider.py
       line: 127
       name: test_unverifiable_workplace_surfaces_location_warning
       surface: rest_api
-    - &id322
+    - &id323
       path: backend/tests/test_jobs_jobtech_provider.py
       line: 142
       name: test_employment_type_filter_uses_explicit_worktime
       surface: rest_api
-    - &id323
+    - &id324
       path: backend/tests/test_jobs_jobtech_provider.py
       line: 187
       name: test_radius_and_impact_filters_fail_explicitly
       surface: rest_api
-    - &id324
+    - &id325
       path: backend/tests/test_jobs_jobtech_provider.py
       line: 198
       name: test_invalid_payload_and_provider_failures_propagate
       surface: rest_api
-    - &id325
+    - &id326
       path: backend/tests/test_jobs_jobtech_provider.py
       line: 217
       name: test_result_and_request_limits_are_bounded
       surface: rest_api
-    - &id326
+    - &id327
       path: backend/tests/test_jobs_other_impact_provider.py
       line: 55
       name: test_country_verified_normalization_and_description
       surface: rest_api
-    - &id327
+    - &id328
       path: backend/tests/test_jobs_other_impact_provider.py
       line: 99
       name: test_unsupported_country_and_filters_make_no_request
       surface: rest_api
-    - &id328
+    - &id329
       path: backend/tests/test_jobs_other_impact_provider.py
       line: 115
       name: test_invalid_or_untrusted_rss_fails_closed
       surface: rest_api
-    - &id329
+    - &id330
       path: backend/tests/test_jobs_other_impact_provider.py
       line: 155
       name: test_http_request_sends_only_country_and_rejects_oversize_feed
       surface: rest_api
-    - &id330
+    - &id331
       path: backend/tests/test_jobs_role_details.py
       line: 58
       name: test_detail_http_rejects_untrusted_urls_redirects_and_oversized_pages
       surface: rest_api
-    - &id331
+    - &id332
       path: backend/tests/test_jobs_role_details.py
       line: 93
       name: test_detail_enrichment_is_bounded_and_keeps_source_identity
       surface: rest_api
-    - &id332
+    - &id333
       path: backend/tests/test_main_processor_invalid_tool_calls.py
       line: 557
       name: test_argument_normalization_failure_returns_tool_error_without_dispatch
       surface: gui.web
-    - &id333
+    - &id334
       path: backend/tests/test_main_processor_invalid_tool_calls.py
       line: 833
       name: test_final_no_tools_turn_recovers_from_provider_tool_call_without_executing_it
       surface: gui.web
-    - &id334
+    - &id335
       path: backend/tests/test_main_processor_invalid_tool_calls.py
       line: 858
       name: test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_call
       surface: gui.web
-    - &id335
+    - &id336
       path: backend/tests/test_main_processor_invalid_tool_calls.py
       line: 1007
       name: test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions
       surface: gui.web
-    - &id336
-      path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1140
-      name: test_tool_guidance_matches_final_forwarded_capability
-      surface: rest_api
     - &id337
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1314
-      name: test_main_processor_continues_safe_text_after_fabricated_protocol
+      line: 1055
+      name: test_baseline_searches_reach_provider_without_preprocessing_selection
       surface: gui.web
     - &id338
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1348
-      name: test_native_preparation_uses_normal_first_turn_and_skips_protocol_recovery
+      line: 1078
+      name: test_baseline_searches_preserve_tool_permissions
       surface: gui.web
     - &id339
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1572
-      name: test_main_processor_recovers_when_protocol_was_the_first_output
-      surface: gui.web
+      line: 1207
+      name: test_tool_guidance_matches_final_forwarded_capability
+      surface: rest_api
     - &id340
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1596
-      name: test_main_processor_bounds_repeated_protocol_and_marks_failure
+      line: 1381
+      name: test_main_processor_continues_safe_text_after_fabricated_protocol
       surface: gui.web
     - &id341
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1614
-      name: test_main_processor_uses_configured_alternate_after_repeated_protocol
+      line: 1415
+      name: test_native_preparation_uses_normal_first_turn_and_skips_protocol_recovery
       surface: gui.web
     - &id342
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1640
-      name: test_main_processor_rejects_orphaned_protocol_recovery_context
+      line: 1639
+      name: test_main_processor_recovers_when_protocol_was_the_first_output
       surface: gui.web
     - &id343
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2357
-      name: test_only_videos_create_accepts_rendering_as_async_dispatch
-      surface: rest_api
+      line: 1663
+      name: test_main_processor_bounds_repeated_protocol_and_marks_failure
+      surface: gui.web
     - &id344
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2368
-      name: test_videos_create_rendering_waits_for_terminal_child_before_answer
-      surface: rest_api
+      line: 1681
+      name: test_main_processor_uses_configured_alternate_after_repeated_protocol
+      surface: gui.web
     - &id345
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2566
+      line: 1707
+      name: test_main_processor_rejects_orphaned_protocol_recovery_context
+      surface: gui.web
+    - &id346
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2424
+      name: test_only_videos_create_accepts_rendering_as_async_dispatch
+      surface: rest_api
+    - &id347
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2435
+      name: test_videos_create_rendering_waits_for_terminal_child_before_answer
+      surface: rest_api
+    - &id348
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 2633
       name: test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_safety_rules
       surface: rest_api
-    - &id346
+    - &id349
       path: backend/tests/test_media_ccc_provider.py
       line: 29
       name: test_rejects_noncanonical_talk_urls
       surface: rest_api
-    - &id347
+    - &id350
       path: backend/tests/test_media_ccc_provider.py
       line: 34
       name: test_slug_ignores_query_and_fragment
       surface: rest_api
-    - &id348
+    - &id351
       path: backend/tests/test_media_ccc_provider.py
       line: 40
       name: test_parses_srt_and_vtt_without_cue_ids_or_markup
       surface: rest_api
-    - &id349
+    - &id352
       path: backend/tests/test_media_ccc_provider.py
       line: 47
       name: test_empty_or_invalid_captions_fail_visibly
       surface: rest_api
-    - &id350
+    - &id353
       path: backend/tests/test_media_ccc_provider.py
       line: 54
       name: test_uses_graphql_variables_and_normalizes_language_with_safe_cdn_redirect
       surface: rest_api
-    - &id351
+    - &id354
       path: backend/tests/test_media_ccc_provider.py
       line: 76
       name: test_language_preferences_choose_german_over_english_and_vtt_over_srt
       surface: rest_api
-    - &id352
+    - &id355
       path: backend/tests/test_media_ccc_provider.py
       line: 102
       name: test_missing_captions_language_or_talk_returns_explicit_error
       surface: rest_api
-    - &id353
+    - &id356
       path: backend/tests/test_media_ccc_provider.py
       line: 111
       name: test_rejects_untrusted_caption_hosts_before_request
       surface: rest_api
-    - &id354
+    - &id357
       path: backend/tests/test_media_ccc_provider.py
       line: 129
       name: test_retries_rate_limit_without_unbounded_wait
       surface: rest_api
-    - &id355
+    - &id358
       path: backend/tests/test_media_ccc_provider.py
       line: 145
       name: test_deadline_bounds_the_whole_fetch
       surface: rest_api
-    - &id356
+    - &id359
       path: backend/tests/test_media_ccc_provider.py
       line: 157
       name: test_oversized_captions_fail_visibly
       surface: rest_api
-    - &id357
+    - &id360
       path: backend/tests/test_media_ccc_skill.py
       line: 37
       name: test_request_schema_accepts_ccc_and_retains_youtube_and_shorts_validation
       surface: rest_api
-    - &id358
+    - &id361
       path: backend/tests/test_media_ccc_skill.py
       line: 49
       name: test_ccc_uses_shared_sanitizer_formatter_and_never_youtube_or_income
       surface: rest_api
-    - &id359
+    - &id362
       path: backend/tests/test_models3d_search_providers.py
       line: 99
       name: test_collect_provider_search_results_returns_partial_warnings
       surface: rest_api
-    - &id360
+    - &id363
       path: backend/tests/test_models3d_search_providers.py
       line: 141
       name: test_collect_provider_search_results_raises_when_all_providers_fail
       surface: rest_api
-    - &id362
+    - &id365
       path: backend/tests/test_models3d_search_skill.py
       line: 388
       name: test_models3d_search_returns_typed_error_when_all_providers_fail
       surface: rest_api
-    - &id364
+    - &id367
       path: backend/tests/test_news_follow_up_routing.py
       line: 74
       name: test_explicit_news_search_does_not_add_companion_skills
       surface: gui.web
-    - &id365
+    - &id368
       path: backend/tests/test_pdf_read_filename_alias.py
       line: 82
       name: test_read_resolves_unique_cli_filename_alias_from_owned_upload
       surface: cli
-    - &id366
+    - &id369
       path: backend/tests/test_pdf_read_filename_alias.py
       line: 100
       name: test_exact_embed_ref_still_reads_without_alias_search
       surface: cli
-    - &id367
+    - &id370
       path: backend/tests/test_pdf_read_filename_alias.py
       line: 143
       name: test_filename_alias_rejects_missing_wrong_type_other_owner_and_ambiguous
       surface: cli
-    - &id368
+    - &id371
       path: backend/tests/test_pdf_read_filename_alias.py
       line: 160
       name: test_two_verified_uploads_with_same_filename_are_ambiguous
       surface: cli
-    - &id369
+    - &id372
       path: backend/tests/test_pdf_read_filename_alias.py
       line: 178
       name: test_alias_candidates_require_cli_pdf_slug_and_plain_filename
       surface: cli
-    - &id370
+    - &id373
       path: backend/tests/test_persistence_tasks.py
       line: 754
       name: test_pending_embed_safety_net_resends_failed_skill_terminal_status
       surface: gui.web
-    - &id378
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 104
-      name: test_explicit_recent_articles_request_resolves_news_search
-      surface: gui.web
-    - &id379
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 114
-      name: test_explicit_recent_news_request_requires_current_news_wording
-      surface: gui.web
-    - &id380
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 124
-      name: test_negated_news_search_request_does_not_force_skill
-      surface: gui.web
     - &id381
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 134
-      name: test_non_news_articles_request_does_not_force_news_search
+      line: 102
+      name: test_explicit_recent_articles_request_resolves_news_search
       surface: gui.web
     - &id382
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 150
-      name: test_explicit_web_research_survives_missing_news_capability
+      line: 112
+      name: test_explicit_recent_news_request_requires_current_news_wording
       surface: gui.web
     - &id383
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 162
-      name: test_web_research_recovery_respects_negation_and_latest_user_intent
+      line: 122
+      name: test_negated_news_search_request_does_not_force_skill
       surface: gui.web
     - &id384
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 172
-      name: test_web_research_recovery_requires_registered_search_skill
+      line: 132
+      name: test_non_news_articles_request_does_not_force_news_search
       surface: gui.web
     - &id385
       path: backend/tests/test_skill_executor_registry_refresh.py
@@ -2991,7 +2993,6 @@ assertions:
         storage: %j'
       surface: gui.web
     tests:
-    - *id261
     - *id262
     - *id263
     - *id264
@@ -3170,9 +3171,8 @@ assertions:
         - *id418
         - *id419
         supporting_tests:
-        - *id261
         - *id262
-        - *id305
+        - *id263
         - *id306
         - *id307
         - *id308
@@ -3181,11 +3181,12 @@ assertions:
         - *id311
         - *id312
         - *id313
-        - *id365
-        - *id366
-        - *id367
+        - *id314
         - *id368
         - *id369
+        - *id370
+        - *id371
+        - *id372
         - *id407
         - *id408
         - *id409
@@ -3196,16 +3197,15 @@ assertions:
         - *id414
       gui.web:
         direct_tests:
-        - *id371
-        - *id372
-        - *id373
         - *id374
         - *id375
         - *id376
         - *id377
+        - *id378
+        - *id379
+        - *id380
         - *id425
         supporting_tests:
-        - *id263
         - *id264
         - *id265
         - *id266
@@ -3217,23 +3217,23 @@ assertions:
         - *id272
         - *id273
         - *id274
-        - *id302
+        - *id275
         - *id303
-        - *id332
+        - *id304
         - *id333
         - *id334
         - *id335
+        - *id336
         - *id337
         - *id338
-        - *id339
         - *id340
         - *id341
         - *id342
-        - *id364
-        - *id370
-        - *id378
-        - *id379
-        - *id380
+        - *id343
+        - *id344
+        - *id345
+        - *id367
+        - *id373
         - *id381
         - *id382
         - *id383
@@ -3263,14 +3263,13 @@ assertions:
         - *id433
       rest_api:
         direct_tests:
-        - *id361
-        - *id363
+        - *id364
+        - *id366
         - *id421
         - *id422
         - *id423
         - *id424
         supporting_tests:
-        - *id275
         - *id276
         - *id277
         - *id278
@@ -3297,8 +3296,8 @@ assertions:
         - *id299
         - *id300
         - *id301
-        - *id304
-        - *id314
+        - *id302
+        - *id305
         - *id315
         - *id316
         - *id317
@@ -3316,10 +3315,8 @@ assertions:
         - *id329
         - *id330
         - *id331
-        - *id336
-        - *id343
-        - *id344
-        - *id345
+        - *id332
+        - *id339
         - *id346
         - *id347
         - *id348
@@ -3335,7 +3332,10 @@ assertions:
         - *id358
         - *id359
         - *id360
+        - *id361
         - *id362
+        - *id363
+        - *id365
         - *id385
         - *id386
         - *id387
@@ -23803,12 +23803,12 @@ assertions:
       surface: rest_api
     - &id3082
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2497
+      line: 2564
       name: test_missing_required_fixture_section_stops_before_provider
       surface: rest_api
     - &id3083
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2511
+      line: 2578
       name: test_actual_safety_fixture_survives_every_answer_recovery_provider_request
       surface: rest_api
     - &id3084
@@ -24381,7 +24381,7 @@ assertions:
       surface: rest_api
     - &id3159
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1083
+      line: 1150
       name: test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt
       surface: rest_api
     tests:
@@ -24897,7 +24897,7 @@ assertions:
       surface: rest_api
     - &id3215
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1393
+      line: 1460
       name: test_native_preparation_keeps_ordinary_forced_answer_turn_tool_free
       surface: cli
     - &id3218
@@ -25238,27 +25238,27 @@ assertions:
       surface: rest_api
     - &id3266
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1031
+      line: 1098
       name: test_no_tool_dispatch_prunes_only_unavailable_tool_guidance
       surface: rest_api
     - &id3267
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1217
+      line: 1284
       name: test_simple_personal_turn_forwards_task_tool_only_for_task_intent
       surface: rest_api
     - &id3268
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2138
+      line: 2205
       name: test_main_model_call_forwards_only_saved_profile_choice
       surface: rest_api
     - &id3269
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2156
+      line: 2223
       name: test_uploaded_image_auto_profile_reaches_main_dispatch
       surface: rest_api
     - &id3270
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2195
+      line: 2262
       name: test_explicit_gemini_image_selection_preserves_model_and_thinking
       surface: rest_api
     - &id3271
@@ -25400,7 +25400,7 @@ assertions:
       surface: rest_api
     - &id3284
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2923
+      line: 2990
       name: test_mercury_rechecks_media_restored_in_answer_recovery
       surface: rest_api
     - &id3285
@@ -25473,22 +25473,22 @@ assertions:
       surface: rest_api
     - &id3292
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2969
+      line: 3036
       name: test_jev_mercury_effort_caps_real_loop_before_reservation
       surface: rest_api
     - &id3293
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3000
+      line: 3067
       name: test_jev_mercury_high_effort_preserves_smaller_scope_limits
       surface: rest_api
     - &id3294
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3030
+      line: 3097
       name: test_jev_gemini_effort_stays_independent_of_profile_provenance
       surface: rest_api
     - &id3295
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3049
+      line: 3116
       name: test_jev_mercury_effort_survives_protocol_answer_recovery
       surface: rest_api
     - &id3296
@@ -26096,12 +26096,12 @@ assertions:
       surface: rest_api
     - &id3375
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2195
+      line: 2262
       name: test_explicit_gemini_image_selection_preserves_model_and_thinking
       surface: rest_api
     - &id3376
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2219
+      line: 2286
       name: test_saved_image_model_selection_reaches_main_unchanged
       surface: rest_api
     - &id3377
@@ -26894,12 +26894,12 @@ assertions:
     supporting_tests:
     - &id3460
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1257
+      line: 1324
       name: test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts
       surface: rest_api
     - &id3461
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2274
+      line: 2341
       name: test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt
       surface: rest_api
     - &id3462
@@ -28049,12 +28049,12 @@ assertions:
       surface: rest_api
     - &id3599
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1257
+      line: 1324
       name: test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts
       surface: rest_api
     - &id3600
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2274
+      line: 2341
       name: test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt
       surface: rest_api
     - &id3601
@@ -28896,7 +28896,7 @@ assertions:
       surface: rest_api
     - &id3694
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1857
+      line: 1924
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id3696
@@ -29362,7 +29362,7 @@ assertions:
       surface: rest_api
     - &id3736
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1857
+      line: 1924
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id3737
@@ -33395,7 +33395,7 @@ assertions:
       surface: rest_api
     - &id4214
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 71
+      line: 69
       name: test_explicit_skill_mention_resolves_dot_form_from_latest_user_message
       surface: gui.web
     - &id4220
@@ -37322,12 +37322,12 @@ assertions:
     supporting_tests:
     - &id4682
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2754
+      line: 2821
       name: test_inspection_safety_follows_selected_viewer_or_actual_pixels
       surface: rest_api
     - &id4683
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2766
+      line: 2833
       name: test_multimodal_tool_result_adds_image_safety_before_next_dispatch
       surface: rest_api
     tests:
@@ -38326,7 +38326,7 @@ assertions:
     supporting_tests:
     - &id4786
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2611
+      line: 2678
       name: test_real_shopping_answer_policy_survives_every_model_dispatch
       surface: rest_api
     - &id4787
@@ -40986,7 +40986,7 @@ assertions:
     - &id5134
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
       line: 128
-      name: German web research executes search after an empty app shortlist
+      name: Baseline web and image searches survive an empty app shortlist
       surface: gui.web
     - &id5135
       path: frontend/apps/web_app/tests/skill-web-search.spec.ts
@@ -41190,39 +41190,39 @@ assertions:
       name: test_converts_suffix_only_refs_and_removes_unresolved_tokens
       surface: gui.web
     - &id5116
+      path: backend/tests/test_main_processor_invalid_tool_calls.py
+      line: 1055
+      name: test_baseline_searches_reach_provider_without_preprocessing_selection
+      surface: gui.web
+    - &id5117
       path: backend/tests/test_news_follow_up_routing.py
       line: 56
       name: test_detects_repeated_named_topic_across_news_follow_up
       surface: gui.web
-    - &id5117
+    - &id5118
       path: backend/tests/test_news_follow_up_routing.py
       line: 65
       name: test_does_not_treat_generic_search_words_as_topic_continuity
       surface: gui.web
-    - &id5118
+    - &id5119
       path: backend/tests/test_news_follow_up_routing.py
       line: 74
       name: test_explicit_news_search_does_not_add_companion_skills
       surface: gui.web
-    - &id5119
+    - &id5120
       path: backend/tests/test_news_follow_up_routing.py
       line: 86
       name: test_invalid_topic_keeps_last_valid_mate
       surface: gui.web
-    - &id5120
+    - &id5121
       path: backend/tests/test_news_follow_up_routing.py
       line: 98
       name: test_valid_new_topic_can_select_different_mate
       surface: gui.web
-    - &id5121
-      path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 104
-      name: test_explicit_recent_articles_request_resolves_news_search
-      surface: gui.web
     - &id5122
       path: backend/tests/test_preprocessor_skill_resolver.py
-      line: 150
-      name: test_explicit_web_research_survives_missing_news_capability
+      line: 102
+      name: test_explicit_recent_articles_request_resolves_news_search
       surface: gui.web
     - &id5123
       path: backend/tests/test_search_preview_images.py
@@ -63527,7 +63527,7 @@ assertions:
       surface: rest_api
     - &id8019
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1857
+      line: 1924
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id8038
@@ -66713,22 +66713,22 @@ assertions:
       surface: rest_api
     - &id8414
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1417
+      line: 1484
       name: test_personal_main_usage_has_no_hold_and_other_scopes_keep_reservation
       surface: gui.web
     - &id8415
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1470
+      line: 1537
       name: test_personal_main_dispatch_applies_read_only_wallet_fit_before_provider
       surface: gui.web
     - &id8416
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1518
+      line: 1585
       name: test_failed_personal_provider_reports_supplier_usage_without_hold
       surface: gui.web
     - &id8417
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1542
+      line: 1609
       name: test_personal_fallback_aggregates_both_provider_attempts_without_hold
       surface: gui.web
     - &id8418
@@ -74743,12 +74743,12 @@ assertions:
     supporting_tests:
     - &id9428
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2789
+      line: 2856
       name: test_composer_output_contract_ends_actual_provider_prompt
       surface: rest_api
     - &id9429
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2834
+      line: 2901
       name: test_ineligible_provider_prompt_omits_composer_output_reminder
       surface: rest_api
     - &id9430
@@ -82605,7 +82605,7 @@ assertions:
       surface: gui.apple
     - &id10488
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1788
+      line: 1855
       name: test_pending_app_settings_memories_context_preserves_model_preferences
       surface: rest_api
     - &id10489
@@ -98638,7 +98638,7 @@ assertions:
     supporting_tests:
     - &id12666
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2301
+      line: 2368
       name: test_natural_public_focus_reuses_countdown_without_extra_answer_inference
       surface: cli
     tests:
@@ -98871,7 +98871,7 @@ assertions:
       surface: rest_api
     - &id12707
       path: backend/tests/test_focus_phases.py
-      line: 634
+      line: 635
       name: test_main_transition_preserves_mate_permissions_and_recovery_prompt
       surface: rest_api
     - &id12708
@@ -100291,7 +100291,7 @@ assertions:
       surface: rest_api
     - &id12884
       path: backend/tests/test_focus_phases.py
-      line: 634
+      line: 635
       name: test_main_transition_preserves_mate_permissions_and_recovery_prompt
       surface: rest_api
     - &id12885
@@ -100515,7 +100515,7 @@ assertions:
     supporting_tests:
     - &id12905
       path: backend/tests/test_focus_phases.py
-      line: 730
+      line: 732
       name: test_study_phases_use_brief_intake_and_learner_evidence
       surface: rest_api
     - &id12906
@@ -101596,7 +101596,7 @@ assertions:
       surface: cli
     - &id13035
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2301
+      line: 2368
       name: test_natural_public_focus_reuses_countdown_without_extra_answer_inference
       surface: cli
     - &id13036
@@ -129731,7 +129731,7 @@ assertions:
       surface: gui.apple
     - &id16564
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1217
+      line: 1284
       name: test_simple_personal_turn_forwards_task_tool_only_for_task_intent
       surface: rest_api
     - &id16565
