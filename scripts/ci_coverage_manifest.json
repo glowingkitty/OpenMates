@@ -864,6 +864,13 @@
       "specs": [
         "components/application-preview-readiness.spec.ts"
       ]
+    },
+    "canonical_embed_replay": {
+      "execution": "e2e",
+      "enabling_work": "Fresh isolated core account, browser AES encryption and fixture-owned opaque Directus rows. Exercise real canonical reads and sender replay with parent wrappers and durable ACKs; no AI inference, provider credentials, external mail, or shared dev endpoints.",
+      "specs": [
+        "embed-canonical-replay.spec.ts"
+      ]
     }
   },
   "holds": {

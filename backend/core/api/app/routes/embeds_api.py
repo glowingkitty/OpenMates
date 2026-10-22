@@ -168,14 +168,19 @@ async def _validate_personal_child_embed(
         ]},
     ]}
     rows = await read_rows("embed_keys", {
-        "filter": filters, "fields": EMBED_KEY_ALL_FIELDS, "limit": 3,
+        "filter": filters, "fields": EMBED_KEY_ALL_FIELDS, "limit": 129,
     })
-    if not isinstance(rows, list) or not rows or len(rows) > 2:
+    # Historical retries can leave multiple ciphertext wrappers for the same
+    # key. Return the complete bounded set; clients verify every wrapper opens
+    # to the expected key before acknowledging recovery. This remains an opaque,
+    # owner/exact-chat ciphertext read behind the canonical authorization gate.
+    if (not rows or len(rows) > 128
+            or len(json.dumps(rows, separators=(",", ":")).encode("utf-8")) > 128 * 1024):
         reject()
     for key in rows:
         if (key.get("hashed_embed_id") != parent_hash or key.get("hashed_user_id") != owner_hash
                 or key.get("hashed_team_id") or key.get("hashed_project_id")
-                or not key.get("encrypted_embed_key")
+                or not isinstance(key.get("encrypted_embed_key"), str) or not key["encrypted_embed_key"]
                 or not (key.get("key_type") == "master" and not key.get("hashed_chat_id")
                         or key.get("key_type") == "chat" and key.get("hashed_chat_id") == chat_hash)):
             reject()

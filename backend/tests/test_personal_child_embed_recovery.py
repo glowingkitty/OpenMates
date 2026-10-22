@@ -1,6 +1,7 @@
 """Bounded Personal ciphertext recovery security on the exact production candidate."""
 import ast
 import hashlib
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -25,7 +26,7 @@ def route():
                 and node.name == '_validate_personal_child_embed')
     node.decorator_list = []
     node.args.defaults = []
-    namespace = dict(UUID=UUID, HTTPException=HTTPException, _hash_value=hash_value,
+    namespace = dict(json=json, UUID=UUID, HTTPException=HTTPException, _hash_value=hash_value,
                      Request=object, User=object, DirectusService=object,
                      EMBED_ALL_FIELDS="*", EMBED_KEY_ALL_FIELDS="*")
     exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
@@ -64,7 +65,7 @@ async def test_returns_exact_child_and_existing_parent_keys_with_bounded_owner_q
     assert result['embed']['embed_id'] == CHILD
     assert result['parent_embed_id'] == PARENT
     assert result['embed_keys'] == keys
-    assert [call[1]['limit'] for call in calls] == [1, 1, 1, 3, 1]
+    assert [call[1]['limit'] for call in calls] == [1, 1, 1, 129, 1]
     assert all(call[2]['no_cache'] and call[2]['admin_required'] for call in calls)
     assert calls[3][1]['filter']['_and'][1] == {'hashed_user_id': {'_eq': hash_value(OWNER)}}
     assert len([call for call in calls if call[0] == 'chats']) == 2
@@ -75,7 +76,7 @@ async def test_returns_exact_child_and_existing_parent_keys_with_bounded_owner_q
 @pytest.mark.asyncio
 @pytest.mark.parametrize('fault', ['wrong-owner', 'team-chat', 'wrong-source', 'wrong-parent-owner',
                                   'cyclic-parent', 'nested-parent', 'wrong-key-owner', 'other-chat-key',
-                                  'project-key', 'too-many-keys', 'unfinished-child', 'vault-child'])
+                                  'project-key', 'too-many-keys', 'oversized-keys', 'malformed-key', 'unfinished-child', 'vault-child'])
 async def test_fails_closed_without_returning_ciphertext(fault):
     chat, embeds, keys, _, directus = fixture()
     if fault == 'wrong-owner':
@@ -97,7 +98,11 @@ async def test_fails_closed_without_returning_ciphertext(fault):
     elif fault == 'project-key':
         keys[0]['hashed_project_id'] = 'other'
     elif fault == 'too-many-keys':
-        keys.extend([keys[0], keys[0]])
+        keys.extend([keys[0]] * 128)
+    elif fault == 'oversized-keys':
+        keys[0]['encrypted_embed_key'] = 'x' * (128 * 1024)
+    elif fault == 'malformed-key':
+        keys[0]['encrypted_embed_key'] = 1
     elif fault == 'unfinished-child':
         embeds[CHILD]['status'] = 'processing'
     elif fault == 'vault-child':
@@ -145,3 +150,18 @@ async def test_missing_live_chat_remains_404():
     with pytest.raises(HTTPException) as error:
         await route()(CHAT, CHILD, SimpleNamespace(query_params={}), SimpleNamespace(id=OWNER), directus)
     assert error.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+@pytest.mark.asyncio
+@pytest.mark.parametrize('count', [4, 128])
+async def test_returns_all_scoped_historical_wrappers_for_client_key_verification(count):
+    _, _, keys, _, directus = fixture()
+    master = keys[0]
+    keys[:] = [{**master, 'encrypted_embed_key': f'opaque-historical-wrapper-{index}',
+                **({'key_type': 'chat', 'hashed_chat_id': hash_value(CHAT)} if index % 2 else {})}
+               for index in range(count)]
+    result = await route()(CHAT, CHILD, SimpleNamespace(query_params={}), SimpleNamespace(id=OWNER), directus)
+    assert result['embed']['embed_id'] == CHILD
+    assert result['embed_keys'] == keys
+    assert len(result['embed_keys']) == count

@@ -255,6 +255,11 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 			return { encryptedContent: body.embed.encrypted_content, version: body.embed.version_number };
 		}, { apiOrigin, chatId, embedId: recoveredEmbedId });
 		const beforeReplay = await readCanonicalHead();
+		const deniedWrites = () => capableFrames.filter((frame) => frame.type === 'error'
+			&& frame.payload.code === 'embed_write_denied').length;
+		const storeWrites = () => capableFrames.filter((frame) => frame.direction === 'sent' && frame.type === 'store_embed').length;
+		const deniedBeforeReplay = deniedWrites();
+		const storesBeforeReplay = storeWrites();
 		const replay = (changeContent: boolean) => capable.evaluate(async ({ chatId, embedId, changeContent }) => {
 			const hook = (window as any).__openmatesE2EReplayCanonicalEmbedWrite;
 			if (typeof hook !== 'function') throw new Error('Canonical embed sender E2E hook is unavailable');
@@ -264,8 +269,8 @@ test('legacy connection preserves typed rows while completing the existing v1 fi
 		expect(await readCanonicalHead()).toEqual(beforeReplay);
 		expect(await replay(true)).toEqual({ pending: true, connected: true });
 		expect(await readCanonicalHead()).toEqual(beforeReplay);
-		expect(capableFrames.filter((frame) => frame.type === 'error'
-			&& frame.payload.code === 'embed_write_denied').length).toBeGreaterThanOrEqual(2);
+		expect(deniedWrites()).toBe(deniedBeforeReplay);
+		expect(storeWrites()).toBe(storesBeforeReplay);
 	} finally {
 		await producerContext.close().catch(() => undefined);
 		await legacyContext.close().catch(() => undefined);

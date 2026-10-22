@@ -93,7 +93,7 @@ async function sendWithReceipt(
   }
 }
 
-/** Prove that a rejected, re-encrypted v1 write is the already sealed head. */
+/** Prove that a queued re-encrypted write is the already sealed head. */
 async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical = false): Promise<{
   embed: Record<string, unknown>; type: string; content: string;
   queuedContent: string; key: Uint8Array; keySubject: string; verifiedKeyTypes: Set<string>;
@@ -137,7 +137,7 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     throw new Error("Canonical embed identity or version differs; use a versioned edit.");
   }
   if (page.embed_keys_has_more_after || page.oversized_embed_key_id
-    || !Array.isArray(page.embed_keys)) {
+    || !Array.isArray(page.embed_keys) || page.embed_keys.length > 128) {
     throw new Error("Canonical embed key wrappers are incomplete.");
   }
   const { embedStore } = await import("./embedStore");
@@ -155,8 +155,9 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     if (typeof wrapper.encrypted_embed_key !== "string"
       || (wrapper.key_type === "master" ? wrapper.hashed_chat_id != null
         : wrapper.hashed_chat_id !== head.hashed_chat_id)
-      || verifiedKeyTypes.has(wrapper.key_type)) {
-      throw new Error("Canonical embed key wrapper identity was invalid or duplicated.");
+      || ["hashed_project_id", "hashed_plan_id", "hashed_team_id", "team_key_epoch"]
+        .some((field) => wrapper[field] != null)) {
+      throw new Error("Canonical embed key wrapper identity was invalid.");
     }
     let unwrapped: Uint8Array | null = null;
     if (wrapper.key_type === "master") {
@@ -171,6 +172,8 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
       || unwrapped.some((byte, index) => byte !== key[index])) {
       throw new Error("Canonical embed key wrapper did not match the local key.");
     }
+    // Historical wrappers may use different nonces for the same key. Verify
+    // every row before deduplicating types; never rotate canonical ciphertext.
     verifiedKeyTypes.add(wrapper.key_type);
   }
   if (verifiedKeyTypes.size === 0) throw new Error("Canonical embed key wrapper did not match the local key.");
@@ -332,12 +335,12 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
     throw new Error("Queued embed revision is invalid.");
   }
   let canonical: Awaited<ReturnType<typeof readEquivalentCanonicalHead>> | null = null;
-  // A streamed next-version root can precede the sealed recovery record. Do not send
-  // a predictable denied recipher of an ACKed v1 head. Keep the durable queue
-  // until the durable next head exists, then compare its canonical plaintext and key.
-  if (!head.parent_embed_id) {
+  // Compare every readable revision before writing, including v1 and children.
+  // Fresh encryption of an already acknowledged revision is correctly rejected
+  // by storage. A child awaiting its parent must remain queued, not reciphered.
+  {
     if (!head.chat_id || !head.hashed_chat_id || !head.hashed_user_id) {
-      throw new Error("Canonical next-revision root chat and owner scope are unavailable.");
+      throw new Error("Canonical embed chat and owner scope are unavailable.");
     }
     const chat = await chatDB.getRawChat(head.chat_id);
     if (!chat || await computeSHA256(chat.chat_id) !== head.hashed_chat_id
@@ -350,22 +353,33 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
     ), {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ embed_ids: [head.embed_id] }),
+      body: JSON.stringify({
+        embed_ids: head.parent_embed_id ? [head.embed_id, head.parent_embed_id] : [head.embed_id],
+        required_recovery_versions: { [head.embed_id]: requestedVersion },
+      }),
     });
     if (!availability.ok) {
       throw new Error(`Canonical embed availability failed (${availability.status}).`);
     }
     const result = await availability.json() as {
-      results?: Array<{ embed_id?: string; state?: string }>;
+      results?: Array<{ embed_id?: string; state?: string;
+        recovery_ack?: { state?: string; version?: number; canonical_digest?: string } }>;
     };
-    if (!Array.isArray(result.results) || result.results.length !== 1
-      || result.results[0].embed_id !== head.embed_id) {
+    if (!Array.isArray(result.results) || result.results.length !== (head.parent_embed_id ? 2 : 1)
+      || result.results[0].embed_id !== head.embed_id
+      || (head.parent_embed_id && result.results[1].embed_id !== head.parent_embed_id)) {
       throw new Error("Canonical embed availability identity changed.");
     }
+    const ack = result.results[0].recovery_ack;
+    if (ack && (ack.state !== "ACKNOWLEDGED" || ack.version !== requestedVersion
+      || typeof ack.canonical_digest !== "string" || !/^[0-9a-f]{64}$/.test(ack.canonical_digest))) {
+      throw new Error("Canonical embed acknowledgement identity changed.");
+    }
+    const parentReady = !head.parent_embed_id || result.results[1].state === "ready";
     if (result.results[0].state === "missing") {
       if (requestedVersion > 1) throw new CanonicalEmbedRecoveryPending();
-    } else if (result.results[0].state === "unusable" && requestedVersion === 1) {
-      // A normal v1 may still be processing or awaiting wrappers.
+    } else if (requestedVersion === 1 && parentReady && result.results[0].state === "unusable") {
+      // A processing child may finish once its scoped parent is readable.
     } else {
       if (result.results[0].state !== "ready") {
         throw new Error("Canonical embed is unavailable; queued revision remains pending.");
@@ -379,7 +393,7 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
       if (!prior || prior.embed_id !== head.embed_id
         || prior.hashed_chat_id !== head.hashed_chat_id
         || prior.hashed_user_id !== head.hashed_user_id
-        || (prior.parent_embed_id ?? null) !== null) {
+        || (prior.parent_embed_id ?? null) !== (head.parent_embed_id ?? null)) {
         throw new Error("Canonical embed identity differs; queued revision remains pending.");
       }
       const currentVersion = Number(prior.version_number ?? 1);
@@ -388,9 +402,11 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
         canonical = await readEquivalentHistoricalHead(head);
       } else if (currentVersion !== requestedVersion) {
         throw new Error("Canonical embed revision differs; queued revision remains pending.");
-      } else if (requestedVersion > 1) {
+      } else if (requestedVersion > 1 || head.parent_embed_id || ack) {
         canonical = await readEquivalentCanonicalHead(head);
       }
+      // An unacknowledged v1 root can still accept a legacy preview update.
+      // Check its version first so an old queue cannot regress a newer head.
     }
   }
   if (!canonical) try {

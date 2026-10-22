@@ -17,6 +17,8 @@ const state = vi.hoisted(() => ({
   canonicalVersion: 1,
   canonicalOwner: "hash:user-1",
   availabilityState: "ready",
+  parentAvailabilityState: "ready",
+  acknowledged: true,
   readStatus: 200,
   reads: 0,
   localWrites: [] as Array<Record<string, unknown>>,
@@ -146,11 +148,18 @@ beforeEach(() => {
   state.canonicalWrapper = "wrapper"; state.readStatus = 200; state.reads = 0;
   state.canonicalVersion = 1; state.canonicalOwner = "hash:user-1";
   state.availabilityState = "ready";
+  state.parentAvailabilityState = "ready";
+  state.acknowledged = true;
   state.localWrites.length = 0;
   state.historicalSource = "matching-source";
-  vi.stubGlobal("fetch", vi.fn(async () => ({
+  vi.stubGlobal("fetch", vi.fn(async (_url: string, options: { body: string }) => ({
     ok: true, status: 200,
-    json: async () => ({ results: [{ embed_id: "embed-1", state: state.availabilityState }] }),
+    json: async () => ({ results: JSON.parse(options.body).embed_ids.map((embed_id: string, index: number) => ({
+      embed_id, state: index === 0 ? state.availabilityState : state.parentAvailabilityState,
+      ...(index === 0 && state.acknowledged ? { recovery_ack: {
+        state: "ACKNOWLEDGED", version: JSON.parse(options.body).required_recovery_versions[embed_id], canonical_digest: "a".repeat(64),
+      } } : {}),
+    })) }),
   })));
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -170,7 +179,7 @@ describe("canonical embed conflict reconciliation", () => {
     // The completion page repeats v1 after the CLI bootstrap has ACKed it.
     expect(await sendStoreEmbedImpl(service, payload, replayKeys)).toBe(true);
     expect(JSON.stringify(state.canonicalWrappers)).toBe(original);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
     // Typed CLI recovery advances the sealed head without replacing its keys;
     // the queued browser v2 must adopt that head and retain the same wrappers.
     state.canonicalVersion = 2;
@@ -199,20 +208,22 @@ describe("canonical embed conflict reconciliation", () => {
     const original = JSON.stringify(state.canonicalWrappers);
     expect(await sendStoreEmbedImpl(service, payload, keys)).toBe(false);
     expect(JSON.stringify(state.canonicalWrappers)).toBe(original);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
     expect(state.queued.size).toBe(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
-  it.each(["duplicate", "malformed", "wrong-chat"])("rejects a scoped %s canonical wrapper before skipping existing types", async (fault) => {
+  it.each(["conflicting-duplicate", "malformed", "wrong-chat", "foreign-scope", "oversized"])("rejects a scoped %s canonical wrapper before skipping existing types", async (fault) => {
     const master = { ...keys.keys[0], encrypted_embed_key: "wrapper" };
-    state.canonicalWrappers = [master, fault === "duplicate" ? { ...master }
+    state.canonicalWrappers = [master, fault === "conflicting-duplicate" ? { ...master, encrypted_embed_key: "other-wrapper" }
       : { ...master, key_type: "chat", hashed_chat_id: fault === "wrong-chat" ? "hash:other-chat" : "hash:chat-1",
-        encrypted_embed_key: fault === "malformed" ? null : "chat-wrapper" }];
+        encrypted_embed_key: fault === "malformed" ? null : "chat-wrapper",
+        ...(fault === "foreign-scope" ? { hashed_project_id: "foreign" } : {}) }];
+    if (fault === "oversized") state.canonicalWrappers = Array(129).fill(master);
     const original = JSON.stringify(state.canonicalWrappers);
     expect(await sendStoreEmbedImpl(service, payload, keys)).toBe(false);
     expect(JSON.stringify(state.canonicalWrappers)).toBe(original);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
     expect(state.queued.size).toBe(1);
   });
 
@@ -289,13 +300,16 @@ describe("canonical embed conflict reconciliation", () => {
     },
   );
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
-  it("settles an equivalent re-encrypted head against its owner-scoped canonical ciphertext", async () => {
+  it("settles an equivalent re-encrypted v1 before any write or denial, including reconnect flush", async () => {
     await sendStoreEmbedImpl(service, payload, keys);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
     expect(state.reads).toBe(2);
     expect(state.queued.size).toBe(0);
     expect(state.localWrites).toHaveLength(1);
     expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
+    await flushPendingEmbedOperations();
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(0);
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
@@ -319,7 +333,7 @@ describe("canonical embed conflict reconciliation", () => {
     } as unknown as StoreEmbedPayload, keys);
     expect(state.queued.size).toBe(0);
     expect(state.localWrites).toHaveLength(1);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
@@ -339,7 +353,7 @@ describe("canonical embed conflict reconciliation", () => {
     expect(state.queued.size).toBe(0);
     expect(state.localWrites).toHaveLength(1);
     expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
@@ -355,7 +369,7 @@ describe("canonical embed conflict reconciliation", () => {
     } as unknown as StoreEmbedPayload, keys);
     expect(state.queued.size).toBe(1);
     expect(state.localWrites).toEqual([]);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
@@ -372,14 +386,14 @@ describe("canonical embed conflict reconciliation", () => {
     } as unknown as StoreEmbedPayload, keys);
     expect(state.queued.size).toBe(1);
     expect(state.localWrites).toEqual([]);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
   it("retains a changed logical head for the versioned edit path", async () => {
     state.canonicalContent = "cipher:other:old";
     await sendStoreEmbedImpl(service, payload, keys);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
     expect(state.queued.size).toBe(1);
     expect(state.localWrites).toEqual([]);
   });
@@ -408,8 +422,61 @@ describe("canonical embed conflict reconciliation", () => {
   it("does not rotate canonical wrappers to a different key after an equivalent head", async () => {
     const unsafeKeys = { keys: [{ ...keys.keys[0], encrypted_embed_key: "other-wrapper" }] };
     await sendStoreEmbedImpl(service, payload, unsafeKeys);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
     expect(state.queued.size).toBe(1);
     expect(state.localWrites).toEqual([]);
+  });
+});
+
+
+describe("historical parent wrappers and child queue replay", () => {
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([false, true])("verifies every equivalent historical wrapper without rewriting (child=%s)", async (child) => {
+    const parentId = child ? "parent-1" : null;
+    state.canonicalParent = parentId;
+    state.canonicalWrappers = ["wrapper", "wrapper-new"].map((encrypted_embed_key) => ({
+      ...keys.keys[0], hashed_embed_id: `hash:${parentId || payload.embed_id}`, encrypted_embed_key,
+    }));
+    const before = JSON.stringify(state.canonicalWrappers);
+    expect(await sendStoreEmbedImpl(service, { ...payload, parent_embed_id: parentId || undefined }, child ? undefined : keys)).toBe(true);
+    await flushPendingEmbedOperations();
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(0);
+    expect(state.localWrites).toHaveLength(1);
+    expect(JSON.stringify(state.canonicalWrappers)).toBe(before);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("retains an unreadable child across reconnects and adopts it when its parent is readable", async () => {
+    state.canonicalParent = "parent-1";
+    state.canonicalWrappers = [{ ...keys.keys[0], hashed_embed_id: "hash:parent-1", encrypted_embed_key: "wrapper" }];
+    state.availabilityState = "unusable";
+    state.parentAvailabilityState = "unusable";
+    const child = { ...payload, parent_embed_id: "parent-1" };
+    expect(await sendStoreEmbedImpl(service, child)).toBe(false);
+    await flushPendingEmbedOperations();
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(1);
+    expect(state.localWrites).toEqual([]);
+    state.availabilityState = "ready";
+    state.parentAvailabilityState = "ready";
+    await flushPendingEmbedOperations();
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(0);
+    expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it.each([false, true])("preserves initial mutable writes before a recovery ACK (child=%s)", async (child) => {
+    state.acknowledged = false;
+    state.availabilityState = child ? "unusable" : "ready";
+    const { webSocketService } = await import("../websocketService");
+    vi.mocked(webSocketService.sendMessage).mockImplementationOnce(async (type, payload) => {
+      state.sent.push({ type, payload });
+      emit("store_embed_confirmed", { ...payload, canonical_digest: `hash:${payload.encrypted_content}` });
+    });
+    expect(await sendStoreEmbedImpl(service, { ...payload, ...(child ? { parent_embed_id: "parent-1" } : {}) })).toBe(true);
+    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.queued.size).toBe(0);
   });
 });

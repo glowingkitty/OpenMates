@@ -82,6 +82,7 @@ export async function installE2ETestHooks() {
     __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
     __openmatesE2EDraftState?: () => Record<string, unknown>;
+    __openmatesE2ESeedCanonicalEmbedReplay?: () => Promise<Record<string, unknown>>;
     __openmatesE2EReplayCanonicalEmbedWrite?: (input: {
       chatId: string; embedId: string; changeContent?: boolean;
     }) => Promise<{ pending: boolean; connected: boolean }>;
@@ -283,6 +284,77 @@ export async function installE2ETestHooks() {
   testWindow.__openmatesE2EDraftState = () => structuredClone(
     get(draftEditorUIState) as unknown as Record<string, unknown>,
   );
+
+  // Build a provider-free encrypted fixture using this disposable owner's real
+  // browser keys. Export ciphertext only; the isolated runner seeds server rows.
+  testWindow.__openmatesE2ESeedCanonicalEmbedReplay = async () => {
+    const { authStore } = await import('../stores/authState');
+    const { userDB } = await import('./userDB');
+    const { chatKeyManager } = await import('./encryption/ChatKeyManager');
+    const { computeSHA256 } = await import('../message_parsing/utils');
+    const { encryptChatKeyWithMasterKey, deriveEmbedKeyFromChatKey, encryptWithEmbedKey,
+      wrapEmbedKeyWithMasterKey, wrapEmbedKeyWithChatKey } = await import('./encryption/MetadataEncryptor');
+    const { encryptWithChatKey } = await import('./encryption/MessageEncryptor');
+    const { embedStore } = await import('./embedStore');
+    const ownerId = (await userDB.getUserProfile())?.user_id;
+    if (!get(authStore).isAuthenticated || !ownerId) throw new Error('Canonical fixture requires the authenticated test owner');
+    const chatId = crypto.randomUUID(), messageId = crypto.randomUUID();
+    const parentId = crypto.randomUUID(), childId = crypto.randomUUID();
+    const now = Math.floor(Date.now() / 1000), date = new Date().toISOString();
+    const chatKey = crypto.getRandomValues(new Uint8Array(32));
+    const embedKey = await deriveEmbedKeyFromChatKey(chatKey, parentId);
+    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    const encryptedTitle = await encryptWithChatKey('Canonical embed replay fixture', chatKey);
+    if (!encryptedChatKey || !encryptedTitle) throw new Error('Canonical fixture chat encryption failed');
+    const ownerHash = await computeSHA256(ownerId), chatHash = await computeSHA256(chatId);
+    const chat = { id: chatId, hashed_user_id: ownerHash, created_at: now, updated_at: now,
+      last_edited_overall_timestamp: now, last_message_timestamp: now, messages_v: 1, title_v: 1, metadata_v: 1,
+      unread_count: 0, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle };
+    chatKeyManager.injectKey(chatId, chatKey, 'master_key');
+    await chatDB.addChat({ ...chat, chat_id: chatId, user_id: ownerId,
+      title: 'Canonical embed replay fixture', team_id: null } as unknown as Parameters<typeof chatDB.addChat>[0]);
+    const localMessage = { message_id: messageId, chat_id: chatId, role: 'assistant',
+      content: 'Saved canonical embed fixture.', created_at: now, status: 'synced' };
+    const messageFields = await chatDB.getEncryptedFields(
+      localMessage as Parameters<typeof chatDB.getEncryptedFields>[0], chatId,
+    );
+    await chatDB.saveMessage(localMessage as Parameters<typeof chatDB.saveMessage>[0]);
+    const message = { id: messageId, client_message_id: messageId, chat_id: chatId,
+      hashed_user_id: ownerHash, role: 'assistant', created_at: now, updated_at: now, ...messageFields };
+    const content = 'type: code\ncode: canonical replay fixture';
+    const encryptedContent = await encryptWithEmbedKey(content, embedKey);
+    const encryptedType = await encryptWithEmbedKey('code', embedKey);
+    if (!encryptedContent || !encryptedType) throw new Error('Canonical fixture embed encryption failed');
+    const parentHash = await computeSHA256(parentId);
+    const parent = { id: crypto.randomUUID(), embed_id: parentId, hashed_embed_id: parentHash,
+      hashed_chat_id: chatHash, hashed_message_id: await computeSHA256(messageId), hashed_user_id: ownerHash,
+      encrypted_content: encryptedContent, encrypted_type: encryptedType, status: 'finished',
+      version_number: 1, encryption_mode: 'client', is_private: false, is_shared: false, created_at: now, updated_at: now };
+    const child = { ...parent, id: crypto.randomUUID(), embed_id: childId,
+      hashed_embed_id: await computeSHA256(childId), parent_embed_id: parentId, root_embed_id: parentId };
+    const keys = [];
+    for (let index = 0; index < 2; index++) {
+      const master = await wrapEmbedKeyWithMasterKey(embedKey);
+      const wrappedChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+      if (!master || !wrappedChat) throw new Error('Canonical fixture key wrapping failed');
+      keys.push({ id: crypto.randomUUID(), hashed_embed_id: parentHash, key_type: 'master' as const,
+        hashed_chat_id: null, encrypted_embed_key: master, hashed_user_id: ownerHash, created_at: now },
+      { id: crypto.randomUUID(), hashed_embed_id: parentHash, key_type: 'chat' as const,
+        hashed_chat_id: chatHash, encrypted_embed_key: wrappedChat, hashed_user_id: ownerHash, created_at: now });
+    }
+    await embedStore.storeEmbedKeys(keys);
+    for (const embed of [parent, child]) await embedStore.putEncrypted(`embed:${embed.embed_id}`, embed, 'code', content);
+    const outputs = await Promise.all([parent, child].map(async (embed) => ({
+      id: crypto.randomUUID(), hashed_user_id: ownerHash, root_chat_id: chatId, root_hashed_team_id: null,
+      target_chat_id: chatId, turn_id: crypto.randomUUID(), preflight_id: crypto.randomUUID(),
+      inference_task_id: crypto.randomUUID(), subject_id: embed.embed_id, output_kind: 'embed',
+      message_role: null, output_version: 1, chat_key_version: 1, sealed_payload: null,
+      sealed_payload_digest: await computeSHA256('canonical-replay-fixture'), payload_storage: 'inline',
+      payload_size_bytes: 1, state: 'ACKNOWLEDGED', created_at: date, acknowledged_at: date,
+      canonical_digest: await computeSHA256(encryptedContent),
+    })));
+    return { chatId, parentId, childId, ownerId, chat, message, parent, child, keys, outputs };
+  };
 
   // Exercise the real sender against an owner-authorized recovered head. Return
   // only queue state; neither the plaintext nor encrypted material reaches E2E logs.
