@@ -1957,13 +1957,6 @@ import { storageArchiveFetch } from "../config/api";
     });
   });
   
-  // Message ID waiting to be scrolled into view after the new-chat title arrives.
-  // When a message is sent to a brand-new chat we activate the spacer immediately
-  // (so there is room to scroll) but suppress the normal post-send scroll.  Instead
-  // we store the message ID here so triggerNewChatUserMessageScroll() can execute
-  // the scroll 2 s after the title/category/icon have been received.
-  let pendingNewChatScrollMessageId = $state<string | null>(null);
-
   // Whether the streaming spacer should be active.
   // The spacer ensures the scroll position remains valid after the user-message scroll
   // positions the user message near the top of the viewport. Without it, there wouldn't
@@ -2058,9 +2051,18 @@ import { storageArchiveFetch } from "../config/api";
   let previousLocale = $state($locale || 'en');
 
   // Add method to update messages
-  // isNewChat: when true, the post-send scroll is delayed by 2 s so the user can
-  // first see the "Creating new chat..." header transition into the generated title.
+  // isNewChat keeps optimistic rows out of the saved-history entrance animation.
   export function updateMessages(newMessagesArray: GlobalMessage[], isNewChat = false) {
+    if (newMessagesArray.length === 0) {
+      cancelPendingNewUserMessageScroll();
+      lastUserMessageId = null;
+      shouldScrollToNewUserMessage = false;
+      isScrolling = false;
+      isSpacerActive = false;
+      spacerHeight = 0;
+      userHasScrolledAway = false;
+      if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
+    }
     // Check if locale has changed - if so, force re-processing of all messages
     // Use previousLocale to detect changes since currentLocale is $derived
     const newLocale = $locale || 'en';
@@ -2231,27 +2233,7 @@ import { storageArchiveFetch } from "../config/api";
       const newMessage = newInternalMessages[newInternalMessages.length - 1];
       if (newMessage.role === 'user') {
         lastUserMessageId = newMessage.id;
-        if (isNewChat) {
-          // New chat: activate the spacer immediately so there is room to scroll,
-          // but suppress the post-send scroll entirely.  The scroll will fire 2 s
-          // after the title/category/icon arrive via triggerNewChatUserMessageScroll().
-          pendingNewChatScrollMessageId = newMessage.id;
-          isSpacerActive = true;
-          spacerHeight = container?.clientHeight ?? window.innerHeight;
-          if (spacerSafetyTimeout) clearTimeout(spacerSafetyTimeout);
-          spacerSafetyTimeout = setTimeout(() => {
-            if (isSpacerActive) {
-              console.warn('[ChatHistory] Spacer safety timeout (new-chat) — force-deactivating stuck spacer');
-              isSpacerActive = false;
-              spacerHeight = 0;
-              userHasScrolledAway = false;
-              pendingNewChatScrollMessageId = null;
-            }
-            spacerSafetyTimeout = null;
-          }, 60_000);
-        } else {
-          shouldScrollToNewUserMessage = true;
-        }
+        shouldScrollToNewUserMessage = true;
       }
     }
 
@@ -2301,13 +2283,16 @@ import { storageArchiveFetch } from "../config/api";
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // ChatGPT-like scroll behavior: when user sends a message, scroll so that only
-  // the LAST LINE of the user message is visible at the top of the viewport.
-  // This leaves maximum space below for the assistant's response to render.
-  // The scroll target is computed dynamically from the actual rendered line height
-  // so it works correctly regardless of viewport width or message length.
+  // Make room for the response once its first content and the generated header
+  // are rendered. Later chunks never restart this one-time scroll.
   $effect(() => {
+    if (isNewChatGeneratingTitle) return;
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
+      const userIndex = messages.findIndex(message => message.id === lastUserMessageId);
+      const responseStarted = userIndex >= 0 && messages.slice(userIndex + 1).some(message =>
+        message.role === 'assistant' && message.original_message?.content?.trim()
+      );
+      if (!responseStarted) return;
       const scrollContainer = container;
       const scrollMessageId = lastUserMessageId;
       cancelPendingNewUserMessageScroll();
@@ -2358,33 +2343,26 @@ import { storageArchiveFetch } from "../config/api";
             const containerRect = scrollContainer.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
-            // Measure the actual rendered line height from a text paragraph inside the
-            // message bubble. This adapts to any font-size / line-height / viewport width.
-            // Falls back to 24px (16px * 1.5 line-height) if the element can't be found.
-            let lineHeight = 24;
-            const paragraph = userMessageElement.querySelector('.ProseMirror p');
-            if (paragraph) {
-              const computed = window.getComputedStyle(paragraph);
-              const parsed = parseFloat(computed.lineHeight);
-              if (!isNaN(parsed) && parsed > 0) {
-                lineHeight = parsed;
+            // Use actual text-line rectangles: paragraph margins and editor
+            // padding are not text and must not consume either visible line.
+            const textElement = userMessageElement.querySelector('.ProseMirror');
+            const lineTops: number[] = [];
+            if (textElement) {
+              const walker = document.createTreeWalker(textElement, NodeFilter.SHOW_TEXT);
+              const range = document.createRange();
+              while (walker.nextNode()) {
+                if (!walker.currentNode.textContent?.trim()) continue;
+                range.selectNodeContents(walker.currentNode);
+                for (const rect of range.getClientRects()) {
+                  if (rect.width > 0 && rect.height > 0) lineTops.push(rect.top);
+                }
               }
             }
-
-            // We want the scroll position such that only the last line of text
-            // (plus the bubble's bottom padding/chrome) peeks above the viewport top.
-            // "visiblePortion" = one line of text + bubble bottom padding (12px) + 
-            //   bubble tail/shadow clearance (8px)
-            const visiblePortion = lineHeight + 20;
-
-            // topOfMessage in scroll coordinates (relative to container's scroll origin)
-            const topOfMessage = messageRect.top - containerRect.top + scrollContainer.scrollTop;
-            // Total rendered height of the message wrapper element
-            const messageHeight = messageRect.height;
-
-            // Scroll so that the message is pushed up, leaving only visiblePortion showing.
-            // scrollTarget = topOfMessage + (messageHeight - visiblePortion)
-            const scrollTarget = topOfMessage + messageHeight - visiblePortion;
+            const distinctLines = lineTops.sort((a, b) => a - b)
+              .filter((top, index, tops) => index === 0 || top - tops[index - 1] > 2);
+            const visibleTextTop = distinctLines.at(-2) ?? distinctLines.at(-1) ?? messageRect.top;
+            // Keep both lines beneath the container's 30px top fade.
+            const scrollTarget = Math.floor(visibleTextTop - containerRect.top + scrollContainer.scrollTop - 30);
 
             scrollContainer.scrollTo({
               top: Math.max(0, scrollTarget),
@@ -2570,60 +2548,6 @@ import { storageArchiveFetch } from "../config/api";
     } else {
       console.warn("[ChatHistory] Container not found");
     }
-  }
-
-  /**
-   * Called by ActiveChat 3 s after the new-chat title/category/icon have been
-   * received and rendered.  Executes the ChatGPT-style scroll so the user
-   * message sits at the top of the viewport with space below for the AI response.
-   *
-   * Uses tick() to ensure the layout is fully settled (chat header fully rendered)
-   * before measuring positions, which prevents the scroll target being miscalculated.
-   *
-   * If no pending message ID exists (e.g. the scroll was already cancelled) this
-   * is a safe no-op.
-   */
-  export function triggerNewChatUserMessageScroll() {
-    const msgId = pendingNewChatScrollMessageId;
-    if (!msgId || !container) return;
-    pendingNewChatScrollMessageId = null;
-
-    isScrolling = true;
-
-    // Wait for Svelte to flush any pending DOM updates (e.g. the chat header card
-    // finishing its transition) before measuring scroll positions.
-    tick().then(() => {
-      if (!container) { isScrolling = false; return; }
-
-      const userMessageElement = container.querySelector(`[data-message-id="${msgId}"]`);
-      if (!userMessageElement) {
-        console.warn('[ChatHistory] triggerNewChatUserMessageScroll: message element not found for', msgId);
-        isScrolling = false;
-        return;
-      }
-
-      const containerRect = container.getBoundingClientRect();
-      const messageRect = userMessageElement.getBoundingClientRect();
-
-      let lineHeight = 24;
-      const paragraph = userMessageElement.querySelector('.ProseMirror p');
-      if (paragraph) {
-        const computed = window.getComputedStyle(paragraph);
-        const parsed = parseFloat(computed.lineHeight);
-        if (!isNaN(parsed) && parsed > 0) lineHeight = parsed;
-      }
-
-      const visiblePortion = lineHeight + 20;
-      const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
-      const messageHeight = messageRect.height;
-      const scrollTarget = topOfMessage + messageHeight - visiblePortion;
-
-      container.scrollTo({ top: Math.max(0, scrollTarget), behavior: 'smooth' });
-
-      // Allow extra time for the smooth scroll animation to complete (it can span
-      // a large distance from the top of the chat to the user message).
-      setTimeout(() => { isScrolling = false; }, 1200);
-    });
   }
 
   /**
@@ -2962,7 +2886,7 @@ import { storageArchiveFetch } from "../config/api";
     class="chat-history-container"
     class:has-call-strip={!!voiceCallBridge}
     data-testid="chat-history-container"
-    data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage || pendingNewChatScrollMessageId ? 'busy' : 'ready'}
+    data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage ? 'busy' : 'ready'}
     class:empty={displayMessages.length === 0}
     class:is-at-top={isAtTop}
     bind:this={container}
