@@ -1,6 +1,13 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "reminder_notification_setup": {
+      "execution": "e2e",
+      "enabling_work": "Uses fresh runner-private accounts and the core API/CMS/cache/Vault to persist email settings, create and cancel future notification-only reminders, and follow their real WebSocket activation toast. No reminder firing, scheduler, email provider, or AI inference is required.",
+      "specs": [
+        "reminder-notification-setup.spec.ts"
+      ]
+    },
     "native_push_registration": {
       "execution": "e2e",
       "enabling_work": "Use two fresh runner-private authenticated accounts and the isolated core API/CMS. Native tokens and X25519 keys are synthetic; inspect only allowlisted synthetic owners' persisted target JSON. No APNs delivery, external provider, or real AI inference.",

@@ -494,19 +494,23 @@ class SetReminderSkill(BaseSkill):
             # If not, send a real-time WebSocket notification prompting the user to
             # activate email notifications so they don't miss the reminder when offline.
             # The notification includes an action button that deep-links to the
-            # email notification settings page (chat/notifications).
+            # email notification settings page (notifications/chat).
             email_warning = None
             try:
-                email_notifications_active = False
+                email_notifications_active = None
                 should_prompt_email = True
                 if directus_service:
-                    user_profile = await directus_service.get_user_profile(user_id)
-                    if user_profile and user_profile[1]:
-                        email_notifications_active = bool(
-                            user_profile[1].get("email_notifications_enabled", False)
+                    # The cached profile can be stale or omit notification fields.
+                    # Only a persisted, explicit opt-out warrants an activation prompt.
+                    user_settings = await directus_service.get_user_fields_direct(
+                        user_id, ["email_notifications_enabled"], no_cache=True
+                    )
+                    if user_settings:
+                        email_notifications_active = user_settings.get(
+                            "email_notifications_enabled"
                         )
 
-                if not email_notifications_active:
+                if email_notifications_active is False:
                     prompt_cache_key = f"reminder:email_prompt:{hashlib.sha256(user_id.encode()).hexdigest()}"
                     try:
                         already_prompted = await cache_service.get(prompt_cache_key)
@@ -516,7 +520,7 @@ class SetReminderSkill(BaseSkill):
                     except Exception as cache_err:
                         logger.debug(f"Could not dedupe email notification prompt: {cache_err}")
 
-                if not email_notifications_active and should_prompt_email:
+                if email_notifications_active is False and should_prompt_email:
                     email_warning = (
                         "Tip: Set up email notifications in your account settings "
                         "to receive reminder alerts even when you're not using the app."
@@ -539,7 +543,7 @@ class SetReminderSkill(BaseSkill):
                                 "Activate email notifications now to not miss your reminder."
                             ),
                             "action_label": "Go to Settings",
-                            "action_deep_link": "chat/notifications",
+                            "action_deep_link": "notifications/chat",
                             "duration": 12000,
                             "dedupe_key": "activate-email-notifications",
                         },
