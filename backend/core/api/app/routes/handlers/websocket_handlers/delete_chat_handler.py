@@ -9,6 +9,7 @@ from backend.core.api.app.services.directus.directus import DirectusService # Ke
 from backend.core.api.app.utils.encryption import EncryptionService # Keep for Celery task context if needed
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.compliance import ComplianceService # For compliance logging
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
     invalidate_recovery_jobs_for_chat_deletion,
 )
@@ -59,6 +60,7 @@ async def handle_delete_chat(
         remove_project_embeds = bool(payload.get("removeProjectEmbeds"))
     
         try:
+            chat_missing_from_metadata = False
             # 0. Verify chat ownership before processing deletion
             # This prevents users from deleting chats they don't own.
             # CRITICAL: Allow deletion for chats that don't exist in Directus yet
@@ -88,6 +90,7 @@ async def handle_delete_chat(
                     else:
                         # Chat does not exist in Directus - treat as local-only chat.
                         # We still proceed with cache tombstoning to ensure any residual cache state is cleaned up.
+                        chat_missing_from_metadata = True
                         logger.debug(
                             f"Chat {chat_id} not found in Directus during delete_chat - treating as new/local chat (allowed)."
                         )
@@ -116,6 +119,7 @@ async def handle_delete_chat(
                         return
                     else:
                         # Chat doesn't exist in Directus - treat as local-only chat and continue deletion.
+                        chat_missing_from_metadata = True
                         logger.debug(
                             f"Chat {chat_id} not found in Directus after ownership check error - treating as new/local chat for delete_chat."
                         )
@@ -141,12 +145,30 @@ async def handle_delete_chat(
             from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
             recent_work_summary_cache.revoke_chat(owner_id=user_id, chat_id=chat_id)
 
-            # Recovery access must disappear before chat/cache access is removed.
-            await invalidate_recovery_jobs_for_chat_deletion(
-                directus_service=directus_service,
-                user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
-                chat_id=chat_id,
-            )
+            local_only_chat = False
+            try:
+                # Existing deletion fences also authorize retries after the chat
+                # row was removed, so always try the durable deletion path first.
+                await invalidate_recovery_jobs_for_chat_deletion(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                    chat_id=chat_id,
+                )
+            except ChatRecoveryProtocolError as error:
+                if not chat_missing_from_metadata or error.status_code != 404 or error.code != "chat_not_found":
+                    raise
+                # get_chat_metadata also returns None on lookup failures. Require
+                # an authoritative empty result before skipping saved-chat fences.
+                rows = await directus_service.get_items(
+                    "chats",
+                    params={"filter[id][_eq]": chat_id, "fields": "id", "limit": 1},
+                    no_cache=True,
+                    admin_required=True,
+                    raise_on_error=True,
+                )
+                if rows != []:
+                    raise RuntimeError("Could not confirm draft-only chat is unpersisted")
+                local_only_chat = True
 
             # 1. Mark chat as deleted in general cache (tombstone)
             # Cached drafts will be allowed to expire naturally.
@@ -206,10 +228,13 @@ async def handle_delete_chat(
             else:
                 logger.warning(f"Failed to fully tombstone chat {chat_id} in cache for user {user_id}.")
 
-            # 3. Trigger Celery task to delete chat from Directus and ALL associated drafts
+            # 3. Saved chats require durable deletion in the persistence worker.
+            # Draft-only shells have no chat row; their draft is deleted through
+            # delete_draft, and the worker would reject their missing fence.
             try:
-                _queue_delete_chat_task(user_id, chat_id, remove_project_embeds)
-                logger.info(f"Successfully queued Celery task persist_delete_chat for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
+                if not local_only_chat:
+                    _queue_delete_chat_task(user_id, chat_id, remove_project_embeds)
+                    logger.info(f"Successfully queued Celery task persist_delete_chat for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
             except Exception as celery_e:
                 logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)
 
