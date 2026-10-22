@@ -19,7 +19,7 @@ from backend.shared.python_utils.geo_utils import geocode_address
 from backend.apps.home.location_clues import extract_location_clues
 from backend.apps.home.location_areas import (
     apply_area, area_from_feature, clue_area, distance, feature_point,
-    has_exact_address, matching_address, matching_anchor, matching_region, normalized,
+    has_exact_address, matching_address, matching_anchor, matching_anchor_name, matching_region, normalized,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ async def enrich_home_locations(
     """
     categories = requested_categories(request)
     radius = max(1, min(5000, int(_get(request, "neighborhood_radius_m", 1500) or 1500)))
-    provider = GeoapifyPlacesProvider(secrets_manager=secrets_manager, cache_service=cache_service)
+    provider = GeoapifyPlacesProvider(secrets_manager=secrets_manager, cache_service=cache_service, timeout_seconds=2.0)
     warnings: set[str] = set()
     semaphore = asyncio.Semaphore(MAX_LOCATION_CONCURRENCY)
     requests_used = 0
@@ -160,29 +160,47 @@ async def enrich_home_locations(
                 if clue.get("relation") not in {"distance", "walk_time"}:
                     continue  # Qualitative claims retain the district/city circle.
                 match = await call(provider.geocode_address, f"{clue['anchor_name']}, {locality(listing)}")
+                verified_places = False
+                # Geocoding can identify a station without exposing its category.
+                # Verify that identity through typed Places data before refining.
+                if clue.get("anchor_type") in {"station", "transit"} and match.status == "ok":
+                    seeds = [feature for feature in match.places[:2]
+                             if isinstance(feature, dict) and feature_point(feature)
+                             and matching_anchor_name(feature, clue, locality(listing))
+                             and (_number(_mapping(_mapping(feature.get("properties")).get("rank")).get("confidence")) or 0) >= .8]
+                    if seeds and not any(matching_anchor(feature, clue, locality(listing)) for feature in seeds):
+                        if len(seeds) > 1 and distance(feature_point(seeds[0]), feature_point(seeds[1])) > 250:
+                            location["refinement_status"] = "ambiguous"
+                            return
+                        lat, lon = feature_point(seeds[0])
+                        match = await call(provider.search_places, query="", categories=["public_transport"],
+                                           geo_filter=f"circle:{lon},{lat},1500", bias=f"proximity:{lon},{lat}", limit=20)
+                        verified_places = True
                 candidates = []
-                for feature in match.places[:2] if match.status == "ok" else []:
+                for feature in match.places[:20] if match.status == "ok" else []:
                     if not isinstance(feature, dict):
                         continue
                     props = _mapping(feature.get("properties"))
                     confidence = _number(_mapping(props.get("rank")).get("confidence"))
-                    if not matching_anchor(feature, clue, locality(listing)) or confidence is None or confidence < 0.8:
+                    if not matching_anchor(feature, clue, locality(listing)) or (not verified_places and (confidence is None or confidence < 0.8)):
                         continue
                     point = feature_point(feature)
                     broad = _mapping(location.get("area"))
+                    if point and verified_places and distance(point, (lat, lon)) > 1500:
+                        continue
                     if point and broad and distance(point, (broad["latitude"], broad["longitude"])) > broad["radius_m"]:
                         continue
                     if point:
                         candidates.append(feature)
                 # Separate distant namesakes from entrances/platforms of one anchor.
-                if len(candidates) > 1 and distance(feature_point(candidates[0]), feature_point(candidates[1])) > 250:
+                if len(candidates) > 1 and any(distance(feature_point(candidates[0]), feature_point(other)) > 250 for other in candidates[1:]):
                     location["refinement_status"] = "ambiguous"
                     return
                 if candidates:
                     area = clue_area(clue, candidates[0], source=GEOAPIFY_SOURCE_LABEL, checked_at=match.checked_at)
                     if area:
                         if len(candidates) > 1:
-                            area["radius_m"] += math.ceil(distance(feature_point(candidates[0]), feature_point(candidates[1])))
+                            area["radius_m"] += math.ceil(max(distance(feature_point(candidates[0]), feature_point(other)) for other in candidates[1:]))
                         areas.append(area)
             if not areas:
                 if result["status"] == "ok":

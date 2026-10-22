@@ -159,7 +159,7 @@ def matching_region(feature: dict[str, Any], name: str, basis: str, city: str) -
     return bool(claimed_city and normalized(claimed_city) == normalized(city))
 
 
-def matching_anchor(feature: dict[str, Any], clue: dict[str, Any], city: str) -> bool:
+def matching_anchor_name(feature: dict[str, Any], clue: dict[str, Any], city: str) -> bool:
     props = _record(feature.get("properties"))
     if normalized(props.get("city") or props.get("town")) != normalized(city):
         return False
@@ -167,8 +167,13 @@ def matching_anchor(feature: dict[str, Any], clue: dict[str, Any], city: str) ->
         text = normalized(value)
         text = re.sub(r"\b(?:s-bahnhof|u-bahnhof|bahnhof|station|s-bahn|u-bahn)\b", " ", text)
         return " ".join(text.split()).removeprefix(normalized(city) + " ")
-    if not name(props.get("name")) or name(props.get("name")) != name(clue.get("anchor_name")):
+    return bool(name(props.get("name")) and name(props.get("name")) == name(clue.get("anchor_name")))
+
+
+def matching_anchor(feature: dict[str, Any], clue: dict[str, Any], city: str) -> bool:
+    if not matching_anchor_name(feature, clue, city):
         return False
+    props = _record(feature.get("properties"))
     categories = props.get("categories")
     categories = [value for value in categories if isinstance(value, str)] if isinstance(categories, list) else []
     if isinstance(props.get("category"), str):

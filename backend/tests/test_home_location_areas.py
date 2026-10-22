@@ -176,6 +176,23 @@ async def test_grounded_numeric_anchor_refines_and_namesake_conflicts_abstain(ge
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
+async def test_unclassified_station_geocode_requires_typed_places_confirmation(geo, monkeypatch):
+    clue = {"anchor_name": "Berlin Ostbahnhof", "anchor_type": "station", "relation": "distance", "quantity": 600, "unit": "m", "evidence_quote": "600 m from Berlin Ostbahnhof"}
+    monkeypatch.setattr(home, "extract_location_clues", AsyncMock(return_value={"status": "ok", "clues": [clue]}))
+    props = {"name": "Berlin Ostbahnhof", "city": "Berlin", "lat": 52.51, "lon": 13.43}
+    geo.geocode_address.return_value = Result(status="ok", places=[{"properties": {**props, "rank": {"confidence": 1}}}])
+    item = {"description": clue["evidence_quote"]}
+    await enrich([item])
+    assert item["location"]["area"]["basis"] == "city"
+    geo.search_places.return_value = Result(status="ok", places=[{"properties": {**props, "categories": ["public_transport.train"]}}])
+    await enrich([item])
+    assert item["location"]["area"]["basis"] == "description"
+    assert item["location"]["area"]["radius_m"] >= 1000
+    assert geo.search_places.call_args.kwargs["categories"] == ["public_transport"]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
 async def test_candidate_cap_still_downgrades_unaddressed_building_claims(geo, monkeypatch):
     monkeypatch.setattr(home, "MAX_LOCATION_CANDIDATES", 0)
     item = {"latitude": 52.5, "longitude": 13.4, "location_precision": "building", "location_approximate": False}
