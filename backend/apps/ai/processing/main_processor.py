@@ -38,6 +38,7 @@ from backend.apps.ai.processing.search_skill_reliability import (
     normalize_json_request_array,
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
+    reuse_completed_web_search_requests, web_search_request_key,
 )
 from backend.apps.ai.processing.model_routing import (
     LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, mercury_reasoning_budget,
@@ -6205,6 +6206,7 @@ async def handle_main_processing(
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
+    continue_published_answer = False
     published_answer_text: List[str] = []
     omitted_news_search_requests = 0
     
@@ -6577,6 +6579,9 @@ async def handle_main_processing(
         if force_no_tools:
             iteration_system_prompt += "\n\n" + ANSWER_RECOVERY_INSTRUCTION
 
+        if continue_published_answer:
+            iteration_system_prompt += "\n\nContinue only after the already-published answer. Do not repeat it. Add only missing information, or a brief closing sentence if the answer is already complete."
+
         if omitted_news_search_requests:
             iteration_system_prompt += (
                 "\n\nThe news search budget omitted some requested searches. "
@@ -6651,7 +6656,7 @@ async def handle_main_processing(
                     system_prompt=iteration_system_prompt,
                     tools=iteration_tools,
                 )
-                if answer_recovery.active:
+                if answer_recovery.active or continue_published_answer:
                     # Normalize tool results through the existing content-safety
                     # and ignore-fields path before converting them to evidence.
                     current_message_history = build_answer_recovery_history(
@@ -7086,6 +7091,7 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+        web_search_reuse: Dict[str, tuple[dict, list[dict]]] = {}
         focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
@@ -7353,6 +7359,12 @@ async def handle_main_processing(
                         current_message_history,
                         log_prefix,
                     )
+
+                    if (app_id, skill_id) == ("web", "search"):
+                        parsed_args, reused = reuse_completed_web_search_requests(parsed_args, completed_skill_calls)
+                        web_search_reuse[tool_call_id] = (parsed_args, reused)
+                        if reused and not parsed_args["requests"]:
+                            continue  # No new card, budget use, reservation or provider request.
 
                     if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
                         parsed_args, omitted_inline_news_requests = _limit_news_search_batch_to_budget(
@@ -7910,11 +7922,12 @@ async def handle_main_processing(
         if protocol_guard.detected:
             logger.warning(
                 "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; "
-                "native_calls=%s safe_text_chars=%s recovery_attempts=%s",
+                "native_calls=%s safe_text_chars=%s recovery_attempts=%s classification=%s",
                 log_prefix,
                 len(tool_calls_for_this_turn),
                 len(final_buffered_text_for_turn),
                 answer_recovery.attempts,
+                protocol_guard.diagnostics,
             )
             if not tool_calls_for_this_turn:
                 # Disabling tools alone retains the prompt that elicited the
@@ -8300,6 +8313,7 @@ async def handle_main_processing(
                 if (
                     (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
                     or is_legacy_task_runtime_tool_name(parallel_tool_name)
+                    or bool(web_search_reuse.get(parallel_tool_call.tool_call_id, ({}, []))[1])
                     or parallel_call_hash in completed_skill_calls
                     or parallel_call_hash in parallel_hashes
                 ):
@@ -8624,6 +8638,17 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+                if tool_call_id in web_search_reuse:
+                    parsed_args, reused = web_search_reuse[tool_call_id]
+                    if reused and not parsed_args["requests"]:
+                        current_message_history.append({
+                            "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                            "content": json.dumps({"status": "already_completed",
+                                "previous_embed_ids": [item["embed_id"] for item in reused if item.get("embed_id")],
+                                "message": "Use the existing search evidence. Do not repeat the search or any already-published answer."}),
+                        })
+                        logger.info("%s [SEARCH_REUSE] Reused %s completed requests; provider dispatch skipped", log_prefix, len(reused))
+                        continue
 
                 if is_legacy_task_runtime_tool_name(tool_name):
                     if task_tool_context is None:
@@ -10006,6 +10031,14 @@ async def handle_main_processing(
                             "embed_id": embed_id_for_dedup,
                             "skill_task_id": skill_task_id,
                         }
+                        if (app_id, skill_id) == ("web", "search"):
+                            placeholders = placeholder_embed_data.get("placeholders", []) if placeholder_embed_data else []
+                            for index, request in enumerate(skill_arguments.get("requests", [])):
+                                key = web_search_request_key(skill_arguments, request)
+                                if key is not None:
+                                    completed_skill_calls[key] = {
+                                        "embed_id": placeholders[index].get("embed_id") if index < len(placeholders) else embed_id_for_dedup,
+                                    }
                         logger.info(
                             f"{log_prefix} [DEDUP] Recorded successful '{app_id}.{skill_id}' call "
                             f"(hash={call_hash[:8]}..., embed_id={embed_id_for_dedup})"
@@ -11937,6 +11970,13 @@ async def handle_main_processing(
                     }
                 })
 
+            reused = web_search_reuse.get(tool_call_id, ({}, []))[1]
+            if reused:
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "reused_search_requests": len(reused),
+                    "previous_embed_ids": [item["embed_id"] for item in reused if item.get("embed_id")],
+                    "instruction": "The other requested searches already completed; use their earlier evidence.",
+                })
             tool_response_message = {
                 "tool_call_id": tool_call_id,
                 "role": "tool",
@@ -11945,6 +11985,15 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
+
+        if tool_calls_for_this_turn and all(
+            call.tool_call_id in web_search_reuse
+            and web_search_reuse[call.tool_call_id][1]
+            and not web_search_reuse[call.tool_call_id][0]["requests"]
+            for call in tool_calls_for_this_turn
+        ):
+            force_no_tools = True
+            continue_published_answer = bool(published_answer_text)
 
         if async_batch_jobs:
             checkpoint = {

@@ -333,3 +333,20 @@ def test_protocol_without_any_safe_text_gets_one_bounded_restart():
     assert main_processing_failure_reason(
         main_processing_failure('protocol_guard')
     ) == 'protocol_guard'
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize('fence,reason,closed', [
+    ('```tool_code\nprivate-client-message\n```', 'tool_code_fence', True),
+    ('```toon\napp_id: private-app\nskill_id: private-skill\n```', 'toon_app_skill_fields', True),
+    ('```toon\n"tool": "private-query"\n```', 'toon_json_tool_field', True),
+    ('```toon\ntool: private-query', 'toon_tool_field', False),
+])
+def test_guard_diagnostics_contain_only_allowlisted_structure(fence, reason, closed):
+    guard, output = run_guard([fence[i:i+2] for i in range(0, len(fence), 2)])
+    assert guard.detected and output == []
+    assert guard.diagnostics['reason'] == reason
+    assert guard.diagnostics['closed'] is closed
+    assert set(guard.diagnostics) == {'reason', 'language', 'closed', 'body_chars'}
+    assert guard.diagnostics['body_chars'] > 0
+    assert 'private' not in str(guard.diagnostics)

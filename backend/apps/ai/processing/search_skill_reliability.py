@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from typing import Any
@@ -245,3 +246,39 @@ def normalize_string_query_request_items(
     normalized = arguments.copy()
     normalized["requests"] = normalized_requests
     return normalized, normalized_string_items
+
+
+def web_search_request_key(arguments: dict, request: Any) -> str | None:
+    """Identify equivalent read-only requests without correlation/internal fields.
+
+    Keys remain private turn state and must never be included in diagnostics.
+    Preserve every search option, including unknown future options.
+    """
+    if not isinstance(request, dict) or not isinstance(request.get("query"), str):
+        return None
+    item = {k: v for k, v in request.items() if k != "id" and not k.startswith("_") and v is not None}
+    item["query"] = item["query"].strip()
+    item.setdefault("count", 10)
+    for field, default in (("provider", "brave"), ("country", "us"), ("search_lang", "en"), ("safesearch", "moderate")):
+        value = item.get(field, default)
+        item[field] = value.strip().lower() if isinstance(value, str) else value
+    if isinstance(item.get("relevance_criteria", ""), str) and not item.get("relevance_criteria", "").strip():
+        item.pop("relevance_criteria", None)
+    options = {k: v for k, v in arguments.items() if k not in {"requests", "id"} and not k.startswith("_")}
+    encoded = json.dumps([options, item], sort_keys=True, ensure_ascii=False)
+    return "web-search-request:" + hashlib.sha256(encoded.encode()).hexdigest()
+
+
+def reuse_completed_web_search_requests(arguments: dict, completed: dict) -> tuple[dict, list[dict]]:
+    """Partition completed requests before placeholders, budgeting and dispatch."""
+    requests = arguments.get("requests")
+    if not isinstance(requests, list) or not requests:
+        return arguments, []
+    fresh, reused = [], []
+    for request in requests:
+        key = web_search_request_key(arguments, request)
+        if key is not None and key in completed:
+            reused.append(completed[key])
+        else:
+            fresh.append(request)
+    return ({**arguments, "requests": fresh}, reused) if reused else (arguments, [])

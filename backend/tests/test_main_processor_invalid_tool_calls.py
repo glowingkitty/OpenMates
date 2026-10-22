@@ -3137,3 +3137,55 @@ async def test_jev_mercury_effort_survives_protocol_answer_recovery(monkeypatch)
     assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]['system_prompt']
     assert all(call.kwargs['output_token_limit'] == 32_768 for call in reserve.await_args_list)
     assert 'Recovered answer.' in ''.join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+@pytest.mark.parametrize("mixed", [False, True])
+async def test_completed_search_member_is_reused_across_batches(monkeypatch, mixed):
+    from backend.apps.ai.processing.search_skill_reliability import web_search_request_key
+    requests = [{"query": f"synthetic option {index}", "count": 8} for index in range(3)]
+    dispatched = AsyncMock(side_effect=lambda **kwargs: [{"results": [
+        {"id": item.get("id", index+1), "results": []}
+        for index, item in enumerate(kwargs["arguments"]["requests"])
+    ]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    repeated = [{**requests[0], "id": "different-correlation"}]
+    if mixed:
+        repeated.append({"query": "synthetic new option", "count": 8})
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search", "arguments": {"requests": requests}, "tool_call_id": "initial-search"}],
+         ["The available evidence supports option one.\n\n", {"fake_google_tool_call": "web-search", "arguments": {"requests": repeated}, "tool_call_id": "repeat-search"}],
+         ["The remaining limitation is availability."]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search web."}}],
+        discovered_apps_metadata={"web": SimpleNamespace(skills=[SimpleNamespace(
+            id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
+            tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+        )], instructions=[], focuses=[])},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"], "complexity": "simple"},
+    )
+    assert dispatched.await_count == (2 if mixed else 1)
+    if mixed:
+        assert [r['query'] for r in dispatched.await_args_list[1].kwargs['arguments']['requests']] == ['synthetic new option']
+    else:
+        assert calls[-1]['tools'] is None and calls[-1]['tool_choice'] == 'none'
+        assert 'ALREADY PUBLISHED TO THE USER' in str(calls[-1]['message_history'])
+    assert ''.join(c for c in output if isinstance(c, str)).count('The available evidence supports option one.') == 1
+    original = {"requests": requests}
+    first_key = web_search_request_key(original, requests[0])
+    assert first_key == web_search_request_key(original, {**requests[0], 'id': 'new-id'})
+    for option in ({'count': 9}, {'country': 'de'}, {'freshness': 'pd'}, {'relevance_criteria': 'specific preference'}):
+        assert first_key != web_search_request_key(original, {**requests[0], **option})
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_guard_log_diagnostics_do_not_include_suppressed_content(monkeypatch, caplog):
+    private_fixture = 'synthetic-private-client-detail-and-search-query'
+    await _run_mocked_protocol_guard_main_processor(monkeypatch, [
+        ['```tool_code:private-file-name\n' + private_fixture + '\n```'],
+        ['A safe authored answer.'],
+    ])
+    diagnostics = [record.getMessage() for record in caplog.records if '[TOOL_PROTOCOL_GUARD]' in record.getMessage()]
+    assert diagnostics
+    assert any('tool_code_fence' in message and 'body_chars' in message for message in diagnostics)
+    assert all(private_fixture not in message and 'private-file-name' not in message for message in diagnostics)

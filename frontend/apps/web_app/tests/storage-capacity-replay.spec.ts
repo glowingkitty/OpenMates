@@ -99,3 +99,70 @@ test('fabricated tool protocol recovers without skill-dispatch instructions as o
 	await assertSafeAnswer(messages.nth(previousCount));
 	await deleteActiveChat(page, log, screenshot, 'storage-protocol-recovery');
 });
+
+// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence,issue-reporting.logs.authenticated-capture
+test('reuses a completed search member and captures every report text segment', async ({ page }: { page: any }) => {
+	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
+	test.setTimeout(180_000);
+	const log = createSignupLogger('search-member-reuse');
+	const screenshot = createStepScreenshotter(log);
+	await installE2EServerContentOverrideGate(page, 'search-member-reuse');
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	await sendMessage(page,
+		'Compare the synthetic options. STORAGE_CAPACITY_SCENARIO:search_reuse <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+		log, screenshot, 'search-member-reuse');
+	const answer = await waitForAssistantMessage(page, { contains: 'Search reuse closing sentence.' });
+	await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+	await expect(page.getByTestId('stop-processing-button')).toBeHidden();
+	const verifyAnswer = async () => {
+		const current = page.getByTestId('message-assistant').filter({ hasText: 'Search reuse closing sentence.' });
+		const text = await current.innerText();
+		expect(text.split('Search reuse final answer.').length - 1).toBe(1);
+		expect(text).not.toContain('Duplicate synthesis should never appear.');
+		expect(text).not.toMatch(TERMINAL_ERROR);
+		for (const toggle of await current.getByTestId('assistant-activity-toggle').all()) {
+			if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+		}
+		await expect(current.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')).toHaveCount(3);
+		await expect(current.getByTestId('embed-error-banner')).toHaveCount(0);
+		return current;
+	};
+	await verifyAnswer();
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
+	await expect(page.getByTestId('message-assistant').filter({ hasText: 'Search reuse closing sentence.' })).toBeVisible();
+	const persisted = await verifyAnswer();
+	await expect(persisted.locator('.read-only-message .ProseMirror')).not.toHaveCount(1);
+
+	const payloads: Array<Record<string, unknown>> = [];
+	await page.route('**/v1/settings/issues', async (route: any) => {
+		if (route.request().method() !== 'POST') return route.continue();
+		payloads.push(route.request().postDataJSON());
+		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+			success: true, issue_id: '00000000-0000-4000-8000-000000000001', short_issue_id: 'ABCDE', screenshot_uploaded: false,
+		}) });
+	});
+	await page.locator('#settings-menu-toggle').click();
+	await page.locator('[data-testid="settings-menu"].visible').getByRole('menuitem', { name: /report.*issue|issue.*report|problem.*melden/i }).first().click();
+	await expect(page.getByTestId('report-issue-form')).toBeVisible();
+	await expect(page.locator('#share-chat-toggle')).toBeChecked();
+	await page.getByTestId('report-issue-title').fill('Synthetic segmented message capture');
+	await page.getByTestId('report-issue-submit').click();
+	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 30_000 });
+	expect(payloads).toHaveLength(1);
+	const captured = String(payloads[0].last_messages_html);
+	for (const marker of ['Search reuse introduction.', 'Search reuse final answer.', 'Search reuse closing sentence.']) {
+		expect(captured.split(marker).length - 1).toBe(1);
+	}
+	expect(captured.indexOf('Search reuse introduction.')).toBeLessThan(captured.indexOf('Search reuse final answer.'));
+	expect(captured.indexOf('Search reuse final answer.')).toBeLessThan(captured.indexOf('Search reuse closing sentence.'));
+	await page.getByTestId('report-issue-submit-another').click();
+	await page.locator('label[for="share-chat-toggle"]').click();
+	await page.getByTestId('report-issue-title').fill('Synthetic capture opt out');
+	await page.getByTestId('report-issue-submit').click();
+	await expect(page.getByTestId('report-issue-confirmation')).toBeVisible();
+	expect(payloads).toHaveLength(2);
+	expect(payloads[1].last_messages_html).toBeNull();
+	expect(payloads[1].chat_or_embed_url).toBeNull();
+});

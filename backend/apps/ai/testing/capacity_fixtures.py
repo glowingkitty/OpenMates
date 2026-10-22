@@ -17,7 +17,7 @@ import os
 SCENARIO = re.compile(
     r"STORAGE_CAPACITY_SCENARIO:(round|tool|child|child_worker|version_create|version_update|"
     r"recovery_embed|recovery_composite|recovery_diff|recovery_checkpoint|recovery_save_failure|"
-    r"recovery_detached_doc|recovery_protocol)(?:\b|$)"
+    r"recovery_detached_doc|recovery_protocol|search_reuse)(?:\b|$)"
 )
 
 _VERSION_MARKER = re.compile(r"(?:[a-f0-9]|\[OM_PII_[A-F0-9]{32}\])+")
@@ -189,7 +189,7 @@ def _preprocessing_arguments(scenario: str) -> dict[str, Any]:
         "load_app_settings_and_memories": [],
         "relevant_app_skills": (["math-calculate"] if scenario == "tool"
                                 else ["events-search"] if scenario == "recovery_composite"
-                                else ["web-search"] if scenario == "recovery_protocol" else []),
+                                else ["web-search"] if scenario in {"recovery_protocol", "search_reuse"} else []),
         "relevant_focus_modes": [],
         "relevant_embedded_previews": [],
         "topic_area": "general_misc",
@@ -355,6 +355,18 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
             "query": "39c3", "conference": "39c3", "provider": "pretalx",
             "past_events": True, "count": 10,
         }]}, google=google, fingerprint=fingerprint))
+    if scenario == "search_reuse":
+        if "ALREADY PUBLISHED TO THE USER" in all_text and "Search reuse final answer." in all_text:
+            return _main_stream(model, "Search reuse closing sentence.")
+        returned = sum(message.get("role") == "tool" for message in _current_turn_tail(messages))
+        requests = [{"query": f"openmates_e2e_web_fixture_ai reuse-option-{index}", "count": 1} for index in range(3)]
+        if returned == 0:
+            return _main_stream(model, "Search reuse introduction.\n\n", _call(
+                "web-search", {"requests": requests}, google=google, fingerprint=fingerprint))
+        if returned == 1:
+            return _main_stream(model, "Search reuse final answer.\n\n", _call(
+                "web-search", {"requests": requests[:1]}, google=google, fingerprint=fingerprint))
+        return _main_stream(model, "Duplicate synthesis should never appear.")
     if scenario == "recovery_embed":
         return _main_stream(model, (
             "```python:recovery_demo.py\n"

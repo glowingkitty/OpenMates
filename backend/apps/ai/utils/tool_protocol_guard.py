@@ -74,18 +74,26 @@ class ToolProtocolRecoveryState:
         return "error"
 
 
-def is_internal_tool_protocol(language: str, content: str) -> bool:
+def tool_protocol_reason(language: str, content: str) -> str | None:
     """Recognize internal app result envelopes, while preserving ordinary code."""
     if language.lower() == "tool_code":
-        return True
+        return "tool_code_fence"
     if language.lower() != "toon":
-        return False
-    return bool(
-        (_APP_FIELD.search(content) and _SKILL_FIELD.search(content))
-        or '"tool":' in content
-        or "tool_code" in content
-        or "tool:" in content.lower()
-    )
+        return None
+    for matched, reason in (
+        (_APP_FIELD.search(content) and _SKILL_FIELD.search(content), "toon_app_skill_fields"),
+        ('"tool":' in content, "toon_json_tool_field"),
+        ("tool_code" in content, "toon_tool_code_marker"),
+        ("tool:" in content.lower(), "toon_tool_field"),
+    ):
+        if matched:
+            return reason
+    return None
+
+
+def is_internal_tool_protocol(language: str, content: str) -> bool:
+    """Keep classification unchanged; diagnostics expose fixed codes only."""
+    return tool_protocol_reason(language, content) is not None
 
 
 class ToolProtocolGuard:
@@ -100,6 +108,7 @@ class ToolProtocolGuard:
 
     def __init__(self) -> None:
         self.detected = False
+        self.diagnostics: dict[str, str | int | bool] = {}
 
     async def filter(self, raw_stream: AsyncIterator[Any]) -> AsyncIterator[Any]:
         async def text_stream() -> AsyncIterator[Any]:
@@ -131,11 +140,13 @@ class ToolProtocolGuard:
                 continue
             if is_internal_tool_protocol(language, pending[opening_end:]):
                 self.detected = True
+                self.diagnostics = {"reason": tool_protocol_reason(language, pending[opening_end:]), "language": language.lower(), "closed": True, "body_chars": len(pending) - opening_end}
             else:
                 yield pending
             pending = ""
         if pending and not self.detected:
             if is_internal_tool_protocol(language, pending):
                 self.detected = True
+                self.diagnostics = {"reason": tool_protocol_reason(language, pending), "language": language.lower(), "closed": False, "body_chars": len(pending)}
             else:
                 yield pending
