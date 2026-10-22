@@ -555,6 +555,19 @@ EXPLICIT_NEWS_SEARCH_PATTERN = re.compile(
     r"\b(?:news\s+)?(?:articles?|headlines?|press\s+coverage|reporting)\b",
     re.IGNORECASE,
 )
+EXPLICIT_WEB_SEARCH_PATTERN = re.compile(
+    r"\b(?:(?:search|browse|research)\s+(?:(?:on|in)\s+)?(?:the\s+)?(?:web|internet)"
+    r"|(?:research|search|look\s+(?:it\s+)?up)\s+online"
+    r"|(?:online|im\s+(?:internet|web))\s+(?:recherchier(?:en|e)?|such(?:en|e)?))\b",
+    re.IGNORECASE,
+)
+NEGATED_WEB_SEARCH_PATTERN = re.compile(
+    r"\b(?:(?:do\s+not|don't|dont|never)\b[^.!?\n]{0,40}\b(?:search|browse|research|look\s+up)"
+    r"|(?:without|no)\s+(?:browsing|web\s+search|online\s+research)"
+    r"|(?:nicht|keine?)\b[^.!?\n]{0,40}\b(?:recherchier\w*|such\w*|internet|web)"
+    r"|(?:recherchier\w*|such\w*)\b[^.!?\n]{0,40}\bnicht)\b",
+    re.IGNORECASE,
+)
 NEGATED_SEARCH_PATTERN = re.compile(
     r"\b(?:do\s+not|don't|dont|never)\s+(?:search|find|look\s+up|lookup|get|show)\b",
     re.IGNORECASE,
@@ -633,14 +646,14 @@ def _resolve_explicit_natural_search_intent(
 ) -> List[str]:
     """Resolve unambiguous natural-language requests for a search surface."""
     latest_user_text = _latest_user_text_from_history(message_history)
-    if (
-        "news-search" not in available_skill_ids
-        or not latest_user_text
-        or NEGATED_SEARCH_PATTERN.search(latest_user_text)
-    ):
+    if not latest_user_text or NEGATED_SEARCH_PATTERN.search(latest_user_text):
         return []
-    if EXPLICIT_NEWS_SEARCH_PATTERN.search(latest_user_text):
+    if "news-search" in available_skill_ids and EXPLICIT_NEWS_SEARCH_PATTERN.search(latest_user_text):
         return ["news-search"]
+    if ("web-search" in available_skill_ids
+            and EXPLICIT_WEB_SEARCH_PATTERN.search(latest_user_text)
+            and not NEGATED_WEB_SEARCH_PATTERN.search(latest_user_text)):
+        return ["web-search"]
     return []
 
 
@@ -4003,10 +4016,17 @@ async def handle_preprocessing(
                     "latest user message explicitly requested known app skill identifier(s)."
                 )
         if natural_search_intents:
-            user_requested_skills_only = True
-            validated_relevant_skills = natural_search_intents
+            # A generic research request adds web capability without replacing
+            # specialized skills selected for the user's underlying task.
+            if natural_search_intents == ["news-search"]:
+                user_requested_skills_only = True
+                validated_relevant_skills = natural_search_intents
+            else:
+                validated_relevant_skills = list(dict.fromkeys(
+                    natural_search_intents + validated_relevant_skills
+                ))
             logger.info(
-                f"{log_prefix} [RULE_BASED] Using only explicitly requested skills "
+                f"{log_prefix} [RULE_BASED] Retained explicitly requested skills "
                 f"{natural_search_intents}: latest user message requested the corresponding "
                 "search or app skill."
             )

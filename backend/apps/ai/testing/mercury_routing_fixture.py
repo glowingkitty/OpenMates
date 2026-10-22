@@ -26,6 +26,8 @@ HIGH_PROMPT = "What is 5 + 5? MERCURY_ROUTING_E2E:high"
 EXTRA_HIGH_PROMPT = "What is 6 + 6? MERCURY_ROUTING_E2E:extra_high"
 HIGH_RECOVERY_PROMPT = "Review the interacting constraints. MERCURY_ROUTING_E2E:high_recovery"
 CHEAP_FALLBACK_PROMPT = "Summarize the available evidence. MERCURY_ROUTING_E2E:cheap_fallback"
+WEB_RESEARCH_PROMPT = "Kannst du bitte online recherchieren und die Quellen vergleichen? MERCURY_ROUTING_E2E:web_research"
+WEB_RESEARCH_RESPONSE = "Die Websuche wurde ausgeführt. Die gefundenen Quellen sind im Suchergebnis verfügbar."
 SUCCESS_RESPONSE = "The answer is 4. Automatic routing completed successfully."
 FALLBACK_RESPONSE = "The answer is 6. Automatic routing recovered successfully."
 DISABLED_RESPONSE = "The answer is 8. Your disabled model was respected."
@@ -36,7 +38,7 @@ EXTRA_HIGH_RESPONSE = "The answer is 12. Google clamped the EXTRA_HIGH recommend
 HIGH_RECOVERY_RESPONSE = "Mercury preserved the recommendation at HIGH during recovery."
 PROTOCOL_TEXT = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
 PROMPTS = (SUCCESS_PROMPT, FALLBACK_PROMPT, DISABLED_PROMPT, GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT,
-           HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT)
+           HIGH_PROMPT, EXTRA_HIGH_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT)
 MAX_FAILURE_WITNESSES = 128
 # wait_for() consumes Mercury's first chunk in a child task, so a ContextVar set
 # there would not reach the fallback task. Store only opaque task IDs, bounded.
@@ -74,7 +76,9 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
     if not (_prompt(state.get("messages")) or any(
             prompt in str(state.get("user_message") or "") for prompt in PROMPTS)):
         return None
-    medium = any(prompt in str(state) for prompt in (GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT, HIGH_RECOVERY_PROMPT))
+    medium = any(prompt in str(state) for prompt in (
+        GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT, HIGH_RECOVERY_PROMPT, WEB_RESEARCH_PROMPT,
+    ))
     preferred = {"complexity": "medium" if medium else "low", "task_area": "general", "topic_shift": "noticeable_shift",
                  "temperature": "precise", "preview": "none", "language": "en", "icon": "calculator",
                  "project_target": "none", "topic_area": "general_misc"}
@@ -153,6 +157,29 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
                 "parsing_error": None}]}}}}
     if category != f"llm/{model}" or kwargs.get("stream") is False:
         return None
+    if prompt == WEB_RESEARCH_PROMPT:
+        # Jev deliberately selected no apps or skills. Require the real
+        # preprocessor to recover capability before issuing a typed call.
+        search_name = next((name for name in names if name in {"web-search", "web_search"}), None)
+        if not search_name:
+            raise AssertionError("Explicit web research reached inference without web search")
+        results = [message for message in kwargs.get("messages") or [] if isinstance(message, dict)
+                   and message.get("role") == "tool" and message.get("tool_call_id") == "web-research-search"]
+        if results:
+            if "OpenMates E2E Web Fixture" not in str(results[-1].get("content")):
+                raise AssertionError("Web research must consume the real search skill's result")
+            return _packet(model, WEB_RESEARCH_RESPONSE)
+        arguments = {"requests": [{"query": "openmates_e2e_web_fixture_ai", "count": 2}]}
+        packet = _packet(model, "")
+        packet["response"]["chunks"][0] = {
+            "kind": "pydantic", "module": "backend.apps.ai.llm_providers.openai_shared",
+            "class": "ParsedOpenAIToolCall", "value": {
+                "tool_call_id": "web-research-search", "function_name": search_name,
+                "function_arguments_raw": json.dumps(arguments), "function_arguments_parsed": arguments,
+                "parsing_error": None,
+            },
+        }
+        return packet
     if prompt in {GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT, HIGH_RECOVERY_PROMPT}:
         if model == LOW_FALLBACK_MODEL.split("/", 1)[1]:
             expected_level = "HIGH" if prompt == HIGH_RECOVERY_PROMPT else "MEDIUM"

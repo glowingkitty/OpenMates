@@ -19,6 +19,7 @@ from backend.apps.ai.testing.mercury_routing_fixture import (
     DISABLED_PROMPT, DISABLED_RESPONSE, HIGH_PROMPT, HIGH_RESPONSE,
     EXTRA_HIGH_PROMPT, EXTRA_HIGH_RESPONSE, HIGH_RECOVERY_PROMPT, HIGH_RECOVERY_RESPONSE,
     GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE, CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE,
+    WEB_RESEARCH_PROMPT, WEB_RESEARCH_RESPONSE,
     active, jev_response, llm_fixture,
 )
 from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION, build_answer_recovery_history
@@ -123,6 +124,30 @@ def test_unrelated_or_changed_classifier_request_is_rejected(replay):
         assert not active()
     finally:
         mock_group_var.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_web_research_replay_requires_capability_and_real_tool_result(replay, tmp_path):
+    async def forbidden_provider(**_kwargs):
+        raise AssertionError("Web research replay must never dispatch a real provider")
+
+    wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
+    model = LOW_FALLBACK_MODEL.split("/", 1)[1]
+    history = [{"role": "user", "content": WEB_RESEARCH_PROMPT}]
+    kwargs = dict(model_id=model, stream=True, task_id="web-research-test", messages=history)
+    with pytest.raises(AssertionError, match="without web search"):
+        llm_fixture(f"llm/{model}", kwargs)
+    tools = [{"type": "function", "function": {"name": "web_search"}}]
+    stream = await wrapped(**kwargs, tools=tools)
+    chunks = [chunk async for chunk in stream]
+    assert chunks[0].function_name == "web_search"
+    assert chunks[0].function_arguments_parsed["requests"][0]["query"] == "openmates_e2e_web_fixture_ai"
+    result = {"role": "tool", "tool_call_id": "web-research-search", "content": "error"}
+    with pytest.raises(AssertionError, match="real search skill"):
+        llm_fixture(f"llm/{model}", {**kwargs, "tools": tools, "messages": [*history, result]})
+    result["content"] = "OpenMates E2E Web Fixture"
+    stream = await wrapped(**{**kwargs, "messages": [*history, result]}, tools=tools)
+    assert [chunk async for chunk in stream][0] == WEB_RESEARCH_RESPONSE
 
 
 def test_disabled_model_path_forbids_mercury_and_admits_native_gemini(replay):

@@ -16,6 +16,8 @@ install_code_route_import_stubs()
 import sys
 import types
 
+import pytest
+
 llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
 llm_utils_stub.call_preprocessing_llm = None
 llm_utils_stub.LLMPreprocessingCallResult = object
@@ -136,3 +138,38 @@ def test_non_news_articles_request_does_not_force_news_search() -> None:
     )
 
     assert result == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
+@pytest.mark.parametrize("text", [
+    "Kannst du bitte online recherchieren und die Quellen vergleichen?",
+    "Bitte im Internet recherchieren, ob das noch stimmt.",
+    "Search the web for current documentation.",
+    "Could you research online and compare the sources?",
+])
+def test_explicit_web_research_survives_missing_news_capability(text: str) -> None:
+    assert _resolve_explicit_natural_search_intent([_user_message(text)], ["web-search"]) == ["web-search"]
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("text", [
+    "Bitte nicht online recherchieren, erkläre nur die frühere Antwort.",
+    "Bitte online recherchieren? Nein, recherchiere nicht im Internet.",
+    "Don't browse the web; explain the earlier result.",
+    "Research online? No browsing, please.",
+    "What did the earlier sources say?",
+])
+def test_web_research_recovery_respects_negation_and_latest_user_intent(text: str) -> None:
+    assert _resolve_explicit_natural_search_intent([
+        _user_message("Bitte online recherchieren."),
+        {"role": "assistant", "content": "Search the web for this."},
+        _user_message(text),
+        {"role": "user", "sender_name": "async_tool_result", "content": "Search the web again."},
+    ], ["web-search", "news-search"]) == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_web_research_recovery_requires_registered_search_skill() -> None:
+    assert _resolve_explicit_natural_search_intent([
+        _user_message("Bitte online recherchieren."),
+    ], ["images-search"]) == []

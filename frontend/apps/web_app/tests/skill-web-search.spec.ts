@@ -20,12 +20,14 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
-	withLiveMockMarker
+	withLiveMockMarker,
+	installE2EServerContentOverrideGate
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
+	waitForAssistantMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
@@ -116,6 +118,43 @@ test.describe('App: Web / Skill: search', () => {
 		// Cleanup: extract chat ID and delete
 		if (parsed.chat_id) {
 			await runCli(apiUrl, ['chats', 'delete', parsed.chat_id, '--yes'], 15_000);
+		}
+	});
+
+	// S7HHQ: classifier omission must not turn explicit research into a code card.
+	// The signed replay returns zero app/skill scores and rejects main requests
+	// without web search. Search execution, result embeds and persistence are real.
+	// contract-test: direct surface=gui.web assertions=web-search.surface-parity,app-skills.execution.registered-validated
+	test('German web research executes search after an empty app shortlist', async ({ page }: { page: any }) => {
+		test.setTimeout(180_000);
+		test.skip(process.env.CI !== 'true' || process.env.CI_TEST_MODE !== 'e2e'
+			|| process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the isolated provider-free product stack.');
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		const log = createSignupLogger('WEB_RESEARCH_ROUTING');
+		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'web-research-routing' });
+		await installE2EServerContentOverrideGate(page, 'web-research-routing');
+		await loginToTestAccount(page, log, screenshot);
+		await startNewChat(page, log);
+		try {
+			await sendMessage(page,
+				'Kannst du bitte online recherchieren und die Quellen vergleichen? MERCURY_ROUTING_E2E:web_research <<<TEST_LIVE_MOCK:mercury_auto_low>>>',
+				log, screenshot, 'web-research');
+			const assistant = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+			await expect(assistant).toContainText('Die Websuche wurde ausgeführt.', { timeout: 60_000 });
+			const embed = await waitForEmbedFinished(page, 'web', 'search');
+			await expect(embed).toContainText(WEB_SEARCH_FIXTURE_QUERY);
+			await expect(assistant).not.toContainText('requests:');
+			await screenshot(page, 'web-research-search-executed');
+			const fullscreen = await openFullscreen(page, embed);
+			await expect(fullscreen).toContainText('OpenMates E2E Web Fixture');
+			await closeFullscreen(page, fullscreen);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			const persisted = await waitForEmbedFinished(page, 'web', 'search');
+			await expect(persisted).toContainText(WEB_SEARCH_FIXTURE_QUERY);
+			await expect(page.getByTestId('message-assistant').last()).toContainText('Die Websuche wurde ausgeführt.');
+			await screenshot(page, 'web-research-persisted');
+		} finally {
+			if (/chat-id=/.test(page.url())) await deleteActiveChat(page, log, screenshot, 'web-research-cleanup');
 		}
 	});
 
