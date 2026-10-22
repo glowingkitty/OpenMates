@@ -33,7 +33,7 @@
   //
   // Responsive behavior:
   //   - When container width ≤ 400px: compact card (300×200px standard layout)
-  //   - When container width > 400px: expanded card (full-width × 350px)
+  //   - When container width > 400px: expanded card (full-width × 400px)
   //   CSS container queries handle the switch automatically via the
   //   .embed-preview-large-container wrapper which sets container-type.
   //
@@ -50,7 +50,7 @@
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   import { isExampleChat, resolveExampleChatEmbedRef } from '../../demo_chats/exampleChatStore';
   const sourceChatId = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT)?.chatId ?? null;
-  import { getLucideIcon } from '../../utils/categoryUtils';
+  import EmbedChevron from './EmbedChevron.svelte';
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
   import {
     embedStore,
@@ -58,8 +58,6 @@
   } from '../../services/embedStore';
   import { shouldHydrateCarouselSlide } from './embedPreviewHydration';
 
-  const ChevronLeft = getLucideIcon('chevron-left');
-  const ChevronRight = getLucideIcon('chevron-right');
 
   const SWIPE_MIN_DISTANCE_PX = 48;
   const SWIPE_MAX_VERTICAL_DRIFT_PX = 60;
@@ -276,6 +274,33 @@
   // translateY matches the actual rendered shell precisely.
   let measuredShellHeight = $state(0);
 
+  let navigationBounds = $state<{ left: number; top: number; width: number; height: number }>();
+
+  // Renderer-owned wrappers can include line boxes below the card. Observe the
+  // rendered card itself rather than treating the whole shell as its surface.
+  function trackNavigationSurface(stage: HTMLElement) {
+    let card: HTMLElement | null = null;
+    const measure = () => {
+      const next = stage.querySelector<HTMLElement>('[data-testid="embed-preview"]');
+      if (next !== card) {
+        if (card) resize.unobserve(card);
+        card = next;
+        if (card) resize.observe(card);
+      }
+      if (!card) { navigationBounds = undefined; return; }
+      const origin = stage.getBoundingClientRect();
+      const bounds = card.getBoundingClientRect();
+      navigationBounds = { left: bounds.left - origin.left, top: bounds.top - origin.top,
+        width: bounds.width, height: bounds.height };
+    };
+    const resize = new ResizeObserver(measure);
+    resize.observe(stage);
+    const mutations = new MutationObserver(measure);
+    mutations.observe(stage, { childList: true, subtree: true });
+    measure();
+    return { destroy() { resize.disconnect(); mutations.disconnect(); } };
+  }
+
   onMount(() => {
     if (!wrapperEl) return;
     const ro = new ResizeObserver((entries) => {
@@ -317,6 +342,7 @@
     class:embed-preview-large-wrapper--has-dots={hasMultiple}
     style="min-height: {shellMinHeight}px;"
   >
+    <div class="embed-preview-large-stage" use:trackNavigationSurface>
     <div class="embed-preview-large-container">
       <div
         class="embed-preview-large-content"
@@ -329,15 +355,19 @@
         {/if}
       </div>
     </div>
-
-    {#if hasMultiple}
+      {#if hasMultiple}
+      <div class="navigation-surface"
+        style:left={navigationBounds ? `${navigationBounds.left}px` : '0'}
+        style:top={navigationBounds ? `${navigationBounds.top}px` : '0'}
+        style:width={navigationBounds ? `${navigationBounds.width}px` : '100%'}
+        style:height={navigationBounds ? `${navigationBounds.height}px` : '100%'}>
       <button
         class="nav-arrow nav-arrow-left"
         type="button"
         onclick={handlePrevious}
         aria-label="Previous"
       >
-        <ChevronLeft size={22} color="rgba(255,255,255,0.85)" />
+        <EmbedChevron direction="previous" />
       </button>
 
       <button
@@ -346,9 +376,13 @@
         onclick={handleNext}
         aria-label="Next"
       >
-        <ChevronRight size={22} color="rgba(255,255,255,0.85)" />
+        <EmbedChevron direction="next" />
       </button>
+      </div>
+      {/if}
+    </div>
 
+    {#if hasMultiple}
       <div class="carousel-dots" role="tablist" aria-label="Carousel position">
         {#each Array(carouselTotal) as _, i}
           <button
@@ -408,6 +442,13 @@
      Establishes a CSS container named "embed-preview" so that child components
      (UnifiedEmbedPreview) can use @container queries to switch between
      compact (≤400px) and expanded (>400px) layouts. */
+  /* Keep navigation outside the named container's stacking context, so its
+     controls remain above a later slide's overlay while anchoring to the card. */
+  .embed-preview-large-stage {
+    position: relative;
+    width: 100%;
+  }
+
   .embed-preview-large-container {
     container-type: inline-size;
     container-name: embed-preview;
@@ -508,15 +549,19 @@
   }
 
   /* ── Navigation arrows (matches ChatHeader .nav-arrow style) ────────────── */
+  .navigation-surface { position: absolute; pointer-events: none; }
+
   .nav-arrow {
     position: absolute;
-    top: 50%;
+    bottom: 10px;
     padding: 0 !important;
     min-width: unset !important;
     width: 36px !important;
     height: 36px !important;
     border-radius: 50% !important;
-    background-color: rgba(0, 0, 0, 0.48) !important;
+    background: var(--color-grey-0) !important;
+    color: var(--color-font-secondary);
+    box-shadow: var(--shadow-md);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     filter: none !important;
@@ -526,7 +571,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transform: translateY(-50%);
+    transform: none;
     transition: background-color var(--duration-fast) var(--easing-default);
     z-index: var(--z-index-dropdown-2);
     pointer-events: auto;
@@ -534,21 +579,21 @@
   }
 
   .nav-arrow:hover {
-    background-color: rgba(0, 0, 0, 0.65) !important;
+    background: var(--color-grey-10) !important;
     scale: none !important;
   }
 
   .nav-arrow:active {
-    background-color: rgba(0, 0, 0, 0.75) !important;
+    background: var(--color-grey-20) !important;
     scale: none !important;
     filter: none !important;
   }
 
   .nav-arrow-left {
-    left: 8px;
+    left: 10px;
   }
 
   .nav-arrow-right {
-    right: 8px;
+    right: 10px;
   }
 </style>

@@ -695,5 +695,40 @@
     height: 44px !important;
     font-size: 1.5rem;
   }
+  /* Leaflet panes must stay below controls, including legacy MapsView globals. */
+  :global(.embed-leaflet-map .leaflet-top),
+  :global(.embed-leaflet-map .leaflet-bottom) { z-index: 1000; }
+  :global(.embed-leaflet-map .leaflet-top .leaflet-control-zoom) {
+    position: relative;
+    z-index: 1001;
+    background: var(--color-grey-0) !important;
+    box-shadow: var(--shadow-md) !important;
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a) {
+    background: var(--color-grey-0) !important;
+    color: var(--color-primary);
+    position: relative;
+    font-size: 0 !important;
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a::after) {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--color-primary);
+    mask: center / contain no-repeat;
+    -webkit-mask: center / contain no-repeat;
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a.leaflet-control-zoom-in::after) {
+    mask-image: var(--icon-url-plus);
+    -webkit-mask-image: var(--icon-url-plus);
+  }
+  :global(.embed-leaflet-map .leaflet-control-zoom a.leaflet-control-zoom-out::after) {
+    mask-image: var(--icon-url-minus);
+    -webkit-mask-image: var(--icon-url-minus);
+  }
   :global(.embed-leaflet-map.hide-zoom-controls .leaflet-control-zoom) { display: none; }
 </style>

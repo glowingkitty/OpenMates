@@ -17,6 +17,8 @@ const defaultProps = {
 	url: 'https://www.immobilienscout24.de/expose/12345',
 	provider: 'ImmoScout24',
 	listing_type: 'rent',
+  lat: 52.49, lon: 13.42, location_precision: 'district', location_approximate: true,
+  location_area: {latitude: 52.49, longitude: 13.42, radius_m: 1200, basis: 'district'},
 	onSelect: () => console.log('[Preview] result expanded')
 };
 
@@ -24,6 +26,8 @@ export default defaultProps;
 
 /** Named variants for different listing types */
 export const variants = {
+  noLocation: {...defaultProps, image_url: '', lat: undefined, lon: undefined, location_area: undefined},
+  brokenImage: {...defaultProps, image_url: 'data:image/png;base64,invalid-image'},
   noImage: {...defaultProps, image_url: ''},
   chat: {...defaultProps, resultContext: 'chat' as const},
 	/** WG-Gesucht room listing */

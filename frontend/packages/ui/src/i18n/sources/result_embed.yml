@@ -646,3 +646,53 @@ no_hourly_data:
   sv: Timprognos saknas
   he: תחזית לפי שעה אינה זמינה
   verified_by_human: []
+
+event_organized_by:
+  context: Label above an event organizer identity card
+  en: organized by
+  de: Organisiert von
+  zh: 主办方
+  es: Organizado por
+  fr: Organisé par
+  pt: Organizado por
+  ru: Организатор
+  ja: 主催
+  ko: 주최
+  it: Organizzato da
+  tr: Düzenleyen
+  vi: Đơn vị tổ chức
+  id: Diselenggarakan oleh
+  pl: Organizator
+  nl: Georganiseerd door
+  ar: تنظيم
+  hi: आयोजक
+  th: จัดโดย
+  cs: Pořadatel
+  sv: Arrangeras av
+  he: מאורגן על ידי
+  verified_by_human: []
+
+event_at:
+  context: Label above an event venue identity card
+  en: at
+  de: Ort
+  zh: 地点
+  es: Lugar
+  fr: Lieu
+  pt: Local
+  ru: Место
+  ja: 場所
+  ko: 장소
+  it: Luogo
+  tr: Yer
+  vi: Tại
+  id: Lokasi
+  pl: Miejsce
+  nl: Locatie
+  ar: المكان
+  hi: स्थान
+  th: สถานที่
+  cs: Místo
+  sv: Plats
+  he: מיקום
+  verified_by_human: []

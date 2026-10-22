@@ -19,6 +19,7 @@ export const listing = {
 const defaultProps = { data: {decodedContent: listing}, onClose: () => {} };
 export default defaultProps;
 export const variants = {
+  rentDetails: {data: {decodedContent: {...listing, price: 1250, heating_costs_eur: 80, available_to: '2027-06-30'}}},
   legacyApproximate: {data: {decodedContent: {...listing, location: {exact_address: false}}}},
   cityArea: {data: {decodedContent: {...listing, location_precision: 'city', location: {area: {latitude: 52.52, longitude: 13.405, radius_m: 18000, basis: 'city', method: 'city_extent', source: 'Provider city', checked_at: '2026-10-21'}}}}},
   persistedFlattened: {data: {decodedContent: {
@@ -37,6 +38,7 @@ export const variants = {
     {name: 'Lake map point', distance_m: 700, distance_method: 'representative_point', walk_minutes: 5, walk_status: 'access_unknown', source: 'Geoapify', checked_at: '2026-10-21', location_precision: 'building'}
   ]}}}}},
   longGallery: {data: {decodedContent: {...listing, image_url: '/store-examples/home-1.webp?photo=1', image_urls: Array.from({length: 18}, (_, index) => `/store-examples/home-${index % 3 + 1}.webp?photo=${index + 1}`), visual_assessment: {...listing.visual_assessment, photo_count: 2, total_photo_count: 18}}}},
+  noPhotosWithMap: {data: {decodedContent: {...listing, image_url: '', image_urls: [], gallery_status: 'unavailable'}}},
   noPhotos: {data: {decodedContent: {...listing, image_url: '', image_urls: [], gallery_status: 'unavailable', location: {}, latitude: null, longitude: null, visual_assessment: {status: 'unavailable'}}}},
   partialGallery: {data: {decodedContent: {...listing, image_urls: [listing.image_url], gallery_status: 'partial'}}},
   serializedGallery: {data: {decodedContent: {...listing, image_urls: JSON.stringify([...listing.image_urls, listing.image_url]), match_evidence: JSON.stringify(listing.match_evidence)}}},

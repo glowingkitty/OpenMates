@@ -629,7 +629,7 @@
         {#if $authStore.isAuthenticated}
           <EmbedHeaderCtaButton
             label={savedMemoryEntry ? "Forget" : "Add memory"}
-            variant={savedMemoryEntry ? "destructive" : "secondary"}
+            variant="secondary" iconName="heart" iconOnly pressed={!!savedMemoryEntry}
             onclick={handleToggleSavedAppointment}
             testId="save-embed-cta"
           />

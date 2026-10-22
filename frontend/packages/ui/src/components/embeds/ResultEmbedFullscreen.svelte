@@ -32,6 +32,7 @@
     summary?: Snippet;
     media?: Snippet;
     detailContent?: Snippet;
+    identity?: Snippet;
     mediaLayout?: "standard" | "immersive";
     mapCenter?: { lat: number; lon: number };
     mapMarkers?: MapMarker[];
@@ -46,7 +47,7 @@
   // This Svelte-only adapter forwards the fullscreen API; it is not a custom element.
   // svelte-ignore custom_element_props_identifier
   let {
-    result, summary, media, detailContent, mediaLayout = "standard",
+    result, summary, media, detailContent, identity, mediaLayout = "standard",
     mapCenter, mapMarkers = [], mapZoom = 15, mapPath = [], mapPaths = [],
     mapPathColor, mapScrollWheelZoom = false, onMapReady, staticMapImageUrl,
     ...fullscreen
@@ -56,6 +57,16 @@
   const onClose = $derived(fullscreen.onClose);
   let contentElement = $state<HTMLDivElement>();
   let fullscreenHeight = $state<number>();
+  let followupElement = $state<HTMLDivElement>();
+  let followupHeight = $state(64);
+  $effect(() => {
+    if (!followupElement) return;
+    const updateHeight = () => { followupHeight = followupElement!.offsetHeight; };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(followupElement);
+    return () => observer.disconnect();
+  });
   $effect(() => {
     if (mediaLayout !== "immersive" || !contentElement) return;
     const overlay = contentElement.closest<HTMLElement>(".unified-embed-fullscreen-overlay");
@@ -141,6 +152,7 @@
     <div
       bind:this={contentElement}
       style:--result-fullscreen-height={fullscreenHeight ? `${fullscreenHeight}px` : undefined}
+      style:--result-followup-height={`${followupHeight}px`}
       class="result-embed-content"
       class:immersive={mediaLayout === "immersive"}
       data-testid="result-embed-content"
@@ -181,11 +193,12 @@
           {/if}
         </div>
       {/if}
+      {#if identity}<div class="result-identity-content">{@render identity()}</div>{/if}
       {#if detailContent}<div class="result-detail-content">{@render detailContent()}</div>{/if}
     </div>
   {/snippet}
   {#snippet fixedBottom()}
-    <div class="result-followup">
+    <div class="result-followup" bind:this={followupElement}>
       <AppsRequestComposer
         presentation="embed"
         {appId}
@@ -206,10 +219,12 @@
     width: min(100%, 64rem);
     margin-inline: auto;
     box-sizing: border-box;
-    padding: var(--spacing-12) var(--spacing-6) 7rem;
+    padding: var(--spacing-12) var(--spacing-6) calc(var(--result-followup-height, 4rem) + 3rem);
+    --result-media-max-height: max(1rem, calc(var(--result-fullscreen-height, 100dvh) - 27rem - max(0px, var(--result-followup-height, 4rem) - 4rem)));
     color: var(--color-font-primary);
   }
   .result-summary {
+    margin-top: var(--spacing-6);
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
@@ -219,12 +234,14 @@
     padding: var(--spacing-2) var(--spacing-4);
     max-width: 100%;
   }
-  .result-summary:empty { display: none; }
+  .result-summary:not(:has(> *)) { display: none; }
   .result-media {
     width: 100%;
     min-width: 0;
     display: grid;
     gap: var(--spacing-4);
+    container-type: inline-size;
+    --result-media-height: clamp(16rem, 35vh, 23rem);
   }
   .result-media-panel,
   .result-map {
@@ -232,10 +249,12 @@
     border-radius: var(--radius-6);
     overflow: hidden;
   }
+  .result-media-panel { overflow: visible; background: transparent; }
   .result-map {
-    height: clamp(12.5rem, 27vh, 19rem);
+    height: var(--result-media-height);
     background: var(--color-grey-25);
   }
+  .result-identity-content { width: min(100%, 48rem); }
   .result-detail-content {
     width: min(100%, 34rem);
     display: flex;
@@ -270,13 +289,14 @@
     white-space: pre-wrap;
   }
   .result-followup {
-    width: min(100%, 25rem);
+    width: min(100%, 629px);
     margin-inline: auto;
   }
   @container fullscreen (min-width: 600px) {
     .result-embed-content {
       padding-inline: var(--spacing-16);
     }
+    .result-media { --result-media-height: clamp(16rem, calc(100cqw / 3.4), 23rem); }
     .result-media.split {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 0;
@@ -288,17 +308,17 @@
     .split .result-map {
       border-start-start-radius: 0;
       border-end-start-radius: 0;
-      height: 100%;
-      min-height: 15rem;
+      height: var(--result-media-height);
+      min-height: var(--result-media-height);
     }
   }
   .static-map { width: 100%; height: 100%; object-fit: contain; }
   .result-embed-content.immersive { width: 100%; }
-  .immersive .result-media-panel { background: transparent; }
+  .immersive .result-media-panel { height: auto; background: transparent; overflow: hidden; }
   .immersive .result-media-panel :global(.result-primary-media) {
     display: block;
     max-width: 100%;
-    max-height: max(12rem, calc(var(--result-fullscreen-height, 100dvh) - 27rem));
+    max-height: var(--result-media-max-height);
     object-fit: contain;
     margin-inline: auto;
   }

@@ -141,12 +141,12 @@
 .message-field {
   width: 100%;
   min-height: 100px;
-  background-color: var(--color-grey-blue);
-  border-radius: 24px;
+  background-color: var(--composer-background, var(--color-grey-blue));
+  border-radius: var(--composer-radius, 24px);
   padding: 0 0 60px 0;
   box-sizing: border-box;
   position: relative;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--composer-shadow, 0 4px 12px rgba(0, 0, 0, 0.08));
   transition:
     padding 0.3s ease-in-out,
     max-height 0.3s ease-in-out,
@@ -166,7 +166,7 @@
 
 /* Focus reveals a multiline canvas without replacing the mounted editor. */
 .message-field.focused:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
-  min-height: 180px;
+  min-height: var(--composer-focused-height, 180px);
 }
 
 .minimized-send-button {
@@ -205,7 +205,7 @@
 
 /* Compact mode when action buttons are hidden */
 .message-field.compact {
-  min-height: 60px;
+  min-height: var(--composer-compact-height, 60px);
   padding: 0 0 10px 0;
 }
 

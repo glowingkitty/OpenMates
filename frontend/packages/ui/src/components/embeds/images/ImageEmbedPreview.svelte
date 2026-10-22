@@ -167,40 +167,6 @@
 
   skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
 
-  // Portrait detection: detected after the image loads naturally.
-  // For portrait images (height > width) we expand the embed card height so the
-  // full image is visible instead of being cropped by object-fit: cover.
-  let isPortrait = $state(false);
-  // Card height override in pixels (undefined → default 200px from UnifiedEmbedPreview)
-  let portraitCardHeight = $state<number | undefined>(undefined);
-
-  /** Max embed card height for portrait images (px). Keeps them from being too tall. */
-  const MAX_PORTRAIT_CARD_HEIGHT = 400;
-  /** Default card height (must match UnifiedEmbedPreview desktop height). */
-  const DEFAULT_CARD_HEIGHT = 200;
-
-  /**
-   * Called when the preview <img> finishes loading.
-   * Detects portrait images and calculates a proportional card height so the
-   * full image height fits without cropping.
-   */
-  function handleImageLoad(e: Event) {
-    const img = e.currentTarget as HTMLImageElement;
-    const { naturalWidth, naturalHeight } = img;
-    if (!naturalWidth || !naturalHeight) return;
-
-    if (naturalHeight > naturalWidth) {
-      // Portrait image: compute the height that fits the full image within the 300px wide card.
-      // ratio = naturalHeight / naturalWidth  →  needed px height = 300 * ratio
-      const neededHeight = Math.round((DEFAULT_CARD_HEIGHT * naturalHeight) / naturalWidth);
-      isPortrait = true;
-      portraitCardHeight = Math.min(neededHeight, MAX_PORTRAIT_CARD_HEIGHT);
-    } else {
-      isPortrait = false;
-      portraitCardHeight = undefined;
-    }
-  }
-
   // Track which S3 key we retained so we can release on unmount
   let retainedS3Key: string | undefined = undefined;
 
@@ -460,7 +426,6 @@
   customStatusText={statusText}
   showSkillIcon={false}
   hasFullWidthImage={!!displayUrl && !imageError && status !== 'error'}
-  customHeight={isPortrait ? portraitCardHeight : undefined}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
     <ResultEmbedCard title={filename || skillName} sourceLabel={statusText} mediaFit="contain">
@@ -474,7 +439,7 @@
           card's subtitle (customStatusText), not drawn on top of the image.
         -->
         <div class="image-content">
-          <img src={displayUrl} alt={filename || 'Uploaded image'} class="preview-image" class:portrait={isPortrait} onload={handleImageLoad} />
+          <img src={displayUrl} alt={filename || 'Uploaded image'} class="preview-image" />
           {#if status === 'finished'}<ImageAuthenticityBadge {aiDetection} />{/if}
         </div>
 
@@ -535,17 +500,6 @@
     display: block;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
-
-  /*
-   * Portrait (vertical) images: use object-fit: contain so the full image
-   * height is visible without cropping. The card height is dynamically
-   * expanded via the customHeight prop on UnifiedEmbedPreview.
-   */
-  .preview-image.portrait {
-    object-fit: contain;
-    background: var(--color-grey-20, #f0f0f0);
-  }
-
 
   /* Loading skeleton */
   .skeleton-content {

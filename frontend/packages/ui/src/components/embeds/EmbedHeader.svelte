@@ -20,6 +20,7 @@
 -->
 
 <script lang="ts">
+  import EmbedChevron from "./EmbedChevron.svelte";
   import { resolveHeaderSwipeNavigation } from '../headerSwipeNavigation';
   import { text } from '../../i18n/translations';
   import Icon from '../Icon.svelte';
@@ -146,10 +147,6 @@
   let safeFaviconUrl = $derived(
     faviconUrl ? proxyImage(faviconUrl, MAX_WIDTH_FAVICON) : undefined
   );
-
-  function hideFavicon(e: Event) {
-    handleImageError(e.target as HTMLImageElement);
-  }
 
   function normalizeIconName(value: string | undefined): string {
     const normalized = value?.trim().toLowerCase().replace(/\s+/g, '-') ?? '';
@@ -319,7 +316,7 @@
               class="header-favicon"
               class:circular={faviconIsCircular}
               crossorigin="anonymous"
-              onerror={hideFavicon}
+              use:handleImageError
             />
           {/if}
           <span class="header-title-text" data-testid="embed-header-title">{title}</span>
@@ -357,7 +354,7 @@
         aria-label="Next embed"
         type="button"
       >
-        <span class="nav-chevron nav-chevron-left"></span>
+        <EmbedChevron direction="previous" />
       </button>
     {/if}
     {#if hasPreviousEmbed && onNavigatePrevious}
@@ -367,7 +364,7 @@
         aria-label="Previous embed"
         type="button"
       >
-        <span class="nav-chevron nav-chevron-right"></span>
+        <EmbedChevron direction="next" />
       </button>
     {/if}
   </div>
@@ -617,13 +614,14 @@
      ========================================================== */
 
   .header-center {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-2);
     z-index: var(--z-index-raised-2);
     padding: var(--spacing-8) var(--spacing-12);
-    max-width: 480px;
+    max-width: min(480px, calc(100% - 88px));
     width: 100%;
     animation: fadeIn 0.35s ease-out;
   }
@@ -847,8 +845,10 @@
     min-width: unset !important;
     width: 36px !important;
     height: 36px !important;
-    border-radius: 50% !important;
-    background-color: var(--color-grey-50) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--color-font-button);
+    box-shadow: none !important;
     opacity: 0.5;
     filter: none !important;
     margin: 0 !important;
@@ -869,7 +869,7 @@
 
   .nav-arrow:hover {
     opacity: 0.85;
-    background-color: var(--color-grey-60) !important;
+    background: transparent !important;
     scale: none !important;
   }
 
@@ -877,9 +877,9 @@
      click registers even on the small 36×36 circular target. */
   .nav-arrow:active {
     opacity: 1;
-    background-color: var(--color-grey-70) !important;
+    background: transparent !important;
     transform: translateY(-50%) scale(0.9);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
     transition:
       opacity 60ms var(--easing-default),
       transform 60ms var(--easing-default),
@@ -894,26 +894,6 @@
 
   .nav-arrow-right {
     right: 8px;
-  }
-
-  /* CSS-triangle chevrons for nav arrows */
-  .nav-chevron {
-    display: block;
-    width: 10px;
-    height: 10px;
-    border-top: 2.5px solid rgba(255, 255, 255, 0.85);
-    border-right: 2.5px solid rgba(255, 255, 255, 0.85);
-    flex-shrink: 0;
-  }
-
-  .nav-chevron-left {
-    transform: rotate(-135deg);
-    margin-left: var(--spacing-2);
-  }
-
-  .nav-chevron-right {
-    transform: rotate(45deg);
-    margin-right: var(--spacing-2);
   }
 
   /* ==========================================================
@@ -1047,7 +1027,7 @@
 
     .header-center {
       padding: var(--spacing-6) var(--spacing-10);
-      max-width: 360px;
+      max-width: min(360px, calc(100% - 88px));
     }
 
     .header-icon {

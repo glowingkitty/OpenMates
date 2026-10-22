@@ -99,12 +99,6 @@
     showSkillIcon?: boolean;
     /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
     hasFullWidthImage?: boolean;
-    /**
-     * Override the fixed card height (px value, e.g. 350).
-     * Used for portrait/vertical images so the full image height is visible
-     * instead of being cropped. Only affects the desktop layout.
-     */
-    customHeight?: number;
     /** Callback when embed data is updated - allows child components to update their specific data */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown> }) => void;
     /** Optional snippet rendered before the title text in BasicInfosBar (e.g., category circle) */
@@ -139,7 +133,6 @@
     customStatusText,
     showSkillIcon,
     hasFullWidthImage = false,
-    customHeight,
     onEmbedDataUpdated,
     titleIcon,
     actionButton
@@ -500,7 +493,7 @@
   let TILT_PERSPECTIVE = $derived(isLargeContext ? TILT_PERSPECTIVE_LARGE : TILT_PERSPECTIVE_STANDARD);
   let TILT_SCALE = $derived(isLargeContext ? TILT_SCALE_LARGE : TILT_SCALE_STANDARD);
   let isScrollTilting = $derived(
-    status === 'finished' &&
+    status === 'finished' && !isChatResult &&
     !isHovering &&
     isTouchTiltEnabled &&
     Math.abs(scrollTiltY) > 0.01
@@ -513,7 +506,7 @@
    */
   let tiltTransform = $derived.by(() => {
     // Only apply tilt to finished embeds
-    if (status !== 'finished') {
+    if (status !== 'finished' || isChatResult) {
       return '';
     }
 
@@ -535,7 +528,7 @@
   let scrollTiltAnimationFrame: number | null = null;
 
   function updateScrollTiltFromViewport() {
-    if (!previewElement || typeof window === 'undefined' || !isTouchTiltEnabled || status !== 'finished') {
+    if (!previewElement || typeof window === 'undefined' || !isTouchTiltEnabled || status !== 'finished' || isChatResult) {
       scrollTiltY = 0;
       return;
     }
@@ -600,7 +593,7 @@
     };
 
     const handleViewportChange = () => {
-      if (!isTouchTiltEnabled || status !== 'finished') {
+      if (!isTouchTiltEnabled || status !== 'finished' || isChatResult) {
         return;
       }
       scheduleScrollTiltUpdate();
@@ -638,7 +631,7 @@
    * Handle mouse enter - start tracking for tilt effect
    */
   function handleMouseEnter(e: MouseEvent) {
-    if (status !== 'finished') return;
+    if (status !== 'finished' || isChatResult) return;
     isHovering = true;
     updateMousePosition(e);
   }
@@ -913,7 +906,7 @@
 {#snippet previewToolbar(inFlow: boolean)}
   <div class="result-tools" class:flow-tools={inFlow} data-testid="preview-tools">
         {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
-        <button type="button" aria-label={$text('common.more_actions')} onclick={handleContextMenu} data-testid="result-preview-more">···</button>
+        <button type="button" aria-label={$text('common.more_actions')} onclick={handleContextMenu} data-testid="result-preview-more"><span class="clickable-icon" style:mask-image="var(--icon-url-more)" aria-hidden="true"></span></button>
         <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
       </div>
 {/snippet}
@@ -937,8 +930,8 @@
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}
   class:finished={status === 'finished'}
-  class:clickable={isInteractive}
-  class:hovering={isHovering && status === 'finished'}
+  class:clickable={isInteractive && !isChatResult}
+  class:hovering={isHovering && status === 'finished' && !isChatResult}
   class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
   data-embed-id={presentationOnly ? undefined : id}
@@ -947,8 +940,7 @@
   data-status={status}
   data-embed-status={status}
   style={[
-    tiltTransform ? `transform: ${tiltTransform};` : '',
-    (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
+    tiltTransform ? `transform: ${tiltTransform};` : ''
   ].filter(Boolean).join(' ')}
   role={hasProcessingInputActions || isChatResult ? "group" : "button"}
   aria-disabled={hasProcessingInputActions ? undefined : !isInteractive}
@@ -1154,7 +1146,7 @@
   }
   
   /* CSS fallback hover for non-JS scenarios (shouldn't normally apply) */
-  .unified-embed-preview.finished:hover:not(.hovering) {
+  .unified-embed-preview.finished.clickable:hover:not(.hovering) {
     transform: scale(0.98);
     /* Match the hovering shadow for consistency */
     box-shadow: 
@@ -1168,7 +1160,7 @@
   }
   
   /* Active/pressed state */
-  .unified-embed-preview.finished:active {
+  .unified-embed-preview.finished.clickable:active {
     transform: scale(0.96) !important;
     transition: transform 0.05s ease-out;
   }
@@ -1338,18 +1330,18 @@
       display: block;
     }
   }
-  .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; width: 300px; min-width: 0; max-width: 100%; height: 220px; min-height: 220px; max-height: 220px; padding: 0; background: var(--color-grey-0); overflow: hidden; border-radius: var(--radius-6); }
+  /* Result content inherits the same dimensions and 30px radius as every preview. */
+  .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; padding: 0; background: var(--color-grey-0); overflow: hidden !important; margin-top: 0; }
   .unified-embed-preview.chat-result, .chat-result :global(*) { user-select: text; -webkit-user-select: text; }
   .result-preview-content { width: 100%; height: 100%; min-width: 0; }
-  .result-corner { position: absolute; z-index: 2; top: 0; left: 0; width: 36px; height: 36px; border-end-end-radius: var(--radius-4); display: grid; place-items: center; }
+  .result-corner { position: absolute; z-index: 2; top: 0; left: 0; width: 44px; height: 44px; border-end-end-radius: 22px; display: grid; place-items: center; }
   .result-corner > span { width: 21px; height: 21px; mask-size: contain; mask-position: center; mask-repeat: no-repeat; background: var(--color-font-button); }
   .result-tools { position: absolute; z-index: 3; top: var(--spacing-3); right: var(--spacing-3); display: flex; gap: var(--spacing-2); }
   .result-tools.flow-tools { position: static; flex-shrink: 0; }
   .specialized-header-actions { display: flex; align-items: center; gap: var(--spacing-2); flex-shrink: 0; margin-inline-end: var(--spacing-3); }
-  .result-tools :global(button), .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-font-secondary); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; }
+  .result-tools :global(button), .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-font-secondary); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; }
   .result-tools :global(button:focus-visible) { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  .result-tools :global(.clickable-icon) { width: 18px; height: 18px; }
-  @container embed-preview (min-width: 400px) {
-    .unified-embed-preview.result-preview { width: 100%; height: 350px; min-height: 350px; max-height: 350px; }
-  }
+  .result-tools :global(.clickable-icon) { width: 22px; height: 22px; background-color: currentColor; }
+  .unified-embed-preview.chat-result { cursor: default; }
+
 </style>

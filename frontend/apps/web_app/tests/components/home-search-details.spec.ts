@@ -16,68 +16,53 @@ async function openHomeInfo(page: Page, id: string) {
 
 for (const width of [390, 1280]) {
   // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.listings.rich-provider-evidence,home-search.vision.evidence-and-conflicts,home-search.location.precision,home-search.neighborhood.sourced-facts
-  test(`home listing gallery and evidence remain usable at ${width}px`, async ({ page }) => {
+  test(`home listing gallery and compact provider facts remain usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${listingPath}?${capture(width)}`);
     await waitForComponentPreview(page);
+    await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay').first());
     const gallery = page.getByTestId('home-gallery');
-    await expect(gallery).toBeVisible();
-    await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 3');
+    const thumbnails = gallery.getByRole('group').getByRole('button');
     const image = page.getByTestId('home-gallery-image');
+    await expect(thumbnails).toHaveCount(3);
+    await expect(page.getByTestId('home-gallery-counter')).toHaveCount(0);
     await expect(image).toHaveAttribute('src', '/store-examples/home-1.webp');
+    await expect(image).toHaveCSS('object-fit', 'contain');
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
     await page.getByRole('button', {name: 'Next photo', exact: true}).click();
     await expect(image).toHaveAttribute('src', '/store-examples/home-2.webp');
     await page.getByRole('button', {name: 'Photo 2', exact: true}).focus();
     await page.keyboard.press('End');
-    await expect(page.getByTestId('home-gallery-counter')).toHaveText('3 / 3');
     await expect(image).toHaveAttribute('src', '/store-examples/home-3.webp');
+    await expect(page.getByRole('button', {name: 'Photo 3', exact: true})).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 3');
+    await expect(image).toHaveAttribute('src', '/store-examples/home-1.webp');
     await page.getByRole('button', {name: 'Previous photo', exact: true}).click();
-    await expect(page.getByTestId('home-gallery-counter')).toHaveText('3 / 3');
-    await openHomeInfo(page, 'home-visual-info');
-    await expect(page.getByTestId('home-visual-evidence')).toContainText('2 / 3 photos assessed');
-    await openHomeInfo(page, 'home-visual-info');
-    await expect(page.getByTestId('home-visual-evidence')).toContainText('Uncertain');
-    await openHomeInfo(page, 'home-match-info');
-    await expect(page.getByTestId('home-match-evidence')).toContainText('Advertised');
+    await expect(image).toHaveAttribute('src', '/store-examples/home-3.webp');
     const amenities = page.getByTestId('home-amenities');
     await expect(amenities.getByRole('button', {name: 'Balcony: Yes', exact: true})).toHaveAttribute('data-state', 'yes');
     await expect(amenities.getByRole('button', {name: 'Furnished: No', exact: true})).toHaveAttribute('data-state', 'no');
     await expect(amenities.getByRole('button', {name: 'Pets allowed: Unknown', exact: true})).toHaveAttribute('data-state', 'unknown');
-    await openHomeInfo(page, 'home-details-info');
-    const facts = page.getByTestId('home-listing-facts');
-    await expect(facts.locator('dl > div').filter({hasText: 'Cold rent'})).toContainText('1000 EUR');
-    await expect(facts.locator('dl > div').filter({hasText: 'Warm rent'})).toContainText('1250 EUR');
-    await openHomeInfo(page, 'home-location-info');
-    await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate location');
-    if (width === 390) {
-      const mapBox = await page.getByTestId('embed-leaflet-map').boundingBox();
-      const areaBox = await page.getByTestId('home-location-area').boundingBox();
-      expect(mapBox).not.toBeNull(); expect(areaBox).not.toBeNull();
-      expect(Math.min(areaBox!.width, areaBox!.height)).toBeGreaterThanOrEqual(Math.min(mapBox!.width, mapBox!.height) * 0.35);
-    }
-    await openHomeInfo(page, 'home-location-info');
-    await expect(page.getByTestId('home-location-evidence')).toContainText('walking access are unknown');
-    await openHomeInfo(page, 'home-neighborhood-info');
-    await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Geoapify');
-    await openHomeInfo(page, 'home-neighborhood-info');
-    await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('2026-10-21');
-    await openHomeInfo(page, 'home-neighborhood-info');
-    await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Landwehr Canal');
-    await openHomeInfo(page, 'home-neighborhood-info');
-    await expect(page.getByTestId('home-place-distance')).toHaveText('Apartment-to-shoreline distance unknown');
-    await openHomeInfo(page, 'home-neighborhood-info');
-    await expect(page.getByTestId('home-place-walking')).toContainText('no confirmed route');
-    await openHomeInfo(page, 'home-neighborhood-info');
-    await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Nearby amenities remain unknown');
-    await openHomeInfo(page, 'home-match-info');
+    await openHomeInfo(page, 'home-amenity-balcony');
+    await expect(page.getByRole('tooltip')).toContainText('Advertised');
+    await expect(page.getByRole('tooltip')).toContainText('Uncertain');
+    await expect(page.getByRole('tooltip')).toContainText('2 / 3 photos assessed');
     await expect(page.getByTestId('home-advertised-evidence')).toContainText('Yes');
+    await page.keyboard.press('Escape');
+    await openHomeInfo(page, 'home-price-info');
+    const prices = page.getByTestId('home-price-summary');
+    await expect(prices.locator('div').filter({hasText: 'Cold rent'})).toContainText('1000 EUR');
+    await expect(prices.locator('div').filter({has: page.locator('dt').filter({hasText: /^Warm rent$/})})).toContainText('1250 EUR');
+    await expect(prices.locator('div').filter({hasText: 'Utilities'})).toContainText('250 EUR');
+    await expect(prices.locator('div').filter({hasText: 'Deposit'})).toContainText('3000');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('home-location-label')).toContainText('Approximate location');
+    await expect(page.getByTestId('home-location-area-label')).toContainText('1200 m radius');
+    for (const id of ['home-details-info','home-match-info','home-visual-info','home-neighborhood-info','home-location-info']) await expect(page.getByTestId(id)).toHaveCount(0);
     await gallery.scrollIntoViewIfNeeded();
-    const bounds = await gallery.boundingBox();
-    expect(bounds!.x).toBeGreaterThanOrEqual(0);
-    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    const bounds = (await gallery.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
     await expect(page.getByRole('button', {name: 'Next photo', exact: true})).toBeInViewport();
   });
 
@@ -100,35 +85,34 @@ for (const width of [390, 1280]) {
     await page.getByTestId('home-location-area').focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('home-gallery')).toBeVisible();
-    await openHomeInfo(page, 'home-location-info');
-    await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate location');
+    await expect(page.getByTestId('home-location-label')).toContainText('Approximate location');
   });
 }
 
 // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.location.precision,home-search.vision.evidence-and-conflicts
-test('home empty photos and partial gallery disclose unavailable evidence', async ({ page }) => {
+test('home empty photos and partial gallery keep missing media truthful', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'noPhotos')}`);
   await waitForComponentPreview(page);
   await expect(page.getByTestId('home-gallery')).toContainText('No listing photos available.');
   await expect(page.getByTestId('home-gallery-image')).toHaveCount(0);
-  await openHomeInfo(page, 'home-visual-info');
-  await expect(page.getByTestId('home-visual-evidence')).toContainText('Unavailable');
-  await openHomeInfo(page, 'home-location-info');
-  await expect(page.getByTestId('home-location-evidence')).toContainText('Location unavailable');
   await expect(page.getByTestId('embed-leaflet-map')).toHaveCount(0);
+  await expect(page.getByTestId('home-location-info')).toHaveCount(0);
+  await openHomeInfo(page, 'home-amenity-balcony');
+  await expect(page.getByRole('tooltip')).toContainText('Unavailable');
   await page.goto(`${listingPath}?${capture(390, 'partialGallery')}`);
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 1');
+  await expect(page.getByTestId('home-gallery').getByRole('group').getByRole('button')).toHaveCount(1);
   await expect(page.getByTestId('home-gallery')).toContainText('Additional listing photos may be unavailable.');
+  await expect(page.getByTestId('home-gallery-counter')).toHaveCount(0);
 });
 
 // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.web.map-and-filter
 test('home serialized gallery deduplicates and missing-coordinate listings remain discoverable', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'serializedGallery')}`);
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 3');
-  await openHomeInfo(page, 'home-match-info');
-  await expect(page.getByTestId('home-match-evidence')).toContainText('Unconfirmed');
+  await expect(page.getByTestId('home-gallery').getByRole('group').getByRole('button')).toHaveCount(3);
+  await openHomeInfo(page, 'home-amenity-balcony');
+  await expect(page.getByRole('tooltip')).toContainText('Uncertain');
   await page.goto(`${searchPath}?${capture(390)}`);
   await waitForComponentPreview(page);
   await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay').first());
@@ -137,23 +121,23 @@ test('home serialized gallery deduplicates and missing-coordinate listings remai
   await expect(page.locator('[data-home-location]')).toHaveCount(0);
   await page.getByTestId('search-template-grid').getByTestId('embed-preview').click();
   await expect(page.getByTestId('home-gallery')).toBeVisible();
-  await openHomeInfo(page, 'home-location-info');
-  await expect(page.getByTestId('home-location-evidence')).toContainText('Location unavailable');
+  await expect(page.getByTestId('home-location-info')).toHaveCount(0);
+  await expect(page.getByTestId('result-map')).toHaveCount(0);
 });
 
 // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.vision.evidence-and-conflicts
 test('home retains all eighteen supplied photos beyond the visual assessment limit', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'longGallery')}`);
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 18');
   const thumbnails = page.getByTestId('home-gallery').getByRole('group').getByRole('button');
   await expect(thumbnails).toHaveCount(18);
   await thumbnails.first().focus();
   await page.keyboard.press('End');
-  await expect(page.getByTestId('home-gallery-counter')).toHaveText('18 / 18');
+  await expect(thumbnails.last()).toHaveAttribute('aria-pressed', 'true');
+  await expect(thumbnails.last()).toBeFocused();
   await expect(page.getByTestId('home-gallery-image')).toHaveAttribute('src', '/store-examples/home-3.webp?photo=18');
-  await openHomeInfo(page, 'home-visual-info');
-  await expect(page.getByTestId('home-visual-evidence')).toContainText('2 / 18 photos assessed');
+  await openHomeInfo(page, 'home-amenity-balcony');
+  await expect(page.getByRole('tooltip')).toContainText('2 / 18 photos assessed');
 });
 
 for (const width of [390, 1280]) {
@@ -246,20 +230,15 @@ for (const width of [390, 1280]) {
 }
 
 // contract-test: direct surface=gui.web assertions=home-search.neighborhood.sourced-facts,home-search.water.distance-and-access
-test('home neighborhood separates shoreline, map-point distance and confirmed walking routes', async ({ page }) => {
+test('home precise location does not add neighborhood evidence disclosures or infer routes', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'nearbyEvidence')}`);
   await waitForComponentPreview(page);
-  await openHomeInfo(page, 'home-neighborhood-info');
-  const shoreline = page.getByTestId('home-nearby-place').filter({hasText: 'Canal shoreline'});
-  await expect(shoreline).toContainText('Distance to shoreline: 120 m');
-  await expect(shoreline).toContainText('Walking route: 8 minutes');
-  await expect(shoreline).toContainText('Geoapify');
-  await expect(shoreline).toContainText('2026-10-21');
-  await openHomeInfo(page, 'home-neighborhood-info');
-  const mapPoint = page.getByTestId('home-nearby-place').filter({hasText: 'Lake map point'});
-  await expect(mapPoint).toContainText('Distance to map point (not shoreline): 700 m');
-  await expect(mapPoint).toContainText('Walking access unknown; no confirmed route');
-  await expect(mapPoint).not.toContainText('5 minutes');
+  await expect(page.getByTestId('home-location-label')).toContainText('Building location');
+  await expect(page.getByTestId('home-location-pin')).toBeVisible();
+  await expect(page.getByTestId('home-neighborhood-info')).toHaveCount(0);
+  await expect(page.getByTestId('home-nearby-place')).toHaveCount(0);
+  await expect(page.getByTestId('result-embed-content')).not.toContainText('700 m');
+  await expect(page.getByTestId('result-embed-content')).not.toContainText('5 minutes');
 });
 
 // contract-test: direct surface=gui.web assertions=home-search.filters.explicit-and-unknown,home-search.output.safe-and-truthful
@@ -278,48 +257,32 @@ test('home zero confirmed matches retains search warnings and visible controls',
 });
 
 // contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.vision.evidence-and-conflicts,home-search.neighborhood.sourced-facts,home-search.filters.explicit-and-unknown
-test('home persisted flattened TOON fields hydrate rich evidence and the complete gallery', async ({ page }) => {
+test('home persisted flattened TOON fields hydrate compact evidence and the complete gallery', async ({ page }) => {
   await page.goto(`${listingPath}?${capture(390, 'persistedFlattened')}`);
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 3');
+  await expect(page.getByTestId('home-gallery').getByRole('group').getByRole('button')).toHaveCount(3);
   await page.getByRole('button', {name: 'Next photo', exact: true}).click();
   await expect(page.getByTestId('home-gallery-image')).toHaveAttribute('src', '/store-examples/home-2.webp');
-  await openHomeInfo(page, 'home-visual-info');
-  await expect(page.getByTestId('home-visual-evidence')).toContainText('2 / 3 photos assessed');
-  await openHomeInfo(page, 'home-visual-info');
-  await expect(page.getByTestId('home-visual-evidence')).toContainText('Uncertain');
-  await openHomeInfo(page, 'home-match-info');
-  await expect(page.getByTestId('home-match-evidence')).toContainText('Confirmed');
-  await openHomeInfo(page, 'home-match-info');
-  await expect(page.getByTestId('home-match-evidence')).toContainText('Present');
-  await openHomeInfo(page, 'home-match-info');
+  await openHomeInfo(page, 'home-amenity-balcony');
+  await expect(page.getByRole('tooltip')).toContainText('2 / 3 photos assessed');
+  await expect(page.getByRole('tooltip')).toContainText('Uncertain');
   await expect(page.getByTestId('home-advertised-evidence')).toContainText('Yes');
-  await expect(page.getByTestId('home-amenities').getByRole('button', {name: 'Pets allowed: No', exact: true})).toHaveAttribute('data-state', 'no');
-  await openHomeInfo(page, 'home-neighborhood-info');
-  await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Landwehr Canal');
-  await openHomeInfo(page, 'home-neighborhood-info');
-  await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Geoapify');
-  await openHomeInfo(page, 'home-neighborhood-info');
-  await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('2026-10-21');
-  await openHomeInfo(page, 'home-neighborhood-info');
-  await expect(page.getByTestId('home-place-distance')).toHaveText('Apartment-to-shoreline distance unknown');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('home-location-area-label')).toContainText('650 m radius');
+  await expect(page.getByTestId('home-amenity-pets_allowed')).toHaveAttribute('data-state', 'no');
   await page.goto(`${searchPath}?${capture(390, 'persistedFlattened')}`);
   await waitForComponentPreview(page);
   await page.getByTestId('search-template-filter-button').click();
   await page.getByTestId('home-filter-amenity').selectOption('balcony');
   await page.getByTestId('search-template-filter-button').click();
-  await expect(page.getByTestId('search-template-filter-menu')).toHaveCount(0);
   const cards = page.getByTestId('search-template-grid').getByTestId('embed-preview');
   await expect(cards).toHaveCount(1);
   await expect(cards).toContainText('Persisted canal apartment');
-  await cards.click();
-  await expect(page.getByTestId('home-gallery-counter')).toHaveText('1 / 3');
-  await openHomeInfo(page, 'home-match-info');
-  await expect(page.getByTestId('home-match-evidence')).toContainText('Confirmed');
-  await openHomeInfo(page, 'home-visual-info');
-  await expect(page.getByTestId('home-visual-evidence')).toContainText('2 / 3 photos assessed');
-  await openHomeInfo(page, 'home-neighborhood-info');
-  await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Landwehr Canal');
+  await cards.getByTestId('result-card-title').click();
+  await expect(page.getByTestId('home-gallery').getByRole('group').getByRole('button')).toHaveCount(3);
+  await openHomeInfo(page, 'home-amenity-balcony');
+  await expect(page.getByRole('tooltip')).toContainText('Confirmed');
+  await expect(page.getByRole('tooltip')).toContainText('2 / 3 photos assessed');
 });
 
 for (const width of [390, 1280]) {
@@ -383,9 +346,7 @@ test('home area extent is geographic and legacy centers never become apartment p
     expect(areaBox!.x + areaBox!.width).toBeLessThanOrEqual(mapBox!.x + mapBox!.width);
     expect(areaBox!.y).toBeGreaterThanOrEqual(mapBox!.y);
     expect(areaBox!.y + areaBox!.height).toBeLessThanOrEqual(mapBox!.y + mapBox!.height);
-    await openHomeInfo(page, 'home-location-info');
     await expect(page.getByTestId('home-location-area-label')).toContainText(`${radius} m radius`);
-    await page.keyboard.press('Escape');
     await page.locator('.leaflet-control-zoom-out').click();
     await expect.poll(async () => (await area.boundingBox())!.width).toBeLessThan(areaBox!.width);
     await expect(area).toHaveAttribute('data-radius-m', radius);
@@ -393,8 +354,8 @@ test('home area extent is geographic and legacy centers never become apartment p
   await page.goto(`${listingPath}?${capture(390, 'legacyApproximate')}`);
   await waitForComponentPreview(page);
   await expect(page.locator('[data-home-location]')).toHaveCount(0);
-  await openHomeInfo(page, 'home-location-info');
-  await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate area extent unavailable');
+  await expect(page.getByTestId('home-location-label')).toContainText('Approximate location');
+  await expect(page.getByTestId('home-location-area-label')).toHaveCount(0);
   await page.goto(`${listingPath}?${capture(390, 'precise')}`);
   await waitForComponentPreview(page);
   await expect(page.getByTestId('home-location-pin')).toBeVisible();

@@ -34,6 +34,7 @@
 
 <script lang="ts">
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { proxyImage, proxyFavicon, getMetadataUrl, MAX_WIDTH_FAVICON, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   
@@ -379,10 +380,7 @@
   {/snippet}
   {#snippet details()}
     <ResultEmbedCard title={displayTitle} description={cleanedDescription} sourceLabel={hostname} faviconUrl={faviconUrl ?? undefined} imageUrl={imageUrl ?? undefined} imageAlt={displayTitle}>
-      {#snippet badge()}{#if publicationDate}<time class="publication-date" data-testid="news-publication-date">{publicationDate}</time>{/if}{/snippet}
+      {#snippet badge()}{#if publicationDate}<span data-testid="news-publication-date"><EmbedCalendarDate date={publicationDate} /></span>{/if}{/snippet}
     </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-<style>
-  .publication-date { display: block; max-width: 12rem; padding: var(--spacing-2) var(--spacing-3); border-radius: var(--radius-3); background: var(--color-grey-0); color: var(--color-font-primary); font-size: var(--font-size-xxs); font-weight: 600; box-shadow: var(--shadow-sm); }
-</style>

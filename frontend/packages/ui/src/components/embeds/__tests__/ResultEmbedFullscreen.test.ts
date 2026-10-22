@@ -1,5 +1,6 @@
 import { mount, tick, unmount } from 'svelte';
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+afterEach(() => vi.unstubAllGlobals());
 const mocks = vi.hoisted(() => ({ request: vi.fn(), route: vi.fn(), chat: vi.fn(), workflow: vi.fn(), error: vi.fn() }));
 vi.mock('../EmbedLeafletMap.svelte', async () => ({ default: (await import('./ResultFullscreenShell.svelte')).default }));
 vi.mock('../UnifiedEmbedFullscreen.svelte', async () => ({ default: (await import('./ResultFullscreenShell.svelte')).default }));
@@ -12,6 +13,8 @@ import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
 
 // contract-test: supporting surface=gui.web assertions=health-search-appointments.surface-parity
 it('cancels a disposed result request and ignores its late navigation and handoffs', async () => {
+  const disconnect = vi.fn();
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect = disconnect; });
   let finish!: (value: { action: string }) => void;
   mocks.request.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
   const target = document.createElement('div'); document.body.append(target);
@@ -23,6 +26,7 @@ it('cancels a disposed result request and ignores its late navigation and handof
   const options = mocks.request.mock.calls[0][0];
   await unmount(instance);
   expect(options.signal.aborted).toBe(true);
+  expect(disconnect).toHaveBeenCalledOnce();
   options.onAccepted({ embedId: 'late-result' });
   await options.onChat({ text: 'late' });
   await options.onWorkflow({ text: 'late' });

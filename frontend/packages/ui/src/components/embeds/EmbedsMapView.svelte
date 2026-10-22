@@ -1069,9 +1069,6 @@
       decodedContent: entry.decodedContent,
       onFullscreen: () => openEntry(entry),
     });
-    if (preview && ['connection', 'travel-connection', 'travel-route'].includes(entry.embedType ?? '')) {
-      preview.props.customHeight = 200;
-    }
     return preview;
   }
 

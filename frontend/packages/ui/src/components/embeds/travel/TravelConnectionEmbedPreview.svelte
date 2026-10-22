@@ -84,8 +84,6 @@
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
     isMobile?: boolean;
-    /** Optional fixed desktop height for constrained preview surfaces */
-    customHeight?: number;
     /** Click handler for fullscreen */
     onFullscreen: () => void;
   }
@@ -118,7 +116,6 @@
     isCheapest: _isCheapest = false,
     status = 'finished',
     isMobile = false,
-    customHeight = 250,
     onFullscreen
   }: Props = $props();
   
@@ -265,7 +262,6 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
-  {customHeight}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-result-layout">
@@ -326,7 +322,7 @@
 
 <style>
   .connection-result-layout { height: 100%; display: flex; align-items: stretch; min-width: 0; box-sizing: border-box; }
-  .connection-details { display: flex; flex-direction: column; gap: 5px; box-sizing: border-box; min-width: 0; width: 100%; height: 100%; padding: 42px 10px 10px; }
+  .connection-details { display: flex; flex-direction: column; gap: 5px; box-sizing: border-box; min-width: 0; width: 100%; height: 100%; padding: 48px 48px 12px; }
   .carrier-row { display: flex; align-items: center; gap: 8px; min-height: 22px; }
   .airline-logos { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
   .airline-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: contain; background: var(--color-grey-0); }
@@ -349,7 +345,7 @@
   .seats-warning { color: var(--color-warning); }
   .connection-map { display: none; }
   @container result-card (min-width: 400px) {
-    .connection-details { width: 52%; padding: 46px 14px 12px; }
+    .connection-details { width: 33.3333%; padding: 54px 28px 48px; }
     .connection-map { display: block; flex: 1; min-width: 0; }
   }
 </style>

@@ -1,32 +1,18 @@
-<!--
-  frontend/packages/ui/src/components/embeds/home/HomeListingEmbedPreview.svelte
-
-  Child listing preview card for Home Search results.
-  Uses UnifiedEmbedPreview as the base card (unified with all other embed previews).
-  Renders listing image on the right side when available (matching WebsiteEmbedPreview pattern).
-
-  Shows:
-  - Price label (prominent)
-  - Title (2 lines, truncated)
-  - Address line
-  - Metadata: size (m²) + rooms + move-in date
-  - Provider badge overlaid on image
-  - Listing image on right side (or placeholder)
-
-  Clicking the card calls onSelect() to open the fullscreen listing view.
--->
+<!-- Home result card: uncropped photo or factual location-map fallback in the shared result shell. -->
 
 <script lang="ts">
   import House from '@lucide/svelte/icons/house';
-  import Calendar from '@lucide/svelte/icons/calendar-days';
+  import EmbedCalendarDate from "../EmbedCalendarDate.svelte";
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import { text } from "../../../i18n/translations";
+  import ResultEmbedCard from "../ResultEmbedCard.svelte";
+  import ResultEmbedMapPreview from "../ResultEmbedMapPreview.svelte";
+  import { homeMapGeometry, homeObject } from "./homeListingData";
   import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
   import {
     proxyImage,
     MAX_WIDTH_PREVIEW_THUMBNAIL,
   } from "../../../utils/imageProxy";
-  import { handleImageError } from "../../../utils/offlineImageHandler";
 
   interface Props {
     /** Child embed ID */
@@ -43,6 +29,9 @@
     address?: string;
     location_precision?: string;
     location_approximate?: boolean;
+    lat?: number;
+    lon?: number;
+    location_area?: unknown;
     /** First listing image URL */
     image_url?: string;
     /** Direct link to listing on platform */
@@ -71,6 +60,9 @@
     image_url,
     location_precision,
     location_approximate = true,
+    lat,
+    lon,
+    location_area,
     provider,
     listing_type: _listingType,
     available_from,
@@ -91,15 +83,16 @@
       : null,
   );
 
+  let geometry = $derived(homeMapGeometry({ latitude: lat, longitude: lon, location_precision, location_approximate, location: { area: homeObject(location_area) } }));
+  let mapCenter = $derived(geometry ? { lat: geometry.lat, lon: geometry.lon } : typeof lat === "number" && typeof lon === "number" && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : undefined);
+  // A center without a known extent is useful for the map, but is never an exact home pin.
+  let mapMarkers = $derived(geometry ? [{ ...geometry, homeLocation: true, testId: "home-preview-location-area", label: `${address || title || ""} · ${$text("home_listing.approximate")}` }] : []);
   let sizeDisplay = $derived(size_sqm ? `${size_sqm} m\u00B2` : undefined);
 
   let roomsDisplay = $derived(
     rooms ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
   );
 
-  let availableDisplay = $derived(
-    available_from ? `from ${available_from}` : undefined,
-  );
 
   function handleStop() {
     // Listing cards are not cancellable
@@ -132,139 +125,26 @@
         ><ExternalLink size={18} aria-hidden="true" /></a
       >{/if}
   {/snippet}
+  {#snippet listingMedia()}
+    {#if proxiedImageUrl}<img class="home-preview-image" src={proxiedImageUrl} alt={title || $text("home_listing.listing")} loading="lazy" onerror={() => imageError = true} />
+    {:else if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={mapMarkers} zoom={location_precision === "city" ? 10 : 12} />{/if}
+  {/snippet}
   {#snippet details()}
-    <div
-      class="listing-card"
-      class:without-image={!proxiedImageUrl}
-      data-testid="home-listing-result-card"
-    >
-      {#if proxiedImageUrl}<div class="listing-image">
-          <img
-            src={proxiedImageUrl}
-            alt=""
-            loading="lazy"
-            onerror={(event) => {
-              imageError = true;
-              handleImageError(event.currentTarget);
-            }}
-          />
-        </div>{/if}
-      <div class="listing-copy">
-        <strong class="listing-title"
-          >{title || $text("home_listing.listing")}</strong
-        >
-        {#if price_label}<span class="listing-price">{price_label}</span>{/if}
-        <div class="listing-extra">
-          {#if sizeDisplay}<span title={sizeDisplay}
-              ><House size={14} aria-hidden="true" /> {sizeDisplay}</span
-            >{/if}{#if availableDisplay}<span title={availableDisplay}
-              ><Calendar size={14} aria-hidden="true" /> {available_from}</span
-            >{/if}
-        </div>
-        {#if address}<span class="sr-only"
-            >{address}{location_approximate || location_precision !== "building"
-              ? ` · ${$text("home_listing.approximate")}`
-              : ""}</span
-          >{/if}
-        {#if roomsDisplay}<span class="sr-only">{roomsDisplay}</span>{/if}
-      </div>
+    <div class="listing-card" data-testid="home-listing-result-card">
+      <ResultEmbedCard title={title || $text("home_listing.listing")} sourceLabel={address ? `${address}${location_approximate || location_precision !== "building" ? ` · ${$text("home_listing.approximate")}` : ""}` : provider} media={proxiedImageUrl || mapCenter ? listingMedia : undefined} mediaFit="contain">
+        {#snippet badge()}{#if available_from}<EmbedCalendarDate date={available_from} />{/if}{/snippet}
+        {#snippet facts()}
+          {#if price_label}<span class="listing-price">{price_label}</span>{/if}
+          <div class="listing-extra">
+            {#if sizeDisplay}<span title={sizeDisplay}><House size={14} aria-hidden="true" />{sizeDisplay}</span>{/if}
+            {#if roomsDisplay}<span class="sr-only">{roomsDisplay}</span>{/if}
+          </div>
+        {/snippet}
+      </ResultEmbedCard>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .listing-card {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-  .listing-image {
-    position: absolute;
-    inset: 0 0 3rem;
-    overflow: hidden;
-  }
-  .listing-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .listing-image::after {
-    content: "";
-    position: absolute;
-    inset: 40% 0 0;
-    background: linear-gradient(transparent, var(--color-grey-0));
-  }
-  .listing-copy {
-    position: relative;
-    z-index: 1;
-    margin-top: auto;
-    padding: var(--spacing-5) var(--spacing-8);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-  .listing-title {
-    font-size: 0.875rem;
-    font-weight: 650;
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-  }
-  .listing-price {
-    font-size: 0.75rem;
-    color: var(--color-font-secondary);
-  }
-  .listing-extra span {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-2);
-  }
-  .listing-extra {
-    display: none;
-    gap: var(--spacing-6);
-    color: var(--color-font-secondary);
-    font-size: 0.75rem;
-  }
-  .without-image .listing-copy {
-    margin-block: auto;
-    padding-top: var(--spacing-20);
-  }
-  .without-image .listing-extra {
-    display: flex;
-  }
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  @container result-card (min-width: 400px) {
-    .listing-card {
-      flex-direction: row;
-    }
-    .listing-copy {
-      width: 34%;
-      min-width: 0;
-      margin-block: auto;
-      box-sizing: border-box;
-      padding: var(--spacing-10) var(--spacing-6);
-    }
-    .listing-image {
-      inset: 0 0 0 34%;
-    }
-    .listing-image::after {
-      display: none;
-    }
-    .listing-extra {
-      display: flex;
-      flex-wrap: wrap;
-    }
-  }
+.listing-card {width:100%;height:100%;min-width:0;} .home-preview-image {display:block;width:100%;height:100%;object-fit:contain;background:var(--color-grey-25);} .listing-price {width:100%;font-size:var(--font-size-small);font-weight:600;color:var(--color-font-primary);} .listing-extra {display:flex;flex-wrap:wrap;gap:var(--spacing-4);font-size:var(--font-size-small);color:var(--color-font-secondary);} .listing-extra>span {display:inline-flex;align-items:center;gap:var(--spacing-2);} .sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
 </style>

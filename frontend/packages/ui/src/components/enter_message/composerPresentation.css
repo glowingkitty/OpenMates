@@ -1,0 +1,10 @@
+/* Canonical composer surface and focus geometry, shared by chat and isolated requests. */
+.canonical-composer {
+  --composer-compact-height: 60px;
+  --composer-focused-height: 180px;
+  --composer-radius: 24px;
+  --composer-background: var(--color-grey-blue);
+  --composer-shadow: 0 4px 12px rgb(0 0 0 / 8%);
+  --composer-font-size: 1rem;
+  --composer-line-height: 1.6;
+}

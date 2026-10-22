@@ -208,6 +208,7 @@
 			width: parsedWidth,
 			background: parsedBackground.value,
 			captureMode: params.get('chrome') === '0',
+			assistantEmbed: params.get('context') === 'chat',
 			props: parsedProps.props,
 			propsError: parsedProps.error,
 			configError: widthError || parsedBackground.error
@@ -839,6 +840,8 @@
 			-->
 			<div
 				class="preview-viewport"
+				class:assistant-embed-host={urlConfig.assistantEmbed}
+				class:embed-preview-large-container={urlConfig.assistantEmbed}
 				data-testid="component-preview-viewport"
 				class:preview-viewport--constrained={viewportWidth !== null}
 				style={viewportWidth ? `max-width: ${viewportWidth}px; margin: 0 auto;` : ''}
@@ -1270,6 +1273,11 @@
 
 	.preview-viewport {
 		width: 100%;
+	}
+
+	/* Match the named container used by assistant embeds in ReadOnlyMessage. */
+	.assistant-embed-host {
+		container: embed-preview / inline-size;
 	}
 
 	/**

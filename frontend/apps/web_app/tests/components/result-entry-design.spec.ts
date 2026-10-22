@@ -3,7 +3,7 @@ import { waitForComponentMotion, waitForComponentPreview } from '../helpers/comp
 // playwright-account: not_required reason=isolated_component_preview
 
 const preview = (path: string, width: number, variant = '', theme = 'light') =>
-	`/dev/preview/embeds/${path}?chrome=0&theme=${theme}&background=%23dbeafe&width=${width}${variant ? `&variant=${variant}` : ''}`;
+	`/dev/preview/embeds/${path}?chrome=0&theme=${theme}&background=%23dbeafe&width=${width}${variant ? `&variant=${variant}` : ''}${variant === 'chat' ? '&context=chat' : ''}`;
 
 for (const width of [390, 1280]) {
 	// contract-test: direct surface=gui.web assertions=home-search.images.complete-gallery,home-search.listings.rich-provider-evidence,home-search.location.precision
@@ -36,7 +36,7 @@ for (const width of [390, 1280]) {
 			expect((await control.boundingBox())!.width).toBeLessThanOrEqual(44);
 		}
 		const composer = page.getByTestId('apps-request-composer');
-		expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(48);
+		expect((await composer.boundingBox())!.height).toBeGreaterThanOrEqual(60);
 		await expect(composer).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 		const galleryBox = (await gallery.boundingBox())!;
 		const mapBox = (await map.boundingBox())!;
@@ -44,12 +44,32 @@ for (const width of [390, 1280]) {
 			expect(Math.abs(galleryBox.y - mapBox.y)).toBeLessThan(2);
 			expect(mapBox.x).toBeGreaterThanOrEqual(galleryBox.x + galleryBox.width - 2);
 		} else expect(mapBox.y).toBeGreaterThanOrEqual(galleryBox.y + galleryBox.height - 2);
+        const thumbnail = page.getByRole('button', { name: 'Photo 2', exact: true });
+        const shape = await thumbnail.evaluate(button => {
+            const stage = button.closest('[data-testid="home-gallery"]')!.querySelector('.gallery-stage')!.getBoundingClientRect();
+            const bounds = button.getBoundingClientRect();
+            return { width: bounds.width, height: bounds.height, top: bounds.top, bottom: bounds.bottom, stageBottom: stage.bottom, overlay: getComputedStyle(button, '::after').backgroundColor, opacity: getComputedStyle(button, '::after').opacity };
+        });
+        expect(shape.width).toBe(shape.height);
+        expect(shape.top).toBeLessThan(shape.stageBottom);
+        expect(shape.bottom).toBeGreaterThan(shape.stageBottom);
+        expect(shape.overlay).toBe('rgba(255, 255, 255, 0.6)');
+        expect(shape.opacity).toBe('1');
+        await thumbnail.hover();
+        await expect.poll(() => thumbnail.evaluate(button => getComputedStyle(button, '::after').opacity)).toBe('0');
+        for (const name of ['Previous photo', 'Next photo']) {
+            const arrow = page.getByRole('button', { name, exact: true });
+            await expect(arrow).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+            await expect(arrow).toHaveCSS('border-radius', '0px');
+        }
 		await gallery.scrollIntoViewIfNeeded();
 		await page.getByRole('button', { name: 'Next photo', exact: true }).click();
-		await expect(page.getByTestId('home-gallery-counter')).toHaveText('2 / 3');
+		await expect(page.getByTestId('home-gallery-image')).toHaveAttribute('src', '/store-examples/home-2.webp');
+        await expect(page.getByRole('button', { name: 'Photo 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
 		await page.getByRole('button', { name: 'Photo 2', exact: true }).focus();
 		await page.keyboard.press('End');
-		await expect(page.getByTestId('home-gallery-counter')).toHaveText('3 / 3');
+		await expect(page.getByTestId('home-gallery-image')).toHaveAttribute('src', '/store-examples/home-3.webp');
+        await expect(page.getByTestId('home-gallery-counter')).toHaveCount(0);
 		await page.getByTestId('home-amenity-pets_allowed').focus();
 		await expect(page.getByRole('tooltip')).toContainText('Pets allowed: Unknown');
 		const tooltip = (await page.getByRole('tooltip').boundingBox())!;
@@ -58,9 +78,8 @@ for (const width of [390, 1280]) {
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('tooltip')).toHaveCount(0);
 		await expect(page.getByTestId('embed-fullscreen-overlay')).toBeVisible();
-		await page.getByTestId('home-location-info').click();
-		await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate location');
-		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('home-location-info')).toHaveCount(0);
+        await expect(page.getByTestId('home-location-label')).toContainText('Approximate location');
 		await page.getByTestId('result-facts').scrollIntoViewIfNeeded();
 		await expect(page.getByTestId('external-provider-cta')).toBeVisible();
 		await expect(page.getByTestId('apps-request-textarea')).toBeVisible();
@@ -118,7 +137,7 @@ for (const width of [390, 1280]) {
 				if (message.text() === '[Preview] result expanded') expansions.push(message.text());
 			};
 			page.on('console', listener);
-			await page.goto(preview(path, width, 'chat'));
+			await page.goto(`${preview(path, width, 'chat')}&context=chat`);
 			await waitForComponentPreview(page);
 			const card = page.getByTestId('embed-preview');
 			await expect(card).toHaveAttribute('role', 'group');
@@ -129,7 +148,7 @@ for (const width of [390, 1280]) {
                 await expect(map).toHaveAttribute('inert', '');
                 await expect(map).toHaveAttribute('aria-hidden', 'true');
             }
-			const title = card.locator('.listing-title, .doctor-name');
+			const title = card.locator('.listing-title, .doctor-name, [data-testid="result-card-title"], [data-testid="health-appointment-title"]');
 			await expect(title).toBeVisible();
 			await expect(title).toHaveCSS('user-select', 'text');
 			await title.click();
@@ -162,3 +181,67 @@ test('missing photos and coordinates render truthful compact fallbacks', async (
 	await expect(page.getByTestId('result-map')).toHaveCount(0);
 	await expect(page.getByTestId('external-provider-cta')).toBeVisible();
 });
+
+for (const width of [390, 1280]) {
+  // contract-test: direct surface=gui.web assertions=home-search.location.precision,home-search.images.complete-gallery
+  test(`home missing-photo preview uses factual map geometry at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 900 });
+    for (const variant of ['noImage', 'brokenImage']) {
+      await page.goto(`${preview('home/HomeListingEmbedPreview', width, variant)}${width > 600 ? '&context=chat' : ''}`);
+      await waitForComponentPreview(page);
+      const card = page.getByTestId('embed-preview');
+      const map = card.getByTestId('result-map-preview');
+      await expect(map).toBeVisible();
+      await expect(map).toHaveAttribute('inert', '');
+      await expect(card.getByTestId('home-preview-location-area')).toHaveAttribute('data-radius-m', '1200');
+      await expect(card.locator('.leaflet-marker-icon')).toHaveCount(0);
+      await expect(card.getByTestId('result-card-title')).toContainText('Kreuzberg');
+      await testInfo.attach(`home-map-fallback-${variant}-${width}`, { body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png' });
+    }
+    await page.goto(preview('home/HomeListingEmbedPreview', width, 'noLocation'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('result-map-preview')).toHaveCount(0);
+    await expect(page.getByTestId('home-listing-result-card')).toContainText('Kreuzberg');
+  });
+}
+
+// contract-test: direct surface=gui.web assertions=home-search.listings.rich-provider-evidence,home-search.filters.explicit-and-unknown
+ test('home advertised rent and availability details stay in compact fact explanations', async ({ page }) => {
+  await page.goto(preview('home/HomeListingEmbedFullscreen', 390, 'rentDetails'));
+  await waitForComponentPreview(page);
+  await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+  const facts = page.getByTestId('result-facts');
+  await expect(facts).toContainText(/1[,. ]250/);
+  await page.getByTestId('home-price-info').click();
+  const prices = page.getByTestId('home-price-summary');
+  for (const [label, value] of [['Cold rent', '1000 EUR'], ['Warm rent', '1250 EUR'], ['Utilities', '250 EUR'], ['Heating costs', '80 EUR'], ['Deposit', '3000']]) {
+    await expect(prices.locator('div').filter({ has: page.locator('dt').filter({ hasText: new RegExp(`^${label}$`) }) })).toContainText(value);
+  }
+  await page.keyboard.press('Escape');
+  await page.getByTestId('home-availability-info').click();
+  await expect(page.getByRole('tooltip')).toContainText('2027-06-30');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('result-embed-content')).not.toContainText('3000');
+  for (const id of ['home-details-info', 'home-match-info', 'home-visual-info', 'home-neighborhood-info', 'home-location-info']) await expect(page.getByTestId(id)).toHaveCount(0);
+});
+
+
+for (const width of [390, 1280]) {
+  // contract-test: direct surface=gui.web assertions=home-search.location.precision,home-search.images.complete-gallery
+  test(`home without photos gives the whole media region to the map at ${width}px`, async ({page}, testInfo) => {
+    await page.setViewportSize({width, height: 1000});
+    await page.goto(preview('home/HomeListingEmbedFullscreen', width, 'noPhotosWithMap'));
+    await waitForComponentPreview(page);
+    await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+    await expect(page.getByTestId('home-gallery')).toHaveCount(0);
+    const region = page.getByTestId('result-media');
+    const map = page.getByTestId('result-map');
+    await expect(map).toBeVisible();
+    expect((await map.boundingBox())!.width).toBeCloseTo((await region.boundingBox())!.width, 0);
+    const zoom = map.locator('.leaflet-control-zoom-in');
+    await expect(zoom).toBeVisible();
+    await expect(zoom).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await testInfo.attach(`home-map-full-width-${width}`, {body: await page.screenshot(), contentType:'image/png'});
+  });
+}

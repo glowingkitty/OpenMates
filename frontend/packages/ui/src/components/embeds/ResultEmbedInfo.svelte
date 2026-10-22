@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick, type Snippet } from "svelte";
+  import "../common/tooltip.css";
   import { getLucideIcon } from "../../utils/categoryUtils";
 
   interface Props {
@@ -28,23 +29,21 @@
   let pinned = $state(false);
   let left = $state(0);
   let top = $state(0);
+  let above = $state(false);
+  let arrowLeft = $state(0);
 
   async function reveal() {
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
-    const width = Math.min(320, window.innerWidth - 24);
-    left = Math.max(
-      12,
-      Math.min(
-        rect.left + rect.width / 2 - width / 2,
-        window.innerWidth - width - 12,
-      ),
-    );
-    top = rect.bottom + 8;
     shown = true;
     await tick();
-    if (panel && top + panel.offsetHeight > window.innerHeight - 12)
-      top = Math.max(12, rect.top - panel.offsetHeight - 8);
+    if (!panel) return;
+    const width = panel.offsetWidth;
+    left = Math.max(12, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 12));
+    const aboveTop = rect.top - panel.offsetHeight - 8;
+    above = aboveTop >= 12;
+    top = above ? aboveTop : Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - panel.offsetHeight - 12));
+    arrowLeft = Math.max(8, Math.min(rect.left + rect.width / 2 - left, width - 8));
   }
   function dismiss() {
     shown = false;
@@ -122,13 +121,9 @@
         ><strong>{value}</strong>{#if caption}<small>{caption}</small
           >{/if}</span
       >{/if}
-    {#if infoState}<span
-        class="state"
-        class:yes={infoState === "yes"}
-        class:no={infoState === "no"}
-        aria-hidden="true"
-        >{infoState === "yes" ? "✓" : infoState === "no" ? "×" : "?"}</span
-      >{/if}
+    {#if infoState}<span class="state" class:yes={infoState === "yes"} class:no={infoState === "no"} aria-hidden="true">
+      <span class="clickable-icon" class:icon_check={infoState === "yes"} class:icon_close={infoState === "no"} class:icon_question={infoState === "unknown"}></span>
+    </span>{/if}
   </button>
   {#if shown}
     <div
@@ -136,12 +131,18 @@
       use:portal
       id={uid}
       role="tooltip"
-      class="info-panel"
+      class="info-panel om-tooltip"
+      class:above
+      class:below={!above}
+      class:pinned
+      data-testid="result-info-tooltip"
       style:left={`${left}px`}
       style:top={`${top}px`}
     >
-      <strong>{label}</strong>
-      {#if children}<div class="info-body">{@render children()}</div>{/if}
+      <div class="info-content"><span>{label}</span>
+        {#if children}<div class="info-body">{@render children()}</div>{/if}
+      </div>
+      <div class="om-tooltip-arrow" style:left={`${arrowLeft}px`}></div>
     </div>
   {/if}
 </div>
@@ -207,39 +208,38 @@
     position: absolute;
     right: -2px;
     bottom: -2px;
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     display: grid;
     place-items: center;
     border-radius: 50%;
-    border: 2px solid var(--color-grey-20);
+    border: 2px solid var(--color-grey-0);
     background: var(--color-grey-60);
     color: var(--color-font-button);
-    font-size: 0.75rem;
-    font-weight: 700;
+
   }
   .state.yes {
-    background: var(--color-semantic-success);
+    background: var(--color-success);
   }
   .state.no {
-    background: var(--color-semantic-error);
+    background: var(--color-error);
   }
-  .info-panel {
-    position: fixed;
-    z-index: var(--z-index-tooltip);
-    width: min(320px, calc(100vw - 24px));
-    max-height: min(60vh, 32rem);
-    overflow: auto;
+  .state .clickable-icon {
+    width: 14px;
+    height: 14px;
+    background: var(--color-font-button);
+    pointer-events: none;
+  }
+  /* The canonical surface/arrow live in common/tooltip.css. Only rich-content
+     wrapping and portal coordinates differ from the single-line Tooltip. */
+  .info-panel.om-tooltip {
     box-sizing: border-box;
-    border-radius: var(--radius-5);
-    padding: var(--spacing-8);
-    background: var(--color-grey-0);
-    color: var(--color-font-primary);
-    box-shadow: var(--shadow-lg);
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    text-align: left;
+    max-width: min(300px, calc(100vw - 24px));
+    white-space: normal;
+    transform: none;
   }
+  .info-panel.pinned { pointer-events: auto; }
+  .info-content { max-height: min(60vh, 32rem); overflow: auto; }
   .info-body {
     margin-top: var(--spacing-4);
   }

@@ -4,6 +4,35 @@ import { waitForComponentMotion, waitForComponentPreview } from '../helpers/comp
 // playwright-account: not_required reason=isolated_component_preview
 test.setTimeout(120_000);
 // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+test('embedded followup uses readable canonical composer geometry and expands without losing draft or attachments', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await page.goto('/dev/preview/apps/AppsRequestComposer?chrome=0&theme=light&width=700&variant=embed');
+  await waitForComponentPreview(page);
+  const composer = page.getByTestId('apps-request-composer');
+  const input = page.getByTestId('apps-request-textarea');
+  await expect(composer).toHaveClass(/canonical-composer/);
+  const collapsed = await composer.boundingBox();
+  expect(collapsed!.width).toBeGreaterThan(600);
+  expect(collapsed!.height).toBeGreaterThanOrEqual(60);
+  expect(await input.evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+  // Clicking the actual field padding focuses the same mounted input.
+  await composer.click({ position: { x: collapsed!.width / 2, y: 4 } });
+  await expect(input).toBeFocused();
+  await expect.poll(async () => (await composer.boundingBox())!.height).toBeGreaterThanOrEqual(180);
+  await input.fill('Keep this followup draft');
+  await page.getByTestId('apps-request-file-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('visible facts') });
+  await page.getByTestId('apps-request-submit').click();
+  // A declined request must retain both the original text and attachments.
+  await expect(input).toHaveValue('Keep this followup draft');
+  await expect(page.getByTestId('apps-request-attachments')).toContainText('notes.txt');
+  await expect(input).toBeFocused();
+  await testInfo.attach('embedded-followup-expanded', { body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+  await input.press('Escape');
+  await expect(input).not.toBeFocused();
+  await expect(input).toHaveValue('Keep this followup draft');
+});
+
+// contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
 test('natural request composer submits text with compatible files and preserves the draft on empty submit', async ({ page }) => {
   await page.goto('/dev/preview/apps/AppsRequestComposer?chrome=0&theme=light&width=390');
   await waitForComponentPreview(page);
@@ -154,9 +183,11 @@ test('Apps result host preserves the image renderer privacy projection in actual
   await expect(result).toContainText('2.0 KB');
   await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
   const expectImageAboveComposer = async () => {
-    const imageBounds = await image.boundingBox();
-    const composerBounds = await page.getByTestId('apps-request-composer').boundingBox();
-    expect(imageBounds!.y + imageBounds!.height).toBeLessThanOrEqual(composerBounds!.y - 8);
+    await expect.poll(async () => {
+      const imageBounds = await image.boundingBox();
+      const composerBounds = await page.getByTestId('apps-request-composer').boundingBox();
+      return composerBounds!.y - imageBounds!.y - imageBounds!.height;
+    }).toBeGreaterThanOrEqual(8);
   };
   await expectImageAboveComposer();
   await page.getByTestId('apps-request-textarea').fill('Describe the visible image facts');

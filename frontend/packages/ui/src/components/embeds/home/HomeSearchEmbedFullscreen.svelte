@@ -268,6 +268,9 @@
       available_from={result.available_from}
       location_precision={result.location_precision as string | undefined}
       location_approximate={homeApproximate(result)}
+      lat={homeNumber(result.latitude ?? result.lat)}
+      lon={homeNumber(result.longitude ?? result.lon)}
+      location_area={result.location_area}
       {onSelect}
     />
   {/snippet}

@@ -1,5 +1,5 @@
 import { expect, test } from '../helpers/cookie-audit';
-import { waitForComponentPreview } from '../helpers/component-preview';
+import { waitForComponentMotion, waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
 const preview = (path: string, width: number, variant = '', theme = 'light') =>
@@ -27,7 +27,7 @@ for (const width of [390, 1280]) {
       await page.keyboard.press('Enter');
       await expect.poll(() => expanded).toBe(1);
       await expect(card.locator('.result-corner')).toBeVisible();
-      if (path.startsWith('news/')) await expect(page.getByTestId('news-publication-date')).toHaveText('2026-10-21');
+      if (path.startsWith('news/')) await expect(page.getByTestId('news-publication-date').locator('time')).toHaveAttribute('datetime', '2026-10-21T00:00:00.000Z');
       await testInfo.attach(`${path.split('/')[0]}-chat-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
       await page.goto(preview(path, width, 'results'));
       await waitForComponentPreview(page);
@@ -60,6 +60,7 @@ for (const width of [390, 1280]) {
       await page.goto(preview(path, width, 'withSnippets'));
       await waitForComponentPreview(page);
       await expect(page.getByTestId('result-embed-content')).toBeVisible();
+      await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
       await expect(page.getByTestId('external-provider-cta')).toBeVisible();
       await expect(page.getByTestId('apps-request-textarea')).toBeVisible();
       await expect(page.locator('.header-image')).toHaveCSS('object-fit', 'contain');
@@ -90,13 +91,23 @@ for (const width of [390, 1280]) {
 }
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
-test('broken result media falls back to bounded title and description', async ({ page }) => {
+test('broken result media falls back to bounded title and description', async ({ page }, testInfo) => {
   await page.route('**/missing-result-preview-image.webp', route => route.fulfill({ status: 404, body: '' }));
   await page.goto(preview('web/WebsiteEmbedPreview', 390, 'brokenImage'));
   await waitForComponentPreview(page);
   await expect(page.getByTestId('result-card-media')).toHaveCount(0);
   await expect(page.getByTestId('result-card-title')).toBeVisible();
   await expect(page.getByTestId('result-card-content').locator('p')).toBeVisible();
+  await page.route('**/api/v1/metadata?**', route => route.fulfill({ json: {} }));
+  await page.route('**/missing-result-header-favicon.png', route => route.fulfill({ status: 404, body: '' }));
+  const props = encodeURIComponent(JSON.stringify({
+    data: { decodedContent: { url: 'https://example.com/header-favicon-test', title: 'Readable source title', description: 'The source remains readable when its icon is unavailable.', favicon: '/missing-result-header-favicon.png' }, embedData: { status: 'finished' }, attrs: { app_id: 'web', skill_id: 'website' } },
+  }));
+  await page.goto(`${preview('web/WebsiteEmbedFullscreen', 390)}&props=${props}`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('embed-header-title')).toHaveText('Readable source title');
+  await expect(page.locator('.header-favicon')).toBeHidden();
+  await testInfo.attach('web-broken-favicon-fallback', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 

@@ -243,6 +243,31 @@ test('YouTube PiP preserves the production iframe and playing media document acr
   await media.press('Space');
   await expect.poll(() => media.evaluate((element: HTMLVideoElement) => element.paused)).toBe(false);
   await testInfo.attach('VideoPlaybackHostFixture-restored-playing', { body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+  await page.getByTestId('apps-request-textarea').fill('Explain this video');
+  await expect(page.getByTestId('result-facts')).toBeHidden();
+  await expect.poll(async () => (await page.getByTestId('apps-request-composer').boundingBox())!.height).toBeGreaterThanOrEqual(180);
+  await expect.poll(async () => {
+    const playerBounds = await iframe.boundingBox();
+    const composerBounds = await page.getByTestId('apps-request-composer').boundingBox();
+    const slotBounds = await page.locator('.video-playing-spacer').boundingBox();
+    return !!playerBounds && !!composerBounds && !!slotBounds
+      && playerBounds.y + playerBounds.height <= composerBounds.y - 8
+      && Math.abs(playerBounds.y - slotBounds.y) < 1
+      && Math.abs(playerBounds.width - slotBounds.width) < 1;
+  }, { message: 'expanded followup must leave the actual persistent player above its controls' }).toBe(true);
+  await expect.poll(async () => {
+    const pipBounds = await page.locator('.pip-button').boundingBox();
+    const composerBounds = await page.getByTestId('apps-request-composer').boundingBox();
+    return !!pipBounds && !!composerBounds && pipBounds.y + pipBounds.height <= composerBounds.y - 8;
+  }, { message: 'whole auxiliary PiP button must clear the expanded followup by 8px' }).toBe(true);
+  const cancel = page.getByTestId('apps-request-textarea-cancel');
+  await expect(cancel).toBeVisible();
+  await expect(cancel).toBeInViewport({ ratio: 1 });
+  expect(await iframe.evaluate((current, original) => current === original, originalIframe)).toBe(true);
+  expect(await media.evaluate((current, original) => current === original, originalPlayer)).toBe(true);
+  expect(providerDocumentLoads).toBe(1);
+  await expect(media).toHaveAttribute('controls', '');
+  await testInfo.attach('VideoPlaybackHostFixture-restored-expanded-followup', { body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png' });
   await originalPlayer?.dispose();
   await originalIframe?.dispose();
 });

@@ -65,7 +65,7 @@
   let focused = $derived(focusActive);
   let expanded = $state(false);
   const hasText = $derived(value.trim().length > 0);
-  const collapsible = $derived(surface === 'workflows' || surface === 'tasks');
+  const collapsible = $derived(surface === 'workflows' || surface === 'tasks' || presentation === 'embed');
   const collapsed = $derived(collapsible && !focused && !recording);
   // The visible preview never replaces the bound draft or its line breaks.
   const firstLine = $derived(value.split(/\r?\n/)[0] + (/[\r\n]/.test(value) ? '…' : ''));
@@ -155,6 +155,7 @@
 <div class="workspace-prompt-shell" class:focused={collapsible && focused}>
 <form
   class="workspace-prompt-composer"
+  class:canonical-composer={presentation === 'embed'}
   class:embed-presentation={presentation === 'embed'}
   class:focused
   class:has-text={hasText}
@@ -165,6 +166,12 @@
   class:expanded
   data-testid={testId}
   data-surface={surface}
+  onpointerdown={(event) => {
+    if (presentation === 'embed' && event.target instanceof Element && !event.target.closest('button, textarea, input')) {
+      event.preventDefault();
+      textareaElement?.focus();
+    }
+  }}
   onfocusin={handleFocusIn}
   onfocusout={handleFocusOut}
   onsubmit={(event) => {
@@ -177,12 +184,12 @@
       class="workspace-prompt-file"
       type="button"
       data-testid={fileImport.testId}
-      aria-label={fileImport.label}
+      aria-label={presentation === 'embed' && collapsed ? placeholder : fileImport.label}
       title={fileImport.label}
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-      onclick={fileImport.onClick}
-    ><span class="clickable-icon" class:icon_files={presentation !== 'embed'} class:icon_ai={presentation === 'embed'} aria-hidden="true"></span></button>
+      onclick={() => { if (presentation === 'embed' && collapsed) { focusActive = true; textareaElement?.focus(); } else fileImport.onClick(); }}
+    ><span class="clickable-icon" class:icon_ai={presentation === 'embed' && collapsed} class:icon_files={presentation !== 'embed' || !collapsed} aria-hidden="true"></span></button>
   {:else}
     <span class="workspace-prompt-ai-icon" aria-hidden="true"></span>
   {/if}
@@ -253,6 +260,7 @@
 </div>
 
 <style>
+  @import '../enter_message/composerPresentation.css';
   .workspace-prompt-shell {
     width: min(629px, 100%);
     margin: 0 auto;
@@ -621,17 +629,26 @@
     }
   }
   .workspace-prompt-composer.embed-presentation {
-    min-height: 44px;
-    padding: var(--spacing-4) 44px;
-    background: var(--color-grey-0);
-    border-radius: var(--radius-8);
-    box-shadow: var(--shadow-md);
+    --composer-background: var(--color-grey-0);
+    min-height: var(--composer-compact-height);
+    border-radius: var(--composer-radius);
+    background: var(--composer-background);
+    box-shadow: var(--composer-shadow);
+    cursor: text;
   }
-  .embed-presentation textarea { font-size: 0.8125rem; }
-  .embed-presentation .workspace-prompt-file { left: 4px; width: 36px; height: 36px; }
-  .embed-presentation .workspace-prompt-file span { width: 22px; height: 22px; background: var(--color-grey-60); }
-  .embed-presentation .workspace-prompt-mic { right: 12px; width: 22px; height: 22px; min-width: 0; min-height: 0; margin: 0; padding: 0; filter: none; }
-  .embed-presentation.has-text { padding-right: 44px; }
-  .embed-presentation .workspace-prompt-submit { min-width: 0; min-height: 32px; height: 32px; margin: 0; padding: 0 var(--spacing-4); font-size: 0.75rem; filter: none; }
+  .workspace-prompt-composer.embed-presentation.focused:not(.recording) {
+    min-height: var(--composer-focused-height);
+  }
+  .embed-presentation textarea,
+  .embed-presentation .workspace-prompt-preview {
+    font-size: var(--composer-font-size);
+    line-height: var(--composer-line-height);
+  }
+  .workspace-prompt-composer.embed-presentation.collapsible textarea {
+    max-height: calc(4 * 1.6em);
+  }
+  .workspace-prompt-composer.embed-presentation.expanded textarea {
+    max-height: min(40dvh, 20rem);
+  }
   .embed-presentation.recording { min-height: 220px; }
 </style>

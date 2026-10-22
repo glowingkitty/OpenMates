@@ -1,0 +1,39 @@
+/* Shared Tooltip.svelte surface and arrow. Components retain their own lifecycle. */
+.om-tooltip {
+  position: fixed;
+  background-color: var(--color-grey-0);
+  color: var(--color-grey-100);
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-2);
+  font-size: var(--font-size-small);
+  z-index: var(--z-index-tooltip);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  max-width: 300px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.om-tooltip.above { transform: translateX(-50%) translateY(-100%); }
+.om-tooltip.below { transform: translateX(-50%); }
+.om-tooltip-arrow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+.om-tooltip.above .om-tooltip-arrow {
+  bottom: -4px;
+  top: auto;
+  border-bottom: none;
+  border-top: 5px solid var(--color-grey-0);
+}
+.om-tooltip.below .om-tooltip-arrow {
+  top: -4px;
+  bottom: auto;
+  border-top: none;
+  border-bottom: 5px solid var(--color-grey-0);
+}

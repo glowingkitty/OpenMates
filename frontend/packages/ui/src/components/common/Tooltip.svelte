@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy, untrack } from 'svelte';
+    import './tooltip.css';
     
     // Props - using Svelte 5 runes mode syntax
     interface Props {
@@ -109,54 +110,13 @@
 {#if showTooltip && element?.getAttribute('aria-label')}
     <div
         bind:this={tooltip}
-        class="tooltip"
+        class="tooltip om-tooltip"
         class:above={isAbove}
         class:below={!isAbove}
         style="left: {position.x}px; top: {position.y}px"
         role="tooltip"
     >
         {element.getAttribute('aria-label')}
-        <div class="tooltip-arrow"></div>
+        <div class="tooltip-arrow om-tooltip-arrow"></div>
     </div>
 {/if}
-
-<style>
-    .tooltip {
-        position: fixed;
-        background-color: var(--color-grey-0);
-        color: var(--color-grey-100);
-        padding: var(--spacing-4) var(--spacing-6);
-        border-radius: var(--radius-2);
-        font-size: var(--font-size-small);
-        z-index: var(--z-index-tooltip);
-        pointer-events: none;
-        white-space: nowrap;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        max-width: 300px;
-        text-align: center;
-        /* Remove the default transform and handle it in the position classes */
-        transform: translateX(-50%);
-    }
-
-    /* Position-specific transforms */
-    .tooltip.above {
-        transform: translateX(-50%) translateY(-100%);
-    }
-
-    .tooltip.below {
-        transform: translateX(-50%);
-    }
-
-    .tooltip-arrow {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 0;
-        height: 0;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        /* Default arrow styles will be overridden by JavaScript */
-    }
-
-    /* Arrow positioning for below state is handled via JavaScript setAttribute */
-</style> 
