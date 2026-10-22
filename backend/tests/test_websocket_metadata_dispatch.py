@@ -24,151 +24,10 @@ def _stub_module(monkeypatch, module_name, **attributes):
     monkeypatch.setitem(sys.modules, module_name, module)
 
 
-async def _noop_async(*args, **kwargs):
-    return None
-
-
-def _install_websockets_import_stubs(monkeypatch):
-    base = "backend.core.api.app.routes.handlers.websocket_handlers"
-    handler_modules = {
-        "title_update_handler": ["handle_update_title"],
-        "draft_update_handler": ["handle_update_draft"],
-        "message_received_handler": ["handle_message_received"],
-        "delete_chat_handler": ["handle_delete_chat"],
-        "delete_message_handler": ["handle_delete_message"],
-        "message_highlight_handlers": [
-            "handle_add_message_highlight",
-            "handle_update_message_highlight",
-            "handle_remove_message_highlight",
-        ],
-        "code_run_output_handlers": ["handle_upsert_code_run_output", "handle_request_code_run_output"],
-        "notebook_run_output_handlers": ["handle_upsert_notebook_run_output", "handle_request_notebook_run_output"],
-        "offline_sync_handler": ["handle_sync_offline_changes"],
-        "get_chat_messages_handler": ["handle_get_chat_messages"],
-        "delete_draft_handler": ["handle_delete_draft"],
-        "delete_draft_embed_handler": ["handle_delete_draft_embed"],
-        "cancel_pdf_processing_handler": ["handle_cancel_pdf_processing"],
-        "chat_content_batch_handler": ["handle_chat_content_batch"],
-        "cancel_ai_task_handler": ["handle_cancel_ai_task"],
-        "cancel_skill_handler": ["handle_cancel_skill"],
-        "focus_mode_deactivate_handler": ["handle_focus_mode_deactivate"],
-        "focus_mode_rejected_handler": ["handle_focus_mode_rejected"],
-        "sub_chat_confirmation_handler": ["handle_sub_chat_confirmation"],
-        "sub_chat_stop_handler": ["handle_sub_chat_stop"],
-        "ai_response_completed_handler": ["handle_ai_response_completed"],
-        "encrypted_chat_metadata_handler": ["handle_encrypted_chat_metadata"],
-        "chat_turn_preflight_handler": ["handle_chat_turn_preflight"],
-        "chat_recovery_job_handlers": [
-            "handle_recovery_job_claim",
-            "handle_recovery_job_persist",
-            "handle_recovery_job_renew",
-            "send_available_recovery_jobs",
-        ],
-        "workflow_chat_delivery_handlers": [
-            "handle_workflow_chat_delivery_ack",
-            "handle_workflow_chat_delivery_claim",
-            "handle_workflow_chat_delivery_persist",
-            "send_available_workflow_chat_deliveries",
-        ],
-        "task_update_job_handlers": [
-            "handle_task_update_job_claim",
-            "handle_task_update_job_event_confirmed",
-            "handle_task_update_job_persist",
-            "send_available_task_update_jobs",
-        ],
-        "post_processing_metadata_handler": ["handle_post_processing_metadata"],
-        "phased_sync_handler": ["handle_phased_sync_request", "handle_sync_status_request"],
-        "app_settings_memories_confirmed_handler": ["handle_app_settings_memories_confirmed"],
-        "connected_account_permission_confirmed_handler": ["handle_connected_account_permission_confirmed"],
-        "store_app_settings_memories_handler": ["handle_store_app_settings_memories_entry"],
-        "delete_app_settings_memories_handler": ["handle_delete_app_settings_memories_entry"],
-        "store_embed_handler": ["handle_store_embed"],
-        "store_embed_keys_handler": ["handle_store_embed_keys"],
-        "store_embed_diff_handler": ["handle_store_embed_diff"],
-        "commit_embed_revision_handler": ["handle_commit_embed_revision"],
-        "delete_new_chat_suggestion_handler": ["handle_delete_new_chat_suggestion"],
-        "system_message_handler": ["handle_chat_system_message_added"],
-        "email_notification_settings_handler": ["handle_email_notification_settings"],
-        "load_more_chats_handler": ["handle_load_more_chats"],
-        "sync_metadata_chats_handler": ["handle_sync_metadata_chats"],
-        "inspiration_viewed_handler": ["handle_inspiration_viewed"],
-        "inspiration_received_handler": ["handle_inspiration_received"],
-        "sync_inspiration_chat_handler": ["handle_sync_inspiration_chat"],
-        "project_remote_access_handlers": [
-            "handle_project_remote_access_complete",
-            "handle_project_remote_access_disconnect",
-            "handle_project_remote_access_heartbeat",
-            "handle_project_remote_access_register",
-        ],
-        "project_file_operation_handlers": [
-            "handle_project_file_operation_claim",
-            "handle_project_file_operation_reject",
-            "handle_project_file_operation_result",
-            "send_available_project_file_operations",
-        ],
-        "remote_command_handlers": [
-            "handle_remote_command_claim",
-            "handle_remote_command_discover",
-            "handle_remote_command_event",
-            "handle_remote_command_prepare",
-            "handle_remote_command_recover",
-            "handle_remote_command_reject",
-            "handle_remote_command_revalidate",
-            "handle_remote_command_source_completion",
-            "handle_remote_command_stop",
-        ],
-        "remote_command_origin_completion_handler": [
-            "handle_remote_command_origin_completion",
-        ],
-        "update_chat_pinned_handler": ["handle_update_chat_pinned"],
-        "key_received_handler": ["handle_key_received"],
-        "chat_compression_checkpoint_handler": [
-            "handle_get_compressed_chat_old_messages",
-            "handle_store_chat_compression_checkpoint",
-        ],
-        "assistant_speech_handler": ["handle_assistant_speech_event"],
-        "chat_model_preference_handler": ["handle_chat_model_preference"],
-    }
-    for module_name, names in handler_modules.items():
-        _stub_module(monkeypatch, f"{base}.{module_name}", **{name: _noop_async for name in names})
-
-    _stub_module(
-        monkeypatch,
-        f"{base}.active_chat_handler",
-        AI_STREAM_SNAPSHOT_TTL_SECONDS=60,
-        ai_stream_snapshot_cache_key=lambda *args, **kwargs: "snapshot-key",
-        handle_set_active_chat=_noop_async,
-    )
-    _stub_module(monkeypatch, "backend.core.api.app.services.cache", CacheService=object)
-    _stub_module(monkeypatch, "backend.core.api.app.services.directus", DirectusService=object)
-    _stub_module(
-        monkeypatch,
-        "backend.core.api.app.services.chat_recovery_cutover",
-        ChatRecoveryCutoverController=object,
-    )
-    _stub_module(
-        monkeypatch,
-        "backend.core.api.app.services.notification_event_service",
-        NotificationEventService=object,
-    )
-    _stub_module(monkeypatch, "backend.core.api.app.utils.encryption", EncryptionService=object)
-    _stub_module(monkeypatch, "backend.core.api.app.routes.connection_manager", ConnectionManager=object)
-    _stub_module(monkeypatch, "backend.core.api.app.routes.auth_ws", get_current_user_ws=_noop_async)
-
-
-def _load_websockets_module(monkeypatch):
-    _install_websockets_import_stubs(monkeypatch)
-    module_name = "backend.core.api.app.routes.websockets"
-    module = sys.modules.get(module_name)
-    if module is not None and (
-        not hasattr(module, "_schedule_sync_metadata_chats_background")
-        or not hasattr(module, "_schedule_phased_sync_background")
-    ):
-        sys.modules.pop(module_name, None)
-        routes_package = sys.modules.get("backend.core.api.app.routes")
-        if routes_package is not None and getattr(routes_package, "websockets", None) is module:
-            delattr(routes_package, "websockets")
-    return importlib.import_module(module_name)
+def _load_websockets_module(_monkeypatch):
+    # Exercise the actual listener and its imports. Individual test transports
+    # are injected below; unrelated handler-module stubs hid real routing drift.
+    return importlib.import_module("backend.core.api.app.routes.websockets")
 
 
 @pytest.mark.asyncio
@@ -672,3 +531,80 @@ async def test_project_file_available_uses_app_directus_and_only_current_capable
         "user-1",
         "current-device",
     )]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("status", "authority"), [
+    ("queued", "active"), ("ready", "active"), ("queued", "ended"),
+    ("ready", "wrong_owner"), ("queued", "wrong_chat"), ("ready", "wrong_session"),
+    ("queued", "unknown"), ("ready", "malformed"),
+])
+# contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.audio.localized-waiting,video-call.lifecycle.recovery-and-billing,assistant-speech.access.first-party-owner-scoped
+async def test_call_speech_status_keeps_language_and_routes_only_live_call_session_in_background(monkeypatch, status, authority):
+    import fakeredis.aioredis
+    from backend.shared.python_utils.voice_call_registry import register_active_call, finalize_active_call
+
+    websockets = _load_websockets_module(monkeypatch)
+    owner_id, chat_id, session_id = "call-owner", "call-chat", "call-auth-session"
+    call_id = "a" * 32 if authority != "malformed" else "invalid-call"
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    sent = []
+    speech = {"segment_id": "speech-segment", "sequence": 0, "status": status,
+              "voice_call_id": call_id, "language": "de", "kind": "waiting",
+              "speakable_text": "PRIVATE spoken text", "private_provider_response": {"secret": "PRIVATE"}}
+    if status == "ready":
+        speech.update(generated_asset_id="owner-encrypted-asset", duration_seconds=1.2)
+
+    class Cache:
+        def __init__(self):
+            self.redis = fakeredis.aioredis.FakeRedis()
+
+        @property
+        async def client(self):
+            return self.redis
+
+        async def subscribe_to_channel(self, channel):
+            assert channel == "chat_stream::*"
+            yield {"channel": f"chat_stream::{chat_id}", "data": {
+                "type": "assistant_speech_status", "chat_id": chat_id,
+                "user_id_hash": owner_hash, "message_id": "canonical-assistant", "payload": speech,
+            }}
+
+    class Manager:
+        active_connections = {
+            owner_id: {
+                "call-tab-background": SimpleNamespace(scope={"voice_call_session_hash": session_id}),
+                "other-session-active-chat": SimpleNamespace(scope={"voice_call_session_hash": "different-session"}),
+            },
+            "other-user": {"other-user-tab": SimpleNamespace(scope={"voice_call_session_hash": session_id})},
+        }
+
+        def get_connections_for_user(self, user_id):
+            return self.active_connections.get(user_id, {})
+
+        def get_active_chat(self, _user_id, device_hash):
+            return "unrelated-open-chat" if device_hash == "call-tab-background" else chat_id
+
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    cache = Cache()
+    binding = dict(user_id="another-owner" if authority == "wrong_owner" else owner_id,
+                   session_id="unconnected-session" if authority == "wrong_session" else session_id,
+                   chat_id="another-chat" if authority == "wrong_chat" else chat_id, call_id=call_id)
+    if authority not in {"unknown", "malformed"}:
+        await register_active_call(cache, **binding)
+        if authority == "ended":
+            await finalize_active_call(cache, **binding)
+    monkeypatch.setattr(websockets, "manager", Manager())
+    await websockets.listen_for_ai_chat_streams(SimpleNamespace(state=SimpleNamespace(cache_service=cache)))
+    if authority != "active":
+        assert sent == []
+        return
+    assert len(sent) == 1 and sent[0][1:] == (owner_id, "call-tab-background")
+    payload = sent[0][0]["payload"]
+    assert payload["voice_call_id"] == call_id and payload["language"] == "de"
+    assert payload["status"] == status and payload["kind"] == "waiting"
+    assert "speakable_text" not in payload and "private_provider_response" not in payload
+    if status == "ready":
+        assert payload["generated_asset_id"] == "owner-encrypted-asset"

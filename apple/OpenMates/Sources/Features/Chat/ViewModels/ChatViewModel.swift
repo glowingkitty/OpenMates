@@ -1,3 +1,5 @@
+// Specification: specifications/features/video-call/specification.yml
+// Assertions: video-call.chat.transcripts, video-call.audio.complete-turn-admission
 // Specification: specifications/features/chat-queued-followups/specification.yml
 // Assertions: chat-queued-followups.admission.synced, chat-queued-followups.editing.stable-revision, chat-queued-followups.editing.cancel, chat-queued-followups.steering.safe-boundary, chat-queued-followups.access.scoped
 // Specification: specifications/features/billing/specification.yml
@@ -6083,6 +6085,7 @@ final class ChatSendPipeline {
         createdAtOverride: String? = nil,
         beforePreparedSend: (() async throws -> Void)? = nil,
         validateRemoteSend: (() throws -> Void)? = nil,
+        voiceCallTurn: NativeVoiceCallTurn? = nil,
         messageId requestedMessageId: String? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
@@ -6287,7 +6290,10 @@ final class ChatSendPipeline {
             messagePayload["current_chat_title"] = updatedChat.title
         }
 
-        messagePayload.merge(try await AssistantSpeechAppRuntime.shared.prepareSend(chat: chat, userMessageID: messageId, socket: wsManager, expectedScope: speechScope), uniquingKeysWith: { _, new in new })
+        messagePayload.merge(try await AssistantSpeechAppRuntime.shared.prepareSend(chat: chat,
+            userMessageID: messageId, socket: wsManager, expectedScope: speechScope,
+            voiceCallTurn: voiceCallTurn), uniquingKeysWith: { _, new in new })
+        if let voiceCallTurn { messagePayload.merge(voiceCallTurn.messageFields, uniquingKeysWith: { _, new in new }) }
 
         var outboundPayload: [String: Any] = [
             "chat_id": chat.id,

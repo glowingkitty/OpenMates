@@ -30,6 +30,8 @@ vi.mock("../websocketService", () => ({
 // Imported preview/speech services register listeners on this singleton at
 // module load. The protocol helper tests do not start the sync service.
 vi.mock("../chatSyncService", () => ({ chatSyncService: new EventTarget() }));
+// Protocol helper tests do not enroll a real account identity during auth bootstrap.
+vi.mock("../directChatService", () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 // Consent UI imports the application barrel and its SvelteKit environment.
 // These sender protocol cases exercise no consent dialog or app bootstrap.
 vi.mock("../chatErrorReportConsent", () => ({ promptChatErrorReportConsent: vi.fn() }));
@@ -292,8 +294,12 @@ describe("sendersChatMessages protocol fences", () => {
 
 	// contract-test: supporting surface=gui.web assertions=chats.completion.lease-fenced,chats.persistence.client-encrypted
 	it("retains the sealed preflight across legacy and stale ACKs, clearing only admitted turn confirmation", async () => {
-		const clear = vi.fn(async () => undefined);
-		watchDurableTurnPreflightConfirmation("ack-chat", "ack-message", 7, clear);
+		let release!: () => void;
+		const clear = vi.fn(() => new Promise<void>(resolve => { release = resolve; }));
+		const completed = watchDurableTurnPreflightConfirmation("ack-chat", "ack-message", 7, clear);
+		let settled = false;
+		void completed.then(() => { settled = true; });
+		expect(watchDurableTurnPreflightConfirmation("ack-chat", "ack-message", 7, clear)).toBe(completed);
 		const registrations = vi.mocked(webSocketService.on).mock.calls;
 		const callback = [...registrations].reverse().find(([event]) => event === "chat_message_confirmed")?.[1];
 		expect(callback).toBeTypeOf("function");
@@ -304,6 +310,11 @@ describe("sendersChatMessages protocol fences", () => {
 		(callback as (payload: unknown) => void)({ chat_id: "ack-chat", message_id: "ack-message", new_messages_v: 7 });
 		expect(clear).toHaveBeenCalledOnce();
 		expect(webSocketService.off).toHaveBeenCalledWith("chat_message_confirmed", callback);
+		await Promise.resolve();
+		expect(settled).toBe(false); // A recovery scan still sees the retained journal.
+		release();
+		await completed;
+		expect(settled).toBe(true);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,message-input.embeds.gated-send

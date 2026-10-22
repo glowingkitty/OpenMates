@@ -10,7 +10,6 @@ from PIL import Image
 import pytest
 
 from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals, MAX_SOURCE_FRAMES
-from backend.apps.ai.processing.voice_call_broker_runtime import visual_tool_messages
 
 
 def frame(width=1280, height=720, frame_id="frame-1"):
@@ -86,8 +85,7 @@ async def test_source_upload_matches_frozen_bytes_owner_and_mime_before_multimod
     filters = directus.get_items.call_args.kwargs["params"]["filter"]["_and"]
     assert {"content_hash": {"_eq": original.content_hash}} in filters
     assert {"user_id": {"_eq": "owner"}} in filters
-    messages = visual_tool_messages({"context": {"messages": []}, "request": "find this", "visual_source": source})
-    assert messages[-1]["content"][1]["image_url"]["url"] == "data:image/jpeg;base64," + original.data
+    assert source["embed_reference"] == {"type": "image", "embed_id": "source-uuid"}
     visuals.close()
     assert not visuals.sources and visuals.latest is None
 
@@ -179,3 +177,29 @@ async def test_upload_ack_after_source_timeout_is_ignored_without_changing_camer
         release_lookup.set()
         await asyncio.gather(acknowledgement, return_exceptions=True)
         visuals.close()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance,video-call.privacy
+@pytest.mark.asyncio
+async def test_encrypted_source_reference_preserves_verified_screen_provenance():
+    visuals = VoiceCallVisuals()
+    visuals.set_enabled(True)
+    original = visuals.accept({**frame(), "source": "screen"}, now=1)
+    visuals.freeze("user-turn")
+    reference = {"type": "image", "embed_id": "source-uuid", "source_frame_id": original.frame_id,
+                 "captured_at": original.captured_at, "source_call_id": "active-call", "source": "screen"}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[{
+        "embed_id": "source-uuid", "user_id": "owner", "content_hash": original.content_hash,
+        "content_type": "image/jpeg",
+    }]))
+    event = {"type": "source_frame_saved", "call_id": "active-call", "user_message_id": "user-turn",
+             "frame_id": original.frame_id, "embed_reference": reference}
+    for key, wrong in [("source", "camera"), ("source_call_id", "different-call"),
+                       ("source_frame_id", "different-frame"), ("captured_at", 1)]:
+        with pytest.raises(ValueError, match="provenance"):
+            await visuals.acknowledge({**event, "embed_reference": {**reference, key: wrong}}, directus=directus, user_id="owner")
+    directus.get_items.assert_not_awaited()
+    await visuals.acknowledge(event, directus=directus, user_id="owner")
+    source = await visuals.source("user-turn")
+    assert source["embed_reference"] == reference and source["source"] == "screen"
+    visuals.close()

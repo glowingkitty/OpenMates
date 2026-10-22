@@ -19,7 +19,6 @@ MAX_FRAME_BYTES = 256 * 1024
 MAX_SOURCE_FRAMES = 8
 SOURCE_SAVE_TIMEOUT = 20
 MAX_FRAME_AGE_SECONDS = 60
-FRAME_TOKEN_RESERVE = 258  # Admission only; actual IMAGE/VIDEO provider usage bills.
 _FRAME_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 
 
@@ -29,6 +28,7 @@ class CameraFrame:
     data: str
     captured_at: int
     content_hash: str
+    source: str = "camera"
 
 
 class VoiceCallVisuals:
@@ -51,6 +51,9 @@ class VoiceCallVisuals:
         now = time.monotonic() if now is None else now
         if not self.enabled:
             raise ValueError("Camera is disabled")
+        source = event.get("source", "camera")
+        if not isinstance(source, str) or source not in {"camera", "screen"}:
+            raise ValueError("Invalid visual source")
         frame_id, encoded, captured = event.get("frame_id"), event.get("data"), event.get("captured_at")
         if (not isinstance(frame_id, str) or not _FRAME_ID.fullmatch(frame_id)
                 or not isinstance(encoded, str) or len(encoded) > MAX_FRAME_BYTES * 4 // 3 + 8
@@ -68,12 +71,12 @@ class VoiceCallVisuals:
         except Exception as exc:
             raise ValueError("Invalid camera JPEG") from exc
         # Network timing can compress otherwise valid one-second observations,
-        # and switching cameras must not reset the call's provider budget.
+        # and switching cameras must not reset the call's ingress budget.
         # Drop excess samples without turning a healthy camera into an error or
-        # replacing the exact source most recently admitted to the provider.
+        # replacing the exact source most recently admitted for the next turn.
         if now - self.last_frame_at < 1:
             return None
-        self.latest = CameraFrame(frame_id, encoded, int(captured), hashlib.sha256(raw).hexdigest())
+        self.latest = CameraFrame(frame_id, encoded, int(captured), hashlib.sha256(raw).hexdigest(), source)
         self.last_frame_at = now
         self.latest_received_at = time.monotonic()
         return self.latest
@@ -110,10 +113,14 @@ class VoiceCallVisuals:
             future.set_result(None)
             return
         reference = event.get("embed_reference")
-        if (not isinstance(reference, dict) or set(reference) != {"type", "embed_id"}
+        if (not isinstance(reference, dict) or set(reference) - {"type", "embed_id", "source_frame_id", "captured_at", "source_call_id", "source"}
                 or reference.get("type") != "image" or not isinstance(reference.get("embed_id"), str)
                 or not _FRAME_ID.fullmatch(reference["embed_id"])):
             raise ValueError("Invalid camera source reference")
+        for key, expected in (("source_frame_id", frame.frame_id), ("captured_at", frame.captured_at),
+                              ("source", frame.source), ("source_call_id", event.get("call_id"))):
+            if key in reference and reference[key] != expected:
+                raise ValueError("Camera source provenance mismatch")
         rows = await directus.get_items("upload_files", params={"filter": {"_and": [
             {"embed_id": {"_eq": reference["embed_id"]}}, {"user_id": {"_eq": user_id}},
             {"content_hash": {"_eq": frame.content_hash}}, {"content_type": {"_eq": "image/jpeg"}},
@@ -129,7 +136,7 @@ class VoiceCallVisuals:
             future.set_result(None)
             raise PermissionError("Camera source upload binding mismatch")
         future.set_result({"frame_id": frame.frame_id, "data": frame.data,
-            "captured_at": frame.captured_at, "content_hash": frame.content_hash,
+            "captured_at": frame.captured_at, "content_hash": frame.content_hash, "source": frame.source,
             "embed_reference": reference})
 
     async def source(self, user_message_id: str) -> dict | None:

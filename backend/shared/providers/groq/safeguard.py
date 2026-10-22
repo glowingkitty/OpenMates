@@ -236,6 +236,9 @@ class GroqSafeguardClient:
         assistant_response: str,
     ) -> MaliciousUrlReport:
         """Ask gpt-oss-safeguard which supplied URLs must be removed."""
+        from backend.shared.testing.voice_call_fixture import isolated_voice_source_url_fixture
+        if len(urls) == 1 and isolated_voice_source_url_fixture(urls[0]):
+            return MaliciousUrlReport(all_urls_safe=True)
         if not self._client:
             return MaliciousUrlReport(
                 all_urls_safe=False,

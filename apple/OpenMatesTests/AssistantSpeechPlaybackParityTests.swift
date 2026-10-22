@@ -4,6 +4,86 @@ import XCTest
 @MainActor
 final class AssistantSpeechPlaybackParityTests: XCTestCase {
     private let scope = AssistantSpeechScope(accountID: "test", serverID: "test", chatID: "chat")
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.intentional-interruption
+    func testHeardBoundaryUsesOnlyCompletedVoiceClausesAndActualActiveMediaOffset() async {
+        let first = expectation(description: "First clause plays"), second = expectation(description: "Second clause plays")
+        var finishFirst: CheckedContinuation<Void, Never>?
+        let speech = NativeAssistantSpeech(dependencies: .init(readPreference: { _ in true }, writePreference: { _, _ in },
+            resolveAudio: { _, asset in Data([asset == "asset-0" ? 0 : 1]) }, play: { bytes in
+                if bytes.first == 0 {
+                    await withCheckedContinuation { finishFirst = $0; first.fulfill() }
+                } else { second.fulfill(); try await Task.sleep(nanoseconds: 10_000_000_000) }
+            }, stopPlayback: {}, cancelResponse: { _, _ in }, playbackOffsetMilliseconds: { 375 }))
+        await speech.activate(scope); speech.expectResponse("canonical-assistant", in: scope)
+        speech.receive(.init(chat_id: scope.chatID, message_id: "canonical-assistant", status: "ready",
+            segment_id: nil, sequence: nil, generated_asset_id: nil, segments: [
+                .init(segment_id: "passive", sequence: -1, status: "generating", generated_asset_id: nil, kind: "waiting_confirmation"),
+                .init(segment_id: "clause-0", sequence: 0, status: "ready", generated_asset_id: "asset-0", kind: "voice_prose_clause"),
+                .init(segment_id: "clause-1", sequence: 1, status: "ready", generated_asset_id: "asset-1", kind: "voice_prose_clause")
+            ]), in: scope)
+        await fulfillment(of: [first], timeout: 1)
+        XCTAssertEqual(speech.heardBoundary()?.completedSequences, [])
+        finishFirst?.resume()
+        await fulfillment(of: [second], timeout: 1)
+        let heard = speech.heardBoundary()
+        XCTAssertEqual(heard?.assistantMessageID, "canonical-assistant")
+        XCTAssertEqual(heard?.completedSequences, [0])
+        XCTAssertEqual(heard?.activeSequence, 1)
+        XCTAssertEqual(heard?.activeOffsetMilliseconds, 375)
+        await speech.stop()
+        XCTAssertNil(speech.heardBoundary())
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
+    func testQueuedOrFailedGermanWaitingPreludeYieldsToReadyCanonicalSpeech() async {
+        let played = expectation(description: "Real German response plays")
+        var assets: [String] = []
+        let speech = NativeAssistantSpeech(dependencies: .init(readPreference: { _ in true }, writePreference: { _, _ in },
+            resolveAudio: { _, asset in assets.append(asset); return Data() },
+            play: { _ in played.fulfill(); try await Task.sleep(nanoseconds: 10_000_000_000) },
+            stopPlayback: {}, cancelResponse: { _, _ in }))
+        await speech.activate(scope); speech.expectResponse("response", in: scope)
+        speech.receive(.init(chat_id: scope.chatID, message_id: "response", status: "generating",
+            segment_id: "de-waiting", sequence: -1, generated_asset_id: nil, kind: "waiting_confirmation", segments: nil), in: scope)
+        XCTAssertEqual(speech.activeSequence, -1)
+        speech.receive(.init(chat_id: scope.chatID, message_id: "response", status: "ready",
+            segment_id: "de-answer", sequence: 0, generated_asset_id: "de-answer-asset", kind: "voice_prose_clause", segments: nil), in: scope)
+        speech.receive(.init(chat_id: scope.chatID, message_id: "response", status: "error",
+            segment_id: "de-waiting", sequence: -1, generated_asset_id: nil, kind: "waiting_confirmation", segments: nil), in: scope)
+        await fulfillment(of: [played], timeout: 1)
+        XCTAssertEqual(assets, ["de-answer-asset"])
+        XCTAssertFalse(speech.playbackSegments.contains { ($0.sequence ?? 0) < 0 })
+        XCTAssertEqual(speech.activeSequence, 0)
+        XCTAssertNil(speech.error)
+        speech.reset()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.spoken-rich-response,assistant-speech.surface.semantic-parity
+    func testVoiceClauseReplayAndGenerateCarryExactGermanCanonicalMarkdownAndSegmentIdentity() async {
+        let generated = expectation(description: "Canonical second clause requested")
+        let markdown = "Erster Satz. Zweiter Satz mit [Quelle](https://example.invalid)."
+        var sources: [String] = [], target: String?
+        let speech = NativeAssistantSpeech(dependencies: .init(readPreference: { _ in false }, writePreference: { _, _ in },
+            resolveAudio: { _, _ in Data() }, play: { _ in try await Task.sleep(nanoseconds: 10_000_000_000) },
+            stopPlayback: {}, cancelResponse: { _, _ in }, requestSpeechWithSource: { _, _, action, fields, source in
+                sources.append(source)
+                if action == "generate" { target = fields.first?["segment_id"] as? String; generated.fulfill() }
+            }))
+        await speech.activate(scope); await speech.request(messageID: "voice-response", markdown: markdown)
+        speech.receive(.init(chat_id: scope.chatID, message_id: "voice-response", status: "accepted",
+            segment_id: nil, sequence: nil, generated_asset_id: nil, segments: [
+                .init(segment_id: "clause-0", sequence: 0, status: "ready", generated_asset_id: "asset-0", kind: "voice_prose_clause"),
+                .init(segment_id: "clause-1", sequence: 1, status: "registered", generated_asset_id: nil, kind: "voice_prose_clause")
+            ]), in: scope)
+        speech.next()
+        await fulfillment(of: [generated], timeout: 1)
+        XCTAssertEqual(target, "clause-1")
+        XCTAssertEqual(sources, [markdown, markdown])
+        XCTAssertFalse(speech.chapter(for: speech.activeSegment).isEmpty)
+        XCTAssertFalse(speech.enabled)
+        speech.reset()
+    }
+
     // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity
     func testManualSpeakDoesNotEnableAutoPreferenceAndRequestsSafeDeferredChapters() async {
         var actions: [String] = []

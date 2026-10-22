@@ -3,7 +3,7 @@ import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 const preview = '/dev/preview/voicecall/VoiceCallPrivacyPreview?chrome=0&theme=light';
 const title = 'Before your first voice call';
-const description = 'Google processes your voice and the conversation context shared with this call. Google states that data sent through its paid Gemini API is not used to train its models.';
+const description = 'Mistral processes your microphone audio for transcription and assistant text for speech. Your conversation uses the normal OpenMates AI routing, skills and rich chat messages.';
 for (const viewport of [{ name: 'phone', width: 390, height: 844 }, { name: 'laptop', width: 1440, height: 900 }]) {
   test.describe(viewport.name, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
@@ -13,7 +13,7 @@ for (const viewport of [{ name: 'phone', width: 390, height: 844 }, { name: 'lap
       const notice = page.getByTestId('notification').filter({ hasText: title });
       await expect(page.getByTestId('notification-stack')).toBeVisible(); await expect(notice).toBeVisible();
       await expect(notice).toContainText(description);
-      await expect(notice.getByRole('link', { name: 'Google Gemini API terms' })).toHaveAttribute('href', 'https://ai.google.dev/gemini-api/terms#paid-services');
+      await expect(notice.getByRole('link', { name: 'Mistral privacy policy' })).toHaveAttribute('href', 'https://legal.mistral.ai/terms/privacy-policy');
       await expect(page.getByTestId('privacy-preview-reads')).toHaveText('1');
       await expect(page.getByTestId('privacy-preview-saves')).toHaveText('0');
       await expect(page.getByTestId('privacy-preview-gestures')).toHaveText('0');

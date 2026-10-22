@@ -1,101 +1,71 @@
 schema_version: 1
-specification: feature.video-call@10
+specification: feature.video-call@11
 launch:
 - id: start-in-existing-chat
-  given: Maya has an existing ramen chat open and is signed in with enough credits.
-  when: She presses the voice-call button beside Close.
-  then: The call affordance identifies Gemini and usage-based billing; the call connects with the ramen chat's history. Its
-    strip appears below the header with video, centered timer/audio bars and red Hang up; the duplicate header call button
-    disappears. Ending the call restores the default handset beside Close.
-- id: start-in-new-chat
-  given: Maya is on the new-chat workspace without an open chat.
-  when: She presses the voice-call button at the right of the action row.
-  then: One encrypted personal chat is created before call admission; speech and replies belong to that chat.
+  given: Maya is signed in with enough credits and her ramen chat open.
+  when: She accepts the current speech-processing notice and starts a call.
+  then: The call identifies Voxtral speech and ordinary routed reasoning, stays bound to ramen and shows the existing
+    controls.
 binding:
 - id: browse-another-chat
   given: Maya is speaking in a call attached to her ramen chat.
   when: She closes that chat and opens her travel chat.
   then: A pulsing handset-and-timer pill replaces the global brand immediately after the menu button; call messages still
-    enter ramen while travel uses ordinary messaging. Pressing the pill returns to ramen, restores the brand and shows that
-    call's strip without reconnecting.
+    enter ramen while travel uses ordinary messaging. Pressing the pill returns to ramen, restores the brand and shows
+    that call's strip without reconnecting.
 call_strip:
 - id: inline-to-fixed-call-strip
   given: Maya is at the top of the ramen chat with its full header and an active call strip directly beneath it.
   when: She scrolls down until the header leaves view, then scrolls back to the top.
   then: The strip becomes fixed at the top of the chat viewport with More then video at left, duration/audio bars centered,
     and Hang up then Close at right. More includes report/share actions. Scrolling back restores the inline strip without
-    duplicate controls or a content jump, on phone and laptop. A round microphone button overlays the audio bars in the same
-    style as Close while the duration stays readable.
+    duplicate controls or a content jump, on phone and laptop. A round microphone button overlays the audio bars in the
+    same style as Close while the duration stays readable.
 - id: camera-and-close
   given: Maya is in a voice call using the fixed controls.
   when: She presses video, then closes the chat.
-  then: Video requests camera permission and shares its view after permission is granted. Closing the chat keeps the call
-    running in the brand-slot handset/timer pill, with the menu, center navigation and profile still in place.
+  then: Video requests camera permission and shares its view after permission is granted. Closing the chat keeps the
+    call running in the brand-slot handset/timer pill, with the menu, center navigation and profile still in place.
 call_events:
 - id: connected-call-history
   given: Maya starts a call in the ramen chat and it connects successfully at 12:31.
   when: She closes the chat, ends the call at 12:35 and later reloads its history.
-  then: Ramen contains one system event saying the call started at 12:31 and one saying it ended at 12:35. Both were encrypted
-    before synchronization and neither produced an ordinary AI answer.
+  then: Ramen contains one system event saying the call started at 12:31 and one saying it ended at 12:35. Both were
+    encrypted before synchronization and neither produced an ordinary AI answer.
 - id: failed-start-and-repeat-end
   given: One call attempt is refused before connection, then a later attempt connects successfully.
   when: Maya ends the connected call and a late close callback also arrives.
-  then: The refused attempt creates no started-call event; the successful call has exactly one start and one end event in
-    its original chat, with stable identities after retry or reload.
+  then: The refused attempt creates no started-call event; the successful call has exactly one start and one end event
+    in its original chat, with stable identities after retry or reload.
 skills:
-- id: search-during-full-call
-  given: Phase 2 is available in a call discussing hotels.
-  when: Maya asks Gemini to find a hotel.
-  then: The live model calls the request gateway; Jev selects travel and its hotel skill, Flash generates the selected tool
-    arguments, and authorized execution returns hotel embeds in the same assistant turn with natural spoken explanation and
-    no second text reply.
-- id: file-during-call
-  given: A subsequent phase-2 increment supports submitted PDFs and Maya submits an agreement during a call.
-  when: She asks Gemini to explain its cancellation terms.
-  then: The call waits for processing if necessary, uses the authorized PDF tools and presents an explanation with the usual
-    chat results.
+- id: ordinary-skills
+  given: Maya is calling about a trip and has authorized travel access.
+  when: She asks OpenMates to find hotels and show relevant images.
+  then: The ordinary preprocessor routes the request, the selected main model uses the normal skills, and one rich assistant
+    message shows hotel cards and image groups while its prose is spoken.
 ethics:
 - id: truthful-voice-answer
   given: Maya is in a voice call and makes a confidently incorrect factual claim.
   when: She asks OpenMates to agree with her.
-  then: The shared ethics guide a respectful correction rather than agreement, delivered conversationally; neither the request
-    nor a tool result overrides the ethics.
+  then: The shared ethics guide a respectful correction rather than agreement, delivered conversationally; neither the
+    request nor a tool result overrides the ethics.
 compressed_context:
-- id: continue-compressed-chat
-  given: Maya's long trip-planning chat has a saved compression checkpoint containing her budget and dates, followed by two
-    newer messages and an active travel focus.
-  when: She starts a voice call and asks for an alternative itinerary.
-  then: The call receives the checkpoint, the two newer messages and travel guidance; it retains her budget and dates without
-    replaying covered messages or substituting the short chat overview.
-- id: checkpoint-too-large
-  given: Maya has a checkpoint larger than the bounded live context can safely accept.
-  when: She starts a call.
-  then: The call explains that its context cannot currently be loaded instead of silently dropping earlier facts.
-  and_when: A later long call reaches its summary budget after completed turns.
-  and_then: It saves a new encrypted checkpoint with the covered-message boundary and retains recent turns; if summary generation
-    fails, the prior checkpoint remains valid and no second answer appears.
+- id: shared-context
+  given: Maya has a valid encrypted trip checkpoint and newer messages specifying her budget.
+  when: She starts a call and asks for an alternative itinerary.
+  then: The ordinary context and compression path preserves her budget and dates; no parallel voice-model context is
+    created.
 project_context:
-- id: approve-project-during-call
-  given: Maya is in a personal voice call and her authorized Project catalogue includes her cookbook Project, which is not
-    yet active in this chat.
-  when: She asks to work with that Project and accepts the existing Project decision UI.
-  then: The voice request resumes with the accepted Project scope; only permitted private context is available, and no ordinary
-    text reply is launched.
-- id: decline-project-during-call
-  given: Jev proposes Maya's cookbook Project for a voice request.
-  when: Maya rejects the proposal or interrupts before acceptance.
-  then: The call remains usable, the stale request cannot resume, and the Project's private content is not loaded.
+- id: shared-project-access
+  given: Maya asks about a private cookbook Project that is not authorized for this chat.
+  when: The ordinary processing path requests access and she approves it.
+  then: Only the bound request resumes with authorized documents; choosing the Project alone never grants access.
 memories_and_focus:
-- id: direct-memory-and-focus
-  given: Maya has already shared her nutrition preferences with this chat and is eligible to activate its cooking focus.
-  when: She asks by voice to use those preferences and activate cooking guidance.
-  then: Jev selects the relevant memory and focus; existing policy loads and activates them without Flash, the usual memory
-    indicator and focus history/active state appear, and Gemini receives the selected context.
-- id: memory-permission-continuation
-  given: Maya's travel preferences have not been shared with the current chat.
-  when: Jev selects them for a voice request and Maya approves only the relevant entries in the normal sharing UI.
-  then: Only approved entries reach the bound live request, the memory usage appears in chat, and no ordinary text answer
-    is generated; rejecting the request leaves those memories inaccessible.
+- id: shared-memory-permission
+  given: Maya asks the call to use her saved dietary preferences and cooking focus.
+  when: She approves the normal memory-sharing request.
+  then: The existing permission flow resumes one request, persists the accepted focus and shows memory use in normal
+    chat UI.
 assistant_identity:
 - id: voice-message-fallback
   given: A voice assistant transcript has no Mate category.
@@ -109,8 +79,8 @@ recording:
 - id: save-mixed-call
   given: Maya's future full-mode call switches from audio to generated video and back to audio.
   when: She ends the call.
-  then: One encrypted video recording covers the entire conversation; audio-only intervals show the mate portrait and gently
-    animated AI icon, with both voices preserved.
+  then: One encrypted video recording covers the entire conversation; audio-only intervals show the mate portrait and
+    gently animated AI icon, with both voices preserved.
 - id: save-audio-only-call
   given: Maya's future full-mode call never contains video.
   when: She ends the call.
@@ -119,8 +89,8 @@ replay:
 - id: open-ended-call
   given: Maya's completed mixed audio/video call has finished its encrypted upload.
   when: She activates Video call ended in its originating chat.
-  then: Authorized playback opens beside chat on a wide screen or fullscreen on a phone, with a playable download and no new
-    inference charge.
+  then: Authorized playback opens beside chat on a wide screen or fullscreen on a phone, with a playable download and
+    no new inference charge.
 privacy:
 - id: unauthorized-call
   given: A caller lacks a valid first-party session or permitted origin.
@@ -131,63 +101,62 @@ privacy:
   when: Maya tries to start a paid experimental call.
   then: The call is refused visibly without spending provider credit or exposing keys or private media.
 first_call_privacy:
-- id: first-call-confirmation
-  given: Maya has never acknowledged Google's voice-processing notice for her OpenMates account.
-  when: She presses Call and then chooses Continue after reading the notice.
-  then: She sees that Google processes her audio and call context, Google's attributed paid-API no-training statement and
-    a terms link before capture begins. Her acknowledgment is saved to her profile before the call starts. Canceling or a
-    failed profile save opens no microphone or Google connection.
-- id: acknowledgment-follows-account
-  given: Maya has acknowledged the notice and its acceptance was saved to her profile on her laptop.
-  when: She starts a later call on her phone, then another person signs in to their own account.
-  then: Maya starts without another notice; the other account must acknowledge its own notice before any call capture or provider
-    connection. A failed profile check cannot silently assume acknowledgment.
+- id: new-processing-consent
+  given: Maya previously accepted the old Google-only voice notice.
+  when: She starts the replacement voice mode and then chooses Continue on the Mistral and routed-model notice.
+  then: The server requires and confirms the new version-2 profile acknowledgement before microphone/provider access;
+    later sessions on her account reuse that acknowledgement.
+- id: consent-write-failure
+  given: Maya has no version-2 acknowledgement and saving it fails.
+  when: She chooses Continue.
+  then: The notice remains actionable, an error is shown and neither microphone capture nor a paid speech session starts.
 transcripts:
 - id: speech-survives-reload
-  given: Maya asks a question by voice and Gemini responds, with user transcription arriving after the first assistant fragment.
+  given: Maya asks a question by voice and Gemini responds, with user transcription arriving after the first assistant
+    fragment.
   when: Both turns finish and encrypted storage is acknowledged, then Maya reloads.
-  then: The question precedes its answer, each appears once as an ordinary message, and no plaintext transcript was sent to
-    durable storage. Neither spoken message shows a generic Sending or processing footer.
+  then: The question precedes its answer, each appears once as an ordinary message, and no plaintext transcript was sent
+    to durable storage. Neither spoken message shows a generic Sending or processing footer.
 - id: interrupt-and-continue
   given: Gemini is explaining ramen and Maya sees the response growing in chat.
   when: Maya interrupts, then ends the call and sends a typed follow-up.
-  then: Queued speech stops, the interrupted response text remains visibly incomplete and encrypted, and ordinary text conversation
-    can refer to it.
+  then: Queued speech stops, the interrupted response text remains visibly incomplete and encrypted, and ordinary text
+    conversation can refer to it.
 typed:
 - id: paste-during-call
   given: Maya is in a live call in her ramen chat and pastes a recipe into its composer.
-  when: She presses Send and asks Gemini to explain it.
+  when: She presses Send and asks OpenMates to explain it.
   then: The pasted text appears once as an encrypted user message, reaches the live model, and produces one voice response
     without a separate text inference.
 - id: preserve-draft-attachment
   given: Phase 1 is active and Maya has an unsupported file attachment in the bound composer.
   when: She attempts to submit the attachment.
-  then: The UI explains that file processing is unavailable in this phase and preserves her draft instead of silently omitting
-    it.
+  then: The UI explains that file processing is unavailable in this phase and preserves her draft instead of silently
+    omitting it.
 audio:
 - id: one-microphone-owner
   given: Maya has started a voice call.
   when: She checks the composer, mutes the call, then presses Hangup.
-  then: Composer recording is unavailable during the call, mute stops microphone transmission, and Hangup releases audio resources
-    and restores recording controls.
+  then: Composer recording is unavailable during the call, mute stops microphone transmission, and Hangup releases audio
+    resources and restores recording controls.
 confirmation_sounds:
 - id: four-confirmed-transitions
   given: Maya connects a voice call, then manually mutes and unmutes its microphone.
   when: She ends the connected call and a duplicate close callback arrives.
-  then: She hears one short connected sound, a distinct muted sound, a distinct unmuted sound and one ended sound. Each follows
-    its actual state change; the connection stays open while muted and assistant playback is unaffected by either microphone
-    sound.
+  then: She hears one short connected sound, a distinct muted sound, a distinct unmuted sound and one ended sound. Each
+    follows its actual state change; the connection stays open while muted and assistant playback is unaffected by either
+    microphone sound.
 - id: silent-idle-and-unavailable-audio
   given: A connected call automatically idles after silence and later resumes; local sound playback is blocked.
   when: Maya uses the call controls, or a separate call attempt is refused before connecting.
-  then: Idle and automatic resume never beep, blocked sounds do not delay controls, and the refused attempt produces neither
-    a connected nor an ended confirmation. Sound resources do not remain active afterward.
+  then: Idle and automatic resume never beep, blocked sounds do not delay controls, and the refused attempt produces
+    neither a connected nor an ended confirmation. Sound resources do not remain active afterward.
 background_detection:
 - id: cold-first-call
   given: Maya has never used calling on this phone, so the local speech-detector assets are not cached.
   when: She starts a call and speaks while the assets download in the background.
-  then: The call connects and accepts her words without waiting for the detector. Input streams normally until detection is
-    ready; it then uses the same microphone and connection, and later calls can reuse the assets.
+  then: The call connects and accepts her words without waiting for the detector. Input streams normally until detection
+    is ready; it then uses the same microphone and connection, and later calls can reuse the assets.
 - id: detector-fails-during-call
   given: A connected call is using local speech detection.
   when: The detector fails or stops returning fresh results.
@@ -197,24 +166,24 @@ automatic_idle:
 - id: quiet-pause-and-short-resume
   given: Healthy local detection is ready in Maya's unmuted call.
   when: She is silent for five seconds, then says a short Yes.
-  then: Microphone uploads pause once while the connection remains open. Yes resumes uploads with its first syllable preserved,
-    exactly once, followed by subsequent audio in order; idle audio is never saved on disk.
+  then: Microphone uploads pause once while the connection remains open. Yes resumes uploads with its first syllable
+    preserved, exactly once, followed by subsequent audio in order; idle audio is never saved on disk.
 - id: manual-mute-wins
   given: The call is automatically idle and still detecting speech locally.
   when: Maya presses Mute, speaks, then ends the call.
-  then: Buffered audio is discarded, speech sends no microphone input, and only an explicit Unmute could resume input. Hangup
-    stops capture and detector resources; late callbacks cannot restart them.
+  then: Buffered audio is discarded, speech sends no microphone input, and only an explicit Unmute could resume input.
+    Hangup stops capture and detector resources; late callbacks cannot restart them.
 startup_audio:
 - id: speech-during-connection
   given: Maya has granted microphone permission, but the call is still connecting.
   when: She starts a short question before the provider is ready.
-  then: Her question stays in a bounded local buffer until readiness, then reaches the authorized call once in capture order.
-    Muting or ending before readiness discards it without transmission.
+  then: Her question stays in a bounded local buffer until readiness, then reaches the authorized call once in capture
+    order. Muting or ending before readiness discards it without transmission.
 - id: slow-start-bound
   given: Microphone permission is granted, but connection setup is unusually slow.
   when: Captured startup audio reaches the allowed buffer bound.
-  then: The call attempt visibly fails and clears the buffer; it never drops the beginning of the question silently, sends
-    audio to an unready provider or grows memory without a bound.
+  then: The call attempt visibly fails and clears the buffer; it never drops the beginning of the question silently,
+    sends audio to an unready provider or grows memory without a bound.
 call_activity:
 - id: working-and-speaking-before-idle
   given: Maya's microphone uploads have automatically paused after silence, but OpenMates is preparing a response.
@@ -225,10 +194,10 @@ call_activity:
 - id: manual-mute-is-not-automatic-idle
   given: Maya has manually muted a connected call, and OpenMates has finished its reply.
   when: She checks the call controls and speaks without pressing Unmute.
-  then: The round control over the waveform shows a red microphone-off icon with an accessible Unmute label and pressed state.
-    The same call remains connected and assistant playback continues. No microphone audio or background noise is transmitted
-    until she explicitly unmutes; once processing is idle the counter is stopped and faded. Real speech cannot automatically
-    unmute her call.
+  then: The round control over the waveform shows a red microphone-off icon with an accessible Unmute label and pressed
+    state. The same call remains connected and assistant playback continues. No microphone audio or background noise
+    is transmitted until she explicitly unmutes; once processing is idle the counter is stopped and faded. Real speech
+    cannot automatically unmute her call.
 lifecycle:
 - id: rollover-and-disconnect
   given: A call has saved several turns and has accrued usage.
@@ -240,15 +209,15 @@ billing:
   given: Local speech detection is unavailable, so Maya keeps a call connected for five minutes with the unmuted microphone
     streaming, but speaks for only part of it.
   when: She stays silent between requests and checks the call's counter and billing information.
-  then: Streamed silence remains billable microphone input, so the counter keeps advancing at normal opacity. The strip has
-    no credit count. Charged credits follow Gemini's reported usage, including assistant output and repeated context, rather
-    than a five-minute connection fee or a two-minute speech-only estimate.
+  then: Streamed silence remains billable microphone input, so the counter keeps advancing at normal opacity. The strip
+    has no credit count. Charged credits follow Gemini's reported usage, including assistant output and repeated context,
+    rather than a five-minute connection fee or a two-minute speech-only estimate.
 - id: muted-idle-and-response
   given: Maya mutes a connected call after asking a question.
   when: Gemini finishes generating its reply and queued audio continues playing, then she unmutes.
-  then: Muting pauses microphone transmission. The counter continues during processing, stops and fades when processing finishes
-    even if queued audio is still playing, then resumes when uploads resume. Call information explains usage-based charges;
-    idle connection time adds no separate charge.
+  then: Muting pauses microphone transmission. The counter continues during processing, stops and fades when processing
+    finishes even if queued audio is still playing, then resumes when uploads resume. Call information explains usage-based
+    charges; idle connection time adds no separate charge.
 video:
 - id: share-and-generate
   given: Maya is in an audio call on her phone and is holding a fabric sample.
@@ -273,30 +242,30 @@ generated_media:
 - id: generated-image-stage
   given: Maya's camera is active while an image-generation skill runs.
   when: The result becomes available and she later presses the bottom-right upward-arrow button.
-  then: The call expands to show the plain generated image with a top-right AI icon, while the camera keeps sharing. The upward
-    arrow collapses the stage; the ordinary progress/result card remains in chat.
+  then: The call expands to show the plain generated image with a top-right AI icon, while the camera keeps sharing.
+    The upward arrow collapses the stage; the ordinary progress/result card remains in chat.
 - id: video-and-next-result
   given: Maya is viewing generated media while another video is being generated.
   when: The next result finishes and she uses the next/previous and video playback controls.
-  then: The old visual stays visible until completion, the new video starts muted once, and each output is available through
-    the controls and normal saved chat embeds without replacing the transcript.
+  then: The old visual stays visible until completion, the new video starts muted once, and each output is available
+    through the controls and normal saved chat embeds without replacing the transcript.
 call_video_default:
 - id: fast-call-video
   given: Maya asks for a short explanatory video during a call.
   when: The normal video-generation skill starts.
-  then: It uses H3 Max Turbo with a five-second 480p request and disabled prompt expansion; progress is visible while waiting,
-    and measured or reported duration determines the charge.
+  then: It uses H3 Max Turbo with a five-second 480p request and disabled prompt expansion; progress is visible while
+    waiting, and measured or reported duration determines the charge.
 - id: call-video-failure
   given: A call-video job has been accepted, but the provider fails to deliver its clip.
   when: The job reports failure.
-  then: The failure remains visible without automatically submitting another paid request or switching provider, and voice
-    continues. Ordinary video generation outside calls keeps its existing default.
+  then: The failure remains visible without automatically submitting another paid request or switching provider, and
+    voice continues. Ordinary video generation outside calls keeps its existing default.
 providers:
-- id: first-provider
-  given: Only the Gemini voice adapter is enabled for phase 1.
-  when: Maya starts a call.
-  then: The UI identifies Gemini, unsupported capabilities stay unavailable, and all messages use the same chat encryption
-    and identities as future adapters.
+- id: replace-live-provider
+  given: The replacement call implementation is deployed.
+  when: Maya starts a call and the normal router chooses a Google reasoning model.
+  then: Speech uses Voxtral, reasoning uses the ordinary selected model, and no Gemini Live socket, legacy calling fallback
+    or separate voice broker is opened.
 chat_metadata:
 - id: new-call-topic
   given: Maya starts a new voice chat and asks how to make vegetarian ramen.
@@ -314,23 +283,12 @@ metadata_lifecycle:
   then: Background refreshes combine new content and the dirty final utterance is included even without a completed assistant
     reply; audio never waits for metadata.
 - id: recover-with-manual-title
-  given: A metadata update was accepted before Maya disconnects, and she explicitly renames the chat before its result is
-    applied.
+  given: A metadata update was accepted before Maya disconnects, and she explicitly renames the chat before its result
+    is applied.
   when: She reconnects after the call has ended.
-  then: The accepted encrypted result is recovered without repeating inference; her manual title and any newer summary or
-    transcript revision win, and normal history remains usable.
+  then: The accepted encrypted result is recovered without repeating inference; her manual title and any newer summary
+    or transcript revision win, and normal history remains usable.
 october_apple_call:
-- id: native-consent-canonical-admission-and-teardown
-  assertion_ids:
-  - video-call.privacy.first-call-warning
-  - video-call.chat.fixed-binding
-  - video-call.audio.single-owner
-  - video-call.audio.startup-buffer
-  given: An Apple user requests a call in a personal chat while composer recording or separate assistant speech may own audio.
-  when: The user accepts the disclosed processing notice and the app prepares the canonical encrypted chat and bounded startup
-    capture, or permission, persistence or scope validation fails.
-  then: Paid call admission requires saved consent, exclusive audio ownership and complete authorized context; failure drains
-    capture without opening another route, and Hangup releases capture, pending audio and playback.
 - id: native-typed-recovery-and-unsupported-watch-route
   assertion_ids:
   - video-call.chat.transcripts
@@ -339,8 +297,89 @@ october_apple_call:
   - video-call.chat.fixed-binding
   given: A supported Apple call is bound to one chat with a typed draft and progressive speech, while another Watch lacks
     verified physical call networking.
-  when: The user submits text, navigates to another chat, or the connection ends; the unqualified Watch user selects the phone
-    control.
-  then: Typed acceptance and transcript revisions retain exact encrypted identities in the original chat without second text
-    inference or automatic paid reconnect; rejected typing remains recoverable, and the Watch reports unavailable rather than
-    starting a simulated or silent-audio route.
+  when: The user submits text, navigates to another chat, or the connection ends; the unqualified Watch user selects
+    the phone control.
+  then: Typed acceptance and transcript revisions retain exact encrypted identities in the original chat without second
+    text inference or automatic paid reconnect; rejected typing remains recoverable, and the Watch reports unavailable
+    rather than starting a simulated or silent-audio route.
+interruption_intent:
+- id: listener-cue
+  given: The assistant is explaining a search result.
+  when: Maya briefly says hmm and okay, then later says wait, use Berlin instead.
+  then: The brief cues leave the response speaking; the deliberate correction interrupts, cancels stale speech and enters
+    one normal revised request.
+- id: stop-during-tool
+  given: A call has an unfinished tool-assisted answer and queued speech.
+  when: Maya clearly asks it to stop.
+  then: Playback and further response work stop; late packets cannot resume it, and an action already committed is not
+    undone or repeated.
+spoken_rich_response:
+- id: images-and-video
+  given: A normal main response contains prose, three grouped images and a video preview.
+  when: The assistant says it found city images and a useful history video.
+  then: Chat renders the image group and video between the prose blocks; speech reads those natural sentences without
+    embed IDs or generic structured-data announcements.
+localized_waiting:
+- id: slow-german-mercury
+  given: Maya asks a German question routed to Mercury with a slow search skill.
+  when: The answer has not produced useful speech after the waiting threshold.
+  then: One brief German acknowledgement in the Mate voice plays; it is cancelled if the answer is already ready and
+    never talks over the useful response.
+complete_turn:
+- id: trailing-negation
+  given: Voxtral signals a likely end while Maya is saying book the expensive option, actually do not book it.
+  when: The final negation arrives in trailing transcript deltas.
+  then: No booking is dispatched from the eager signal; the complete corrected request is admitted once after final-word
+    collection.
+migration_future_recording:
+- id: future-recording
+  given: A future separately approved full recording mode captures a call.
+  when: The call ends.
+  then: One encrypted recording contains microphone and audible assistant narration across the complete timeline; the
+    present migration does not introduce recording delivery.
+migration_canonical_rich_history:
+- id: canonical-rich-history
+  given: Maya speaks a substantive request during a call.
+  when: The transcript is finalized and the ordinary response includes prose and image previews.
+  then: One encrypted user turn and one canonical rich assistant response are saved; speech-only text and duplicate transcript
+    events cannot overwrite or duplicate them.
+migration_typed_normal_turn:
+- id: typed-normal-turn
+  given: Maya has a typed draft in the bound call chat.
+  when: She submits it once, then a later submission fails admission.
+  then: The accepted text uses ordinary processing once; the failed draft remains available for retry.
+migration_one_call_player:
+- id: one-call-player
+  given: Maya is listening to an assistant message when she starts a call.
+  when: The call begins, speaks an ordinary response, then ends.
+  then: Independent playback stops, only the call response plays through the shared player, and hangup releases microphone
+    and queued speech.
+migration_disconnect_settlement:
+- id: disconnect-settlement
+  given: Maya sends microphone audio and receives a normal spoken response.
+  when: The call disconnects unexpectedly.
+  then: Received STT usage is settled once, completed reasoning/TTS retain their existing charges, saved chat survives
+    and no new paid call starts.
+migration_distinct_usage:
+- id: distinct-usage
+  given: Maya sends 20 seconds of microphone audio and receives one tool-assisted spoken response.
+  when: Usage is settled and repeated status packets arrive.
+  then: The STT started-minute rate and ordinary model, skill and successful speech charges each settle once, with no
+    Gemini Live token or connected-time fee.
+migration_camera_ordinary_input:
+- id: camera-ordinary-input
+  given: Maya enables her camera in a web call.
+  when: She asks about the item she is showing and then disables sharing.
+  then: The selected frame becomes an owner-encrypted ordinary image attachment for normal multimodal routing; no frame
+    enters STT, and disabling camera preserves voice.
+migration_shared_title:
+- id: shared-title
+  given: Maya starts a new chat by asking a substantive question in a voice call.
+  when: The ordinary response finishes.
+  then: The normal postprocessor supplies the title and summary without a second voice-specific metadata request.
+migration_metadata_recovery:
+- id: metadata-recovery
+  given: An ordinary call turn has completed and metadata is still being saved.
+  when: Maya hangs up and reloads.
+  then: Normal encrypted recovery retains the response and applies only current metadata; there is no duplicate paid
+    generation.

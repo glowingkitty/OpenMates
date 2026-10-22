@@ -2,7 +2,11 @@ schema_version: 2
 profile: concise
 id: video-call-experiment
 title: Gemini Voice And H3 Turbo Experiment
-status: verified
+status: verified # Historical verification; implementation retired below.
+retirement:
+  date: "2026-10-22"
+  successor: feature.video-call@11
+  reason: Gemini Live calling and standalone experiment routes removed in favor of the shared encrypted chat pipeline and Voxtral speech.
 goal: >
   Implement a first test to see how well such a system can actually work, before
   spending more time on it: a basic /experiment/videocall page for Gemini voice
@@ -46,10 +50,11 @@ decisions:
   - User declined Director because of its sixty-second billing minimum; the experiment stays Turbo only.
   - On 2026-10-09 the user requested removing the two-minute cap, clearly displaying elapsed duration and ending the call when they press Hangup. Planned provider rollover resumes the existing connected call; authorization, balance and ownership checks remain active.
 
-draft_contract:
+successor_contract:
   path: specifications/features/video-call/specification.yml
   id: feature.video-call
-  status: draft
+  version: 11
+  status: approved
   closest_existing_contracts:
     - feature.chats defines encrypted chat persistence but does not define live call lifecycle or recording.
     - feature.chat-navigation defines ordinary chat switching, not a call-bound new-tab override.
@@ -59,8 +64,9 @@ draft_contract:
 experimental_contract:
   path: specifications/features/video-call-experiment/specification.yml
   id: feature.video-call-experiment
-  status: draft
-  approval: Both initial drafts were approved and committed as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff; the user approved the held-frame revision on 2026-10-08 and explicitly approved removing the application time limit with fingerprint 101229a26b34045d27d166cc8113175d5d3d541ccba5007fccea4d813eca2658 on 2026-10-09. The contract remains a draft.
+  status: superseded
+  superseded_by: feature.video-call@11
+  approval: Both initial drafts were approved and committed as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff; the user approved the held-frame revision on 2026-10-08 and explicitly approved removing the application time limit with fingerprint 101229a26b34045d27d166cc8113175d5d3d541ccba5007fccea4d813eca2658 on 2026-10-09. That historical draft is now superseded by feature.video-call@11.
 
 acceptance_criteria:
   - id: AC-1

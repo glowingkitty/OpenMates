@@ -92,6 +92,11 @@ async def generate_early_chat_metadata(*, task_id: str, message_history: list[di
                                        user_system_language: str, secrets_manager: Any,
                                        usage_callback=None) -> EarlyChatMetadata | None:
     from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
+    from backend.apps.ai.testing.voice_pipeline_fixture import early_metadata_fixture
+
+    fixture = early_metadata_fixture(user_system_language)
+    if fixture is not None:
+        return _validated(fixture, "isolated_voice_fixture")
 
     messages = metadata_messages(message_history, user_system_language)
     language_name = {"en": "English", "de": "German", "es": "Spanish", "fr": "French"}.get(

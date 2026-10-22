@@ -190,6 +190,8 @@ async def cache_async_skill_continuation_context(
                 "legacy_cutover_task_id", "root_legacy_cutover_task_id",
                 "root_turn_id", "root_user_message_id", "is_sub_chat",
                 "is_anonymous", "is_incognito", "is_external", "team_id_hash",
+                "voice_mode", "voice_call_id", "voice_turn_id", "voice_heard_boundary", "auto_speak_response",
+                "assistant_speech_lazy_dispatch", "assistant_response_source_revision",
             )
         }
         request_snapshot["message_history"] = []
@@ -264,16 +266,6 @@ async def dispatch_async_skill_continuation(
     selected_project_focus_candidates: Optional[list[dict[str, Any]]] = None,
 ) -> Optional[str]:
     """Dispatch a normal AI ask task to interpret completed async skill results."""
-    from backend.apps.ai.processing.voice_async_skills import (
-        active_voice_worker_context, settle_voice_async_completion,
-    )
-    voice = active_voice_worker_context.get()
-    if voice is not None:
-        # The original issued voice assistant already references this worker's
-        # canonical embed. Completion updates it through normal embed delivery.
-        await settle_voice_async_completion(context=voice, completed_results=completed_results,
-            result_status=result_status)
-        return None
     if not cache_service or not async_task_id:
         return None
 
@@ -476,6 +468,13 @@ async def dispatch_async_skill_continuation(
         current_user_content=original_request.current_user_content,
         chat_has_title=original_request.chat_has_title,
         current_chat_title=original_request.current_chat_title,
+        voice_mode=original_request.voice_mode,
+        voice_call_id=original_request.voice_call_id,
+        voice_turn_id=original_request.voice_turn_id,
+        voice_heard_boundary=original_request.voice_heard_boundary,
+        auto_speak_response=original_request.auto_speak_response,
+        assistant_speech_lazy_dispatch=original_request.assistant_speech_lazy_dispatch,
+        assistant_response_source_revision=original_request.assistant_response_source_revision,
         is_incognito=original_request.is_incognito,
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,

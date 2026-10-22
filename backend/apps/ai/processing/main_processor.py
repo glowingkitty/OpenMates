@@ -4255,6 +4255,21 @@ async def handle_main_processing(
         date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
         clock_instruction = f"Current date and time: {date_time_str_utc} (user timezone unknown)"
     prompt_parts.append(clock_instruction)
+    if getattr(request_data, "voice_mode", False):
+        from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
+
+        heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
+        if heard_context:
+            prompt_parts.append(heard_context)
+        prompt_parts.append(
+            "This turn is an ongoing voice conversation with the normal rich chat interface. "
+            "Answer naturally in the user's language, using concise spoken sentences. "
+            "Keep all useful inline source links, app skill results, image groups and other embeds "
+            "in the canonical response. Introduce visual results naturally in nearby prose so the "
+            "spoken sentences make sense while the user sees those results. Do not read URLs, "
+            "embed identifiers, raw code or table cells aloud; explain their significance in prose. "
+            "Use the usual skills and permission flow. Do not claim work is complete before it is."
+        )
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -6972,39 +6987,47 @@ async def handle_main_processing(
                     admit_actual_provider = None
                 if iteration == 0 and model_fallback_attempts == 1:
                     mark_project_reference_setup("provider_dispatch")
-                llm_stream = call_main_llm_stream(
-                    task_id=task_id,
-                    system_prompt=iteration_system_prompt,
-                    message_history=current_message_history,
-                    model_id=current_model_id,  # Use current_model_id from fallback list
-                    temperature=preprocessing_results.llm_response_temp,
-                    thinking_level=(
-                        automatic_attempt_level or (
-                            getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
-                            if current_model_id == preprocessing_results.selected_main_llm_model_id else None
-                        )
-                    ),
-                    requested_reasoning_level=requested_reasoning_level,
-                    allowed_server_ids=permitted_automatic_servers,
-                    first_substantive_timeout_seconds=mercury_deadline,
-                    secrets_manager=secrets_manager,
-                    tools=iteration_tools,
-                    tool_choice=current_tool_choice,
+                from backend.apps.ai.testing.voice_pipeline_fixture import main_stream as voice_fixture_stream
+                llm_stream = voice_fixture_stream(
+                    request_data, message_history=current_message_history,
+                    tools=iteration_tools, model_id=current_model_id,
                     max_tokens=current_output_token_limit,
-                    # A failed post-tool or forced answer may have already
-                    # published text. Let the outer loop rebuild clean evidence
-                    # and continue that prefix instead of appending an error.
-                    recoverable_attempt=(
-                        answer_recovery.active or force_no_tools or tool_inference_iterations > 0
-                    ),
-                    stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
-                    cacheable_system_prefix=cacheable_system_prefix or None,
-                    prompt_cache_key=_mistral_prompt_cache_key(request_data),
                     pre_dispatch_admission=admit_actual_provider,
-                    customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
-                    native_cache_context=native_prepared_context,
-                    failed_servers_in_turn=failed_servers_in_turn,
                 )
+                if llm_stream is None:
+                    llm_stream = call_main_llm_stream(
+                        task_id=task_id,
+                        system_prompt=iteration_system_prompt,
+                        message_history=current_message_history,
+                        model_id=current_model_id,  # Use current_model_id from fallback list
+                        temperature=preprocessing_results.llm_response_temp,
+                        thinking_level=(
+                            automatic_attempt_level or (
+                                getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                                if current_model_id == preprocessing_results.selected_main_llm_model_id else None
+                            )
+                        ),
+                        requested_reasoning_level=requested_reasoning_level,
+                        allowed_server_ids=permitted_automatic_servers,
+                        first_substantive_timeout_seconds=mercury_deadline,
+                        secrets_manager=secrets_manager,
+                        tools=iteration_tools,
+                        tool_choice=current_tool_choice,
+                        max_tokens=current_output_token_limit,
+                        # A failed post-tool or forced answer may have already
+                        # published text. Let the outer loop rebuild clean evidence
+                        # and continue that prefix instead of appending an error.
+                        recoverable_attempt=(
+                            answer_recovery.active or force_no_tools or tool_inference_iterations > 0
+                        ),
+                        stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
+                        cacheable_system_prefix=cacheable_system_prefix or None,
+                        prompt_cache_key=_mistral_prompt_cache_key(request_data),
+                        pre_dispatch_admission=admit_actual_provider,
+                        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+                        native_cache_context=native_prepared_context,
+                        failed_servers_in_turn=failed_servers_in_turn,
+                    )
                 # Stream created successfully - break out of retry loop
                 break
 

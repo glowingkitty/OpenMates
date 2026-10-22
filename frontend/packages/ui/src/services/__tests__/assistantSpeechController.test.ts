@@ -217,3 +217,87 @@ it("uses the selected German locale for on-demand News search summaries", async 
   await controller.close();
   locale.set("en");
 });
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.single-owner,video-call.audio.spoken-rich-response
+it('keeps the shared player scoped to the call chat while normal call speech remains automatic', async () => {
+  const { assistantSpeechController: controller } = await import('../assistantSpeechController');
+  controller.setCallOwner('call-chat');
+  await controller.request('other-chat','other-message','Other chat text.');
+  controller.registerSource('other-chat','other-message','Other chat text.');
+  await mocks.handlers.get('assistant_speech_status')?.({...ready,chat_id:'other-chat',message_id:'other-message'});
+  expect(mocks.send).not.toHaveBeenCalled();expect(mocks.play).not.toHaveBeenCalled();
+  expect(controller.getCurrentSourceText()).toBe('');
+  controller.registerSource('call-chat','call-message','# Rich answer\n\nSee [source](https://example.org).');
+  await mocks.handlers.get('assistant_speech_status')?.({...ready,chat_id:'call-chat',message_id:'call-message'});
+  await vi.waitFor(()=>expect(get(controller.player).status).toBe('playing'));
+  expect(get(controller.player).chatId).toBe('call-chat');
+  expect(mocks.play).toHaveBeenCalledOnce();
+  await controller.stop();controller.setCallOwner(null);
+});
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.single-owner
+it('publishes transient canonical source updates for interrupt classification and erases them on stop', async () => {
+  const { assistantSpeechController: controller } = await import('../assistantSpeechController');
+  controller.setCallOwner('chat');
+  controller.registerSource('chat','message','First clause.');
+  expect(get(controller.activity)).toMatchObject({chatId:'chat',messageId:'message',text:'First clause.',speaking:false});
+  controller.registerSource('chat','message','First clause.\n\n## Source\n[Link](https://example.org)');
+  expect(get(controller.activity).text).toContain('## Source');
+  await mocks.handlers.get('assistant_speech_status')?.(ready);
+  await vi.waitFor(()=>expect(get(controller.activity).speaking).toBe(true));
+  await controller.stop();
+  expect(get(controller.activity)).toMatchObject({text:'',speaking:false});
+  expect(controller.getCurrentSourceText()).toBe('');
+  expect(mocks.send).toHaveBeenCalledWith('assistant_speech',expect.objectContaining({action:'cancel',chat_id:'chat',assistant_message_id:'message'}));
+  controller.setCallOwner(null);
+});
+
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.spoken-rich-response
+it("maps accepted voice clauses beyond local paragraphs and retries canonical identity with transient source", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  const markdown = "First sentence. Second sentence. Last sentence.";
+  await controller.request("chat", "message", markdown);
+  expect(mocks.send).toHaveBeenCalledWith("assistant_speech", expect.objectContaining({ action: "request", source_markdown: markdown }));
+  await accepted([
+    { ...ready, kind: "voice_prose_clause" },
+    { segment_id: "clause-1", sequence: 1, request_sequence: 1, kind: "voice_prose_clause", status: "registered" },
+    { segment_id: "clause-2", sequence: 2, request_sequence: 2, kind: "voice_prose_clause", status: "registered" },
+  ]);
+  await controller.selectSegment("clause-2");
+  expect(mocks.send).toHaveBeenCalledWith("assistant_speech", expect.objectContaining({ action: "generate", source_markdown: markdown,
+    segments: [expect.objectContaining({ segment_id: "clause-2", kind: "voice_prose_clause" })] }));
+  await controller.close();
+});
+
+// contract-test: direct surface=gui.web assertions=video-call.audio.single-owner
+it("drops stale tagged call audio after hangup while allowing ordinary manual replay", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  controller.setCallOwner("chat");
+  await mocks.handlers.get("assistant_speech_status")?.({ ...ready, voice_call_id: "previous-call" });
+  expect(mocks.resolve).not.toHaveBeenCalled();
+  controller.setCallOwner("chat", "current-call");
+  controller.registerSource("chat", "message", "Useful answer.");
+  await mocks.handlers.get("assistant_speech_status")?.({ ...ready, voice_call_id: "previous-call" });
+  expect(mocks.resolve).not.toHaveBeenCalled();
+  controller.setCallOwner(null);
+  await mocks.handlers.get("assistant_speech_status")?.({ ...ready, voice_call_id: "current-call" });
+  expect(mocks.resolve).not.toHaveBeenCalled();
+  await controller.request("chat", "message", "Useful answer.");
+  await accepted([{ ...ready, request_sequence: 0 }]);
+  await vi.waitFor(() => expect(mocks.resolve).toHaveBeenCalledOnce());
+  await controller.close();
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.audio.intentional-interruption
+it('exposes the measured voice clause boundary without replacing its canonical rich source', async () => {
+  const { assistantSpeechController: controller } = await import('../assistantSpeechController');
+  const rich='# Complete answer\n\nFirst clause. Second clause. See [source](https://example.org).';
+  controller.registerSource('chat','message',rich);
+  await mocks.handlers.get('assistant_speech_status')?.({...ready,kind:'voice_prose_clause'});
+  await vi.waitFor(()=>expect(get(controller.player).status).toBe('playing'));
+  expect(controller.playbackBoundary).toEqual({assistant_message_id:'message',completed_sequences:[],active_sequence:0,active_offset_ms:0});
+  expect(controller.getCurrentSourceText('message')).toBe(rich);
+  await controller.stop();
+  expect(controller.playbackBoundary).toBeNull();
+});

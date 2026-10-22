@@ -12,13 +12,15 @@ enum NativeVoiceCallWatchEnvironment {
         let acknowledged: Bool
         let acknowledgedAt: Int?
     }
-    private struct Accept: Codable, Sendable { let version = 1 }
+    private struct Accept: Codable, Sendable { let version = 2 }
 
     static func make(auth: WatchAuthStore,
         context: @escaping @MainActor @Sendable (NativeVoiceCallScope) throws -> WatchChatRequestContext,
         consentDecision: @escaping @MainActor @Sendable () async -> Bool,
         loadContext: @escaping @Sendable (NativeVoiceCallScope) async throws -> NativeVoiceCallContext,
-        prepare: @escaping @Sendable (NativeVoiceCallScope) async throws -> Void
+        prepare: @escaping @Sendable (NativeVoiceCallScope) async throws -> Void,
+        submitTurn: @escaping @Sendable (NativeVoiceCallScope, NativeVoiceCallTranscript) async throws -> Void,
+        interruptAssistant: @escaping @Sendable (NativeVoiceCallScope, String?, String?) async throws -> Void
     ) -> NativeVoiceCallEnvironment {
         let current: @Sendable (NativeVoiceCallScope) async -> Bool = { @MainActor [weak auth] scope in
             guard let auth, auth.state == .authenticated, auth.currentUser?.id == scope.accountID,
@@ -41,7 +43,7 @@ enum NativeVoiceCallWatchEnvironment {
                 webOrigin: request.profile.webBaseURL.absoluteString,
                 sessionID: WatchCompatibleSession.nativeSessionId, webSocketToken: token,
                 nativeHeaders: APIClient.nativeClientHeaders)
-        }, context: loadContext, prepare: prepare)
+        }, context: loadContext, prepare: prepare, submitTurn: submitTurn, interruptAssistant: interruptAssistant)
     }
     private static func checkConsentOwner(auth: WatchAuthStore, request: WatchChatRequestContext) throws {
         try request.check()
@@ -53,12 +55,12 @@ enum NativeVoiceCallWatchEnvironment {
         let response: Data
         do {
             response = try await APIClient.shared.requestForVerifiedWatchSession(.get,
-                path: "/v1/settings/voice-google-processing-ack", serverProfile: request.profile,
+                path: "/v1/settings/voice-processing-ack", serverProfile: request.profile,
                 validate: { try request.check() })
         } catch { throw NativeVoiceCallError.consentUnavailable }
         try checkConsentOwner(auth: auth, request: request)
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
-        guard let ack = try? decoder.decode(Acknowledgment.self, from: response), ack.version == 1,
+        guard let ack = try? decoder.decode(Acknowledgment.self, from: response), ack.version == 2,
               !ack.acknowledged || (ack.acknowledgedAt ?? 0) > 0 else { throw NativeVoiceCallError.consentUnavailable }
         return ack.acknowledged
     }
@@ -73,13 +75,13 @@ enum NativeVoiceCallWatchEnvironment {
         let written: Data
         do {
             written = try await APIClient.shared.requestForVerifiedWatchSession(.post,
-                path: "/v1/settings/voice-google-processing-ack", serverProfile: request.profile,
+                path: "/v1/settings/voice-processing-ack", serverProfile: request.profile,
                 body: Accept(), validate: { try request.check() })
         } catch { throw NativeVoiceCallError.consentUnavailable }
         try checkConsentOwner(auth: auth, request: request)
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         guard let stored = try? decoder.decode(Acknowledgment.self, from: written),
-              stored.version == 1, stored.acknowledged, (stored.acknowledgedAt ?? 0) > 0
+              stored.version == 2, stored.acknowledged, (stored.acknowledgedAt ?? 0) > 0
         else { throw NativeVoiceCallError.consentUnavailable }
     }
     static func tokenNeedsRefresh(_ token: String?) -> Bool {

@@ -12,10 +12,12 @@ import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from backend.apps.ai.assistant_speech.projection import speech_fallback_variants
+from backend.apps.ai.assistant_speech.projection import speech_fallback_variants, project_final_voice_clauses
 from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
 
 MAX_SEGMENTS_PER_REQUEST = 20
+MAX_VOICE_REPLAY_CLAUSES = 256
+MAX_SOURCE_MARKDOWN_LENGTH = 256_000
 MAX_SPEAKABLE_TEXT_LENGTH = 2_000
 SAFE_RESULT_FIELDS = ("segment_id", "sequence", "request_sequence", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
 ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
@@ -31,6 +33,7 @@ async def handle_assistant_speech_request(
     rate_limit: Callable[..., bool | Awaitable[bool]],
     budget_preflight: Callable[..., bool | Awaitable[bool]],
     dispatch: Callable[..., Awaitable[Mapping[str, object] | None]],
+    resolve_segments: Callable[..., Awaitable[list[Mapping[str, object]] | None]] | None = None,
 ) -> dict[str, object]:
     """Authorize bounded transient segments and return a plaintext-free status."""
     if not user_id:
@@ -52,6 +55,16 @@ async def handle_assistant_speech_request(
         return _error("forbidden")
     if authorization.get("message_role") != "assistant":
         return _error("assistant_message_required")
+    if resolve_segments is not None:
+        try:
+            resolved = await resolve_segments(chat_id=chat_id, assistant_message_id=assistant_message_id,
+                segments=segments, source_markdown=payload.get("source_markdown"), action=payload.get("action", "request"))
+        except (ValueError, TypeError):
+            return _error("speech_source_no_longer_current")
+        if resolved is not None:
+            segments = resolved
+            if not segments or len(segments) > MAX_VOICE_REPLAY_CLAUSES:
+                return _error("invalid_segments")
     if any(not isinstance(segment, Mapping) or len(str(segment.get("speakable_text") or "")) > MAX_SPEAKABLE_TEXT_LENGTH for segment in segments):
         return _error("segment_text_too_long")
     if any(
@@ -121,6 +134,7 @@ async def handle_assistant_speech_websocket(
     retry: Callable[..., Awaitable[Mapping[str, object] | None]],
     cancel: Callable[..., Awaitable[None]],
     delete: Callable[..., Awaitable[None]],
+    resolve_segments: Callable[..., Awaitable[list[Mapping[str, object]] | None]] | None = None,
 ) -> None:
     """Route first-party request, retry, and deletion actions without echoing text."""
     action = str(payload.get("action") or "request")
@@ -132,6 +146,7 @@ async def handle_assistant_speech_websocket(
             rate_limit=rate_limit,
             budget_preflight=budget_preflight,
             dispatch=dispatch,
+            resolve_segments=resolve_segments,
         )
     elif action == "retry":
         result = await handle_assistant_speech_request(
@@ -141,6 +156,7 @@ async def handle_assistant_speech_websocket(
             rate_limit=rate_limit,
             budget_preflight=budget_preflight,
             dispatch=dispatch,
+            resolve_segments=resolve_segments,
         )
     elif action in {"delete", "cancel"}:
         authorization = await authorize(
@@ -558,4 +574,57 @@ async def handle_assistant_speech_event(
     await handle_assistant_speech_websocket(
         manager=manager, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, payload=payload,
         authorize=authorize, rate_limit=rate_limit, budget_preflight=budget_preflight, dispatch=dispatch, retry=retry, cancel=cancel, delete=delete,
+        resolve_segments=lambda **kwargs: resolve_registered_voice_segments(directus_service, user_id=user_id, **kwargs),
     )
+
+
+async def resolve_registered_voice_segments(directus: Any, *, user_id: str, chat_id: str,
+        assistant_message_id: str, segments: list[Mapping[str, object]],
+        source_markdown: object, action: str) -> list[Mapping[str, object]] | None:
+    """Recover canonical clauses from transient client text without creating new assets.
+
+    The owner/message/version query and server HMAC comparison are authoritative;
+    client Markdown is only a candidate source and is never stored or echoed.
+    """
+    version = segments[0].get("source_version") if isinstance(segments[0], Mapping) else None
+    rows = await directus.get_items("assistant_speech_segments", params={
+        "filter[user_id][_eq]": user_id, "filter[chat_id][_eq]": chat_id,
+        "filter[assistant_message_id][_eq]": assistant_message_id,
+        "filter[kind][_eq]": "voice_prose_clause",
+        "sort": "sequence", "limit": MAX_VOICE_REPLAY_CLAUSES + 1,
+    }, no_cache=True)
+    if not rows:
+        if any(segment.get("kind") == "voice_prose_clause" for segment in segments):
+            raise ValueError("Voice source is not registered")
+        return None
+    if not isinstance(version, int) or isinstance(version, bool):
+        raise ValueError("Voice replay requires canonical source version")
+    rows = [row for row in rows if row.get("source_version") == version]
+    if not rows:
+        raise ValueError("Voice source version is unavailable")
+    if not isinstance(source_markdown, str) or len(source_markdown) > MAX_SOURCE_MARKDOWN_LENGTH:
+        raise ValueError("Voice replay requires bounded canonical source")
+    candidates: dict[str, list[str]] = {}
+    for text in project_final_voice_clauses(source_markdown):
+        candidates.setdefault(_speech_source_identity(text), []).append(text)
+    requested_ids = {str(segment.get("segment_id")) for segment in segments if segment.get("segment_id")}
+    if action == "generate" and not requested_ids:
+        raise ValueError("Voice generation requires canonical segment identity")
+    resolved: list[Mapping[str, object]] = []
+    for row in rows:
+        if int(row.get("sequence", -1)) < 0 or row.get("status") in {"deleted", "invalidated"}:
+            continue
+        if action == "generate" and str(row["segment_id"]) not in requested_ids:
+            continue
+        choices = candidates.get(str(row["source_hash"]))
+        if not choices:
+            raise ValueError("Canonical voice source does not match registered clauses")
+        text = choices.pop(0)
+        resolved.append({"segment_id": row["segment_id"], "sequence": int(row["sequence"]),
+            "source_version": version, "kind": "voice_prose_clause",
+            "source_hash": row["source_hash"], "speakable_text": text})
+    if not resolved or len(resolved) > MAX_VOICE_REPLAY_CLAUSES or (
+        action == "generate" and {str(row["segment_id"]) for row in resolved} != requested_ids
+    ):
+        raise ValueError("Canonical voice source is unavailable")
+    return resolved

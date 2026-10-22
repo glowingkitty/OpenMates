@@ -1,15 +1,13 @@
-"""Authenticated first-party voice calls bound to one encrypted personal chat.
+"""First-party Voxtral speech input for an encrypted personal chat.
 
-Plaintext chat context, microphone audio and transcripts exist only in this
-WebSocket session and the disclosed voice provider. Durable chat writes use the
-separate client-encrypted message path.
+This socket owns STT, call lifecycle and source-frame authorization. Completed
+user requests enter the ordinary client-encrypted chat path; normal routing,
+permissions, rich answers, speech assets and billing stay on that path.
 """
-
 from __future__ import annotations
 
 import asyncio
-from collections import deque
-from decimal import Decimal
+from dataclasses import dataclass
 import hashlib
 import json
 import logging
@@ -21,38 +19,35 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
-
-from backend.core.api.app.routes.audio_realtime import _browser_request_is_allowed
+from backend.core.api.app.routes.audio_realtime import _browser_request_is_allowed, REALTIME_CREDITS_PER_MINUTE
 from backend.core.api.app.routes.auth_ws import get_current_user_ws
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_directus_service, get_cache_service
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.routes.video_call_experiment import (
-    GEMINI_MODEL, INPUT_RATES, LOCK_RENEW_SECONDS, MIN_VOICE_HEADROOM,
-    UsageLedger, _acquire_lock, _authoritative_credits, _billing, _credits_for,
-    _finish_accepted_job, _release_lock, _renew_lock, _session_still_valid,
+from backend.core.api.app.routes.voice_call_support import (
+    LOCK_RENEW_SECONDS, _acquire_lock, _authoritative_credits, _billing,
+    _decode_media, _finish_accepted_job, _release_lock, _renew_lock, _session_still_valid,
 )
 from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
-from backend.shared.providers.gemini_live_voice import GeminiLiveVoiceSession
+from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_VOICE_MODEL, STREAMING_DELAY_MS
 from backend.shared.providers.live_voice import LiveVoiceSession
-from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals, FRAME_TOKEN_RESERVE
-from backend.apps.ai.processing.voice_call_broker import VoiceToolOperationError
+from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals
 from backend.shared.python_utils.voice_call_registry import (
     finalize_active_call, issue_message_id, register_active_call, renew_active_call,
 )
 from backend.shared.testing.voice_call_fixture import (
-    IsolatedGeminiVoiceFixture, VOICE_ACK_DEFAULT_TIMESTAMP, consume_voice_ack_fixture_write_failure,
+    IsolatedVoxtralVoiceFixture, VOICE_ACK_DEFAULT_TIMESTAMP, consume_voice_ack_fixture_write_failure,
     isolated_voice_fixture_enabled, set_voice_ack_fixture_fail_next_write,
     set_voice_ack_fixture_profile_mode, voice_ack_fixture_requires_profile,
 )
 
-
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1")
 MAX_START_BYTES = 256_000
+MAX_EVENT_BYTES = 384_000
 MAX_CONTEXT_CHARS = 64_000
 MAX_SUMMARY_CHARS = 48_000
 MAX_TEXT_CHARS = 8_000
@@ -60,13 +55,11 @@ MAX_AUDIO_CHUNK = 128 * 1024
 PCM_INPUT_BYTES_PER_SECOND = 32000
 MAX_STARTUP_AUDIO_ALLOWANCE_MS = 10_000
 AUDIO_JITTER_SECONDS = 2
-MAX_QUEUED_INPUT_BYTES = 2 * 1024 * 1024
 MAX_PENDING_TRANSCRIPTS = 32
-AUDIO_TOKENS_PER_SECOND_ADMISSION = Decimal(40)  # Conservative over Google's documented 32 tokens/s.
+MAX_TEXT_IDENTITIES = 2048
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
-GOOGLE_PROCESSING_ACK_FIELD = "voice_google_processing_ack_v1_at"
-GOOGLE_PROCESSING_ACK_VERSION = 1
-
+PROCESSING_ACK_FIELD = "voice_processing_ack_v2_at"
+PROCESSING_ACK_VERSION = 2
 
 def _timestamp() -> int:
     return int(time.time())
@@ -187,71 +180,6 @@ def _context_options(value: dict[str, Any]) -> dict[str, Any]:
     return options
 
 
-async def _prompt_configuration(websocket: WebSocket, *, mate_category: str | None = None,
-                                user_id: str | None = None) -> dict[str, str]:
-    """Load trusted shared ethics and public app descriptions, never tool schemas."""
-    cache = websocket.app.state.cache_service
-    loader = getattr(cache, "get_base_instructions", None)
-    instructions = await loader() if loader else None
-    if not isinstance(instructions, dict) or not instructions.get("base_ethics_instruction"):
-        from backend.apps.ai.utils.instruction_loader import load_base_instructions
-        instructions = load_base_instructions()
-    ethics = instructions.get("base_ethics_instruction")
-    if not isinstance(ethics, str) or not ethics.strip():
-        raise RuntimeError("Voice ethics configuration unavailable")
-    metadata = getattr(websocket.app.state, "discovered_apps_metadata", {}) or {}
-    registry = getattr(websocket.app.state, "skill_registry", None)
-    translation = getattr(websocket.app.state, "translation_service", None)
-    def field(item: Any, name: str, default: Any = None) -> Any:
-        return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
-    catalogue = []
-    for app_id, app in sorted(metadata.items()):
-        if (not re.fullmatch(r"[a-z0-9_\-]{1,128}", app_id) or field(app, "internal", False)
-                or field(app, "default_enabled") is False):
-            continue
-        has_skill = any(
-            not field(skill, "internal", False) and field(skill, "default_enabled") is not False
-            and bool(field(skill, "tool_schema")) and registry is not None
-            and registry.is_skill_available(app_id, field(skill, "id"))
-            for skill in field(app, "skills", [])
-        )
-        has_focus = any(field(focus, "default_enabled") is not False for focus in field(app, "focuses", []))
-        has_memory = any(field(memory, "default_enabled") is not False for memory in field(app, "memory_fields", []))
-        if app_id != "projects" and not (has_skill or has_focus or has_memory):
-            continue
-        key = field(app, "description_translation_key")
-        description = translation.get_nested_translation(key, "en") if translation and isinstance(key, str) else ""
-        if not isinstance(description, str):
-            description = ""
-        catalogue.append(f"{app_id}: {' '.join(description.split())[:240]}")
-    learning_mode = {"enabled": False}
-    if user_id:
-        from backend.core.api.app.routes.learning_mode import _load_learning_mode_policy
-        from backend.shared.python_utils.learning_mode import build_learning_mode_context, build_learning_mode_global_prompt
-        learning_mode = build_learning_mode_context(await _load_learning_mode_policy(
-            user_id, cache, websocket.app.state.directus_service,
-        ))
-        if learning_mode.get("enabled"):
-            ethics += "\n\n" + build_learning_mode_global_prompt(learning_mode["age_group"])
-    configuration = {"base_instruction": ethics, "app_catalogue": "\n".join(catalogue)}
-    if mate_category:
-        from backend.apps.ai.utils.mate_utils import load_mates_config
-        from backend.apps.ai.utils.voice_mate import mate_voice_configuration
-        load_mates = getattr(cache, "get_mates_configs", None)
-        mates = (await load_mates() if load_mates else None) or load_mates_config()
-        mate = next((mate for mate in mates if mate.category == mate_category), None)
-        if mate is None:
-            raise ValueError("Unknown voice mate category")
-        configuration.update(mate_voice_configuration(mate, learning_mode=learning_mode.get("enabled") is True))
-    return configuration
-
-
-async def _broker(websocket: WebSocket, **kwargs: Any) -> Any:
-    # This import loads only the sealed transport; AI model execution is in the worker.
-    from backend.apps.ai.processing.voice_call_broker import create_voice_call_broker
-    return await create_voice_call_broker(websocket, **kwargs)
-
-
 def _start(message: str) -> tuple[str, str, list[dict[str, Any]], int]:
     if len(message.encode("utf-8")) > MAX_START_BYTES:
         raise ContextLimitError("Call start exceeds limit")
@@ -268,30 +196,10 @@ def _start(message: str) -> tuple[str, str, list[dict[str, Any]], int]:
         chat_id = str(uuid.UUID(chat_id))
     except (TypeError, ValueError, AttributeError) as exc:
         raise ValueError("Invalid chat identity") from exc
-    summary, messages = _context(event.get("context"))
+    # Current STT-only clients omit chat context entirely. Legacy clients may
+    # still supply bounded context, which is validated but never sent to STT.
+    summary, messages = _context(event.get("context", {}))
     return chat_id, summary, messages, startup_audio_allowance_ms
-
-
-def _output_transcription(segments: list[tuple[tuple[float, float] | None, str]],
-                          event: dict[str, Any]) -> str:
-    """Assemble output deltas; only identical audio spans identify revisions."""
-    fragment = event["text"]
-    start = _audio_offset(event.get("startOffset"))
-    end = _audio_offset(event.get("endOffset"))
-    span = (start, end) if start is not None and end is not None and end > start else None
-    if span is not None:
-        for index, (previous_span, _) in enumerate(segments):
-            if previous_span == span:
-                segments[index] = (span, fragment)
-                break
-        else:
-            segments.append((span, fragment))
-    else:
-        segments.append((None, fragment))
-    result = "".join(text for _, text in segments)
-    if len(result) > MAX_TEXT_CHARS:
-        raise TranscriptLimitError("Transcript exceeds call limit")
-    return result
 
 
 class TranscriptLimitError(ValueError):
@@ -304,29 +212,56 @@ def _bounded_transcript(value: str) -> str:
     return value
 
 
-def _audio_offset(value: Any) -> float | None:
-    match = re.fullmatch(r"(\d+(?:\.\d+)?)s", value) if isinstance(value, str) else None
-    return float(match.group(1)) if match else None
+class SpeechUsageLedger:
+    """Bill actual accepted PCM duration, cumulatively rounded once per call."""
+    def __init__(self) -> None:
+        self.audio_bytes = 0
+        self.charged = 0
+
+    @property
+    def billed_minutes(self) -> int:
+        return math.ceil(self.audio_bytes / (PCM_INPUT_BYTES_PER_SECOND * 60))
+
+    @property
+    def credits(self) -> int:
+        return self.billed_minutes * REALTIME_CREDITS_PER_MINUTE
+
+    def view(self, elapsed: float) -> dict[str, Any]:
+        return {"type": "usage", "billing_basis": "speech_duration_and_chat_usage",
+                "elapsed_seconds": round(elapsed, 1),
+                "stt_duration_seconds": self.audio_bytes / PCM_INPUT_BYTES_PER_SECOND,
+                "credits_accrued": self.credits, "credits_charged": self.charged,
+                "stt_credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE}
 
 
-def _unsettled_audio_credits(audio_bytes: int, settled_audio_bytes: int) -> int:
-    """Admission reserve only; actual charges always use provider token usage."""
-    if audio_bytes <= settled_audio_bytes:
-        return 0
-    seconds = Decimal(audio_bytes - settled_audio_bytes) / Decimal(32000)
-    estimated_tokens = seconds * AUDIO_TOKENS_PER_SECOND_ADMISSION
-    return _credits_for(estimated_tokens * INPUT_RATES["AUDIO"] / Decimal(1_000_000))
+async def _charge_voice(websocket: WebSocket, ledger: SpeechUsageLedger, *,
+                        user_id: str, user_hash: str, call_id: str, chat_id: str) -> None:
+    due = ledger.credits - ledger.charged
+    if due <= 0 or not is_payment_enabled():
+        return
+    result = await _billing(websocket).charge_user_credits(
+        user_id=user_id, user_id_hash=user_hash, credits_to_deduct=due,
+        app_id="ai", skill_id="voice_call", require_full_charge=True,
+        idempotency_key=f"voice-call:{call_id}:stt:{ledger.billed_minutes}",
+        usage_details={"usage_type": "voice_call_transcription", "model_used": VOXTRAL_VOICE_MODEL,
+                       "chat_id": chat_id, "duration_seconds": ledger.audio_bytes / PCM_INPUT_BYTES_PER_SECOND,
+                       "billed_minutes": ledger.billed_minutes,
+                       "credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE,
+                       "charged_credits": due},
+    )
+    charged = int(result.get("charged_credits", due))
+    if charged != due:
+        raise RuntimeError("Voice transcription charge incomplete")
+    ledger.charged += charged
 
 
-def _unsettled_visual_credits(frame_count: int, settled_count: int) -> int:
-    return _credits_for(Decimal(max(0, frame_count - settled_count)) * FRAME_TOKEN_RESERVE
-                        * INPUT_RATES["IMAGE"] / Decimal(1_000_000))
-
-
-def _has_visual_usage(usage: Any) -> bool:
-    return isinstance(usage, dict) and any(isinstance(row, dict)
-        and str(row.get("modality", "")).upper() in {"IMAGE", "VIDEO"}
-        and int(row.get("tokenCount") or 0) > 0 for row in usage.get("promptTokensDetails", []) or [])
+async def _provider(websocket: WebSocket) -> LiveVoiceSession:
+    if isolated_voice_fixture_enabled():
+        return IsolatedVoxtralVoiceFixture()
+    key = await websocket.app.state.secrets_manager.get_secret("kv/data/providers/mistral_ai", "api_key")
+    if not key:
+        raise RuntimeError("Voice provider unavailable")
+    return VoxtralVoiceSession(key)
 
 
 async def _personal_chat(websocket: WebSocket, chat_id: str, user_id: str) -> bool:
@@ -338,54 +273,21 @@ async def _personal_chat(websocket: WebSocket, chat_id: str, user_id: str) -> bo
     return chat.get("hashed_user_id") == hashlib.sha256(user_id.encode()).hexdigest()
 
 
-async def _charge_voice(websocket: WebSocket, ledger: UsageLedger, *, user_id: str, user_hash: str, call_id: str, chat_id: str) -> None:
-    due = _credits_for(ledger.gemini_cost) - ledger.charged
-    if due <= 0:
-        return
-    checkpoint = ledger.checkpoint + 1
-    result = await _billing(websocket).charge_user_credits(
-        user_id=user_id, user_id_hash=user_hash, credits_to_deduct=due,
-        app_id="ai", skill_id="voice_call",
-        idempotency_key=f"voice-call:{call_id}:{checkpoint}",
-        require_full_charge=True,
-        usage_details={
-            "usage_type": "voice_call", "model_used": GEMINI_MODEL,
-            "chat_id": chat_id,
-            "provider_cost_usd": float(ledger.gemini_cost),
-            "gemini_input_tokens": ledger.prompt_tokens,
-            "gemini_output_tokens": ledger.response_tokens,
-            "gemini_context_tokens": ledger.context_tokens,
-            "charged_credits": due,
-        },
-    )
-    ledger.checkpoint = checkpoint
-    ledger.charged += int(result.get("charged_credits", due))
-
-
-async def _provider(websocket: WebSocket) -> LiveVoiceSession:
-    if isolated_voice_fixture_enabled():
-        return IsolatedGeminiVoiceFixture()
-    key = await websocket.app.state.secrets_manager.get_secret("kv/data/providers/google_ai_studio", "api_key")
-    if not key:
-        raise RuntimeError("Voice provider unavailable")
-    return GeminiLiveVoiceSession(key)
-
-
-async def _google_processing_ack_at(directus: DirectusService, user_id: str) -> int | None:
+async def _processing_ack_at(directus: DirectusService, user_id: str) -> int | None:
     """Read the durable profile field; session cache is never admission authority."""
-    fields = await directus.get_user_fields_direct(user_id, [GOOGLE_PROCESSING_ACK_FIELD], no_cache=True)
+    fields = await directus.get_user_fields_direct(user_id, [PROCESSING_ACK_FIELD], no_cache=True)
     if fields is None:
-        raise RuntimeError("Google voice acknowledgment unavailable")
-    value = fields.get(GOOGLE_PROCESSING_ACK_FIELD)
+        raise RuntimeError("Voice processing acknowledgment unavailable")
+    value = fields.get(PROCESSING_ACK_FIELD)
     return value if type(value) is int and value > 0 else None
 
 
-async def _effective_google_processing_ack_at(
+async def _effective_processing_ack_at(
     directus: DirectusService, cache: CacheService, user_id: str,
 ) -> int | None:
     if isolated_voice_fixture_enabled() and not await voice_ack_fixture_requires_profile(cache, user_id):
         return VOICE_ACK_DEFAULT_TIMESTAMP
-    return await _google_processing_ack_at(directus, user_id)
+    return await _processing_ack_at(directus, user_id)
 
 
 def _first_party_voice_request(request: Request) -> None:
@@ -396,9 +298,9 @@ def _first_party_voice_request(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Origin not allowed")
 
 
-@router.get("/settings/voice-google-processing-ack", include_in_schema=False)
+@router.get("/settings/voice-processing-ack", include_in_schema=False)
 @limiter.limit("30/minute")
-async def get_google_processing_ack(
+async def get_processing_ack(
     request: Request,
     current_user: User = Depends(get_current_user),
     directus: DirectusService = Depends(get_directus_service),
@@ -406,16 +308,16 @@ async def get_google_processing_ack(
 ) -> dict[str, Any]:
     _first_party_voice_request(request)
     try:
-        acknowledged_at = await _effective_google_processing_ack_at(directus, cache, current_user.id)
+        acknowledged_at = await _effective_processing_ack_at(directus, cache, current_user.id)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Voice acknowledgment unavailable") from exc
-    return {"version": GOOGLE_PROCESSING_ACK_VERSION, "acknowledged": acknowledged_at is not None,
+    return {"version": PROCESSING_ACK_VERSION, "acknowledged": acknowledged_at is not None,
             "acknowledged_at": acknowledged_at}
 
 
-@router.post("/settings/voice-google-processing-ack", include_in_schema=False)
+@router.post("/settings/voice-processing-ack", include_in_schema=False)
 @limiter.limit("10/minute")
-async def record_google_processing_ack(
+async def record_processing_ack(
     request: Request,
     body: dict[str, Any],
     current_user: User = Depends(get_current_user),
@@ -423,27 +325,27 @@ async def record_google_processing_ack(
     cache: CacheService = Depends(get_cache_service),
 ) -> dict[str, Any]:
     _first_party_voice_request(request)
-    if body != {"version": GOOGLE_PROCESSING_ACK_VERSION} or type(body.get("version")) is not int:
+    if body != {"version": PROCESSING_ACK_VERSION} or type(body.get("version")) is not int:
         raise HTTPException(status_code=422, detail="Unsupported acknowledgment version")
     try:
-        acknowledged_at = await _effective_google_processing_ack_at(directus, cache, current_user.id)
+        acknowledged_at = await _effective_processing_ack_at(directus, cache, current_user.id)
         if acknowledged_at is None:
             if await consume_voice_ack_fixture_write_failure(cache, current_user.id):
                 raise RuntimeError("Isolated voice acknowledgment write failure")
-            if not await directus.update_user(current_user.id, {GOOGLE_PROCESSING_ACK_FIELD: _timestamp()}):
-                raise RuntimeError("Google voice acknowledgment write failed")
-            acknowledged_at = await _google_processing_ack_at(directus, current_user.id)
+            if not await directus.update_user(current_user.id, {PROCESSING_ACK_FIELD: _timestamp()}):
+                raise RuntimeError("Voice processing acknowledgment write failed")
+            acknowledged_at = await _processing_ack_at(directus, current_user.id)
             if acknowledged_at is None:
-                raise RuntimeError("Google voice acknowledgment write not confirmed")
+                raise RuntimeError("Voice processing acknowledgment write not confirmed")
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Voice acknowledgment unavailable") from exc
-    return {"version": GOOGLE_PROCESSING_ACK_VERSION, "acknowledged": True,
+    return {"version": PROCESSING_ACK_VERSION, "acknowledged": True,
             "acknowledged_at": acknowledged_at}
 
 
-@router.post("/settings/voice-google-processing-ack/fixture", include_in_schema=False)
+@router.post("/settings/voice-processing-ack/fixture", include_in_schema=False)
 @limiter.limit("10/minute")
-async def configure_google_processing_ack_fixture(
+async def configure_processing_ack_fixture(
     request: Request,
     body: dict[str, Any],
     current_user: User = Depends(get_current_user),
@@ -460,10 +362,10 @@ async def configure_google_processing_ack_fixture(
         raise HTTPException(status_code=422, detail="Invalid fixture action")
     # This is limited to the current isolated-CI account; the subsequent real
     # GET/POST and voice admission use the durable profile field.
-    if not await directus.update_user(current_user.id, {GOOGLE_PROCESSING_ACK_FIELD: None}):
+    if not await directus.update_user(current_user.id, {PROCESSING_ACK_FIELD: None}):
         raise HTTPException(status_code=503, detail="Voice fixture unavailable")
     try:
-        acknowledged_at = await _google_processing_ack_at(directus, current_user.id)
+        acknowledged_at = await _processing_ack_at(directus, current_user.id)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Voice fixture unavailable") from exc
     if acknowledged_at is not None:
@@ -472,344 +374,259 @@ async def configure_google_processing_ack_fixture(
     return {"configured": True}
 
 
+@dataclass
+class _SpeechTurn:
+    message_id: str
+    created_at: int
+    assistant_id: str | None
+    assistant_text: str
+    assistant_active: bool
+    assistant_task_id: str | None = None
+    text: str = ""
+    deadline: float | None = None
+    classifier: asyncio.Task[str] | None = None
+    classifier_text: str = ""
+    verdict: str = "uncertain"
+    interrupted: bool = False
+
+
+async def _classify(text: str, assistant_text: str, websocket: WebSocket, language: str) -> str:
+    from backend.shared.python_utils.voice_call_intent import classify_voice_interruption
+    try:
+        return await asyncio.wait_for(classify_voice_interruption(
+            text, assistant_text, websocket.app.state.secrets_manager, language=language,
+        ), timeout=2)
+    except Exception as exc:
+        logger.warning("Voice intent unavailable category=%s", type(exc).__name__)
+        return "uncertain"
+
+
+def _text_input(event: dict[str, Any]) -> tuple[str, str, int]:
+    message_id, text, created = event.get("message_id"), event.get("text"), event.get("created_at")
+    if (not isinstance(message_id, str) or not MESSAGE_ID.fullmatch(message_id)
+            or not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT_CHARS
+            or isinstance(created, bool) or not isinstance(created, (int, float))
+            or not math.isfinite(created)):
+        raise ValueError("Invalid text input")
+    if uuid.UUID(message_id).version != 7:
+        raise ValueError("Invalid text identity")
+    created = int(created)
+    if created > 10_000_000_000:
+        created //= 1000
+    if abs(created - _timestamp()) > 86400:
+        raise ValueError("Invalid text timestamp")
+    return message_id, text, created
+
+
 @router.websocket("/voice-call")
 async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = Depends(get_current_user_ws)) -> None:
-    """First-party client only; no developer API or team-chat access."""
+    """First-party session auth only; owner-scoped, bounded, paid STT surface.
+
+    Origin/session/consent and personal-chat ownership precede provider work.
+    This route is outside the public developer API allowlist.
+    """
     if auth_data is None:
         return
     if not await _browser_request_is_allowed(websocket, auth_data):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
         return
-    user_id = auth_data["user_id"]
-    session_id = auth_data.get("session_hash")
+    user_id, session_id = auth_data["user_id"], auth_data.get("session_hash")
     if not isinstance(session_id, str) or not session_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session unavailable")
         return
     try:
-        acknowledged_at = await _effective_google_processing_ack_at(
+        acknowledged = await _effective_processing_ack_at(
             websocket.app.state.directus_service, websocket.app.state.cache_service, user_id,
         )
     except RuntimeError:
-        await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="google_voice_ack_unavailable")
+        await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="voice_ack_unavailable")
         return
-    if acknowledged_at is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="google_voice_ack_required")
+    if acknowledged is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="voice_ack_required")
         return
     await websocket.accept()
     call_id = uuid.uuid4().hex
     user_hash = hashlib.sha256(user_id.encode()).hexdigest()
     chat_id = ""
-    lock_client: Any = None
-    lock_key = lock_token = ""
-    lease_task: asyncio.Task[None] | None = None
-    registry_task: asyncio.Task[None] | None = None
+    provider: LiveVoiceSession | None = None
     client_receive: asyncio.Task[str] | None = None
     provider_receive: asyncio.Task[dict[str, Any]] | None = None
-    provider: LiveVoiceSession | None = None
-    ledger = UsageLedger()
+    lease_task: asyncio.Task[None] | None = None
+    registry_task: asyncio.Task[None] | None = None
+    lock_client: Any = None
+    lock_key = lock_token = ""
     registered = False
+    ledger = SpeechUsageLedger()
     visuals = VoiceCallVisuals()
-    visual_frames = settled_visual_frames = 0
-    started = time.monotonic()
-    send_lock = asyncio.Lock()
-    turn_user_id: str | None = None
-    turn_user_text = ""
-    turn_user_created = 0
-    turn_user_final = False
-    turn_user_authoritative = False
-    turn_assistant_id: str | None = None
-    turn_assistant_user_id: str | None = None
-    turn_assistant_artifacts: dict[str, str] = {}
-    turn_assistant_text = ""
-    turn_assistant_segments: list[tuple[tuple[float, float] | None, str]] = []
-    turn_assistant_created = 0
-    last_message_order = 0
-    activity_seen_for_current = False
-    turn_completed = False
-    last_activity_offset = -1.0
-    pending_late_users: deque[tuple[str, int, str]] = deque()
+    turns: dict[str, _SpeechTurn] = {}
+    current: _SpeechTurn | None = None
     seen_text_ids: dict[str, tuple[str, int]] = {}
-    audio_bytes = 0
-    voiced_audio_bytes = 0
-    audio_activity_active = False
-    output_audio_bytes = 0
-    checkpoint_audio_bytes = 0
-    checkpoint_output_bytes = 0
-    last_finalized_audio_bytes = 0
-    settled_audio_bytes = 0
-    resume_handle: str | None = None
-    handoff_deadline = 0.0
-    queued_inputs: deque[tuple[str, str]] = deque()
-    queued_bytes = 0
-    last_auth_check = 0.0
-    broker: Any = None
-    tool_tasks: dict[str, asyncio.Task[dict[str, Any]]] = {}
-    permission_paused_tools: set[str] = set()
-    seen_tool_ids: set[str] = set()
-    tool_bindings: dict[str, tuple[int, str, str, int]] = {}
-    tool_responses: dict[str, dict[str, Any]] = {}
-    compression_task: asyncio.Task[dict[str, Any]] | None = None
-    pending_checkpoint: dict[str, Any] | None = None
-    checkpoint_confirmed = False
-    context_paused = False
-    context_paused_at = 0.0
-    pause_requested = False
-    checkpoint_requested_at = 0.0
-    compression_snapshot_id = ""
-    compression_source_versions: dict[str, dict[str, Any]] = {}
-    turn_generation = 0
-    call_context: dict[str, Any] = {}
-    context_messages: dict[str, dict[str, Any]] = {}
-    input_listening = False
-    processing = False
-    compression_processing = False
-    last_billing_activity: tuple[bool, bool] | None = None
+    interrupted_ids: set[str] = set()
+    assistant: dict[str, Any] = {"speaking": False, "generating": False, "text": "", "assistant_message_id": None, "assistant_task_id": None}
+    language = "auto"
+    last_order = 0
+    started = last_auth_check = time.monotonic()
+    last_usage: tuple[int, int] | None = None
+    listening = True
+    last_activity: tuple[bool, bool, bool] | None = None
+    stage = "start_validation"
 
     async def send(event: dict[str, Any]) -> None:
-        async with send_lock:
-            await websocket.send_json(event)
+        await websocket.send_json(event)
 
-    async def billing_activity(*, listening: bool | None = None, generating: bool | None = None,
-                               compressing: bool | None = None) -> None:
-        nonlocal input_listening, processing, compression_processing, last_billing_activity
-        if listening is not None:
-            input_listening = listening
-        if generating is not None:
-            processing = generating
-        if compressing is not None:
-            compression_processing = compressing
-        activity = (input_listening or visuals.camera_active, processing or compression_processing)
-        if activity != last_billing_activity:
+    async def activity() -> None:
+        nonlocal last_activity
+        value = (listening, bool(assistant["speaking"] or assistant["generating"]), visuals.camera_active)
+        if value != last_activity:
             await send({"type": "billing_activity", "call_id": call_id,
-                        "input_listening": activity[0], "processing": activity[1]})
-            last_billing_activity = activity
-
-    async def issue(message_id: str, role: str) -> None:
-        await issue_message_id(
-            websocket.app.state.cache_service, user_id=user_id, session_id=session_id,
-            chat_id=chat_id, call_id=call_id, message_id=message_id, role=role,
-        )
-
-    async def invalidate_tools() -> None:
-        nonlocal turn_generation
-        had_pending_tools = bool(tool_tasks or tool_bindings)
-        turn_generation += 1
-        for task in tool_tasks.values():
-            task.cancel()
-        if tool_tasks:
-            await asyncio.gather(*tool_tasks.values(), return_exceptions=True)
-            tool_tasks.clear()
-        tool_bindings.clear()
-        tool_responses.clear()
-        permission_paused_tools.clear()
-        if broker is not None and had_pending_tools:
-            await broker.invalidate()
-
-    def remember(message_id: str, role: str, text: str, created_at: int) -> None:
-        if text:
-            context_messages[message_id] = {"role": role, "text": text, "message_id": message_id,
-                                            "created_at": created_at}
-            # Completed text is retained until the client confirms its encrypted
-            # checkpoint. Dropping older rows here would silently forget facts.
-            call_context["messages"] = list(context_messages.values())
-            if len(context_messages) > 128 or sum(len(row["text"]) for row in context_messages.values()) > 96_000:
-                raise ContextLimitError("Pending voice checkpoint exceeds context budget")
-
-    async def tool_event(event: dict[str, Any]) -> None:
-        if event.get("type") not in {"voice_tool_status", "voice_embed", "voice_focus", "voice_memory", "voice_context"}:
-            raise ValueError("Invalid voice broker event")
-        binding = tool_bindings.get(event.get("function_call_id"))
-        if binding is None or binding[0] != turn_generation:
-            return
-        if event["type"] == "voice_memory":
-            permission_paused_tools.add(event["function_call_id"])
-            await billing_activity(generating=bool(set(tool_tasks) - permission_paused_tools))
-        if event["type"] == "voice_embed" and binding[2] == turn_assistant_id:
-            payload = event.get("payload", event)
-            artifact_id = payload.get("embed_id") if isinstance(payload, dict) else None
-            if isinstance(artifact_id, str) and artifact_id:
-                reference = payload.get("embed_reference")
-                turn_assistant_artifacts[artifact_id] = reference if isinstance(reference, str) else f"Artifact: {artifact_id}"
-        await send({**event, "call_id": call_id, "assistant_message_id": binding[2],
-                    "user_message_id": binding[1], "created_at": binding[3]})
-
-    async def process_tool(function_id: str, request: str, generation: int,
-                           user_message_id: str, assistant_message_id: str,
-                           assistant_created_at: int) -> dict[str, Any]:
-        try:
-            source = await visuals.source(user_message_id)
-            if user_message_id in visuals.sources and source is None:
-                raise VoiceToolOperationError("Camera source could not be saved")
-            result = await broker.process_request(
-                function_id, generation, request, dict(call_context), user_message_id=user_message_id,
-                assistant_message_id=assistant_message_id,
-                assistant_created_at=assistant_created_at, visual_source=source,
-            )
-        except VoiceToolOperationError as exc:
-            # A failed operation must unblock Live without ending its call or
-            # leaking provider errors. Authority, billing and cancellation errors
-            # retain the terminal/invalidation paths above this boundary.
-            logger.warning("Voice tool operation failed category=%s call_id=%s function_id=%s",
-                           type(exc).__name__, call_id, function_id)
-            result = {"response": {"status": "failed", "error": "tool_operation_failed",
-                                   "message": "The requested operation could not be completed. Tell the user it failed; do not claim success or retry automatically."},
-                      "events": []}
-        return {"result": result, "generation": generation, "user_message_id": user_message_id,
-                "assistant_message_id": assistant_message_id}
-
-    async def user_turn(message_id: str | None = None, created_at: int | None = None) -> None:
-        nonlocal turn_user_id, turn_user_text, turn_user_created, turn_user_final, turn_user_authoritative, last_message_order, activity_seen_for_current, turn_completed
-        if turn_user_id is not None and not turn_user_authoritative:
-            if len(pending_late_users) >= MAX_PENDING_TRANSCRIPTS:
-                raise RuntimeError("Too many pending speech transcripts")
-            await freeze_source(turn_user_id, turn_user_created)
-            pending_late_users.append((turn_user_id, turn_user_created, turn_user_text))
-        if message_id is None:
-            message_id, last_message_order = _ordered_message_id(last_message_order)
-        else:
-            last_message_order = max(last_message_order, uuid.UUID(message_id).int)
-        turn_user_id = message_id
-        turn_user_text = ""
-        turn_user_created = created_at if created_at is not None else _timestamp()
-        turn_user_final = False
-        turn_user_authoritative = False
-        activity_seen_for_current = False
-        turn_completed = False
-        await issue(turn_user_id, "user")
-
-    async def freeze_source(user_message_id: str, created_at: int) -> None:
-        frame = visuals.freeze(user_message_id)
-        if frame is not None:
-            await send({"type": "voice_source_frame", "call_id": call_id,
-                "user_message_id": user_message_id, "frame_id": frame.frame_id,
-                "data": frame.data, "captured_at": frame.captured_at, "created_at": created_at})
-
-    async def emit_user(*, final: bool) -> None:
-        nonlocal turn_user_final
-        if turn_user_id is None or not turn_user_text:
-            return
-        turn_user_final = final
-        if final:
-            remember(turn_user_id, "user", turn_user_text, turn_user_created)
-        await send({
-            "type": "transcript", "role": "user", "call_id": call_id,
-            "message_id": turn_user_id, "user_message_id": turn_user_id,
-            "created_at": turn_user_created, "text": turn_user_text,
-            "final": final, "interrupted": False,
-        })
-        if final:
-            await freeze_source(turn_user_id, turn_user_created)
-
-    async def emit_assistant(*, final: bool, interrupted: bool = False) -> None:
-        if turn_assistant_id is None or (not turn_assistant_text and not turn_assistant_artifacts):
-            return
-        if final:
-            context_text = "\n".join([turn_assistant_text, *turn_assistant_artifacts.values()]).strip()
-            remember(turn_assistant_id, "assistant", context_text, turn_assistant_created)
-        await send({
-            "type": "transcript", "role": "assistant", "call_id": call_id,
-            "message_id": turn_assistant_id, "user_message_id": turn_assistant_user_id,
-            "created_at": turn_assistant_created, "text": turn_assistant_text,
-            "final": final, "interrupted": interrupted,
-        })
-
-    async def assistant_turn() -> None:
-        nonlocal turn_assistant_id, turn_assistant_user_id, turn_assistant_text, turn_assistant_created, last_message_order
-        if turn_assistant_id is None:
-            turn_assistant_id, last_message_order = _ordered_message_id(last_message_order)
-            turn_assistant_user_id = turn_user_id
-            turn_assistant_artifacts.clear()
-            turn_assistant_text = ""
-            turn_assistant_segments.clear()
-            turn_assistant_created = _timestamp()
-            await issue(turn_assistant_id, "assistant")
-
-    async def send_provider(kind: str, value: str) -> None:
-        nonlocal queued_bytes
-        if handoff_deadline:
-            if queued_bytes + len(value) > MAX_QUEUED_INPUT_BYTES:
-                raise ValueError("Provider handoff input overflow")
-            queued_bytes += len(value)
-            queued_inputs.append((kind, value))
-        elif kind == "audio":
-            await provider.send_audio(value)  # type: ignore[union-attr]
-            await billing_activity(listening=True)
-        elif kind == "video":
-            await provider.send_video(value)  # type: ignore[union-attr]
-        elif kind == "end_audio":
-            await provider.end_audio()  # type: ignore[union-attr]
-            await billing_activity(listening=False)
-        else:
-            await provider.send_text(value)  # type: ignore[union-attr]
+                        "input_listening": value[0], "processing": value[1], "camera_active": value[2]})
+            last_activity = value
 
     async def registry_renewal() -> None:
         while True:
             await asyncio.sleep(LOCK_RENEW_SECONDS)
-            await renew_active_call(
-                websocket.app.state.cache_service, user_id=user_id, session_id=session_id,
-                chat_id=chat_id, call_id=call_id,
-            )
+            await renew_active_call(websocket.app.state.cache_service, user_id=user_id,
+                                    session_id=session_id, chat_id=chat_id, call_id=call_id)
 
-    admission_stage = "start_validation"
+    async def issue(message_id: str) -> None:
+        await issue_message_id(websocket.app.state.cache_service, user_id=user_id, session_id=session_id,
+                               chat_id=chat_id, call_id=call_id, message_id=message_id, role="user")
+
+    async def new_turn() -> _SpeechTurn:
+        nonlocal last_order
+        if len(turns) >= MAX_PENDING_TRANSCRIPTS:
+            raise TranscriptLimitError("Too many pending speech turns")
+        message_id, last_order = _ordered_message_id(last_order)
+        turn = _SpeechTurn(message_id, _timestamp(), assistant["assistant_message_id"],
+                           assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
+                           assistant_task_id=assistant["assistant_task_id"])
+        turns[message_id] = turn
+        return turn
+
+    async def interrupt(turn: _SpeechTurn) -> None:
+        if turn.interrupted or not turn.assistant_active:
+            return
+        if turn.assistant_task_id is not None and assistant["assistant_task_id"] != turn.assistant_task_id:
+            return
+        if turn.assistant_id is not None and assistant["assistant_message_id"] != turn.assistant_id:
+            return  # A delayed decision cannot cancel a newer canonical answer.
+        turn.interrupted = True
+        interruption_key = (f"task:{turn.assistant_task_id}" if turn.assistant_task_id else
+                            f"message:{turn.assistant_id}" if turn.assistant_id else None)
+        if interruption_key in interrupted_ids:
+            return
+        if interruption_key:
+            interrupted_ids.add(interruption_key)
+        await send({"type": "audio.interrupted", "call_id": call_id,
+                    "assistant_message_id": turn.assistant_id, "assistant_task_id": turn.assistant_task_id,
+                    "user_message_id": turn.message_id})
+
+    async def transcript(turn: _SpeechTurn, *, final: bool) -> None:
+        if final:
+            # Partial drafts grant no ordinary ask/tool authority.
+            await issue(turn.message_id)
+            frame = visuals.freeze(turn.message_id)
+            if frame is not None:
+                await send({"type": "voice_source_frame", "call_id": call_id,
+                            "user_message_id": turn.message_id, "frame_id": frame.frame_id,
+                            "data": frame.data, "captured_at": frame.captured_at,
+                            "created_at": turn.created_at, "source": frame.source})
+        await send({"type": "transcript", "role": "user", "call_id": call_id,
+                    "message_id": turn.message_id, "user_message_id": turn.message_id,
+                    "turn_id": turn.message_id, "created_at": turn.created_at,
+                    "text": turn.text, "final": final, "interrupted": False})
+
+    async def classify_latest(turn: _SpeechTurn) -> None:
+        from backend.shared.python_utils.voice_call_intent import is_explicit_voice_stop
+        if not turn.assistant_active:
+            return
+        if is_explicit_voice_stop(turn.text):
+            await interrupt(turn)
+            turn.verdict = "interrupt"
+            if turn.classifier is not None:
+                turn.classifier.cancel()
+            turn.classifier = None
+            turn.classifier_text = turn.text
+        elif turn.classifier_text != turn.text:
+            if turn.classifier is not None:
+                turn.classifier.cancel()
+                await asyncio.gather(turn.classifier, return_exceptions=True)
+            turn.verdict = "uncertain"
+            turn.classifier_text = turn.text
+            turn.classifier = asyncio.create_task(_classify(turn.text, turn.assistant_text, websocket, language))
+
+    async def finish_ready_turns(now: float) -> None:
+        nonlocal current
+        from backend.shared.python_utils.voice_call_intent import assistant_question_pending, is_explicit_voice_stop, is_listener_acknowledgement
+        for turn in list(turns.values()):
+            if turn.classifier is not None:
+                if not turn.classifier.done():
+                    continue
+                turn.verdict = turn.classifier.result()
+                turn.classifier = None
+                if turn.verdict == "interrupt":
+                    await interrupt(turn)
+            if turn.deadline is None or now < turn.deadline:
+                continue
+            text = turn.text.strip()
+            reason = None
+            if not text:
+                reason = "empty"
+            elif turn.assistant_active and is_explicit_voice_stop(text):
+                await interrupt(turn)
+                reason = "stop"
+            elif turn.assistant_active and (turn.verdict == "backchannel" or (turn.verdict == "uncertain" and is_listener_acknowledgement(text)
+                    and not assistant_question_pending(turn.assistant_text))):
+                reason = "backchannel"
+            else:
+                # A complete substantive request must survive model uncertainty.
+                # Only a complete turn can authorize ordinary chat/tools.
+                await interrupt(turn)
+                turn.text = text
+                await transcript(turn, final=True)
+            if reason is not None:
+                await send({"type": "transcript.discarded", "call_id": call_id,
+                            "message_id": turn.message_id, "reason": reason})
+            turns.pop(turn.message_id)
+            if current is turn:
+                current = None
+
     try:
-        start_message = await asyncio.wait_for(websocket.receive_text(), timeout=10)
-        chat_id, summary, messages, startup_audio_allowance_ms = _start(start_message)
-        # One immutable call-wide ingress allowance for audio captured while the
-        # provider connects. All accepted bytes still enter the credit reserve
-        # and provider token accounting; mute/resume never replenishes it.
-        startup_audio_allowance_bytes = startup_audio_allowance_ms * PCM_INPUT_BYTES_PER_SECOND // 1000
-        admission_stage = "context_options"
-        options = _context_options(json.loads(start_message)["context"])
-        call_context = {"summary": summary, "messages": messages, **options}
-        context_messages = {item.get("message_id", f"context-{index}"): item for index, item in enumerate(messages)}
-        admission_stage = "personal_chat"
+        start_message = await asyncio.wait_for(websocket.receive_text(), 10)
+        chat_id, _summary, _messages, startup_ms = _start(start_message)
+        _context_options(json.loads(start_message).get("context", {}))
+        allowance = startup_ms * PCM_INPUT_BYTES_PER_SECOND // 1000
+        stage = "personal_chat"
         if not await _personal_chat(websocket, chat_id, user_id):
             raise ValueError("Chat unavailable")
-        admission_stage = "session"
+        stage = "session"
         if not await _session_still_valid(websocket, auth_data):
             raise ValueError("Session unavailable")
-        admission_stage = "credits"
-        if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM:
-            raise ValueError("Insufficient credits")
-        admission_stage = "lock"
+        stage = "credits"
+        if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < REALTIME_CREDITS_PER_MINUTE:
+            raise RuntimeError("Insufficient credits")
+        stage = "lock"
         lock_client, lock_key, lock_token = await _acquire_lock(websocket, user_hash)
         lease_task = asyncio.create_task(_renew_lock(lock_client, lock_key, lock_token))
-        admission_stage = "registry"
-        await register_active_call(
-            websocket.app.state.cache_service, user_id=user_id, session_id=session_id,
-            chat_id=chat_id, call_id=call_id,
-        )
+        await register_active_call(websocket.app.state.cache_service, user_id=user_id,
+                                   session_id=session_id, chat_id=chat_id, call_id=call_id)
         registered = True
         registry_task = asyncio.create_task(registry_renewal())
-        admission_stage = "provider_selection"
+        stage = "provider_open"
         provider = await _provider(websocket)
-        if getattr(getattr(provider, "capabilities", None), "tools", False):
-            admission_stage = "broker_creation"
-            broker = await _broker(websocket, user_id=user_id, user_hash=user_hash,
-                                   chat_id=chat_id, call_id=call_id, session_id=session_id,
-                                   emit_event=tool_event)
-            admission_stage = "broker_prepare"
-            prepared = await broker.prepare_context(call_context)
-            call_context.update(prepared)
-        admission_stage = "prompt_configuration"
-        configuration = await _prompt_configuration(websocket, mate_category=options.get("mate_category"), user_id=user_id)
-        mate_identity = {field: configuration.pop(field) for field in ("mate_category", "mate_name") if field in configuration}
-        admission_stage = "provider_open"
-        await provider.open(summary=summary, messages=messages, **configuration,
-                            active_focus=call_context.get("active_focus") if broker else None)
-        admission_stage = "active"
-        started = time.monotonic()
-        await send({"type": "ready", "call_id": call_id, "model": provider.model, **mate_identity,
+        await provider.open()
+        stage = "active"
+        started = last_auth_check = time.monotonic()
+        await send({"type": "ready", "call_id": call_id, "provider": "mistral", "model": provider.model,
                     "input_sample_rate": 16000, "output_sample_rate": 24000,
-                    "billing_basis": "provider_tokens",
-                    "camera_available": bool(getattr(getattr(provider, "capabilities", None), "video_input", False))})
-        await billing_activity()
+                    "billing_basis": "speech_duration_and_chat_usage",
+                    "rates": {"stt_credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE},
+                    "camera_available": True})
+        await activity()
         client_receive = asyncio.create_task(websocket.receive_text())
         provider_receive = asyncio.create_task(provider.receive())
         while True:
             now = time.monotonic()
-            # Expire activity when an enabled camera stops supplying frames.
-            await billing_activity()
             if lease_task.done():
                 await lease_task
             if registry_task.done():
@@ -817,465 +634,145 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             if now - last_auth_check >= 5:
                 if not await _session_still_valid(websocket, auth_data):
                     raise RuntimeError("Session expired or revoked")
-                if is_payment_enabled():
-                    pending = max(0, _credits_for(ledger.gemini_cost) - ledger.charged)
-                    reserve = _unsettled_audio_credits(audio_bytes, settled_audio_bytes)
-                    if await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM + pending + reserve:
-                        raise RuntimeError("Insufficient credits")
                 last_auth_check = now
-            if handoff_deadline and now >= handoff_deadline:
-                raise RuntimeError("Voice provider handoff expired")
-            recent_audio_tokens = ((voiced_audio_bytes - checkpoint_audio_bytes) / 32000
-                                   + (output_audio_bytes - checkpoint_output_bytes) / 48000) * 40
-            if ((compression_task is not None or pending_checkpoint is not None)
-                    and (recent_audio_tokens >= 10_000 or now - checkpoint_requested_at >= 90)):
-                raise ContextLimitError("Voice checkpoint could not be confirmed before context expiry")
-            if (broker is not None and turn_completed and not tool_tasks and compression_task is None
-                    and pending_checkpoint is None and (len(context_messages) >= 24
-                    or sum(math.ceil(len(row["text"].encode("utf-8")) / 3) for row in context_messages.values()) >= 4_000
-                    or recent_audio_tokens >= 6_000)):
-                checkpoint_requested_at = now
-                compression_snapshot_id = uuid.uuid4().hex
-                compression_source_versions = {identity: dict(row) for identity, row in context_messages.items()}
-                await billing_activity(compressing=True)
-                await send({"type": "voice_compression_started", "call_id": call_id,
-                            "snapshot_id": compression_snapshot_id, "message_ids": list(compression_source_versions)})
-                compression_task = asyncio.create_task(broker.compress_context(
-                    {**call_context, "messages": list(context_messages.values())}, user_message_id=turn_user_id,
-                ))
-            if (pending_checkpoint is not None and checkpoint_confirmed and turn_completed
-                    and not tool_tasks and not pause_requested):
-                pause_requested = True
-                await send({"type": "voice_context_pause", "call_id": call_id,
-                            "checkpoint_id": pending_checkpoint["event"]["summary_message_id"]})
-            if (pending_checkpoint is not None and checkpoint_confirmed and context_paused and turn_completed
-                    and not tool_tasks and now - context_paused_at >= 1):
-                covered = set(pending_checkpoint["event"]["covered_message_ids"])
-                context_messages = {identity: row for identity, row in context_messages.items()
-                                    if identity not in covered or row != compression_source_versions.get(identity)}
-                call_context["summary"] = pending_checkpoint["summary"]
-                call_context["messages"] = list(context_messages.values())
-                # No receive may still refer to the socket being replaced.
-                provider_receive.cancel()
-                await asyncio.gather(provider_receive, return_exceptions=True)
-                await provider.update_context(summary=call_context["summary"], messages=call_context["messages"],
-                                              active_focus=call_context.get("active_focus"))
-                provider_receive = asyncio.create_task(provider.receive())
-                resume_handle = None
-                # update_context opens a fresh session rather than resuming the
-                # previous timeline; its input audio offsets restart from zero.
-                last_activity_offset = -1.0
-                checkpoint_audio_bytes = voiced_audio_bytes
-                checkpoint_output_bytes = output_audio_bytes
-                await send({"type": "voice_context_resumed", "call_id": call_id,
-                            "checkpoint_id": pending_checkpoint["event"]["summary_message_id"]})
-                pending_checkpoint = None
-                compression_source_versions.clear()
-                checkpoint_confirmed = context_paused = pause_requested = False
-            done, _ = await asyncio.wait(
-                {client_receive, provider_receive, lease_task, registry_task, *tool_tasks.values(),
-                 *([compression_task] if compression_task is not None else [])},
-                timeout=1, return_when=asyncio.FIRST_COMPLETED,
-            )
+            waiters = {client_receive, provider_receive, lease_task, registry_task}
+            waiters.update(turn.classifier for turn in turns.values() if turn.classifier is not None)
+            deadlines = [turn.deadline for turn in turns.values() if turn.deadline is not None and turn.deadline > now]
+            timeout = min(1.0, max(0, min(deadlines) - now)) if deadlines else 1.0
+            done, _ = await asyncio.wait(waiters, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
             if client_receive in done:
-                incoming = json.loads(client_receive.result())
-                if not isinstance(incoming, dict):
+                raw = client_receive.result()
+                if len(raw.encode("utf-8")) > MAX_EVENT_BYTES:
+                    raise ValueError("Call event exceeds limit")
+                event = json.loads(raw)
+                if not isinstance(event, dict):
                     raise ValueError("Invalid call event")
-                kind = incoming.get("type")
+                kind = event.get("type")
                 if kind == "hangup":
-                    await invalidate_tools()
-                    await emit_assistant(final=True, interrupted=False)
-                    await emit_user(final=True)
-                    for late_id, late_created, late_text in pending_late_users:
-                        if late_text:
-                            await send({
-                                "type": "transcript", "role": "user", "call_id": call_id,
-                                "message_id": late_id, "user_message_id": late_id,
-                                "created_at": late_created, "text": late_text,
-                                "final": True, "interrupted": False,
-                            })
                     await send({"type": "ended", "reason": "user"})
                     break
-                if kind in {"camera_state", "camera_frame", "source_frame_saved", "source_frame_failed"}:
-                    if incoming.get("call_id") != call_id:
-                        raise PermissionError("Camera call binding mismatch")
-                    try:
-                        if kind == "camera_state":
-                            if incoming.get("enabled") and not getattr(getattr(provider, "capabilities", None), "video_input", False):
-                                raise ValueError("Camera unavailable")
-                            visuals.set_enabled(incoming.get("enabled"))
-                            # Drop unsent camera input on explicit off, preserving audio.
-                            if not visuals.enabled:
-                                queued_inputs = deque((k, v) for k, v in queued_inputs if k != "video")
-                                queued_bytes = sum(len(v) for _, v in queued_inputs)
-                            await send({"type": "camera_state", "call_id": call_id, "enabled": visuals.enabled})
-                        elif kind == "camera_frame":
-                            frame = visuals.accept(incoming)
-                            if frame is not None:
-                                if is_payment_enabled():
-                                    pending = max(0, _credits_for(ledger.gemini_cost) - ledger.charged)
-                                    # A conservative per-frame admission reserve is released
-                                    # only when the actual provider modality ledger settles.
-                                    visual_reserve = _unsettled_visual_credits(visual_frames + 1, settled_visual_frames)
-                                    audio_reserve = _unsettled_audio_credits(audio_bytes, settled_audio_bytes)
-                                    if await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM + pending + visual_reserve + audio_reserve:
-                                        visuals.set_enabled(False)
-                                        raise ValueError("Camera credit headroom unavailable")
-                                await send_provider("video", frame.data)
-                                visual_frames += 1
-                        else:
-                            await visuals.acknowledge(incoming, directus=websocket.app.state.directus_service, user_id=user_id)
-                    except ValueError:
-                        if not visuals.enabled:
-                            queued_inputs = deque((k, v) for k, v in queued_inputs if k != "video")
-                            queued_bytes = sum(len(v) for _, v in queued_inputs)
-                        await send({"type": "camera_error", "call_id": call_id, "code": "camera_input_rejected",
-                                    "enabled": visuals.enabled})
-                    finally:
-                        # Keep microphone state independent from camera on/off,
-                        # recoverable ingress errors and credit rejection.
-                        await billing_activity()
-                elif kind == "mic_audio":
-                    encoded = incoming.get("data")
-                    from backend.core.api.app.routes.video_call_experiment import _decode_media
-                    chunk = _decode_media(encoded, max_bytes=MAX_AUDIO_CHUNK)
+                if kind == "mic_audio":
+                    chunk = _decode_media(event.get("data"), max_bytes=MAX_AUDIO_CHUNK)
                     if len(chunk) % 2:
                         raise ValueError("PCM audio is invalid")
-                    audio_bytes += len(chunk)
-                    if audio_activity_active:
-                        voiced_audio_bytes += len(chunk)
-                    if audio_bytes > ((now - started + AUDIO_JITTER_SECONDS) * PCM_INPUT_BYTES_PER_SECOND
-                                      + startup_audio_allowance_bytes):
+                    prospective = ledger.audio_bytes + len(chunk)
+                    if prospective > ((time.monotonic() - started + AUDIO_JITTER_SECONDS) * PCM_INPUT_BYTES_PER_SECOND + allowance):
                         raise ValueError("Audio stream exceeds real-time rate")
-                    if is_payment_enabled():
-                        pending = max(0, _credits_for(ledger.gemini_cost) - ledger.charged)
-                        reserve = _unsettled_audio_credits(audio_bytes, settled_audio_bytes) + _unsettled_visual_credits(visual_frames, settled_visual_frames)
-                        if await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM + pending + reserve:
-                            raise RuntimeError("Insufficient credits")
-                    if turn_user_id is None:
-                        await user_turn()
-                    await send_provider("audio", encoded)
+                    prospective_credits = math.ceil(prospective / (PCM_INPUT_BYTES_PER_SECOND * 60)) * REALTIME_CREDITS_PER_MINUTE
+                    reserve = prospective_credits - ledger.charged
+                    if is_payment_enabled() and reserve > 0 and await _authoritative_credits(websocket, user_id) < reserve:
+                        raise RuntimeError("Insufficient credits")
+                    await asyncio.wait_for(provider.send_audio(event["data"]), 5)
+                    ledger.audio_bytes = prospective
+                    listening = True
+                    await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
                 elif kind == "audio_stream_end":
-                    await send_provider("end_audio", "")
+                    await asyncio.wait_for(provider.end_audio(), 5)
+                    listening = False
+                elif kind == "assistant_state":
+                    speaking, generating = event.get("speaking"), event.get("generating", False)
+                    text, identity = event.get("text", ""), event.get("assistant_message_id")
+                    task_id = event.get("assistant_task_id")
+                    if (type(speaking) is not bool or type(generating) is not bool or not isinstance(text, str)
+                            or len(text) > MAX_TEXT_CHARS or (identity is not None and
+                            (not isinstance(identity, str) or not MESSAGE_ID.fullmatch(identity)))
+                            or (task_id is not None and (not isinstance(task_id, str) or not MESSAGE_ID.fullmatch(task_id)))):
+                        raise ValueError("Invalid assistant state")
+                    assistant.update(speaking=speaking, generating=generating, text=text,
+                                     assistant_message_id=identity, assistant_task_id=task_id)
                 elif kind == "text_input":
-                    message_id = incoming.get("message_id")
-                    content = incoming.get("text")
-                    created = incoming.get("created_at")
-                    valid = (
-                        isinstance(message_id, str) and bool(MESSAGE_ID.fullmatch(message_id))
-                        and isinstance(content, str) and bool(content.strip()) and len(content) <= MAX_TEXT_CHARS
-                        and not isinstance(created, bool) and isinstance(created, (int, float))
-                    )
-                    if valid:
-                        try:
-                            valid = uuid.UUID(message_id).version == 7
-                        except ValueError:
-                            valid = False
-                    if valid:
-                        created = int(created)
-                        if created > 10_000_000_000:
-                            created //= 1000
-                        valid = abs(created - _timestamp()) <= 86400
-                    if not valid:
-                        await send({"type": "text_input_rejected", "message_id": message_id if isinstance(message_id, str) and len(message_id) <= 128 else None, "code": "invalid_text_input"})
-                        client_receive = asyncio.create_task(websocket.receive_text())
-                        continue
-                    prior = seen_text_ids.get(message_id)
-                    if prior is not None:
-                        if prior != (content, created):
-                            await send({"type": "text_input_rejected", "message_id": message_id, "code": "duplicate_message_id"})
+                    try:
+                        identity, text, created = _text_input(event)
+                    except (ValueError, TypeError, AttributeError):
+                        await send({"type": "text_input_rejected", "message_id": event.get("message_id") if isinstance(event.get("message_id"), str) and len(event["message_id"]) <= 128 else None,
+                                    "code": "invalid_text_input"})
+                    else:
+                        previous = seen_text_ids.get(identity)
+                        if previous is not None and previous != (text, created):
+                            await send({"type": "text_input_rejected", "message_id": identity, "code": "duplicate_message_id"})
                         else:
-                            await send({
-                                "type": "transcript", "role": "user", "call_id": call_id,
-                                "message_id": message_id, "user_message_id": message_id,
-                                "created_at": created, "text": content,
-                                "final": True, "interrupted": False,
-                            })
-                        client_receive = asyncio.create_task(websocket.receive_text())
-                        continue
-                    if turn_assistant_id is not None:
-                        await emit_assistant(final=True, interrupted=True)
-                        await send({"type": "audio.interrupted"})
-                        turn_assistant_id = None
-                    await invalidate_tools()
-                    await user_turn(message_id, created)
-                    turn_user_text = content
-                    turn_user_authoritative = True
-                    await send_provider("text", content)
-                    await billing_activity(generating=True)
-                    seen_text_ids[message_id] = (content, created)
-                    await emit_user(final=True)
-                elif kind == "voice_memory_response":
-                    if broker is None or incoming.get("call_id") != call_id:
-                        raise ValueError("Invalid voice memory response")
-                    if (not isinstance(incoming.get("request_id"), str)
-                            or not isinstance(incoming.get("function_call_id"), str)
-                            or not isinstance(incoming.get("approved"), bool)
-                            or not isinstance(incoming.get("settings_memories", []), list)
-                            or len(json.dumps(incoming)) > MAX_START_BYTES):
-                        raise ValueError("Invalid voice memory response")
-                    if incoming["function_call_id"] not in tool_bindings:
-                        # A user may answer an approval card after barging in.
-                        # The cancelled generation grants no memory authority.
-                        client_receive = asyncio.create_task(websocket.receive_text())
-                        continue
-                    await broker.respond_memory(incoming["request_id"], incoming["approved"],
-                                                incoming.get("settings_memories", []),
-                                                incoming["function_call_id"])
-                    permission_paused_tools.discard(incoming["function_call_id"])
-                    await billing_activity(generating=True)
-                elif kind in {"voice_compression_confirmed", "voice_context_paused"}:
-                    if incoming.get("call_id") != call_id:
-                        raise ValueError("Invalid voice checkpoint acknowledgement")
-                    if pending_checkpoint is not None and incoming.get("checkpoint_id") == pending_checkpoint["event"]["summary_message_id"]:
-                        if kind == "voice_compression_confirmed":
-                            checkpoint_confirmed = True
-                        elif pause_requested:
-                            context_paused = True
-                            context_paused_at = time.monotonic()
-                            await provider.end_audio()
-                            await billing_activity(listening=False)
+                            if previous is None:
+                                if len(seen_text_ids) >= MAX_TEXT_IDENTITIES:
+                                    raise TranscriptLimitError("Too many text identities")
+                                turn = _SpeechTurn(identity, created, assistant["assistant_message_id"],
+                                    assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
+                                    assistant_task_id=assistant["assistant_task_id"], text=text)
+                                await interrupt(turn)
+                                await transcript(turn, final=True)
+                                seen_text_ids[identity] = (text, created)
+                            await send({"type": "text_input.accepted", "call_id": call_id, "message_id": identity})
+                elif kind in {"camera_state", "camera_frame", "source_frame_saved", "source_frame_failed"}:
+                    if event.get("call_id") != call_id:
+                        raise PermissionError("Visual call binding mismatch")
+                    try:
+                        if kind == "camera_state":
+                            visuals.set_enabled(event.get("enabled"))
+                            await send({"type": "camera_state", "call_id": call_id, "enabled": visuals.enabled})
+                        elif kind == "camera_frame":
+                            visuals.accept(event)
+                        else:
+                            await visuals.acknowledge(event, directus=websocket.app.state.directus_service, user_id=user_id)
+                    except ValueError:
+                        await send({"type": "camera_error", "call_id": call_id, "code": "camera_input_rejected", "enabled": visuals.enabled})
                 else:
                     raise ValueError("Unknown call event")
                 client_receive = asyncio.create_task(websocket.receive_text())
             if provider_receive in done:
                 event = provider_receive.result()
-                cancellation = event.get("toolCallCancellation")
-                if isinstance(cancellation, dict):
-                    ids = cancellation.get("ids", [])
-                    if not isinstance(ids, list):
-                        raise ValueError("Invalid provider tool cancellation")
-                    for function_id in ids:
-                        if isinstance(function_id, str):
-                            tool_responses.pop(function_id, None)
-                    # The broker invalidates its current pending permission/
-                    # execution generation together, so invalidate local siblings
-                    # too. Gemini cancels affected IDs; no response is sent.
-                    if any(isinstance(function_id, str) and function_id in tool_bindings for function_id in ids):
-                        await invalidate_tools()
-                        await billing_activity(generating=False)
-                activity = event.get("voiceActivity")
-                if isinstance(activity, dict) and activity.get("type") == "ACTIVITY_END":
-                    audio_activity_active = False
-                    last_finalized_audio_bytes = audio_bytes
-                if isinstance(activity, dict) and activity.get("type") == "ACTIVITY_START":
-                    offset = _audio_offset(activity.get("audioOffset"))
-                    if offset is None or offset > last_activity_offset:
-                        audio_activity_active = True
-                        await billing_activity(generating=True)
-                        await invalidate_tools()
-                        if offset is not None:
-                            last_activity_offset = offset
-                        if turn_user_id is None:
-                            await user_turn(created_at=_timestamp())
-                        elif activity_seen_for_current or turn_completed or turn_user_authoritative:
-                            await user_turn(created_at=_timestamp())
-                        else:
-                            # First PCM packet reserved the ID before VAD. Anchor
-                            # its ordering time to the provider's speech start.
-                            turn_user_created = _timestamp()
-                        activity_seen_for_current = True
-                update = event.get("sessionResumptionUpdate")
-                if isinstance(update, dict):
-                    if update.get("resumable") is False:
-                        resume_handle = None
-                    elif update.get("resumable") is True and isinstance(update.get("newHandle"), str):
-                        resume_handle = update["newHandle"]
-                goaway = event.get("goAway")
-                if isinstance(goaway, dict):
-                    left = goaway.get("timeLeft")
-                    match = re.fullmatch(r"(\d+(?:\.\d+)?)s", left) if isinstance(left, str) else None
-                    if not match or not resume_handle:
-                        raise RuntimeError("Voice provider handoff unavailable")
-                    handoff_deadline = now + float(match.group(1))
-                    await provider.resume(resume_handle)
-                    while queued_inputs:
-                        queued_kind, queued_value = queued_inputs.popleft()
-                        if queued_kind == "audio":
-                            await provider.send_audio(queued_value)
-                            await billing_activity(listening=True)
-                        elif queued_kind == "video":
-                            if visuals.enabled:
-                                await provider.send_video(queued_value)
-                        elif queued_kind == "end_audio":
-                            await provider.end_audio()
-                            await billing_activity(listening=False)
-                        else:
-                            await provider.send_text(queued_value)
-                    queued_bytes = 0
-                    handoff_deadline = 0.0
-                ledger.observe_gemini_output(event)
-                usage = event.get("usageMetadata")
-                if isinstance(usage, dict):
-                    ledger.stage_gemini(usage)
-                content = event.get("serverContent")
-                if isinstance(content, dict):
-                    if content.get("interrupted"):
-                        await invalidate_tools()
-                        await billing_activity(generating=False)
-                        await emit_assistant(final=True, interrupted=True)
-                        await send({"type": "audio.interrupted"})
-                        turn_assistant_id = None
-                        turn_assistant_text = ""
-                        turn_assistant_segments.clear()
-                    interim_text = (content.get("interimInputTranscription") or {}).get("text")
-                    if isinstance(interim_text, str) and interim_text:
-                        if turn_user_id is None:
-                            await user_turn()
-                        turn_user_text = _bounded_transcript(interim_text)
-                        await emit_user(final=False)
-                    input_text = (content.get("inputTranscription") or {}).get("text")
-                    if isinstance(input_text, str) and input_text:
-                        last_finalized_audio_bytes = audio_bytes
-                        if pending_late_users:
-                            late_id, late_created, _ = pending_late_users.popleft()
-                            remember(late_id, "user", _bounded_transcript(input_text), late_created)
-                            await send({
-                                "type": "transcript", "role": "user", "call_id": call_id,
-                                "message_id": late_id, "user_message_id": late_id,
-                                "created_at": late_created, "text": _bounded_transcript(input_text),
-                                "final": True, "interrupted": False,
-                            })
-                        else:
-                            if turn_user_id is None:
-                                await user_turn()
-                            turn_user_text = _bounded_transcript(input_text)
-                            turn_user_authoritative = True
-                            await emit_user(final=True)
-                    output_transcription = content.get("outputTranscription") or {}
-                    if content.get("modelTurn"):
-                        await billing_activity(generating=True)
-                    output_text = output_transcription.get("text") if isinstance(output_transcription, dict) else None
-                    if isinstance(output_text, str) and output_text:
-                        await assistant_turn()
-                        turn_assistant_text = _output_transcription(turn_assistant_segments, output_transcription)
-                        await emit_assistant(final=False)
-                    for part in (content.get("modelTurn") or {}).get("parts") or []:
-                        inline = part.get("inlineData") if isinstance(part, dict) else None
-                        if isinstance(inline, dict) and str(inline.get("mimeType") or "").startswith("audio/") and isinstance(inline.get("data"), str):
-                            output_audio_bytes += len(inline["data"]) * 3 // 4
-                            await assistant_turn()
-                            await send({"type": "audio_chunk", "data": inline["data"]})
-                    if content.get("turnComplete"):
-                        waiting_for_tool = bool(tool_tasks) or bool((event.get("toolCall") or {}).get("functionCalls"))
-                        turn_completed = not waiting_for_tool
-                        await billing_activity(generating=bool(set(tool_tasks) - permission_paused_tools)
-                                               or bool((event.get("toolCall") or {}).get("functionCalls")))
-                        if turn_user_authoritative:
-                            await emit_user(final=True)
-                        await emit_assistant(final=not waiting_for_tool)
-                        if not waiting_for_tool:
-                            turn_assistant_id = None
-                            turn_assistant_text = ""
-                            turn_assistant_segments.clear()
-                        visual_usage_settled = _has_visual_usage(ledger.pending_usage)
-                        if ledger.commit_gemini_turn():
-                            await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
-                            settled_audio_bytes = max(settled_audio_bytes, last_finalized_audio_bytes)
-                            if visual_usage_settled:
-                                settled_visual_frames = visual_frames
-                            await send({"type": "usage", "billing_basis": "provider_tokens", **{key: value for key, value in ledger.view(now - started).items() if key not in ("video_credits", "h3_generated_seconds", "h3_estimated_seconds", "video_credits_per_minute", "audio_credits_per_minute")}})
-                    elif content.get("generationComplete"):
-                        await billing_activity(generating=bool(set(tool_tasks) - permission_paused_tools))
-                tool_call = event.get("toolCall")
-                if isinstance(tool_call, dict):
-                    calls = tool_call.get("functionCalls", [])
-                    if not isinstance(calls, list) or len(calls) > 8:
-                        raise ValueError("Invalid provider tool call")
-                    for function in calls:
-                        if not isinstance(function, dict):
-                            raise ValueError("Invalid provider tool call")
-                        function_id = function.get("id")
-                        args = function.get("args")
-                        if (not isinstance(function_id, str) or not 0 < len(function_id) <= 256
-                                or function.get("name") != "process_request" or not isinstance(args, dict)
-                                or set(args) != {"request"} or not isinstance(args.get("request"), str)
-                                or not args["request"].strip() or len(args["request"]) > MAX_TEXT_CHARS):
-                            raise ValueError("Invalid provider tool call")
-                        if function_id in seen_tool_ids:
-                            if function_id in tool_responses:
-                                await provider.send_tool_response(function_id, tool_responses[function_id])
-                            continue  # Replayed provider calls must never repeat paid side effects.
-                        if broker is None or len(seen_tool_ids) >= 256:
-                            raise RuntimeError("Voice tool broker unavailable")
-                        if turn_user_id is None:
-                            await user_turn()
-                        await freeze_source(turn_user_id, turn_user_created)
-                        await assistant_turn()
-                        seen_tool_ids.add(function_id)
-                        tool_bindings[function_id] = (turn_generation, turn_user_id, turn_assistant_id, turn_assistant_created)
-                        tool_tasks[function_id] = asyncio.create_task(process_tool(
-                            function_id, args["request"], turn_generation, turn_user_id, turn_assistant_id,
-                            turn_assistant_created,
-                        ))
-                        await billing_activity(generating=True)
+                kind = event.get("type")
+                if kind == "turn.start":
+                    if current is not None:
+                        current.deadline = time.monotonic()
+                    current = await new_turn()
+                elif kind == "transcription.text.delta":
+                    delta = event.get("text")
+                    if not isinstance(delta, str):
+                        raise ValueError("Invalid transcript delta")
+                    if delta:
+                        if current is None:
+                            current = await new_turn()
+                        current.text = _bounded_transcript(current.text + delta)
+                        language = event.get("language") if isinstance(event.get("language"), str) and len(event["language"]) <= 32 else language
+                        await transcript(current, final=False)
+                        await classify_latest(current)
+                elif kind == "turn.end":
+                    if current is not None:
+                        current.deadline = time.monotonic() + STREAMING_DELAY_MS / 1000
+                elif kind in {"turn.resume", "turn.eager_end"}:
+                    # Eager endpointing never authorizes chat or tools.
+                    if kind == "turn.resume" and current is not None:
+                        current.deadline = None
+                elif kind == "transcription.done":
+                    # input_audio.end is never sent for mute. An unexpected
+                    # terminal provider session cannot silently drop future audio.
+                    raise RuntimeError("Voice transcription session ended")
+                elif kind == "error":
+                    raise RuntimeError("Voice transcription failed")
                 provider_receive = asyncio.create_task(provider.receive())
-            for function_id, task in list(tool_tasks.items()):
-                if task not in done:
-                    continue
-                tool_tasks.pop(function_id)
-                permission_paused_tools.discard(function_id)
-                completed = task.result()
-                if completed["generation"] != turn_generation:
-                    continue
-                result = completed["result"]
-                for event in result.get("events", []):
-                    await tool_event({**event, "function_call_id": function_id})
-                tool_responses[function_id] = result["response"]
-                if "active_focus" in result["response"]:
-                    call_context["active_focus"] = result["response"]["active_focus"]
-                await provider.send_tool_response(function_id, result["response"])
-                await billing_activity(generating=True)
-                tool_bindings.pop(function_id, None)
-            if compression_task is not None and compression_task in done:
-                completed_compression = compression_task
-                compression_task = None
-                try:
-                    compressed = completed_compression.result()
-                finally:
-                    # Canonical ciphertext/ACK waiting is idle; only the actual
-                    # compression operation contributes processing activity.
-                    await billing_activity(compressing=False)
-                if not compressed.get("was_compressed"):
-                    raise ContextLimitError("Voice context checkpoint could not be refreshed")
-                if not isinstance(compressed.get("summary"), str) or len(compressed["summary"]) > MAX_SUMMARY_CHARS:
-                    raise ContextLimitError("Voice context checkpoint exceeds protected budget")
-                pending_checkpoint = compressed
-                compressed["event"]["voice_snapshot_id"] = compression_snapshot_id
-                checkpoint_confirmed = context_paused = pause_requested = False
-                await send({"type": "voice_compression", "call_id": call_id, "payload": compressed["event"]})
+            await finish_ready_turns(time.monotonic())
+            usage = (ledger.audio_bytes, ledger.charged)
+            if usage != last_usage:
+                await send(ledger.view(time.monotonic() - started))
+                last_usage = usage
+            await activity()
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        # Retain only the code location, never exception text, locals or paths:
-        # provider/storage exceptions can contain transcripts or captured media.
         frames = traceback.extract_tb(exc.__traceback__)
         origin = frames[-1] if frames else None
-        error_origin = {"category": type(exc).__name__, "function": origin.name if origin else "unknown",
-                        "line": origin.lineno if origin else 0}
-        logger.warning("Voice call ended with %s at %s:%s stage=%s call_id=%s",
-                       error_origin["category"], error_origin["function"], error_origin["line"], admission_stage, call_id)
+        logger.warning("Voice call ended category=%s function=%s line=%s stage=%s call_id=%s",
+                       type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0, stage, call_id)
         try:
-            if isinstance(exc, ContextLimitError):
-                await send({"type": "error", "code": "context_too_large", "message": "This chat's context is too large for a call. You can continue by text."})
-            elif isinstance(exc, TranscriptLimitError):
-                await send({"type": "error", "code": "transcript_limit", "message": "The transcript exceeded the call limit. Your call has ended."})
-            else:
-                await send({"type": "error", "code": "call_unavailable", "stage": admission_stage,
-                            "error_origin": error_origin, "message": "Call unavailable. Your call has ended."})
+            code = "context_too_large" if isinstance(exc, ContextLimitError) else "transcript_limit" if isinstance(exc, TranscriptLimitError) else "call_unavailable"
+            await send({"type": "error", "code": code, "stage": stage, "message": "Call unavailable. Your call has ended."})
         except Exception:
             pass
     finally:
         visuals.close()
-        was_cancelled = False
-        if registered:
-            try:
-                await billing_activity(listening=False, generating=False, compressing=False)
-            except Exception:
-                pass  # Disconnected clients cannot receive terminal activity.
-        tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task, compression_task, *tool_tasks.values()) if task is not None]
+        tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task,
+                 *(turn.classifier for turn in turns.values())) if task is not None]
         for task in tasks:
             task.cancel()
         if tasks:
@@ -1285,40 +782,30 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                 await provider.close()
             except Exception:
                 logger.warning("Voice provider close failed call_id=%s", call_id)
-        if broker is not None:
+        cancelled = False
+        if ledger.audio_bytes:
             try:
-                await broker.close()
-            except Exception:
-                logger.warning("Voice broker close failed call_id=%s", call_id)
-        try:
-            ledger.commit_gemini_turn()
-            if lock_client is not None:
-                # An accepted provider turn can remain billable after browser
-                # cancellation. Keep its settlement inside the call lease.
-                charge_task = asyncio.create_task(_charge_voice(
+                await _finish_accepted_job(asyncio.create_task(_charge_voice(
                     websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id,
-                ))
-                await _finish_accepted_job(charge_task)
-        except asyncio.CancelledError:
-            was_cancelled = True
-        except Exception:
-            logger.warning("Voice call final settlement failed call_id=%s", call_id)
+                )))
+            except asyncio.CancelledError:
+                cancelled = True
+            except Exception:
+                logger.warning("Voice final settlement failed call_id=%s", call_id)
         if registered:
             try:
-                finish_task = asyncio.create_task(finalize_active_call(
-                    websocket.app.state.cache_service, user_id=user_id, session_id=session_id,
-                    chat_id=chat_id, call_id=call_id,
-                ))
-                await _finish_accepted_job(finish_task)
+                await _finish_accepted_job(asyncio.create_task(finalize_active_call(
+                    websocket.app.state.cache_service, user_id=user_id, session_id=session_id, chat_id=chat_id, call_id=call_id,
+                )))
             except asyncio.CancelledError:
-                was_cancelled = True
+                cancelled = True
             except Exception:
-                logger.warning("Voice call registry finalization failed call_id=%s", call_id)
+                logger.warning("Voice registry finalization failed call_id=%s", call_id)
         if lock_client is not None:
             await _release_lock(lock_client, lock_key, lock_token)
         try:
             await websocket.close()
         except Exception:
             pass
-        if was_cancelled:
+        if cancelled:
             raise asyncio.CancelledError

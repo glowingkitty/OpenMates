@@ -4,7 +4,8 @@
 // video-call.chat.transcripts, video-call.audio.single-owner,
 // video-call.audio.startup-buffer, video-call.audio.automatic-idle,
 // video-call.lifecycle.recovery-and-billing, video-call.privacy.first-call-warning,
-// video-call.chat.activity-status, video-call.usage.provider-metering, video-call.chat.skill-integration
+// video-call.audio.intentional-interruption, video-call.audio.spoken-rich-response,
+// video-call.audio.complete-turn-admission, video-call.chat.activity-status, video-call.usage.provider-metering, video-call.chat.skill-integration
 
 import Foundation
 
@@ -27,6 +28,10 @@ actor NativeVoiceCallController {
     private var startupSpentBytes = 0
     private var drainingStartup = false
     private var streamOpen = false
+    private var assistantTaskID: String?
+    private var assistantMessageID: String?
+    private var assistantActive = false
+    private var providerProcessing = false
     private var pausedInputs: [NativeVoiceCallFrame] = []
     private var pausedBytes = 0
     private var checkpointID: String?
@@ -35,6 +40,7 @@ actor NativeVoiceCallController {
     private var terminalInProgress = false
     private var startInProgress = false
     private var activityUpdatedAt: Date?
+    private var submittedTurns = Set<String>()
     private var pendingTyped: [String: (text: String, createdAt: Int)] = [:]
     private struct ArtifactOrigin {
         let assistantID: String
@@ -82,8 +88,9 @@ actor NativeVoiceCallController {
         state = .init(status: .connecting, scope: scope)
         startup.removeAll(); startupBytes = 0; startupSpentBytes = 0
         pausedInputs.removeAll(); pausedBytes = 0; checkpointID = nil
-        pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
+        submittedTurns.removeAll(); pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
         modelName = nil; mateName = nil; activityUpdatedAt = nil
+        assistantTaskID = nil; assistantMessageID = nil; assistantActive = false; providerProcessing = false
         await publish()
         do {
             try await requireCurrent(token, scope)
@@ -222,7 +229,7 @@ actor NativeVoiceCallController {
     }
 
     /// The returned UUIDv7 is retained by the composer until its matching final
-    /// user echo. No ordinary ChatViewModel.sendText / text inference is invoked.
+    /// user echo after canonical ordinary encrypted-send admission.
     func sendText(_ text: String) async throws -> String {
         guard state.status == .live, let scope = state.scope, let callID = state.callID,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf16.count <= 8_000,
@@ -334,7 +341,10 @@ actor NativeVoiceCallController {
             guard state.status == .connecting, let callID = frame["call_id"]?.string, !callID.isEmpty,
                   frame["input_sample_rate"]?.number == 16_000,
                   frame["output_sample_rate"]?.number == 24_000,
-                  frame["billing_basis"]?.string == "provider_tokens",
+                  frame["provider"]?.string == "mistral",
+                  frame["model"]?.string == "voxtral-mini-transcribe-realtime-3-0",
+                  frame["billing_basis"]?.string == "speech_duration_and_chat_usage",
+                  let rate = frame["rates"]?.object?["stt_credits_per_started_minute"]?.number, rate.isFinite, rate > 0,
                   frame["mate_category"]?.string == scope.mateCategory else { throw NativeVoiceCallError.invalidResponse }
             deadline?.cancel(); deadline = nil
             state.callID = callID; state.status = .live
@@ -349,14 +359,14 @@ actor NativeVoiceCallController {
             }
             startupBytes = 0; drainingStartup = false
             await publish()
-        case "audio_chunk":
-            guard state.status == .live, let raw = frame["data"]?.string,
-                  let data = Data(base64Encoded: raw), !data.isEmpty, data.count % 2 == 0,
-                  data.count <= 256 * 1_024 else { throw NativeVoiceCallError.invalidResponse }
-            try await audio.play(data, sampleRate: 24_000)
-            try await requireCurrent(token, scope)
         case "audio.interrupted":
-            await audio.interruptPlayback()
+            // Only server-confirmed intentional interruption reaches this path.
+            // Backchannels keep both generation and encrypted speech playing.
+            let interruptedID = frame["assistant_message_id"]?.string
+            let interruptedTask = frame["assistant_task_id"]?.string
+            guard interruptedID == assistantMessageID,
+                  interruptedID != nil || (interruptedTask != nil && interruptedTask == assistantTaskID) else { return }
+            try await environment.interruptAssistant(scope, interruptedID, interruptedTask)
             try await requireCurrent(token, scope)
         case "transcript":
             guard state.status == .live, let callID = state.callID,
@@ -377,14 +387,15 @@ actor NativeVoiceCallController {
                 modelName: role == .assistant ? modelName : nil,
                 mateCategory: role == .assistant ? scope.mateCategory : nil,
                 mateName: role == .assistant ? mateName : nil)
-            try await persistence.transcript(scope: scope, value: value)
+            // STT drafts are ephemeral. Never persist an assistant spoken-only
+            // projection over the authoritative rich assistant message.
+            guard role == .user, final, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            guard submittedTurns.insert(id).inserted else { return }
+            try await environment.submitTurn(scope, value)
             try await requireCurrent(token, scope)
-            if role == .user && final { pendingTyped.removeValue(forKey: id) }
-            if let artifacts = persistence as? any NativeVoiceCallArtifactPersistence {
-                let published = try await artifacts.publishedTranscript(scope: scope, callID: callID, messageID: id)
-                try await requireCurrent(token, scope)
-                await event(.transcript(published))
-            } else { await event(.transcript(value)) }
+            pendingTyped.removeValue(forKey: id)
+            await event(.transcript(value))
+        case "text_input.accepted", "transcript.discarded", "source", "waiting", "progress": break
         case "text_input_rejected":
             guard let id = frame["message_id"]?.string, pendingTyped.removeValue(forKey: id) != nil else { return }
             await event(.typedRejected(messageID: id))
@@ -420,7 +431,8 @@ actor NativeVoiceCallController {
                   frame["input_listening"]?.bool != nil, frame["processing"]?.bool != nil else { return }
             updateActivity()
             state.inputListening = frame["input_listening"]?.bool ?? false
-            state.processing = frame["processing"]?.bool ?? false
+            providerProcessing = frame["processing"]?.bool ?? false
+            state.processing = providerProcessing || assistantActive
             activityUpdatedAt = environment.now()
             await publish()
         case "usage": await event(.usage(frame))
@@ -431,6 +443,25 @@ actor NativeVoiceCallController {
             await finish(error: code == "context_too_large" ? .contextTooLarge : .callUnavailable)
         default: throw NativeVoiceCallError.invalidResponse
         }
+    }
+
+    func updateAssistantState(speaking: Bool, generating: Bool = false, messageID: String?, taskID: String? = nil, text: String, language: String? = nil) async {
+        guard state.status == .live, let scope = state.scope else { return }
+        let token = generation
+        updateActivity()
+        assistantTaskID = taskID
+        assistantMessageID = messageID
+        assistantActive = speaking || generating
+        state.processing = providerProcessing || assistantActive
+        await publish()
+        var frame: NativeVoiceCallFrame = ["type": .string("assistant_state"), "speaking": .bool(speaking),
+            "generating": .bool(generating),
+            "assistant_task_id": taskID.map(NativeVoiceCallJSON.string) ?? .null,
+            "assistant_message_id": messageID.map(NativeVoiceCallJSON.string) ?? .null,
+            "text": .string(String(text.suffix(4_000)))]
+        if let language { frame["language"] = .string(language) }
+        do { try await input(frame, token: token, scope: scope) }
+        catch { await fail((error as? NativeVoiceCallError) ?? .connectionLost, token: token) }
     }
 
     private func updateActivity() {
@@ -471,6 +502,7 @@ actor NativeVoiceCallController {
         drainingStartup = false; streamOpen = false
         state.status = error == nil ? .ended : .failed; state.error = error
         state.inputListening = false; state.processing = false; state.contextPaused = false
+        assistantTaskID = nil; assistantMessageID = nil; assistantActive = false; providerProcessing = false
         // Keep unresolved typed ciphertext/drafts. Caller explicitly chooses retry.
         pendingTyped.removeAll()
         await audio.stop()

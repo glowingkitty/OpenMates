@@ -14,7 +14,9 @@ import logging
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 
-from backend.apps.ai.assistant_speech.projection import project_streaming_speech_segment
+from backend.apps.ai.assistant_speech.projection import (
+    project_streaming_speech_segment, voice_speech_source_boundaries,
+)
 from backend.shared.python_utils.generated_assets.service import _token_secret
 
 DispatchSpeech = Callable[[dict[str, object]], Awaitable[None]]
@@ -40,6 +42,8 @@ class ImmutableSpeechBoundaryTracker:
         enabled: bool = True,
         sequence_offset: int = 0,
     ) -> None:
+        self._voice_mode = metadata.get("voice_mode") is True
+        self._voice_committed_source = ""
         self._metadata = dict(metadata)
         self._dispatch_speech = dispatch_speech
         self._invalidate_speech = invalidate_speech
@@ -52,8 +56,16 @@ class ImmutableSpeechBoundaryTracker:
         self._last_scheduled_task: asyncio.Task[None] | None = None
         self._finalization_task: asyncio.Task[None] | None = None
 
+    @property
+    def has_response_segments(self) -> bool:
+        """Whether real response speech has been scheduled, excluding preludes."""
+        return any(sequence >= 0 for sequence in self._dispatched)
+
     def has_new_boundary(self, content: str) -> bool:
         """Return whether observing this snapshot will dispatch immutable speech."""
+        if self._voice_mode:
+            return any(project_streaming_speech_segment(raw, voice_mode=True)
+                       for _, raw in self._voice_boundaries(content, is_final=False))
         paragraphs = _project_bounded_paragraphs(_complete_paragraphs(content), str(self._metadata.get("language") or "en"))
         for index, (kind, paragraph) in enumerate(paragraphs):
             sequence = index + self._sequence_offset
@@ -66,6 +78,9 @@ class ImmutableSpeechBoundaryTracker:
     def observe(self, content: str, *, is_final: bool = False) -> None:
         """Schedule only immutable paragraph snapshots without awaiting speech work."""
         if not self._enabled:
+            return
+        if self._voice_mode:
+            self._observe_voice(content, is_final=is_final)
             return
         paragraphs = _complete_paragraphs(content)
         if is_final:
@@ -101,9 +116,38 @@ class ImmutableSpeechBoundaryTracker:
                     lambda completed: _consume_detached_exception(completed, -1, self._report_status)
                 )
 
+    def _voice_boundaries(self, content: str, *, is_final: bool) -> list[tuple[int, str]]:
+        """Freeze only append-only source spans, never revised already-spoken text."""
+        committed = self._voice_committed_source
+        if not content.startswith(committed):
+            return []
+        offset = len(committed)
+        return [(offset + end, raw) for end, raw in voice_speech_source_boundaries(
+            content[offset:], is_final=is_final)]
+
+    def _observe_voice(self, content: str, *, is_final: bool) -> None:
+        for end, raw in self._voice_boundaries(content, is_final=is_final):
+            self._voice_committed_source = content[:end]
+            projected = project_streaming_speech_segment(raw, voice_mode=True)
+            if projected is None:
+                continue
+            _, text = projected
+            kind = "voice_prose_clause"
+            sequence = self._sequence_offset + sum(sequence >= 0 for sequence in self._dispatched)
+            segment = self._segment(sequence, text, kind=kind)
+            self._dispatched[sequence] = segment
+            self._schedule(self._dispatch_speech(segment), sequence)
+        if is_final and self._finalize_speech is not None and self._finalization_task is None:
+            self._finalization_task = asyncio.create_task(self._finalize_after_dispatch())
+            self._finalization_task.add_done_callback(
+                lambda completed: _consume_detached_exception(completed, -1, self._report_status)
+            )
+
     def dispatch_projected_segment(self, *, sequence: int, kind: str, speakable_text: str) -> None:
         """Schedule one deterministic non-prose segment without blocking text."""
         if not self._enabled:
+            return
+        if self._voice_mode and kind in {"code_summary", "table_summary", "embed_summary"}:
             return
         segment = self._segment(sequence, speakable_text, kind=kind)
         if not segment:
@@ -133,7 +177,7 @@ class ImmutableSpeechBoundaryTracker:
             "segment_id": segment_id,
             "sequence": sequence,
             "kind": kind,
-            "playback_class": "passive_prelude" if kind == "app_use_announcement" else "replayable_response_track",
+            "playback_class": "passive_prelude" if kind in {"app_use_announcement", "waiting_confirmation"} else "replayable_response_track",
             "source_hash": source_hash,
             "speakable_text": speakable_text,
         }

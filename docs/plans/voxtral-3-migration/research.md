@@ -378,35 +378,24 @@ trial the upgrade, not an OpenMates quality guarantee. Real accented, German,
 code-switched and noisy dictation needs a broader consented corpus before making
 that claim. Results are in `artifacts/2026-10-22/provider-probe.json`.
 
-### Revised recommendation: calls without Gemini at any processing stage
+### Correction after the user's voice-mode clarification
 
-Use OpenMates-owned realtime STT, a turn controller and the shared processors.
-Supply a **call-specific provider policy** instead of copying today's model defaults:
+The earlier recommendation to exclude Google at every processing stage was an
+assistant assumption, not a user requirement, and is withdrawn. The user wants
+the ordinary pre/main/post processing architecture, including its automatic
+model and thinking-level selection, with minimal voice adaptations. Google
+models remain eligible. Mercury 3 is not forced for voice calls.
 
-- Jev retains typed decisions for safety, complexity, apps, focus and memories.
-- Mercury 3 handles eligible simple text replies through automatic call routing;
-  evaluate its documented realtime option within the provider adapter.
-- Evaluate the already integrated Mistral Small 4 / Medium 3.5 routes for tool-heavy
-  or multimodal turns and Mistral Large 4 for demanding reasoning. Select by measured
-  first speakable output, tool reliability and quality, not name or throughput.
-- Adapt preprocessing recovery, transcript correction if enabled, postprocessing,
-  compression and vision/tool-model selection as well as the main model. Those
-  helper stages currently include Gemini defaults. Reuse their implementations
-  with eligible non-Google configurations; reject a fallback outside the call policy.
-- Keep call policy separate from account and text-chat defaults. A provider outage
-  must not silently reconnect the call to Gemini or send its data to Google.
+The user also requires ordinary rich responses with inline links, larger embed
+previews and image groups, accompanied by natural spoken prose from that same
+response. Waiting acknowledgements must follow the request language. The proposed
+non-Mercury acknowledgement condition and interruption details will be clarified
+one question per round before the existing voice-call Specification is revised.
 
-Start with standard Voxtral TTS 3 receiving stable short clauses and returning
-streamed audio. Qualify the independent realtime TTS interface before choosing it.
-For calls, evaluate a 240–480 ms STT delay rather than blindly copying dictation's
-1,000 ms setting. Retain final-word collection after endpoint events.
-
-First prototype scope: normal conversation, typed interjection, one real skill,
-permission-bound memory/focus, compression, and local interruption. Prove no stale
-speech or repeated writes after cancellation. Then restore/verify current camera,
-screen, artifacts and generated-media behavior using a non-Google vision route
-before replacing the existing call default. Keep the existing Gemini route only
-as an explicitly selected legacy option during rollout, never an automatic fallback.
+Current source-backed research, offline Apple feasibility and the revised
+architecture proposal are in [voice-mode-clarification.md](voice-mode-clarification.md).
+Neither this research nor the earlier composer/playback approval authorizes
+implementation of an unreviewed voice-mode contract.
 
 The subsequent recording-preview correction requires one fully readable newest
 wrapped line at desktop, tablet and phone widths. The previous vertical transform

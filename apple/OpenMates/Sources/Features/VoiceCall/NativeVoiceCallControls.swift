@@ -133,7 +133,7 @@ struct NativeVoiceCallConsentView: View {
             Text(AppStrings.nativeCall("privacy_title")).font(.omH3.weight(.semibold))
             Text(AppStrings.nativeCall("privacy_description")).font(.omP)
             Text(AppStrings.nativeCall("pricing_explanation")).font(.omSmall).foregroundStyle(Color.fontSecondary)
-            Link(AppStrings.nativeCall("privacy_terms"), destination: URL(string: "https://ai.google.dev/gemini-api/terms#paid-services")!)
+            Link(AppStrings.nativeCall("privacy_terms"), destination: URL(string: "https://legal.mistral.ai/terms/privacy-policy")!)
                 .buttonStyle(.plain).foregroundStyle(Color.settingsPrimaryStart)
                 .frame(minHeight: 44).accessibilityIdentifier("voice-call-consent-terms")
             HStack(spacing: .spacing6) {

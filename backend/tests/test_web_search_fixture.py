@@ -83,16 +83,3 @@ def test_camera_provider_latency_requires_exact_query_and_all_isolated_guards(mo
         delay.assert_not_awaited()
     else:
         delay.assert_awaited_once_with(1)
-
-
-# contract-test: supporting surface=gui.web assertions=video-call.video.fast-generation-default
-@pytest.mark.asyncio
-async def test_camera_video_fixture_leaves_model_duration_and_resolution_to_real_call_defaults(monkeypatch):
-    from backend.shared.testing import voice_broker_fixture
-    monkeypatch.setattr(voice_broker_fixture, "isolated_voice_fixture_enabled", lambda: True)
-    calls = [call async for call in voice_broker_fixture.tool_stream(data={
-        "request": voice_broker_fixture.CAMERA_VIDEO_REQUEST, "input_embed_ids": ["owned-source"]})]
-    assert len(calls) == 1 and calls[0].function_name == "videos__generate"
-    request = calls[0].function_arguments_parsed["requests"][0]
-    assert request["input_embed_ids"] == ["owned-source"]
-    assert not {"model", "duration_seconds", "resolution"} & request.keys()

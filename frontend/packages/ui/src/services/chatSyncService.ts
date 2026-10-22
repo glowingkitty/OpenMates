@@ -1,5 +1,4 @@
 import { clearApplicationPreviewSessions, handleApplicationPreviewStatusUpdate } from "./applicationPreviewService";
-import { initializeVoiceCallMetadata } from "./voiceCallMetadata";
 import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
@@ -589,7 +588,10 @@ export class ChatSynchronizationService extends EventTarget {
     });
     this.addEventListener('aiTaskEnded', (event) => {
       const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
-      if (detail?.status === 'completed' || !detail?.chatId || !detail?.userMessageId) return;
+      // Cancellation ends inference and playback, not encrypted persistence.
+      // A partial reply can still be sealing or awaiting its canonical ACK;
+      // keep successors fenced until that exact storage/recovery proof arrives.
+      if (detail?.status === 'completed' || detail?.status === 'cancelled' || !detail?.chatId || !detail?.userMessageId) return;
       failPersonalChatMessage(detail.chatId, detail.userMessageId, new Error('The prior AI task ended before encrypted reply persistence.'));
     });
     this.registerWebSocketHandlers();
@@ -2300,14 +2302,6 @@ export class ChatSynchronizationService extends EventTarget {
       }
     });
 
-    initializeVoiceCallMetadata(this);
-
-    webSocketService.on("voice_action_completed", (payload) => {
-      void import("./voiceCallActions").then(({ handleVoiceActionCompleted }) =>
-        handleVoiceActionCompleted(this, payload),
-      ).catch(() => { console.warn("[ChatSyncService] Committed voice action could not be persisted"); });
-    });
-
     webSocketService.on("ai_message_ready", (payload) =>
       aiHandlers
         .handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload)
@@ -3002,7 +2996,7 @@ export class ChatSynchronizationService extends EventTarget {
   ): Promise<void> {
     const current = this.queuedSnapshotScope(message.chat_id);
     const contentIdentity = () => JSON.stringify([message.role, message.content, message.created_at,
-      message.sender_name, message.category, message.preserve_draft]);
+      message.sender_name, message.category]);
     const send = (holdUntil: (completion: Promise<void>, canonicalContent?: string) => void) => this.sendNewMessageCore(
       message, encryptedSuggestionToDelete, connectedAccountContext, projectFocusIntent,
       newLocalChat, earlyEmptyConnectedAccounts, (completion) => holdUntil(completion, contentIdentity()),

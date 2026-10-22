@@ -84,7 +84,7 @@ final class NativeVoiceCallTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.typed-input,video-call.chat.transcripts
-    func testTypedInputIsEncryptedBeforeSocketAndUsesUUIDv7WithoutOrdinaryInference() async throws {
+    func testTypedInputIsEncryptedBeforeSocketAndUsesUUIDv7ForCanonicalSend() async throws {
         let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
         let persistence = VoiceCallPersistenceFixture()
         let live = expectation(description: "Live")
@@ -235,11 +235,122 @@ final class NativeVoiceCallTests: XCTestCase {
         runtime.releaseLiveCall(call) // an old release cannot affect a future lease
     }
 
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission
+    func testOnlyFinalUserTranscriptEntersCanonicalSenderOnce() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let submitted = VoiceCallSubmittedFixture()
+        let live = expectation(description: "Voxtral ready"), drained = expectation(description: "All frames consumed")
+        let accepted = expectation(description: "Canonical user send accepted")
+        let controller = makeController(transport: transport, audio: audio, submit: { _, value in
+            await submitted.append(value)
+        }, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+            if case .transcript = event { accepted.fulfill() }
+            if case .usage = event { drained.fulfill() }
+        })
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        var frame: NativeVoiceCallFrame = ["type": .string("transcript"), "call_id": .string("fixture-call"),
+            "message_id": .string("user-turn"), "role": .string("user"), "text": .string("Find a useful article"),
+            "created_at": .number(100), "final": .bool(false)]
+        try await transport.push(frame)
+        frame["final"] = .bool(true); try await transport.push(frame); try await transport.push(frame)
+        frame["role"] = .string("assistant"); frame["message_id"] = .string("canonical-assistant")
+        frame["text"] = .string("Spoken summary must not overwrite markdown")
+        try await transport.push(frame)
+        try await transport.push(["type": .string("text_input.accepted")])
+        try await transport.push(["type": .string("transcript.discarded")])
+        try await transport.push(["type": .string("usage")])
+        await fulfillment(of: [accepted, drained], timeout: 2)
+        let values = await submitted.values
+        XCTAssertEqual(values.count, 1); XCTAssertEqual(values.first?.messageID, "user-turn")
+        XCTAssertEqual(values.first?.role, .user)
+        await controller.hangup()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.intentional-interruption
+    func testBackchannelDoesNotCancelButConfirmedInterruptionDoes() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "Ready"), interrupted = expectation(description: "Normal task cancellation")
+        let controller = makeController(transport: transport, audio: audio, interrupt: { _, id, _ in
+            XCTAssertEqual(id, "assistant-id"); interrupted.fulfill()
+        }, event: { event in if case .state(let state) = event, state.status == .live, !state.processing { live.fulfill() } })
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        await controller.updateAssistantState(speaking: true, messageID: "assistant-id", text: "Canonical response")
+        try await transport.push(["type": .string("transcript.discarded"), "reason": .string("backchannel")])
+        try await transport.push(["type": .string("audio.interrupted"), "assistant_message_id": .string("stale-assistant-id")])
+        try await transport.push(["type": .string("audio.interrupted"), "assistant_message_id": .string("assistant-id")])
+        await fulfillment(of: [interrupted], timeout: 2)
+        await controller.hangup()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
+    func testCallTurnFieldsUseOrdinaryMessageWithoutModelOverride() {
+        let fields = NativeVoiceCallTurn(callID: "bound-call", turnID: "bound-turn").messageFields
+        XCTAssertEqual(fields["voice_call_id"] as? String, "bound-call")
+        XCTAssertEqual(fields["voice_turn_id"] as? String, "bound-turn")
+        XCTAssertEqual(fields["auto_speak_response"] as? Bool, true)
+        XCTAssertEqual(fields["assistant_speech_lazy_dispatch"] as? Bool, false)
+        XCTAssertEqual(fields["voice_mode"] as? Bool, true)
+        XCTAssertNil(fields["model"]); XCTAssertNil(fields["provider"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.intentional-interruption
+    func testEarlyReasoningInterruptionRequiresExactCanonicalTaskBeforeAssistantIdentity() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "Ready"), cancelled = expectation(description: "Exact reasoning task cancelled")
+        let controller = makeController(transport: transport, audio: audio, interrupt: { _, messageID, taskID in
+            XCTAssertNil(messageID); XCTAssertEqual(taskID, "active-task"); cancelled.fulfill()
+        }, event: { event in if case .state(let state) = event, state.status == .live, !state.processing { live.fulfill() } })
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        await controller.updateAssistantState(speaking: false, generating: true, messageID: nil, taskID: "active-task", text: "")
+        try await transport.push(["type": .string("audio.interrupted"), "assistant_task_id": .string("stale-task")])
+        try await transport.push(["type": .string("audio.interrupted"), "assistant_task_id": .string("active-task")])
+        await fulfillment(of: [cancelled], timeout: 2)
+        let frames = try await transport.frames()
+        XCTAssertEqual(frames.last?["assistant_task_id"]?.string, "active-task")
+        await controller.hangup()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+    func testTaggedSpeechCannotPlayAfterHangupOrInReplacementCallButManualReplayRemainsEligible() {
+        XCTAssertTrue(NativeVoiceCallSpeechAdmission.permits(taggedCallID: "call-a", activeCallID: "call-a"))
+        XCTAssertFalse(NativeVoiceCallSpeechAdmission.permits(taggedCallID: "call-a", activeCallID: nil))
+        XCTAssertFalse(NativeVoiceCallSpeechAdmission.permits(taggedCallID: "call-a", activeCallID: "call-b"))
+        XCTAssertTrue(NativeVoiceCallSpeechAdmission.permits(taggedCallID: nil, activeCallID: nil))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.intentional-interruption
+    func testPureStopHeardBoundaryPersistsUntilAcceptedNextTurnWithoutClearingNewerInterrupt() {
+        let heard = NativeVoiceCallHeardBoundary(assistantMessageID: "rich-assistant", completedSequences: [-1, 0, 2, 256],
+            activeSequence: 3, activeOffsetMilliseconds: 725)
+        var stage = NativeVoiceCallHeardBoundaryStage()
+        stage.stage(heard)
+        stage.stage(nil) // A pure stop or failed next send does not erase actual evidence.
+        XCTAssertEqual(stage.pending, heard)
+        let fields = NativeVoiceCallTurn(callID: "call", turnID: "later-user", heardBoundary: stage.pending).messageFields
+        let boundary = fields["voice_heard_boundary"] as? [String: Any]
+        XCTAssertEqual(boundary?["assistant_message_id"] as? String, "rich-assistant")
+        XCTAssertEqual(boundary?["completed_sequences"] as? [Int], [0, 2])
+        XCTAssertEqual(boundary?["active_sequence"] as? Int, 3)
+        XCTAssertEqual(boundary?["active_offset_ms"] as? Int, 725)
+        XCTAssertNil(fields["message_history"])
+        let newer = NativeVoiceCallHeardBoundary(assistantMessageID: "newer-assistant", completedSequences: [],
+            activeSequence: nil, activeOffsetMilliseconds: 12)
+        stage.stage(newer); stage.accepted(heard)
+        XCTAssertEqual(stage.pending, newer)
+        stage.accepted(newer); XCTAssertNil(stage.pending)
+        XCTAssertEqual(newer.activeOffsetMilliseconds, 0)
+    }
+
     private func ready() -> NativeVoiceCallFrame {
         ["type": .string("ready"), "call_id": .string("fixture-call"),
-         "model": .string("fixture-model"), "mate_category": .string("general"),
+         "provider": .string("mistral"), "model": .string("voxtral-mini-transcribe-realtime-3-0"), "mate_category": .string("general"),
          "mate_name": .string("Fixture"), "input_sample_rate": .number(16_000),
-         "output_sample_rate": .number(24_000), "billing_basis": .string("provider_tokens")]
+         "output_sample_rate": .number(24_000), "billing_basis": .string("speech_duration_and_chat_usage"),
+         "rates": .object(["stt_credits_per_started_minute": .number(10)])]
     }
     private func transcript(text: String, final: Bool) -> NativeVoiceCallTranscript {
         .init(callID: "fixture-call", messageID: "fixture-message", role: .assistant, text: text,
@@ -250,12 +361,15 @@ final class NativeVoiceCallTests: XCTestCase {
         persistence: VoiceCallPersistenceFixture = .init(),
         consent: @escaping @Sendable () async throws -> Void = {},
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        submit: @escaping @Sendable (NativeVoiceCallScope, NativeVoiceCallTranscript) async throws -> Void = { _, _ in },
+        interrupt: @escaping @Sendable (NativeVoiceCallScope, String?, String?) async throws -> Void = { _, _, _ in },
         event: @escaping NativeVoiceCallController.Handler = { _ in }
     ) -> NativeVoiceCallController {
         NativeVoiceCallController(environment: .init(isCurrent: { _ in true }, ensureConsent: { _ in try await consent() },
             authentication: { _ in .init(apiBaseURL: URL(string: "https://api.example.invalid")!,
                 webOrigin: "https://example.invalid", sessionID: "fixture-session", webSocketToken: "fixture-token", nativeHeaders: [:]) },
             context: { _ in try .init(messages: [], mateCategory: "general", canonicalRangeComplete: true) },
+            submitTurn: submit, interruptAssistant: interrupt,
             now: { Date(timeIntervalSince1970: 100) }, sleep: sleep),
             audio: audio, persistence: persistence, transportFactory: { transport }, eventHandler: event)
     }
@@ -326,4 +440,9 @@ private actor VoiceCallDeadlineFixture {
         await withCheckedContinuation { waiter = $0 }
     }
     func release() { released = true; waiter?.resume(); waiter = nil }
+}
+
+private actor VoiceCallSubmittedFixture {
+    private(set) var values: [NativeVoiceCallTranscript] = []
+    func append(_ value: NativeVoiceCallTranscript) { values.append(value) }
 }

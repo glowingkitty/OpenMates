@@ -14113,7 +14113,7 @@
               "text": "Mistral AI"
             },
             "description": {
-              "text": "Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen, wenn du Vorlesen auswählst oder gesprochene Antworten aktivierst. Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung."
+              "text": "Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen, wenn du Vorlesen auswählst, gesprochene Antworten aktivierst oder einen Sprachanruf führst. Mistral verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Mistral-Modell bestimmt, sowie Echtzeit- oder hochgeladenes Sprachaudio zur Transkription, einschließlich Mikrofon-Audio während Sprachanrufen. Sprachaudio kann personenbezogene oder sensible Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Abgeschlossene Anruftranskripte durchlaufen die normale verschlüsselte Chat-Verarbeitung mit den jeweils geltenden Text-Datenschutzfunktionen; Anrufantworten nutzen die normale KI-Auswahl und Skills. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung."
             }
           },
           "openai_v2": {
@@ -14129,7 +14129,7 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn du ein Gemini-Modell auswählst. Gemini Live erhält während Sprachanrufen unverarbeitetes Mikrofonaudio, übermittelten Text und zulässigen Chatkontext. Auf dem Gemini-Korrekturweg korrigiert Gemini Mistral-Rohtranskripte von Sprachaufnahmen und erstellt Titel, und kann Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Anrufaudio und Rohtranskripte erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
+              "text": "Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Gemini-Modell bestimmt, einschließlich gewöhnlicher Textbeiträge aus Sprachanrufen. Auf dem Gemini-Korrekturweg für Audioaufnahmen korrigiert Gemini Mistral-Rohtranskripte und erstellt Titel. Gemini kann außerdem Prompts, Referenzbilder, Screenshots oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten. Rohtranskripte von Aufnahmen erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext und Ausgaben 55 Tage aufbewahrt werden können."
             }
           },
           "inception": {
@@ -15343,7 +15343,7 @@
             "text": "Was passiert während eines Sprachanrufs?"
           },
           "answer": {
-            "text": "Während eines Gemini-Sprachanrufs werden Mikrofon-Audio, gesendeter Text und freigegebener Chat-Kontext über TLS durch OpenMates an Google Gemini Live übertragen. Audio und Transkripte des Anrufs werden nicht mit den Platzhaltern versehen, die für geeignete Texteingaben verwendet werden. Deine und die Transkripte des Assistenten werden vor der dauerhaften Synchronisierung im Browser verschlüsselt. OpenMates speichert Audio und Transkripte nicht dauerhaft im Klartext; Anrufe der ersten Phase speichern keine Audioaufnahme. Google kann API-Anfragedaten gemäß seinen eigenen Richtlinien aufbewahren."
+            "text": "Während eines Sprachanrufs wird Mikrofon-Audio über TLS durch OpenMates an Mistral Voxtral zur Echtzeit-Transkription übertragen. Bei rohem Mikrofon-Audio erfolgt keine Ersetzung personenbezogener Daten durch Platzhalter. Abgeschlossene Nutzertranskripte und gesendeter Text durchlaufen die normale verschlüsselte Chat-Verarbeitung von OpenMates, einschließlich geeigneter Text-Datenschutzfunktionen, automatischer KI-Auswahl, Skills und Berechtigungen. Mistral erhält vorlesbaren Assistententext und Stimmeinstellungen zur Spracherzeugung. Nutzer- und vollständige Assistentennachrichten sowie erzeugte Sprachausgabe werden vor der dauerhaften Synchronisierung oder Speicherung verschlüsselt. OpenMates speichert Anrufaudio und Transkripte nicht dauerhaft im Klartext; Sprachanrufe speichern keine Mikrofonaufnahme. Mistral und die durch die normale KI-Auswahl bestimmten Anbieter können API-Anfragedaten gemäß ihren eigenen Richtlinien aufbewahren."
           }
         },
         "storage_protection_v2": {
@@ -26226,7 +26226,7 @@
       "text": "Sprachanruf"
     },
     "provider": {
-      "text": "Über Google Gemini"
+      "text": "Voxtral-Sprache · normale KI-Auswahl"
     },
     "start": {
       "text": "Sprachanruf starten"
@@ -26262,7 +26262,7 @@
       "text": "Nutzungsabhängige Preise"
     },
     "pricing_explanation": {
-      "text": "Die Kosten hängen von Audio, Antworten und Gesprächskontext ab. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert. Stummschalten pausiert ebenfalls die Eingabekosten; Antworten und Verarbeitung können weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr."
+      "text": "Die Mikrofon-Transkription wird pro angefangener Minute gestreamten Audios abgerechnet, zuzüglich der normalen KI-Chat- und Sprachausgabe-Nutzung. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert. Stummschalten pausiert die Mikrofon-Eingabekosten; Antworten, Skills und Sprachausgabe können weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr."
     },
     "return_to_chat": {
       "text": "Zum Chat zurück"
@@ -26346,7 +26346,7 @@
       "text": "Chat schließen"
     },
     "start_hint": {
-      "text": "Sprachanrufe verwenden Google Gemini mit nutzungsabhängiger Abrechnung."
+      "text": "Sprachanrufe nutzen Voxtral für Sprache, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung."
     },
     "retry": {
       "text": "Erneut versuchen"
@@ -26355,10 +26355,10 @@
       "text": "Vor deinem ersten Sprachanruf"
     },
     "privacy_description": {
-      "text": "Google verarbeitet deine Stimme und den Gesprächskontext, der mit diesem Anruf geteilt wird. Google erklärt, dass Daten, die über seine kostenpflichtige Gemini API gesendet werden, nicht zum Trainieren seiner Modelle verwendet werden."
+      "text": "Mistral verarbeitet dein Mikrofon-Audio zur Transkription und Assistententext zur Sprachausgabe. Dein Gespräch nutzt die normale KI-Auswahl, Skills und vielseitigen Chatnachrichten von OpenMates."
     },
     "privacy_terms": {
-      "text": "Nutzungsbedingungen der Google Gemini API"
+      "text": "Datenschutzerklärung von Mistral"
     },
     "privacy_continue": {
       "text": "Weiter"

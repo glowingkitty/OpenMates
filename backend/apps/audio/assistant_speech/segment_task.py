@@ -19,6 +19,7 @@ from backend.apps.audio.assistant_speech.persistence import (
     cleanup_generated_speech_asset,
     finalize_speech_segment_execution,
     get_speech_segment,
+    invalidate_speech_segment,
     safe_segment_status,
 )
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
@@ -95,8 +96,23 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             current = await get_speech_segment(task._directus_service, segment_id)
             if current is None or current.get("status") != "generating" or current.get("lease_id") != lease_id:
                 raise SpeechExecutionInProgress
+            if arguments.get("voice_call_id"):
+                from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+
+                try:
+                    await require_active_voice_dispatch(task._cache_service, {
+                        "voice_mode": True, "user_id": user_id,
+                        "chat_id": arguments.get("chat_id"),
+                        "message_id": arguments.get("voice_turn_id"),
+                        "voice_call_id": arguments["voice_call_id"],
+                        "voice_turn_id": arguments.get("voice_turn_id"),
+                    })
+                except (ValueError, RuntimeError):
+                    await invalidate_speech_segment(task._directus_service, segment_id)
+                    raise SpeechExecutionInProgress from None
 
         async def safety_check(*, text: str) -> dict[str, object]:
+            await ensure_active()
             if live_mock_audio is not None:
                 return {"approved": True, "safe_error": ""}
             # Resolve the optional safeguard SDK only when a worker executes a segment.
@@ -239,6 +255,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 **status,
                 "chat_id": str(arguments.get("chat_id") or ""),
                 "message_id": str(arguments.get("assistant_message_id") or ""),
+                **({"voice_call_id": str(arguments["voice_call_id"])} if arguments.get("voice_call_id") else {}),
             },
         },
     )

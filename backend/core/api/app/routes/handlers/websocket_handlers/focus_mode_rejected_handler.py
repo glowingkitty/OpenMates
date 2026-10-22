@@ -91,10 +91,6 @@ async def _trigger_continuation_without_focus(
     )
     from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
     pending_context = await restore_private_context_payload(pending_context)
-    if pending_context.get("voice_binding"):
-        from backend.apps.ai.processing.voice_call_broker_runtime import complete_focus_decision
-        await complete_focus_decision(cache_service, pending_context, False, directus_service)
-        return
     chat_id = pending_context.get("chat_id")
     user_id = pending_context.get("user_id")
     user_id_hash = pending_context.get("user_id_hash", "")

@@ -15394,17 +15394,23 @@ quick_answers.voice_calls.question:
   de: Was passiert während eines Sprachanrufs?
   verified_by_human: []
 quick_answers.voice_calls.answer:
-  context: Privacy policy explains raw live audio processing and client-encrypted call transcripts
-  en: During a Gemini voice call, microphone audio, submitted text, and permitted chat context travel over TLS through OpenMates
-    to Google Gemini Live. Raw call audio and transcripts do not receive the placeholder substitution used for eligible typed
-    chat inference. User and assistant transcripts are encrypted in your browser before durable synchronization. OpenMates
-    does not durably retain plaintext call audio or transcripts, and phase-one calls do not save an audio recording. Google
-    may retain API request data under its own policies.
-  de: Während eines Gemini-Sprachanrufs werden Mikrofon-Audio, gesendeter Text und freigegebener Chat-Kontext über TLS durch
-    OpenMates an Google Gemini Live übertragen. Audio und Transkripte des Anrufs werden nicht mit den Platzhaltern versehen,
-    die für geeignete Texteingaben verwendet werden. Deine und die Transkripte des Assistenten werden vor der dauerhaften
-    Synchronisierung im Browser verschlüsselt. OpenMates speichert Audio und Transkripte nicht dauerhaft im Klartext; Anrufe
-    der ersten Phase speichern keine Audioaufnahme. Google kann API-Anfragedaten gemäß seinen eigenen Richtlinien aufbewahren.
+  context: Privacy policy explains microphone transcription, ordinary encrypted chat admission, generated speech and provider
+    boundaries
+  en: During a voice call, microphone audio travels over TLS through OpenMates to Mistral Voxtral for realtime transcription.
+    Raw microphone audio does not receive personal-data placeholder substitution. Completed user transcripts and submitted
+    text enter the normal OpenMates encrypted chat pipeline, including eligible text privacy protections, automatic AI
+    routing, skills and permissions. Mistral receives speakable assistant text and voice settings to generate speech.
+    User and rich assistant messages and generated speech assets are encrypted before durable synchronization or storage.
+    OpenMates does not durably retain plaintext call audio or transcripts, and voice calls do not save a microphone recording.
+    Mistral and the AI providers selected by normal routing may retain API request data under their own policies.
+  de: Während eines Sprachanrufs wird Mikrofon-Audio über TLS durch OpenMates an Mistral Voxtral zur Echtzeit-Transkription
+    übertragen. Bei rohem Mikrofon-Audio erfolgt keine Ersetzung personenbezogener Daten durch Platzhalter. Abgeschlossene
+    Nutzertranskripte und gesendeter Text durchlaufen die normale verschlüsselte Chat-Verarbeitung von OpenMates, einschließlich
+    geeigneter Text-Datenschutzfunktionen, automatischer KI-Auswahl, Skills und Berechtigungen. Mistral erhält vorlesbaren
+    Assistententext und Stimmeinstellungen zur Spracherzeugung. Nutzer- und vollständige Assistentennachrichten sowie
+    erzeugte Sprachausgabe werden vor der dauerhaften Synchronisierung oder Speicherung verschlüsselt. OpenMates speichert
+    Anrufaudio und Transkripte nicht dauerhaft im Klartext; Sprachanrufe speichern keine Mikrofonaufnahme. Mistral und
+    die durch die normale KI-Auswahl bestimmten Anbieter können API-Anfragedaten gemäß ihren eigenen Richtlinien aufbewahren.
   verified_by_human: []
 data_categories.content_v2:
   context: Privacy policy data category covering user content and the applicable encryption boundary
@@ -15499,16 +15505,24 @@ providers.ai_models.mistral_v2.heading:
   de: Mistral AI
   verified_by_human: []
 providers.ai_models.mistral_v2.description:
-  context: Mistral disclosure for selected chat models, transcription and assistant-message speech
-  en: Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak or enable spoken responses. It processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio
-    when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message
-    placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for
-    abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path.
-  de: Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen, wenn du Vorlesen auswählst oder gesprochene Antworten aktivierst. Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder
-    hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen
-    enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben
-    und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung
-    nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung.
+  context: Mistral disclosure for selected chat models, transcription, voice calls and assistant-message speech
+  en: Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak,
+    enable spoken responses or make a voice call. It processes eligible chat messages when normal routing selects a Mistral
+    model and processes realtime or uploaded voice audio for transcription, including microphone audio during voice calls.
+    Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution.
+    Completed call transcripts enter the ordinary encrypted chat pipeline with its applicable text privacy protections;
+    call answers use the normal AI routing and skills. Mistral states that ordinary API inputs and outputs may be retained
+    for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data
+    retention for this path.
+  de: Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen,
+    wenn du Vorlesen auswählst, gesprochene Antworten aktivierst oder einen Sprachanruf führst. Mistral verarbeitet geeignete
+    Chatnachrichten, wenn die normale KI-Auswahl ein Mistral-Modell bestimmt, sowie Echtzeit- oder hochgeladenes Sprachaudio
+    zur Transkription, einschließlich Mikrofon-Audio während Sprachanrufen. Sprachaudio kann personenbezogene oder sensible
+    Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Abgeschlossene Anruftranskripte
+    durchlaufen die normale verschlüsselte Chat-Verarbeitung mit den jeweils geltenden Text-Datenschutzfunktionen; Anrufantworten
+    nutzen die normale KI-Auswahl und Skills. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden
+    Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert
+    ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung.
   verified_by_human: []
 providers.ai_models.openai_v2.heading:
   context: Provider heading for OpenAI
@@ -15530,22 +15544,23 @@ providers.ai_models.google_gemini_v2.heading:
   de: Google Gemini
   verified_by_human: []
 providers.ai_models.google_gemini_v2.description:
-  context: Google Gemini disclosure including transcript correction and media features
-  en: Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini Live receives raw microphone
-    audio, submitted text, and permitted chat context during voice calls. On the Gemini correction route, Gemini corrects
-    raw Mistral voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated
-    code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Call audio and raw transcripts
-    do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not
-    used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and
-    outputs may be retained for 55 days.
-  de: Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn du ein Gemini-Modell auswählst. Gemini Live erhält
-    während Sprachanrufen unverarbeitetes Mikrofonaudio, übermittelten Text und zulässigen Chatkontext. Auf dem Gemini-Korrekturweg
-    korrigiert Gemini Mistral-Rohtranskripte von Sprachaufnahmen und erstellt Titel, und kann Prompts, Referenzbilder, Screenshots
-    oder erzeugten Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots
-    in HTML verarbeiten. Anrufaudio und Rohtranskripte erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten.
-    Laut den Bedingungen für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung
-    seiner Produkte verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts,
-    Kontext und Ausgaben 55 Tage aufbewahrt werden können.
+  context: Google Gemini disclosure for ordinary chat routing, transcript correction and media features; voice-call transcription
+    uses Mistral
+  en: Google's Gemini API processes eligible chat messages when normal routing selects a Gemini model, including ordinary
+    text turns submitted from voice calls. On the Gemini correction route for audio recordings, Gemini corrects raw Mistral
+    voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for
+    image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Raw recording transcripts do
+    not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not
+    used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context,
+    and outputs may be retained for 55 days.
+  de: Die Gemini-API von Google verarbeitet geeignete Chatnachrichten, wenn die normale KI-Auswahl ein Gemini-Modell bestimmt,
+    einschließlich gewöhnlicher Textbeiträge aus Sprachanrufen. Auf dem Gemini-Korrekturweg für Audioaufnahmen korrigiert
+    Gemini Mistral-Rohtranskripte und erstellt Titel. Gemini kann außerdem Prompts, Referenzbilder, Screenshots oder erzeugten
+    Code für die Bilderzeugung oder -bearbeitung, die Veo-Videoerzeugung und die Umwandlung von Screenshots in HTML verarbeiten.
+    Rohtranskripte von Aufnahmen erhalten nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut den Bedingungen
+    für die kostenpflichtige Gemini-API von Google werden Prompts und Ausgaben nicht zur Verbesserung seiner Produkte
+    verwendet; die aktuelle Dokumentation zur Missbrauchsüberwachung gibt jedoch an, dass protokollierte Prompts, Kontext
+    und Ausgaben 55 Tage aufbewahrt werden können.
   verified_by_human: []
 providers.model_generation_v2.heading:
   context: Provider group heading for 3D model search and generation

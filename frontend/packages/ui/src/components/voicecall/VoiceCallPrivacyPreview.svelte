@@ -13,12 +13,12 @@
     const originalFetch = window.fetch;
     const previewFetch: typeof fetch = async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
-      if (url.pathname !== '/v1/settings/voice-google-processing-ack') return originalFetch.call(window, input, init);
+      if (url.pathname !== '/v1/settings/voice-processing-ack') return originalFetch.call(window, input, init);
       const saving = String(init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase() === 'POST';
       if (saving) saves++; else reads++;
       if (saving && holdSave) await new Promise<void>(resolve => { releaseSave = resolve; });
       const failed = saving && failFirst && saves === 1;
-      return new Response(JSON.stringify({ version: 1, acknowledged: saving && !failed, acknowledged_at: saving && !failed ? 1700000000 : null }), { status: failed ? 503 : 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ version: 2, acknowledged: saving && !failed, acknowledged_at: saving && !failed ? 1700000000 : null }), { status: failed ? 503 : 200, headers: { 'Content-Type': 'application/json' } });
     };
     window.fetch = previewFetch;
     void ensureVoiceCallPrivacyAcknowledgement(abort.signal, () => { gestures++; }).then(accepted => { result = accepted ? 'Saved' : 'Cancelled'; }).catch(() => { result = 'Unavailable'; });

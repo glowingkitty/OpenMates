@@ -681,7 +681,6 @@
     "core_authenticated": {
       "execution": "e2e",
       "specs": [
-        "video-call-experiment.spec.ts",
         "upload-metadata-privacy.spec.ts",
         "cli-privacy.spec.ts",
         "a11y-keyboard-nav.spec.ts",

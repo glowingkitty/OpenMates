@@ -527,3 +527,19 @@ async def test_attribution_ciphertext_persists_replays_and_broadcasts_exactly(ri
     for value in ("plaintext mate", "bad ciphertext"):
         with pytest.raises(handler.CallMessageError):
             handler._validated_message(payload(encrypted_category=value))
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.privacy,video-call.lifecycle.recovery-and-billing
+@pytest.mark.asyncio
+async def test_finalizing_call_allows_issued_ciphertext_retry_without_paid_dispatch(rig, monkeypatch):
+    directus, cache, manager = rig
+    async def grace_authority(*args, **kwargs):
+        return SimpleNamespace(state="finalizing", grace_expires_at=2_000_000_000)
+    monkeypatch.setattr(handler, "require_active_call", grace_authority)
+    await handler.handle_call_message_completed(
+        manager=manager, cache_service=cache, directus_service=directus,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        device_fingerprint_hash="device", payload=payload(),
+    )
+    assert directus.message["encrypted_content"] == CIPHER_A
+    assert manager.sent[-1]["type"] == "call_message_confirmed"

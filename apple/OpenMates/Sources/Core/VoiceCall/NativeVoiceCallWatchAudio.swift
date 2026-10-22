@@ -1,7 +1,7 @@
 // Web source: frontend/packages/ui/src/services/voiceCall.ts, voiceCallAudioGate.ts
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.audio.single-owner, video-call.audio.automatic-idle,
-// video-call.audio.startup-buffer, video-call.lifecycle.recovery-and-billing
+// video-call.audio.startup-buffer, video-call.lifecycle.recovery-and-billing, video-call.audio.spoken-rich-response
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.input-actions
 #if os(watchOS)
@@ -10,7 +10,7 @@ import Foundation
 import WatchKit
 
 @MainActor
-final class NativeVoiceCallWatchAudio: NativeVoiceCallAudio {
+final class NativeVoiceCallWatchAudio: NSObject, NativeVoiceCallAudio, AVAudioPlayerDelegate {
     struct Diagnostics: Sendable {
         var activated = false
         var hardwareSampleRate: Double = 0
@@ -41,6 +41,10 @@ final class NativeVoiceCallWatchAudio: NativeVoiceCallAudio {
     private var detector = NativeVoiceCallEnergyGate()
     private var generation = UUID()
     private var playbackGeneration = UUID()
+    private var speechPlayer: AVAudioPlayer?
+    private var currentSpeechSequence: Int?
+    private(set) var completedSpeechSequence: Int?
+    private var speechCompletion: CheckedContinuation<Void, any Error>?
     private var scheduledFrames = 0
     private(set) var diagnostics = Diagnostics()
 
@@ -50,6 +54,7 @@ final class NativeVoiceCallWatchAudio: NativeVoiceCallAudio {
          eligible: @escaping @MainActor @Sendable () -> Bool,
          inputIdle: @escaping @Sendable (Bool) async -> Void) {
         self.ownership = ownership; self.eligible = eligible; activity = inputIdle
+        super.init()
     }
     func reserve(scope: NativeVoiceCallScope) async throws {
         guard lease == nil, eligible(), WKExtension.shared().applicationState == .active
@@ -195,11 +200,53 @@ final class NativeVoiceCallWatchAudio: NativeVoiceCallAudio {
         }
         if !player.isPlaying { player.play() }
     }
+    /// Generated encrypted speech is decoded in memory under the existing
+    /// duplex lease; it must not reconfigure the session or start a second mic.
+    var isSpeechPlaying: Bool { speechPlayer != nil }
+    var speechPositionMilliseconds: Int {
+        let milliseconds = (speechPlayer?.currentTime ?? 0) * 1_000
+        return milliseconds.isFinite ? Int(min(3_600_000, max(0, milliseconds))) : 0
+    }
+    func playSpeech(_ bytes: Data, sequence: Int = 0) async throws {
+        guard let lease, ownership.isCurrent(lease), engine.isRunning, eligible(),
+              !bytes.isEmpty, bytes.count <= 16 * 1_024 * 1_024 else { throw NativeVoiceCallError.audioUnavailable }
+        interruptPlayback()
+        let token = playbackGeneration
+        let output = try AVAudioPlayer(data: bytes)
+        output.delegate = self; output.enableRate = true; output.rate = 1.25
+        output.prepareToPlay(); speechPlayer = output; currentSpeechSequence = sequence; completedSpeechSequence = nil
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                speechCompletion = continuation
+                guard !Task.isCancelled, output.play() else {
+                    finishSpeech(NativeVoiceCallError.audioUnavailable); return
+                }
+            }
+        } onCancel: { Task { @MainActor [weak self] in
+            guard let self, playbackGeneration == token else { return }; interruptPlayback()
+        } }
+    }
+    private func finishSpeech(_ error: (any Error)? = nil) {
+        let completion = speechCompletion; speechCompletion = nil
+        if error == nil, speechPlayer != nil { completedSpeechSequence = currentSpeechSequence }
+        currentSpeechSequence = nil
+        speechPlayer?.stop(); speechPlayer = nil
+        if let error { completion?.resume(throwing: error) } else { completion?.resume() }
+    }
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        let identity = ObjectIdentifier(player)
+        Task { @MainActor [weak self] in
+            guard let self, let current = speechPlayer, ObjectIdentifier(current) == identity else { return }
+            finishSpeech(flag ? nil : NativeVoiceCallError.audioUnavailable)
+        }
+    }
     func interruptPlayback() {
+        finishSpeech(CancellationError())
         playbackGeneration = UUID(); scheduledFrames = 0
         player.stop(); if engine.isRunning { player.play() }
     }
     func stop() async {
+        finishSpeech(CancellationError())
         activationGeneration = UUID()
         foregroundMonitor?.cancel(); foregroundMonitor = nil
         let pendingActivation = activation

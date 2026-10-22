@@ -4,9 +4,9 @@ title:
   de: Sprachanruf
   verified_by_human: []
 provider:
-  context: Live provider disclosure
-  en: Via Google Gemini
-  de: Über Google Gemini
+  context: Speech provider and ordinary AI routing disclosure
+  en: Voxtral speech · normal AI routing
+  de: Voxtral-Sprache · normale KI-Auswahl
   verified_by_human: []
 start:
   context: Chat header button that starts a voice call
@@ -64,13 +64,15 @@ usage_based_pricing:
   de: Nutzungsabhängige Preise
   verified_by_human: []
 pricing_explanation:
-  context: Accessible voice pricing explanation shown by expanding the pricing disclosure
-  en: Charges depend on audio, replies and conversation context. Listening includes silence until automatic idle pauses audio
-    input. Muting also pauses input charges; replies and processing can still cost credits. There is no flat fee for staying
-    connected.
-  de: Die Kosten hängen von Audio, Antworten und Gesprächskontext ab. Beim Zuhören zählt auch Stille, bis die automatische
-    Ruhepause die Audioeingabe pausiert. Stummschalten pausiert ebenfalls die Eingabekosten; Antworten und Verarbeitung können
-    weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr.
+  context: 'Accessible pricing disclosure: duration-based microphone transcription plus ordinary chat and generated speech
+    usage'
+  en: Microphone transcription is billed per started minute of streamed audio, plus normal AI chat and generated speech
+    usage. Listening includes silence until automatic idle pauses audio input. Muting pauses microphone input charges;
+    replies, skills and speech can still cost credits. There is no flat fee for staying connected.
+  de: Die Mikrofon-Transkription wird pro angefangener Minute gestreamten Audios abgerechnet, zuzüglich der normalen KI-Chat-
+    und Sprachausgabe-Nutzung. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert.
+    Stummschalten pausiert die Mikrofon-Eingabekosten; Antworten, Skills und Sprachausgabe können weiterhin Credits kosten.
+    Für die reine Verbindung gibt es keine Pauschalgebühr.
   verified_by_human: []
 return_to_chat:
   context: Navigate to the chat that owns the call
@@ -211,8 +213,8 @@ close_chat:
   verified_by_human: []
 start_hint:
   context: Accessible description of starting a call before the strip replaces the launch button
-  en: Voice calls use Google Gemini with usage-based billing.
-  de: Sprachanrufe verwenden Google Gemini mit nutzungsabhängiger Abrechnung.
+  en: Voice calls use Voxtral speech with normal OpenMates AI routing and usage-based billing.
+  de: Sprachanrufe nutzen Voxtral für Sprache, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung.
   verified_by_human: []
 retry:
   context: Retry a failed voice call from its visible error notice
@@ -225,16 +227,17 @@ privacy_title:
   de: Vor deinem ersten Sprachanruf
   verified_by_human: []
 privacy_description:
-  context: Attributed Google paid Gemini API processing disclosure shown before microphone capture
-  en: Google processes your voice and the conversation context shared with this call. Google states that data sent through
-    its paid Gemini API is not used to train its models.
-  de: Google verarbeitet deine Stimme und den Gesprächskontext, der mit diesem Anruf geteilt wird. Google erklärt, dass Daten,
-    die über seine kostenpflichtige Gemini API gesendet werden, nicht zum Trainieren seiner Modelle verwendet werden.
+  context: Voice processing disclosure shown before microphone capture; ordinary AI providers remain selected by normal
+    routing
+  en: Mistral processes your microphone audio for transcription and assistant text for speech. Your conversation uses
+    the normal OpenMates AI routing, skills and rich chat messages.
+  de: Mistral verarbeitet dein Mikrofon-Audio zur Transkription und Assistententext zur Sprachausgabe. Dein Gespräch nutzt
+    die normale KI-Auswahl, Skills und vielseitigen Chatnachrichten von OpenMates.
   verified_by_human: []
 privacy_terms:
-  context: Link to Google's current paid Gemini API terms
-  en: Google Gemini API terms
-  de: Nutzungsbedingungen der Google Gemini API
+  context: Link to the speech provider privacy policy
+  en: Mistral privacy policy
+  de: Datenschutzerklärung von Mistral
   verified_by_human: []
 privacy_continue:
   context: Explicit acknowledgement saved to profile before starting voice capture

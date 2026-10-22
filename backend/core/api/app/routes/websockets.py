@@ -86,11 +86,6 @@ from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_su
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.call_message_completed_handler import handle_call_message_completed
-from .handlers.websocket_handlers.voice_metadata_handler import handle_voice_metadata
-from backend.shared.python_utils.voice_chat_metadata import send_pending as send_pending_voice_metadata
-from .handlers.websocket_handlers.voice_action_completed_handler import (
-    handle_voice_action_completed, send_pending_voice_actions,
-)
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
 from .handlers.websocket_handlers.chat_turn_admit_handler import ContextAdmissionLane, handle_chat_turn_admit
@@ -604,6 +599,8 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "retryable",
     "sequence",
     "kind",
+    "language",
+    "voice_call_id",
 )
 SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
 SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
@@ -1027,31 +1024,6 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
-                    elif event_type == "voice_metadata_available":
-                        for device_id, connection in manager.get_connections_for_user(user_id).items():
-                            await send_pending_voice_metadata(manager=manager, cache_service=cache_service,
-                                directus_service=app.state.directus_service, encryption_service=app.state.encryption_service,
-                                user_id=user_id, user_id_hash=connection.scope["voice_action_user_hash"],
-                                device_fingerprint_hash=device_id)
-                    elif event_type == "voice_action_completed":
-                        if not isinstance(payload, dict):
-                            continue
-                        session_id = payload.get("initiator_session_id")
-                        request_id = payload.get("request_id")
-                        if not session_id or not request_id:
-                            continue
-                        for device_id, connection in manager.get_connections_for_user(user_id).items():
-                            # Scope to the authenticated original session, including
-                            # reconnections, independently of Live speech lifecycle.
-                            if connection.scope.get("voice_action_session_hash") != session_id:
-                                continue
-                            await send_pending_voice_actions(manager=manager,
-                                cache_service=cache_service,
-                                directus_service=app.state.directus_service,
-                                encryption_service=app.state.encryption_service,
-                                user_id=user_id, user_id_hash=connection.scope["voice_action_user_hash"],
-                                session_hash=session_id, device_fingerprint_hash=device_id,
-                                request_id=request_id)
                     elif event_type == "send_connected_account_action_receipt":
                         chat_id = payload.get("chat_id")
                         action_id = payload.get("action_id")
@@ -1353,13 +1325,34 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         },
                     }
                     owner_id = owner_ids[0]
-                    for device_hash in manager.get_connections_for_user(owner_id):
-                        if chat_id == manager.get_active_chat(owner_id, device_hash):
-                            await manager.send_personal_message(
-                                message={"type": event_type, "payload": client_payload},
-                                user_id=owner_id,
-                                device_fingerprint_hash=device_hash,
+                    call_id = speech_payload.get("voice_call_id")
+                    call_session = None
+                    if call_id is not None:
+                        from backend.shared.python_utils.voice_call_registry import active_call_session
+                        try:
+                            call_session = await active_call_session(
+                                cache_service, user_id=owner_id, chat_id=chat_id, call_id=call_id,
                             )
+                        except Exception as exc:
+                            logger.warning("AI Stream Listener: Call speech authority unavailable category=%s",
+                                           type(exc).__name__)
+                            continue
+                        if call_session is None:
+                            continue
+                    for device_hash, connection in manager.get_connections_for_user(owner_id).items():
+                        if call_id is not None:
+                            # A minimized call keeps its audio owner independently
+                            # from visible-chat navigation and other signed-in devices.
+                            scope = getattr(connection, "scope", {})
+                            if scope.get("voice_call_session_hash") != call_session:
+                                continue
+                        elif chat_id != manager.get_active_chat(owner_id, device_hash):
+                            continue
+                        await manager.send_personal_message(
+                            message={"type": event_type, "payload": client_payload},
+                            user_id=owner_id,
+                            device_fingerprint_hash=device_hash,
+                        )
                     continue
 
                 if event_type in ("task_event", "task_update_jobs_available"):
@@ -3086,8 +3079,7 @@ async def websocket_endpoint(
     # terminate an idle socket as well as reject its next message.
     session_watch_task: asyncio.Task | None = None
     session_hash = auth_data.get("session_hash")
-    websocket.scope["voice_action_session_hash"] = session_hash
-    websocket.scope["voice_action_user_hash"] = user_id_hash
+    websocket.scope["voice_call_session_hash"] = session_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
         from backend.core.api.app.services.session_security_state import get_session_state_cached
@@ -3174,10 +3166,6 @@ async def websocket_endpoint(
             )
         )
 
-    asyncio.create_task(send_pending_voice_metadata(manager=manager, cache_service=cache_service,
-        directus_service=directus_service, encryption_service=encryption_service,
-        user_id=user_id, user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash))
-
     reconnect_chat_id = manager.get_active_chat(user_id, device_fingerprint_hash)
     if supports_project_file_jobs and reconnect_chat_id:
         asyncio.create_task(
@@ -3190,11 +3178,6 @@ async def websocket_endpoint(
                 chat_id=reconnect_chat_id,
             )
         )
-
-    asyncio.create_task(send_pending_voice_actions(manager=manager, cache_service=cache_service,
-        directus_service=directus_service, encryption_service=encryption_service,
-        user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
-        device_fingerprint_hash=device_fingerprint_hash))
 
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
@@ -4365,27 +4348,13 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
-            elif message_type in {"voice_metadata_request", "voice_metadata_commit", "voice_metadata_pending"}:
-                await handle_voice_metadata(manager=manager, cache_service=cache_service,
-                    directus_service=directus_service, encryption_service=encryption_service,
-                    user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
-                    device_fingerprint_hash=device_fingerprint_hash, message_type=message_type, payload=payload)
-
             elif message_type == "call_message_completed":
                 await handle_call_message_completed(
                     manager=manager, cache_service=cache_service,
                     directus_service=directus_service, user_id=user_id,
                     user_id_hash=user_id_hash, session_hash=session_hash,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
-                    encryption_service=encryption_service,
                 )
-
-            elif message_type in {"voice_action_completed_get", "voice_action_completed_confirmed"}:
-                await handle_voice_action_completed(manager=manager, cache_service=cache_service,
-                    directus_service=directus_service, encryption_service=encryption_service,
-                    user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
-                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
-                    confirmed=message_type == "voice_action_completed_confirmed")
 
             elif message_type == "encrypted_chat_metadata":
                 payload = await filter_generated_metadata_storage(payload=payload,

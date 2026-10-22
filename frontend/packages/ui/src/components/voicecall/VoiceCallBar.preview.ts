@@ -30,7 +30,7 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
 
 const usage = {
   elapsed_seconds: 32, credits_accrued: 14.4, credits_charged: 15, audio_credits: 14.4,
-  gemini_input_tokens: 340, gemini_output_tokens: 120,
+  stt_duration_seconds: 32,
 };
 const onReturn = (chatId: string) => window.dispatchEvent(new CustomEvent('voice-call-preview-return', { detail: { chatId } }));
 const props = (state: Partial<VoiceCallState>, boundChatVisible = true) => ({

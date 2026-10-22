@@ -2642,6 +2642,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         current_chat_metadata_v_from_client = _optional_int(message_payload_from_client.get("current_chat_metadata_v"))
         auto_speak_response_from_client = message_payload_from_client.get("auto_speak_response") is True
         assistant_speech_lazy_dispatch = message_payload_from_client.get("assistant_speech_lazy_dispatch") is True
+        from backend.shared.python_utils.voice_call_admission import admit_voice_call_turn
+        voice_delivery = await admit_voice_call_turn(
+            cache_service, message=message_payload_from_client, websocket_scope=websocket.scope,
+            user_id=user_id, chat_id=chat_id, message_id=message_id,
+        )
+        voice_mode = voice_delivery.voice_mode
+        voice_call_id = voice_delivery.voice_call_id
+        voice_turn_id = voice_delivery.voice_turn_id
+        if voice_mode:
+            auto_speak_response_from_client = True
+            assistant_speech_lazy_dispatch = False
         assistant_response_source_revision = _optional_int(
             message_payload_from_client.get("assistant_response_source_revision"),
         ) or 1
@@ -2687,6 +2698,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_chat_title_v=current_chat_title_v_from_client,
             current_chat_metadata_v=current_chat_metadata_v_from_client,
             auto_speak_response=auto_speak_response_from_client,
+            voice_mode=voice_mode,
+            voice_call_id=voice_call_id,
+            voice_turn_id=voice_turn_id,
+            voice_heard_boundary=message_payload_from_client.get("voice_heard_boundary") if voice_mode else None,
             assistant_speech_lazy_dispatch=auto_speak_response_from_client and assistant_speech_lazy_dispatch,
             assistant_response_source_revision=assistant_response_source_revision,
             is_incognito=is_incognito, # Pass the incognito flag
@@ -3003,6 +3018,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         broker_invoked = False
         try:
             request_payload = ai_request_payload.model_dump()
+            if voice_mode:
+                # The call may end during durable admission/context preparation.
+                await admit_voice_call_turn(
+                    cache_service, message=message_payload_from_client, websocket_scope=websocket.scope,
+                    user_id=user_id, chat_id=chat_id, message_id=message_id,
+                )
             logger.debug(f"Dispatching ai.ask in-process for chat {chat_id}, message {message_id}")
             if recovery_enqueue_result:
                 release = await directus_service.chat.release_inference_outbox(

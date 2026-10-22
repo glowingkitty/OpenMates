@@ -440,6 +440,8 @@ async def _start_recovery_queued_follower(
 ) -> str:
     """Handoff one epoch-one follow-up with its original preflight and task ID."""
     queued = _validated_recovery_queued_member(queued_lease)
+    from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+    await require_active_voice_dispatch(cache_service, queued)
     if (queued.chat_id != prior_request.chat_id
             or queued.team_id_hash != prior_request.team_id_hash
             or (queued.user_id != prior_request.user_id and not prior_request.team_id)):
@@ -2696,6 +2698,9 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
+        from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+        await require_active_voice_dispatch(cache_service_instance, request_data)
+
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
 
@@ -3541,6 +3546,7 @@ async def _async_process_ai_skill_ask_task(
                     if summary_task:
                         await summary_task
 
+                await require_active_voice_dispatch(cache_service_instance, request_data)
                 with ai_phase_span("preprocess"):
                     _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
                     try:
@@ -3774,6 +3780,8 @@ async def _async_process_ai_skill_ask_task(
                     raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
             else:
                 logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
+
+            await require_active_voice_dispatch(cache_service_instance, request_data)
 
             # Compress only after the exact answer model is known. Admin overrides still
             # take precedence, and any compression/provider failure remains non-fatal.
@@ -4155,6 +4163,7 @@ async def _async_process_ai_skill_ask_task(
             from backend.apps.ai.processing.main_processor import (
                 _scoped_diffable_embed_prefetch, _scoped_context_summary_barrier,
             )
+            await require_active_voice_dispatch(cache_service_instance, request_data)
             with ai_phase_span("main"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
                 pending_summary = next(iter(_owned_summary_tasks.get() or []), None)
@@ -4472,6 +4481,9 @@ async def _async_process_ai_skill_ask_task(
                     queued_origin.team_id, queued_origin.user_id,
                     {"owner", "admin", "member"},
                 )
+            from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch, queued_voice_delivery
+            for member in queued_messages:
+                await require_active_voice_dispatch(cache_service_instance, member)
             combined_message_ids, combined_content_parts = _validated_queued_messages(
                 queued_origin, queued_lease,
             )
@@ -4562,6 +4574,7 @@ async def _async_process_ai_skill_ask_task(
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
                     current_user_content=combined_content,
+                    **queued_voice_delivery(queued_messages),
                     agentic_context_ref=queued_messages[-1].get("agentic_context_ref"),
                     agentic_context_request_id=queued_messages[-1].get("agentic_context_request_id"),
                     agentic_context_turn_id=queued_messages[-1].get("agentic_context_turn_id"),
@@ -4942,6 +4955,7 @@ async def _async_process_ai_skill_ask_task(
                         } else None
                     ),
                     decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
+                    voice_mode=request_data.voice_mode,
                 )
                 _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 

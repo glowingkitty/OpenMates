@@ -48,13 +48,15 @@ it('uploads the exact source JPEG and attaches the same encrypted image to the u
     reader.readAsArrayBuffer(file);
   });
   expect([...bytes]).toEqual([255, 216, 255, 217]);
-  expect(reference).toEqual({ type: 'image', embed_id: 'uploaded-frame' });
+  expect(reference).toEqual({ type: 'image', embed_id: 'uploaded-frame', source_frame_id:'frame',
+    captured_at:1700000000123,source_call_id:'call',source:'camera' });
   const payload = mocks.send.mock.calls[0][1];
   expect(payload).toMatchObject({ encrypted_type: 'encrypted:images-image', hashed_chat_id: 'hash:chat',
     hashed_message_id: 'hash:user-turn', is_private: true });
   expect(payload).not.toHaveProperty('aes_key');
   expect(mocks.keys.mock.calls[0][0]).toHaveLength(2);
-  expect(mocks.attach).toHaveBeenCalledWith(expect.objectContaining({ messageId: 'user-turn', embedReferences: [reference] }), expect.any(Function));
+  expect(mocks.attach).not.toHaveBeenCalled();
+  expect(mocks.put.mock.calls[0][3]).toContain('source: camera');
 });
 // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 it('does not announce a source image while encrypted synchronization is pending', async () => {
@@ -82,7 +84,7 @@ it('reuses deduplicated source ciphertext in its original chat scope', async () 
   expect(mocks.sendKeys).toHaveBeenCalledWith(expect.anything(), { keys: [expect.objectContaining({
     hashed_chat_id: 'hash:chat', key_type: 'chat', encrypted_embed_key: 'chat-wrapped',
   })] });
-  expect(mocks.attach).toHaveBeenCalledWith(expect.objectContaining({ messageId: 'user-turn' }), expect.any(Function));
+  expect(mocks.attach).not.toHaveBeenCalled();
 });
 // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance
 it('preserves an existing upload when its canonical metadata is unavailable', async () => {
@@ -131,7 +133,8 @@ it('serializes identical source pixels until the first canonical save completes,
   await Promise.resolve();
   expect(mocks.upload).toHaveBeenCalledTimes(1);
   finish(true);
-  await expect(first).resolves.toEqual({ type: 'image', embed_id: 'uploaded-frame' });
-  await expect(second).resolves.toEqual({ type: 'image', embed_id: 'uploaded-frame' });
-  expect(mocks.attach.mock.calls.map(([event]) => event.messageId)).toEqual(['user-turn', 'second-user-turn']);
+  await expect(first).resolves.toMatchObject({ type: 'image', embed_id: 'uploaded-frame',source_frame_id:'frame' });
+  await expect(second).resolves.toMatchObject({ type: 'image', embed_id: 'uploaded-frame',source_frame_id:'next-frame' });
+  expect(mocks.attach).not.toHaveBeenCalled();
+  expect(mocks.send).toHaveBeenCalledTimes(2);
 });

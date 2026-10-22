@@ -68,7 +68,8 @@ def test_live_mock_marker_context_is_server_validated_and_required_by_the_speech
     assert 'LIVE_MOCK_CANDIDATE_ROOT' in ask_source
     assert "request_data.live_mock_mode = live_mode" in ask_source
     assert "request_data.live_mock_group = live_group" in ask_source
-    assert "live_mock_mode=request_data.live_mock_mode" in stream_source
+    assert 'voice_speech_fixture = speech_fixture_context(request_data)' in stream_source
+    assert 'live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode)' in stream_source
     assert '"live_mock_required": "true"' in stream_source
 
 

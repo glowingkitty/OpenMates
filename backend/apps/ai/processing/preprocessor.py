@@ -51,6 +51,8 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
+from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
+from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
 from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level as _canonical_requested_reasoning_level
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
@@ -93,6 +95,13 @@ SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 IMAGE_UPLOAD_REF_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+
+def _voice_delivery_context(request_data: AskSkillRequest) -> str:
+    """Use canonical history before its routing-only projection drops older text."""
+    if not request_data.voice_mode:
+        return ""
+    return build_voice_heard_context(request_data.voice_heard_boundary, request_data.message_history)
 
 
 def _skill_routing_candidate(app_id: str, skill: Any) -> str:
@@ -2303,6 +2312,7 @@ def _reusable_stage_one_project_none(request_data: AskSkillRequest,
             and request_data.admission_context.get("scope_complete") is True)
 
 
+@voice_preprocessing_scope
 async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
@@ -2417,6 +2427,7 @@ async def handle_preprocessing(
 
     # Build the preprocessing-only projection before expensive URL sanitization.
     # The main processor continues to receive request_data.message_history unchanged.
+    voice_heard_context = _voice_delivery_context(request_data)
     try:
         routing_ledger = await load_skill_ledger(cache_service, request_data)
     except Exception as ledger_error:
@@ -2651,6 +2662,7 @@ async def handle_preprocessing(
                 model_id=decision_model, secrets_manager=secrets_manager,
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 message_history=sanitized_message_history,
+                voice_heard_context=voice_heard_context,
                 available_apps=list(discovered_apps_metadata or {}),
                 available_skills=public_skills, available_focus_modes=public_focuses,
                 project_candidates=request_data.project_focus_candidates,
@@ -2760,6 +2772,11 @@ async def handle_preprocessing(
     # Deepcopy the tool definitions to allow modification
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
+    if voice_heard_context:
+        # Independent recovery needs the same delivery evidence as Jev. Keep it
+        # outside user/history messages so rich history and turn identity persist.
+        function = tool_definition_for_llm["function"]
+        function["description"] = function.get("description", "") + "\n\n" + voice_heard_context
 
     # Determine whether this is the first message (no title yet) or a follow-up.
     # CRITICAL: Use chat_has_title flag from client, NOT message_history length
@@ -3144,6 +3161,7 @@ async def handle_preprocessing(
                     model_id=decision_model, secrets_manager=secrets_manager,
                     telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                     message_history=sanitized_message_history,
+                    voice_heard_context=voice_heard_context,
                     available_apps=list(discovered_apps_metadata or {}),
                     available_skills=available_skills_list,
                     available_focus_modes=available_focus_modes_list,
@@ -3307,6 +3325,7 @@ async def handle_preprocessing(
             decision_arguments = await decide_preprocessing_with_jev(
                 model_id=decision_model, secrets_manager=secrets_manager,
                 message_history=sanitized_message_history,
+                voice_heard_context=voice_heard_context,
                 topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
                 available_skills=[], available_focus_modes=[],
                 available_settings_and_memories={}, recent_skill_activity=list(routing_ledger.prompt_rows),
@@ -3397,6 +3416,7 @@ async def handle_preprocessing(
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 secrets_manager=secrets_manager,
                 message_history=sanitized_message_history,
+                voice_heard_context=voice_heard_context,
                 topic_areas=dynamic_context["TOPIC_AREAS_LIST"],
                 available_skills=available_skills_list,
                 available_focus_modes=available_focus_modes_list,

@@ -1,3 +1,4 @@
+import type { VoiceHeardBoundary } from '../types/chat';
 // assistantSpeechQueue.ts
 // Owns browser playback for one assistant response at a time.
 // Accepts only ready/generating segment metadata from its caller.
@@ -15,6 +16,7 @@ export type AssistantSpeechChapter =
 
 export interface AssistantSpeechSegment {
   id: string;
+  kind?: string;
   sequence: number;
   status: AssistantSpeechSegmentStatus;
   durationMs: number;
@@ -105,6 +107,7 @@ export class AssistantSpeechQueue {
   private currentAudio: SpeechAudio | null = null;
   private pendingSegmentId: string | null = null;
   private readonly completedSegmentIds = new Set<string>();
+  private readonly heardVoiceSequences = new Set<number>();
   private autoplayPending = true;
   private playGeneration = 0;
   private complete = false;
@@ -123,6 +126,23 @@ export class AssistantSpeechQueue {
     this.registerMediaSessionHandlers(
       options.mediaSession ?? this.browserMediaSession,
     );
+  }
+
+  /** Actual media completion and current source-audio time, never guessed words.
+   * Waiting confirmations and manual/passive clips grant no prose coverage. */
+  get playbackBoundary(): VoiceHeardBoundary | null {
+    const responseId = this.state.responseId;
+    if (!responseId || responseId.length > 128) return null;
+    const active = this.currentAudio && this.activeSegment?.kind === 'voice_prose_clause'
+      && this.activeSegment.playbackClass === 'replayable' ? this.activeSegment : null;
+    const activeSequence = active && Number.isSafeInteger(active.sequence) && active.sequence >= 0 && active.sequence <= 65_535
+      ? active.sequence : null;
+    const completed = [...this.heardVoiceSequences].sort((a, b) => a - b);
+    if (!completed.length && activeSequence === null) return null;
+    const seconds = activeSequence !== null ? this.currentAudio?.currentTime ?? 0 : 0;
+    return { assistant_message_id: responseId, completed_sequences: completed,
+      active_sequence: activeSequence,
+      active_offset_ms: Number.isFinite(seconds) ? Math.min(3_600_000, Math.max(0, Math.floor(seconds * 1000))) : 0 };
   }
 
   get waveformRegions(): AssistantSpeechWaveformRegion[] {
@@ -182,6 +202,7 @@ export class AssistantSpeechQueue {
     this.complete = false;
     this.segments.clear();
     this.completedSegmentIds.clear();
+    this.heardVoiceSequences.clear();
     this.requestedSegmentIds.clear();
     this.explicitSelectionPending = false;
     this.pendingSegmentId = null;
@@ -204,6 +225,22 @@ export class AssistantSpeechQueue {
       segment = { ...segment, audioUrl: previous.audioUrl, waveform: previous.waveform };
     }
     this.segments.set(segment.id, segment);
+    // Delayed confirmations are optional: useful speech wins as soon as ready,
+    // and a failed confirmation must never fail the canonical response track.
+    const realReady = segment.sequence >= 0 && segment.playbackClass === "replayable" && segment.status === "ready";
+    const lateWaiting = segment.sequence === -1 && segment.kind === "waiting_confirmation" && this.orderedSegments.some((item) => item.sequence >= 0 && item.status === "ready");
+    const waitingFailed = segment.sequence === -1 && segment.kind === "waiting_confirmation" && segment.status === "failed";
+    const skipped = this.orderedSegments.filter((item) => item.sequence === -1 && item.kind === "waiting_confirmation"
+      && (realReady || waitingFailed || lateWaiting));
+    for (const item of skipped) this.completedSegmentIds.add(item.id);
+    if (skipped.some((item) => item.id === this.state.activeSegmentId || item.id === this.pendingSegmentId)) {
+      this.stopCurrentAudio();
+      this.pendingSegmentId = null;
+      this.setState({ ...this.state, activeSegmentId: null, status: this.autoplayPending ? "waiting_for_segment" : "paused" });
+      this.activateFirstSegment();
+      return;
+    }
+    if (waitingFailed || lateWaiting) return;
     if (this.currentAudio && this.state.status === "playing" && this.activeSegment) {
       this.maybePrefetchNext(this.activeSegment, this.currentAudio);
     }
@@ -500,6 +537,16 @@ export class AssistantSpeechQueue {
       return;
     }
     this.completedSegmentIds.add(segmentId);
+    const ended = this.segments.get(segmentId);
+    if (ended?.kind === 'voice_prose_clause' && ended.playbackClass === 'replayable'
+      && Number.isSafeInteger(ended.sequence) && ended.sequence >= 0 && ended.sequence <= 65_535) {
+      this.heardVoiceSequences.delete(ended.sequence);
+      this.heardVoiceSequences.add(ended.sequence);
+      if (this.heardVoiceSequences.size > 256) {
+        const oldest = this.heardVoiceSequences.values().next().value;
+        if (oldest !== undefined) this.heardVoiceSequences.delete(oldest);
+      }
+    }
     const segments = this.orderedSegments;
     const activeIndex = segments.findIndex((segment) => segment.id === segmentId);
     const nextSegment = segments[activeIndex + 1];

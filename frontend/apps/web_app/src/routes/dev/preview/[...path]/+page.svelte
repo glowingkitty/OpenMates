@@ -92,7 +92,6 @@
 		'projects/ProjectsPage',
 		'plans/PlanDetailPage',
 		'tasks/TasksPage',
-		'videocall/VideoCallPanel',
 		'workspace/WorkspaceHomeShell',
 		'workflows/WorkflowHomePreviewHarness',
 		'workflows/WorkflowDetailPage'

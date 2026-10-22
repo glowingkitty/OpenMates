@@ -1,7 +1,8 @@
 // Web sources: services/voiceCall.ts, voiceCallMessages.ts, voiceCallPrivacy.ts.
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts,
-// video-call.chat.compressed-context, video-call.privacy.first-call-warning
+// video-call.chat.compressed-context, video-call.privacy.first-call-warning,
+// video-call.audio.spoken-rich-response, video-call.audio.complete-turn-admission, video-call.audio.intentional-interruption
 #if !os(watchOS)
 import Foundation
 import CryptoKit
@@ -45,6 +46,7 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
     private var pumpDirty = false
     private var pumpID: UUID?
     private let directory: URL
+    private let sendPipeline = ChatSendPipeline()
 
     init(auth: AuthManager, store: ChatStore, socket: WebSocketManager,
          ordinaryInferenceActive: @escaping @MainActor (String) -> Bool) {
@@ -63,8 +65,7 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
               profile == ServerProfile.current(), scope.profileID == profile.id,
               scope.workspaceGeneration == OfflineStore.shared.scopeGeneration,
               binding.keyGeneration == ChatKeyManager.shared.cacheGeneration,
-              binding.team.teamID == nil, TeamWorkspaceContext.shared.isCurrent(binding.team),
-              !ordinaryInferenceActive(scope.chatID)
+              binding.team.teamID == nil, TeamWorkspaceContext.shared.isCurrent(binding.team)
         else { throw NativeVoiceCallError.scopeChanged }
     }
     private func current(_ scope: NativeVoiceCallScope) -> Bool { (try? check(scope)) != nil }
@@ -100,12 +101,19 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
             consentDecision: { [weak self] in await self?.consent?() ?? false },
             context: { [weak self] scope in
                 guard let self else { throw NativeVoiceCallError.scopeChanged }
-                return try await self.loadContext(scope)
+                try await self.check(scope)
+                return try .init(messages: [], mateCategory: scope.mateCategory, canonicalRangeComplete: true)
             })
         return NativeVoiceCallEnvironment(isCurrent: { [weak self] scope in await self?.current(scope) == true },
             ensureConsent: base.ensureConsent, authentication: base.authentication, context: base.context,
             prepare: { [weak self] scope in
                 guard let self else { throw NativeVoiceCallError.scopeChanged }; try await self.confirm(scope)
+            }, submitTurn: { [weak self] scope, transcript in
+                guard let self else { throw NativeVoiceCallError.scopeChanged }
+                try await self.submitTurn(scope: scope, transcript: transcript)
+            }, interruptAssistant: { [weak self] scope, id, taskID in
+                guard let self else { throw NativeVoiceCallError.scopeChanged }
+                try await self.interruptAssistant(scope: scope, messageID: id, taskID: taskID)
             }, now: base.now, sleep: base.sleep)
     }()
     private lazy var controller: NativeVoiceCallController = NativeVoiceCallController(environment: environment, audio: audio, persistence: outbox,
@@ -157,6 +165,7 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
             workspaceGeneration: generation, chatID: chat.id, mateCategory: selectedMate)
         let previousPump = pump; previousPump?.cancel(); await previousPump?.value
         pump = nil; pumpDirty = false
+        guard !ordinaryInferenceActive(scope.chatID) else { throw NativeVoiceCallError.callUnavailable }
         binding = (scope, team, keyGeneration); prepared = nil; metadata = [:]
         do {
             try check(scope)
@@ -227,6 +236,9 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
             try check(scope); self.prepared = (prepared.chat, false)
         }
         _ = try await freshMetadata(scope)
+        try await AssistantSpeechAppRuntime.shared.beginLiveCallSpeech(chatID: scope.chatID) { [weak self] speaking, generating, id, taskID, text, language in
+            await self?.controller.updateAssistantState(speaking: speaking, generating: generating, messageID: id, taskID: taskID, text: text, language: language)
+        }
         // Retained final revisions from an interrupted earlier call must reach
         // canonical history before this call reads context or opens a provider.
         startPump(scope)
@@ -332,25 +344,38 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
         var decoded = try JSONDecoder().decode(NativeVoiceCallFrame.self, from: result)
         decoded["type"] = .string(response); return decoded
     }
-    private func receive(_ event: NativeVoiceCallEvent) async {
-        if case .transcript(let transcript) = event, let scope = binding?.scope, current(scope) {
-            do {
-                let rows = try await storage.load(scope: scope); try check(scope)
-                guard let row = rows.first(where: { $0.messageID == transcript.messageID && $0.callID == transcript.callID }),
-                      row.role == transcript.role.rawValue else { throw NativeVoiceCallError.persistenceFailed }
-                let revision = row.pending.last
-                store.appendMessage(Message(id: transcript.messageID, chatId: scope.chatID,
-                    role: transcript.role == .user ? .user : .assistant, content: transcript.text,
-                    encryptedContent: row.ciphertext, createdAt: ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: Double(transcript.createdAt))),
-                    updatedAt: nil, appId: nil, isStreaming: !transcript.final, embedRefs: transcript.embedReferences.map {
-                        EmbedRef(id: $0.embedID, type: $0.type, status: $0.fields["status"]?.string, data: nil)
-                    },
-                    modelName: transcript.modelName, senderName: transcript.mateName, category: transcript.mateCategory,
-                    encryptedSenderName: revision?.encryptedSenderName, encryptedCategory: revision?.encryptedCategory,
-                    encryptedModelName: revision?.encryptedModelName, userMessageId: transcript.userMessageID), to: scope.chatID)
-                startPump(scope)
-            } catch { await controller.persistenceFailed(); return }
+    private func submitTurn(scope: NativeVoiceCallScope, transcript: NativeVoiceCallTranscript) async throws {
+        try check(scope)
+        guard transcript.role == .user, transcript.final, let chat = store.chat(for: scope.chatID) else {
+            throw NativeVoiceCallError.contextUnavailable
         }
+        await controller.updateAssistantState(speaking: false, generating: true, messageID: nil, text: "")
+        let heardBoundary = AssistantSpeechAppRuntime.shared.pendingHeardBoundary(chatID: scope.chatID)
+        let result = try await sendPipeline.sendUserMessage(content: transcript.text, in: chat,
+            existingMessages: store.messages(for: scope.chatID), wsManager: socket, chatStore: store,
+            waitForInferenceReceipt: true,
+            createdAtOverride: ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: Double(transcript.createdAt))),
+            validateRemoteSend: { [weak self] in
+                guard let self else { throw NativeVoiceCallError.scopeChanged }; try self.check(scope)
+            }, voiceCallTurn: .init(callID: transcript.callID, turnID: transcript.messageID, heardBoundary: heardBoundary),
+            messageId: transcript.messageID)
+        try check(scope)
+        store.upsertChat(result.chat)
+        store.appendMessage(result.message, to: scope.chatID)
+        AssistantSpeechAppRuntime.shared.acceptHeardBoundary(heardBoundary, chatID: scope.chatID)
+    }
+    private func interruptAssistant(scope: NativeVoiceCallScope, messageID: String?, taskID: String?) async throws {
+        try check(scope)
+        guard await AssistantSpeechAppRuntime.shared.interruptLiveCallSpeech(chatID: scope.chatID, messageID: messageID, taskID: taskID) else { return }
+        try check(scope)
+        try await sendPipeline.sendCancelAITask(taskId: taskID, chatId: scope.chatID, wsManager: socket)
+    }
+    private func receive(_ event: NativeVoiceCallEvent) async {
+        if case .state(let snapshot) = event, snapshot.status == .live {
+            AssistantSpeechAppRuntime.shared.bindLiveCallID(snapshot.callID)
+        }
+        // Ordinary chat sync owns all assistant markdown, embeds and attribution.
+        // The call event is only a final user/composer acceptance signal.
         await downstream?(event)
     }
     private func startPump(_ scope: NativeVoiceCallScope) {

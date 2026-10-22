@@ -126,7 +126,7 @@ function awaitReceipt(type: "encrypted_metadata_stored" | "call_message_confirme
 }
 
 /** Create and durably store the empty encrypted personal chat before call admission. */
-export async function prepareVoiceCallChat(existingChatId?: string): Promise<{ chatId: string } & VoiceCallContext> {
+export async function prepareVoiceCallChat(existingChatId?: string, transportOnly = false): Promise<{ chatId: string } & VoiceCallContext> {
   if (existingChatId) {
     const chat = await chatDB.getChat(existingChatId);
     if (!chat || chat.team_id || chat.chat_visibility === "direct") throw new Error("Voice calls need a personal chat");
@@ -134,7 +134,7 @@ export async function prepareVoiceCallChat(existingChatId?: string): Promise<{ c
     if (!key || !await ensureChatKeySafeForWrite(existingChatId, key, "voice call")) {
       throw new Error("Chat key unavailable for voice call");
     }
-    return { chatId: existingChatId, ...await loadCallContext(existingChatId) };
+    return { chatId: existingChatId, ...(transportOnly ? { history: [] } : await loadCallContext(existingChatId)) };
   }
 
   const chatId = crypto.randomUUID();
@@ -164,7 +164,7 @@ export async function prepareVoiceCallChat(existingChatId?: string): Promise<{ c
     throw error;
   }
   await emitChatUpdate(chatId);
-  return { chatId, ...await loadCallContext(chatId, false) };
+  return { chatId, ...(transportOnly ? { history: [] } : await loadCallContext(chatId, false)) };
 }
 
 export async function loadCallContext(chatId: string, canonical = true): Promise<VoiceCallContext> {

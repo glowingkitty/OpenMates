@@ -12,12 +12,6 @@ import { modelsMetadata } from "../../data/modelsMetadata";
 import { getModelByNameOrId, getModelDisplayName } from "../modelDisplayName";
 
 describe("model display metadata", () => {
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity
-  it("formats current and saved voice model IDs without changing their identity", () => {
-    expect(getModelDisplayName("gemini-3.8-live")).toBe("Gemini 3.8 Live");
-    expect(getModelDisplayName("google/gemini-3.8-live")).toBe("Gemini 3.8 Live");
-    expect(getModelDisplayName("Gemini 3.8 Live")).toBe("Gemini 3.8 Live");
-  });
   it("includes new Gemini models in AI Ask settings metadata", () => {
     const aiAskModelIds = new Set(
       modelsMetadata

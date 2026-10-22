@@ -70,7 +70,7 @@ test.describe('Reference voice call strip', () => {
     await waitForComponentPreview(page);
     const launch=page.getByTestId('voice-call-start');
     await expect(launch).toHaveAccessibleName('Start voice call');
-    await expect(launch).toHaveAccessibleDescription('Voice calls use Google Gemini with usage-based billing.');
+    await expect(launch).toHaveAccessibleDescription('Voice calls use Voxtral speech with normal OpenMates AI routing and usage-based billing.');
   });
   // contract-test: direct surface=gui.web assertions=video-call.chat.call-strip-layout,video-call.chat.activity-status,video-call.audio.single-owner
   test('dedicated microphone overlay toggles mute while the call remains live at 320px RTL',async({page},testInfo)=>{
@@ -150,7 +150,7 @@ test.describe('Reference voice call strip', () => {
           await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
           await expect(page.getByTestId('voice-call-pricing')).toHaveCount(0);
           await expect(page.getByTestId('voice-call-return')).toHaveCount(0);
-          await expect(bar.getByText('Via Google Gemini',{exact:true})).toHaveCount(0);
+          await expect(bar.getByText('Via Voxtral',{exact:true})).toHaveCount(0);
           await expect(bar.getByText('Voice call',{exact:true})).toHaveCount(0);
           const video=page.getByTestId('voice-call-video');
           const end=page.getByTestId('voice-call-hangup');

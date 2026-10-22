@@ -287,6 +287,10 @@ async def check_url_status(
     Returns:
         Dict with validation results
     """
+    from backend.shared.testing.voice_call_fixture import isolated_voice_source_url_fixture
+    if isolated_voice_source_url_fixture(url):
+        return {"is_valid": True, "status_code": 200, "error_type": None, "is_temporary": False}
+
     # Skip localhost URLs - they're local development addresses that won't be accessible
     # from the server. Treat them as valid to avoid false positives.
     if _is_localhost_url(url):

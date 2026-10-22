@@ -257,7 +257,20 @@ export function filterWithFreshPersonalPrivacy(text: string, receipt: PrivacySen
     return token;
   };
   const safe = text.replace(/```json\n([\s\S]*?)\n```/g, (block, json: string) => {
-    try { JSON.parse(json); } catch { return block; }
+    let reference: Record<string, unknown>;
+    try { reference = JSON.parse(json); } catch { return block; }
+    // Camera provenance has a closed protocol shape. Preserve only validated
+    // identifiers and its numeric timestamp; adjacent prose and JSON notes
+    // still pass through the user's fresh privacy preferences below.
+    if (reference && reference.type === 'image' &&
+      Object.keys(reference).length === 6 &&
+      typeof reference.embed_id === 'string' && uuid.test(reference.embed_id) &&
+      typeof reference.source_frame_id === 'string' && uuid.test(reference.source_frame_id) &&
+      typeof reference.source_call_id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(reference.source_call_id) &&
+      (reference.source === 'camera' || reference.source === 'screen') &&
+      typeof reference.captured_at === 'number' && Number.isFinite(reference.captured_at) && reference.captured_at > 0) {
+      return protect(block);
+    }
     // Validate the JSON but protect only valid reference values. A reference
     // key must never exempt user notes or other JSON strings from privacy.
     const masked = json.replace(/("(?:embed_id|embed_ids)"\s*:\s*)("(?:\\.|[^"\\])*"|\[[\s\S]*?\])/g,

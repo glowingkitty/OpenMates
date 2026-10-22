@@ -64,10 +64,10 @@ enum NativeVoiceCallWatchHardwareProbe {
             guard let owner = context.accountID, auth.currentUser?.id == owner, auth.isVerifiedOnline,
                   let token = auth.webSocketToken, UUID(uuidString: chatID) != nil else { throw NativeVoiceCallError.scopeChanged }
             let response = try await APIClient.shared.requestForVerifiedWatchSession(.get,
-                path: "/v1/settings/voice-google-processing-ack", serverProfile: context.profile,
+                path: "/v1/settings/voice-processing-ack", serverProfile: context.profile,
                 validate: { try context.check() })
             let ack = try JSONDecoder().decode(NativeVoiceCallFrame.self, from: response)
-            guard ack["version"]?.number == 1, ack["acknowledged"]?.bool == true,
+            guard ack["version"]?.number == 2, ack["acknowledged"]?.bool == true,
                   (ack["acknowledged_at"]?.number ?? 0) > 0 else { throw NativeVoiceCallError.consentRequired }
             receipt.savedProcessingConsent = true
             let scope = NativeVoiceCallScope(accountID: owner, profileID: context.profile.id,

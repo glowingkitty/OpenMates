@@ -1,23 +1,38 @@
-/**
- * Real first-party call transport and encrypted chat persistence in isolated CI.
- * Only the external voice provider is synthetic, gated inside the disposable
- * backend; browser sockets, session admission and message storage stay real.
+/** Real authenticated STT and ordinary encrypted chat transport in isolated CI.
+ * Only external providers use deterministic fixtures; browser sockets, routing,
+ * encrypted messages, speech assets and source uploads use their normal owners.
  */
-import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
-import { clickChatTarget, openCompletedAssistantActivity, scrollChatHistoryToStart, waitForStickyCallControlsReady } from './helpers/chat-scroll';
-/* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helpers expose CommonJS exports. */
+import type { Locator, Page, TestInfo } from '@playwright/test';
+import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
+/* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, waitForChatReady, startNewChat, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
-const { withMockMarker } = require('./signup-flow-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
-const STAGE_TWO_TEXT = 'Voice stage two fixture: apply memory and search the web';
-const STAGE_TWO_REPLY = 'Your approved memory is loaded and the search results are ready.';
-const CHECKPOINT_FACT = 'The recipe must remain vegetarian and use ginger.';
-const UNCOVERED_CONTEXT_FACT = 'The oldest uncovered turn requires sesame-free toppings.';
-const ACTIVITY_REQUEST = 'Hold this voice activity reply until I speak again.';
-const ACTIVITY_REPLY = 'Your voice activity fixture reply is ready.';
 const PASTED_TEXT = 'Please use this pasted recipe: noodles, broth, mushrooms and ginger.';
+
+/** Substitute only the external image bytes; ordinary proxy URLs and embeds stay real. */
+async function installVoiceFixtureImageProxy(page: Page): Promise<{ servedRequests: number }> {
+  const asset = await page.request.get('/store-examples/generate-1.webp');
+  expect(asset.ok()).toBeTruthy();
+  const imageBytes = await asset.body();
+  expect(imageBytes.subarray(8, 12).toString('ascii')).toBe('WEBP');
+  const proxyUrl = new URL('https://preview.openmates.org/api/v1/image');
+  proxyUrl.searchParams.set('url', 'https://app.dev.openmates.org/store-examples/generate-1.webp');
+  // Chat renderers proxy before mounting the image component, without a size.
+  // Its double-proxy guard preserves that exact URL when the component asks
+  // for a 520px preview; the component-preview route uses a different URL.
+  const observed = { servedRequests: 0 };
+  await page.route(url => url.href === proxyUrl.href, async route => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'image/webp', body: imageBytes });
+    observed.servedRequests++;
+  });
+  return observed;
+}
 
 interface SocketObservation {
   path: string;
@@ -26,6 +41,15 @@ interface SocketObservation {
   errorOrigin?: { category: string; function: string; line: number };
   socketId?: number;
   type: string;
+  voiceMode?: boolean;
+  autoSpeak?: boolean;
+  forcedModel?: boolean;
+  speaking?: boolean;
+  kind?: string;
+  speechStatus?: string;
+  segmentId?: string;
+  heardBoundary?: {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number};
+  language?: string;
   observedAt?: number;
   audioSamples?: number;
   audioBatch?: number;
@@ -33,10 +57,19 @@ interface SocketObservation {
   startupAllowanceMs?: number;
   messageId?: string;
   requestId?: string;
+  turnId?: string;
+  preflightId?: string;
   chatId?: string;
   callId?: string;
   role?: string;
   assistantMessageId?: string;
+  userMessageId?: string;
+  taskId?: string;
+  taskStatus?: string;
+  finalChunk?: boolean;
+  awaitingContinuation?: boolean;
+  interruptedByRevocation?: boolean;
+  interruptedBySoftLimit?: boolean;
   embedId?: string;
   summary?: string;
   ciphertextLength?: number;
@@ -58,7 +91,12 @@ interface SocketObservation {
   expectedReply?: boolean;
   context?: Array<{ role: string; text: string; message_id?: string; created_at?: number }>;
 }
+interface TurnDeliveryObservation {
+  callId?: string; chatId?: string; turnId?: string; phase: string; reason?: string; observedAt: number;
+  failure?: {errorClass?:string;errorCode?:string;httpStatus?:number;module?:string;line?:number};
+}
 interface CallEvidence {
+  turnDelivery?: TurnDeliveryObservation[];
   sent: SocketObservation[];
   received: SocketObservation[];
   tracks: MediaStreamTrack[];
@@ -94,126 +132,61 @@ test.use({
   permissions: ['microphone'],
 });
 
-test.afterEach(async ({ page }, testInfo) => {
-  if (testInfo.status === testInfo.expectedStatus) return;
-  try {
-    const runtime = await page.evaluate(() => {
-      const browser = window as unknown as { __voiceCallEvidence?: CallEvidence;
-        __nativeVoiceInput?: NativeVoiceInputEvidence; __voicePrivacyEvents?: string[] };
-      const transport = browser.__voiceCallEvidence;
-      const native = browser.__nativeVoiceInput;
-      const privacy = browser.__voicePrivacyEvents ?? [];
-      const sent = transport?.sent.filter(frame => frame.path === '/v1/voice-call') ?? [];
-      const received = transport?.received.filter(frame => frame.path === '/v1/voice-call') ?? [];
-      return {
-        transportObserved: !!transport,
-        nativeCaptureObserved: !!native,
-        privacyBoundaryObserved: Array.isArray(browser.__voicePrivacyEvents),
-        voiceSocketRequests: privacy.filter(event => event === 'voice_socket').length,
-        voiceStartFrames: sent.filter(frame => frame.type === 'start').length,
-        voiceReadyFrames: received.filter(frame => frame.type === 'ready').length,
-        voiceMicFrames: sent.filter(frame => frame.type === 'mic_audio').length,
-        voiceEndFrames: sent.filter(frame => frame.type === 'audio_stream_end').length,
-        mainSocketOpen: transport?.mainSocket?.readyState === WebSocket.OPEN,
-        metadataSent: transport?.sent.filter(frame => frame.type.startsWith('voice_metadata_')).map(frame => frame.type),
-        metadataReceived: transport?.received.filter(frame => frame.type.startsWith('voice_metadata_')).map(frame => ({ type: frame.type, code: frame.code, stage: frame.stage })),
-        microphoneRequests: privacy.filter(event => event === 'microphone_requested').length,
-        capturesResolved: native?.captureRequests ?? 0,
-        nativeLiveTracks: native?.nativeTracks.filter(track => track.readyState === 'live').length ?? 0,
-        outputLiveTracks: native?.outputTracks.filter(track => track.readyState === 'live').length ?? 0,
-        contextsRunning: native?.contexts.filter(context => context.state === 'running').length ?? 0,
-        contextsSuspended: native?.contexts.filter(context => context.state === 'suspended').length ?? 0,
-        contextsClosed: native?.contexts.filter(context => context.state === 'closed').length ?? 0,
-        workersCreated: native?.workersCreated ?? 0,
-        workersReady: native?.detectorReady ?? 0,
-        workersTerminated: native?.workersTerminated ?? 0,
-        acknowledgementReads: privacy.filter(event => event === 'ack_get').length,
-        acknowledgementWrites: privacy.filter(event => event === 'ack_post').length,
-        acknowledgementsSaved: privacy.filter(event => event === 'ack_saved').length,
-      };
-    });
-    await testInfo.attach('voice-runtime-diagnostic', { body: JSON.stringify(runtime), contentType: 'application/json' });
-  } catch {
-    await testInfo.attach('voice-runtime-diagnostic', { body: JSON.stringify({ captureFailed: true }), contentType: 'application/json' });
-  }
-  try {
-    // Failure evidence contains only counts/booleans/lengths. Browser keys,
-    // transcript text, source IDs and ciphertext never leave this evaluation.
-    const diagnostic = await page.evaluate(async (expectedReply) => {
-      const state = (window as unknown as { __voiceCallEvidence?: CallEvidence }).__voiceCallEvidence;
-      if (!state) return { transportObserved: false };
-      const callId = state.received.filter((event) => event.type === 'ready').at(-1)?.callId;
-      const compression = state.received.filter((event) => event.type === 'voice_compression' && event.callId === callId).at(-1);
-      const targetIds = [...new Set(state.received.filter((event) => event.type === 'voice_embed' && event.callId === callId)
-        .map((event) => event.assistantMessageId).filter((id): id is string => !!id))];
-      const phaseCounts = Object.fromEntries(['voice_compression_started', 'voice_compression', 'chat_compression_checkpoint_stored',
-        'voice_context_pause', 'voice_context_resumed'].map((type) => [type, state.received.filter((event) => event.type === type).length]));
-      const open = (name: string) => new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open(name); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-      });
-      const read = <T>(db: IDBDatabase, store: string, id: string) => new Promise<T>((resolve, reject) => {
-        const request = db.transaction(store, 'readonly').objectStore(store).get(id);
-        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-      });
-      const database = await open('chats_db');
-      const cryptoDatabase = await open('openmates_crypto');
-      try {
-        const masterKey = await read<CryptoKey>(cryptoDatabase, 'keys', 'master_key');
-        const rows = [];
-        for (const id of targetIds) {
-          const row = await read<{ chat_id: string; created_at: number; queue_revision?: number; encrypted_content?: string;
-            content?: string; call_persistence_v1?: { call_id: string; entries: unknown[] } } | undefined>(database, 'messages', id);
-          const frames = state.received.filter((event) => event.type === 'transcript' && event.messageId === id);
-          let decryptable = false;
-          let expectedTextStored = false;
-          let storedTextLength = 0;
-          if (row?.encrypted_content && masterKey) {
-            try {
-              const chat = await read<{ encrypted_chat_key: string }>(database, 'chats', row.chat_id);
-              const bytes = (value: string) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
-              const wrapped = bytes(chat.encrypted_chat_key);
-              const rawKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, masterKey, wrapped.slice(12));
-              const text = await state.decryptChatContent!(row.encrypted_content, rawKey);
-              decryptable = true; expectedTextStored = text.includes(expectedReply); storedTextLength = text.length;
-            } catch { /* Record a boolean, never private decryption error data. */ }
-          }
-          rows.push({ localRowExists: !!row, decryptable, expectedTextStored, storedTextLength,
-            revision: row?.queue_revision ?? 0, pendingCiphertexts: row?.call_persistence_v1?.entries.length ?? 0,
-            plaintextStored: typeof row?.content === 'string', originMatchesCall: row?.call_persistence_v1?.call_id === callId,
-            coveredByLatestCheckpoint: compression?.coveredMessageIds?.includes(id) ?? false,
-            atOrBeforeLatestBoundary: !!row && !!compression?.boundaryTimestamp && row.created_at <= compression.boundaryTimestamp,
-            transcriptFrames: frames.length, expectedTextFrames: frames.filter((event) => event.expectedReply).length,
-            finalExpectedTextFrames: frames.filter((event) => event.final && event.expectedReply).length,
-            maxTranscriptLength: Math.max(0, ...frames.map((event) => event.textLength ?? 0)) });
-        }
-        return { transportObserved: true, phaseCounts, targetRowCount: targetIds.length, rows,
-          errors: state.received.filter(event => event.type === 'error').map(({code, stage, errorOrigin}) => ({code, stage, errorOrigin})),
-          historyDurability: state.historyDurability,
-          contextShape: state.sent.find(event => event.type === 'start')?.context?.map(row => ({
-            role: row.role === 'user' || row.role === 'assistant' ? row.role : 'other',
-            textLength: typeof row.text === 'string' ? row.text.length : null,
-            identityFormat: typeof row.message_id !== 'string' ? 'absent' : /^[0-9a-f]{64}$/.test(row.message_id) ? 'sha256' : /^[0-9a-f-]{36}$/i.test(row.message_id) ? 'uuid' : 'other',
-            identityLength: typeof row.message_id === 'string' ? row.message_id.length : null,
-            timestampType: typeof row.created_at, timestampFinite: typeof row.created_at === 'number' && Number.isFinite(row.created_at),
-          })),
-          sourceCount: state.received.filter((event) => event.type === 'voice_compression_started' && event.callId === callId).at(-1)?.sourceMessageIds?.length ?? 0,
-          coveredCount: compression?.coveredMessageIds?.length ?? 0 };
-      } finally { database.close(); cryptoDatabase.close(); }
-    }, STAGE_TWO_REPLY);
-    await testInfo.attach('voice-history-diagnostic', { body: JSON.stringify(diagnostic), contentType: 'application/json' });
-  } catch {
-    await testInfo.attach('voice-history-diagnostic', { body: JSON.stringify({ captureFailed: true }), contentType: 'application/json' });
-  }
+// Failure evidence keeps bounded transport categories, never message/audio bodies.
+test.afterEach(async ({page},testInfo)=>{
+  if(testInfo.status===testInfo.expectedStatus)return;
+  const diagnostic=await page.evaluate(()=>{
+    const browser=window as unknown as {__voiceCallEvidence?:CallEvidence;__nativeVoiceInput?:NativeVoiceInputEvidence};
+    const state=browser.__voiceCallEvidence;const native=browser.__nativeVoiceInput;
+    const count=(frames:SocketObservation[]|undefined,type:string)=>frames?.filter(frame=>frame.type===type).length??0;
+    const id=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)?value:undefined;
+    const ids=(frame:SocketObservation)=>({type:frame.type,callId:id(frame.callId),chatId:id(frame.chatId),
+      messageId:id(frame.messageId),userMessageId:id(frame.userMessageId),assistantMessageId:id(frame.assistantMessageId),
+      taskId:id(frame.taskId),turnId:id(frame.turnId),preflightId:id(frame.preflightId),requestId:id(frame.requestId),observedAt:frame.observedAt});
+    const serverCodes=new Set(['client_update_required','durable_preflight_failed','immutable_chat_key_mismatch',
+      'preflight_expired','preflight_mismatch','preflight_required','recovery_key_mismatch','message_identity_mismatch',
+      'team_chat_scope_mismatch','version_conflict','existing_chat_metadata_forbidden','invalid_chat_turn_admission',
+      'inference_commitment_mismatch','privacy_receipt_required','privacy_receipt_invalid','privacy_context_changed',
+      'inference_temporarily_paused','insufficient_credits','unauthorized','forbidden','websocket_receipt_connection_changed']);
+    const status=document.querySelector('[data-testid="voice-call-status"]');
+    const statusText=document.querySelector('[data-testid="voice-call-status-text"]')?.textContent;
+    const transcriptFailure=statusText==='The transcript could not be saved. The call was stopped.'||
+      statusText==='Das Transkript konnte nicht gespeichert werden. Der Anruf wurde beendet.';
+    const callUIstatus=transcriptFailure?'transcript_save_failed':status?.getAttribute('role')==='alert'?'error':
+      document.querySelector('[data-testid="voice-call-bar"]')?.getAttribute('aria-busy')==='true'?'connecting':status?'active':'inactive';
+    return {observed:!!state,starts:count(state?.sent,'start'),ready:count(state?.received,'ready'),
+      microphoneFrames:count(state?.sent,'mic_audio'),canonicalSends:count(state?.sent,'chat_message_added'),
+      finalUserTranscripts:state?.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final).length??0,
+      errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
+      speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
+      historyDurability:state?.historyDurability,callUIstatus,
+      turnDelivery:state?.turnDelivery?.slice(-48)??[],
+      finalTranscriptTurns:state?.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final).slice(-24).map(ids)??[],
+      textInputTurns:state?.sent.filter(frame=>frame.type==='text_input').slice(-24).map(ids)??[],
+      canonicalTurns:state?.sent.filter(frame=>frame.type==='chat_message_added').slice(-24).map(frame=>({...ids(frame),voiceMode:frame.voiceMode,heardBoundary:!!frame.heardBoundary}))??[],
+      interruptionTargets:state?.received.filter(frame=>frame.type==='audio.interrupted').slice(-24).map(ids)??[],
+      admissionEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['chat_turn_admit','chat_turn_preflight','chat_turn_preflight_ack','chat_turn_context','chat_turn_context_ack',
+          'chat_message_confirmed','error'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-48).map(frame=>({...ids(frame),direction:frame.direction,
+          status:frame.taskStatus,code:frame.code?(serverCodes.has(frame.code)?frame.code:'other'):undefined})),
+      taskEvents:[...(state?.sent??[]),...(state?.received??[])].filter(frame=>['cancel_ai_task','ai_task_initiated','ai_task_cancel_requested','ai_task_ended','ai_task_completed','ai_task_failed','ai_message_ready','ai_response_storage_confirmed','ai_response_storage_failed'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),status:frame.taskStatus})),
+      finalAssistantEvents:state?.received.filter(frame=>frame.type==='ai_message_update'&&frame.finalChunk).slice(-24).map(frame=>({...ids(frame),final:frame.final,awaitingContinuation:frame.awaitingContinuation,
+        interruptedByRevocation:frame.interruptedByRevocation,interruptedBySoftLimit:frame.interruptedBySoftLimit}))??[],
+      captureRequests:native?.captureRequests??0,detectorReady:native?.detectorReady??0,
+      workersCreated:native?.workersCreated??0,workersTerminated:native?.workersTerminated??0};
+  }).catch(()=>({captureFailed:true}));
+  await testInfo.attach('voice-call-transport-state',{body:JSON.stringify(diagnostic),contentType:'application/json'});
 });
 
 async function observeRealTransport(page: Page, deferReady = false): Promise<void> {
-  await page.addInitScript(({ expectedReply, deferReady }) => {
-    let holdReady = deferReady;
-    let audioBatch = 0;
-    let nextAudioBatch = 0;
-    const evidence = { sent: [], received: [], tracks: [] } as CallEvidence;
-    // Browser-only shared decoder for the independent canonical durability fence
-    // and failure diagnostics. No decrypted content or keys leave the browser.
+  await page.addInitScript(({deferReady}) => {
+    let holdReady=deferReady;
+    let audioBatch=0;
+    let nextAudioBatch=0;
+    const evidence={sent:[],received:[],tracks:[]} as CallEvidence;
     evidence.decryptChatContent = async (value, rawKey) => {
       const encrypted = Uint8Array.from(atob(value), char => char.charCodeAt(0));
       // Chat ciphertext uses OM + FNV-1a key fingerprint + IV; legacy starts at IV.
@@ -228,140 +201,109 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
       return new TextDecoder().decode(await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: encrypted.slice(header, header + 12) }, key, encrypted.slice(header + 12)));
     };
-    Object.assign(window, { __voiceCallEvidence: evidence });
-    const NativeWebSocket = window.WebSocket;
-    let nextSocketId = 0;
-    window.WebSocket = new Proxy(NativeWebSocket, {
-      construct(Target, args) {
-        const socket: WebSocket = Reflect.construct(Target, args);
-        const socketId = ++nextSocketId;
-        const path = new URL(String(args[0]), window.location.href).pathname;
-        if (path === '/v1/ws') {
-          evidence.mainSocket = socket;
-          evidence.mainSocketId = socketId;
+    Object.assign(window,{__voiceCallEvidence:evidence});
+    const phases=new Set(['queued','started','validating','sender_loading','chat_loading','message_saving','chat_refreshing',
+      'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed']);
+    const reasons=new Set(['invalid_turn','scope_changed','disconnected','personal_chat_unavailable','message_row_unavailable',
+      'message_failed','message_waiting_for_connection','predecessor_not_saved','message_identity_conflict','turn_already_settled',
+      'immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch','version_conflict',
+      'inference_commitment_mismatch','client_update_required','operation_failed']);
+    const errorClasses=new Set(['Error','TypeError','RangeError','SyntaxError','ReferenceError','DOMException','AbortError',
+      'OperationError','InvalidStateError','InvalidAccessError','DataError','QuotaExceededError','ConstraintError',
+      'TransactionInactiveError','NotFoundError','DataCloneError','NetworkError','PreflightRejectionError','PendingAdmissionCompatibilityError']);
+    const errorCodes=new Set(['immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch',
+      'version_conflict','inference_commitment_mismatch','client_update_required','durable_preflight_failed','preflight_expired',
+      'preflight_required','team_chat_scope_mismatch','existing_chat_metadata_forbidden','websocket_receipt_connection_changed']);
+    for(const code of errorCodes)reasons.add(code);
+    const httpStatuses=new Set([400,401,403,404,408,409,413,422,429,500,502,503,504]);
+    const errorModules=new Set(['services/voiceCallTurns.ts','services/chatSyncService.ts','services/sendersChatMessages.ts',
+      'services/preparedPrivacyForSend.ts','services/preflightAcknowledgement.ts','services/serverCapabilityGate.ts',
+      'services/outboundMessageSends.ts','services/personalChatTurnBarrier.ts','services/fastAdmissionJournal.ts',
+      'services/fastAdmissionPhaseJournal.ts','services/savedPersonalAdmissionHistory.ts','services/websocketService.ts',
+      'services/chatKeyWriteGuard.ts','services/chatKeyConsistency.ts','services/encryption/ChatKeyManager.ts','services/db.ts',
+      'services/db/messageOperations.ts','services/db/chatCrudOperations.ts','services/db/messageJournalOperations.ts',
+      'utils/chatCompletionRecovery.ts']);
+    const safeId=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)?value:undefined;
+    const taskStatuses=new Set(['queued','initiated','processing','running','streaming','completed','failed','timed_out',
+      'cancelled','revocation_sent','revocation_failed','already_completed','already_cancelled','not_found','synced','stored',
+      'accepted','rejected','ready','ok','success','error']);
+    window.addEventListener('voiceCallTurnDelivery',event=>{
+      const detail=(event as CustomEvent).detail;
+      if(!detail||!phases.has(detail.phase))return;
+      const parts=typeof detail.reason==='string'?detail.reason.split(':'):[];
+      const reason=parts.length===1&&reasons.has(parts[0])?parts[0]:parts.length===2&&phases.has(parts[0])&&reasons.has(parts[1])?parts.join(':'):undefined;
+      const failure: NonNullable<TurnDeliveryObservation['failure']>={};
+      if(detail.phase==='failed'&&detail.failure&&typeof detail.failure==='object') {
+        const value=detail.failure;
+        if(errorClasses.has(value.errorClass))failure.errorClass=value.errorClass;
+        if(errorCodes.has(value.errorCode))failure.errorCode=value.errorCode;
+        if(httpStatuses.has(value.httpStatus))failure.httpStatus=value.httpStatus;
+        if(errorModules.has(value.module)) {
+          failure.module=value.module;
+          if(Number.isInteger(value.line)&&value.line>=1&&value.line<=999999)failure.line=value.line;
         }
-        const originalSend = socket.send.bind(socket);
-        socket.send = (data) => {
-          if (typeof data === 'string') {
-            try {
-              const event = JSON.parse(data);
-              const payload = event.payload ?? event;
-              if (event.type === 'voice_metadata_commit' && evidence.holdMetadataCommits) {
-                evidence.heldMetadataCommits = (evidence.heldMetadataCommits ?? 0) + 1;
-                return;
-              }
-              if (event.type === 'mic_audio' && !audioBatch) {
-                audioBatch = ++nextAudioBatch;
-                queueMicrotask(() => { audioBatch = 0; });
-              }
-              if (['voice_metadata_request', 'voice_metadata_commit', 'voice_metadata_pending', 'start', 'text_input', 'call_message_completed', 'encrypted_chat_metadata', 'store_chat_compression_checkpoint', 'chat_system_message_added', 'voice_compression_confirmed', 'voice_context_paused', 'chat_message_added', 'mic_audio', 'audio_stream_end', 'hangup', 'voice_memory_response', 'app_settings_memories_confirmed', 'voice_action_completed_confirmed'].includes(event.type)) {
-                evidence.sent.push({
-                  path, socketId, type: event.type, observedAt: performance.now(),
-                  ...(event.type === 'mic_audio' ? { audioSamples: atob(payload.data).length / 2, audioBatch, audioNonzero: /[^\0]/.test(atob(payload.data)) } : {}),
-                  messageId: payload.message_id ?? payload.message?.message_id ?? payload.assistant_message_id,
-                  chatId: payload.chat_id, role: payload.role, requestId: payload.request_id,
-                  ...(['call_message_completed', 'encrypted_chat_metadata', 'chat_system_message_added'].includes(event.type) ? {
-                    ciphertextLength: typeof (payload.message ?? payload).encrypted_content === 'string' ? (payload.message ?? payload).encrypted_content.length : 0,
-                    plaintext: 'content' in (payload.message ?? payload) || 'text' in (payload.message ?? payload),
-                    revision: payload.revision,
-                  } : {}),
-                  ...(event.type === 'start' ? { context: payload.context?.messages, summary: payload.context?.summary,
-                    startupAllowanceMs: payload.startup_audio_allowance_ms } : {}),
-                  ...(event.type === 'store_chat_compression_checkpoint' ? {
-                    checkpointId: payload.checkpoint_id, coveredCount: payload.covered_message_ids?.length,
-                    ciphertextLength: typeof payload.encrypted_summary === 'string' ? payload.encrypted_summary.length : 0,
-                    plaintext: 'summary' in payload || 'summary_content' in payload,
-                  } : {}),
-                  ...(['voice_compression_confirmed', 'voice_context_paused'].includes(event.type) ? { checkpointId: payload.checkpoint_id } : {}),
-                });
-              }
-            } catch { /* Observe without changing transport behavior. */ }
-          }
-          originalSend(data);
-          if (path === '/v1/voice-call' && evidence.reconnectOnText && typeof data === 'string') {
-            try {
-              if (JSON.parse(data).type === 'text_input') {
-                evidence.reconnectOnText = false;
-                evidence.reconnectInjected = true;
-                evidence.mainSocket?.close();
-              }
-            } catch { /* Preserve native transport if an unrelated frame arrives. */ }
-          }
-        };
-        socket.addEventListener('message', (message) => {
-          if (typeof message.data !== 'string') return;
-          try {
-            const event = JSON.parse(message.data);
-            if (path === '/v1/voice-call' && event.type === 'ready' && holdReady) {
-              // Delay delivery of the genuine ready bytes, preserving the real
-              // authenticated socket/server. No microphone frame can pass yet.
-              message.stopImmediatePropagation();
-              evidence.readyHeld = true;
-              evidence.releaseReady = () => {
-                holdReady = false;
-                evidence.readyHeld = false;
-                socket.dispatchEvent(new MessageEvent('message', { data: message.data }));
-              };
-              return;
-            }
-            const payload = event.payload ?? event;
-            if (['voice_metadata_accepted', 'voice_metadata_completed', 'voice_metadata_stored', 'voice_metadata_error', 'error', 'server_capabilities', 'usage', 'billing_activity', 'ready', 'transcript', 'call_message_confirmed', 'system_message_confirmed', 'call_message_rejected', 'chat_compression_checkpoint_stored', 'ended', 'voice_memory', 'voice_focus', 'voice_embed', 'voice_context', 'voice_compression_started', 'voice_compression', 'voice_context_pause', 'voice_context_resumed', 'voice_action_completed'].includes(event.type)) {
-              evidence.received.push({ path, socketId, type: event.type, messageId: payload.message_id,
-                ...(event.type === 'error' ? {
-                  code: ['call_unavailable', 'context_too_large', 'transcript_limit'].includes(payload.code) ? payload.code : 'other',
-                  stage: ['start_validation','context_options','personal_chat','session','credits','lock','registry','provider_selection','broker_creation','broker_prepare','prompt_configuration','provider_open','active'].includes(payload.stage) ? payload.stage : 'other',
-                  ...(payload.error_origin && /^[A-Za-z_][A-Za-z_0-9]{0,79}$/.test(payload.error_origin.category) &&
-                    /^[A-Za-z_][A-Za-z_0-9]{0,79}$/.test(payload.error_origin.function) && Number.isSafeInteger(payload.error_origin.line) ? {
-                      errorOrigin: { category: payload.error_origin.category, function: payload.error_origin.function, line: payload.error_origin.line },
-                    } : {}),
-                } : {}),
-                ...(event.type === 'voice_metadata_error' ? { code: payload.code === 'metadata_stale' ? 'metadata_stale' : 'metadata_unavailable',
-                  stage: typeof payload.stage === 'string' && /^[A-Za-z_][A-Za-z_0-9]*:[0-9]+$/.test(payload.stage) ? payload.stage : 'unknown' } : {}),
-                chatId: payload.chat_id, role: payload.role, revision: payload.revision, requestId: payload.request_id,
-                assistantMessageId: event.assistant_message_id ?? payload.assistant_message_id,
-                callId: event.call_id ?? payload.call_id, embedId: payload.embed_id ?? payload.embed_refs?.[0],
-                ...(event.type === 'billing_activity' ? { inputListening: payload.input_listening, processing: payload.processing } : {}),
-                ...(event.type === 'usage' ? {creditsCharged:payload.credits_charged} : {}),
-                ...(event.type === 'transcript' ? { createdAt: payload.created_at, final: payload.final === true,
-                  textLength: typeof payload.text === 'string' ? payload.text.length : 0,
-                  expectedReply: typeof payload.text === 'string' && payload.text.includes(expectedReply) } : {}),
-                ...(event.type === 'voice_compression_started' ? { snapshotId: payload.snapshot_id, sourceMessageIds: payload.message_ids } : {}) });
-              if (['voice_compression', 'chat_compression_checkpoint_stored', 'voice_context_pause', 'voice_context_resumed'].includes(event.type)) {
-                const observed = evidence.received.at(-1)!;
-                observed.checkpointId = payload.summary_message_id ?? payload.checkpoint?.id ?? payload.checkpoint_id;
-                observed.coveredCount = payload.covered_message_ids?.length ?? payload.checkpoint?.covered_message_ids?.length;
-                if (event.type === 'voice_compression') {
-                  observed.coveredMessageIds = payload.covered_message_ids;
-                  observed.compressedMessageCount = payload.compressed_message_count;
-                  observed.snapshotId = payload.voice_snapshot_id;
-                  observed.boundaryTimestamp = payload.compressed_up_to_timestamp;
-                }
-              }
-            }
-            const target = evidence.hangupOnCommittedAction;
-            const currentReady = evidence.received.filter(observed => observed.type === 'ready').at(-1);
-            if (event.type === 'voice_action_completed' && target && payload.call_id === target.callId &&
-                currentReady?.callId === target.callId && currentReady.socketId === target.socketId) {
-              const hangup = document.querySelector<HTMLButtonElement>('[data-testid="voice-call-hangup"]');
-              if (hangup) {
-                evidence.hangupOnCommittedAction = undefined;
-                evidence.committedHangupReceipt = evidence.received.at(-1);
-                evidence.committedHangupInjected = true;
-                hangup.click();
-              }
-            }
-          } catch { /* Binary/provider audio is irrelevant to ciphertext proof. */ }
-        });
-        return socket;
-      },
+      }
+      const events=evidence.turnDelivery??(evidence.turnDelivery=[]);
+      events.push({callId:safeId(detail.callId),chatId:safeId(detail.chatId),turnId:safeId(detail.turnId),
+        phase:detail.phase,reason,observedAt:performance.now(),...(Object.keys(failure).length?{failure}:{})});
+      if(events.length>48)events.splice(0,events.length-48);
     });
-    const originalCapture = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
-      const stream = await originalCapture(constraints);
-      evidence.tracks.push(...stream.getTracks());
-      return stream;
-    };
-  }, { expectedReply: STAGE_TWO_REPLY, deferReady });
+    const NativeWebSocket=window.WebSocket;
+    let nextSocketId=0;
+    window.WebSocket=new Proxy(NativeWebSocket,{construct(Target,args){
+      const socket:WebSocket=Reflect.construct(Target,args);
+      const socketId=++nextSocketId;
+      const path=new URL(String(args[0]),location.href).pathname;
+      if(path==='/v1/ws') { evidence.mainSocket=socket; evidence.mainSocketId=socketId; }
+      const observe=(data:unknown,sent:boolean)=>{
+        if(typeof data!=='string')return;
+        let event;try{event=JSON.parse(data);}catch{return;}
+        const payload=event.payload??event;
+        const message=payload.message??payload;
+        if(!sent&&path==='/v1/voice-call'&&event.type==='ready'&&holdReady)return;
+        if(sent&&event.type==='mic_audio'&&!audioBatch){audioBatch=++nextAudioBatch;queueMicrotask(()=>{audioBatch=0;});}
+        // Keep identity, bounded counts and booleans only. No PCM, message text,
+        // tokens, encryption keys, presigned URLs or decrypted embeds leave here.
+        const frame:SocketObservation={path,socketId,type:event.type,observedAt:performance.now(),
+          messageId:payload.message_id??message.message_id,chatId:payload.chat_id,callId:payload.call_id,
+          turnId:safeId(payload.turn_id),preflightId:safeId(payload.preflight_id),requestId:safeId(payload.request_id),
+          role:message.role,assistantMessageId:payload.assistant_message_id,
+          userMessageId:payload.user_message_id,taskId:payload.task_id??payload.assistant_task_id,
+          taskStatus:taskStatuses.has(payload.status)?payload.status:undefined,
+          ...(event.type==='start'?{startupAllowanceMs:payload.startup_audio_allowance_ms}:{}),
+          ...(event.type==='error'?{code:typeof payload.code==='string'&&/^[a-z_]{1,64}$/.test(payload.code)?payload.code:'unknown',stage:typeof payload.stage==='string'&&/^[a-z_]{1,64}$/.test(payload.stage)?payload.stage:'unknown'}:{}),
+          ...(event.type==='mic_audio'?{audioSamples:atob(payload.data).length/2,audioBatch,audioNonzero:/[^\0]/.test(atob(payload.data))}:{}),
+          ...(['chat_message_added','chat_system_message_added','call_message_completed'].includes(event.type)?{
+            ciphertextLength:typeof message.encrypted_content==='string'?message.encrypted_content.length:0,
+            plaintext:'content' in message||'text' in message,voiceMode:message.voice_mode===true,
+            autoSpeak:message.auto_speak_response===true,forcedModel:!!(message.model||message.provider||message.model_id),
+            ...(message.voice_heard_boundary?{heardBoundary:message.voice_heard_boundary}:{})}:{}),
+          ...(event.type==='billing_activity'?{inputListening:payload.input_listening,processing:payload.processing}:{}),
+          ...(event.type==='usage'?{creditsCharged:payload.credits_charged}:{}),
+          ...(event.type==='transcript'?{final:payload.final===true,createdAt:payload.created_at}:{}),
+          ...(event.type==='ai_message_update'?{userMessageId:payload.user_message_id,
+            final:payload.is_final_chunk===true&&!payload.awaiting_async_skill_continuation,
+            finalChunk:payload.is_final_chunk===true,awaitingContinuation:payload.awaiting_async_skill_continuation===true,
+            interruptedByRevocation:payload.interrupted_by_revocation===true,interruptedBySoftLimit:payload.interrupted_by_soft_limit===true}:{}),
+          ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
+          ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,segmentId:payload.segment_id}:{}),
+        };
+        (sent?evidence.sent:evidence.received).push(frame);
+      };
+      const originalSend=socket.send.bind(socket);
+      socket.send=data=>{observe(data,true);originalSend(data);};
+      socket.addEventListener('message',event=>{
+        if(typeof event.data!=='string')return;
+        try{if(path==='/v1/voice-call'&&JSON.parse(event.data).type==='ready'&&holdReady){
+          event.stopImmediatePropagation();evidence.readyHeld=true;evidence.releaseReady=()=>{holdReady=false;evidence.readyHeld=false;socket.dispatchEvent(new MessageEvent('message',{data:event.data}));};return;
+        }}catch{return;}
+        observe(event.data,false);
+      });
+      return socket;
+    }});
+    const capture=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia=async constraints=>{const stream=await capture(constraints);evidence.tracks.push(...stream.getTracks());return stream;};
+  },{deferReady});
 }
 
 async function evidence(page: Page): Promise<Omit<CallEvidence, 'tracks'>> {
@@ -369,6 +311,24 @@ async function evidence(page: Page): Promise<Omit<CallEvidence, 'tracks'>> {
     const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
     return { sent: state.sent, received: state.received };
   });
+}
+
+/** Wait for this ordinary turn's completed stream, including any app invocation. */
+async function waitForCanonicalAssistant(page: Page, userMessageId: string): Promise<void> {
+  await expect.poll(async () => (await evidence(page)).received.some(frame =>
+    frame.type === 'ai_message_update' && frame.userMessageId === userMessageId && frame.final),
+  { timeout: 45_000, message: 'The admitted ordinary turn must finish its canonical assistant response' }).toBe(true);
+}
+
+/** Resolve the STT-admitted identity before waiting on its ordinary reply. */
+async function waitForSpokenAssistant(page: Page): Promise<void> {
+  let userMessageId: string | undefined;
+  await expect.poll(async () => {
+    userMessageId=(await evidence(page)).received.find(frame => frame.path === '/v1/voice-call' &&
+      frame.type === 'transcript' && frame.role === 'user' && frame.final)?.messageId;
+    return !!userMessageId;
+  }, { timeout: 30_000, message: 'Real speech must produce a final admitted user turn' }).toBe(true);
+  await waitForCanonicalAssistant(page,userMessageId!);
 }
 
 interface NativeVoiceInputEvidence {
@@ -609,7 +569,6 @@ async function assertCallHistoryDurable(page: Page, chatId: string, callId: stri
         if(!history.has_more_before||!history.start_cursor) break;
         params.set('direction','before');params.set('before_timestamp',String(history.start_cursor.created_at));params.set('before_message_id',history.start_cursor.message_id);
       }
-      const durable=ids.filter((id,index)=>remote.get(id)?.encrypted_content===local[index]?.encrypted_content).length;
       const master=await read<CryptoKey>(keys,'keys','master_key');
       const chat=await read<{encrypted_chat_key:string}>(db,'chats',chatId);
       const bytes=(value:string)=>Uint8Array.from(atob(value),char=>char.charCodeAt(0));
@@ -629,6 +588,11 @@ async function assertCallHistoryDurable(page: Page, chatId: string, callId: stri
           remoteRevision:canonical?.queue_revision??0,pendingOutboxCount:own?.call_persistence_v1?.entries.length??0,
           ciphertextMatches,plaintextMatches};
       }));
+      // Ordinary optimistic and canonical rows use independent AES-GCM IVs.
+      // Durability requires the same owned row identity and decrypted content,
+      // never coincidental ciphertext equality between those encryptions.
+      const durable=state.historyDurability.filter((proof,index)=>proof.localExists&&proof.remoteExists&&proof.plaintextMatches&&
+        local[index]!.role===remote.get(ids[index])!.role&&local[index]!.created_at===remote.get(ids[index])!.created_at).length;
       const events=[];
       let decryptedEvents=0;
       // Decrypt only inside the browser; diagnostics return counts/booleans.
@@ -664,68 +628,6 @@ async function evictOwnedCallRows(page:Page,chatId:string,callId:string,transcri
       });
     } finally {db.close();}
   },{chatId,callId,transcriptIds});
-}
-
-async function assertHeaderCallActions(page: Page, active: boolean, hasClose: boolean): Promise<void> {
-  const call = page.locator('[data-testid="voice-call-start"]:visible');
-  if (active) {
-    await expect(call).toHaveCount(0);
-    const bar=page.getByTestId('voice-call-bar');
-    await expect(bar).toBeVisible();
-    await expect(page.getByTestId('voice-call-hangup')).toHaveAccessibleName('Hang up');
-    await expect(page.getByTestId('voice-call-video')).toHaveAccessibleName('Video call');
-    const [video,center,end]=await Promise.all(['voice-call-video','voice-call-mute','voice-call-hangup'].map(id=>page.getByTestId(id).boundingBox()));
-    expect(video!.x+video!.width).toBeLessThanOrEqual(center!.x+1);
-    expect(center!.x+center!.width).toBeLessThanOrEqual(end!.x+1);
-    if(hasClose) await expect(page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible')).toHaveCount(1);
-    await assertSlimCallSurface(page);
-    return;
-  }
-  await expect(call).toHaveCount(1);
-  await expect(call).toHaveAccessibleName('Start voice call');
-  await expect(call).toHaveAccessibleDescription('Voice calls use Google Gemini with usage-based billing.');
-  await expect(call).toHaveAttribute('aria-pressed','false');
-  const handset=call.getByTestId('voice-call-handset');
-  await expect(handset).toHaveAttribute('data-icon','audiocall');
-  await expect(handset).not.toHaveCSS('mask-image','none');
-  await expect(handset).toHaveCSS('transform','matrix(1, 0, 0, 1, 0, 0)');
-  const close=page.locator('[data-testid="chat-close-button"]:visible');
-  await expect(close).toHaveCount(hasClose?1:0);
-  if(hasClose) {
-    const [left,right]=await Promise.all([call.boundingBox(),close.boundingBox()]);
-    expect(right!.x).toBeGreaterThanOrEqual(left!.x+left!.width);
-    expect(Math.abs(left!.y+left!.height/2-right!.y-right!.height/2)).toBeLessThan(1);
-  }
-}
-
-/** Completed skill activity uses the same disclosure as ordinary text replies. */
-async function expandWebActivity(page: Page, assistant: Locator): Promise<void> {
-  const dismissInput = page.getByTestId('input-dismiss-button');
-  if (await dismissInput.isVisible()) await dismissInput.click();
-  const groups = assistant.getByTestId('assistant-activity-group').filter({
-    has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="web"]'),
-  });
-  await expect.poll(() => groups.count()).toBeGreaterThan(0);
-  for (const group of await groups.all()) {
-    const toggle = group.getByTestId('assistant-activity-toggle');
-    await toggle.scrollIntoViewIfNeeded();
-    await expect(toggle).toHaveAttribute('aria-expanded', /^(true|false)$/);
-    if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(group.getByTestId('assistant-activity-body')).toBeVisible();
-  }
-}
-
-/** Reloaded compressed chats expose their original rows through native history. */
-async function showForgottenHistory(page: Page): Promise<void> {
-  const dismissInput = page.getByTestId('input-dismiss-button');
-  if (await dismissInput.isVisible()) await dismissInput.click();
-  const toggle = page.getByTestId('show-forgotten-messages');
-  await expect(toggle).toBeVisible({ timeout: 45_000 });
-  await toggle.scrollIntoViewIfNeeded();
-  await expect(toggle).toContainText('Show old forgotten messages');
-  await toggle.click();
-  await expect(toggle).toContainText('Hide old forgotten messages', { timeout: 45_000 });
 }
 
 function installChatLookupHold({ boundChatId }: {
@@ -859,138 +761,6 @@ async function expectHeaderPointerAccess(page: Page): Promise<void> {
 
 
 /** Persist fictional encrypted history through the account's real first-party transport. */
-async function seedVoiceContext(page: Page, chatId: string, coveredIds: string[], uncoveredCount = 25): Promise<string[]> {
-  const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL;
-  expect(apiUrl, 'isolated CI must supply its private API URL').toBeTruthy();
-  // Reloaded history renders locally before the asynchronous main connection.
-  // server_capabilities is issued after authentication/connection registration;
-  // bind readiness to the current socket, including after a native reconnect.
-  await expect.poll(() => page.evaluate(() => {
-    const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
-    return {
-      path: state.mainSocket ? new URL(state.mainSocket.url).pathname : null,
-      readyState: state.mainSocket?.readyState ?? -1,
-      authenticated: state.received.some((event) => event.type === 'server_capabilities' && event.socketId === state.mainSocketId),
-    };
-  }), { timeout: 30_000, message: 'Existing main transport must be open and authenticated before encrypted history seeding' })
-    .toEqual({ path: '/v1/ws', readyState: 1, authenticated: true });
-  const uncovered = await page.evaluate(async ({ chatId, coveredIds, fact, oldestUncoveredFact, uncoveredCount }) => {
-    const open = (name: string) => new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(name);
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    const read = <T>(db: IDBDatabase, store: string, id: string) => new Promise<T>((resolve, reject) => {
-      const request = db.transaction(store, 'readonly').objectStore(store).get(id);
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    const database = await open('chats_db');
-    const cryptoDatabase = await open('openmates_crypto');
-    try {
-      const masterKey = await read<CryptoKey>(cryptoDatabase, 'keys', 'master_key');
-      if (!masterKey) throw new Error('Fixture requires an authenticated browser master key');
-      const chat = await read<{ encrypted_chat_key: string; messages_v: number }>(database, 'chats', chatId);
-      const wrapped = Uint8Array.from(atob(chat.encrypted_chat_key), (char) => char.charCodeAt(0));
-      const rawKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, masterKey, wrapped.slice(12));
-      const chatKey = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['encrypt']);
-      const encrypt = async (text: string, key: CryptoKey) => {
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text)));
-        const bytes = new Uint8Array(iv.length + ciphertext.length); bytes.set(iv); bytes.set(ciphertext, iv.length);
-        return btoa(String.fromCharCode(...bytes));
-      };
-      const covered = await Promise.all(coveredIds.map((id) => read<{ message_id: string; created_at: number }>(database, 'messages', id)));
-      const boundary = covered.sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id)).at(-1)!;
-      // Longer than the old 2,000-character overview slice, with the key fact at
-      // the end: the test fails if call admission discards checkpoint meaning.
-      const summary = 'Earlier turns established broth, noodles and timing. '.repeat(70) + fact;
-      const encryptedSummary = await encrypt(summary, chatKey);
-      const encryptedMemory = await encrypt(JSON.stringify({ title: 'Voice fixture preference', technologies: ['TypeScript'], notes: 'Fictional selected private memory' }), masterKey);
-      // The default twenty-five rows force a second native window read; the
-      // final refusal case uses thirty-one to exceed gateway admission safely.
-      // Fresh globally unique IDs prevent cross-account/retry ownership collisions;
-      // sorted UUID ordering puts the unique fact outside the latest24 window.
-      // Keep fictional history after the approved checkpoint. The bounded clock
-      // fence below ensures it predates the next call's protected audio cohort.
-      const uncoveredAt = Math.max(boundary.created_at + 1, Math.floor(Date.now() / 1000) - 1);
-      const uncoveredIds = Array.from({ length: uncoveredCount }, () => crypto.randomUUID()).sort();
-      const encryptedSender = await encrypt('You', chatKey);
-      const encryptedCategory = await encrypt('general_knowledge', chatKey);
-      const uncovered = await Promise.all(uncoveredIds.map(async (messageId, index) => ({
-        message_id: messageId, chat_id: chatId,
-        role: 'user', status: 'synced', created_at: uncoveredAt,
-        encrypted_sender_name: encryptedSender, encrypted_category: encryptedCategory,
-        encrypted_content: await encrypt(index === 0 ? oldestUncoveredFact : `Fictional uncovered recipe detail ${index}.`, chatKey),
-      })));
-      await new Promise<void>((resolve, reject) => {
-        const tx = database.transaction(['chat_compression_checkpoints', 'app_settings_memories'], 'readwrite');
-        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
-        tx.objectStore('chat_compression_checkpoints').put({ id: crypto.randomUUID(), chat_id: chatId,
-          encrypted_summary: encryptedSummary, compressed_up_to_timestamp: boundary.created_at,
-          compressed_up_to_message_id: boundary.message_id, covered_message_ids: coveredIds,
-          compressed_message_count: coveredIds.length, summary_token_estimate: 1000, created_at: Math.floor(Date.now() / 1000) });
-        tx.objectStore('app_settings_memories').put({ id: crypto.randomUUID(), app_id: 'code',
-          item_type: 'preferred_tech', item_key: 'voice-fixture-private-entry', encrypted_item_json: encryptedMemory,
-          encrypted_app_key: '', item_version: 1, created_at: Math.floor(Date.now() / 1000), updated_at: Math.floor(Date.now() / 1000) });
-      });
-      const socket = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.mainSocket;
-      if (!socket || socket.readyState !== WebSocket.OPEN) throw new Error('Encrypted fixture requires the authenticated main socket');
-      // Existing storage-only operation checks the canonical owner and wrapped
-      // chat key, and queues ciphertext persistence without an AI request.
-      for (const [index, row] of uncovered.entries()) socket.send(JSON.stringify({
-        type: 'encrypted_chat_metadata', payload: {
-          chat_id: chatId, message_id: row.message_id, encrypted_content: row.encrypted_content,
-          encrypted_sender_name: row.encrypted_sender_name, encrypted_category: row.encrypted_category,
-          encrypted_chat_key: chat.encrypted_chat_key, created_at: row.created_at,
-          versions: { messages_v: (chat.messages_v ?? 0) + index + 1, last_edited_overall_timestamp: uncoveredAt },
-        },
-      }));
-      return uncovered;
-    } finally { database.close(); cryptoDatabase.close(); }
-  }, { chatId, coveredIds, fact: CHECKPOINT_FACT, oldestUncoveredFact: UNCOVERED_CONTEXT_FACT, uncoveredCount });
-
-  // A chat_message_confirmed receipt only means its message task was queued.
-  // The authenticated canonical reader is the durability fence for compression.
-  // Keep ciphertext comparisons in memory; failures report only a matched count.
-  await expect.poll(async () => {
-    const params = new URLSearchParams({ direction: 'latest', limit: '20', respect_compression_boundary: 'false' });
-    const stored = new Map<string, string>();
-    let matched = 0;
-    // The reader caps each window at20, so follow its native cursor rather than
-    // treating a larger requested limit as a complete durability observation.
-    for (let window = 0; window < 3; window += 1) {
-      const response = await page.request.get(`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params}`);
-      expect(response.ok(), 'Authenticated encrypted history reader must accept the owned chat').toBe(true);
-      const history = await response.json();
-      for (const row of history.messages ?? []) stored.set(row.message_id, row.encrypted_content);
-      matched = uncovered.filter((row) => stored.get(row.message_id) === row.encrypted_content).length;
-      if (matched === uncovered.length || !history.has_more_before || !history.start_cursor) break;
-      params.set('direction', 'before');
-      params.set('before_timestamp', String(history.start_cursor.created_at));
-      params.set('before_message_id', history.start_cursor.message_id);
-    }
-    return matched;
-  }, { timeout: 45_000, intervals: [250, 500, 1000], message: 'All fictional encrypted history rows must be durable before voice compression' }).toBe(uncoveredCount);
-
-  await page.evaluate(async (rows) => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('chats_db');
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const tx = database.transaction('messages', 'readwrite');
-        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
-        for (const row of rows) tx.objectStore('messages').put(row);
-      });
-    } finally { database.close(); }
-  }, uncovered);
-  await expect.poll(() => page.evaluate(() => Math.floor(Date.now() / 1000)), {
-    timeout: 5_000, intervals: [100],
-    message: 'Fictional prior history must precede the next voice turn by an integer timestamp second',
-  }).toBeGreaterThan(uncovered[0].created_at);
-  return uncovered.map((row) => row.message_id);
-}
-
 interface CameraCallObservation {
   type: string; observedAt: number; callId?: string; frameId?: string; userMessageId?: string;
   assistantMessageId?: string; embedId?: string; embedType?: string; status?: string;
@@ -1088,7 +858,12 @@ async function observeCameraCall(page: Page): Promise<void> {
     } });
     document.addEventListener('imagefullscreen', (event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.embedId) state.openedSource = detail;
+      // ImageRenderer emits media metadata from its owning nodeview; its
+      // fullscreen payload does not duplicate the embed identity in the DOM.
+      const target = event.target instanceof Element ? event.target : null;
+      const owner = target?.closest('[data-embed-id]') ?? target?.querySelector('[data-embed-id]');
+      const embedId = detail?.embedId ?? owner?.getAttribute('data-embed-id');
+      if (embedId) state.openedSource = { ...detail, embedId };
     });
   });
 }
@@ -1151,7 +926,8 @@ async function assertEncryptedSourceAttachment(page: Page, chatId: string, userM
 async function assertOpenOriginalSource(page: Page, thumbnail: Locator, sourceId: string, expectedHash: string, testInfo: TestInfo): Promise<void> {
   await expect(thumbnail).toBeEnabled();
   await expect.poll(() => thumbnail.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
-  await clickChatTarget(thumbnail, testInfo);
+  // Chat result cards expose their explicit Details action; the card body is a group.
+  await clickChatTarget(thumbnail.getByTestId('result-preview-expand'), testInfo);
   await expect(page.getByTestId('image-embed-fullscreen')).toBeVisible();
   await expect.poll(() => page.getByTestId('image-embed-fullscreen').locator('img:not(.preview-placeholder)').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   // Read the original through the normal owner-authorized presigned URL. Keys,
@@ -1191,559 +967,9 @@ async function sendCameraCallText(page: Page, text: string): Promise<string> {
   return voiceFrames(await evidence(page), 'text_input').at(-1)!.messageId!;
 }
 
-async function waitForCameraAssistantTurn(page: Page, callId: string, messageId: string): Promise<void> {
-  // A finished skill arrives before the provider's final spoken reply. Wait for
-  // that exact turn and its rendered prose before inspecting a static card;
-  // otherwise new prose can move the target between pointer down and up.
-  await expect.poll(async () => (await evidence(page)).received.some(event =>
-    event.type === 'transcript' && event.path === '/v1/voice-call' && event.callId === callId &&
-    event.messageId === messageId && event.role === 'assistant' && event.final === true)).toBe(true);
-  await expect(page.locator(`[data-testid="message-assistant"][data-message-id="${messageId}"]`))
-    .toContainText('The search results are ready.');
-}
-
-async function runCameraCallFlow(page: Page, context: BrowserContext, testInfo: TestInfo, viewport: 'phone' | 'laptop'): Promise<void> {
-  test.setTimeout(240_000);
-  await page.setViewportSize(viewport === 'phone' ? { width: 390, height: 844 } : { width: 1280, height: 900 });
-  await context.grantPermissions(['microphone', 'camera']);
-  await installNativeVoiceInput(page);
-  await observeRealTransport(page);
-  await observeCameraCall(page);
-  await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
-  await page.locator('[data-testid="voice-call-start"]:visible').click();
-  await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-  await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(0);
-  const ready = (await evidence(page)).received.find(event => event.type === 'ready' && event.path === '/v1/voice-call')!;
-  const chatId = voiceFrames(await evidence(page), 'start')[0].chatId!;
-  expect(ready.callId).toBeTruthy();
-  expect((await cameraCallEvidence(page)).facing).toEqual([]);
-  const camera = page.getByTestId('voice-call-video');
-  const mute = page.getByTestId('voice-call-mute');
-  await mute.click();
-  await expect(mute).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(async () => voiceFrames(await evidence(page), 'audio_stream_end').length).toBe(1);
-  const mutedMicFrames = voiceFrames(await evidence(page), 'mic_audio').length;
-  await camera.click();
-  await expect(camera).toHaveAttribute('aria-pressed', 'true');
-  const stage = page.getByTestId('voice-call-media');
-  await expect(stage).toHaveAttribute('data-expanded', 'true');
-  await expect.poll(() => page.getByTestId('voice-call-camera-preview').locator('video').evaluate((video: HTMLVideoElement) => video.videoWidth)).toBeGreaterThan(0);
-  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length).toBeGreaterThanOrEqual(2);
-  await expect(stage).toHaveAttribute('data-expanded', 'false');
-  await assertActivityCounter(page, true);
-  expect(voiceFrames(await evidence(page), 'mic_audio').length).toBe(mutedMicFrames);
-  expect((await cameraCallEvidence(page)).facing).toEqual(['environment']);
-  await page.evaluate(() => {
-    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence; __voiceCallEvidence: CallEvidence });
-    state.__voiceCameraEvidence.beforeFlip = state.__voiceCallEvidence.tracks.filter(track => track.kind === 'video');
-  });
-  await page.getByTestId('voice-call-camera-flip').click();
-  await expect.poll(async () => (await cameraCallEvidence(page)).facing).toEqual(['environment', 'user']);
-  await expect.poll(() => page.evaluate(() => {
-    const state = (window as unknown as { __voiceCameraEvidence: CameraCallEvidence; __voiceCallEvidence: CallEvidence });
-    return !!state.__voiceCameraEvidence.beforeFlip?.length && state.__voiceCameraEvidence.beforeFlip.every(track => track.readyState === 'ended') &&
-      state.__voiceCallEvidence.tracks.some(track => track.kind === 'video' && track.readyState === 'live' && !state.__voiceCameraEvidence.beforeFlip!.includes(track));
-  })).toBe(true);
-  await camera.click();
-  await expect(camera).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('voice-call-camera-preview')).toHaveCount(0);
-  await assertActivityCounter(page, false);
-  // Stopping video never replaces or mutes the original microphone owner.
-  await mute.click();
-  await playNativeVoiceFixture(page);
-  await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(mutedMicFrames);
-  await expect(mute).toHaveAttribute('aria-pressed', 'false');
-  await camera.click();
-  await expect(camera).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length).toBeGreaterThan(2);
-  await expect(mute).toHaveAttribute('aria-pressed', 'false');
-  await mute.click();
-  await expect(mute).toHaveAttribute('aria-pressed', 'true');
-  await expect(stage).toHaveAttribute('data-expanded', 'false');
-  await assertActivityCounter(page, true);
-  expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
-  // Call clock/meter updates replace parent state while the camera owner stays
-  // the same. Its visible native preview must keep playing across those updates.
-  const livePreview = page.getByTestId('voice-call-camera-preview').locator('video');
-  await expect.poll(() => livePreview.evaluate((video: HTMLVideoElement) => video.readyState >= 2 && !video.paused)).toBe(true);
-  const previewTime = await livePreview.evaluate((video: HTMLVideoElement) => video.currentTime);
-  const previewFrames = (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length;
-  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length)
-    .toBeGreaterThanOrEqual(previewFrames + 2);
-  expect(await livePreview.evaluate((video: HTMLVideoElement) => video.currentTime)).toBeGreaterThan(previewTime + 0.75);
-
-  const searchUserId = await sendCameraCallText(page, 'Voice camera fixture: search current frame');
-  await expect.poll(async () => (await sourceFrameProof(page, searchUserId))?.exact, { timeout: 45_000 }).toBe(true);
-  const searchSource = (await sourceFrameProof(page, searchUserId))!;
-  expect(searchSource).toMatchObject({ exact: true, clean: true, bounded: true });
-  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.type === 'voice_embed' &&
-    event.userMessageId === searchUserId && event.embedType === 'app_skill_use' && event.appId === 'web' && event.status === 'processing')).toBe(true);
-  const searchProcessing = (await cameraCallEvidence(page)).received.find(event => event.type === 'voice_embed' &&
-    event.userMessageId === searchUserId && event.embedType === 'app_skill_use' && event.appId === 'web' && event.status === 'processing')!;
-  expect(searchProcessing.inputEmbedIds).toEqual([searchSource.embedId]);
-  const searchAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${searchProcessing.assistantMessageId}"]`);
-  const searchCard = searchAssistant.locator(`[data-testid="embed-preview"][data-embed-id="${searchProcessing.embedId}"]`);
-  const searchThumbnail = searchCard.getByTestId('skill-input-images').locator(`button[data-embed-id="${searchSource.embedId}"]`);
-  // Only this exact external camera-search fixture adds a one-second provider
-  // delay. The socket, processing publication, source upload and storage are real.
-  await expect(searchCard).toHaveAttribute('data-status', 'processing');
-  await expect(searchThumbnail).toBeVisible();
-  await expect(searchThumbnail).toBeEnabled();
-  await page.screenshot({ path: testInfo.outputPath(`camera-search-processing-${viewport}.png`) });
-  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.embedId === searchProcessing.embedId && event.status === 'finished'), { timeout: 60_000 }).toBe(true);
-  const activity = searchAssistant.getByTestId('assistant-activity-group').filter({
-    has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="web"]'),
-  });
-  await waitForCameraAssistantTurn(page, ready.callId!, searchProcessing.assistantMessageId!);
-  await openCompletedAssistantActivity(activity, testInfo);
-  await expect(searchCard).toHaveAttribute('data-status', 'finished');
-  await assertEncryptedSourceAttachment(page, chatId, searchUserId, searchSource.embedId, searchSource.hash);
-  await expect(searchThumbnail).toBeVisible();
-  await expect(searchThumbnail).toBeEnabled();
-  // A single skill keeps the normal compact desktop card on both viewports;
-  // the horizontal group scroller exists only when multiple cards are grouped.
-  await expect(searchCard).toHaveClass(/\bdesktop\b/);
-  await expect(searchCard).toHaveCSS('width', '300px');
-  await expect(searchCard).toHaveCSS('height', '200px');
-  const compactBounds = await searchCard.boundingBox();
-  expect(compactBounds).not.toBeNull();
-  // Normal hover tilt changes the projected bounds, not the card's layout size.
-  expect(compactBounds!.width).toBeGreaterThan(compactBounds!.height);
-  const sourceRow = searchCard.getByTestId('skill-input-images');
-  await expect(sourceRow).toHaveCSS('display', 'flex');
-  await expect(sourceRow).toHaveCSS('flex-direction', 'row');
-  const searchEvents = (await cameraCallEvidence(page)).received.filter(event => event.embedId === searchProcessing.embedId);
-  const searchFinished = searchEvents.find(event => event.status === 'finished')!;
-  expect(searchFinished.inputEmbedIds).toEqual([searchSource.embedId]);
-  expect(searchEvents.findIndex(event => event.status === 'processing')).toBeLessThan(searchEvents.findIndex(event => event.status === 'finished'));
-  expect([...new Set((await cameraCallEvidence(page)).received.filter(event => event.type === 'voice_embed' &&
-    event.userMessageId === searchUserId && event.embedType === 'app_skill_use').map(event => event.embedId))]).toEqual([searchProcessing.embedId]);
-  await assertOpenOriginalSource(page, searchThumbnail, searchSource.embedId, searchSource.hash, testInfo);
-  // The toggle stays mounted when collapsed; its child cards do not. Match the
-  // Web icon within this exact assistant message so the same group can reopen.
-  await clickChatTarget(activity.getByTestId('assistant-activity-toggle'), testInfo);
-  await expect(searchThumbnail).toBeHidden();
-  await clickChatTarget(activity.getByTestId('assistant-activity-toggle'), testInfo);
-  await expect(searchThumbnail).toBeVisible();
-
-  const videoUserId = await sendCameraCallText(page, 'Voice camera fixture: animate current frame');
-  await expect.poll(async () => (await sourceFrameProof(page, videoUserId))?.exact, { timeout: 45_000 }).toBe(true);
-  const videoSource = (await sourceFrameProof(page, videoUserId))!;
-  expect(videoSource).toMatchObject({ exact: true, clean: true, bounded: true });
-  await assertEncryptedSourceAttachment(page, chatId, videoUserId, videoSource.embedId, videoSource.hash);
-  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.type === 'voice_embed' &&
-    event.userMessageId === videoUserId && event.appId === 'videos' && event.status === 'processing')).toBe(true);
-  const videoProcessing = (await cameraCallEvidence(page)).received.find(event => event.type === 'voice_embed' &&
-    event.userMessageId === videoUserId && event.appId === 'videos' && event.status === 'processing')!;
-  expect(videoProcessing.inputEmbedIds).toEqual([videoSource.embedId]);
-  const videoAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${videoProcessing.assistantMessageId}"]`);
-  const videoCard = videoAssistant.locator(`[data-testid="embed-preview"][data-embed-id="${videoProcessing.embedId}"]`);
-  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.embedId === videoProcessing.embedId && event.status === 'finished'), { timeout: 90_000 }).toBe(true);
-  await expect.poll(async () => (await cameraCallEvidence(page)).received.some(event => event.type === 'send_embed_data' &&
-    event.embedType === 'generated_video' && event.status === 'finished' && event.inputEmbedIds?.includes(videoSource.embedId) &&
-    event.model === 'minimax/h3-max-turbo/image-to-video' && event.resolution === '480p')).toBe(true);
-  const generatedChildId = (await cameraCallEvidence(page)).received.find(event => event.type === 'send_embed_data' &&
-    event.embedType === 'generated_video' && event.status === 'finished' && event.inputEmbedIds?.includes(videoSource.embedId))!.embedId;
-  expect(generatedChildId).toBeTruthy();
-  await expect(stage).toHaveAttribute('data-expanded', 'true');
-  const generatedVideo = page.getByTestId('voice-call-generated-video');
-  await expect(generatedVideo).toBeVisible();
-  await expect.poll(() => generatedVideo.evaluate((video: HTMLVideoElement) => video.readyState >= 2 && video.videoWidth > 0)).toBe(true);
-  expect(await generatedVideo.evaluate((video: HTMLVideoElement) => ({ muted: video.muted, autoplay: video.autoplay, controls: video.controls, loop: video.loop })))
-    .toEqual({ muted: true, autoplay: true, controls: true, loop: false });
-  await expect(stage.getByTestId('embed-preview')).toHaveCount(0);
-  await expect(page.getByTestId('voice-call-media-ai')).toBeVisible();
-  await expect(page.getByTestId('voice-call-camera-preview')).toHaveClass(/inset/);
-  await expect(mute).toHaveAttribute('aria-pressed', 'true');
-  // The expanded stage must fit the real chat scrollport above its composer.
-  // Intersection ratios include ancestor clipping, unlike toBeVisible alone.
-  for (const id of ['voice-call-video', 'voice-call-mute', 'voice-call-hangup',
-    'voice-call-media-ai', 'voice-call-camera-flip', 'voice-call-media-expand']) {
-    await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
-  }
-  await page.screenshot({ path: testInfo.outputPath(`camera-generated-video-${viewport}.png`) });
-  await page.getByTestId('voice-call-media-expand').click();
-  await expect(stage).toHaveAttribute('data-expanded', 'false');
-  // Inspect the auto-expanded result before interacting with chat underneath it.
-  const videoActivity = videoAssistant.getByTestId('assistant-activity-group').filter({ has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="videos"]') });
-  await waitForCameraAssistantTurn(page, ready.callId!, videoProcessing.assistantMessageId!);
-  await openCompletedAssistantActivity(videoActivity, testInfo);
-  await expect(videoCard).toHaveAttribute('data-status', 'finished');
-  const framesBeforeCollapse = (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length;
-  await expect.poll(async () => (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame').length).toBeGreaterThan(framesBeforeCollapse);
-  await expect(stage).toHaveAttribute('data-expanded', 'false');
-  await expect(searchThumbnail).toBeVisible();
-  // A newer frame cannot replace the source of the earlier skill.
-  await assertOpenOriginalSource(page, searchThumbnail, searchSource.embedId, searchSource.hash, testInfo);
-  await camera.click();
-  await expect(camera).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('voice-call-camera-preview')).toHaveCount(0);
-  await expect(generatedVideo).toBeVisible();
-  const beforeHangup = await evidence(page);
-  expect(voiceFrames(beforeHangup, 'start')).toHaveLength(1);
-  expect(beforeHangup.received.filter(event => event.type === 'ready' && event.path === '/v1/voice-call').map(event => [event.callId, event.socketId]))
-    .toEqual([[ready.callId, ready.socketId]]);
-  expect(beforeHangup.received.filter(event => event.type === 'error')).toHaveLength(0);
-  expect((await cameraCallEvidence(page)).sent.filter(event => event.type === 'source_frame_failed')).toHaveLength(0);
-  const frames = (await cameraCallEvidence(page)).sent.filter(event => event.type === 'camera_frame');
-  expect(frames.every(event => event.callId === ready.callId)).toBe(true);
-  for (let index = 1; index < frames.length; index++) expect(frames[index].observedAt - frames[index - 1].observedAt).toBeGreaterThanOrEqual(999);
-  await page.getByTestId('voice-call-hangup').click();
-  await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-  await assertVoiceInputCleanup(page);
-  const transcriptIds = [...new Set((await evidence(page)).sent.filter(event => event.type === 'call_message_completed').map(event => event.messageId!))];
-  expect(transcriptIds).toContain(searchUserId); expect(transcriptIds).toContain(videoUserId);
-  await assertCallHistoryDurable(page, chatId, ready.callId!, transcriptIds);
-  await evictOwnedCallRows(page, chatId, ready.callId!, transcriptIds);
-  await page.reload();
-  await expect(page.getByTestId('voice-call-ended')).toHaveCount(1, { timeout: 45_000 });
-  await assertCallHistoryDurable(page, chatId, ready.callId!, transcriptIds);
-  await assertEncryptedSourceAttachment(page, chatId, searchUserId, searchSource.embedId, searchSource.hash);
-  await assertEncryptedSourceAttachment(page, chatId, videoUserId, videoSource.embedId, videoSource.hash);
-  for (const userId of [searchUserId, videoUserId]) {
-    const attachedImage = page.locator(`[data-testid="message-user"][data-message-id="${userId}"]`).getByTestId('embed-preview').locator('img').first();
-    await expect(attachedImage).toBeVisible();
-    await expect.poll(() => attachedImage.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
-  }
-  await openCompletedAssistantActivity(activity, testInfo);
-  await expect(searchCard).toHaveAttribute('data-status', 'finished');
-  await assertOpenOriginalSource(page, searchThumbnail, searchSource.embedId, searchSource.hash, testInfo);
-  const videoGroup = videoAssistant.getByTestId('assistant-activity-group').filter({ has: page.locator('[data-testid="assistant-activity-icons"] [data-app-id="videos"]') });
-  await openCompletedAssistantActivity(videoGroup, testInfo);
-  await expect(videoCard).toHaveAttribute('data-status', 'finished');
-  await assertOpenOriginalSource(page, videoCard.getByTestId('skill-input-images').locator(`button[data-embed-id="${videoSource.embedId}"]`), videoSource.embedId, videoSource.hash, testInfo);
-  await clickChatTarget(videoCard, testInfo);
-  const recoveredGroup = page.getByTestId('generated-media-group-fullscreen');
-  await expect(recoveredGroup).toBeVisible();
-  const recoveredChild = recoveredGroup.getByTestId('generated-media-child-card')
-    .locator(`[data-testid="embed-preview"][data-embed-id="${generatedChildId}"]`);
-  await expect(recoveredChild).toBeVisible();
-  await recoveredChild.click();
-  const recoveredVideo = page.getByTestId('video-generate-fullscreen-video');
-  await expect(recoveredVideo).toBeVisible();
-  await expect.poll(() => recoveredVideo.evaluate((video: HTMLVideoElement) => video.readyState >= 1 && video.videoWidth > 0)).toBe(true);
-  await page.getByTestId('embed-fullscreen-overlay').filter({ has: recoveredVideo }).getByTestId('embed-minimize').click();
-  await expect(recoveredVideo).toHaveCount(0);
-  await expect(recoveredGroup).toBeVisible();
-  await recoveredGroup.getByTestId('embed-minimize').click();
-  await expect(recoveredGroup).toHaveCount(0);
-  await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-  expect((await evidence(page)).received.filter(event => event.type === 'ready')).toHaveLength(0);
-  await page.screenshot({ path: testInfo.outputPath(`camera-saved-history-${viewport}.png`) });
-}
-
-test.describe('Integrated voice-call foundation', () => {
-  // contract-test: direct surface=gui.web assertions=video-call.chat.metadata-generation,video-call.chat.metadata-lifecycle,video-call.privacy
-  test('creates voice chat metadata during the call and recovers its final encrypted update after reload', async ({ page }) => {
-    test.setTimeout(180_000);
-    await installNativeVoiceInput(page);
-    await observeRealTransport(page);
-    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('chat-header-title')).toHaveText('Making vegetarian ramen', { timeout: 45_000 });
-    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    const chatId = (await evidence(page)).sent.find(frame => frame.type === 'start')?.chatId;
-    expect(chatId).toBeTruthy();
-    const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL!;
-    const canonical = () => page.evaluate(async ({ apiUrl, chatId }) => {
-      const response = await fetch(`${apiUrl}/v1/chats?limit=100`, { credentials: 'include' });
-      if (!response.ok) return null;
-      const row = (await response.json()).chats.find((item: { id: string }) => item.id === chatId);
-      if (!row?.encrypted_title || !row?.encrypted_chat_summary) return null;
-      const keys = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('openmates_crypto'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-      });
-      try {
-        const master = await new Promise<CryptoKey>((resolve, reject) => {
-          const request = keys.transaction('keys', 'readonly').objectStore('keys').get('master_key');
-          request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-        });
-        const wrapped = Uint8Array.from(atob(row.encrypted_chat_key), char => char.charCodeAt(0));
-        const rawKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: wrapped.slice(0, 12) }, master, wrapped.slice(12));
-        const decode = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.decryptChatContent!;
-        return { title: await decode(row.encrypted_title, rawKey), summary: await decode(row.encrypted_chat_summary, rawKey),
-          titleVersion: row.title_v, metadataVersion: row.metadata_v,
-          ciphertextOnly: !('title' in row) && !('chat_summary' in row) };
-      } finally { keys.close(); }
-    }, { apiUrl, chatId: chatId! });
-    await expect.poll(canonical).toMatchObject({ title: 'Making vegetarian ramen', ciphertextOnly: true });
-    const initial = (await canonical())!;
-    expect(initial.summary).toContain('How do I make ramen?');
-
-    await page.evaluate(() => { (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.holdMetadataCommits = true; });
-    const editor = page.locator('[contenteditable="true"]').first();
-    await editor.click(); await page.keyboard.insertText(PASTED_TEXT); await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'I received your text: ' + PASTED_TEXT })).toHaveCount(1);
-    await page.getByTestId('voice-call-hangup').click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.heldMetadataCommits ?? 0),
-      { timeout: 45_000 }).toBeGreaterThan(0);
-    const completed = (await evidence(page)).received.filter(frame => frame.type === 'voice_metadata_completed').at(-1)?.requestId;
-    expect(completed).toBeTruthy();
-    await page.reload();
-    await waitForChatReady(page);
-    await expect.poll(async () => (await evidence(page)).received.some(frame => frame.type === 'voice_metadata_stored' && frame.requestId === completed),
-      { timeout: 45_000 }).toBe(true);
-    await expect.poll(async () => (await canonical())?.summary).toContain('mushrooms and ginger');
-    const recovered = (await canonical())!;
-    expect(recovered.metadataVersion).toBeGreaterThan(initial.metadataVersion);
-    expect(recovered.titleVersion).toBe(initial.titleVersion);
-    expect((await evidence(page)).sent.filter(frame => frame.type === 'voice_metadata_request')).toHaveLength(0);
-    await expect(page.getByTestId('chat-header-title')).toHaveText('Making vegetarian ramen');
-
-    // A later call reuses the same chat and refreshes its short summary without
-    // replacing a fitting title or forgetting the preceding text history.
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect.poll(async () => (await evidence(page)).sent.some(frame => frame.type === 'voice_metadata_request' && frame.chatId === chatId),
-      { timeout: 45_000 }).toBe(true);
-    await expect.poll(async () => (await canonical())?.metadataVersion, { timeout: 45_000 }).toBeGreaterThan(recovered.metadataVersion);
-    expect((await canonical())?.titleVersion).toBe(initial.titleVersion);
-    await page.getByTestId('voice-call-hangup').click();
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.usage.provider-metering,video-call.chat.call-events
-  test('refuses an unauthenticated call before opening a provider session', async ({ page }) => {
-    const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL;
-    expect(apiUrl, 'isolated CI must supply its private API URL').toBeTruthy();
-    await observeRealTransport(page);
-    await page.goto('/');
-    const result = await page.evaluate((url) => new Promise<{ ready: boolean; closed: boolean }>((resolve) => {
-      const socket = new WebSocket(`${url.replace(/^http/, 'ws')}/v1/voice-call`);
-      let ready = false;
-      const timeout = setTimeout(() => { socket.close(); resolve({ ready, closed: false }); }, 10_000);
-      socket.addEventListener('message', (event) => {
-        try { ready ||= JSON.parse(event.data).type === 'ready'; } catch { /* A refusal has no provider content. */ }
-      });
-      socket.addEventListener('close', () => { clearTimeout(timeout); resolve({ ready, closed: true }); });
-    }), apiUrl!);
-    expect(result).toEqual({ ready: false, closed: true });
-    expect((await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added')).toHaveLength(0);
-    await expect(page.getByTestId('voice-call-started')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-ended')).toHaveCount(0);
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
-  test('uses the latest committed call version when ordinary text resumes after hangup', async ({ page }, testInfo) => {
-    test.setTimeout(180_000);
-    expect(process.env.E2E_USE_MOCKS,'Ordinary turns must use the existing deterministic replay fixture').toBeTruthy();
-    expect(process.env.E2E_RECORD_FIXTURES).toBeFalsy();
-    expect(process.env.GITHUB_ACTIONS).toBe('true');
-    expect(process.env.RUNNER_ENVIRONMENT).toBe('github-hosted');
-    expect(process.env.CI_TEST_MODE).toBe('e2e');
-    type VersionFrame = {direction:'sent'|'received';type:string;chatId?:string;messageId?:string;turnId?:string;jobId?:string;
-      version?:number;expectedVersion?:number;state?:'TERMINAL'|'LEGACY';status?:'synced';rejected:boolean;rejectionCode?:string};
-    const protocol:VersionFrame[]=[];
-    const serverStatuses:Array<{ok:boolean;isSelfHosted:boolean|null;isDevelopment:boolean|null;modelsConfiguredBefore:boolean|null;modelsConfiguredAfter:boolean}>=[];
-    const sendCheckpoints:string[]=[];
-    const sendSnapshots:unknown[]=[];
-    let phase='setup';
-    let proofComplete=false;
-    const checkpoint=(message:string)=>{
-      const kind=/did not persist/i.test(message)?'send_not_persisted':/failed|error/i.test(message)?'send_error':/dispatch/i.test(message)?'send_dispatch':/send button/i.test(message)?'send_button':'send_checkpoint';
-      sendCheckpoints.push(`${phase}:${kind}`);if(sendCheckpoints.length>16)sendCheckpoints.shift();
-    };
-    const retainSendDebug=async()=>{
-      const snapshot=await page.evaluate(async()=>{
-        const browser=window as unknown as {__openmatesLastSendDebug?:{step?:unknown;details?:Record<string,unknown>};
-          __openmatesLastPreflightDebug?:{step?:unknown};__openmatesE2EChatConnectionState?:()=>Promise<Record<string,unknown>>};
-        const send=browser.__openmatesLastSendDebug;
-        const details=send?.details??{};
-        const error=details.error as {name?:unknown;message?:unknown;stack?:unknown}|undefined;
-        // Keep only fixed-format step labels, error classes/categories and booleans.
-        // Raw error messages, debug details, editor text and transport bodies stay local.
-        const step=(value:unknown)=>typeof value==='string'&&/^[a-z][a-z0-9_]{0,79}$/.test(value)?value:null;
-        const errorName=typeof error?.name==='string'&&['Error','TypeError','ReferenceError','AbortError','InvalidStateError','NotAllowedError','OperationError','TimeoutError','DataError','NotFoundError','QuotaExceededError'].includes(error.name)?error.name:null;
-        const message=typeof error?.message==='string'?error.message:'';
-        const errorCategory=!error?null:/self.hosted|models.*config|no.*models/i.test(message)?'models_unconfigured':/credit|balance/i.test(message)?'credits':/encrypt|crypt|key/i.test(message)?'crypto':/preflight|version|recovery|admission/i.test(message)?'admission':/auth|token|session/i.test(message)?'auth':/network|websocket|offline/i.test(message)?'transport':'other';
-        // Retain only source-location stack frames; omit the error headline and arbitrary text.
-        const errorStackFrames=typeof error?.stack==='string'?error.stack.split('\n').slice(1).map(frame=>frame.trim())
-          .filter(frame=>/^at (?:[\w.$<>]+ \()?https?:\/\/[^/\s]+\/(?:_app\/immutable\/|node_modules\/|src\/)[\w./@-]+:\d+:\d+\)?$/.test(frame)).slice(0,6):[];
-        const connection=await browser.__openmatesE2EChatConnectionState?.().catch(()=>null);
-        return {sendStep:step(send?.step),failedAfterStep:step(details.failedAfterStep),preflightStep:step(browser.__openmatesLastPreflightDebug?.step),
-          errorName,errorCategory,...(errorStackFrames.length?{errorStackFrames}:{}),hasMessagePayload:details.hasMessagePayload===true,
-          editorHasText:!!document.querySelector('[data-testid="message-editor"] [contenteditable="true"]')?.textContent?.trim(),
-          online:connection?.online===true,websocketConnected:connection?.websocketConnected===true,cachePrimed:connection?.cachePrimed===true,
-          contextSyncCompleted:connection?.contextSyncCompleted===true,teamContextActive:connection?.teamContextActive===true};
-      }).catch(()=>({captureFailed:true}));
-      sendSnapshots.push({phase,snapshot});if(sendSnapshots.length>4)sendSnapshots.shift();
-    };
-    const kinds=new Set(['chat_turn_admit','chat_turn_preflight','chat_turn_preflight_ack','chat_message_added','chat_message_confirmed',
-      'ai_response_completed','ai_response_storage_confirmed','call_message_confirmed','call_message_changed','system_message_confirmed']);
-    page.on('websocket',socket=>{
-      if(new URL(socket.url()).pathname!=='/v1/ws')return;
-      const observe=(direction:VersionFrame['direction'])=>(frame:{payload:string|Buffer})=>{
-        try{
-          const message=JSON.parse(String(frame.payload));
-          if(typeof message.type!=='string')return;
-          const p=message.payload??message;
-          // An unpaid metadata baseline refresh has its own lifecycle evidence.
-          // Preserve every actual text/transcript admission rejection below.
-          const metadataRefresh=message.type==='voice_metadata_error'&&p.code==='metadata_stale';
-          const rejected=!metadataRefresh&&(/rejected|error$/.test(message.type)||p.accepted===false||p.status==='rejected'||
-            [p.code,p.error_code,p.error].some(value=>typeof value==='string'&&/version|stale|conflict/i.test(value)));
-          if(!kinds.has(message.type)&&!rejected)return;
-          const rejectionCode=p.code??p.error_code??p.error;
-          // Only authentic canonical fields are observed: never queue revision,
-          // optimistic row counts, plaintext, encrypted payloads or recovery keys.
-          const version=['call_message_confirmed','call_message_changed','system_message_confirmed'].includes(message.type)
-            ? p.messages_v : p.committed_messages_v??p.new_messages_v??p.versions?.messages_v??p.messages_v;
-          protocol.push({direction,type:message.type,chatId:p.chat_id??p.encrypted_assistant_message?.chat_id,
-            messageId:p.message_id??p.encrypted_user_message?.client_message_id??p.encrypted_assistant_message?.client_message_id??p.message?.message_id,
-            turnId:p.turn_id,jobId:p.job_id,version:typeof version==='number'?version:undefined,
-            expectedVersion:typeof p.expected_messages_v==='number'?p.expected_messages_v:undefined,
-            state:p.state==='TERMINAL'||p.state==='LEGACY'?p.state:undefined,
-            status:p.status==='synced'?'synced':undefined,rejected,
-            rejectionCode:rejected&&typeof rejectionCode==='string'&&/^[a-z_]{1,64}$/i.test(rejectionCode)?rejectionCode:undefined});
-        }catch{/* Ignore transport control frames; retain no raw payload. */}
-      };
-      socket.on('framesent',observe('sent'));socket.on('framereceived',observe('received'));
-    });
-    try{
-    // Match the established isolated first-chat fixture: fetch the real status
-    // and open only its UI availability gate, without adding provider credentials.
-    await page.route('**/v1/settings/server-status',async route=>{
-      const response=await route.fetch();
-      if(!response.ok()){
-        serverStatuses.push({ok:false,isSelfHosted:null,isDevelopment:null,modelsConfiguredBefore:null,modelsConfiguredAfter:false});
-        if(serverStatuses.length>4)serverStatuses.shift();
-        throw new Error(`Server status failed (${response.status()}).`);
-      }
-      const status=await response.json();
-      serverStatuses.push({ok:true,isSelfHosted:typeof status.is_self_hosted==='boolean'?status.is_self_hosted:null,
-        isDevelopment:typeof status.is_development==='boolean'?status.is_development:null,
-        modelsConfiguredBefore:typeof status.ai_models_configured==='boolean'?status.ai_models_configured:null,modelsConfiguredAfter:true});
-      if(serverStatuses.length>4)serverStatuses.shift();
-      await route.fulfill({response,json:{...status,ai_models_configured:true}});
-    });
-    await installNativeVoiceInput(page);
-    await observeRealTransport(page);
-    await loginToTestAccount(page);
-    await waitForChatReady(page);
-    await startNewChat(page);
-    await waitForChatReady(page);
-    await expect(page.getByTestId('message-user')).toHaveCount(0);
-    const ordinaryText='Capital of Germany?';
-    const testMockMarker=withMockMarker(ordinaryText,'chat_flow_capital','instant');
-    expect(testMockMarker).toBeTruthy();
-    phase='ordinary_seed';
-    await sendMessage(page,withMockMarker(ordinaryText,'chat_flow_capital','instant'),checkpoint,retainSendDebug,'ordinary-seed');
-    await waitForAssistantMessage(page,{which:'last',contains:'The capital of Germany is Berlin.'});
-    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
-    const chatId=new URL(page.url()).hash.match(/chat-id=([^&]+)/)?.[1];
-    expect(chatId).toBeTruthy();
-    const admissions=(frames:VersionFrame[])=>frames.filter(frame=>frame.direction==='sent'&&frame.chatId===chatId&&['chat_turn_admit','chat_turn_preflight'].includes(frame.type));
-    expect(admissions(protocol)).toHaveLength(1);
-    const seedAdmission=admissions(protocol)[0];
-    expect(seedAdmission.messageId).toBeTruthy();expect(seedAdmission.turnId).toBeTruthy();
-    const seedAssistantId=await page.getByTestId('message-assistant').filter({hasText:'The capital of Germany is Berlin.'}).last().getAttribute('data-message-id');
-    expect(seedAssistantId).toBeTruthy();
-    // Epoch-zero admissions use legacy assistant persistence. Its storage ACK has no version.
-    await expect.poll(()=>protocol.some(frame=>frame.direction==='sent'&&frame.type==='ai_response_completed'&&frame.chatId===chatId&&frame.messageId===seedAssistantId),{timeout:45_000}).toBe(true);
-    await expect.poll(()=>protocol.some(frame=>frame.direction==='received'&&frame.type==='ai_response_storage_confirmed'&&frame.chatId===chatId&&frame.messageId===seedAssistantId),{timeout:45_000}).toBe(true);
-    const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;expect(apiUrl).toBeTruthy();
-    const canonical=(ids:string[],requireEncrypted=false)=>page.evaluate(async({apiUrl,chatId,ids,requireEncrypted})=>{
-      const response=await fetch(`${apiUrl}/v1/chats/${encodeURIComponent(chatId)}/messages/window?direction=latest&limit=20&respect_compression_boundary=false`,{credentials:'include'});
-      const window=await response.json();
-      return {ok:response.ok,version:window.messages_v,counts:ids.map(id=>(window.messages??[]).filter((row:{message_id:string;encrypted_content?:unknown})=>row.message_id===id&&(!requireEncrypted||(typeof row.encrypted_content==='string'&&row.encrypted_content.length>0))).length)};
-    },{apiUrl:apiUrl!,chatId:chatId!,ids,requireEncrypted});
-    await expect.poll(async()=>{const stored=await canonical([seedAdmission.messageId!,seedAssistantId!],true);return stored.ok&&Number.isSafeInteger(stored.version)&&stored.version>0&&stored.counts.every(count=>count===1);},{timeout:45_000}).toBe(true);
-    const seedVersion=(await canonical([seedAdmission.messageId!,seedAssistantId!],true)).version;
-    expect(Number.isSafeInteger(seedVersion)).toBe(true);expect(seedVersion).toBeGreaterThan(0);
-    const localSynced=(assistantId:string,version:number)=>page.evaluate(async({chatId,assistantId,version})=>{
-      const db=await new Promise<IDBDatabase>((resolve,reject)=>{const open=indexedDB.open('chats_db');open.onsuccess=()=>resolve(open.result);open.onerror=()=>reject(open.error);});
-      const read=(store:string,id:string)=>new Promise<Record<string,unknown>|undefined>((resolve,reject)=>{const request=db.transaction(store,'readonly').objectStore(store).get(id);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
-      try{const [chat,assistant]=await Promise.all([read('chats',chatId),read('messages',assistantId)]);return chat?.messages_v===version&&assistant?.status==='synced';}
-      finally{db.close();}
-    },{chatId:chatId!,assistantId,version});
-    await expect.poll(()=>localSynced(seedAssistantId!,seedVersion),{timeout:45_000}).toBe(true);
-
-    phase='voice_call';
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
-    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
-    expect(voiceFrames(await evidence(page),'start')[0].chatId).toBe(chatId);
-    await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(0);
-    await page.getByTestId('voice-call-mute').click();
-    const editor=page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await editor.click();await page.keyboard.insertText(PASTED_TEXT);await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
-    await expect.poll(()=>new Set(protocol.filter(frame=>frame.direction==='received'&&frame.type==='call_message_confirmed'&&frame.chatId===chatId&&Number.isSafeInteger(frame.version)).map(frame=>frame.messageId)).size,{timeout:45_000}).toBe(4);
-    const callReceipts=protocol.filter(frame=>frame.direction==='received'&&frame.type==='call_message_confirmed'&&frame.chatId===chatId);
-    expect(callReceipts.every(frame=>Number.isSafeInteger(frame.version)&&frame.version!>seedVersion)).toBe(true);
-    const callTranscriptIds=[...new Set(callReceipts.map(frame=>frame.messageId).filter((id):id is string=>!!id))];
-    expect(callTranscriptIds).toHaveLength(4);
-    const callReady=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call');
-    expect(callReady?.callId).toBeTruthy();
-    await page.getByTestId('voice-call-hangup').click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await assertVoiceInputCleanup(page);
-    await assertCallHistoryDurable(page,chatId!,callReady!.callId!,callTranscriptIds);
-    const endedId=`ffffffff-voice-call-${callReady!.callId}-ended`;
-    await expect.poll(()=>protocol.some(frame=>frame.direction==='received'&&frame.type==='system_message_confirmed'&&frame.messageId===endedId&&Number.isSafeInteger(frame.version)),{timeout:45_000}).toBe(true);
-    const endVersion=protocol.find(frame=>frame.direction==='received'&&frame.type==='system_message_confirmed'&&frame.messageId===endedId)!.version!;
-    expect(endVersion).toBeGreaterThan(seedVersion);
-    expect(endVersion).toBeGreaterThanOrEqual(Math.max(...callReceipts.map(frame=>frame.version!)));
-    await expect.poll(()=>canonical([endedId,...callTranscriptIds]),{timeout:45_000}).toEqual({ok:true,version:endVersion,counts:[1,1,1,1,1]});
-
-    // No reload, cache reset or barrier manipulation: exercise the normal sender
-    // after the legacy durable ACK and the call's authenticated receipts.
-    const postCallStart=protocol.length;
-    phase='ordinary_post_call';
-    await sendMessage(page,withMockMarker(ordinaryText,'chat_flow_capital','instant'),checkpoint,retainSendDebug,'ordinary-post-call');
-    await waitForAssistantMessage(page,{which:'last',contains:'The capital of Germany is Berlin.'});
-    await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
-    const postCall=protocol.slice(postCallStart);
-    expect(admissions(postCall)).toHaveLength(1);
-    const resumed=admissions(postCall)[0];
-    expect(resumed.chatId).toBe(chatId);expect(resumed.messageId).toBeTruthy();
-    expect(resumed.messageId).not.toBe(seedAdmission.messageId);
-    expect(resumed.expectedVersion).toBe(endVersion);
-    expect(postCall.filter(frame=>frame.direction==='received'&&frame.rejected)).toHaveLength(0);
-    const resumedAcks=postCall.filter(frame=>frame.direction==='received'&&frame.type==='chat_turn_preflight_ack'&&frame.turnId===resumed.turnId);
-    expect(resumedAcks).toHaveLength(1);
-    expect(postCall.filter(frame=>frame.direction==='received'&&frame.type==='chat_message_confirmed'&&frame.messageId===resumed.messageId&&Number.isSafeInteger(frame.version))).toHaveLength(1);
-    // Epoch-zero LEGACY confirmations contain a cache revision. Verify durable
-    // versions through owned canonical ciphertext below; newer admission ACKs
-    // carry the committed user version directly.
-    if(resumedAcks[0].state!=='LEGACY') expect(resumedAcks[0].version).toBe(endVersion+1);
-    await expect(page.getByTestId('message-user').filter({hasText:'Capital of Germany?'})).toHaveCount(2);
-    await expect(page.getByTestId('message-assistant').filter({hasText:'The capital of Germany is Berlin.'})).toHaveCount(2);
-    const resumedAssistantId=await page.getByTestId('message-assistant').filter({hasText:'The capital of Germany is Berlin.'}).last().getAttribute('data-message-id');
-    expect(resumedAssistantId).toBeTruthy();expect(resumedAssistantId).not.toBe(seedAssistantId);
-    await expect.poll(()=>protocol.slice(postCallStart).some(frame=>frame.direction==='sent'&&frame.type==='ai_response_completed'&&frame.chatId===chatId&&frame.messageId===resumedAssistantId),{timeout:45_000}).toBe(true);
-    await expect.poll(()=>protocol.slice(postCallStart).some(frame=>frame.direction==='received'&&frame.type==='ai_response_storage_confirmed'&&frame.chatId===chatId&&frame.messageId===resumedAssistantId),{timeout:45_000}).toBe(true);
-    await expect.poll(async()=>{const stored=await canonical([resumed.messageId!,resumedAssistantId!],true);return stored.ok&&stored.version===endVersion+2&&stored.counts.every(count=>count===1);},{timeout:45_000}).toBe(true);
-    const finalVersion=(await canonical([resumed.messageId!,resumedAssistantId!],true)).version;
-    expect(finalVersion).toBe(endVersion+2);
-    expect((await canonical([resumed.messageId!,resumedAssistantId!],true)).counts).toEqual([1,1]);
-    // Storage-only metadata persistence acknowledges the same user ID again,
-    // with status=synced and no cache version. It is a separate stage, not a
-    // second inference admission or another durable message.
-    await expect.poll(()=>protocol.slice(postCallStart).filter(frame=>frame.direction==='received'&&
-      frame.type==='chat_message_confirmed'&&frame.messageId===resumed.messageId&&frame.status==='synced'&&frame.version===undefined).length,
-    {timeout:45_000}).toBe(1);
-    await expect.poll(()=>localSynced(resumedAssistantId!,finalVersion),{timeout:45_000}).toBe(true);
-    await testInfo.attach('voice-call-canonical-version-proof',{body:JSON.stringify({ordinarySeedDurable:true,callTranscriptRows:callTranscriptIds.length,
-      callReceiptsAdvanced:true,endReceiptMatchesCanonical:true,postCallAdmissions:1,postCallExpectedMatchesCanonical:true,
-      postCallUserAcceptedOnce:true,staleVersionRejections:0,deterministicAssistantCompletions:2,
-      legacyAdmission:resumedAcks[0].state==='LEGACY',canonicalVersionAdvance:2}),contentType:'application/json'});
-    proofComplete=true;
-    }finally{
-      if(!proofComplete){
-        await retainSendDebug();
-        const frames=protocol.slice(-40).map(frame=>({direction:frame.direction,type:kinds.has(frame.type)?frame.type:'other_rejected_event',
-          version:frame.version,expectedVersion:frame.expectedVersion,state:frame.state,rejected:frame.rejected,rejectionCode:frame.rejectionCode}));
-        await testInfo.attach('voice-call-version-send-failure',{body:JSON.stringify({phase,serverStatuses,sendCheckpoints,sendSnapshots,
-          totalProtocolFrames:protocol.length,protocol:frames}),contentType:'application/json'});
-      }
-    }
-  });
-
+test.describe('Voice mode through ordinary chat', () => {
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner
-  test('requires a saved Google processing acknowledgement before first capture and remembers it after reload', async ({ page }, testInfo) => {
+  test('requires a saved voice processing acknowledgement before first capture and remembers it after reload', async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize({width:390,height:844});
     await installNativeVoiceInput(page);
@@ -1758,7 +984,7 @@ test.describe('Integrated voice-call foundation', () => {
         const request=input instanceof Request ? input : null;
         const url=new URL(request?.url??String(input),location.href);
         const method=String(init?.method??request?.method??'GET').toUpperCase();
-        const acknowledgement=url.pathname==='/v1/settings/voice-google-processing-ack';
+        const acknowledgement=url.pathname==='/v1/settings/voice-processing-ack';
         if(acknowledgement)events.push(method==='POST'?'ack_post':'ack_get');
         const response=await nativeFetch(input,init);
         if(acknowledgement){
@@ -1766,7 +992,7 @@ test.describe('Integrated voice-call foundation', () => {
             const json=response.json.bind(response);
             response.json=async()=>{
               const payload=await json();
-              if(response.ok&&payload.version===1&&payload.acknowledged===true&&Number.isSafeInteger(payload.acknowledged_at)&&payload.acknowledged_at>0)events.push('ack_saved');
+              if(response.ok&&payload.version===2&&payload.acknowledged===true&&Number.isSafeInteger(payload.acknowledged_at)&&payload.acknowledged_at>0)events.push('ack_saved');
               return payload;
             };
           }
@@ -1786,7 +1012,7 @@ test.describe('Integrated voice-call foundation', () => {
     expect(apiUrl).toBeTruthy();
     const configure=async(action:'reset'|'fail_next_write')=>{
       const configured=await page.evaluate(async({apiUrl,action})=>{
-        const response=await fetch(`${apiUrl}/v1/settings/voice-google-processing-ack/fixture`,{
+        const response=await fetch(`${apiUrl}/v1/settings/voice-processing-ack/fixture`,{
           method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action}),
         });
         return {status:response.status,configured:(await response.json()).configured===true};
@@ -1794,9 +1020,9 @@ test.describe('Integrated voice-call foundation', () => {
       expect(configured).toEqual({status:200,configured:true});
     };
     const profileAcknowledgement=()=>page.evaluate(async apiUrl=>{
-      const response=await fetch(`${apiUrl}/v1/settings/voice-google-processing-ack`,{credentials:'include'});
+      const response=await fetch(`${apiUrl}/v1/settings/voice-processing-ack`,{credentials:'include'});
       const profile=await response.json();
-      return {ok:response.ok,versionValid:profile.version===1,acknowledged:profile.acknowledged===true,
+      return {ok:response.ok,versionValid:profile.version===2,acknowledged:profile.acknowledged===true,
         timestampValid:Number.isSafeInteger(profile.acknowledged_at)&&profile.acknowledged_at>0};
     },apiUrl!);
     const expectNoCall=async()=>{
@@ -1811,7 +1037,7 @@ test.describe('Integrated voice-call foundation', () => {
     await page.locator('[data-testid="voice-call-start"]:visible').click();
     const notice=page.getByTestId('notification').filter({hasText:'Before your first voice call'});
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText('Google processes your voice and the conversation context shared with this call. Google states that data sent through its paid Gemini API is not used to train its models.');
+    await expect(notice).toContainText('Mistral processes your microphone audio for transcription and assistant text for speech. Your conversation uses the normal OpenMates AI routing, skills and rich chat messages.');
     await expectNoCall();
     expect((await events()).filter(event=>event==='ack_post')).toHaveLength(0);
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-before-cancel.png')});
@@ -1849,10 +1075,11 @@ test.describe('Integrated voice-call foundation', () => {
     expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
     const firstChatId=voiceFrames(await evidence(page),'start')[0].chatId;
     expect(firstChatId).toBeTruthy();
+    await playNativeVoiceFixture(page);
+    await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
-    await expect.poll(async()=>new Set((await evidence(page)).sent.filter(event=>event.type==='call_message_completed').map(event=>event.messageId).filter((id):id is string=>!!id)).size).toBe(2);
-    const firstTranscriptIds=[...new Set((await evidence(page)).sent.filter(event=>event.type==='call_message_completed').map(event=>event.messageId).filter((id):id is string=>!!id))];
+    const firstTranscriptIds = await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
     expect(firstTranscriptIds).toHaveLength(2);
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
@@ -1884,156 +1111,6 @@ test.describe('Integrated voice-call foundation', () => {
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
     await assertVoiceInputCleanup(page);
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.audio.background-detection,video-call.audio.automatic-idle,video-call.audio.single-owner,video-call.chat.activity-status,video-call.usage.provider-metering,video-call.lifecycle.recovery-and-billing,video-call.audio.confirmation-sounds
-  test('keeps a cold call billable, idles on verified silence and resumes buffered short speech on the same socket', async ({ page, context }) => {
-    test.setTimeout(150_000);
-    await installNativeVoiceInput(page);
-    await observeRealTransport(page);
-    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
-    let modelRequested = false;
-    let releaseModel!: () => void;
-    const heldModel = new Promise<void>((resolve) => { releaseModel = resolve; });
-    await context.route('**/*silero_vad_v5*', async (route) => {
-      if (route.request().resourceType() === 'script') { await route.continue(); return; }
-      modelRequested = true;
-      await heldModel;
-      await route.continue();
-    });
-    expect(modelRequested).toBe(false);
-    try {
-      await page.locator('[data-testid="voice-call-start"]:visible').click();
-      const status = page.getByTestId('voice-call-status-text');
-      await assertSlimCallSurface(page);
-      await expect.poll(() => modelRequested, { timeout: 20_000 }).toBe(true);
-      await expect(status).toHaveText('Listening · You can speak now');
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(0);
-      const connectedTones = (await nativeVoiceInput(page)).localToneStarts;
-      await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH }).getByTestId('generated-by')).toContainText('Gemini 3.8 Live');
-      const started = await evidence(page);
-      const start = voiceFrames(started, 'start')[0];
-      expect(start.startupAllowanceMs).toBe(10_000);
-      expect(started.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(1);
-      const coldCount = voiceFrames(started, 'mic_audio').length;
-      await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(coldCount + 12);
-      const inputSeconds=await activeCallSeconds(page);
-      await expect.poll(()=>activeCallSeconds(page)).toBeGreaterThan(inputSeconds);
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: true, processing: false });
-      await assertActivityCounter(page,true);
-      await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='usage'&&typeof frame.creditsCharged==='number'&&frame.creditsCharged>=0)).toBe(true);
-      const billedChatId = voiceFrames(await evidence(page), 'start')[0].chatId;
-      expect(billedChatId).toBeTruthy();
-      await expect.poll(() => page.evaluate(async ({ apiUrl, chatId }) => {
-        const response = await fetch(`${apiUrl}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId!)}`, { credentials: 'include' });
-        if (!response.ok) return false;
-        const data = await response.json();
-        const charges = (data.entries ?? []).filter((entry: { skill_id: string }) => entry.skill_id === 'voice_call');
-        return charges.length > 0 && charges.every((entry: { source: string; chat_id: string; model_used?: string }) =>
-          entry.source === 'chat' && entry.chat_id === chatId && !!entry.model_used);
-      }, { apiUrl: process.env.PLAYWRIGHT_TEST_API_URL, chatId: billedChatId }),
-      { timeout: 30_000, intervals: [1000, 2000], message: 'Voice charges must appear under their bound chat with model attribution' }).toBe(true);
-      await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(0);
-      expect((await nativeVoiceInput(page)).detectorReady).toBe(0);
-      releaseModel();
-      await expect.poll(async () => (await nativeVoiceInput(page)).detectorReady, { timeout: 30_000 }).toBe(1);
-      await expect(status).toHaveText('Speak to resume call.', { timeout: 15_000 });
-      const idle = await evidence(page);
-      expect(voiceFrames(idle, 'audio_stream_end')).toHaveLength(1);
-      const verifiedQuietSamples = voiceFrames(idle, 'mic_audio').reduce((total, frame) => total + (frame.audioSamples ?? 0), 0)
-        - (await nativeVoiceInput(page)).readyUploadedSamples;
-      expect(verifiedQuietSamples).toBeGreaterThanOrEqual(16_000 * 5);
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: false, processing: false });
-      await assertActivityCounter(page,false);
-      await assertActivityCounter(page,false);
-      expect((await nativeVoiceInput(page)).localToneStarts).toBe(connectedTones);
-      const timerAtIdle = await page.getByTestId('voice-call-timer').textContent();
-      await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-      const idleCount = voiceFrames(idle, 'mic_audio').length;
-      const idleSamples = (await nativeVoiceInput(page)).samples;
-      await expect.poll(async () => (await nativeVoiceInput(page)).samples).toBeGreaterThan(idleSamples + 24_000);
-      expect(voiceFrames(await evidence(page), 'mic_audio')).toHaveLength(idleCount);
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(1);
-      await expect(page.getByTestId('voice-call-timer')).toHaveText(timerAtIdle!);
-
-      // Real typed input keeps provider processing active while the local gate
-      // remains idle. The exact isolated fixture waits for genuine resumed PCM.
-      const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-      await editor.click();
-      await page.keyboard.insertText(ACTIVITY_REQUEST);
-      await page.getByTestId('composer-send-button').click();
-      await expect(page.getByTestId('message-user').filter({ hasText: ACTIVITY_REQUEST })).toHaveCount(1);
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: false, processing: true });
-      await expect(status).toHaveText('OpenMates is working…');
-      await assertActivityCounter(page,true);
-      const workingSeconds=await activeCallSeconds(page);
-      await expect.poll(()=>activeCallSeconds(page)).toBeGreaterThan(workingSeconds);
-      expect(voiceFrames(await evidence(page), 'mic_audio')).toHaveLength(idleCount);
-
-      await playNativeVoiceFixture(page);
-      await expect.poll(()=>page.getByTestId('voice-call-waveform').locator('span').evaluateAll(nodes=>nodes.some(node=>Number(node.getAttribute('data-level'))>0)),{intervals:[25,50,100]}).toBe(true);
-      await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(idleCount);
-      const resumed = await evidence(page);
-      const resumedAudio = voiceFrames(resumed, 'mic_audio').slice(idleCount);
-      const prefix = resumedAudio.filter((frame) => frame.audioBatch === resumedAudio[0].audioBatch);
-      const prefixSamples = prefix.reduce((total, frame) => total + (frame.audioSamples ?? 0), 0);
-      expect(prefixSamples).toBeGreaterThanOrEqual(16 * 300);
-      expect(prefixSamples).toBeLessThanOrEqual(16 * 500);
-      expect(prefix.some((frame) => frame.audioNonzero)).toBe(true);
-      expect(resumed.sent.indexOf(voiceFrames(resumed, 'audio_stream_end')[0])).toBeLessThan(resumed.sent.indexOf(resumedAudio[0]));
-      expect(voiceFrames(resumed, 'start')).toHaveLength(1);
-      expect(voiceFrames(resumed, 'mic_audio').every((frame) => frame.socketId === start.socketId)).toBe(true);
-      expect(resumed.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(1);
-      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
-      await expect(page.getByTestId('message-assistant').filter({ hasText: ACTIVITY_REPLY })).toHaveCount(1);
-      await expect(status).toHaveText('OpenMates is speaking…');
-
-      expect((await nativeVoiceInput(page)).localToneStarts).toBe(connectedTones);
-
-      // Already generated playback remains visible when manual mute stops input
-      // and the server reports processing complete. Unmute remains accessible.
-      await page.getByTestId('voice-call-mute').click();
-      await expect(page.getByTestId('voice-call-mute')).toHaveAccessibleName('Unmute');
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(connectedTones);
-      const mutedTones = (await nativeVoiceInput(page)).localToneStarts;
-      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
-      await expect.poll(async () => (await evidence(page)).received.filter((frame) => frame.type === 'billing_activity').at(-1))
-        .toMatchObject({ inputListening: false, processing: false });
-      await expect(status).toHaveText('OpenMates is speaking…');
-      await assertActivityCounter(page,false);
-      const mutedPlaybackTimer=await page.getByTestId('voice-call-timer').textContent();
-      await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-      await expect(status).toHaveText('Microphone muted');
-      const mutedCount = voiceFrames(await evidence(page), 'mic_audio').length;
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(2);
-      await expect.poll(async () => (await nativeVoiceInput(page)).playing).toBe(false);
-      await playNativeVoiceFixture(page, false);
-      await expect.poll(async () => (await nativeVoiceInput(page)).playing, { timeout: 10_000 }).toBe(false);
-      expect(voiceFrames(await evidence(page), 'mic_audio')).toHaveLength(mutedCount);
-      expect(voiceFrames(await evidence(page), 'audio_stream_end')).toHaveLength(2);
-      await expect(page.getByTestId('voice-call-timer')).toHaveText(mutedPlaybackTimer!);
-      await expect(status).toHaveText('Microphone muted');
-      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
-      expect((await nativeVoiceInput(page)).localToneStarts).toBe(mutedTones);
-      await page.getByTestId('voice-call-mute').click();
-      await expect(page.getByTestId('voice-call-mute')).toHaveAccessibleName('Mute');
-      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'false');
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(mutedTones);
-      const unmutedTones = (await nativeVoiceInput(page)).localToneStarts;
-      await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio').length).toBeGreaterThan(mutedCount);
-      expect(voiceFrames(await evidence(page), 'start')).toHaveLength(1);
-      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
-      await page.getByTestId('voice-call-hangup').click();
-      await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-      await expect.poll(async () => (await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(unmutedTones);
-      await assertVoiceInputCleanup(page);
-      expect(voiceFrames(await evidence(page), 'hangup').map((frame) => frame.socketId)).toEqual([start.socketId]);
-    } finally { releaseModel(); }
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.startup-buffer,video-call.audio.background-detection,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
@@ -2068,6 +1145,7 @@ test.describe('Integrated voice-call foundation', () => {
     const beforeRelease = await nativeVoiceInput(page);
     await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.releaseReady!());
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
     const flushed = await evidence(page);
     const audio = voiceFrames(flushed, 'mic_audio');
@@ -2106,6 +1184,8 @@ test.describe('Integrated voice-call foundation', () => {
     await fallback;
     expect(failedModel).toBe(true);
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await playNativeVoiceFixture(page);
+    await waitForSpokenAssistant(page);
     await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
     const started = await evidence(page);
     const baseline = await nativeVoiceInput(page);
@@ -2130,451 +1210,285 @@ test.describe('Integrated voice-call foundation', () => {
     await assertVoiceInputCleanup(page);
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.video.generated-media-stage,video-call.video.fast-generation-default,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.privacy,video-call.lifecycle.recovery-and-billing
-  test('retains exact camera sources and generated clips through hangup and reload on phone', async ({ page, context }, testInfo) => {
-    await runCameraCallFlow(page, context, testInfo, 'phone');
+
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.usage.provider-metering
+  test('refuses an unauthenticated call before opening speech processing', async ({ page }) => {
+    const apiUrl=process.env.PLAYWRIGHT_TEST_API_URL;
+    expect(apiUrl).toBeTruthy();
+    await page.goto('/');
+    const result=await page.evaluate(url=>new Promise<{ready:boolean;closed:boolean}>(resolve=>{
+      const socket=new WebSocket(`${url.replace(/^http/,'ws')}/v1/voice-call`);
+      let ready=false;
+      const timeout=setTimeout(()=>{socket.close();resolve({ready,closed:false});},10_000);
+      socket.addEventListener('message',event=>{try{ready ||= JSON.parse(event.data).type==='ready';}catch{/* refusal contains no content */}});
+      socket.addEventListener('close',()=>{clearTimeout(timeout);resolve({ready,closed:true});});
+    }),apiUrl!);
+    expect(result).toEqual({ready:false,closed:true});
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.video.generated-media-stage,video-call.video.fast-generation-default,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.privacy,video-call.lifecycle.recovery-and-billing
-  test('retains exact camera sources and generated clips through hangup and reload on laptop', async ({ page, context }, testInfo) => {
-    await runCameraCallFlow(page, context, testInfo, 'laptop');
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.chat.fixed-binding,video-call.chat.transcripts,video-call.chat.call-events,video-call.chat.call-strip-layout,video-call.chat.activity-status,video-call.chat.typed-input,video-call.chat.compressed-context,video-call.chat.memories-and-focus,video-call.chat.skill-integration,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,video-call.privacy,video-call.usage.provider-metering
-  test('saves voice and typed turns encrypted, reloads them and reuses their context', async ({ page }, testInfo) => {
-    test.setTimeout(300_000);
-    await observeRealTransport(page);
-    // A fresh account opens the welcome workspace; the voice button creates
-    // its chat without requiring a text draft or a visible editor first.
-    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
-    await assertHeaderCallActions(page, false, false);
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status')).toContainText('Listening', { timeout: 45_000 });
-    await expect(page.getByTestId('message-user').filter({ hasText: USER_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await assertHeaderCallActions(page, true, true);
-    await assertSlimCallSurface(page);
-    await assertActivityCounter(page,true);
-    await expect.poll(async () => {
-      const bar = await page.locator('[data-testid="voice-call-bar"]:visible').boundingBox();
-      const history = await page.locator('[data-testid="chat-history-container"]:visible').boundingBox();
-      return !!bar&&!!history&&bar.y>=history.y-1&&bar.y+bar.height<=history.y+history.height+1&&bar.x>=history.x-1&&bar.x+bar.width<=history.x+history.width+1;
-    }).toBe(true);
-    const chatId = await page.locator('[data-action="message-input"]').last().getAttribute('data-current-chat-id');
-    expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
-    // Collapsed recording is hidden; an expanded composer's control is disabled.
-    await expect(page.locator('[data-testid="record-audio-button"]:visible:enabled, [data-testid="guest-cta-mic-button"]:visible:enabled')).toHaveCount(0);
-
-    await page.locator('[data-testid="voice-call-mute"]:visible').click();
-    await expect(page.locator('[data-testid="voice-call-mute"]:visible')).toHaveAttribute('aria-pressed', 'true');
-    await expect.poll(async () => (await evidence(page)).sent.filter((event) => event.type === 'audio_stream_end').length).toBe(1);
-    await expect.poll(async () => (await evidence(page)).received.filter((event) => event.type === 'billing_activity').at(-1))
-      .toMatchObject({ inputListening: false, processing: false });
-    await assertActivityCounter(page,false);
-    await expect(page.getByTestId('voice-call-credits')).toHaveCount(0);
-    const micCount = (await evidence(page)).sent.filter((event) => event.type === 'mic_audio').length;
-
-
-    const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await expect(editor).toBeVisible();
-    await editor.click();
-    await expect(page.getByTestId('record-audio-button')).toBeDisabled();
-    await page.keyboard.insertText(PASTED_TEXT);
-    await page.evaluate(() => {
-      (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.reconnectOnText = true;
+  // contract-test: direct surface=gui.web assertions=video-call.audio.automatic-idle,video-call.audio.background-detection,video-call.audio.startup-buffer,video-call.chat.activity-status,video-call.usage.provider-metering,video-call.audio.confirmation-sounds,video-call.audio.single-owner
+  test('keeps capture live while detection loads, idles on genuine silence and resumes buffered speech on the same call',async({page,context})=>{
+    test.setTimeout(150_000);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    let requested=false;let release!:()=>void;
+    const held=new Promise<void>(resolve=>{release=resolve;});
+    await context.route('**/*silero_vad_v5*',async route=>{
+      if(route.request().resourceType()==='script'){await route.continue();return;}
+      requested=true;await held;await route.continue();
     });
-    await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('message-user').filter({ hasText: PASTED_TEXT })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'I received your text' })).toHaveCount(1);
-    expect((await evidence(page)).sent.filter(event=>event.type==='mic_audio').length).toBe(micCount);
-    await expect.poll(async () => (await evidence(page)).received.some((event) => event.type === 'billing_activity' &&
-      event.inputListening === false && event.processing === true)).toBe(true);
-    await assertActivityCounter(page,false);
-    await expect.poll(async () => (await evidence(page)).received.filter((event) => event.type === 'call_message_confirmed').length).toBeGreaterThanOrEqual(4);
-    const transport = await evidence(page);
-    const persisted = transport.sent.filter((event) => event.type === 'call_message_completed');
-    expect(persisted.every((event) => (event.ciphertextLength ?? 0) > 30 && event.plaintext === false)).toBe(true);
-    expect(transport.sent.filter((event) => event.type === 'text_input')).toHaveLength(1);
-    expect(transport.sent.filter((event) => event.type === 'chat_message_added')).toHaveLength(0);
-    expect(transport.received.filter((event) => event.type === 'call_message_rejected')).toHaveLength(0);
-    expect(await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
-      .__voiceCallEvidence.reconnectInjected)).toBe(true);
-
-    const messageIds = [...new Set(persisted.map((event) => event.messageId).filter((id): id is string => !!id))];
-    expect(messageIds).toHaveLength(4);
-    const rows = await page.evaluate(async (ids) => {
-      const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const open = indexedDB.open('chats_db');
-        open.onsuccess = () => resolve(open.result);
-        open.onerror = () => reject(open.error);
-      });
-      try {
-        return await Promise.all(ids.map((id) => new Promise<{ encrypted: boolean; plaintext: boolean }>((resolve, reject) => {
-          const request = database.transaction('messages', 'readonly').objectStore('messages').get(id);
-          request.onsuccess = () => resolve({ encrypted: typeof request.result?.encrypted_content === 'string',
-            plaintext: typeof request.result?.content === 'string' });
-          request.onerror = () => reject(request.error);
-        })));
-      } finally { database.close(); }
-    }, messageIds);
-    expect(rows.every((row) => row.encrypted && !row.plaintext)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath('voice-call-laptop.png') });
-
-    // Closing the chat preserves its call; the actual Apps workspace Header
-    // exposes the same bound call through its context-provided return pill.
-    const boundReady=(await evidence(page)).received.find(event=>event.type==='ready'&&event.path==='/v1/voice-call');
-    expect(boundReady?.callId).toBeTruthy();expect(boundReady?.socketId).toBeTruthy();
-    await page.evaluate(()=>{
-      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
-      state.boundCaptureTracks=[...state.tracks];
-    });
-    // Typed call input keeps the composer focused. Use its normal Cancel action
-    // before closing the chat through whichever header the generated title exposes.
-    const dismissInput = page.getByTestId('input-dismiss-button');
-    if (await dismissInput.isVisible()) await dismissInput.click();
-    await expect(dismissInput).toBeHidden();
-    await scrollChatHistoryToStart(page,testInfo);
-    const closeChat = page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible');
-    await expect(closeChat).toHaveCount(1);
-    await closeChat.click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
-    await chooseAppsHome(page);
-    await holdChatLookup(page,chatId!);
     try {
-      await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();
-      await expectHeldChatLookup(page,'returnToVoiceCallChat');
-      await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
-      await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    } finally { await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.()); }
-    await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
-    await expect.poll(()=>new URL(page.url()).hash).toBe(`#chat-id=${chatId}`);
-    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
-
-    await page.setViewportSize({width:390,height:844});
-    await page.locator('#settings-menu-toggle').click();
-    await expect(page.getByTestId('settings-menu')).toHaveClass(/visible/);
-    await expect(page.getByTestId('voice-call-pill')).toBeVisible();
-    await holdChatLookup(page,chatId!);
-    try {
-      await page.getByTestId('voice-call-pill').click();
-      await expectHeldChatLookup(page,'returnToVoiceCallChat');
-      await expect(page.getByTestId('voice-call-pill')).toBeVisible();
-    } finally { await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.()); }
-    await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/);
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
-    await assertHeaderCallActions(page,true,true);
-    await expectHeaderPointerAccess(page);
-    await page.screenshot({path:testInfo.outputPath('voice-call-phone.png')});
-
-    // A later native workspace selection supersedes a pending pill Return.
-    // Preserve the real held IDB read and prove its stale completion cannot
-    // pull the user out of their newly selected workspace or start another call.
-    await scrollChatHistoryToStart(page,testInfo);
-    await expect(closeChat).toHaveCount(1);
-    await closeChat.click();
-    await chooseAppsHome(page);
-    await holdChatLookup(page,chatId!);
-    try {
-      await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();
-      await expectHeldChatLookup(page,'returnToVoiceCallChat');
-      await chooseAppsHome(page);
-    } finally { await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.()); }
-    await expect(page.getByTestId('apps-workspace-home')).toBeVisible();
-    await expect.poll(()=>new URL(page.url()).hash.split('&')[0]).toBe('#apps');
-    const awayTransport=await evidence(page);
-    expect(voiceFrames(awayTransport,'start')).toHaveLength(1);
-    expect(awayTransport.received.filter(event=>event.type==='ready'&&event.path==='/v1/voice-call').map(event=>event.callId)).toEqual([boundReady!.callId]);
-    expect(voiceFrames(awayTransport,'hangup')).toHaveLength(0);
-    await expect.poll(()=>page.evaluate(()=>{
-      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
-      return !!state.boundCaptureTracks?.length&&state.tracks.length===state.boundCaptureTracks.length&&
-        state.tracks.every((track,index)=>track===state.boundCaptureTracks![index]&&track.readyState==='live');
-    })).toBe(true);
-    await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();
-    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    await expect(page.getByTestId('voice-call-pill')).toHaveCount(0);
-    await expect.poll(()=>new URL(page.url()).hash).toBe(`#chat-id=${chatId}`);
-    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-started')).toHaveCount(1);
-    const startedTime=await page.getByTestId('voice-call-started').locator('time').getAttribute('datetime');
-    await assertActivityCounter(page,false);
-    const firstActiveSeconds=await activeCallSeconds(page);
-    await page.getByTestId('voice-call-hangup').click();
-    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
-    const endedTime=await page.getByTestId('voice-call-ended').locator('time').getAttribute('datetime');
-    await assertHeaderCallActions(page,false,true);
-    expect(voiceFrames(await evidence(page),'hangup').map(event=>event.socketId)).toEqual([boundReady!.socketId]);
-    await expect.poll(()=>page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.tracks.every(track=>track.readyState==='ended'))).toBe(true);
-    await assertCallHistoryDurable(page,chatId!,boundReady!.callId!,messageIds,[startedTime!,endedTime!],firstActiveSeconds);
-    const lifecycleCiphertexts=(await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added');
-    expect(new Set(lifecycleCiphertexts.map(event=>event.messageId)).size).toBe(2);
-    expect(lifecycleCiphertexts.every(event=>event.chatId===chatId&&event.plaintext===false&&(event.ciphertextLength??0)>30)).toBe(true);
-    await evictOwnedCallRows(page,chatId!,boundReady!.callId!,messageIds);
-    await page.reload();
-    await expect(page.getByTestId('message-user').filter({ hasText: USER_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH }).getByTestId('generated-by')).toContainText('Gemini 3.8 Live');
-    await expect(page.getByTestId('message-assistant').filter({ hasText: ASSISTANT_SPEECH })).not.toContainText('((interrupted))');
-    await expect(page.getByTestId('message-user').filter({ hasText: PASTED_TEXT })).toHaveCount(1);
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'I received your text' })).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-started')).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-started').locator('time')).toHaveAttribute('datetime',startedTime!);
-    await expect(page.getByTestId('voice-call-ended').locator('time')).toHaveAttribute('datetime',endedTime!);
-    await assertCallHistoryDurable(page,chatId!,boundReady!.callId!,messageIds,[startedTime!,endedTime!],firstActiveSeconds);
-    // A reloaded phone uses the collapsed composer's native recording control.
-    await expect(page.getByRole('button', { name: 'Record audio', exact: true })).toBeEnabled();
-
-    const uncoveredIds = await seedVoiceContext(page, chatId!, messageIds.slice(0, 2));
-    const storedSeed = (await evidence(page)).sent.filter((event) => event.type === 'encrypted_chat_metadata' && uncoveredIds.includes(event.messageId ?? ''));
-    expect(storedSeed).toHaveLength(25);
-    expect(storedSeed.every((event) => (event.ciphertextLength ?? 0) > 30 && event.plaintext === false)).toBe(true);
-    await expectHeaderPointerAccess(page);
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status')).toContainText('Listening', { timeout: 45_000 });
-    const resumed = (await evidence(page)).sent.find((event) => event.type === 'start');
-    const resumedCallId = (await evidence(page)).received.find((event) => event.type === 'ready' && event.socketId === resumed?.socketId)?.callId;
-    expect(resumedCallId).toBeTruthy();
-    expect(resumed?.chatId).toBe(chatId);
-    expect(resumed?.context?.some((turn) => turn.role === 'user' && turn.text.includes(PASTED_TEXT))).toBe(true);
-    expect(resumed?.context?.filter((turn) => uncoveredIds.includes(turn.message_id ?? ''))).toHaveLength(25);
-    expect(resumed?.context?.some((turn) => turn.text === UNCOVERED_CONTEXT_FACT)).toBe(true);
-    expect(resumed?.summary?.endsWith(CHECKPOINT_FACT)).toBe(true);
-    expect(resumed?.summary?.length).toBeGreaterThan(2_000);
-    expect(resumed?.context?.some((turn) => messageIds.slice(0, 2).includes(turn.message_id ?? ''))).toBe(false);
-    await page.locator('[data-testid="voice-call-mute"]:visible').click();
-    const resumedEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    // A real sealed worker failure must return a failed tool response while the
-    // same provider session stays available for the next successful operation.
-    await resumedEditor.click();
-    await page.keyboard.insertText('Voice stage two fixture: fail one tool operation');
-    await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('message-assistant').filter({ hasText: 'That operation failed. The call is still connected.' })).toHaveCount(1, { timeout: 45_000 });
-    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Microphone muted');
-    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
-    expect((await evidence(page)).received.filter(event => event.type === 'ready' && event.callId === resumedCallId)).toHaveLength(1);
-    expect((await evidence(page)).received.filter(event => event.socketId === resumed?.socketId && event.type === 'error')).toHaveLength(0);
-    await resumedEditor.click();
-    await page.keyboard.insertText(STAGE_TWO_TEXT);
-    await page.getByTestId('composer-send-button').click();
-    await expect(page.getByTestId('btn-include')).toBeVisible({ timeout: 45_000 });
-    // The ordinary shared consent surface must be interactive after a typed
-    // call request, with usable audio controls and the selection unobstructed.
-    const memoryToggle = page.getByTestId('memory-category-toggle-code-preferred_tech');
-    const memoryCheckbox = memoryToggle.locator('input[type="checkbox"]');
-    await waitForStickyCallControlsReady(page,testInfo);
-    await assertSlimCallSurface(page);
-    await expect(page.getByTestId('voice-call-mute')).toBeEnabled();
-    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
-    await expect(page.getByTestId('voice-call-hangup')).toBeEnabled();
-    for(const id of ['voice-call-mute','voice-call-hangup']) await expect.poll(()=>page.getByTestId(id).evaluate(element=>{
-      const r=element.getBoundingClientRect();const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-      return hit===element||element.contains(hit);
-    })).toBe(true);
-    await expect.poll(() => memoryToggle.evaluate((element) => element.closest('[inert]') === null)).toBe(true);
-    await expect(memoryToggle).toBeVisible();
-    await expect(memoryCheckbox).toBeChecked();
-    await memoryToggle.click();
-    await expect(memoryCheckbox).not.toBeChecked();
-    await expect(page.getByTestId('btn-include')).toBeDisabled();
-    await memoryToggle.click();
-    await expect(memoryCheckbox).toBeChecked();
-    await expect(page.getByTestId('btn-include')).toBeEnabled();
-    await page.screenshot({ path: testInfo.outputPath('voice-call-memory-consent-phone.png') });
-    await page.getByTestId('btn-include').click();
-    await expect(page.getByTestId('btn-include')).not.toBeVisible();
-    await expect.poll(async () => [...new Set((await evidence(page)).received
-      .filter((event) => event.type === 'voice_embed' && event.callId === resumedCallId && event.embedId)
-      .map((event) => event.assistantMessageId).filter(Boolean))].length,
-    { timeout: 60_000, message: 'The call artifacts must bind to exactly one issued assistant response' }).toBe(1);
-    const responseIds = [...new Set((await evidence(page)).received
-      .filter((event) => event.type === 'voice_embed' && event.callId === resumedCallId && event.embedId)
-      .map((event) => event.assistantMessageId))];
-    expect(responseIds).toHaveLength(1);
-    expect(responseIds[0]).toBeTruthy();
-    const stageReply = page.locator(`[data-testid="message-assistant"][data-message-id="${responseIds[0]}"]`);
-    await expect(stageReply).toHaveCount(1, { timeout: 60_000 });
-    await stageReply.scrollIntoViewIfNeeded();
-    await expect(stageReply).toContainText(STAGE_TWO_REPLY, { timeout: 60_000 });
-    await expect(page.getByTestId('message-assistant').filter({ hasText: STAGE_TWO_REPLY })).toHaveCount(1);
-    await expandWebActivity(page, stageReply);
-    await expect(stageReply.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-status="finished"]')).toBeVisible({ timeout: 45_000 });
-    await expect(stageReply.getByTestId('search-preview-metadata-missing-message')).toHaveCount(0);
-    await expect.poll(async () => (await evidence(page)).sent.filter((event) => event.type === 'voice_memory_response').length).toBe(1);
-    const stageTransport = await evidence(page);
-    expect(stageTransport.sent.filter((event) => event.type === 'app_settings_memories_confirmed')).toHaveLength(0);
-    expect(stageTransport.sent.filter((event) => event.type === 'chat_message_added')).toHaveLength(0);
-    const artifacts = stageTransport.received.filter((event) => event.type === 'voice_embed' && event.embedId);
-    expect(artifacts.length).toBeGreaterThanOrEqual(1);
-    expect([...new Set(artifacts.map((event) => event.assistantMessageId))]).toEqual(responseIds);
-    expect(stageTransport.sent.some((event) => event.type === 'call_message_completed' && event.messageId === responseIds[0] && event.plaintext === false)).toBe(true);
-    const durable = await page.evaluate(async ({ chatId, assistantId }) => {
-      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('chats_db'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      const read = (store: string, id: string) => new Promise<Record<string, unknown>>((resolve, reject) => { const request = db.transaction(store, 'readonly').objectStore(store).get(id); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      try { const [chat, response] = await Promise.all([read('chats', chatId), read('messages', assistantId)]);
-        return { encryptedFocus: typeof chat.encrypted_active_focus_id === 'string',
-          encryptedResponse: typeof response.encrypted_content === 'string', plaintext: 'content' in response,
-          linkedUser: typeof response.user_message_id === 'string' }; } finally { db.close(); }
-    }, { chatId: chatId!, assistantId: responseIds[0]! });
-    expect(durable).toEqual({ encryptedFocus: true, encryptedResponse: true, plaintext: false, linkedUser: true });
-    await expect.poll(async () => (await evidence(page)).sent.some((event) =>
-      event.type === 'voice_action_completed_confirmed' && event.messageId === responseIds[0]),
-    { timeout: 45_000, message: 'Committed artifacts must reach durable encrypted storage before their receipt ACK' }).toBe(true);
-    // This call adds enough real completed history to require shared compression.
-    // Verify encrypted storage and provider adoption before ending the session;
-    // a cancelled pending checkpoint must not silently discard those facts.
-    await expect.poll(async () => (await evidence(page)).received.some((event) =>
-      event.type === 'voice_context_resumed' && event.callId === resumedCallId),
-    { timeout: 60_000, message: 'The completed call context must be durably checkpointed and adopted before hangup' }).toBe(true);
-    const compressedTransport = await evidence(page);
-    const adopted = compressedTransport.received.find((event) => event.type === 'voice_context_resumed' && event.callId === resumedCallId)!;
-    const compression = compressedTransport.received.find((event) => event.type === 'voice_compression' && event.checkpointId === adopted.checkpointId);
-    expect(compression?.coveredMessageIds?.length).toBeGreaterThan(0);
-    expect(compression?.compressedMessageCount).toBe(compression?.coveredMessageIds?.length);
-    expect(compression?.coveredMessageIds).toEqual([...new Set(compression!.coveredMessageIds)].sort());
-    const snapshotIndex = compressedTransport.received.findIndex((event) => event.type === 'voice_compression_started' && event.snapshotId === compression?.snapshotId);
-    expect(snapshotIndex).toBeGreaterThanOrEqual(0);
-    const billingBeforeCompression = compressedTransport.received.slice(0, snapshotIndex)
-      .filter((event) => event.type === 'billing_activity' && event.callId === resumedCallId).at(-1);
-    expect(billingBeforeCompression, 'Paid compression must report processing before its snapshot starts').toMatchObject({ processing: true });
-    const snapshot = compressedTransport.received[snapshotIndex];
-    const sourceRecords = new Map((resumed?.context ?? []).map((turn) => [turn.message_id, { role: turn.role, createdAt: turn.created_at }]));
-    for (const event of compressedTransport.received.slice(0, snapshotIndex)) {
-      if (event.type === 'transcript' && event.callId === resumedCallId && event.final && event.messageId) sourceRecords.set(event.messageId,
-        { role: event.role!, createdAt: event.createdAt });
-    }
-    expect(snapshot.sourceMessageIds?.every((id) => sourceRecords.has(id))).toBe(true);
-    const expectedPrefix = snapshot.sourceMessageIds!.filter((id) => sourceRecords.get(id)!.createdAt! <= compression!.boundaryTimestamp!).sort();
-    expect(compression?.coveredMessageIds).toEqual(expectedPrefix);
-    const retained = snapshot.sourceMessageIds!.filter((id) => !expectedPrefix.includes(id));
-    expect(retained.length).toBeGreaterThan(0);
-    expect(retained.every((id) => sourceRecords.get(id)!.createdAt! > compression!.boundaryTimestamp!)).toBe(true);
-    const protectedAssistant = snapshot.sourceMessageIds!.filter((id) => sourceRecords.get(id)!.role === 'assistant').at(-1);
-    expect(protectedAssistant).toBeTruthy();
-    expect(retained).toContain(protectedAssistant);
-    expect(compression?.coveredMessageIds).toContain(uncoveredIds[0]);
-    expect(uncoveredIds.every((id) => expectedPrefix.includes(id) || retained.includes(id))).toBe(true);
-    expect(compression?.coveredMessageIds).not.toContain(responseIds[0]);
-    expect(compressedTransport.sent).toContainEqual(expect.objectContaining({ type: 'store_chat_compression_checkpoint',
-      checkpointId: adopted.checkpointId, plaintext: false }));
-    expect(compressedTransport.received).toContainEqual(expect.objectContaining({ type: 'chat_compression_checkpoint_stored', checkpointId: adopted.checkpointId }));
-    expect(compressedTransport.sent).toContainEqual(expect.objectContaining({ type: 'voice_compression_confirmed', checkpointId: adopted.checkpointId }));
-    const storedCheckpoint = await page.evaluate(async (checkpointId) => {
-      const db = await new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('chats_db'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      try {
-        return await new Promise<{ encrypted: boolean; plaintext: boolean; coveredManifest: boolean }>((resolve, reject) => {
-          const request = db.transaction('chat_compression_checkpoints', 'readonly').objectStore('chat_compression_checkpoints').get(checkpointId);
-          request.onsuccess = () => resolve({ encrypted: typeof request.result?.encrypted_summary === 'string' && request.result.encrypted_summary.length > 30,
-            plaintext: 'summary' in (request.result ?? {}), coveredManifest: 'covered_message_ids' in (request.result ?? {}) });
-          request.onerror = () => reject(request.error);
-        });
-      } finally { db.close(); }
-    }, adopted.checkpointId!);
-    expect(storedCheckpoint).toEqual({ encrypted: true, plaintext: false, coveredManifest: false });
-    await page.screenshot({ path: testInfo.outputPath('voice-call-stage-two-phone.png') });
-    await page.locator('[data-testid="voice-call-hangup"]:visible').click();
-    await assertCallHistoryDurable(page,chatId!,resumedCallId!);
-    await evictOwnedCallRows(page,chatId!,resumedCallId!);
-    await page.reload();
-    await showForgottenHistory(page);
-    await assertCallHistoryDurable(page,chatId!,resumedCallId!);
-    const reloadedReply = page.locator(`[data-testid="message-assistant"][data-message-id="${responseIds[0]}"]`);
-    await expect(reloadedReply).toHaveCount(1, { timeout: 45_000 });
-    await reloadedReply.scrollIntoViewIfNeeded();
-    await expect(reloadedReply).toContainText(STAGE_TWO_REPLY, { timeout: 45_000 });
-    await expect(page.getByTestId('message-assistant').filter({ hasText: STAGE_TWO_REPLY })).toHaveCount(1);
-    await expect(reloadedReply).toHaveAttribute('data-message-id', responseIds[0]!);
-    await expandWebActivity(page, reloadedReply);
-    await expect(reloadedReply.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-status="finished"]')).toBeVisible({ timeout: 45_000 });
-    await expect(reloadedReply.getByTestId('search-preview-metadata-missing-message')).toHaveCount(0);
-
-    // End the next call on the real committed-action receipt, before the
-    // deliberately delayed external speech. Completion must survive teardown.
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status')).toContainText('Listening', { timeout: 45_000 });
-    const coldStart = (await evidence(page)).sent.find((event) => event.type === 'start');
-    const coldReady = (await evidence(page)).received.find((event) => event.type === 'ready' && event.socketId === coldStart?.socketId);
-    expect(coldReady?.callId).toBeTruthy();
-    expect(coldReady?.socketId).toBeTruthy();
-    expect(coldReady?.callId).not.toBe(resumedCallId);
-    expect(coldStart?.summary).toContain(CHECKPOINT_FACT);
-    expect(coldStart?.summary).toContain(UNCOVERED_CONTEXT_FACT);
-    const coldContext = [coldStart?.summary ?? '', ...(coldStart?.context ?? []).map((turn) => turn.text)].join('\n');
-    const seededFacts = resumed!.context!.filter((turn) => uncoveredIds.includes(turn.message_id ?? '')).map((turn) => turn.text);
-    expect(seededFacts.every((fact) => coldContext.includes(fact))).toBe(true);
-    await page.locator('[data-testid="voice-call-mute"]:visible').click();
-    await page.evaluate((owner) => {
-      (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.hangupOnCommittedAction = owner;
-    }, { callId: coldReady!.callId!, socketId: coldReady!.socketId! });
-    const finalEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
-    await finalEditor.click(); await page.keyboard.insertText(STAGE_TWO_TEXT);
-    await page.getByTestId('composer-send-button').click();
-    await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
-      .__voiceCallEvidence.committedHangupInjected ?? false), { timeout: 60_000 }).toBe(true);
-    await expect(page.locator('[data-testid="voice-call-bar"]:visible')).toHaveCount(0);
-    const committed = await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
-      .__voiceCallEvidence.committedHangupReceipt);
-    expect(committed?.assistantMessageId).toBeTruthy(); expect(committed?.embedId).toBeTruthy();
-    expect(committed?.callId).toBe(coldReady!.callId);
-    expect(committed?.assistantMessageId).not.toBe(responseIds[0]);
-    expect((await evidence(page)).received).toContainEqual(committed);
-    const committedAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${committed!.assistantMessageId}"]`);
-    await expect(committedAssistant).toHaveCount(1);
-    await committedAssistant.scrollIntoViewIfNeeded();
-    await expandWebActivity(page, committedAssistant);
-    const committedCard = page.locator(`[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-id$="${committed!.embedId}"]`);
-    await expect(committedCard).toBeVisible({ timeout: 45_000 });
-    await expect(committedCard).toHaveAttribute('data-embed-status', 'finished');
-    await expect(committedAssistant.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')).toHaveCount(1);
-    await expect(committedAssistant).not.toContainText(STAGE_TWO_REPLY);
-    await expect.poll(async () => (await evidence(page)).sent.some((event) =>
-      event.type === 'voice_action_completed_confirmed' && event.messageId === committed!.assistantMessageId),
-    { timeout: 45_000, message: 'Committed artifacts must reach durable encrypted storage before their receipt ACK' }).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath('voice-call-committed-result-after-hangup.png') });
-    await assertCallHistoryDurable(page,chatId!,coldReady!.callId!);
-    await evictOwnedCallRows(page,chatId!,coldReady!.callId!);
-    await page.reload();
-    await showForgottenHistory(page);
-    const recoveredAssistant = page.locator(`[data-testid="message-assistant"][data-message-id="${committed!.assistantMessageId}"]`);
-    await expect(recoveredAssistant).toHaveCount(1);
-    await recoveredAssistant.scrollIntoViewIfNeeded();
-    await expandWebActivity(page, recoveredAssistant);
-    const recoveredCard = page.locator(`[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-embed-id$="${committed!.embedId}"]`);
-    await expect(recoveredCard).toBeVisible({ timeout: 45_000 });
-    await expect(recoveredCard).toHaveAttribute('data-embed-status', 'finished');
-    await expect(page.getByTestId('message-assistant').filter({ has: recoveredCard })).toHaveCount(1);
-
-    // Native call preparation must show one usable error, rather than opening
-    // a provider or silently dropping older facts when context cannot fit.
-    const overLimitIds = await seedVoiceContext(page, chatId!, messageIds.slice(0, 2), 31);
-    expect(overLimitIds).toHaveLength(31);
-    await assertCallHistoryDurable(page,chatId!,coldReady!.callId!);
-    // Repeated reloads and history seeding exercise real focus discovery. Its
-    // independent per-IP limit must have available budget before isolating the
-    // context-size refusal; preserve the production limiter and both checks.
-    await expect.poll(() => page.evaluate(async ({ apiUrl, chatId }) => {
-      const response = await fetch(`${apiUrl}/v1/projects/focus/current?chat_id=${encodeURIComponent(chatId)}`, { credentials: 'include' });
-      return response.status;
-    }, { apiUrl: process.env.PLAYWRIGHT_TEST_API_URL!, chatId: chatId! }), {
-      timeout: 65_000, intervals: [2000, 5000], message: 'Authenticated Project-focus discovery must be available before testing oversized call context',
-    }).toBe(200);
-    const lifecycleBeforeRefusal=new Set((await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added').map(event=>event.messageId)).size;
-    const admittedBeforeRefusal = (await evidence(page)).sent.filter((event) => event.type === 'start').length;
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.locator('[data-testid="voice-call-bar"]:visible')).toHaveCount(1);
-    await expect(page.getByTestId('voice-call-error')).toHaveText('This chat has more context than a voice call can load. Continue with text.');
-    expect((await evidence(page)).sent.filter((event) => event.type === 'start')).toHaveLength(admittedBeforeRefusal);
-    expect(new Set((await evidence(page)).sent.filter(event=>event.type==='chat_system_message_added').map(event=>event.messageId)).size).toBe(lifecycleBeforeRefusal);
-    await expect(page.locator('[data-testid="voice-call-hangup"]:visible')).toHaveAccessibleName('Close');
-    await page.screenshot({ path: testInfo.outputPath('voice-call-context-too-large-phone.png') });
-    await page.locator('[data-testid="voice-call-hangup"]:visible').click();
-    await expect(page.locator('[data-testid="voice-call-bar"]:visible')).toHaveCount(0);
-    await assertHeaderCallActions(page, false, true);
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect.poll(()=>requested).toBe(true);
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      const initial=await evidence(page);const start=voiceFrames(initial,'start')[0];
+      const baseline=voiceFrames(initial,'mic_audio').length;
+      await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(baseline+12);
+      expect((await nativeVoiceInput(page)).detectorReady).toBe(0);
+      await assertActivityCounter(page,true);
+      const seconds=await activeCallSeconds(page);await expect.poll(()=>activeCallSeconds(page)).toBeGreaterThan(seconds);
+      const connectedTones=(await nativeVoiceInput(page)).localToneStarts;expect(connectedTones).toBeGreaterThan(0);
+      release();await expect.poll(async()=>(await nativeVoiceInput(page)).detectorReady,{timeout:30_000}).toBe(1);
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Speak to resume call.',{timeout:15_000});
+      await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='billing_activity').at(-1)).toMatchObject({inputListening:false,processing:false});
+      const idle=await evidence(page);const idleCount=voiceFrames(idle,'mic_audio').length;
+      expect(voiceFrames(idle,'audio_stream_end')).toHaveLength(1);await assertActivityCounter(page,false);
+      const timer=await page.getByTestId('voice-call-timer').textContent();
+      const sampleCount=(await nativeVoiceInput(page)).samples;
+      await expect.poll(async()=>(await nativeVoiceInput(page)).samples).toBeGreaterThan(sampleCount+24_000);
+      expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(idleCount);
+      await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
+      await playNativeVoiceFixture(page);
+      await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(idleCount);
+      const resumed=await evidence(page);const frames=voiceFrames(resumed,'mic_audio').slice(idleCount);
+      const prefix=frames.filter(frame=>frame.audioBatch===frames[0].audioBatch);
+      const samples=prefix.reduce((sum,frame)=>sum+(frame.audioSamples??0),0);
+      expect(samples).toBeGreaterThanOrEqual(16*300);expect(samples).toBeLessThanOrEqual(16*500);
+      expect(prefix.some(frame=>frame.audioNonzero)).toBe(true);
+      await waitForSpokenAssistant(page);
+      await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+      await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
+      expect(voiceFrames(resumed,'start')).toHaveLength(1);
+      expect(frames.every(frame=>frame.socketId===start.socketId)).toBe(true);
+      expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+      await page.getByTestId('voice-call-mute').click();
+      await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
+      const mutedCount=voiceFrames(await evidence(page),'mic_audio').length;
+      await expect.poll(async()=>(await nativeVoiceInput(page)).localToneStarts).toBeGreaterThan(connectedTones);
+      await expect.poll(async()=>(await nativeVoiceInput(page)).playing).toBe(false);
+      await playNativeVoiceFixture(page);await expect.poll(async()=>(await nativeVoiceInput(page)).playing).toBe(false);
+      expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(mutedCount);
+      await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+    } finally {release();}
   });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
+  test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
+    test.setTimeout(240_000);
+    const imageProxyFixture = await installVoiceFixtureImageProxy(page);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await playNativeVoiceFixture(page);
+    await waitForSpokenAssistant(page);
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    const first=page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH});
+    await expect(first).toHaveCount(1);await expect(first.getByTestId('generated-by')).not.toContainText('Live');
+    await assertSlimCallSurface(page);
+    const chatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+    const ready=(await evidence(page)).received.find(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')!;
+    expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);expect(ready.callId).toBeTruthy();
+    await page.getByTestId('voice-call-mute').click();
+    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
+    const typedId=await sendCameraCallText(page,PASTED_TEXT);
+    await waitForCanonicalAssistant(page,typedId);
+    await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    const richId=await sendCameraCallText(page,'Show voice rich results');
+    await waitForCanonicalAssistant(page,richId);
+    const rich=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
+    await expect(rich).toHaveCount(1);await expect(rich.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+    await expect(rich.getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
+    await expect(rich.locator('[data-testid="embed-preview"]')).not.toHaveCount(0);
+    await expect.poll(() => imageProxyFixture.servedRequests, { message: 'The real chat image URL must use the exact upstream byte fixture' }).toBeGreaterThan(0);
+    await expect(rich.locator('img').first()).toBeVisible();
+    const protocol=await evidence(page);
+    const finals=protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.final);
+    const sends=protocol.sent.filter(frame=>frame.type==='chat_message_added');
+    expect(finals.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
+    expect(finals.filter(frame=>frame.messageId===richId)).toHaveLength(1);
+    expect(sends.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
+    expect(sends.filter(frame=>frame.messageId===richId)).toHaveLength(1);
+    expect(sends.every(frame=>frame.autoSpeak===true&&frame.forcedModel===false)).toBe(true);
+    expect(protocol.sent.filter(frame=>frame.type==='call_message_completed')).toHaveLength(0);
+    expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='audio_chunk')).toHaveLength(0);
+    expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
+    const messageIds=await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
+    expect(messageIds).toHaveLength(6);
+    await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-laptop.png')});
+    const dismiss=page.getByTestId('input-dismiss-button');if(await dismiss.isVisible())await dismiss.click();
+    await scrollChatHistoryToStart(page,testInfo);
+    const close=page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible');
+    await expect(close).toHaveCount(1);await close.click();await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
+    await chooseAppsHome(page);await holdChatLookup(page,chatId);
+    try{await page.getByTestId('apps-route-header').getByTestId('voice-call-pill').click();await expectHeldChatLookup(page,'returnToVoiceCallChat');await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);}
+    finally{await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseChatLookup?.());}
+    await expect(page.getByTestId('voice-call-bar')).toBeVisible();await expect.poll(()=>new URL(page.url()).hash).toBe(`#chat-id=${chatId}`);
+    await page.setViewportSize({width:390,height:844});await expectHeaderPointerAccess(page);
+    await page.locator('#settings-menu-toggle').click();await expect(page.getByTestId('voice-call-pill')).toBeVisible();
+    await page.getByTestId('voice-call-pill').click();await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/);
+    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
+    expect(voiceFrames(await evidence(page),'start')).toHaveLength(1);expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+    await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
+    await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
+    await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
+    await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
+    await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
+    // Reload restores the compact draft composer. Focus its actual editor to
+    // expose the ordinary recording control before checking audio ownership.
+    await page.getByTestId('message-editor').click();
+    await expect(page.getByTestId('record-audio-button')).toBeEnabled();
+  });
+
+  for(const viewport of [{name:'phone',width:390,height:844},{name:'laptop',width:1440,height:900}]) {
+    // contract-test: direct surface=gui.web assertions=video-call.video.input-and-output,video-call.video.source-frame-provenance,video-call.audio.complete-turn-admission,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+    test(`attaches the exact encrypted camera source to the ordinary user request on ${viewport.name}`,async({page,context},testInfo)=>{
+      test.setTimeout(180_000);await page.setViewportSize(viewport);await context.grantPermissions(['microphone','camera']);
+      await installNativeVoiceInput(page);await observeRealTransport(page);await observeCameraCall(page);
+      await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+      await page.locator('[data-testid="voice-call-start"]:visible').click();await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+      await page.getByTestId('voice-call-mute').click();await page.getByTestId('voice-call-video').click();
+      await expect.poll(async()=>(await cameraCallEvidence(page)).sent.filter(frame=>frame.type==='camera_frame').length).toBeGreaterThan(0);
+      await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','true');
+      const userId=await sendCameraCallText(page,PASTED_TEXT);
+      // Canonical admission follows this turn's exact source upload/encryption.
+      // Check provenance only after the ordinary response confirms that work.
+      await waitForCanonicalAssistant(page,userId);
+      await expect.poll(()=>sourceFrameProof(page,userId)).toMatchObject({exact:true,clean:true,bounded:true});
+      const source=(await sourceFrameProof(page,userId))!;
+      const chatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+      const user=page.locator(`[data-testid="message-user"][data-message-id="${userId}"]`);
+      await expect(user).toHaveCount(1);await assertEncryptedSourceAttachment(page,chatId,userId,source.embedId,source.hash);
+      const thumbnail=user.locator(`[data-testid="embed-preview"][data-embed-id="${source.embedId}"]`);
+      await assertOpenOriginalSource(page,thumbnail,source.embedId,source.hash,testInfo);
+      await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
+      await page.getByTestId('voice-call-video').click();await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','false');
+      await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+      expect((await evidence(page)).sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===userId)).toHaveLength(1);
+      await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+      await page.reload();await waitForChatReady(page);await expect(user).toHaveCount(1);
+      await assertEncryptedSourceAttachment(page,chatId,userId,source.embedId,source.hash);
+      await page.screenshot({path:testInfo.outputPath(`voice-source-${viewport.name}-reloaded.png`)});
+    });
+  }
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.single-owner,video-call.audio.spoken-rich-response
+  test('speaks one localized waiting confirmation for a slow German turn without creating a second assistant message',async({page})=>{
+    test.setTimeout(150_000);await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await page.getByTestId('voice-call-mute').click();
+    const id=await sendCameraCallText(page,'Bitte prüfe das gründlich');
+    await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation'&&frame.speechStatus==='queued'&&frame.language==='de').length,{timeout:30_000}).toBe(1);
+    await waitForCanonicalAssistant(page,id);
+    const reply=page.getByTestId('message-assistant').filter({hasText:'Ich habe das geprüft. Hier ist das Ergebnis.'});
+    await expect(reply).toHaveCount(1);await expect(page.getByTestId('message-assistant')).toHaveCount(1);
+    const protocol=await evidence(page);
+    expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===id)).toHaveLength(1);
+    expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+  });
+
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission,video-call.privacy
+  test('carries actual heard-clause progress to the next canonical turn while retaining the complete rich answer',async({page})=>{
+    await installVoiceFixtureImageProxy(page);
+    test.setTimeout(180_000);
+    await page.addInitScript(()=>{
+      const audio=new Set<HTMLMediaElement>();
+      const held={audio:null as HTMLAudioElement|null,segmentId:null as string|null,offset:0};
+      Object.assign(window,{__voiceSpeechPlayback:audio,__voiceSpeechHeld:held});
+      const play=HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play=function(...args:Parameters<HTMLMediaElement['play']>){
+        if(!audio.has(this)) {
+          audio.add(this);
+          this.addEventListener('timeupdate',()=>{
+            if(held.audio||!(this instanceof HTMLAudioElement)||!this.src.startsWith('blob:')||this.paused||this.ended||this.currentTime<=0)return;
+            const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+            const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
+            const prose=evidence?.received.some(frame=>frame.type==='assistant_speech_status'&&frame.kind==='voice_prose_clause'&&frame.speechStatus==='ready'&&frame.segmentId===active);
+            if(!prose||!active)return;
+            // Preserve a real heard offset and the actual clip. Native pause
+            // prevents playback finishing while canonical finalization runs.
+            held.audio=this;held.segmentId=active;held.offset=this.currentTime;
+            this.pause();
+          });
+        }
+        return play.apply(this,args);
+      };
+    });
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
+    await page.getByTestId('voice-call-mute').click();
+    const richTurnId=await sendCameraCallText(page,'Show voice rich results');
+    const editor=page.getByTestId('message-editor').locator('[contenteditable="true"]');
+    await expect(editor).toBeEmpty();await editor.click();
+    const followup='Please continue from the last part I heard.';
+    await page.keyboard.insertText(followup);
+    await page.waitForFunction(()=>{
+      const held=(window as unknown as {__voiceSpeechHeld:{audio:HTMLAudioElement|null;offset:number}}).__voiceSpeechHeld;
+      return !!held.audio&&held.audio.paused&&!held.audio.ended&&held.offset>0;
+    },undefined,{timeout:60_000,polling:'raf'});
+    // The entire produced rich answer must precede interruption. Keep the same
+    // genuinely advanced prose clip available across canonical finalization.
+    await waitForCanonicalAssistant(page,richTurnId);
+    await page.evaluate(async()=>{
+      const held=(window as unknown as {__voiceSpeechHeld:{audio:HTMLAudioElement}}).__voiceSpeechHeld;
+      await held.audio.play();
+    });
+    await page.waitForFunction(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;
+        __voiceSpeechHeld:{audio:HTMLAudioElement;segmentId:string;offset:number}};
+      const held=browser.__voiceSpeechHeld;
+      const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+      const voice=browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_status'&&frame.kind==='voice_prose_clause'&&frame.speechStatus==='ready'&&frame.segmentId===active);
+      return voice&&active===held.segmentId&&!held.audio.paused&&!held.audio.ended&&held.audio.currentTime>held.offset;
+    },undefined,{timeout:10_000,polling:'raf'});
+    const before=voiceFrames(await evidence(page),'text_input').length;
+    await page.getByTestId('composer-send-button').click();
+    await expect.poll(async()=>voiceFrames(await evidence(page),'text_input').length).toBe(before+1);
+    const nextId=voiceFrames(await evidence(page),'text_input').at(-1)!.messageId!;
+    await expect.poll(async()=>(await evidence(page)).sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)?.heardBoundary,{timeout:45_000}).toBeTruthy();
+    const protocol=await evidence(page);
+    const boundary=protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.heardBoundary!;
+    const prior=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
+    await expect(prior).toHaveCount(1);
+    expect(boundary.assistant_message_id).toBe(await prior.getAttribute('data-message-id'));
+    expect(boundary.completed_sequences.length>0||boundary.active_sequence!==null&&boundary.active_offset_ms>0).toBe(true);
+    expect(boundary.completed_sequences.length).toBeLessThanOrEqual(256);
+    expect(boundary.active_offset_ms).toBeGreaterThanOrEqual(0);expect(boundary.active_offset_ms).toBeLessThanOrEqual(3_600_000);
+    expect(Object.keys(boundary).sort()).toEqual(['active_offset_ms','active_sequence','assistant_message_id','completed_sequences']);
+    expect(protocol.received.some(frame=>frame.type==='audio.interrupted'&&frame.assistantMessageId===boundary.assistant_message_id)).toBe(true);
+    const privateRow=await page.evaluate(async id=>{
+      const db=await new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+      try{return await new Promise<{encrypted:boolean;plaintext:boolean;heardMetadata:boolean}>((resolve,reject)=>{const request=db.transaction('messages','readonly').objectStore('messages').get(id);request.onsuccess=()=>resolve({encrypted:typeof request.result?.encrypted_content==='string',plaintext:typeof request.result?.content==='string',heardMetadata:'voice_heard_boundary' in (request.result??{})});request.onerror=()=>reject(request.error);});}
+      finally{db.close();}
+    },nextId);
+    expect(privateRow).toEqual({encrypted:true,plaintext:false,heardMetadata:false});
+    await expect(prior.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
+    await expect(prior.getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
+    await expect(prior.locator('[data-testid="embed-preview"]')).not.toHaveCount(0);
+    await waitForCanonicalAssistant(page,nextId);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+followup})).toHaveCount(1);
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+  });
+
 });

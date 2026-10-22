@@ -189,9 +189,8 @@ for (const width of [320, 390, 1180]) {
     await expect(page.getByTestId('voice-call-more-actions')).toBeVisible();
     await page.getByTestId('voice-call-video').click();
     await expect(page.getByTestId('voice-call-more-actions')).toHaveCount(0);
-    await expect(page.getByText('Video calls are coming soon.')).toBeVisible();
-    await page.getByTestId('notification-dismiss').click();
-    await expect(page.getByTestId('notification')).toHaveCount(0);
+    await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('voice-call-camera-preview')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`call-sticky-${width}.png`) });
     await page.getByTestId('voice-call-close-chat').click();
     await expect(page.getByTestId('voice-call-start')).toHaveCount(0);
@@ -260,8 +259,10 @@ test('restores Start and allows a new call after hanging up in a private chat', 
   await expect(page.getByTestId('chat-top-actions')).toBeVisible();
   await expect(start).toBeVisible();
   await expect(start).toHaveAccessibleName('Start voice call');
-  await page.getByTestId('message-editor').click();
-  await expect(page.getByTestId('chat-side')).toHaveAttribute('inert');
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+  await editor.click();
+  await expect(editor).toBeFocused();
+  await expect(page.getByTestId('chat-side')).not.toHaveAttribute('inert');
   await page.getByTestId('input-dismiss-button').click();
   await expect(page.getByTestId('chat-side')).not.toHaveAttribute('inert');
   await start.click();

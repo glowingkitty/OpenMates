@@ -194,6 +194,14 @@ async def test_same_turn_snapshot_preserves_legacy_admission_without_private_his
     from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
     request = _request()
+    request.voice_mode = True
+    request.voice_call_id = "a" * 32
+    request.voice_turn_id = request.message_id
+    request.auto_speak_response = True
+    request = type(request).model_validate({**request.model_dump(), "voice_heard_boundary": {
+        "assistant_message_id": "previous-answer", "completed_sequences": [0, 1],
+        "active_sequence": 2, "active_offset_ms": 420,
+    }})
     for field in ("recovery_task_id", "recovery_inference_task_id", "recovery_preflight_id",
                   "recovery_turn_id", "recovery_public_key", "chat_key_version"):
         setattr(request, field, None)
@@ -211,6 +219,9 @@ async def test_same_turn_snapshot_preserves_legacy_admission_without_private_his
     )
     context = await cache.get(async_skill_continuation.async_skill_continuation_key("producer-legacy"))
     snapshot = context["request_data"]
+    assert snapshot["voice_heard_boundary"] == request.voice_heard_boundary.model_dump(mode="json")
+    assert snapshot["voice_mode"] is True and snapshot["voice_call_id"] == request.voice_call_id
+    assert snapshot["voice_turn_id"] == request.message_id and snapshot["auto_speak_response"] is True
     assert snapshot["legacy_cutover_task_id"] == snapshot["root_legacy_cutover_task_id"] == identity
     assert snapshot["root_turn_id"] == request.root_turn_id
     assert snapshot["root_user_message_id"] == request.message_id
@@ -478,12 +489,21 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("assistant_tail", [False, True])
-# contract-test: tooling
-async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation, assistant_tail):
+@pytest.mark.parametrize("voice_mode", [False, True])
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.audio.spoken-rich-response
+async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation, assistant_tail, voice_mode):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()
     monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
     request = _request()
+    request.voice_mode = voice_mode
+    request.voice_call_id = "a" * 32 if voice_mode else None
+    request.voice_turn_id = request.message_id if voice_mode else None
+    request.auto_speak_response = voice_mode
+    request.assistant_response_source_revision = 7
+    heard = {"assistant_message_id": "previous-answer", "completed_sequences": [0],
+             "active_sequence": 1, "active_offset_ms": 420} if voice_mode else None
+    request = type(request).model_validate({**request.model_dump(), "voice_heard_boundary": heard})
     if assistant_tail:
         request.message_history.append(AIHistoryMessage(
             role="assistant", content="The tool is running.", created_at=2,
@@ -513,6 +533,12 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     skill_config_payload = fake_celery_app.sent[0]["kwargs"]["skill_config_dict"]
     assert request_payload["chat_id"] == "chat-1"
     assert request_payload["is_async_skill_continuation"] is True
+    assert request_payload["voice_mode"] is voice_mode
+    assert request_payload["voice_call_id"] == request.voice_call_id
+    assert request_payload["voice_turn_id"] == request.voice_turn_id
+    assert request_payload["voice_heard_boundary"] == heard
+    assert request_payload["auto_speak_response"] is voice_mode
+    assert request_payload["assistant_response_source_revision"] == 7
     assert request_payload["original_user_message_id"] == "message-1"
     assert request_payload["async_skill_task_id"] == "async-task-1"
     assert request_payload["preprocessing_resume_ref"] == "server-owned-routing-ref"

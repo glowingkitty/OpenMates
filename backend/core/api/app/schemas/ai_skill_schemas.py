@@ -5,6 +5,7 @@
 from typing import List, Dict, Any, Optional, Literal, Annotated
 from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer, ConfigDict, StringConstraints
 from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.shared.python_utils.voice_playback_boundary import VoiceHeardBoundary
 
 RoutingModelId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$")]
 RoutingServerId = Annotated[str, StringConstraints(strict=True, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
@@ -45,6 +46,10 @@ class AskSkillRequest(BaseModel):
     current_chat_title_v: Optional[int] = Field(default=None, description="Client title version when the AI turn started. Used to reject stale generated title updates.")
     current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     auto_speak_response: bool = Field(default=False, description="Decrypted chat preference fixed for this assistant turn; never persisted by the AI pipeline.")
+    voice_mode: bool = Field(default=False, description="Server-validated call delivery for this ordinary chat turn; does not override model routing.")
+    voice_call_id: Optional[str] = Field(default=None, max_length=64)
+    voice_turn_id: Optional[str] = Field(default=None, max_length=64)
+    voice_heard_boundary: Optional[VoiceHeardBoundary] = None
     assistant_speech_lazy_dispatch: bool = Field(default=False, description="The owner client can request registered speech chapters as playback advances.")
     assistant_response_source_revision: int = Field(default=1, ge=1, description="Stable client-assigned revision for this assistant response source.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")

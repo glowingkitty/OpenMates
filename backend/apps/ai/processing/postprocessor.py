@@ -364,6 +364,7 @@ async def handle_postprocessing(
     usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     allow_model_fallbacks: bool = True,
     max_output_tokens: Optional[int] = None,
+    voice_mode: bool = False,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -409,6 +410,14 @@ async def handle_postprocessing(
     if is_incognito:
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Skipping post-processing for incognito chat - no suggestions will be generated")
         return None
+
+    from backend.apps.ai.testing.voice_pipeline_fixture import postprocessing_fixture
+    voice_fixture = postprocessing_fixture(
+        voice_mode=voice_mode, user_message=user_message,
+        current_chat_title=current_chat_title, user_system_language=user_system_language,
+    )
+    if voice_fixture is not None:
+        return PostProcessingResult(**voice_fixture)
 
     jev_decisions: Optional[Dict[str, Any]] = None
     if decision_model_id:

@@ -15,7 +15,7 @@ enum NativeVoiceCallAppleEnvironment {
         let acknowledged: Bool
         let acknowledgedAt: Int?
     }
-    private struct Accept: Encodable { let version = 1 }
+    private struct Accept: Encodable { let version = 2 }
 
     static func make(authManager: AuthManager, profile: ServerProfile,
         consentDecision: @escaping @MainActor @Sendable () async -> Bool,
@@ -31,7 +31,7 @@ enum NativeVoiceCallAppleEnvironment {
             guard await current(scope) else { throw NativeVoiceCallError.scopeChanged }
             let data: Data
             do {
-                data = try await APIClient.shared.request(.get, path: "/v1/settings/voice-google-processing-ack",
+                data = try await APIClient.shared.request(.get, path: "/v1/settings/voice-processing-ack",
                     serverProfile: profile, expectedAccountID: scope.accountID,
                     expectedScope: scope.workspaceGeneration)
             } catch { throw NativeVoiceCallError.consentUnavailable }
@@ -39,20 +39,20 @@ enum NativeVoiceCallAppleEnvironment {
             let ack: Acknowledgment
             do { ack = try JSONDecoder.snakeCase.decode(Acknowledgment.self, from: data) }
             catch { throw NativeVoiceCallError.consentUnavailable }
-            guard ack.version == 1 else { throw NativeVoiceCallError.consentUnavailable }
+            guard ack.version == 2 else { throw NativeVoiceCallError.consentUnavailable }
             if ack.acknowledged, let timestamp = ack.acknowledgedAt, timestamp > 0 { return }
             guard !ack.acknowledged else { throw NativeVoiceCallError.consentUnavailable }
             guard await consentDecision() else { throw NativeVoiceCallError.consentRequired }
             guard await current(scope) else { throw NativeVoiceCallError.scopeChanged }
             let response: Data
             do {
-                response = try await APIClient.shared.request(.post, path: "/v1/settings/voice-google-processing-ack",
+                response = try await APIClient.shared.request(.post, path: "/v1/settings/voice-processing-ack",
                     serverProfile: profile, body: Accept(), expectedAccountID: scope.accountID,
                     expectedScope: scope.workspaceGeneration)
             } catch { throw NativeVoiceCallError.consentUnavailable }
             guard await current(scope) else { throw NativeVoiceCallError.scopeChanged }
             guard let written = try? JSONDecoder.snakeCase.decode(Acknowledgment.self, from: response),
-                  written.version == 1, written.acknowledged, (written.acknowledgedAt ?? 0) > 0
+                  written.version == 2, written.acknowledged, (written.acknowledgedAt ?? 0) > 0
             else { throw NativeVoiceCallError.consentUnavailable }
         }, authentication: { @MainActor [weak authManager] scope in
             guard let authManager, await current(scope) else { throw NativeVoiceCallError.scopeChanged }

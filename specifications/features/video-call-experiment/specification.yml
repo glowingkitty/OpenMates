@@ -1,10 +1,12 @@
 schema_version: 1
 id: feature.video-call-experiment
 version: 1
-status: draft
+status: superseded
+superseded_by: feature.video-call@11
 title: Experimental Gemini Voice And H3 Turbo Video Calls
-summary: An authenticated web experiment evaluates native Gemini voice and automatically
-  directed short H3 Turbo visuals with user controls and metered billing.
+summary: Retired historical Gemini Live experiment, superseded by feature.video-call@11.
+  The standalone page, WebSocket and Gemini Live calling stack have been removed;
+  current calls use the shared encrypted chat pipeline and Voxtral speech.
 scope:
   includes:
   - The standalone /experiment/videocall web page and its private authenticated WebSocket.

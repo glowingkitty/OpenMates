@@ -135,3 +135,24 @@ async def finalize_active_call(
     )
     if finalized != 1:
         raise RuntimeError("Voice call authority lost")
+
+
+async def active_call_session(cache: Any, *, user_id: str, chat_id: str, call_id: str) -> str | None:
+    """Return the owning session only while this owner/chat call is active.
+
+    Speech status delivery uses call ownership rather than the visible chat.
+    This lookup exposes identities only and never extends finalization grace.
+    """
+    if not all(isinstance(value, str) and value for value in (user_id, chat_id, call_id)):
+        return None
+    try:
+        key, _ = _keys(call_id)
+    except ValueError:
+        return None
+    client = await _client(cache)
+    values = await client.hmget(key, "user", "session", "chat", "state")
+    values = [value.decode() if isinstance(value, bytes) else value for value in values]
+    if values[0] != user_id or values[2:] != [chat_id, "active"]:
+        return None
+    session_id = values[1]
+    return session_id if isinstance(session_id, str) and session_id else None

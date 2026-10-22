@@ -37,11 +37,15 @@
     processing_metadata: false, waiting_for_metadata: false, category: 'general_knowledge', icon: 'sparkles',
   };
   const call = writable<VoiceCallState>({ ...initialVoiceCallState, status: 'live', chatId,
-    callId: 'preview-public-call', minimized: false });
+    callId: 'preview-public-call', minimized: false, cameraAvailable: true });
   const originalSubscribe = voiceCallController.subscribe;
   const originalHangup = voiceCallController.hangup;
   const originalStart = voiceCallController.start;
   const originalMinimize = voiceCallController.setMinimized;
+  const originalMuted = voiceCallController.setMuted;
+  const originalCamera = voiceCallController.setCameraEnabled;
+  let cameraStream: MediaStream | null = null;
+  const stopCamera = () => { cameraStream?.getTracks().forEach(track => track.stop()); cameraStream = null; };
   const originalDemoMode = demoMode.get();
   const originalSignupFooter = get(showSignupFooter);
   const originalActiveChatId = activeChatStore.get();
@@ -51,11 +55,28 @@
   const originalConnect = webSocketService.connect;
   let activeChat: ActiveChat;
   voiceCallController.subscribe = call.subscribe;
-  voiceCallController.hangup = () => call.update(state => ({ ...state, status: 'ended' }));
+  voiceCallController.hangup = () => {
+    stopCamera();
+    call.update(state => ({ ...state, status: 'ended', cameraEnabled: false, cameraStream: null, mediaExpanded: false }));
+  };
   if (privateChatFixture) voiceCallController.start = async () => {
     call.update(state => ({ ...state, status: 'live', chatId, callId: 'preview-private-restarted-call' }));
   };
   voiceCallController.setMinimized = minimized => call.update(state => ({ ...state, minimized }));
+  voiceCallController.setMuted = muted => call.update(state => ({ ...state, muted }));
+  voiceCallController.setCameraEnabled = async enabled => {
+    stopCamera();
+    if (enabled) {
+      // Account-free device fixture: the real media component owns this browser
+      // stream, without requesting a camera or contacting speech providers.
+      const canvas = document.createElement('canvas');
+      canvas.width = 640; canvas.height = 360;
+      const context = canvas.getContext('2d');
+      if (context) { context.fillStyle = '#3b82f6'; context.fillRect(0, 0, 640, 360); }
+      cameraStream = canvas.captureStream(1);
+    }
+    call.update(state => ({ ...state, cameraEnabled: enabled, cameraStream, mediaExpanded: enabled }));
+  };
   // Avoid the demo-mode Report suppression: this fixture proves normal account
   // action visibility while the WebSocket singleton has no real token to use.
   webSocketService.connect = () => Promise.resolve();
@@ -85,6 +106,9 @@
     voiceCallController.hangup = originalHangup;
     voiceCallController.start = originalStart;
     voiceCallController.setMinimized = originalMinimize;
+    voiceCallController.setMuted = originalMuted;
+    voiceCallController.setCameraEnabled = originalCamera;
+    stopCamera();
     demoMode.set(originalDemoMode);
     showSignupFooter.set(originalSignupFooter);
     activeChatStore.setWithoutHashUpdate(originalActiveChatId);

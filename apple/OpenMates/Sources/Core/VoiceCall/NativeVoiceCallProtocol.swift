@@ -165,6 +165,48 @@ struct NativeVoiceCallTranscript: Equatable, Sendable {
     var embedReferences: [NativeVoiceCallArtifactReference] = []
 }
 
+/// Ephemeral routing metadata travels inside the ordinary encrypted-send bundle.
+/// It never changes the account model, thinking or saved speech preferences.
+/// Actual completed clauses and current media position, never inferred words.
+struct NativeVoiceCallHeardBoundary: Sendable, Equatable {
+    let assistantMessageID: String
+    let completedSequences: [Int]
+    let activeSequence: Int?
+    let activeOffsetMilliseconds: Int
+    init(assistantMessageID: String, completedSequences: Set<Int>, activeSequence: Int?, activeOffsetMilliseconds: Int) {
+        self.assistantMessageID = assistantMessageID
+        self.completedSequences = completedSequences.filter { (0...255).contains($0) }.sorted()
+        self.activeSequence = activeSequence.flatMap { (0...255).contains($0) ? $0 : nil }
+        self.activeOffsetMilliseconds = self.activeSequence == nil ? 0 : min(3_600_000, max(0, activeOffsetMilliseconds))
+    }
+    var fields: [String: Any] {
+        ["assistant_message_id": assistantMessageID, "completed_sequences": completedSequences,
+         "active_sequence": activeSequence.map { $0 as Any } ?? NSNull(), "active_offset_ms": activeOffsetMilliseconds]
+    }
+}
+
+/// A pure stop may precede the next request. Retain until that exact boundary
+/// enters a durably accepted ordinary user turn; a newer interrupt wins.
+struct NativeVoiceCallHeardBoundaryStage: Sendable {
+    private(set) var pending: NativeVoiceCallHeardBoundary?
+    mutating func stage(_ value: NativeVoiceCallHeardBoundary?) { if let value { pending = value } }
+    mutating func accepted(_ value: NativeVoiceCallHeardBoundary?) { if value != nil && pending == value { pending = nil } }
+    mutating func reset() { pending = nil }
+}
+
+struct NativeVoiceCallTurn: Sendable, Equatable {
+    let callID: String
+    let turnID: String
+    var heardBoundary: NativeVoiceCallHeardBoundary? = nil
+    var messageFields: [String: Any] {
+        var fields: [String: Any] = ["voice_call_id": callID, "voice_turn_id": turnID, "voice_mode": true,
+            "auto_speak_response": true, "assistant_speech_lazy_dispatch": false,
+            "assistant_response_source_revision": 1]
+        if let heardBoundary { fields["voice_heard_boundary"] = heardBoundary.fields }
+        return fields
+    }
+}
+
 struct NativeVoiceCallSnapshot: Equatable, Sendable {
     enum Status: String, Sendable { case idle, connecting, live, ended, failed }
     var status: Status = .idle
@@ -181,8 +223,8 @@ struct NativeVoiceCallSnapshot: Equatable, Sendable {
 
 enum NativeVoiceCallEvent: Sendable {
     case state(NativeVoiceCallSnapshot)
-    /// Only emitted after ciphertext is durably stored. Canonical chat adapters
-    /// publish this row without invoking their ordinary text-inference sender.
+    /// Final user acceptance follows the canonical ordinary encrypted sender.
+    /// Assistant rich content is owned exclusively by ordinary chat sync.
     case transcript(NativeVoiceCallTranscript)
     case typedRejected(messageID: String)
     case tool(NativeVoiceCallFrame)
@@ -204,5 +246,13 @@ enum NativeVoiceCallMessageID {
         let hex = bytes.map { String(format: "%02x", $0) }
         return hex[0..<4].joined() + "-" + hex[4..<6].joined() + "-" + hex[6..<8].joined()
             + "-" + hex[8..<10].joined() + "-" + hex[10..<16].joined()
+    }
+}
+
+/// Tagged live speech cannot escape its original active call. Manual replay is untagged.
+enum NativeVoiceCallSpeechAdmission {
+    static func permits(taggedCallID: String?, activeCallID: String?) -> Bool {
+        guard let taggedCallID else { return true }
+        return activeCallID == taggedCallID
     }
 }

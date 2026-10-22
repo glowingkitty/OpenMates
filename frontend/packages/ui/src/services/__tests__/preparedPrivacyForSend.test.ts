@@ -93,6 +93,25 @@ describe('prepared Personal privacy', () => {
     service.invalidatePreparedPrivacy();
     expect(() => service.filterWithFreshPersonalPrivacy('Secret Orchard', receipt)).toThrow('preferences');
   });
+  // contract-test: supporting surface=gui.web assertions=video-call.video.source-frame-provenance,ai-model-routing.preprocessing.prepared-privacy
+  it('preserves closed camera provenance while redacting prose and arbitrary JSON notes', async () => {
+    const service = await import('../preparedPrivacyForSend');
+    mocks.handlers.get('server_capabilities')!({ capabilities: ['personal_send_context_snapshot_v2'] });
+    mocks.send.mockImplementation(async (_type: string, request: any) => mocks.handlers.get('personal_send_context_snapshot_result')!(full('send', request)));
+    const receipt = await service.freshPersonalPrivacyForSend('turn-camera');
+    const reference = { type: 'image', embed_id: '05143690-1234-4abc-8123-0123456789ab',
+      source_frame_id: 'fb138791-7451-4cc9-a037-645944986181', source_call_id: '673f1d7523a5487e868e7769ec91804a',
+      source: 'camera', captured_at: 1792698555.81 };
+    const fence = (value: object) => '```json\n' + JSON.stringify(value) + '\n```';
+    const filtered = service.filterWithFreshPersonalPrivacy('Secret Orchard\n\n' + fence(reference), receipt);
+    expect(filtered.content).toContain(fence(reference));
+    expect(filtered.content).not.toContain('Secret Orchard');
+    const untrusted = service.filterWithFreshPersonalPrivacy(fence({ ...reference, note: 'Secret Orchard' }), receipt);
+    expect(untrusted.content).not.toContain('Secret Orchard');
+    const malformed = service.filterWithFreshPersonalPrivacy(fence({ ...reference, source_call_id: 'Secret Orchard' }), receipt);
+    expect(malformed.content).not.toContain('Secret Orchard');
+  });
+
   // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
   it('discards a slower focus compile after a newer Send has prepared another generation', async () => {
     const service = await import('../preparedPrivacyForSend');

@@ -56,7 +56,6 @@ from backend.shared.python_utils.chat_recovery_context import (  # noqa: E402
     RecoveryOutputContext, RequiredRecoveryOutputError, VerifiedOutputProducer,
     active_recovery_output_context, active_verified_output_producer,
 )
-from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context  # noqa: E402
 from backend.shared.python_utils import volatile_embed_authority  # noqa: E402
 
 if sys.modules.get("backend.shared.providers.e2b_application_preview") is e2b_preview_stub:
@@ -108,7 +107,6 @@ async def test_search_parent_short_ref_survives_placeholder_completion(monkeypat
 async def test_incognito_finished_publication_rechecks_live_socket_before_cache_and_event(
     monkeypatch, fail_at,
 ):
-    assert active_voice_worker_context.get() is None
     checks = []
 
     async def require_live_incognito_session(nonce, owner_hash):
@@ -152,7 +150,6 @@ async def test_incognito_finished_publication_rechecks_live_socket_before_cache_
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_external_volatile_publication_does_not_require_websocket_nonce(monkeypatch):
-    assert active_voice_worker_context.get() is None
 
     async def reject_if_called(*_args):
         raise AssertionError("External REST output has no incognito socket")
@@ -178,7 +175,6 @@ async def test_external_volatile_publication_does_not_require_websocket_nonce(mo
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
 async def test_disconnected_incognito_error_cannot_be_reported_as_published(monkeypatch):
-    assert active_voice_worker_context.get() is None
 
     async def disconnected(*_args):
         raise ValueError("socket_closed")

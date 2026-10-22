@@ -2,7 +2,8 @@
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts,
 // video-call.chat.compressed-context, video-call.privacy.first-call-warning,
-// video-call.chat.skill-integration, video-call.chat.memories-and-focus, video-call.privacy
+// video-call.chat.skill-integration, video-call.chat.memories-and-focus, video-call.privacy,
+// video-call.audio.spoken-rich-response, video-call.audio.intentional-interruption, video-call.audio.localized-waiting
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.input-actions
 #if os(watchOS)
@@ -20,6 +21,21 @@ final class NativeVoiceCallWatchFactory {
     private let downstream: @MainActor @Sendable (NativeVoiceCallEvent) async -> Void
     private let storageLease: WatchVoiceCallStorageLease
     private var stopped = false
+    private var speechScope: NativeVoiceCallScope?
+    private var heardBoundaryStage = NativeVoiceCallHeardBoundaryStage()
+    private var voiceClauseSequences = Set<Int>()
+    private var speechCallID: String?
+    private var speechTaskID: String?
+    private var speechPlayingSequence: Int?
+    private var waitingSuperseded = false
+    private var speechUserID: String?
+    private var speechMessageID: String?
+    private var speechSegments: [Int: String] = [:]
+    private var speechAcknowledgement: String?
+    private var playedSpeech = Set<Int>()
+    private var speechTask: Task<Void, Never>?
+    private var speechGeneration = UUID()
+
     private var evaluationLease: WatchVoiceEvaluationLease?
     private let generation = UUID()
     private var contexts: [String: WatchChatRequestContext] = [:]
@@ -104,15 +120,150 @@ final class NativeVoiceCallWatchFactory {
             guard let self else { throw NativeVoiceCallError.scopeChanged }; return try context(scope)
         }, consentDecision: consent, loadContext: { [weak self] scope in
             guard let self else { throw NativeVoiceCallError.scopeChanged }
-            return try await self.loadContext(scope)
+            _ = try await self.context(scope)
+            return try .init(messages: [], mateCategory: scope.mateCategory, canonicalRangeComplete: true)
         }, prepare: { [weak self] scope in
             guard let self else { throw NativeVoiceCallError.scopeChanged }
             try await self.confirmPreparedChat(scope)
+            await self.installSpeechBridge(scope)
+        }, submitTurn: { [weak self] scope, transcript in
+            guard let self else { throw NativeVoiceCallError.scopeChanged }
+            try await self.submitTurn(scope, transcript)
+        }, interruptAssistant: { [weak self] scope, id, taskID in
+            guard let self else { throw NativeVoiceCallError.scopeChanged }
+            try await self.interruptAssistant(scope, messageID: id, taskID: taskID)
         })
     }()
     lazy var controller: NativeVoiceCallController = NativeVoiceCallController(environment: environment, audio: audio, persistence: outbox,
         transportFactory: { NativeVoiceCallURLSessionTransport(cookieStorage: OpenMatesSharedEnvironment.cookieStorage) },
         eventHandler: { [weak self] event in await self?.receive(event) })
+
+    private func submitTurn(_ scope: NativeVoiceCallScope, _ transcript: NativeVoiceCallTranscript) async throws {
+        let request = try context(scope)
+        guard let chat else { throw NativeVoiceCallError.scopeChanged }
+        let heardBoundary = heardBoundaryStage.pending
+        speechGeneration = UUID(); speechTask?.cancel(); speechTask = nil
+        audio.interruptPlayback()
+        voiceClauseSequences.removeAll()
+        speechUserID = transcript.messageID; speechMessageID = nil; speechTaskID = nil; waitingSuperseded = false
+        speechSegments.removeAll(); speechAcknowledgement = nil; playedSpeech.removeAll()
+        await controller.updateAssistantState(speaking: false, generating: true, messageID: nil, text: "")
+        try await chat.voiceCallSubmitTurn(transcript, scope: scope, context: request, heardBoundary: heardBoundary)
+        heardBoundaryStage.accepted(heardBoundary)
+    }
+    private func installSpeechBridge(_ scope: NativeVoiceCallScope) {
+        speechScope = scope
+        chat?.voiceCallSpeechEvent = { [weak self] type, fields in self?.receiveSpeech(type: type, fields: fields) }
+    }
+    private func interruptAssistant(_ scope: NativeVoiceCallScope, messageID: String?, taskID: String?) async throws {
+        let request = try context(scope)
+        guard speechMessageID == messageID, messageID != nil || (taskID != nil && speechTaskID == taskID) else { return }
+        if let messageID {
+            let active = audio.isSpeechPlaying ? speechPlayingSequence.flatMap { voiceClauseSequences.contains($0) ? $0 : nil } : nil
+            var completed = playedSpeech.intersection(voiceClauseSequences)
+            if let sequence = audio.completedSpeechSequence, voiceClauseSequences.contains(sequence) { completed.insert(sequence) }
+            heardBoundaryStage.stage(.init(assistantMessageID: messageID,
+                completedSequences: completed, activeSequence: active,
+                activeOffsetMilliseconds: active == nil ? 0 : audio.speechPositionMilliseconds))
+        }
+        speechGeneration = UUID(); speechTask?.cancel(); speechTask = nil
+        speechSegments.removeAll(); speechAcknowledgement = nil; playedSpeech.removeAll()
+        audio.interruptPlayback()
+        speechTaskID = nil; speechUserID = nil; speechMessageID = nil
+        await controller.updateAssistantState(speaking: false, generating: false, messageID: nil, text: "")
+        try await chat?.voiceCallInterrupt(context: request, chatID: scope.chatID, taskID: taskID)
+    }
+    private func receiveSpeech(type: String, fields: [String: Any]) {
+        guard let scope = speechScope, current(scope), fields["chat_id"] as? String == scope.chatID else { return }
+        guard NativeVoiceCallSpeechAdmission.permits(taggedCallID: fields["voice_call_id"] as? String, activeCallID: speechCallID) else { return }
+        if type == "ai_task_initiated", speechUserID != nil, fields["user_message_id"] as? String == speechUserID,
+           let taskID = fields["task_id"] as? String {
+            speechTaskID = taskID
+            Task { [weak self] in
+                guard let self, speechTaskID == taskID else { return }
+                await controller.updateAssistantState(speaking: false, generating: true, messageID: speechMessageID,
+                    taskID: taskID, text: "")
+            }
+        }
+        if ["ai_typing_started", "ai_message_update"].contains(type),
+           fields["user_message_id"] as? String == speechUserID, let id = fields["message_id"] as? String {
+            speechMessageID = id
+        }
+        if type == "assistant_speech_acknowledgement", let id = fields["message_id"] as? String,
+           speechUserID != nil, !waitingSuperseded, playedSpeech.allSatisfy({ $0 < 0 }), speechSegments.isEmpty,
+           speechMessageID == nil || speechMessageID == id,
+           let path = fields["audio_url"] as? String, path.hasPrefix("/audio/assistant-acknowledgements/"),
+           !path.contains("..") {
+            speechMessageID = id; speechAcknowledgement = path
+            drainSpeech()
+        }
+        if type == "assistant_speech_status", let id = fields["message_id"] as? String,
+           speechUserID != nil, speechMessageID == nil || speechMessageID == id {
+            speechMessageID = id
+            let rows = fields["segments"] as? [[String: Any]] ?? [fields]
+            for row in rows {
+                guard let sequence = row["sequence"] as? Int, sequence < 256 else { continue }
+                let kind = row["kind"] as? String ?? fields["kind"] as? String
+                if sequence >= 0, kind == "voice_prose_clause" { voiceClauseSequences.insert(sequence) }
+                let passive = sequence == -1 && kind == "waiting_confirmation"
+                guard sequence >= 0 || (passive && !waitingSuperseded) else { continue }
+                if passive, ["error", "cancelled", "deleted"].contains(row["status"] as? String ?? "") {
+                    speechSegments.removeValue(forKey: -1); continue
+                }
+                if row["status"] as? String == "ready", let asset = row["generated_asset_id"] as? String {
+                    speechSegments[sequence] = asset
+                    if sequence >= 0 {
+                        waitingSuperseded = true; speechAcknowledgement = nil; speechSegments.removeValue(forKey: -1)
+                        if speechPlayingSequence == -1 {
+                            speechGeneration = UUID(); speechTask?.cancel(); speechTask = nil; speechPlayingSequence = nil
+                            audio.interruptPlayback()
+                        }
+                    }
+                }
+            }
+            drainSpeech()
+        }
+    }
+    private func drainSpeech() {
+        guard speechTask == nil, let scope = speechScope, let id = speechMessageID,
+              let chat, let request = try? context(scope) else { return }
+        let acknowledgement = speechAcknowledgement
+        let sequence = acknowledgement != nil && !playedSpeech.contains(-1) ? -1
+            : (speechSegments.keys.sorted().first(where: { !playedSpeech.contains($0) }) ?? -2)
+        guard sequence >= -1,
+              sequence == -1 || sequence == max(0, (playedSpeech.max().map { $0 + 1 } ?? 0)) else { return }
+        let asset = speechSegments[sequence]
+        let token = speechGeneration
+        speechPlayingSequence = sequence
+        speechTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let bytes: Data
+                if sequence == -1, let path = acknowledgement {
+                    bytes = try await chat.voiceCallAcknowledgementData(path: path, context: request)
+                } else if let asset {
+                    bytes = try await chat.voiceCallSpeechData(assetID: asset, chatID: scope.chatID, context: request)
+                } else { return }
+                guard token == speechGeneration, current(scope), speechMessageID == id else { return }
+                await controller.updateAssistantState(speaking: true, generating: true, messageID: id, taskID: speechTaskID,
+                    text: chat.voiceCallSpeechText(messageID: id, chatID: scope.chatID))
+                try await audio.playSpeech(bytes, sequence: sequence)
+                guard token == speechGeneration, current(scope) else { return }
+                playedSpeech.insert(sequence); if sequence == -1 { speechAcknowledgement = nil }; speechTask = nil; speechPlayingSequence = nil
+                await controller.updateAssistantState(speaking: false, generating: false, messageID: id, taskID: speechTaskID,
+                    text: chat.voiceCallSpeechText(messageID: id, chatID: scope.chatID))
+                drainSpeech()
+            } catch {
+                guard token == speechGeneration else { return }
+                speechTask = nil; speechPlayingSequence = nil
+                if sequence == -1 {
+                    playedSpeech.insert(-1); speechAcknowledgement = nil; speechSegments.removeValue(forKey: -1)
+                    drainSpeech(); return
+                }
+                if !(error is CancellationError) { await controller.persistenceFailed() }
+            }
+        }
+    }
 
     /// Actual WatchRoot installation: call once after constructing the matching
     /// authenticated WatchChatRuntime; the root retains this factory per owner.
@@ -306,9 +457,15 @@ final class NativeVoiceCallWatchFactory {
         guard let chat else { return }
         switch event {
         case .state(let snapshot):
+            speechCallID = snapshot.status == .live ? snapshot.callID : nil
             if ownsProjection, snapshot.scope == nil || snapshot.scope.map(current) == true {
                 WatchNativeCallBinding.update(adapter: chat.callActions, snapshot: snapshot,
                     physicalRouteVerified: physicalRouteVerified)
+            }
+            if snapshot.status == .ended || snapshot.status == .failed {
+                speechGeneration = UUID(); speechTask?.cancel(); speechTask = nil
+                chat.voiceCallSpeechEvent = nil; speechScope = nil
+                heardBoundaryStage.reset(); voiceClauseSequences.removeAll()
             }
             if snapshot.status == .connecting || (snapshot.status == .live && artifactCallID != snapshot.callID) {
                 committedArtifacts.removeAll(); artifactCallID = snapshot.callID
@@ -430,6 +587,9 @@ final class NativeVoiceCallWatchFactory {
     func stop() async {
         guard !stopped else { return }
         stopped = true
+        speechGeneration = UUID(); speechTask?.cancel(); speechTask = nil
+        chat?.voiceCallSpeechEvent = nil; speechScope = nil
+        heardBoundaryStage.reset(); voiceClauseSequences.removeAll()
         storageLease.revoke()
         pumpDirty = false
         let oldPump = pumpTask; oldPump?.cancel(); pumpTask = nil

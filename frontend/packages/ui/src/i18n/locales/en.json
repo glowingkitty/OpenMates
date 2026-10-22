@@ -14191,7 +14191,7 @@
               "text": "Mistral AI"
             },
             "description": {
-              "text": "Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak or enable spoken responses. It processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path."
+              "text": "Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak, enable spoken responses or make a voice call. It processes eligible chat messages when normal routing selects a Mistral model and processes realtime or uploaded voice audio for transcription, including microphone audio during voice calls. Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution. Completed call transcripts enter the ordinary encrypted chat pipeline with its applicable text privacy protections; call answers use the normal AI routing and skills. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path."
             }
           },
           "openai_v2": {
@@ -14207,7 +14207,7 @@
               "text": "Google Gemini"
             },
             "description": {
-              "text": "Google's Gemini API processes eligible chat messages when you select a Gemini model. Gemini Live receives raw microphone audio, submitted text, and permitted chat context during voice calls. On the Gemini correction route, Gemini corrects raw Mistral voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Call audio and raw transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
+              "text": "Google's Gemini API processes eligible chat messages when normal routing selects a Gemini model, including ordinary text turns submitted from voice calls. On the Gemini correction route for audio recordings, Gemini corrects raw Mistral voice transcripts and creates titles, and may process prompts, reference images, screenshots, or generated code for image generation or editing, Veo video generation, and screenshot-to-HTML conversion. Raw recording transcripts do not receive typed-message placeholder substitution. Google's paid Gemini API terms say prompts and outputs are not used to improve its products, while its current abuse-monitoring documentation states that logged prompts, context, and outputs may be retained for 55 days."
             }
           },
           "inception": {
@@ -15421,7 +15421,7 @@
             "text": "What happens during a voice call?"
           },
           "answer": {
-            "text": "During a Gemini voice call, microphone audio, submitted text, and permitted chat context travel over TLS through OpenMates to Google Gemini Live. Raw call audio and transcripts do not receive the placeholder substitution used for eligible typed chat inference. User and assistant transcripts are encrypted in your browser before durable synchronization. OpenMates does not durably retain plaintext call audio or transcripts, and phase-one calls do not save an audio recording. Google may retain API request data under its own policies."
+            "text": "During a voice call, microphone audio travels over TLS through OpenMates to Mistral Voxtral for realtime transcription. Raw microphone audio does not receive personal-data placeholder substitution. Completed user transcripts and submitted text enter the normal OpenMates encrypted chat pipeline, including eligible text privacy protections, automatic AI routing, skills and permissions. Mistral receives speakable assistant text and voice settings to generate speech. User and rich assistant messages and generated speech assets are encrypted before durable synchronization or storage. OpenMates does not durably retain plaintext call audio or transcripts, and voice calls do not save a microphone recording. Mistral and the AI providers selected by normal routing may retain API request data under their own policies."
           }
         },
         "storage_protection_v2": {
@@ -26886,7 +26886,7 @@
       "text": "Voice call"
     },
     "provider": {
-      "text": "Via Google Gemini"
+      "text": "Voxtral speech · normal AI routing"
     },
     "start": {
       "text": "Start voice call"
@@ -26922,7 +26922,7 @@
       "text": "Usage-based pricing"
     },
     "pricing_explanation": {
-      "text": "Charges depend on audio, replies and conversation context. Listening includes silence until automatic idle pauses audio input. Muting also pauses input charges; replies and processing can still cost credits. There is no flat fee for staying connected."
+      "text": "Microphone transcription is billed per started minute of streamed audio, plus normal AI chat and generated speech usage. Listening includes silence until automatic idle pauses audio input. Muting pauses microphone input charges; replies, skills and speech can still cost credits. There is no flat fee for staying connected."
     },
     "return_to_chat": {
       "text": "Return to chat"
@@ -27006,7 +27006,7 @@
       "text": "Close chat"
     },
     "start_hint": {
-      "text": "Voice calls use Google Gemini with usage-based billing."
+      "text": "Voice calls use Voxtral speech with normal OpenMates AI routing and usage-based billing."
     },
     "retry": {
       "text": "Try again"
@@ -27015,10 +27015,10 @@
       "text": "Before your first voice call"
     },
     "privacy_description": {
-      "text": "Google processes your voice and the conversation context shared with this call. Google states that data sent through its paid Gemini API is not used to train its models."
+      "text": "Mistral processes your microphone audio for transcription and assistant text for speech. Your conversation uses the normal OpenMates AI routing, skills and rich chat messages."
     },
     "privacy_terms": {
-      "text": "Google Gemini API terms"
+      "text": "Mistral privacy policy"
     },
     "privacy_continue": {
       "text": "Continue"

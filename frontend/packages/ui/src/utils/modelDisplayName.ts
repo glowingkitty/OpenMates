@@ -64,9 +64,6 @@ function getModelsById(): Record<string, AIModelMetadata> {
  * getModelDisplayName("Claude Sonnet 4.5")          // "Claude Sonnet 4.5" (passthrough)
  */
 export function getModelDisplayName(modelNameOrId: string): string {
-  if (modelLookupCandidates(modelNameOrId).includes("gemini-3.8-live")) {
-    return "Gemini 3.8 Live";
-  }
   // Try to get name from model metadata (if input looks like a model ID)
   const models = getModelsById();
   const model = modelLookupCandidates(modelNameOrId)

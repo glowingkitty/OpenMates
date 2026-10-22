@@ -72,7 +72,21 @@ export type ProcessingPhase =
     }
   | null;
 
+/** Ephemeral playback observation; canonical assistant content stays complete. */
+export interface VoiceHeardBoundary {
+  assistant_message_id: string;
+  completed_sequences: number[];
+  active_sequence: number | null;
+  active_offset_ms: number;
+}
+
 export interface Message {
+  /** Transient call delivery context; never a persisted account/chat preference. */
+  voice_call_id?: string;
+  voice_turn_id?: string;
+  voice_heard_boundary?: VoiceHeardBoundary;
+  voice_mode?: boolean;
+  auto_speak?: boolean;
   /** Separate submission, such as a wiki question, that retains the encrypted composer draft. */
   preserve_draft?: boolean;
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})

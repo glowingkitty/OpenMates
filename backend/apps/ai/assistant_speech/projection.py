@@ -198,8 +198,10 @@ def _project_fence(markdown: str, language: str = "en") -> tuple[str, str]:
     return "code_summary", _fallback("A code example is available.", language)
 
 
-def project_streaming_speech_segment(markdown: str, language: str = "en") -> tuple[str, str] | None:
+def project_streaming_speech_segment(markdown: str, language: str = "en", *, voice_mode: bool = False) -> tuple[str, str] | None:
     """Create a safe deterministic fallback when streaming lacks semantic blocks."""
+    if voice_mode:
+        return _project_voice_prose(markdown)
     text = markdown.strip()
     if not text:
         return None
@@ -262,3 +264,71 @@ def _text_segment(kind: str, value: object) -> tuple[str, str] | None:
 def _is_markdown_table(text: str) -> bool:
     lines = [line for line in text.splitlines() if line.strip()]
     return len(lines) >= 2 and all(_TABLE_ROW.match(line) for line in lines)
+
+
+# Calls speak the canonical response prose without generic descriptions of visual
+# blocks. The ordinary message-playback projector deliberately keeps its summaries.
+_VOICE_PROTECTED = re.compile(
+    r"```[\s\S]*?(?:```|\Z)|~~~[\s\S]*?(?:~~~|\Z)|`[^`]*(?:`|\Z)"
+    r"|^[^\n]*\|[^\n]*(?:\n|$)|!\[[^\]]*\]\([^)]*\)"
+    r"|\bembed:(?://)?[^\s)\]>]+|<[^>]*(?:>|$)",
+    re.MULTILINE,
+)
+
+
+def voice_speech_boundary_mask(markdown: str) -> str:
+    """Mask punctuation inside markup without changing canonical source offsets."""
+    def blank(match: re.Match[str]) -> str:
+        return "\0" * len(match.group())
+
+    masked = _VOICE_PROTECTED.sub(blank, markdown)
+    masked = _MARKDOWN_LINK.sub(blank, masked)
+    masked = _URL.sub(blank, masked)
+    masked = _JSON_INLINE.sub(blank, masked)
+    # A link or structured block can arrive over many deltas. Its unfinished
+    # tail cannot establish a boundary or leak syntax into a speech task.
+    for marker in ("[", "{"):
+        opening = masked.find(marker)
+        if opening >= 0:
+            masked = masked[:opening] + "\0" * (len(masked) - opening)
+    return masked
+
+
+def _project_voice_prose(markdown: str) -> tuple[str, str] | None:
+    """Keep natural prose and link labels; omit rich blocks and raw references."""
+    text = _VOICE_PROTECTED.sub(" ", markdown)
+    text = _MARKDOWN_LINK.sub(r"\1", text)
+    text = _URL.sub(" ", text)
+    text = _JSON_INLINE.sub(" ", text)
+    # Incomplete links/JSON are held during streaming and omitted on final flush.
+    text = re.split(r"[\[{]", text, maxsplit=1)[0]
+    text = _MARKDOWN_SYNTAX.sub(" ", text)
+    text = text.replace("*", "")
+    text = re.sub(r"^\s*[-+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\s+", " ", text).strip(" ,;:-")
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    return ("prose_paragraph", text) if any(char.isalnum() for char in text) else None
+
+
+def voice_speech_source_boundaries(content: str, *, is_final: bool) -> list[tuple[int, str]]:
+    """Return stable raw-source spans shared by streaming and canonical replay."""
+    masked = voice_speech_boundary_mask(content)
+    boundaries: list[tuple[int, str]] = []
+    start = 0
+    for match in re.finditer(r"[.!?](?:[\"'”’)*_~\]]*)(?=\s)|[。！？]|[;,:](?=\s)|\n|[ \t]+", masked):
+        end = match.end()
+        if match.group()[0] in " \t" and end - start < 240:
+            continue
+        if match.group()[0] in ";,:" and end - start < 80:
+            continue
+        boundaries.append((end, content[start:end]))
+        start = end
+    if is_final and start < len(content):
+        boundaries.append((len(content), content[start:]))
+    return boundaries
+
+
+def project_final_voice_clauses(markdown: str) -> list[str]:
+    """Reconstruct transient candidates; only registered hashes authorize replay."""
+    return [projected[1] for _, raw in voice_speech_source_boundaries(markdown, is_final=True)
+            if (projected := _project_voice_prose(raw)) is not None]

@@ -132,7 +132,9 @@ const DEFINITIVE_TEAM_PREFLIGHT_ERRORS = new Set([
 
 const teamPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
 const embedBundleConfirmListeners = new Map<string, (payload: unknown) => void>();
-const turnPreflightConfirmListeners = new Map<string, (payload: unknown) => void>();
+const turnPreflightConfirmListeners = new Map<string, {
+	confirmed: (payload: unknown) => void; settled: Promise<void>; settle: () => void;
+}>();
 const fastAdmissionListeners = new Map<string, {
 	gate: FastAdmissionJournalGate; confirmed: (payload: unknown) => void; context: (payload: unknown) => void;
 	settled: Promise<void>; settle: () => void;
@@ -623,22 +625,30 @@ export function watchDurableTurnPreflightConfirmation(
 	chatId: string, messageId: string, committedMessagesVersion: number,
 	clearJournal: () => Promise<void> = () =>
 		clearPendingMessageJournal(chatId, messageId, MESSAGE_TURN_PREFLIGHT_FIELD),
-): void {
+): Promise<void> {
 	const key = `${chatId}:${messageId}`;
-	if (turnPreflightConfirmListeners.has(key)) return;
+	const existing = turnPreflightConfirmListeners.get(key);
+	if (existing) return existing.settled;
+	let settle!: () => void;
+	const settled = new Promise<void>(resolve => { settle = resolve; });
 	const confirmed = (payload: unknown) => {
 		const value = payload as { chat_id?: string; message_id?: string; new_messages_v?: number };
 		// Legacy metadata ACKs can name this user row before the durable turn is
 		// admitted. The versioned message_received ACK follows enqueue_chat_turn.
 		if (value?.chat_id !== chatId || value.message_id !== messageId ||
 			value.new_messages_v !== committedMessagesVersion) return;
-		void clearJournal().catch((error) =>
-			console.warn("[ChatSyncService:Senders] Could not clear confirmed turn preflight", error));
 		webSocketService.off("chat_message_confirmed", confirmed);
-		turnPreflightConfirmListeners.delete(key);
+		// Keep same-socket ownership until recovery can no longer see a journal.
+		void clearJournal().catch((error) =>
+			console.warn("[ChatSyncService:Senders] Could not clear confirmed turn preflight", error))
+			.finally(() => {
+				if (turnPreflightConfirmListeners.get(key)?.confirmed === confirmed) turnPreflightConfirmListeners.delete(key);
+				settle();
+			});
 	};
-	turnPreflightConfirmListeners.set(key, confirmed);
+	turnPreflightConfirmListeners.set(key, { confirmed, settled, settle });
 	webSocketService.on("chat_message_confirmed", confirmed);
+	return settled;
 }
 
 export function watchFastAdmissionCompletion(input: {
@@ -726,8 +736,9 @@ if (typeof window !== "undefined") {
 			embedBundleConfirmListeners.delete(key);
 		}
 		for (const [key, listener] of turnPreflightConfirmListeners) {
-			webSocketService.off("chat_message_confirmed", listener);
+			webSocketService.off("chat_message_confirmed", listener.confirmed);
 			turnPreflightConfirmListeners.delete(key);
+			listener.settle();
 		}
 		for (const [key, listeners] of fastAdmissionListeners) {
 			webSocketService.off("chat_message_confirmed", listeners.confirmed);
@@ -1365,6 +1376,15 @@ async function dispatchFastPersonalTurn(input: {
 				assistant_speech_lazy_dispatch: true, assistant_response_source_revision: 1 });
 		}
 		assertCurrentAdmissionScope();
+	}
+	// Delivery belongs to this admitted call turn, not the saved chat preference.
+	if (message.voice_mode && message.voice_call_id && message.voice_turn_id) {
+		Object.assign(inferenceRequest.message as Record<string, unknown>, {
+			voice_mode: true, voice_call_id: message.voice_call_id, voice_turn_id: message.voice_turn_id,
+			...(message.voice_heard_boundary ? { voice_heard_boundary: message.voice_heard_boundary } : {}),
+			auto_speak_response: true, assistant_speech_lazy_dispatch: false,
+			assistant_response_source_revision: 1,
+		});
 	}
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	if (typeof testMockMarker === "string" && testMockMarker.trim().length > 0) {
@@ -2374,6 +2394,10 @@ export async function sendNewMessageImpl(
 			current_chat_metadata_v?: number;
             auto_speak_response?: boolean;
             assistant_speech_lazy_dispatch?: boolean;
+			voice_mode?: boolean;
+			voice_call_id?: string;
+			voice_turn_id?: string;
+			voice_heard_boundary?: Message["voice_heard_boundary"];
 			assistant_response_source_revision?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
@@ -2425,6 +2449,12 @@ export async function sendNewMessageImpl(
 			...(autoSpeakResponseForRequest ? {
 				auto_speak_response: true,
 				assistant_speech_lazy_dispatch: true,
+				assistant_response_source_revision: 1,
+			} : {}),
+			...(message.voice_mode && message.voice_call_id && message.voice_turn_id ? {
+				voice_mode: true, voice_call_id: message.voice_call_id, voice_turn_id: message.voice_turn_id,
+				...(message.voice_heard_boundary ? { voice_heard_boundary: message.voice_heard_boundary } : {}),
+				auto_speak_response: true, assistant_speech_lazy_dispatch: false,
 				assistant_response_source_revision: 1,
 			} : {})
 			// NO category or encrypted fields - those go to Phase 2
@@ -3203,10 +3233,11 @@ export async function sendNewMessageImpl(
 					bindPersonalChatTurn(personalTurn, turnId);
 					initialChatHistoryGate.bind(message.chat_id, message.message_id, turnId);
 				}
-				watchDurableTurnPreflightConfirmation(
+				const admissionCompleted = watchDurableTurnPreflightConfirmation(
 					message.chat_id, message.message_id,
 					Number(preflightPayload.expected_messages_v) + 1,
 				);
+				holdAdmissionUntil?.(admissionCompleted);
 			} catch (error) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 				throw error;

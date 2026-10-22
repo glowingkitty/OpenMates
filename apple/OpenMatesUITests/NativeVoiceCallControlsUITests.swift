@@ -32,6 +32,8 @@ final class NativeVoiceCallControlsUITests: XCTestCase {
     func testConsentBlocksCallControlsUntilExplicitContinue() {
         let app = launch(variant: "native-voice-call-consent")
         XCTAssertTrue(app.otherElements["voice-call-consent"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Mistral")).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any)["voice-call-consent-terms"].isHittable)
         XCTAssertTrue(app.buttons["voice-call-consent-continue"].isHittable)
         app.buttons["voice-call-consent-continue"].tap()
         XCTAssertTrue(app.otherElements["voice-call-bar"].waitForExistence(timeout: 3))

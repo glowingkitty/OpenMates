@@ -67,6 +67,11 @@ def _routing_failure_signature(error: Exception) -> tuple[tuple[str, ...], tuple
 async def _routing_authority_is_current(cache: Any, directus: Any,
                                         request: Any, task_id: str) -> bool:
     """Join fresh Redis and durable admission checks at each routing fence."""
+    from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+    try:
+        await require_active_voice_dispatch(cache, request)
+    except ValueError:
+        return False
     checks = (
         asyncio.create_task(routing_turn_is_current(cache, request, task_id)),
         asyncio.create_task(routing_admission_is_current(directus, request, task_id)),

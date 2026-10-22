@@ -429,4 +429,74 @@ describe("AssistantSpeechQueue", () => {
     expect(queue.state).toMatchObject({ activeSegmentId: "segment-2", status: "playing" });
     expect(audioByUrl.get("blob:segment-2")?.play).toHaveBeenCalledOnce();
   });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
+  it("supersedes pending waiting speech with ready response and ignores late failure", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    const waiting: AssistantSpeechSegment = { ...segment(-1, "generating"), kind: "waiting_confirmation",
+      playbackClass: "passive", chapter: { kind: "passive", type: "confirmation" } };
+    queue.start("response-1", [waiting]);
+    expect(queue.state.activeSegmentId).toBe(waiting.id);
+    queue.upsertSegment(segment(0, "ready"));
+    await vi.waitFor(() => expect(queue.state).toMatchObject({ status: "playing", activeSegmentId: "segment-0" }));
+    queue.upsertSegment({ ...waiting, status: "failed" });
+    expect(queue.state).toMatchObject({ status: "playing", activeSegmentId: "segment-0" });
+    queue.stop();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
+  it("does not poison a future response when the optional waiting prelude fails first", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    const waiting: AssistantSpeechSegment = { ...segment(-1, "generating"), kind: "waiting_confirmation",
+      playbackClass: "passive", chapter: { kind: "passive", type: "confirmation" } };
+    queue.start("response-1", [waiting]);
+    queue.upsertSegment({ ...waiting, status: "failed" });
+    expect(queue.state.status).not.toBe("failed");
+    queue.upsertSegment(segment(0, "ready"));
+    await vi.waitFor(() => expect(queue.state.status).toBe("playing"));
+    queue.stop();
+  });
+
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response
+  it('reports only actually ended voice clauses and the current media offset without guessing heard words',async()=>{
+    const queue=new AssistantSpeechQueue({audioFactory});
+    const waiting={...segment(-1,'ready'),kind:'waiting_confirmation',playbackClass:'passive' as const,chapter:{kind:'passive' as const,type:'confirmation' as const}};
+    const voice=(sequence:number)=>({...segment(sequence,'ready'),kind:'voice_prose_clause'});
+    queue.start('assistant-boundary',[waiting,voice(0),voice(1),voice(2)]);
+    await vi.waitFor(()=>expect(queue.state.status).toBe('playing'));
+    expect(queue.playbackBoundary).toBeNull();
+    audioByUrl.get('blob:segment--1')!.emit('ended');await Promise.resolve();
+    const first=audioByUrl.get('blob:segment-0')!;first.currentTime=.75;
+    expect(queue.playbackBoundary).toEqual({assistant_message_id:'assistant-boundary',completed_sequences:[],active_sequence:0,active_offset_ms:750});
+    await queue.next(); // Navigation does not claim that skipped clause zero ended.
+    audioByUrl.get('blob:segment-1')!.emit('ended');await Promise.resolve();
+    const active=audioByUrl.get('blob:segment-2')!;active.currentTime=1.2345;
+    const snapshot=queue.playbackBoundary;
+    expect(snapshot).toEqual({assistant_message_id:'assistant-boundary',completed_sequences:[1],active_sequence:2,active_offset_ms:1234});
+    queue.stop();
+    expect(queue.playbackBoundary).toEqual({assistant_message_id:'assistant-boundary',completed_sequences:[1],active_sequence:null,active_offset_ms:0});
+    expect(snapshot?.active_sequence).toBe(2);
+    queue.start('other-response',[segment(0,'ready')]);await Promise.resolve();
+    expect(queue.playbackBoundary).toBeNull();queue.stop();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.privacy
+  it('bounds heard metadata to the most recent 256 ended voice clauses and finite media time',async()=>{
+    const queue=new AssistantSpeechQueue({audioFactory});
+    queue.start('assistant-bounded',Array.from({length:260},(_,sequence)=>({...segment(sequence,'ready'),kind:'voice_prose_clause'})));
+    await vi.waitFor(()=>expect(queue.state.status).toBe('playing'));
+    const audio=audioByUrl.get('blob:segment-0')!;
+    audio.currentTime=Number.POSITIVE_INFINITY;expect(queue.playbackBoundary?.active_offset_ms).toBe(0);
+    audio.currentTime=5000;expect(queue.playbackBoundary?.active_offset_ms).toBe(3_600_000);
+    audio.currentTime=-1;expect(queue.playbackBoundary?.active_offset_ms).toBe(0);
+    for(let sequence=0;sequence<260;sequence++){audio.emit('ended');await Promise.resolve();}
+    const boundary=queue.playbackBoundary!;
+    expect(boundary.completed_sequences).toEqual(Array.from({length:256},(_,index)=>index+4));
+    expect(boundary.active_sequence).toBeNull();expect(boundary.active_offset_ms).toBe(0);
+    await queue.selectSegment('segment-0');audio.emit('ended');await Promise.resolve();
+    expect(queue.playbackBoundary?.completed_sequences).toEqual([0,...Array.from({length:255},(_,index)=>index+5)]);
+    queue.stop();
+  });
+
 });

@@ -5,16 +5,15 @@ const persistence = vi.hoisted(() => ({
   persist: vi.fn(async (_callId: string, _chatId: string, _id: string, _text: string, _createdAt: number) => {}), rollback: vi.fn(async () => {}),
   lifecycle: vi.fn(async (_event:unknown) => {}), upsert: vi.fn(async () => {}), artifact: vi.fn(async () => {}), prepare: vi.fn(async () => ({ chatId: 'chat-1', history: [] })),
 }));
+const heard = vi.hoisted(() => ({ value: null as {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number}|null }));
+const canonical = vi.hoisted(() => ({ send: vi.fn(async (_turn: unknown) => true), cancel: vi.fn(async () => {}), tasks: new Map<string,{taskId:string;userMessageId:string}>() }));
+vi.mock('../voiceCallTurns', () => ({ sendVoiceCallTurn: canonical.send, reportVoiceCallTurnDelivery: vi.fn() }));
 const privacy = vi.hoisted(() => ({ ensure: vi.fn(async (_signal:AbortSignal, _gesture:()=>void) => true) }));
-vi.mock('../voiceCallMetadata', () => ({ VoiceCallMetadataScheduler: class {
-  observe = vi.fn(async () => {}); finish = vi.fn();
-} }));
 vi.mock('../voiceCallPrivacy', () => ({ ensureVoiceCallPrivacyAcknowledgement: privacy.ensure }));
 const cues = vi.hoisted(() => ({ prepare: vi.fn(), play: vi.fn(), stop: vi.fn() }));
 vi.mock('../voiceCallCues', () => ({ VoiceCallCuePlayer: class {
   prepare = cues.prepare; play = cues.play; stop = cues.stop;
 } }));
-const tools = vi.hoisted(() => ({ apply: vi.fn(async () => undefined as string | undefined) }));
 interface CameraCallbacks {
   onFrame: (frame: {frameId:string;data:string;capturedAt:number;width:number;height:number}) => void;
   onStream: (stream:MediaStream|null,facing:'environment'|'user') => void;
@@ -22,7 +21,7 @@ interface CameraCallbacks {
 }
 const visual = vi.hoisted(() => ({
   cameras: [] as Array<{callbacks:CameraCallbacks; stop:ReturnType<typeof vi.fn>; flip:()=>Promise<void> }>,
-  source: vi.fn(), resolve: vi.fn(), destroy: vi.fn(), listeners: new Set<() => void>(),
+  source: vi.fn(), resolve: vi.fn(), destroy: vi.fn(), listeners: new Set<(event:Event) => void>(),
 }));
 vi.mock('../voiceCallCamera', () => ({ VoiceCallCamera: class {
   stop = vi.fn(() => this.callbacks.onStream(null,'environment'));
@@ -33,8 +32,9 @@ vi.mock('../voiceCallCamera', () => ({ VoiceCallCamera: class {
 vi.mock('../voiceCallVisuals', () => ({ persistCallSourceFrame: visual.source }));
 vi.mock('../voiceCallMedia', () => ({ createVoiceCallMediaResolver: () => ({resolve:visual.resolve,destroy:visual.destroy}) }));
 vi.mock('../chatSyncService', () => ({chatSyncService:{
-  addEventListener: (_name:string,callback:()=>void) => visual.listeners.add(callback),
-  removeEventListener: (_name:string,callback:()=>void) => visual.listeners.delete(callback),
+  activeAITasks: canonical.tasks, sendCancelAiTask: canonical.cancel,
+  addEventListener: (_name:string,callback:(event:Event)=>void) => visual.listeners.add(callback),
+  removeEventListener: (_name:string,callback:(event:Event)=>void) => visual.listeners.delete(callback),
 }}));
 interface GateCallbacks {
   onAudio: (data: string) => void;
@@ -75,8 +75,6 @@ vi.mock('../../components/videocall/callAudio', () => ({ CallAudio: class {
   interrupt() {}
 } }));
 vi.mock('../voiceCallLifecycle', () => ({ recordCallLifecycle:persistence.lifecycle }));
-vi.mock('../voiceCallTools', () => ({ applyVoiceToolEvent: tools.apply, applyVoiceCompression: vi.fn(async () => {}) }));
-vi.mock('../voiceCallContext', () => ({ loadVoiceProjectContext: vi.fn(async () => ({ project_focus_candidates: [], client_capabilities: [] })) }));
 vi.mock('../voiceCallMessages', () => ({
   VoiceCallContextError: class extends Error {
     constructor(readonly code: string) { super(code); }
@@ -98,9 +96,14 @@ vi.mock('../audioRealtimeTranscription', () => ({ websocketTokenNeedsRefresh: ()
 vi.mock('../../config/api', () => ({ getApiUrl: () => 'https://api.dev.openmates.org' }));
 vi.mock('../../utils/cookies', () => ({ getWebSocketToken: () => 'test-token' }));
 vi.mock('../../utils/sessionId', () => ({ getSessionId: () => 'test-session' }));
-vi.mock('../assistantSpeechController', () => ({ assistantSpeechController: { stop: vi.fn(async () => {}) } }));
+vi.mock('../assistantSpeechController', async () => { const { writable } = await import('svelte/store'); return { assistantSpeechController: {
+  get playbackBoundary() { return heard.value; },
+  stop: vi.fn(async () => {}), setCallOwner: vi.fn(), primeForAutoplay: vi.fn(),
+  activity: writable({ chatId:null as string|null, messageId:null as string|null,text:'',speaking:false,language:'en' }),
+} }; });
+import { assistantSpeechController } from '../assistantSpeechController';
 
-import { VoiceCallController, voicePcmEnvelope } from '../voiceCall';
+import { VoiceCallController } from '../voiceCall';
 import { VoiceCallAudioGate } from '../voiceCallAudioGate';
 import { VoiceCallContextError } from '../voiceCallMessages';
 
@@ -109,6 +112,8 @@ type Harness = {
   handleMessage: (message: Record<string, unknown>) => void;
   send: (message: Record<string, unknown>) => boolean;
   socket: { readyState: number; send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
+  bindCanonicalChat: () => void;
+  callTurnIds: Set<string>;
   audioGate: VoiceCallAudioGate;
   audio: { setMicEnabled: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> };
 };
@@ -132,7 +137,7 @@ async function submittedId(socket: { send: ReturnType<typeof vi.fn> }): Promise<
   expect(sent.type).toBe('text_input');
   expect(sent.message_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   expect(Number.isInteger(sent.created_at)).toBe(true);
-  expect(persistence.persist).toHaveBeenCalledWith('call-1', 'chat-1', sent.message_id, 'Please explain ramen', sent.created_at);
+  expect(persistence.persist).not.toHaveBeenCalled();
   return sent.message_id;
 }
 
@@ -140,9 +145,11 @@ describe('integrated voice call typed turns', () => {
   beforeEach(() => {
     vi.stubGlobal('WebSocket', { OPEN: 1, CLOSING: 2 });
     vi.stubGlobal('crypto', { getRandomValues: (bytes: Uint8Array) => bytes.fill(0x2a) });
+    heard.value=null;
+    canonical.send.mockReset().mockResolvedValue(true); canonical.cancel.mockClear(); canonical.tasks.clear();
+    assistantSpeechController.activity.set({chatId:null,messageId:null,text:'',speaking:false,language:'en'});
     Object.values(persistence).forEach((mock) => mock.mockClear());
     Object.values(cues).forEach(mock => mock.mockClear());
-    tools.apply.mockReset().mockResolvedValue(undefined);
     capture.unlock.mockClear();
     privacy.ensure.mockReset().mockResolvedValue(true);
     capture.start.mockReset().mockResolvedValue(undefined);
@@ -344,63 +351,6 @@ describe('integrated voice call typed turns', () => {
     ]);
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.chat.activity-status,video-call.audio.single-owner
-  it('uses bounded actual PCM envelopes for mic and scheduled playback and cancels waveform work on hangup', async () => {
-    let frame:FrameRequestCallback = () => {};
-    let now = 100;
-    vi.spyOn(performance,'now').mockImplementation(() => now);
-    const request = vi.fn((callback:FrameRequestCallback) => { frame=callback;return 42; });
-    const cancel = vi.fn();
-    vi.stubGlobal('requestAnimationFrame',request);vi.stubGlobal('cancelAnimationFrame',cancel);
-    const {controller,sockets} = startingController();
-    await controller.start('chat-1');
-    sockets[0].onmessage!({data:JSON.stringify({type:'ready',call_id:'call-1'})});
-    const pcm = btoa('\0\x10'.repeat(960));
-    expect(voicePcmEnvelope(btoa('\0\0'.repeat(960)))).toEqual(Array(16).fill(0));
-    expect(voicePcmEnvelope(pcm).every(level => level>0 && level<=1)).toBe(true);
-    capture.frames[0](pcm);frame(now);
-    expect(get(controller).audioLevels.some(level => level>0)).toBe(true);
-    controller.setMuted(true);now+=200;frame(now);
-    expect(get(controller).audioLevels).toEqual(Array(16).fill(0));
-    sockets[0].onmessage!({data:JSON.stringify({type:'audio_chunk',data:pcm})});
-    now+=30;capture.audioTime+=.03;frame(now);
-    expect(get(controller).audioLevels.some(level => level>0)).toBe(true);
-    sockets[0].onmessage!({data:JSON.stringify({type:'audio.interrupted'})});
-    frame(now);
-    expect(get(controller).audioLevels).toEqual(Array(16).fill(0));
-    controller.hangup();
-    expect(cancel).toHaveBeenCalled();
-    expect(get(controller).audioLevels).toEqual(Array(16).fill(0));
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.chat.activity-status,video-call.audio.single-owner
-  it('retains suspended playback envelopes until the real audio clock resumes, independent of wall time', async () => {
-    let frame:FrameRequestCallback=()=>{};
-    let now=100;
-    vi.spyOn(performance,'now').mockImplementation(()=>now);
-    vi.stubGlobal('requestAnimationFrame',vi.fn((callback:FrameRequestCallback)=>{frame=callback;return 7;}));
-    vi.stubGlobal('cancelAnimationFrame',vi.fn());
-    const {controller,sockets}=startingController();
-    await controller.start('chat-1');
-    sockets[0].onmessage!({data:JSON.stringify({type:'ready',call_id:'call-1'})});
-    controller.setMuted(true);
-    // A real 80 ms chunk: audible first 40 ms, quiet second 40 ms.
-    const pcm=btoa('\0\x10'.repeat(960)+'\0\0'.repeat(960));
-    sockets[0].onmessage!({data:JSON.stringify({type:'audio_chunk',data:pcm})});
-    now+=300_000;frame(now); // OS suspends the output clock before its scheduled start.
-    expect(capture.audioTime).toBe(10);
-    expect(get(controller).audioLevels).toEqual(Array(16).fill(0));
-    capture.audioTime=10.03;frame(now);
-    expect(get(controller).audioLevels.some(level=>level>0)).toBe(true);
-    now+=300_000;frame(now); // Suspension during playback retains the same frame.
-    expect(get(controller).audioLevels.some(level=>level>0)).toBe(true);
-    capture.audioTime=10.07;frame(now);
-    expect(get(controller).audioLevels).toEqual(Array(16).fill(0));
-    capture.audioTime=10.11;frame(now);
-    expect(get(controller).audioLevels).toEqual(Array(16).fill(0));
-    controller.hangup();
-  });
-
   // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
   it('captures while connecting, routes PCM through the gate and goes live without awaiting VAD', async () => {
     const { controller, sockets } = startingController();
@@ -521,107 +471,6 @@ describe('integrated voice call typed turns', () => {
     expect(socket.send).not.toHaveBeenCalled();
   });
 
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.typed-input,video-call.chat.transcripts
-  it('accepts only the matching final server echo and persists the encrypted transcript', async () => {
-    const { controller, harness, socket } = liveController();
-    const submitted = controller.submitText('chat-1', 'Please explain ramen');
-    const id = await submittedId(socket);
-    harness.handleMessage({ type: 'transcript', role: 'assistant', message_id: 'another-turn', text: 'Other', final: true });
-    harness.handleMessage({ type: 'transcript', role: 'user', message_id: id, text: 'Please explain ramen', created_at: persistence.persist.mock.calls[0][4], final: true });
-    expect(await submitted).toBe(true);
-    await vi.waitFor(() => expect(persistence.upsert).toHaveBeenCalledWith(expect.objectContaining({ callId: 'call-1', chatId: 'chat-1', messageId: id, final: true })));
-    expect(persistence.rollback).not.toHaveBeenCalled();
-    controller.hangup();
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.transcripts
-  it('merges artifacts into the issued call response without creating a second assistant reply', async () => {
-    const { controller, harness } = liveController();
-    tools.apply.mockResolvedValue('embed-one');
-    harness.handleMessage({ type: 'transcript', role: 'assistant', message_id: 'assistant-one',
-      user_message_id: 'user-one', text: 'Found it', final: true });
-    await vi.waitFor(() => expect(persistence.upsert).toHaveBeenCalledOnce());
-    harness.handleMessage({ type: 'voice_embed', call_id: 'call-1', function_call_id: 'function-one',
-      assistant_message_id: 'assistant-one', user_message_id: 'user-one', payload: { embed_id: 'embed-one',
-        embed_reference: JSON.stringify({ embed_id: 'embed-one', type: 'app_skill_use', app_id: 'web', skill_id: 'search' }) } });
-    await vi.waitFor(() => expect(persistence.artifact).toHaveBeenCalledOnce());
-    expect(persistence.artifact).toHaveBeenLastCalledWith(expect.objectContaining({
-      messageId: 'assistant-one', embedRefs: ['embed-one'],
-    }));
-    harness.handleMessage({ type: 'transcript', role: 'assistant', message_id: 'assistant-one',
-      user_message_id: 'user-one', text: 'Found the corrected result', final: true });
-    await vi.waitFor(() => expect(persistence.upsert).toHaveBeenCalledTimes(2));
-    expect(persistence.upsert).toHaveBeenLastCalledWith(expect.objectContaining({
-      messageId: 'assistant-one', text: 'Found the corrected result', embedRefs: ['embed-one'],
-      embedReferences: [{ embed_id: 'embed-one', type: 'app_skill_use', app_id: 'web', skill_id: 'search' }],
-    }));
-    controller.hangup();
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.chat.transcripts
-  it('keeps the original call attribution while an artifact waits for an earlier transcript write', async () => {
-    const { controller, harness } = liveController();
-    harness.update({ modelName: 'original-model', mateCategory: 'medical_health', mateName: 'Melvin' });
-    let release!: () => void;
-    persistence.upsert.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
-    tools.apply.mockResolvedValue('embed-one');
-    harness.handleMessage({ type: 'transcript', role: 'assistant', message_id: 'assistant-one',
-      user_message_id: 'user-one', text: 'Found it', final: true });
-    await vi.waitFor(() => expect(persistence.upsert).toHaveBeenCalled());
-    harness.handleMessage({ type: 'voice_embed', call_id: 'call-1', function_call_id: 'function-one',
-      assistant_message_id: 'assistant-one', user_message_id: 'user-one', payload: { embed_id: 'embed-one' } });
-    await vi.waitFor(() => expect(tools.apply).toHaveBeenCalled());
-    harness.update({ modelName: 'next-model', mateCategory: 'software_development', mateName: 'Sophia' });
-    release();
-    await vi.waitFor(() => expect(persistence.artifact).toHaveBeenCalledOnce());
-    expect(persistence.artifact).toHaveBeenCalledWith(expect.objectContaining({
-      modelName: 'original-model', category: 'medical_health', senderName: 'Melvin',
-    }));
-    controller.hangup();
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.compressed-context,video-call.audio.single-owner
-  it('buffers microphone and typed frames in order while adopting a durable checkpoint', () => {
-    const { controller, harness, socket } = liveController();
-    harness.handleMessage({ type: 'voice_context_pause', call_id: 'call-1', checkpoint_id: 'checkpoint-one' });
-    expect(JSON.parse(socket.send.mock.calls[0][0])).toMatchObject({ type: 'voice_context_paused', checkpoint_id: 'checkpoint-one' });
-    harness.send({ type: 'mic_audio', data: 'first-audio' });
-    harness.send({ type: 'text_input', text: 'queued text' });
-    harness.send({ type: 'mic_audio', data: 'second-audio' });
-    expect(socket.send).toHaveBeenCalledOnce();
-    harness.handleMessage({ type: 'voice_context_resumed', call_id: 'other-call', checkpoint_id: 'checkpoint-one' });
-    expect(socket.send).toHaveBeenCalledOnce();
-    harness.handleMessage({ type: 'voice_context_resumed', call_id: 'call-1', checkpoint_id: 'checkpoint-one' });
-    expect(socket.send.mock.calls.slice(1).map(([frame]) => JSON.parse(frame))).toEqual([
-      { type: 'mic_audio', data: 'first-audio' }, { type: 'text_input', text: 'queued text' },
-      { type: 'mic_audio', data: 'second-audio' },
-    ]);
-    controller.hangup();
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
-  it('stops microphone forwarding before one ordered end marker, including a checkpoint pause', () => {
-    const { controller, harness, socket } = liveController();
-    harness.audio = { setMicEnabled: vi.fn((enabled: boolean) => {
-      if (!enabled) expect(socket.send).toHaveBeenCalledOnce();
-    }), stop: vi.fn() };
-    harness.handleMessage({ type: 'voice_context_pause', call_id: 'call-1', checkpoint_id: 'checkpoint-one' });
-    harness.send({ type: 'mic_audio', data: 'already-queued-audio' });
-    controller.setMuted(true);
-    controller.setMuted(true);
-    expect(harness.audio.setMicEnabled).toHaveBeenCalledExactlyOnceWith(false);
-    expect(socket.send).toHaveBeenCalledOnce();
-    harness.handleMessage({ type: 'voice_context_resumed', call_id: 'call-1', checkpoint_id: 'checkpoint-one' });
-    expect(socket.send.mock.calls.slice(1).map(([frame]) => JSON.parse(frame))).toEqual([
-      { type: 'mic_audio', data: 'already-queued-audio' }, { type: 'audio_stream_end' },
-    ]);
-    harness.audio.setMicEnabled.mockReset();
-    controller.setMuted(false);
-    expect(harness.audio.setMicEnabled).toHaveBeenCalledExactlyOnceWith(true);
-    expect(socket.send).toHaveBeenCalledTimes(3);
-    controller.hangup();
-  });
-
   // contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
   it('disables microphone forwarding before sending the live mute end marker once', () => {
     const { controller, harness, socket } = liveController();
@@ -650,43 +499,6 @@ describe('integrated voice call typed turns', () => {
     controller.hangup();
     harness.handleMessage({ type: 'billing_activity', call_id: 'call-1', input_listening: true, processing: true });
     expect(get(controller).billingActivity).toEqual({ inputListening: false, processing: false });
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.typed-input,video-call.lifecycle.recovery-and-billing
-  it('rolls back a server refusal and leaves the draft unaccepted', async () => {
-    const { controller, harness, socket } = liveController();
-    const submitted = controller.submitText('chat-1', 'Please explain ramen');
-    const id = await submittedId(socket);
-    harness.handleMessage({ type: 'text_input_rejected', message_id: id, code: 'invalid_text_input' });
-    expect(await submitted).toBe(false);
-    expect(persistence.rollback).toHaveBeenCalledWith('call-1', 'chat-1', id);
-    expect(get(controller).status).toBe('live');
-    controller.hangup();
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.typed-input,video-call.lifecycle.recovery-and-billing
-  it('rolls back an unacknowledged turn when the connection ends', async () => {
-    const { controller, harness, socket } = liveController();
-    const submitted = controller.submitText('chat-1', 'Please explain ramen');
-    const id = await submittedId(socket);
-    harness.handleMessage({ type: 'error', code: 'call_unavailable' });
-    expect(await submitted).toBe(false);
-    expect(persistence.rollback).toHaveBeenCalledWith('call-1', 'chat-1', id);
-    expect(get(controller).status).toBe('error');
-  });
-
-  // contract-test: supporting surface=gui.web assertions=video-call.chat.typed-input,video-call.lifecycle.recovery-and-billing
-  it('times out an unacknowledged turn without leaving a sending bubble', async () => {
-    const timers = vi.spyOn(globalThis, 'setTimeout');
-    const { controller, socket } = liveController();
-    const submitted = controller.submitText('chat-1', 'Please explain ramen');
-    const id = await submittedId(socket);
-    const callback = timers.mock.calls.find((call) => call[1] === 20_000)?.[0];
-    expect(typeof callback).toBe('function');
-    (callback as () => void)();
-    expect(await submitted).toBe(false);
-    expect(persistence.rollback).toHaveBeenCalledWith('call-1', 'chat-1', id);
-    expect(get(controller).status).toBe('error');
   });
 
   // contract-test: supporting surface=gui.web assertions=video-call.video.input-and-output
@@ -754,7 +566,7 @@ describe('integrated voice call typed turns', () => {
     expect(visual.source).not.toHaveBeenCalled();
     harness.handleMessage(event);
     await vi.waitFor(()=>expect(socket.send).toHaveBeenCalledOnce());
-    expect(visual.source).toHaveBeenCalledWith({callId:'call-1',chatId:'chat-1',messageId:'user-1',frameId:'frame-1',data:'/9j/AA==',capturedAt:123,createdAt:1});
+    expect(visual.source).toHaveBeenCalledWith({callId:'call-1',chatId:'chat-1',messageId:'user-1',frameId:'frame-1',data:'/9j/AA==',capturedAt:123,createdAt:1,source:'camera'});
     expect(JSON.parse(socket.send.mock.calls[0][0])).toEqual({type:'source_frame_saved',call_id:'call-1',user_message_id:'user-1',frame_id:'frame-1',embed_reference:{type:'image',embed_id:'source-1'}});
     controller.hangup();
   });
@@ -798,39 +610,140 @@ describe('integrated voice call typed turns', () => {
     controller.hangup();
   });
 
-  // contract-test: supporting surface=gui.web assertions=video-call.video.generated-media-stage
-  it('expands completed generated media, respects collapse and releases media after hangup', async () => {
-    const {controller,harness}=liveController();
-    const image={embedId:'generated-1',kind:'image' as const,url:'blob:image'};
-    const video={embedId:'generated-2',kind:'video' as const,url:'blob:video'};
-    visual.resolve.mockResolvedValue([image,video]);
-    tools.apply.mockResolvedValue('media-parent');
-    harness.handleMessage({type:'voice_embed',call_id:'call-1',function_call_id:'function-1',user_message_id:'user-1',assistant_message_id:'assistant-1',payload:{embed_id:'media-parent'}});
-    await vi.waitFor(()=>expect(get(controller).displayedMedia).toEqual(image));
-    controller.selectMedia(1);
-    expect(get(controller).displayedMedia).toEqual(video);
-    controller.setMediaExpanded(false);
-    for(const listener of visual.listeners)listener();
-    await vi.waitFor(()=>expect(visual.resolve).toHaveBeenCalledTimes(2));
-    expect(get(controller).mediaExpanded).toBe(false);
-    controller.hangup();
-    expect(visual.destroy).toHaveBeenCalledOnce();
-    expect(visual.listeners.size).toBe(0);
-    expect(get(controller).displayedMedia).toBeNull();
+  // contract-test: direct surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.chat.typed-input,chats.message.identity-idempotent
+  it('admits a final user transcript once through the canonical sender and clears typed input only after admission', async () => {
+    const { controller, harness, socket } = liveController();
+    let admit!: (accepted:boolean) => void;
+    canonical.send.mockImplementationOnce(() => new Promise(resolve => { admit=resolve; }));
+    const accepted = controller.submitText('chat-1','Please explain ramen');
+    const id = await submittedId(socket);
+    const final = {type:'transcript',call_id:'call-1',role:'user',message_id:id,turn_id:id,text:'Please explain ramen',final:true,created_at:1700000000};
+    harness.handleMessage({...final, final:false});
+    expect(canonical.send).not.toHaveBeenCalled();
+    harness.handleMessage(final); harness.handleMessage(final);
+    await vi.waitFor(() => expect(canonical.send).toHaveBeenCalledOnce());
+    expect(canonical.send).toHaveBeenCalledWith(expect.objectContaining({callId:'call-1',chatId:'chat-1',turnId:id,text:'Please explain ramen'}));
+    let resolved=false; void accepted.then(() => {resolved=true;});
+    expect(resolved).toBe(false); admit(true);
+    expect(await accepted).toBe(true);
+    expect(persistence.upsert).not.toHaveBeenCalled(); expect(persistence.persist).not.toHaveBeenCalled();
+    harness.handleMessage(final); expect(canonical.send).toHaveBeenCalledOnce(); controller.hangup();
   });
 
-  // contract-test: supporting surface=gui.web assertions=video-call.video.generated-media-stage,video-call.chat.fixed-binding
-  it('saves a committed old-call artifact without presenting it inside a newer call', async () => {
-    const {controller,harness}=liveController();
-    let finish!:(id:string)=>void;
-    tools.apply.mockImplementationOnce(()=>new Promise<string>(resolve=>{finish=resolve;}));
-    harness.handleMessage({type:'voice_embed',call_id:'call-1',function_call_id:'function-1',user_message_id:'user-1',assistant_message_id:'assistant-1',payload:{embed_id:'old-parent'}});
-    controller.hangup();
-    harness.update({status:'live',callId:'call-2',chatId:'chat-2'});
-    finish('old-parent');
-    await vi.waitFor(()=>expect(persistence.artifact).toHaveBeenCalledWith(expect.objectContaining({callId:'call-1',chatId:'chat-1',embedRefs:['old-parent']})));
-    expect(visual.resolve).not.toHaveBeenCalled();
-    expect(get(controller)).toMatchObject({callId:'call-2',chatId:'chat-2',displayedMedia:null});
+  // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.audio.complete-turn-admission
+  it('retains typed draft acceptance on canonical failure, server refusal and connection end', async () => {
+    for (const reason of ['canonical','refused','closed']) {
+      const {controller,harness,socket}=liveController();
+      const pending=controller.submitText('chat-1','Please explain ramen');
+      const id=await submittedId(socket);
+      if(reason==='canonical') { canonical.send.mockResolvedValueOnce(false); harness.handleMessage({type:'transcript',call_id:'call-1',role:'user',message_id:id,text:'Please explain ramen',final:true}); }
+      else if(reason==='refused') harness.handleMessage({type:'text_input_rejected',message_id:id});
+      else controller.hangup();
+      expect(await pending).toBe(false); controller.hangup();
+    }
+    expect(persistence.persist).not.toHaveBeenCalled(); expect(persistence.rollback).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.single-owner
+  it('keeps listener cues and interim speech from stopping audio, then stops only the confirmed current assistant', async () => {
+    const {controller,harness}=liveController(); harness.bindCanonicalChat(); await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.callTurnIds.add('user-1');
+    canonical.tasks.set('chat-1',{taskId:'task-1',userMessageId:'user-1'});
+    for(const listener of visual.listeners)listener(new CustomEvent('aiTypingStarted',{detail:{chat_id:'chat-1',user_message_id:'user-1',task_id:'task-1',message_id:'assistant-1'}}));
+    assistantSpeechController.activity.set({chatId:'chat-1',messageId:'assistant-1',text:'Rich answer [source](https://example.org)',speaking:true,language:'en'});
+    const baseline=vi.mocked(assistantSpeechController.stop).mock.calls.length;
+    for(const text of ['hmm','okay']) harness.handleMessage({type:'transcript',role:'user',call_id:'call-1',message_id:'cue-'+text,text,final:false});
+    harness.handleMessage({type:'transcript.discarded',call_id:'call-1',reason:'backchannel'});
+    harness.handleMessage({type:'audio.interrupted',call_id:'old-call',assistant_message_id:'assistant-1'});
+    harness.handleMessage({type:'audio.interrupted',call_id:'call-1',assistant_message_id:'old-assistant'});
+    expect(vi.mocked(assistantSpeechController.stop).mock.calls.length).toBe(baseline);
+    expect(canonical.send).not.toHaveBeenCalled();
+    harness.handleMessage({type:'audio.interrupted',call_id:'call-1',assistant_message_id:'assistant-1',assistant_task_id:'task-1'});
+    await vi.waitFor(() => expect(canonical.cancel).toHaveBeenCalledWith('task-1','chat-1'));
+    expect(vi.mocked(assistantSpeechController.stop).mock.calls.length).toBe(baseline+1); controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.audio.single-owner
+  it('keeps rich canonical messages authoritative and ignores legacy assistant transcript and audio payloads', async () => {
+    const {controller,harness,socket}=liveController(); harness.bindCanonicalChat(); await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.handleMessage({type:'transcript',call_id:'call-1',role:'assistant',message_id:'assistant-1',text:'spoken plain text',final:true});
+    harness.handleMessage({type:'audio_chunk',data:btoa('\0\0')});
+    assistantSpeechController.activity.set({chatId:'chat-1',messageId:'assistant-1',text:'### Rich answer\n[Source](https://example.org)',speaking:true,language:'fr'});
+    expect(get(controller).assistantSpeaking).toBe(true);
+    expect(socket.send.mock.calls.map(([frame])=>JSON.parse(frame as string))).toContainEqual(expect.objectContaining({type:'assistant_state',assistant_message_id:'assistant-1',speaking:true,language:'fr'}));
+    expect(persistence.upsert).not.toHaveBeenCalled(); expect(persistence.artifact).not.toHaveBeenCalled(); expect(canonical.send).not.toHaveBeenCalled();
+    assistantSpeechController.activity.set({chatId:'other-chat',messageId:'other',text:'other',speaking:false,language:'en'});
+    expect(get(controller).assistantSpeaking).toBe(true); controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.video.source-frame-provenance,video-call.audio.complete-turn-admission
+  it('waits for the selected encrypted source before admitting its ordinary user turn', async () => {
+    const {controller,harness}=liveController(); let release!: (ref:unknown)=>void;
+    visual.source.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;}));
+    harness.handleMessage({type:'voice_source_frame',call_id:'call-1',user_message_id:'user-1',frame_id:'frame-1',data:'/9j/2Q==',captured_at:1700000000123,created_at:1700000000,source:'screen'});
+    harness.handleMessage({type:'transcript',call_id:'call-1',role:'user',message_id:'user-1',text:'Describe this screen',final:true});
+    await vi.waitFor(()=>expect(visual.source).toHaveBeenCalledOnce()); expect(canonical.send).not.toHaveBeenCalled();
+    release({type:'image',embed_id:'source-1'});
+    await vi.waitFor(()=>expect(canonical.send).toHaveBeenCalledWith(expect.objectContaining({turnId:'user-1',embedReferences:[{type:'image',embed_id:'source-1'}]})));
+    expect(visual.source).toHaveBeenCalledWith(expect.objectContaining({source:'screen'})); controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.video.generated-media-stage,video-call.audio.spoken-rich-response,video-call.chat.skill-integration
+  it('presents generated media from the ordinary rich assistant response with its routed attribution',async()=>{
+    const {controller,harness}=liveController();harness.bindCanonicalChat();
+    await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.handleMessage({type:'transcript',call_id:'call-1',role:'user',message_id:'user-media',text:'Create a video',final:true});
+    await vi.waitFor(()=>expect(canonical.send).toHaveBeenCalledOnce());
+    const video={embedId:'generated-video',kind:'video',url:'blob:owned-video'};
+    visual.resolve.mockResolvedValueOnce([video]);
+    const message={chat_id:'chat-1',message_id:'assistant-media',role:'assistant',user_message_id:'user-media',
+      model_name:'automatic-routed-model',category:'technology',sender_name:'Routed Mate',
+      content:'### Your video\n\n```json\n{"type":"app_skill_use","embed_id":"generation-group","app_id":"videos","skill_id":"create"}\n```'};
+    for(const listener of [...visual.listeners])listener(new CustomEvent('chatUpdated',{detail:{newMessage:message}}));
+    await vi.waitFor(()=>expect(get(controller).displayedMedia).toEqual(video));
+    expect(visual.resolve).toHaveBeenCalledWith(['generation-group']);
+    expect(get(controller)).toMatchObject({modelName:'automatic-routed-model',mateName:'Routed Mate',mediaExpanded:true});
+    controller.setMediaExpanded(false);expect(get(controller).mediaExpanded).toBe(false);
+    for(const listener of [...visual.listeners])listener(new CustomEvent('chatUpdated',{detail:{newMessage:{...message,chat_id:'other-chat',model_name:'foreign'}}}));
+    expect(get(controller).modelName).toBe('automatic-routed-model');
+    expect(persistence.upsert).not.toHaveBeenCalled();controller.hangup();expect(visual.destroy).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.complete-turn-admission
+  it('binds an early reasoning interruption to its canonical task and fences a newer task',async()=>{
+    const {controller,harness,socket}=liveController();harness.bindCanonicalChat();
+    await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.callTurnIds.add('user-early');canonical.tasks.set('chat-1',{taskId:'task-early',userMessageId:'user-early'});
+    for(const listener of visual.listeners)listener(new CustomEvent('aiTaskInitiated',{detail:{chat_id:'chat-1',user_message_id:'user-early',ai_task_id:'task-early'}}));
+    expect(socket.send.mock.calls.map(([frame])=>JSON.parse(frame as string))).toContainEqual(expect.objectContaining({
+      type:'assistant_state',assistant_message_id:null,assistant_task_id:'task-early',generating:true,speaking:false}));
+    harness.handleMessage({type:'audio.interrupted',call_id:'call-1',assistant_message_id:null,assistant_task_id:'task-early'});
+    expect(canonical.cancel).toHaveBeenCalledExactlyOnceWith('task-early','chat-1');
+    harness.callTurnIds.add('user-new');canonical.tasks.set('chat-1',{taskId:'task-new',userMessageId:'user-new'});
+    for(const listener of visual.listeners)listener(new CustomEvent('aiTaskInitiated',{detail:{chat_id:'chat-1',user_message_id:'user-new',ai_task_id:'task-new'}}));
+    const stopped=vi.mocked(assistantSpeechController.stop).mock.calls.length;
+    harness.handleMessage({type:'audio.interrupted',call_id:'call-1',assistant_message_id:null,assistant_task_id:'task-early'});
+    expect(canonical.cancel).toHaveBeenCalledTimes(1);expect(vi.mocked(assistantSpeechController.stop).mock.calls.length).toBe(stopped);
     controller.hangup();
   });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission
+  it('captures the heard boundary before pure-stop teardown and sends it only on the next accepted call turn',async()=>{
+    const {controller,harness}=liveController();harness.bindCanonicalChat();
+    await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.callTurnIds.add('user-prior');canonical.tasks.set('chat-1',{taskId:'task-prior',userMessageId:'user-prior'});
+    for(const listener of visual.listeners)listener(new CustomEvent('aiTypingStarted',{detail:{chat_id:'chat-1',user_message_id:'user-prior',task_id:'task-prior',message_id:'assistant-prior'}}));
+    assistantSpeechController.activity.set({chatId:'chat-1',messageId:'assistant-prior',text:'Full rich answer remains intact.',speaking:true,language:'en'});
+    const boundary={assistant_message_id:'assistant-prior',completed_sequences:[0],active_sequence:1,active_offset_ms:1234};
+    heard.value=boundary;
+    vi.mocked(assistantSpeechController.stop).mockImplementationOnce(async()=>{heard.value=null;});
+    harness.handleMessage({type:'audio.interrupted',call_id:'call-1',assistant_message_id:'assistant-prior',assistant_task_id:'task-prior'});
+    expect(canonical.send).not.toHaveBeenCalled();expect(heard.value).toBeNull();
+    for(const id of ['user-next','user-after'])harness.handleMessage({type:'transcript',call_id:'call-1',role:'user',message_id:id,text:'Continue from where I interrupted',final:true});
+    await vi.waitFor(()=>expect(canonical.send).toHaveBeenCalledTimes(2));
+    expect(canonical.send.mock.calls[0][0]).toMatchObject({turnId:'user-next',heardBoundary:boundary});
+    expect(canonical.send.mock.calls[1][0]).not.toHaveProperty('heardBoundary');
+    expect(persistence.upsert).not.toHaveBeenCalled();controller.hangup();
+  });
+
 });

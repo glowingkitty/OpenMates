@@ -88,7 +88,7 @@ struct NativeVoiceCallAuthentication: Sendable {
 
 /// Adapters must verify this scope after every auth/profile/key suspension. The
 /// consent adapter reads the selected authenticated profile and, if absent, asks
-/// for explicit acceptance then POSTs exactly {version:1}; cancellation throws.
+/// for explicit acceptance then POSTs exactly {version:2}; cancellation throws.
 /// Authentication may refresh once BEFORE this socket opens. No retry after open.
 struct NativeVoiceCallEnvironment: Sendable {
     let isCurrent: @Sendable (NativeVoiceCallScope) async -> Bool
@@ -98,6 +98,8 @@ struct NativeVoiceCallEnvironment: Sendable {
     /// After genuine capture starts, confirm the encrypted chat/canonical scope
     /// before any provider connection. Watch low-level networking depends on it.
     let prepare: @Sendable (NativeVoiceCallScope) async throws -> Void
+    let submitTurn: @Sendable (NativeVoiceCallScope, NativeVoiceCallTranscript) async throws -> Void
+    let interruptAssistant: @Sendable (NativeVoiceCallScope, String?, String?) async throws -> Void
     let now: @Sendable () -> Date
     let sleep: @Sendable (Duration) async throws -> Void
 
@@ -106,6 +108,8 @@ struct NativeVoiceCallEnvironment: Sendable {
          authentication: @escaping @Sendable (NativeVoiceCallScope) async throws -> NativeVoiceCallAuthentication,
          context: @escaping @Sendable (NativeVoiceCallScope) async throws -> NativeVoiceCallContext,
          prepare: @escaping @Sendable (NativeVoiceCallScope) async throws -> Void = { _ in },
+         submitTurn: @escaping @Sendable (NativeVoiceCallScope, NativeVoiceCallTranscript) async throws -> Void = { _, _ in throw NativeVoiceCallError.unsupportedTransport },
+         interruptAssistant: @escaping @Sendable (NativeVoiceCallScope, String?, String?) async throws -> Void = { _, _, _ in },
          now: @escaping @Sendable () -> Date = { Date() },
          sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
         self.isCurrent = isCurrent
@@ -113,6 +117,8 @@ struct NativeVoiceCallEnvironment: Sendable {
         self.authentication = authentication
         self.context = context
         self.prepare = prepare
+        self.submitTurn = submitTurn
+        self.interruptAssistant = interruptAssistant
         self.now = now
         self.sleep = sleep
     }

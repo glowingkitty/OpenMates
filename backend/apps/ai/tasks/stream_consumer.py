@@ -351,6 +351,8 @@ async def _dispatch_automatic_assistant_speech_segment(
                 "status": "queued" if should_dispatch else "registered",
                 "sequence": int(segment["sequence"]),
                 "kind": str(segment["kind"]),
+                **({"language": str(segment.get("language") or "")} if segment.get("voice_mode") else {}),
+                **({"voice_call_id": str(segment["voice_call_id"])} if segment.get("voice_call_id") else {}),
             },
         },
         log_prefix,
@@ -1186,6 +1188,13 @@ async def _dispatch_sub_chat_parent_continuation(
         message_history=continuation_history,
         chat_has_title=True,
         current_chat_title=original_request.current_chat_title,
+        voice_mode=original_request.voice_mode,
+        voice_call_id=original_request.voice_call_id,
+        voice_turn_id=original_request.voice_turn_id,
+        voice_heard_boundary=original_request.voice_heard_boundary,
+        auto_speak_response=original_request.auto_speak_response,
+        assistant_speech_lazy_dispatch=original_request.assistant_speech_lazy_dispatch,
+        assistant_response_source_revision=original_request.assistant_response_source_revision,
         is_incognito=original_request.is_incognito,
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
@@ -6333,6 +6342,7 @@ async def _consume_main_processing_stream(
         completion_timing.mark_first_visible_content if completion_timing else None,
     )
     speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
+    voice_waiting = None
     if _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides):
         selected_mate = next(
             (
@@ -6373,7 +6383,7 @@ async def _consume_main_processing_stream(
                 preprocessing_result.output_language
                 or (request_data.user_preferences or {}).get("language", "en")
             )
-            if request_data.auto_speak_response:
+            if request_data.auto_speak_response and not request_data.voice_mode:
                 from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
 
                 acknowledgement_category = classify_acknowledgement_category(
@@ -6417,11 +6427,16 @@ async def _consume_main_processing_stream(
                 "source_version": request_data.assistant_response_source_revision,
                 "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
                 "language": speech_language,
+                "voice_mode": request_data.voice_mode,
+                "voice_call_id": request_data.voice_call_id,
+                "voice_turn_id": request_data.voice_turn_id,
             }
-            app_use_announcement = build_app_use_announcement(
+            app_use_announcement = None if request_data.voice_mode else build_app_use_announcement(
                 preprocessing_result.relevant_app_skills,
                 speech_language,
             )
+            from backend.apps.ai.testing.voice_pipeline_fixture import speech_fixture_context
+            voice_speech_fixture = speech_fixture_context(request_data)
             speech_tracker = ImmutableSpeechBoundaryTracker(
                 metadata=speech_metadata,
                 dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
@@ -6435,8 +6450,8 @@ async def _consume_main_processing_stream(
                     cache_service=cache_service,
                     redis_channel_name=redis_channel_name,
                     log_prefix=log_prefix,
-                    live_mock_mode=request_data.live_mock_mode,
-                    live_mock_group=request_data.live_mock_group,
+                    live_mock_mode=voice_speech_fixture.get("live_mock_mode", request_data.live_mock_mode),
+                    live_mock_group=voice_speech_fixture.get("live_mock_group", request_data.live_mock_group),
                 ),
                 invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
                     segment=segment,
@@ -6462,6 +6477,17 @@ async def _consume_main_processing_stream(
                 ),
                 sequence_offset=1 if app_use_announcement else 0,
             )
+            if request_data.voice_mode and request_data.auto_speak_response:
+                from backend.apps.ai.assistant_speech.voice_waiting import DelayedVoiceWaiting
+
+                voice_waiting = DelayedVoiceWaiting(
+                    language=speech_language,
+                    response_ready=lambda: speech_tracker.has_response_segments,
+                    dispatch=lambda text: speech_tracker.dispatch_projected_segment(
+                        sequence=-1, kind="waiting_confirmation", speakable_text=text,
+                    ),
+                )
+                voice_waiting.start()
             if app_use_announcement:
                 speech_tracker.dispatch_projected_segment(
                     sequence=0,
@@ -11085,8 +11111,10 @@ async def _consume_main_processing_stream(
     project_file_finalization_started_at = time.monotonic() if project_file_reference_output else None
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     if speech_tracker is not None:
+        if voice_waiting is not None:
+            await voice_waiting.close()
         speech_tracker.observe(aggregated_response, is_final=True)
-        # ElevenLabs generation remains fully asynchronous, but the durable
+        # Speech generation remains fully asynchronous, but the durable
         # segment records and Celery handoffs must finish before this task closes
         # its event loop or the generated reply can be silently abandoned.
         await speech_tracker.wait_for_handoff()

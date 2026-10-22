@@ -87,15 +87,7 @@ async def execute_skill_via_celery(
                 "arguments": arguments
         }
         recovery_context = active_recovery_output_context.get()
-        from backend.apps.ai.processing.voice_async_skills import (
-            active_voice_output_context, dispatch_voice_embed_task,
-        )
-        if active_voice_output_context.get() is not None:
-            task_signature = await dispatch_voice_embed_task(
-                celery_producer, task_name=task_name, queue=queue_name,
-                kwargs=task_kwargs, task_uuid=dispatch_options.get("task_id"),
-            )
-        elif recovery_context is not None:
+        if recovery_context is not None:
             # The detached worker cannot inherit ContextVar state. Register its
             # exact invocation and primary embed before publishing to broker.
             task_signature = await dispatch_recoverable_embed_task(

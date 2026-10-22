@@ -13,12 +13,11 @@ import { userDB } from './userDB';
 import { computeSHA256 } from '../message_parsing/utils';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from './workspaceCacheLifecycle';
-import { upsertCallUserArtifact } from './voiceCallMessages';
 import type { VoiceArtifactReference } from './voiceCallArtifactReferences';
 
 export interface CallSourceFrame {
   callId: string; chatId: string; messageId: string; frameId: string;
-  data: string; capturedAt: number; createdAt: number;
+  data: string; capturedAt: number; createdAt: number; source?: 'camera' | 'screen';
 }
 
 const sourceQueues = new Map<string, Promise<VoiceArtifactReference>>();
@@ -72,7 +71,9 @@ async function persistSource(frame: CallSourceFrame, assertCurrent: () => void):
     unregister();
   }
   assertCurrent();
-  const reference: VoiceArtifactReference = { type: 'image', embed_id: upload.embed_id };
+  const reference: VoiceArtifactReference = { type: 'image', embed_id: upload.embed_id,
+    source_frame_id: frame.frameId, captured_at: frame.capturedAt, source_call_id: frame.callId,
+    source: frame.source ?? 'camera' };
   // Upload deduplication can return an image already owned by another chat.
   // Confirm its existing ciphertext in its original scope rather than rotating
   // its key or replacing metadata beneath earlier source references.
@@ -94,8 +95,6 @@ async function persistSource(frame: CallSourceFrame, assertCurrent: () => void):
     assertCurrent();
     await embedStore.storeEmbedKeys([chatWrapper], assertCurrent);
     embedStore.setEmbedKeyInCache(upload.embed_id, existingKey, newChatHash);
-    await upsertCallUserArtifact({ callId: frame.callId, chatId: frame.chatId, messageId: frame.messageId,
-      createdAt: frame.createdAt, embedReferences: [reference] }, assertCurrent);
     assertCurrent();
     return reference;
   }
@@ -104,7 +103,8 @@ async function persistSource(frame: CallSourceFrame, assertCurrent: () => void):
     filename, file_size: bytes.length, file_type: 'image/jpeg', content_hash: upload.content_hash,
     s3_base_url: upload.s3_base_url, files: upload.files, aes_key: upload.aes_key,
     aes_nonce: upload.aes_nonce, vault_wrapped_aes_key: upload.vault_wrapped_aes_key,
-    ai_detection: upload.ai_detection, source_frame_id: frame.frameId, captured_at: frame.capturedAt });
+    ai_detection: upload.ai_detection, source_frame_id: frame.frameId, captured_at: frame.capturedAt,
+    source: frame.source ?? 'camera', source_call_id: frame.callId });
   const key = await deriveEmbedKeyFromChatKey(chatKey, upload.embed_id);
   const hashedChatId = await computeSHA256(frame.chatId);
   const hashedUserId = await computeSHA256(profile.user_id);
@@ -135,8 +135,6 @@ async function persistSource(frame: CallSourceFrame, assertCurrent: () => void):
   assertCurrent();
   if (!await sendStoreEmbedImpl(chatSyncService, payload, { keys: keys.map((entry) => ({ ...entry })) })) throw new Error('Call source awaiting encrypted sync');
   assertCurrent();
-  await upsertCallUserArtifact({ callId: frame.callId, chatId: frame.chatId, messageId: frame.messageId,
-    createdAt: frame.createdAt, embedReferences: [reference] }, assertCurrent);
   assertCurrent();
   return reference;
 }

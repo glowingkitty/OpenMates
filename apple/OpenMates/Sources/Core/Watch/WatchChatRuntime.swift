@@ -19,7 +19,8 @@
 // Assertions: storage.background.complete-sealed-recovery, storage.background.saved-output-retention, storage.cold.independent-message-pages, storage.compression.incremental-archive, storage.surface.semantic-parity
 
 // Specification: specifications/features/video-call/specification.yml
-// Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts, video-call.chat.skill-integration
+// Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts, video-call.chat.skill-integration,
+// video-call.audio.spoken-rich-response, video-call.audio.complete-turn-admission, video-call.audio.intentional-interruption, video-call.audio.localized-waiting
 
 import CryptoKit
 import Foundation
@@ -1591,6 +1592,63 @@ final class WatchChatRuntime: ObservableObject {
             })
     }
 
+    /// Bound factory observes ordinary sync; no second assistant transcript writer.
+    var voiceCallSpeechEvent: (@MainActor (String, [String: Any]) -> Void)?
+
+    func voiceCallSubmitTurn(_ transcript: NativeVoiceCallTranscript, scope: NativeVoiceCallScope,
+                             context: WatchChatRequestContext, heardBoundary: NativeVoiceCallHeardBoundary? = nil) async throws {
+        try context.check()
+        guard transcript.role == .user, transcript.final, scope.accountID == accountID,
+              scope.profileID == requestServerProfile.id else { throw NativeVoiceCallError.scopeChanged }
+        let chat = try voiceCallChat(for: scope.chatID)
+        guard await send(content: transcript.text, chat: chat, embed: nil, voiceCallTranscript: transcript, voiceHeardBoundary: heardBoundary) else {
+            throw NativeVoiceCallError.persistenceFailed
+        }
+        try context.check()
+    }
+    func voiceCallInterrupt(context: WatchChatRequestContext, chatID: String, taskID: String? = nil) async throws {
+        try context.check()
+        guard let syncSocket, syncSocket.isConnected else { throw WatchChatRuntimeError.socketUnavailable }
+        var fields: [String: Any] = ["chat_id": chatID]
+        if let taskID { fields["task_id"] = taskID }
+        try await syncSocket.sendEvent(type: "cancel_ai_task", payload: fields)
+        try context.check()
+    }
+    func voiceCallAcknowledgementData(path: String, context: WatchChatRequestContext) async throws -> Data {
+        try context.check()
+        guard path.hasPrefix("/audio/assistant-acknowledgements/"), !path.contains(".."),
+              let url = URL(string: path, relativeTo: context.profile.webBaseURL)?.absoluteURL,
+              url.host == context.profile.webBaseURL.host else { throw WatchChatRuntimeError.invalidRecording }
+        let (bytes, response) = try await URLSession.shared.data(from: url)
+        try context.check()
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+              !bytes.isEmpty, bytes.count <= WatchAudioSource.maximumBytes else { throw WatchChatRuntimeError.invalidRecording }
+        return bytes
+    }
+    func voiceCallSpeechData(assetID: String, chatID: String, context: WatchChatRequestContext) async throws -> Data {
+        try context.check()
+        let chat = try voiceCallChat(for: chatID)
+        guard let syncSocket, syncSocket.isConnected else { throw WatchChatRuntimeError.socketUnavailable }
+        let id = assetID.hasPrefix("embed:") ? String(assetID.dropFirst(6)) : assetID
+        let fields = try await syncSocket.requestEvent(type: "request_embed", payload: ["embed_id": id],
+            responseTypes: ["send_embed_data"], matching: { $0["embed_id"] as? String == id }, beforeSend: { try context.check() })
+        try context.check()
+        guard fields["embed_id"] as? String == id,
+              let returnedChat = fields["chat_id"] as? String,
+              returnedChat == chatID || returnedChat == WatchChatKeyWrapperRecord.hashedChatId(for: chatID) else {
+            throw NativeVoiceCallError.scopeChanged
+        }
+        let ref = try await crypto.hydrateEmbed(payload: fields, chat: chat)
+        try context.check()
+        guard let raw = ref.data, let source = WatchAudioSource(raw: raw) else { throw WatchChatRuntimeError.invalidRecording }
+        let bytes = try await api.fetchAudioRecording(source, context: context)
+        try context.check()
+        return bytes
+    }
+    func voiceCallSpeechText(messageID: String, chatID: String) -> String {
+        String((messagesByChatId[chatID]?.first { $0.id == messageID && $0.role == .assistant }?.content ?? "").suffix(4_000))
+    }
+
     func voiceCallContext(for chatID: String) throws -> WatchChatRequestContext {
         _ = try voiceCallChat(for: chatID)
         let context = requestContext()
@@ -2711,6 +2769,7 @@ final class WatchChatRuntime: ObservableObject {
         syncSocket.setEventHandler { [weak self] type, payload in
             guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
             let eventSocketGeneration = syncSocket.generation
+            self.voiceCallSpeechEvent?(type, payload)
             self.handleDraftSyncEvent(type: type, payload: payload)
             Task { @MainActor in
                 guard self.lifecycleGeneration == generation, !self.isStopped,
@@ -3670,7 +3729,7 @@ final class WatchChatRuntime: ObservableObject {
         return prepared
     }
 
-    private func send(content: String, chat: WatchChatSummary, embed: WatchPendingAudioEmbed?, recordingDraftID: UUID? = nil) async -> Bool {
+    private func send(content: String, chat: WatchChatSummary, embed: WatchPendingAudioEmbed?, recordingDraftID: UUID? = nil, voiceCallTranscript: NativeVoiceCallTranscript? = nil, voiceHeardBoundary: NativeVoiceCallHeardBoundary? = nil) async -> Bool {
         guard !isStopped else { return false }
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
@@ -3705,10 +3764,10 @@ final class WatchChatRuntime: ObservableObject {
         var queued = false
         do {
             guard let syncSocket, syncSession != nil else { throw WatchChatRuntimeError.socketUnavailable }
-            let now = Date()
+            let now = voiceCallTranscript.map { Date(timeIntervalSince1970: Double($0.createdAt)) } ?? Date()
             let createdAt = ISO8601DateFormatter().string(from: now)
             let createdAtUnix = Int(now.timeIntervalSince1970)
-            let messageId = UUID().uuidString.lowercased()
+            let messageId = voiceCallTranscript?.messageID ?? UUID().uuidString.lowercased()
             let turnId = UUID().uuidString.lowercased()
             let encryptedContent = try await crypto.encryptText(trimmed, for: chat)
             let recoveryPublicKey = try await crypto.recoveryPublicKey(for: chat)
@@ -3723,6 +3782,10 @@ final class WatchChatRuntime: ObservableObject {
                 "chat_has_title": titleVersion > 0, "current_chat_title_v": titleVersion,
                 "current_chat_metadata_v": metadataVersion
             ]
+            if let voiceCallTranscript {
+                message.merge(NativeVoiceCallTurn(callID: voiceCallTranscript.callID,
+                    turnID: voiceCallTranscript.messageID, heardBoundary: voiceHeardBoundary).messageFields, uniquingKeysWith: { _, new in new })
+            }
             if titleVersion > 0, let title = chat.title { message["current_chat_title"] = title }
             var inference: [String: Any] = [
                 "chat_id": chat.id, "message": message,
@@ -3795,7 +3858,7 @@ final class WatchChatRuntime: ObservableObject {
             // durably committed. A transport failure can safely retry this turn.
             queued = true
             try validate()
-            if recordingDraftID == nil { await clearDraftAfterSending(chatId: chat.id) }
+            if recordingDraftID == nil && voiceCallTranscript == nil { await clearDraftAfterSending(chatId: chat.id) }
             else { await replayPendingDrafts() }
             try validate()
             syncSocket.connect(session: syncSession!, syncState: makeSyncClientState())

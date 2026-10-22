@@ -43,6 +43,7 @@ interface SpeechStatusSegment {
 }
 
 interface SpeechStatusPayload extends SpeechStatusSegment {
+  voice_call_id?: string;
   chat_id?: string;
   message_id?: string;
   segments?: SpeechStatusSegment[];
@@ -103,6 +104,11 @@ const MAX_STOPPED_MESSAGE_IDS = 50;
 
 class AssistantSpeechController {
   readonly player = writable<AssistantSpeechPlayerState>(INITIAL_PLAYER_STATE);
+  readonly activity = writable({ chatId: null as string | null, messageId: null as string | null,
+    text: "", speaking: false, language: "en" });
+  private callOwner: string | null = null;
+  private activeCallId: string | null = null;
+  private canonicalSource: { chatId: string; messageId: string; text: string } | null = null;
   private readonly queue = new AssistantSpeechQueue({
     onStateChange: () => this.publish(),
     onNeedSegment: (segment) => { void this.requestGeneration(segment); },
@@ -167,12 +173,14 @@ class AssistantSpeechController {
     markdown: string,
     mate: { name?: string; category?: string } = {},
   ): Promise<void> {
+    if (this.callOwner && chatId !== this.callOwner) return;
     const projected = projectAssistantSpeech(markdown);
     if (projected.length === 0) return;
     this.supersedeCurrentMessage(messageId);
     this.pending = { chatId, messageId, projected };
     this.lastRequest = this.pending;
     this.source = this.pending;
+    this.canonicalSource = { chatId, messageId, text: markdown };
     this.generationRequestedIds.clear();
     this.waitingForSource.clear();
     this.stoppedMessageIds.delete(messageId);
@@ -194,11 +202,28 @@ class AssistantSpeechController {
   }
 
   pause(): void { this.queue.pause(); }
+  /** A call keeps the one shared player scoped to its ordinary chat. */
+  setCallOwner(chatId: string | null, callId?: string | null): void {
+    if (!chatId || chatId !== this.callOwner) this.activeCallId = null;
+    if (callId !== undefined) this.activeCallId = callId;
+    this.callOwner = chatId;
+    if (!chatId) this.canonicalSource = null;
+    if (chatId && this.chatId && this.chatId !== chatId) void this.stop();
+    this.publish();
+  }
+  get playbackBoundary() { return this.queue.playbackBoundary; }
+  getCurrentSourceText(messageId?: string): string {
+    return (!messageId || this.canonicalSource?.messageId === messageId)
+      ? this.canonicalSource?.text ?? "" : "";
+  }
   /** Hold only the current owner's decrypted stream text until a chapter is needed. */
   registerSource(chatId: string, messageId: string, markdown: string): void {
+    if (this.callOwner && chatId !== this.callOwner) return;
     if (!markdown || this.publicPlayback || this.stoppedMessageIds.has(messageId)) return;
+    this.canonicalSource = { chatId, messageId, text: markdown };
     this.source = { chatId, messageId, projected: projectAssistantSpeech(markdown) };
     for (const segment of this.waitingForSource.values()) void this.requestGeneration(segment);
+    this.publish();
   }
   primeForAutoplay(): void { this.queue.primeForAutoplay(); }
   async play(): Promise<void> {
@@ -235,6 +260,7 @@ class AssistantSpeechController {
       await webSocketService.sendMessage("assistant_speech", {
         action: "request", chat_id: request.chatId, assistant_message_id: request.messageId,
         defer_after_first: true,
+        source_markdown: this.canonicalSource?.messageId === request.messageId ? this.canonicalSource.text : undefined,
         segments: request.projected.map(({ chapter: _chapter, ...segment }) => segment),
       });
     } catch (cause) {
@@ -251,7 +277,9 @@ class AssistantSpeechController {
       ? segment.sequence : segment.sequence - this.streamPreludeOffset;
     const projected = source?.chatId === this.chatId && source.messageId === this.messageId
       ? source.projected.find((candidate) => candidate.sequence === requestSequence) : undefined;
-    if (!projected) {
+    const voiceClause = this.latestStatusBySegmentId.get(segment.id)?.kind === "voice_prose_clause";
+    const rawSource = this.canonicalSource?.messageId === this.messageId ? this.canonicalSource.text : undefined;
+    if (!projected && !(voiceClause && rawSource)) {
       this.waitingForSource.set(segment.id, segment);
       return;
     }
@@ -262,10 +290,14 @@ class AssistantSpeechController {
       this.latestStatusBySegmentId.delete(segment.id);
     }
     try {
-      const { chapter: _chapter, ...requestSegment } = projected;
+      const { chapter: _chapter, ...requestSegment } = projected ?? {
+        chapter: defaultPresentation(segment.sequence).chapter, sequence: segment.sequence,
+        source_version: 1, source_hash: "server-verified", kind: "voice_prose_clause", speakable_text: "canonical voice clause",
+      };
       await webSocketService.sendMessage("assistant_speech", {
         action: "generate", chat_id: this.chatId, assistant_message_id: this.messageId,
-        segments: [requestSegment],
+        source_markdown: rawSource,
+        segments: [{ ...requestSegment, ...(voiceClause ? {segment_id: segment.id, kind: "voice_prose_clause"} : {}) }],
       });
     } catch (cause) {
       this.generationRequestedIds.delete(segment.id);
@@ -282,6 +314,7 @@ class AssistantSpeechController {
   continueAfterUserGesture(): Promise<void> { return this.queue.continueAfterUserGesture(); }
 
   async close(): Promise<void> {
+    this.canonicalSource = null;
     if (this.messageId) this.dismissedMessageIds.add(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
@@ -300,6 +333,7 @@ class AssistantSpeechController {
   }
 
   async playPublicExample(chatId: string, messageId: string, fixtures: PublicAssistantSpeechSegment[]): Promise<void> {
+    if (this.callOwner) return;
     if (fixtures.length === 0) return;
     await this.stop();
     this.pending = null;
@@ -327,6 +361,7 @@ class AssistantSpeechController {
   }
 
   async stop(): Promise<void> {
+    this.canonicalSource = null;
     if (this.messageId) this.rememberStoppedMessage(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
@@ -345,6 +380,8 @@ class AssistantSpeechController {
   }
 
   private async handleStatus(payload: SpeechStatusPayload): Promise<void> {
+    if (payload.voice_call_id && (!this.callOwner || payload.voice_call_id !== this.activeCallId)) return;
+    if (this.callOwner && payload.chat_id !== this.callOwner) return;
     const statusMessageId = payload.message_id ?? this.pending?.messageId;
     if (statusMessageId && (this.stoppedMessageIds.has(statusMessageId) || this.dismissedMessageIds.has(statusMessageId))) {
       if (payload.chat_id && ["accepted", "queued"].includes(payload.status ?? "")) {
@@ -368,14 +405,14 @@ class AssistantSpeechController {
       const segments = payload.segments.flatMap((status, index) => {
         const sequence = status.request_sequence ?? ((status.sequence ?? projected[index]?.sequence ?? index) - sequenceOffset);
         const source = projected.find((segment) => segment.sequence === sequence);
-        if (!status.segment_id || !source) return [];
+        if (!status.segment_id || (!source && status.kind !== "voice_prose_clause")) return [];
         const latest = this.latestStatusBySegmentId.get(status.segment_id);
         if (latest?.status === "ready" || latest?.status === "error") status = { ...status, ...latest };
         this.latestStatusBySegmentId.set(status.segment_id, status);
         this.segmentSequence.set(status.segment_id, sequence);
         const presentation = {
-          chapter: source.chapter,
-          kind: status.kind || source.kind,
+          chapter: status.kind === "voice_prose_clause" ? defaultPresentation(sequence).chapter : source!.chapter,
+          kind: status.kind || source!.kind,
           playbackClass: status.kind === "app_use_announcement" ? "passive" as const : "replayable" as const,
         };
         this.presentationBySegmentId.set(status.segment_id, presentation);
@@ -457,6 +494,7 @@ class AssistantSpeechController {
   }
 
   private handleAcknowledgement(payload: SpeechAcknowledgementPayload): void {
+    if (this.callOwner && payload.chat_id !== this.callOwner) return;
     if (!payload.chat_id || !payload.message_id || !payload.clip_id || !payload.audio_url) return;
     if (this.stoppedMessageIds.has(payload.message_id)) return;
     if (this.dismissedMessageIds.has(payload.message_id)) return;
@@ -616,6 +654,14 @@ class AssistantSpeechController {
   }
 
   private publish(): void {
+    const source = this.canonicalSource;
+    this.activity.set({
+      chatId: source?.chatId ?? this.chatId,
+      messageId: source?.messageId ?? this.messageId,
+      text: source?.text ?? "",
+      speaking: this.queue.state.status === "playing" && (!source || source.messageId === this.messageId),
+      language: get(locale) || "en",
+    });
     this.player.set({
       ...this.queue.state,
       chatId: this.chatId,
@@ -650,8 +696,8 @@ function defaultPresentation(sequence: number, kind = "prose_paragraph"): {
   kind: string;
   playbackClass: "passive" | "replayable";
 } {
-  if (kind === "app_use_announcement") {
-    return { chapter: { kind: "passive", type: "using_apps" }, kind, playbackClass: "passive" };
+  if (kind === "app_use_announcement" || kind === "waiting_confirmation") {
+    return { chapter: { kind: "passive", type: kind === "waiting_confirmation" ? "confirmation" : "using_apps" }, kind, playbackClass: "passive" };
   }
   const semanticType = kind === "code_summary" ? "code" : kind === "table_summary" ? "table" : kind === "embed_summary" ? "structured" : null;
   return {

@@ -44,7 +44,7 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
     func reserve(scope: NativeVoiceCallScope) async throws {
         guard reservation == nil else { throw NativeVoiceCallError.audioUnavailable }
         let invalidated = invalidated
-        reservation = try await runtime.reserveLiveCall {
+        reservation = try await runtime.reserveLiveCall(chatID: scope.chatID) {
             Task { await invalidated() }
         }
         // Permission is requested after consent and exclusive speech drain.

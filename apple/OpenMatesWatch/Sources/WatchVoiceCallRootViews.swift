@@ -23,7 +23,7 @@ struct WatchVoiceCallConsentView: View {
             VStack(spacing: .spacing3) {
                 Text(WatchCallRootCopy.title).font(.omSmall.weight(.semibold))
                 Text(WatchCallRootCopy.description).font(.omXs)
-                Link(WatchCallRootCopy.terms, destination: URL(string: "https://ai.google.dev/gemini-api/terms")!)
+                Link(WatchCallRootCopy.terms, destination: URL(string: "https://legal.mistral.ai/terms/privacy-policy")!)
                     .font(.omXs).foregroundStyle(Color.buttonPrimary)
                 Button { consent.finish(true) } label: {
                     Text(WatchCallRootCopy.accept).font(.omSmall.weight(.semibold))

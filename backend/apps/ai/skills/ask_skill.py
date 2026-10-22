@@ -16,6 +16,7 @@ from celery import Celery # For sending tasks
 from backend.apps.base_skill import BaseSkill # Adjusted import path
 from backend.core.api.app.schemas.chat import AIHistoryMessage # Import the message model
 from backend.shared.python_utils.chat_failure_notifications import EXPECTED_REJECTIONS, notify_chat_failure
+from backend.shared.python_utils.voice_playback_boundary import VoiceHeardBoundary
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,10 @@ class AskSkillRequest(BaseModel):
     current_chat_title_v: Optional[int] = Field(default=None, description="Client title version when the AI turn started. Used to reject stale generated title updates.")
     current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     auto_speak_response: bool = Field(default=False, description="Decrypted chat preference fixed for this assistant turn; never persisted by the AI pipeline.")
+    voice_mode: bool = Field(default=False, description="Server-validated call delivery for this ordinary chat turn; does not override model routing.")
+    voice_call_id: Optional[str] = Field(default=None, max_length=64)
+    voice_turn_id: Optional[str] = Field(default=None, max_length=64)
+    voice_heard_boundary: Optional[VoiceHeardBoundary] = None
     assistant_speech_lazy_dispatch: bool = Field(default=False, description="The owner client can request registered speech chapters as playback advances.")
     assistant_response_source_revision: int = Field(default=1, ge=1, description="Stable client-assigned revision for this assistant response source.")
     live_mock_mode: Optional[str] = Field(default=None, exclude=True, description="Server-validated live-mock mode for this task only.")

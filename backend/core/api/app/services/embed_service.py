@@ -6325,9 +6325,6 @@ class EmbedService:
 
     @staticmethod
     def _finished_recovery_required() -> bool:
-        from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context
-        if active_voice_worker_context.get() is not None:
-            return True
         producer = active_verified_output_producer.get()
         return active_recovery_output_context.get() is not None or (
             producer is not None and (
@@ -6401,29 +6398,18 @@ class EmbedService:
             raise RequiredRecoveryOutputError("Claimed embed producer is no longer authorized")
 
     async def _require_finished_publication_authority(self, user_id_hash: str) -> None:
-        from backend.apps.ai.processing.voice_async_skills import (
-            active_voice_worker_context, require_voice_publication,
-        )
-        voice = active_voice_worker_context.get()
-        if voice is not None:
-            await require_voice_publication(context=voice, cache_service=self.cache_service,
-                directus_service=self.directus_service, encryption_service=self.encryption_service,
-                owner_hash=user_id_hash)
         await self._require_live_volatile_publication(user_id_hash)
         await self._require_claimed_direct_publication(user_id_hash)
 
     @staticmethod
     def _registered_child_embed_id(parent_embed_id: str, child_index: int) -> str:
         producer = active_verified_output_producer.get()
-        if producer is None or producer.classification not in {"registered_ai", "authorized_voice"}:
+        if producer is None or producer.classification != "registered_ai":
             # UUIDv5 is reserved for Project files and durably registered
             # producer children. Ordinary chat children keep their UUIDv4 IDs.
             return str(uuid.uuid4())
         if child_index >= 32 or parent_embed_id != producer.primary_embed_id:
             raise RequiredRecoveryOutputError("Composite embed exceeds its registered producer intent")
-        if producer.classification == "authorized_voice":
-            from backend.apps.ai.processing.voice_async_skills import voice_child_embed_id
-            return voice_child_embed_id(producer.intent_id, parent_embed_id, child_index)
         return str(uuid.uuid5(uuid.UUID(producer.intent_id), f"embed-child:{child_index}"))
 
     @staticmethod
@@ -6844,14 +6830,6 @@ class EmbedService:
         """
         required_delivery = False
         try:
-            from backend.apps.ai.processing.voice_async_skills import active_voice_worker_context, voice_child_embed_id
-            voice = active_voice_worker_context.get()
-            if voice is not None:
-                allowed_ids = {voice.embed_id, *(voice_child_embed_id(voice.task_id, voice.embed_id, index) for index in range(32))}
-                if (user_id != voice.binding["user_id"] or user_id_hash != voice.binding["user_hash"]
-                        or chat_id != voice.binding["chat_id"]
-                        or message_id != voice.binding["assistant_message_id"] or embed_id not in allowed_ids):
-                    raise RequiredRecoveryOutputError("Voice embed output identity mismatch")
             required_delivery = (
                 (status == "finished" or (status == "error" and embed_type == "app_skill_use"))
                 and encryption_mode == "client" and self._finished_recovery_required()
@@ -7094,7 +7072,7 @@ class EmbedService:
                 # This enables key inheritance: child embeds use parent's encryption key
                 async with self._defer_completed_embed_publications() as batch:
                     producer = active_verified_output_producer.get()
-                    parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification in {"registered_ai", "authorized_voice"}
+                    parent_embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
                                        else str(uuid.uuid4()))
                 
                     for child_index, result in enumerate(embed_results):
@@ -7356,7 +7334,7 @@ class EmbedService:
                 # Non-composite result - create single app_skill_use embed
                 # All skills return results as an array, so we always structure it consistently
                 producer = active_verified_output_producer.get()
-                embed_id = (producer.primary_embed_id if producer is not None and producer.classification in {"registered_ai", "authorized_voice"}
+                embed_id = (producer.primary_embed_id if producer is not None and producer.classification == "registered_ai"
                             else str(uuid.uuid4()))
 
                 # Generate embed_ref for this single embed (injected inside encrypted TOON).
