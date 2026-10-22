@@ -1,0 +1,4345 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-21'
+generated_at: '2026-10-22T00:20:36+00:00'
+range:
+  since: '2026-10-21T00:00:00+00:00'
+  until: '2026-10-22T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 32
+  section_counts:
+    features: 6
+    bug_fixes: 17
+    improvements: 1
+    docs: 6
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 32
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refresh Home landing apartment search example'
+    section: features
+    commits:
+    - 13e8ec18d
+    authored_at: '2026-10-21T17:41:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: improve apartment data, galleries, filtering and maps'
+    section: features
+    commits:
+    - b5a27aac7
+    authored_at: '2026-10-21T10:37:18+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/home/app.yml
+    - backend/apps/home/evidence.py
+    - backend/apps/home/location_enrichment.py
+    - backend/apps/home/providers/immoscout24.py
+    - backend/apps/home/providers/kleinanzeigen.py
+    - backend/apps/home/providers/wg_gesucht.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/shared/providers/geoapify/places.py
+    - backend/shared/providers/housing/__init__.py
+    - backend/shared/providers/housing/details.py
+    - backend/shared/python_utils/public_images.py
+    - backend/tests/test_home_evidence.py
+    - backend/tests/test_home_location_enrichment.py
+    - backend/tests/test_home_provider_details.py
+    - backend/tests/test_home_search_pipeline.py
+    - backend/tests/test_home_search_rest.py
+    - backend/tests/test_home_workflow_search.py
+    - backend/tests/test_search_relevance.py
+    - docs/architecture/apps/home-search.md
+    - docs/plans/home-search-evidence/plan.yml
+    - frontend/apps/web_app/tests/components/home-search-details.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/searchResultMapMarkers.test.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/homeListingData.test.ts
+    - frontend/packages/ui/src/components/embeds/home/homeListingData.ts
+    - frontend/packages/ui/src/components/embeds/searchResultMapMarkers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/home_listing.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/ci_coverage.py
+    - specifications/features/app-skills/home-search/examples.yml
+    - specifications/features/app-skills/home-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:home, app:shopping, embed:home:search, skill:home:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: replace Sweden jobs example with Germany search'
+    section: features
+    commits:
+    - a8c9d3f64
+    authored_at: '2026-10-21T10:13:33+00:00'
+    changed_paths:
+    - backend/apps/jobs/app.yml
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/__tests__/fixtures/curatedExampleExpectations.json
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-sweden.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/jobs_in_germany.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/jobs_in_sweden.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:jobs'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add media.ccc.de published video captions'
+    section: features
+    commits:
+    - 7b4c46a91
+    authored_at: '2026-10-21T09:04:04+00:00'
+    changed_paths:
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/providers/media_ccc.yml
+    - backend/shared/providers/media_ccc/__init__.py
+    - backend/shared/providers/media_ccc/client.py
+    - backend/shared/providers/media_ccc/models.py
+    - backend/tests/test_media_ccc_provider.py
+    - backend/tests/test_media_ccc_skill.py
+    - docs/apis/media_ccc.md
+    - frontend/apps/web_app/tests/components/video-transcript-media-ccc.spec.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - scripts/api_tests/test_media_ccc_api.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/verify_media_ccc_transcript_real_dev.py
+    - shared/docs/privacy_policy.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:get_transcript
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:videos, embed:videos:get_transcript'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: bind native notification replies to authenticated registration'
+    section: features
+    commits:
+    - 25dfaf520
+    authored_at: '2026-10-21T08:37:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/services/push_reply_context.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/tests/test_completion_push_cache_fallback.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_push_notification_reply_context.py
+    - docs/plans/apple-october-web-parity/plan.yml
+    - frontend/apps/web_app/tests/push-subscription-lifecycle.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/apple-notifications/examples.yml
+    - specifications/features/apple-notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: redesign Apps workspace with natural-language requests'
+    section: features
+    commits:
+    - a444b18c1
+    authored_at: '2026-10-21T02:46:32+00:00'
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/health/app.yml
+    - backend/core/api/app/middleware/ai_decide_body.py
+    - backend/core/api/app/middleware/logging_middleware.py
+    - backend/core/api/app/routes/apps_workspace.py
+    - backend/core/api/app/routes/apps_workspace_public.py
+    - backend/core/api/app/routes/apps_workspace_recommendations.py
+    - backend/core/api/app/routes/apps_workspace_requests.py
+    - backend/core/api/app/services/apps_workspace_libraries_repository.py
+    - backend/core/api/app/services/apps_workspace_metadata.py
+    - backend/core/api/app/services/apps_workspace_public_service.py
+    - backend/core/api/app/services/apps_workspace_recommendations_service.py
+    - backend/core/api/app/services/apps_workspace_recommendations_store.py
+    - backend/core/api/app/services/apps_workspace_request_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/tasks/apps_workspace_recommendations_tasks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/apps_workspace_libraries.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_apps_workspace_metadata.py
+    - backend/tests/test_apps_workspace_public.py
+    - backend/tests/test_apps_workspace_recommendations.py
+    - backend/tests/test_apps_workspace_requests.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/architecture/apps/recommendations-retention.md
+    - docs/plans/apps-workspace-natural-language/plan.yml
+    - docs/plans/apps-workspace-natural-language/verification.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/apps-workspace-api.spec.ts
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-details-proof.spec.ts
+    - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/chat-message-expansion.spec.ts
+    - frontend/apps/web_app/tests/helpers/workspace-navigation.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiAppsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiEmbedPreviews.ts
+    - frontend/packages/openmates-cli/src/tuiFullscreenChrome.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/tuiAppsRequests.test.ts
+    - frontend/packages/openmates-cli/tests/tuiAppsWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatMessageExpansionPreview.preview.ts
+    - frontend/packages/ui/src/components/ChatMessageExpansionPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsRequestComposer.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsRequestComposer.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultPreviewGroup.svelte
+    - frontend/packages/ui/src/components/apps/AppsSavedSearchPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsSidebar.svelte
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/appsRequestComposerLifetime.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/searchResultMapMarkers.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/__tests__/audioTranscriptionResult.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/audioTranscriptionResult.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/searchResultMapMarkers.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/apps_workspace.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatIdentity.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceAttachmentService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceChatHandoffService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceImageRankingService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceLibraryService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspacePreviewService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceRequestService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceService.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/anonymousChatIdentity.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/appsWorkspaceAttachmentService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceChatHandoffService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceContext.ts
+    - frontend/packages/ui/src/services/appsWorkspaceHandoffNavigation.svelte.ts
+    - frontend/packages/ui/src/services/appsWorkspaceImageRankingService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceLibraryService.ts
+    - frontend/packages/ui/src/services/appsWorkspacePreviewService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceRecentChatsService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceRequestPrivacy.ts
+    - frontend/packages/ui/src/services/appsWorkspaceRequestService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceResultsService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/inferredChatDeletion.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - frontend/packages/ui/src/utils/__tests__/chatMessageExpansion.test.ts
+    - frontend/packages/ui/src/utils/chatMessageExpansion.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_cli_tui_apps_seed_contract.py
+    - scripts/tests/test_verify_caddyfile.py
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio, app:health, embed:audio:recording, embed:audio:transcribe, embed:maps:search,
+      platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: hydrate saved Home search previews from parent metadata'
+    section: bug_fixes
+    commits:
+    - a86870f00
+    authored_at: '2026-10-21T18:22:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/home-search-details.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:home:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use one Gemini writer and Jev inspiration decisions'
+    section: bug_fixes
+    commits:
+    - 1c60de459
+    authored_at: '2026-10-21T17:37:58+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/semantic_review.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_models.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_activity.py
+    - backend/tests/test_daily_inspiration_config.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_semantic_review.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use registered inspiration review tracing purpose'
+    section: bug_fixes
+    commits:
+    - be96267b0
+    authored_at: '2026-10-21T12:32:52+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/semantic_review.py
+    - backend/tests/test_daily_inspiration_semantic_review.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: strengthen English and German inspiration copy review'
+    section: bug_fixes
+    commits:
+    - 3e33b8c5d
+    authored_at: '2026-10-21T12:17:38+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/semantic_review.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_semantic_review.py
+    - docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/optimization-diagnostics-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/optimization-diagnostics-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align ONNX runtime minimum with approved iOS26.2'
+    section: bug_fixes
+    commits:
+    - 402d8c286
+    authored_at: '2026-10-21T12:01:32+00:00'
+    changed_paths:
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore job details and header application CTA'
+    section: bug_fixes
+    commits:
+    - 12e858cbf
+    authored_at: '2026-10-21T12:00:12+00:00'
+    changed_paths:
+    - backend/apps/jobs/app.yml
+    - backend/apps/jobs/skills/search_skill.py
+    - backend/shared/providers/jobs/hard_problems.py
+    - backend/shared/providers/jobs/hard_problems_details.py
+    - backend/shared/providers/jobs/models.py
+    - backend/tests/test_jobs_other_impact_provider.py
+    - backend/tests/test_jobs_role_details.py
+    - backend/tests/test_jobs_search_skill.py
+    - docs/apis/hard_problems.md
+    - docs/apis/jobs-search-research.md
+    - frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/apps/web_app/tests/skill-jobs-search-api.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/jobs/jobsEmbedData.ts
+    - frontend/packages/ui/src/components/embeds/jobs/jobsEmbedText.ts
+    - frontend/packages/ui/src/data/__tests__/jobsEmbedText.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-germany.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:job_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:jobs, embed:jobs:job_result, embed:jobs:search, skill:jobs:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair Apps sidebar, results, settings and workflow handoffs'
+    section: bug_fixes
+    commits:
+    - 374c43a1a
+    authored_at: '2026-10-21T11:55:30+00:00'
+    changed_paths:
+    - DESIGN.md
+    - backend/tests/test_workflow_input_sessions.py
+    - docs/plans/apps-workspace-natural-language/plan.yml
+    - docs/plans/apps-workspace-natural-language/verification.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/apps/AppsRoute.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts
+    - frontend/apps/web_app/tests/components/apps-sidebar-preview.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/apps/AppsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultPreviewGroup.svelte
+    - frontend/packages/ui/src/components/apps/AppsSidebar.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsSidebar.svelte
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/AppsEmbedPreviewStub.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/AppsResultLifetimeHarness.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/AppsResultRendererStub.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/appsResultFullscreenLifetime.test.ts
+    - frontend/packages/ui/src/components/apps/__tests__/appsResultPreviewGroup.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsArticleEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/AppDailySearchesSettings.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/__tests__/AppDailySearchesSettings.test.ts
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/apps_workspace.yml
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceChatHandoffService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceLibraryService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspacePreviewService.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedFullscreenResolver.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/appsWorkspaceChatHandoffService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceContext.ts
+    - frontend/packages/ui/src/services/appsWorkspaceLibraryService.ts
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:news:search, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: read complete live apartment gallery layouts'
+    section: bug_fixes
+    commits:
+    - a105f9d4c
+    authored_at: '2026-10-21T11:38:54+00:00'
+    changed_paths:
+    - backend/apps/home/app.yml
+    - backend/shared/providers/housing/details.py
+    - backend/tests/test_home_provider_details.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:home'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve apartment photo identity and location provenance'
+    section: bug_fixes
+    commits:
+    - fbba27e9f
+    authored_at: '2026-10-21T11:23:11+00:00'
+    changed_paths:
+    - backend/apps/home/app.yml
+    - backend/apps/home/location_enrichment.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/shared/providers/housing/details.py
+    - backend/tests/test_home_location_enrichment.py
+    - backend/tests/test_home_provider_details.py
+    - backend/tests/test_home_search_pipeline.py
+    - backend/tests/test_home_search_rest.py
+    - docs/architecture/apps/home-search.md
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:home, embed:home:search, skill:home:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete approved Apple daily-use parity and iOS-first release'
+    section: bug_fixes
+    commits:
+    - c8e7d4f6f
+    authored_at: '2026-10-21T11:16:12+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatch.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatchUITests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_Core_UI_Evidence.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_Notification_Reply.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_UI_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_Unit_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_macOS.xcscheme
+    - apple/OpenMates/Info.plist
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings+QueuedFollowup.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings+RecordingTranscription.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelStore.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalPCMTranscribing.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalSpeechRuntimes.swift
+    - apple/OpenMates/Sources/Core/LocalModels/RecordingTranscriptionSelection.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleBundledAsset.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleNativeBridge.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleNativeOutput.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistlePCMRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleRecordingDraftTranscriber.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/FocusPhaseModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationReplyContext.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/PublicChats/AnonymousPublicChatTransport.swift
+    - apple/OpenMates/Sources/Core/PublicChats/BundledPublicExampleCatalog.swift
+    - apple/OpenMates/Sources/Core/PublicChats/WatchGuestChatWorkspace.swift
+    - apple/OpenMates/Sources/Core/Services/AccountDeletionCleanup.swift
+    - apple/OpenMates/Sources/Core/Services/BillingUsageDraftAudioRegistry.swift
+    - apple/OpenMates/Sources/Core/Services/ChatQueuedFollowupRuntime.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/NativePersonalPrivacyRuntime.swift
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContext.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallAppleAudio.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallAppleEnvironment.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallAudio.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallCanonicalContextLoader.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallCanonicalPersistence.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallChatAdmissionProof.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallContext.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallController.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallEnergyGate.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallMemoryPolicy.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallOutbox.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallProtocol.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallToolContinuation.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallTransport.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchAudio.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchEnvironment.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchFactory.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchHardwareProbe.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/WatchVoiceCallScopedStorage.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchAudioOwnership.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchComposerControls.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchNativeCallBinding.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPairAuthenticationTransaction.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPairCommitSequence.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPublicExampleStore.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceCallConsent.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceCallMemoryPermission.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceCallToolCoordinator.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceEvaluationPolicy.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhistleDraftAdapter.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevAssistantActivityFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevAssistantBatchActivityFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevDailyInspirationFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevResponsiveEmbedFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSidebarComponentFixture.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairV2Runtime.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/NativeChatSendTiming.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantActivityGroupView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantActivityProjection.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantActivitySummary.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantResponseGlow.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusPhaseNoticeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/QueuedFollowupControlsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SubChatActivityProvenance.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SubChatBatchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/TransientAssistantResponseView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedRendererSupport.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectOfflineMetadata.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReadmeView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Settings/Services/AccountSecurityService.swift
+    - apple/OpenMates/Sources/Features/Settings/Services/SettingsTeamsController.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/BillingUsageModel.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/BillingUsageView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLocalModelsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsRecordingTranscriptionSection.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsTeamsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsUsageStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/AppStrings+NativeVoiceCall.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallAppCoordinator.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallAppFactory.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallControls.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallControlsFixture.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallLocalDraftPromotion.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallMemoryPermission.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallProjectContext.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallRootRuntime.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowVoiceInputView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarDisplayPolicy.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/OMSettingsCreditsDisplay.swift
+    - apple/OpenMates/Sources/Shared/Components/ProgressiveMarkdownRenderProjection.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesCoreUI.xctestplan
+    - apple/OpenMatesNotificationContent/Info.plist
+    - apple/OpenMatesNotificationContent/Localizable.xcstrings
+    - apple/OpenMatesNotificationContent/NotificationContentViewController.swift
+    - apple/OpenMatesNotificationContent/OpenMatesNotificationContent.entitlements
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/AccountDeletionCleanupTests.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/AssistantActivityProjectionTests.swift
+    - apple/OpenMatesTests/BillingUsageDraftAudioRegistryTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/FocusPhaseTests.swift
+    - apple/OpenMatesTests/ImageUploadPrivacyTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallArtifactAssociationTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallCanonicalAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallLocalDraftPromotionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallRootAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallToolContinuationTests.swift
+    - apple/OpenMatesTests/NotificationReplyContextTests.swift
+    - apple/OpenMatesTests/ProjectOfflineMetadataTests.swift
+    - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+    - apple/OpenMatesTests/RecordingTranscriptionSelectionTests.swift
+    - apple/OpenMatesTests/SettingsBillingParityTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SettingsModesParityTests.swift
+    - apple/OpenMatesTests/SettingsTeamsServiceTests.swift
+    - apple/OpenMatesTests/SubChatActivityProvenanceTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WatchGuestInferenceTests.swift
+    - apple/OpenMatesTests/WatchGuestWorkspaceTests.swift
+    - apple/OpenMatesTests/WatchHubDataServiceTests.swift
+    - apple/OpenMatesTests/WatchPairAuthenticationTransactionTests.swift
+    - apple/OpenMatesTests/WatchPairCookieCancellationTests.swift
+    - apple/OpenMatesTests/WatchVoiceCallMemoryPermissionTests.swift
+    - apple/OpenMatesTests/WatchVoiceCallRootTests.swift
+    - apple/OpenMatesTests/WatchVoiceCallToolCoordinatorTests.swift
+    - apple/OpenMatesTests/WatchVoiceEvaluationPolicyTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WhistleRuntimeTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift
+    - apple/OpenMatesUITests/AppSkillInputPreviewUITests.swift
+    - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift
+    - apple/OpenMatesUITests/AssistantBatchActivityPreviewUITests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
+    - apple/OpenMatesUITests/DevAuthFormUITests.swift
+    - apple/OpenMatesUITests/EmbedResponsiveGeometryUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+    - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
+    - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+    - apple/OpenMatesUITests/QueuedFollowupUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/RecordingTranscriptionSettingsUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
+    - apple/OpenMatesUITests/SettingsModesParityUITests.swift
+    - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAudioPlaybackLoader.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchComposerActionBar.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatch/Sources/WatchGuestWorkspaceView.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatch/Sources/WatchPhysicalVoiceCallProbe.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceCallMemoryPermissionView.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceCallRootViews.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceEvaluationLease.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceEvaluationView.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/OpenMatesWatchUITests/WatchGuestWorkspaceUITests.swift
+    - apple/OpenMatesWatchUITests/WatchVoiceCallConsentUITests.swift
+    - apple/OpenMatesWatchUITests/WatchVoiceEvaluationUITests.swift
+    - apple/WhistleBridge/LICENSE
+    - apple/WhistleBridge/OMWhistleBridge.h
+    - apple/WhistleBridge/OMWhistleBridge.mm
+    - apple/WhistleBridge/module.modulemap
+    - apple/WhistleBridge/needle.h
+    - apple/WhistleBridge/prepare-build.py
+    - apple/WhistleBridge/prepare.py
+    - apple/WhistleBridge/test_prepare.py
+    - apple/WhistleBridge/whistle-assets.lock.json
+    - apple/project.yml
+    - docs/architecture/apple/core-ui-recordings.md
+    - docs/architecture/apple/testflight-release.md
+    - docs/plans/apple-guest-offline-storage/plan.yml
+    - docs/plans/apple-october-web-parity/plan.yml
+    - docs/plans/workflow-completion-notifications/verification.md
+    - frontend/packages/ui/src/i18n/sources/apple.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - frontend/packages/ui/src/i18n/sources/voicecall.yml
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    - specifications/features/apple-local-model-lab/examples.yml
+    - specifications/features/apple-local-model-lab/specification.yml
+    - specifications/features/apple-watch/examples.yml
+    - specifications/features/apple-watch/specification.yml
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/features/chat-queued-followups/examples.yml
+    - specifications/features/chat-queued-followups/specification.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/daily-inspiration/examples.yml
+    - specifications/features/daily-inspiration/specification.yml
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/public-example-chats/examples.yml
+    - specifications/features/public-example-chats/specification.yml
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show readable sheet citation headings'
+    section: bug_fixes
+    commits:
+    - f6efa9d74
+    authored_at: '2026-10-21T10:46:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Gemini user turn in inspiration repair requests'
+    section: bug_fixes
+    commits:
+    - 76419cba8
+    authored_at: '2026-10-21T09:47:54+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: place composer microphone before send button'
+    section: bug_fixes
+    commits:
+    - 324326a45
+    authored_at: '2026-10-21T09:30:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.preview.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve preview cleanup deadlines under code queue saturation'
+    section: bug_fixes
+    commits:
+    - c0265ee8a
+    authored_at: '2026-10-21T09:22:51+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/plans/application-preview-startup/plan.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: review inspiration fields and repair only failed sources'
+    section: bug_fixes
+    commits:
+    - 856c4b738
+    authored_at: '2026-10-21T09:07:43+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/scripts/benchmark_daily_inspiration_qualification.py
+    - backend/scripts/fixtures/daily_inspiration_editorial_v6.json
+    - backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json
+    - backend/scripts/fixtures/daily_inspiration_thumbnail_v6.json
+    - backend/scripts/render_inspiration_thumbnail_controls.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accelerate isolated app previews and prepare common code toolchains'
+    section: bug_fixes
+    commits:
+    - a1e1441be
+    authored_at: '2026-10-21T08:58:49+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/testing/fixtures/code_run_e2b_languages.json
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/scripts/build_application_preview_template.py
+    - backend/scripts/build_code_runner_template.py
+    - backend/scripts/test_code_runner_languages.py
+    - backend/shared/providers/application_preview_runtime.mjs
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_e2b_code_runner.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/plans/application-preview-startup/plan.yml
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/apps/web_app/tests/code-run-languages.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep Apps controls and composer bounded on phones'
+    section: bug_fixes
+    commits:
+    - b5504108e
+    authored_at: '2026-10-21T03:38:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: start application previews with warm servers and pushed readiness'
+    section: improvements
+    commits:
+    - e276c9361
+    authored_at: '2026-10-21T11:45:51+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/scripts/application_preview_interaction_probe.py
+    - backend/scripts/build_application_preview_template.py
+    - backend/scripts/profile_application_preview_startup.py
+    - backend/scripts/test_application_preview_startup.py
+    - backend/shared/providers/application_preview_runtime.mjs
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_interaction_probe.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/plans/application-preview-startup/plan.yml
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/apps/web_app/tests/components/application-preview-readiness.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, embed:code:application'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: record single-LLM inspiration rollout and active-user limits'
+    section: docs
+    commits:
+    - ea7e95d3f
+    authored_at: '2026-10-21T17:49:47+00:00'
+    changed_paths:
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: close English and German inspiration rollout'
+    section: docs
+    commits:
+    - 05c8804f4
+    authored_at: '2026-10-21T12:48:56+00:00'
+    changed_paths:
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record verified Apps workspace repair'
+    section: docs
+    commits:
+    - 001a41a62
+    authored_at: '2026-10-21T12:18:52+00:00'
+    changed_paths:
+    - docs/plans/apps-workspace-natural-language/plan.yml
+    - docs/plans/apps-workspace-natural-language/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple parity and notification verification checkpoint'
+    section: docs
+    commits:
+    - d882c652d
+    authored_at: '2026-10-21T11:41:20+00:00'
+    changed_paths:
+    - docs/plans/apple-october-web-parity/overview.md
+    - docs/plans/workflow-completion-notifications/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: close direct image task with accepted limitation'
+    section: docs
+    commits:
+    - 47e7f7f3a
+    authored_at: '2026-10-21T08:18:04+00:00'
+    changed_paths:
+    - docs/plans/direct-image-reference-processing/plan.yml
+    - docs/plans/direct-image-reference-processing/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apps workspace verification and rollout status'
+    section: docs
+    commits:
+    - 013a99dba
+    authored_at: '2026-10-21T03:47:51+00:00'
+    changed_paths:
+    - docs/plans/apps-workspace-natural-language/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: record granular inspiration qualification and costs'
+    section: tests
+    commits:
+    - 99f4978d8
+    authored_at: '2026-10-21T10:38:34+00:00'
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    - docs/plans/daily-inspiration-jev/blinded-review-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/full-refresh-costs-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/granular-paired-aggregate-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: record CCC transcript verification through the product CLI'
+    section: tests
+    commits:
+    - 25298f627
+    authored_at: '2026-10-21T09:23:03+00:00'
+    changed_paths:
+    - scripts/tests/verify_media_ccc_transcript_real_dev.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: hydrate saved Home search previews from parent metadata'
+    commits:
+    - a86870f00
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+  - title: 'docs: record single-LLM inspiration rollout and active-user limits'
+    commits:
+    - ea7e95d3f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: refresh Home landing apartment search example'
+    commits:
+    - 13e8ec18d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use one Gemini writer and Jev inspiration decisions'
+    commits:
+    - 1c60de459
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: close English and German inspiration rollout'
+    commits:
+    - 05c8804f4
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: use registered inspiration review tracing purpose'
+    commits:
+    - be96267b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record verified Apps workspace repair'
+    commits:
+    - 001a41a62
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: strengthen English and German inspiration copy review'
+    commits:
+    - 3e33b8c5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: align ONNX runtime minimum with approved iOS26.2'
+    commits:
+    - 402d8c286
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore job details and header application CTA'
+    commits:
+    - 12e858cbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:job_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+  - title: 'fix: repair Apps sidebar, results, settings and workflow handoffs'
+    commits:
+    - 374c43a1a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'perf: start application previews with warm servers and pushed readiness'
+    commits:
+    - e276c9361
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'docs: record Apple parity and notification verification checkpoint'
+    commits:
+    - d882c652d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: read complete live apartment gallery layouts'
+    commits:
+    - a105f9d4c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+  - title: 'fix: preserve apartment photo identity and location provenance'
+    commits:
+    - fbba27e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+  - title: 'fix: complete approved Apple daily-use parity and iOS-first release'
+    commits:
+    - c8e7d4f6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: show readable sheet citation headings'
+    commits:
+    - f6efa9d74
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: record granular inspiration qualification and costs'
+    commits:
+    - 99f4978d8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: improve apartment data, galleries, filtering and maps'
+    commits:
+    - b5a27aac7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+  - title: 'feat: replace Sweden jobs example with Germany search'
+    commits:
+    - a8c9d3f64
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+  - title: 'fix: preserve Gemini user turn in inspiration repair requests'
+    commits:
+    - 76419cba8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: place composer microphone before send button'
+    commits:
+    - 324326a45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: record CCC transcript verification through the product CLI'
+    commits:
+    - 25298f627
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve preview cleanup deadlines under code queue saturation'
+    commits:
+    - c0265ee8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'fix: review inspiration fields and repair only failed sources'
+    commits:
+    - 856c4b738
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add media.ccc.de published video captions'
+    commits:
+    - 7b4c46a91
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:get_transcript
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'fix: accelerate isolated app previews and prepare common code toolchains'
+    commits:
+    - a1e1441be
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'feat: bind native notification replies to authenticated registration'
+    commits:
+    - 25dfaf520
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: close direct image task with accepted limitation'
+    commits:
+    - 47e7f7f3a
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Apps workspace verification and rollout status'
+    commits:
+    - 013a99dba
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep Apps controls and composer bounded on phones'
+    commits:
+    - b5504108e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: redesign Apps workspace with natural-language requests'
+    commits:
+    - a444b18c1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: restore job details and header application CTA'
+    commits:
+    - 12e858cbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:job_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+  - title: 'fix: read complete live apartment gallery layouts'
+    commits:
+    - a105f9d4c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+  - title: 'fix: preserve apartment photo identity and location provenance'
+    commits:
+    - fbba27e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+  - title: 'fix: complete approved Apple daily-use parity and iOS-first release'
+    commits:
+    - c8e7d4f6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: improve apartment data, galleries, filtering and maps'
+    commits:
+    - b5a27aac7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+  - title: 'feat: replace Sweden jobs example with Germany search'
+    commits:
+    - a8c9d3f64
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+  - title: 'feat: add media.ccc.de published video captions'
+    commits:
+    - 7b4c46a91
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:get_transcript
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+  - title: 'feat: redesign Apps workspace with natural-language requests'
+    commits:
+    - a444b18c1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: hydrate saved Home search previews from parent metadata'
+    commits:
+    - a86870f00
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    newsletter_ready: false
+  - title: 'feat: refresh Home landing apartment search example'
+    commits:
+    - 13e8ec18d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use one Gemini writer and Jev inspiration decisions'
+    commits:
+    - 1c60de459
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: use registered inspiration review tracing purpose'
+    commits:
+    - be96267b0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: strengthen English and German inspiration copy review'
+    commits:
+    - 3e33b8c5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore job details and header application CTA'
+    commits:
+    - 12e858cbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:job_result
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: false
+  - title: 'fix: repair Apps sidebar, results, settings and workflow handoffs'
+    commits:
+    - 374c43a1a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'perf: start application previews with warm servers and pushed readiness'
+    commits:
+    - e276c9361
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: read complete live apartment gallery layouts'
+    commits:
+    - a105f9d4c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve apartment photo identity and location provenance'
+    commits:
+    - fbba27e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    newsletter_ready: false
+  - title: 'fix: complete approved Apple daily-use parity and iOS-first release'
+    commits:
+    - c8e7d4f6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show readable sheet citation headings'
+    commits:
+    - f6efa9d74
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: improve apartment data, galleries, filtering and maps'
+    commits:
+    - b5a27aac7
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: embed:home:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    - id: skill:home:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:home
+      source: backend/apps/home/app.yml
+    newsletter_ready: false
+  - title: 'feat: replace Sweden jobs example with Germany search'
+    commits:
+    - a8c9d3f64
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve Gemini user turn in inspiration repair requests'
+    commits:
+    - 76419cba8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: place composer microphone before send button'
+    commits:
+    - 324326a45
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve preview cleanup deadlines under code queue saturation'
+    commits:
+    - c0265ee8a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: review inspiration fields and repair only failed sources'
+    commits:
+    - 856c4b738
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add media.ccc.de published video captions'
+    commits:
+    - 7b4c46a91
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: embed:videos:get_transcript
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:videos
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: accelerate isolated app previews and prepare common code toolchains'
+    commits:
+    - a1e1441be
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat: bind native notification replies to authenticated registration'
+    commits:
+    - 25dfaf520
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep Apps controls and composer bounded on phones'
+    commits:
+    - b5504108e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: redesign Apps workspace with natural-language requests'
+    commits:
+    - a444b18c1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:transcribe
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: embed:maps:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:maps
+      source: backend/apps/maps/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: a86870f0027fdd60e207ae9745c4b47491135688
+    short_sha: a86870f00
+    authored_at: '2026-10-21T18:22:23+00:00'
+    subject: 'fix: hydrate saved Home search previews from parent metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/home-search-details.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedPreview.test.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:home:search
+  - sha: ea7e95d3f14a410a903fbda4b3c8f7295bfeafe7
+    short_sha: ea7e95d3f
+    authored_at: '2026-10-21T17:49:47+00:00'
+    subject: 'docs: record single-LLM inspiration rollout and active-user limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+    related_feature_ids: []
+  - sha: 13e8ec18d3e1a030ffba695d8606d642aa6ad50b
+    short_sha: 13e8ec18d
+    authored_at: '2026-10-21T17:41:03+00:00'
+    subject: 'feat: refresh Home landing apartment search example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1c60de459e0a4e828f6c886e8e8cf68bc23fa710
+    short_sha: 1c60de459
+    authored_at: '2026-10-21T17:37:58+00:00'
+    subject: 'fix: use one Gemini writer and Jev inspiration decisions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/config.py
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/semantic_review.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/daily_inspiration_tasks.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_models.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_activity.py
+    - backend/tests/test_daily_inspiration_config.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_semantic_review.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 05c8804f43fea3332f9317d3acaaf58e9465a8a2
+    short_sha: 05c8804f4
+    authored_at: '2026-10-21T12:48:56+00:00'
+    subject: 'docs: close English and German inspiration rollout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/english-german-refresh-costs-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    related_feature_ids: []
+  - sha: be96267b0894c144e54aec6d914946067a06251e
+    short_sha: be96267b0
+    authored_at: '2026-10-21T12:32:52+00:00'
+    subject: 'fix: use registered inspiration review tracing purpose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/semantic_review.py
+    - backend/tests/test_daily_inspiration_semantic_review.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 001a41a62202f3e6086419891b95457cb1bfcee2
+    short_sha: 001a41a62
+    authored_at: '2026-10-21T12:18:52+00:00'
+    subject: 'docs: record verified Apps workspace repair'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/apps-workspace-natural-language/plan.yml
+    - docs/plans/apps-workspace-natural-language/verification.md
+    related_feature_ids: []
+  - sha: 3e33b8c5d1d57d6bdd6ee5edb688f7ba6edbf6c2
+    short_sha: 3e33b8c5d
+    authored_at: '2026-10-21T12:17:38+00:00'
+    subject: 'fix: strengthen English and German inspiration copy review'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/semantic_review.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_semantic_review.py
+    - docs/plans/daily-inspiration-jev/english-german-release-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/optimization-diagnostics-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/optimization-diagnostics-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 402d8c28637d120891388a9ebbc93d91970b21a7
+    short_sha: 402d8c286
+    authored_at: '2026-10-21T12:01:32+00:00'
+    subject: 'fix: align ONNX runtime minimum with approved iOS26.2'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    related_feature_ids: []
+  - sha: 12e858cbfd3fb7540e5e772ddefcd32dcda4724c
+    short_sha: 12e858cbf
+    authored_at: '2026-10-21T12:00:12+00:00'
+    subject: 'fix: restore job details and header application CTA'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/jobs/app.yml
+    - backend/apps/jobs/skills/search_skill.py
+    - backend/shared/providers/jobs/hard_problems.py
+    - backend/shared/providers/jobs/hard_problems_details.py
+    - backend/shared/providers/jobs/models.py
+    - backend/tests/test_jobs_other_impact_provider.py
+    - backend/tests/test_jobs_role_details.py
+    - backend/tests/test_jobs_search_skill.py
+    - docs/apis/hard_problems.md
+    - docs/apis/jobs-search-research.md
+    - frontend/apps/web_app/tests/components/jobs-search-embeds.spec.ts
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/apps/web_app/tests/skill-jobs-search-api.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/jobs/JobsResultEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/jobs/jobsEmbedData.ts
+    - frontend/packages/ui/src/components/embeds/jobs/jobsEmbedText.ts
+    - frontend/packages/ui/src/data/__tests__/jobsEmbedText.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-germany.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:jobs
+    - embed:jobs:job_result
+    - embed:jobs:search
+    - skill:jobs:search
+  - sha: 374c43a1a5733a14fbcabb034f97ac7efde1e107
+    short_sha: 374c43a1a
+    authored_at: '2026-10-21T11:55:30+00:00'
+    subject: 'fix: repair Apps sidebar, results, settings and workflow handoffs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - DESIGN.md
+    - backend/tests/test_workflow_input_sessions.py
+    - docs/plans/apps-workspace-natural-language/plan.yml
+    - docs/plans/apps-workspace-natural-language/verification.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/apps/AppsRoute.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts
+    - frontend/apps/web_app/tests/components/apps-sidebar-preview.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/apps/AppsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultPreviewGroup.svelte
+    - frontend/packages/ui/src/components/apps/AppsSidebar.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsSidebar.svelte
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/AppsEmbedPreviewStub.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/AppsResultLifetimeHarness.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/AppsResultRendererStub.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/appsResultFullscreenLifetime.test.ts
+    - frontend/packages/ui/src/components/apps/__tests__/appsResultPreviewGroup.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsArticleEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.preview.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/AppDailySearchesSettings.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/__tests__/AppDailySearchesSettings.test.ts
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/apps_workspace.yml
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceChatHandoffService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceLibraryService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspacePreviewService.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedFullscreenResolver.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/appsWorkspaceChatHandoffService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceContext.ts
+    - frontend/packages/ui/src/services/appsWorkspaceLibraryService.ts
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:news:search
+    - platform:workflows
+  - sha: e276c93618c1bf55a7697ab006a82b5444fa9dd4
+    short_sha: e276c9361
+    authored_at: '2026-10-21T11:45:51+00:00'
+    subject: 'perf: start application previews with warm servers and pushed readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/scripts/application_preview_interaction_probe.py
+    - backend/scripts/build_application_preview_template.py
+    - backend/scripts/profile_application_preview_startup.py
+    - backend/scripts/test_application_preview_startup.py
+    - backend/shared/providers/application_preview_runtime.mjs
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_interaction_probe.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/plans/application-preview-startup/plan.yml
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/apps/web_app/tests/components/application-preview-readiness.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:code
+    - embed:code:application
+  - sha: d882c652d15b74bd0036e2c1f0e347a396bc6f5d
+    short_sha: d882c652d
+    authored_at: '2026-10-21T11:41:20+00:00'
+    subject: 'docs: record Apple parity and notification verification checkpoint'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/apple-october-web-parity/overview.md
+    - docs/plans/workflow-completion-notifications/verification.md
+    related_feature_ids: []
+  - sha: a105f9d4ca79318ec9889074315de7c7e41268b2
+    short_sha: a105f9d4c
+    authored_at: '2026-10-21T11:38:54+00:00'
+    subject: 'fix: read complete live apartment gallery layouts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/home/app.yml
+    - backend/shared/providers/housing/details.py
+    - backend/tests/test_home_provider_details.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:home
+  - sha: fbba27e9ff4193dc1661d4eaa40418d667b0b74f
+    short_sha: fbba27e9f
+    authored_at: '2026-10-21T11:23:11+00:00'
+    subject: 'fix: preserve apartment photo identity and location provenance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/home/app.yml
+    - backend/apps/home/location_enrichment.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/shared/providers/housing/details.py
+    - backend/tests/test_home_location_enrichment.py
+    - backend/tests/test_home_provider_details.py
+    - backend/tests/test_home_search_pipeline.py
+    - backend/tests/test_home_search_rest.py
+    - docs/architecture/apps/home-search.md
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:home
+    - embed:home:search
+    - skill:home:search
+  - sha: c8e7d4f6f09bcb077cd9c940a27a52888853c17d
+    short_sha: c8e7d4f6f
+    authored_at: '2026-10-21T11:16:12+00:00'
+    subject: 'fix: complete approved Apple daily-use parity and iOS-first release'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatch.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMatesWatchUITests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_Core_UI_Evidence.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_Notification_Reply.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_UI_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS_Unit_Tests.xcscheme
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_macOS.xcscheme
+    - apple/OpenMates/Info.plist
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings+QueuedFollowup.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings+RecordingTranscription.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalModelStore.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalPCMTranscribing.swift
+    - apple/OpenMates/Sources/Core/LocalModels/LocalSpeechRuntimes.swift
+    - apple/OpenMates/Sources/Core/LocalModels/RecordingTranscriptionSelection.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleBundledAsset.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleNativeBridge.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleNativeOutput.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistlePCMRuntime.swift
+    - apple/OpenMates/Sources/Core/LocalModels/WhistleRecordingDraftTranscriber.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/FocusPhaseModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationReplyContext.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/NativeWorkspaceOfflineCache.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/PublicChats/AnonymousPublicChatTransport.swift
+    - apple/OpenMates/Sources/Core/PublicChats/BundledPublicExampleCatalog.swift
+    - apple/OpenMates/Sources/Core/PublicChats/WatchGuestChatWorkspace.swift
+    - apple/OpenMates/Sources/Core/Services/AccountDeletionCleanup.swift
+    - apple/OpenMates/Sources/Core/Services/BillingUsageDraftAudioRegistry.swift
+    - apple/OpenMates/Sources/Core/Services/ChatQueuedFollowupRuntime.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/NativePersonalPrivacyRuntime.swift
+    - apple/OpenMates/Sources/Core/Teams/TeamWorkspaceContext.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallAppleAudio.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallAppleEnvironment.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallAudio.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallCanonicalContextLoader.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallCanonicalPersistence.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallChatAdmissionProof.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallContext.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallController.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallEnergyGate.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallMemoryPolicy.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallOutbox.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallProtocol.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallToolContinuation.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallTransport.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchAudio.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchEnvironment.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchFactory.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallWatchHardwareProbe.swift
+    - apple/OpenMates/Sources/Core/VoiceCall/WatchVoiceCallScopedStorage.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchAudioOwnership.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchComposerControls.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchNativeCallBinding.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPairAuthenticationTransaction.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPairCommitSequence.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPublicExampleStore.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceCallConsent.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceCallMemoryPermission.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceCallToolCoordinator.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchVoiceEvaluationPolicy.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchWhistleDraftAdapter.swift
+    - apple/OpenMates/Sources/Core/Widgets/ActiveChatsCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevAssistantActivityFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevAssistantBatchActivityFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevComponentPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevDailyInspirationFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/DevPreview/DevResponsiveEmbedFixture.swift
+    - apple/OpenMates/Sources/DevPreview/DevSidebarComponentFixture.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairV2Runtime.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/NativeChatSendTiming.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantActivityGroupView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantActivityProjection.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantActivitySummary.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AssistantResponseGlow.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusPhaseNoticeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/QueuedFollowupControlsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SubChatActivityProvenance.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SubChatBatchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/TransientAssistantResponseView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedRendererSupport.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectOfflineMetadata.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectReadmeView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspacePreviewFixture.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceService.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceStore.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/Settings/Services/AccountSecurityService.swift
+    - apple/OpenMates/Sources/Features/Settings/Services/SettingsTeamsController.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/BillingUsageModel.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/BillingUsageView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsLocalModelsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsRecordingTranscriptionSection.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsTeamsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsUsageStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/AppStrings+NativeVoiceCall.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallAppCoordinator.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallAppFactory.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallControls.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallControlsFixture.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallLocalDraftPromotion.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallMemoryPermission.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallProjectContext.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallRootRuntime.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowVoiceInputView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarContent.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatSidebarDisplayPolicy.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/OMSettingsCreditsDisplay.swift
+    - apple/OpenMates/Sources/Shared/Components/ProgressiveMarkdownRenderProjection.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AssistantSpeechAppRuntime.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesCoreUI.xctestplan
+    - apple/OpenMatesNotificationContent/Info.plist
+    - apple/OpenMatesNotificationContent/Localizable.xcstrings
+    - apple/OpenMatesNotificationContent/NotificationContentViewController.swift
+    - apple/OpenMatesNotificationContent/OpenMatesNotificationContent.entitlements
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/AccountDeletionCleanupTests.swift
+    - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
+    - apple/OpenMatesTests/AssistantActivityProjectionTests.swift
+    - apple/OpenMatesTests/BillingUsageDraftAudioRegistryTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSidebarDisplayPolicyTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/FocusPhaseTests.swift
+    - apple/OpenMatesTests/ImageUploadPrivacyTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallArtifactAssociationTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallCanonicalAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallLocalDraftPromotionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallRootAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallToolContinuationTests.swift
+    - apple/OpenMatesTests/NotificationReplyContextTests.swift
+    - apple/OpenMatesTests/ProjectOfflineMetadataTests.swift
+    - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+    - apple/OpenMatesTests/RecordingTranscriptionSelectionTests.swift
+    - apple/OpenMatesTests/SettingsBillingParityTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SettingsModesParityTests.swift
+    - apple/OpenMatesTests/SettingsTeamsServiceTests.swift
+    - apple/OpenMatesTests/SubChatActivityProvenanceTests.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WatchGuestInferenceTests.swift
+    - apple/OpenMatesTests/WatchGuestWorkspaceTests.swift
+    - apple/OpenMatesTests/WatchHubDataServiceTests.swift
+    - apple/OpenMatesTests/WatchPairAuthenticationTransactionTests.swift
+    - apple/OpenMatesTests/WatchPairCookieCancellationTests.swift
+    - apple/OpenMatesTests/WatchVoiceCallMemoryPermissionTests.swift
+    - apple/OpenMatesTests/WatchVoiceCallRootTests.swift
+    - apple/OpenMatesTests/WatchVoiceCallToolCoordinatorTests.swift
+    - apple/OpenMatesTests/WatchVoiceEvaluationPolicyTests.swift
+    - apple/OpenMatesTests/WebSocketReconnectTests.swift
+    - apple/OpenMatesTests/WhistleRuntimeTests.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift
+    - apple/OpenMatesUITests/AppSkillInputPreviewUITests.swift
+    - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift
+    - apple/OpenMatesUITests/AssistantBatchActivityPreviewUITests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
+    - apple/OpenMatesUITests/DevAuthFormUITests.swift
+    - apple/OpenMatesUITests/EmbedResponsiveGeometryUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+    - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
+    - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+    - apple/OpenMatesUITests/QueuedFollowupUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/RecordingTranscriptionSettingsUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
+    - apple/OpenMatesUITests/SettingsModesParityUITests.swift
+    - apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchAudioPlaybackLoader.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchComposerActionBar.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatch/Sources/WatchGuestWorkspaceView.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatch/Sources/WatchPhysicalVoiceCallProbe.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceCallMemoryPermissionView.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceCallRootViews.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceEvaluationLease.swift
+    - apple/OpenMatesWatch/Sources/WatchVoiceEvaluationView.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/OpenMatesWatchUITests/WatchGuestWorkspaceUITests.swift
+    - apple/OpenMatesWatchUITests/WatchVoiceCallConsentUITests.swift
+    - apple/OpenMatesWatchUITests/WatchVoiceEvaluationUITests.swift
+    - apple/WhistleBridge/LICENSE
+    - apple/WhistleBridge/OMWhistleBridge.h
+    - apple/WhistleBridge/OMWhistleBridge.mm
+    - apple/WhistleBridge/module.modulemap
+    - apple/WhistleBridge/needle.h
+    - apple/WhistleBridge/prepare-build.py
+    - apple/WhistleBridge/prepare.py
+    - apple/WhistleBridge/test_prepare.py
+    - apple/WhistleBridge/whistle-assets.lock.json
+    - apple/project.yml
+    - docs/architecture/apple/core-ui-recordings.md
+    - docs/architecture/apple/testflight-release.md
+    - docs/plans/apple-guest-offline-storage/plan.yml
+    - docs/plans/apple-october-web-parity/plan.yml
+    - docs/plans/workflow-completion-notifications/verification.md
+    - frontend/packages/ui/src/i18n/sources/apple.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/usage.yml
+    - frontend/packages/ui/src/i18n/sources/voicecall.yml
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    - specifications/features/apple-local-model-lab/examples.yml
+    - specifications/features/apple-local-model-lab/specification.yml
+    - specifications/features/apple-watch/examples.yml
+    - specifications/features/apple-watch/specification.yml
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/features/chat-queued-followups/examples.yml
+    - specifications/features/chat-queued-followups/specification.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/daily-inspiration/examples.yml
+    - specifications/features/daily-inspiration/specification.yml
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/features/landing-onboarding/examples.yml
+    - specifications/features/landing-onboarding/specification.yml
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/public-example-chats/examples.yml
+    - specifications/features/public-example-chats/specification.yml
+    - specifications/features/video-call/examples.yml
+    - specifications/features/video-call/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: f6efa9d74d8fd0cfe537881fdf3e1f60a05012ea
+    short_sha: f6efa9d74
+    authored_at: '2026-10-21T10:46:21+00:00'
+    subject: 'fix: show readable sheet citation headings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 99f4978d8159576b6dfc63157915d393a9782954
+    short_sha: 99f4978d8
+    authored_at: '2026-10-21T10:38:34+00:00'
+    subject: 'test: record granular inspiration qualification and costs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_daily_inspiration_generator.py
+    - docs/plans/daily-inspiration-jev/blinded-review-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/full-refresh-costs-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/granular-paired-aggregate-2026-10-21.json
+    - docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+    related_feature_ids: []
+  - sha: b5a27aac710063eac33c12c6eba2de52bd6638bb
+    short_sha: b5a27aac7
+    authored_at: '2026-10-21T10:37:18+00:00'
+    subject: 'feat: improve apartment data, galleries, filtering and maps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/home/app.yml
+    - backend/apps/home/evidence.py
+    - backend/apps/home/location_enrichment.py
+    - backend/apps/home/providers/immoscout24.py
+    - backend/apps/home/providers/kleinanzeigen.py
+    - backend/apps/home/providers/wg_gesucht.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/shopping/visual_ranking.py
+    - backend/shared/providers/geoapify/places.py
+    - backend/shared/providers/housing/__init__.py
+    - backend/shared/providers/housing/details.py
+    - backend/shared/python_utils/public_images.py
+    - backend/tests/test_home_evidence.py
+    - backend/tests/test_home_location_enrichment.py
+    - backend/tests/test_home_provider_details.py
+    - backend/tests/test_home_search_pipeline.py
+    - backend/tests/test_home_search_rest.py
+    - backend/tests/test_home_workflow_search.py
+    - backend/tests/test_search_relevance.py
+    - docs/architecture/apps/home-search.md
+    - docs/plans/home-search-evidence/plan.yml
+    - frontend/apps/web_app/tests/components/home-search-details.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/searchResultMapMarkers.test.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/homeListingData.test.ts
+    - frontend/packages/ui/src/components/embeds/home/homeListingData.ts
+    - frontend/packages/ui/src/components/embeds/searchResultMapMarkers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/home_listing.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/ci_coverage.py
+    - specifications/features/app-skills/home-search/examples.yml
+    - specifications/features/app-skills/home-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:home
+    - app:shopping
+    - embed:home:search
+    - skill:home:search
+  - sha: a8c9d3f6488e9a2754b11577455766d8001c9654
+    short_sha: a8c9d3f64
+    authored_at: '2026-10-21T10:13:33+00:00'
+    subject: 'feat: replace Sweden jobs example with Germany search'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/jobs/app.yml
+    - frontend/apps/web_app/tests/jobs-search-example.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/__tests__/fixtures/curatedExampleExpectations.json
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-germany.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/jobs-in-sweden.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/generated/landingExampleChats.generated.json
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/jobs_in_germany.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/jobs_in_sweden.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:jobs
+  - sha: 76419cba88796db635c80e0c5218ece0783a581c
+    short_sha: 76419cba8
+    authored_at: '2026-10-21T09:47:54+00:00'
+    subject: 'fix: preserve Gemini user turn in inspiration repair requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 324326a45de9d4a4b154271c1793a4cf225b3896
+    short_sha: 324326a45
+    authored_at: '2026-10-21T09:30:37+00:00'
+    subject: 'fix: place composer microphone before send button'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.preview.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 25298f6279d6b556af4ccc5a88580bf7a189b107
+    short_sha: 25298f627
+    authored_at: '2026-10-21T09:23:03+00:00'
+    subject: 'test: record CCC transcript verification through the product CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests/verify_media_ccc_transcript_real_dev.py
+    related_feature_ids: []
+  - sha: c0265ee8a6bc87068a444fe77d61a6bb2c523efd
+    short_sha: c0265ee8a
+    authored_at: '2026-10-21T09:22:51+00:00'
+    subject: 'fix: preserve preview cleanup deadlines under code queue saturation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/plans/application-preview-startup/plan.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:code
+  - sha: 856c4b738729890f42f462267ef9f377dc9c8821
+    short_sha: 856c4b738
+    authored_at: '2026-10-21T09:07:43+00:00'
+    subject: 'fix: review inspiration fields and repair only failed sources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/decisions.py
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/media_coherence.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/daily_inspiration/writer.py
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    - backend/scripts/benchmark_daily_inspiration_costs.py
+    - backend/scripts/benchmark_daily_inspiration_multilingual.py
+    - backend/scripts/benchmark_daily_inspiration_qualification.py
+    - backend/scripts/fixtures/daily_inspiration_editorial_v6.json
+    - backend/scripts/fixtures/daily_inspiration_prior_findings_v6.json
+    - backend/scripts/fixtures/daily_inspiration_thumbnail_v6.json
+    - backend/scripts/render_inspiration_thumbnail_controls.py
+    - backend/tests/test_daily_inspiration_cost_benchmark.py
+    - backend/tests/test_daily_inspiration_decisions.py
+    - backend/tests/test_daily_inspiration_generator.py
+    - backend/tests/test_daily_inspiration_language.py
+    - backend/tests/test_daily_inspiration_media_coherence.py
+    - backend/tests/test_daily_inspiration_multilingual_benchmark.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - backend/tests/test_daily_inspiration_writer.py
+    - docs/architecture/frontend/daily-inspiration.md
+    - docs/plans/daily-inspiration-jev/granular-qualification-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/plan.yml
+    - docs/plans/daily-inspiration-jev/pre-jev-baseline-2026-10-21.md
+    - docs/plans/daily-inspiration-jev/rubric-adjudication-2026-10-21.md
+    - frontend/apps/web_app/tests/inspiration-language.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 7b4c46a910384a43dd5b57c8bfce907116ae1c46
+    short_sha: 7b4c46a91
+    authored_at: '2026-10-21T09:04:04+00:00'
+    subject: 'feat: add media.ccc.de published video captions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/providers/media_ccc.yml
+    - backend/shared/providers/media_ccc/__init__.py
+    - backend/shared/providers/media_ccc/client.py
+    - backend/shared/providers/media_ccc/models.py
+    - backend/tests/test_media_ccc_provider.py
+    - backend/tests/test_media_ccc_skill.py
+    - docs/apis/media_ccc.md
+    - frontend/apps/web_app/tests/components/video-transcript-media-ccc.spec.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - scripts/api_tests/test_media_ccc_api.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/verify_media_ccc_transcript_real_dev.py
+    - shared/docs/privacy_policy.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:videos
+    - embed:videos:get_transcript
+  - sha: a1e1441be6387481a7ca0642285855cee56cbac6
+    short_sha: a1e1441be
+    authored_at: '2026-10-21T08:58:49+00:00'
+    subject: 'fix: accelerate isolated app previews and prepare common code toolchains'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/ai/testing/fixtures/code_run_e2b_languages.json
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/scripts/build_application_preview_template.py
+    - backend/scripts/build_code_runner_template.py
+    - backend/scripts/test_code_runner_languages.py
+    - backend/shared/providers/application_preview_runtime.mjs
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_e2b_code_runner.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/plans/application-preview-startup/plan.yml
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    - frontend/apps/web_app/tests/code-run-languages.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+  - sha: 25dfaf520724c693dac4d743abb20064f41c9d49
+    short_sha: 25dfaf520
+    authored_at: '2026-10-21T08:37:13+00:00'
+    subject: 'feat: bind native notification replies to authenticated registration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/services/push_reply_context.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/tests/test_completion_push_cache_fallback.py
+    - backend/tests/test_foreground_push_delivery.py
+    - backend/tests/test_push_notification_reply_context.py
+    - docs/plans/apple-october-web-parity/plan.yml
+    - frontend/apps/web_app/tests/push-subscription-lifecycle.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/apple-notifications/examples.yml
+    - specifications/features/apple-notifications/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 47e7f7f3ae4be90f49e13f95948d6e0453331545
+    short_sha: 47e7f7f3a
+    authored_at: '2026-10-21T08:18:04+00:00'
+    subject: 'docs: close direct image task with accepted limitation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/direct-image-reference-processing/plan.yml
+    - docs/plans/direct-image-reference-processing/verification.md
+    related_feature_ids: []
+  - sha: 013a99dba18d15d08443096f7dbf0d7c262cdb3a
+    short_sha: 013a99dba
+    authored_at: '2026-10-21T03:47:51+00:00'
+    subject: 'docs: record Apps workspace verification and rollout status'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/apps-workspace-natural-language/verification.md
+    related_feature_ids: []
+  - sha: b5504108e70d16a40154686c483f36bea3422bd5
+    short_sha: b5504108e
+    authored_at: '2026-10-21T03:38:16+00:00'
+    subject: 'fix: keep Apps controls and composer bounded on phones'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a444b18c1921c73c5d971d26c2850be536b130a9
+    short_sha: a444b18c1
+    authored_at: '2026-10-21T02:46:32+00:00'
+    subject: 'feat: redesign Apps workspace with natural-language requests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/app.yml
+    - backend/apps/health/app.yml
+    - backend/core/api/app/middleware/ai_decide_body.py
+    - backend/core/api/app/middleware/logging_middleware.py
+    - backend/core/api/app/routes/apps_workspace.py
+    - backend/core/api/app/routes/apps_workspace_public.py
+    - backend/core/api/app/routes/apps_workspace_recommendations.py
+    - backend/core/api/app/routes/apps_workspace_requests.py
+    - backend/core/api/app/services/apps_workspace_libraries_repository.py
+    - backend/core/api/app/services/apps_workspace_metadata.py
+    - backend/core/api/app/services/apps_workspace_public_service.py
+    - backend/core/api/app/services/apps_workspace_recommendations_service.py
+    - backend/core/api/app/services/apps_workspace_recommendations_store.py
+    - backend/core/api/app/services/apps_workspace_request_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/tasks/apps_workspace_recommendations_tasks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/apps_workspace_libraries.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_apps_workspace_metadata.py
+    - backend/tests/test_apps_workspace_public.py
+    - backend/tests/test_apps_workspace_recommendations.py
+    - backend/tests/test_apps_workspace_requests.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - deployment/Caddyfile.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - docs/architecture/apps/recommendations-retention.md
+    - docs/plans/apps-workspace-natural-language/plan.yml
+    - docs/plans/apps-workspace-natural-language/verification.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/apps-workspace-api.spec.ts
+    - frontend/apps/web_app/tests/apps-workspace.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-proof-helpers.ts
+    - frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-workspace-details-proof.spec.ts
+    - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts
+    - frontend/apps/web_app/tests/components/apps-workspace-preview.spec.ts
+    - frontend/apps/web_app/tests/components/chat-message-expansion.spec.ts
+    - frontend/apps/web_app/tests/helpers/workspace-navigation.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiAppsWorkspace.ts
+    - frontend/packages/openmates-cli/src/tuiEmbedPreviews.ts
+    - frontend/packages/openmates-cli/src/tuiFullscreenChrome.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiText.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/tuiAppsRequests.test.ts
+    - frontend/packages/openmates-cli/tests/tuiAppsWorkspace.test.ts
+    - frontend/packages/openmates-cli/tests/tuiHome.test.ts
+    - frontend/packages/openmates-cli/tests/tuiLayout.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatMessageExpansionPreview.preview.ts
+    - frontend/packages/ui/src/components/ChatMessageExpansionPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsRequestComposer.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsRequestComposer.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultPreviewGroup.svelte
+    - frontend/packages/ui/src/components/apps/AppsSavedSearchPreview.svelte
+    - frontend/packages/ui/src/components/apps/AppsSidebar.svelte
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsWorkspace.svelte
+    - frontend/packages/ui/src/components/apps/__tests__/appsRequestComposerLifetime.test.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.preview.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/searchResultMapMarkers.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/__tests__/audioTranscriptionResult.test.ts
+    - frontend/packages/ui/src/components/embeds/audio/audioTranscriptionResult.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/searchResultMapMarkers.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/apps_workspace.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatIdentity.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceAttachmentService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceChatHandoffService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceImageRankingService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceLibraryService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspacePreviewService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceRequestService.test.ts
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceService.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/packages/ui/src/services/anonymousChatIdentity.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/appsWorkspaceAttachmentService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceChatHandoffService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceContext.ts
+    - frontend/packages/ui/src/services/appsWorkspaceHandoffNavigation.svelte.ts
+    - frontend/packages/ui/src/services/appsWorkspaceImageRankingService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceLibraryService.ts
+    - frontend/packages/ui/src/services/appsWorkspacePreviewService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceRecentChatsService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceRequestPrivacy.ts
+    - frontend/packages/ui/src/services/appsWorkspaceRequestService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceResultsService.ts
+    - frontend/packages/ui/src/services/appsWorkspaceService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/inferredChatDeletion.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - frontend/packages/ui/src/utils/__tests__/chatMessageExpansion.test.ts
+    - frontend/packages/ui/src/utils/chatMessageExpansion.ts
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_cli_tui_apps_seed_contract.py
+    - scripts/tests/test_verify_caddyfile.py
+    - specifications/features/apps-workspace/examples.yml
+    - specifications/features/apps-workspace/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:audio
+    - app:health
+    - embed:audio:recording
+    - embed:audio:transcribe
+    - embed:maps:search
+    - platform:workflows
+llm_summary:
+  overview: OpenMates focused on refining the Home search experience and the Daily Inspiration AI engine. Significant architectural
+    work continued on the unreleased Apps workspace and Apple platform parity, alongside performance improvements for code
+    previews.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The Home search experience was improved with refined apartment data, gallery layouts, map filtering, and a refreshed
+      landing page example for Berlin apartments.
+    evidence:
+      commits:
+      - b5a27aac7
+      - a105f9d4c
+      - fbba27e9f
+      - a86870f00
+      - 13e8ec18d
+    release_status: dev_only
+  - text: The Daily Inspiration AI engine transitioned to a single Gemini writer with strengthened copy review for English
+      and German and more resilient repair logic for failed sources.
+    evidence:
+      commits:
+      - 1c60de459
+      - 3e33b8c5d
+      - 856c4b738
+      - 76419cba8
+      - be96267b0
+    release_status: dev_only
+  - text: The Apps workspace was redesigned to support natural-language requests, including fixes for sidebar navigation and
+      mobile layout constraints.
+    evidence:
+      commits:
+      - a444b18c1
+      - 374c43a1a
+      - b5504108e
+    release_status: dev_only
+  - text: Work continued on Apple platform parity for iOS, macOS, and Apple Watch, including the implementation of native
+      notification replies and ONNX runtime alignment.
+    evidence:
+      commits:
+      - c8e7d4f6f
+      - 25dfaf520
+      - 402d8c286
+    release_status: dev_only
+  - text: Application previews were accelerated using warm servers and improved readiness signaling, supported by new isolated
+      preview toolchains.
+    evidence:
+      commits:
+      - e276c9361
+      - a1e1441be
+      - c0265ee8a
+    release_status: dev_only
+  - text: New content capabilities were added, including media.ccc.de video captions, updated job search examples for Germany,
+      and improved citation headings in sheets.
+    evidence:
+      commits:
+      - 7b4c46a91
+      - a8c9d3f64
+      - 12e858cbf
+      - f6efa9d74
+    release_status: dev_only
+  internal_progress:
+  - text: Documentation was updated to reflect the verification status of Apple platform parity and the Apps workspace rollout.
+    evidence:
+      commits:
+      - d882c652d
+      - 001a41a62
+      - 013a99dba
+    release_status: dev_only
+  - text: AI model cost benchmarking and qualification tests were recorded for the Daily Inspiration engine.
+    evidence:
+      commits:
+      - 99f4978d8
+      - ea7e95d3f
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Home search gallery and map refinements.
+      evidence:
+        commits:
+        - b5a27aac7
+        - a105f9d4c
+        - fbba27e9f
+        - a86870f00
+      reason: Home search improvements and related bug fixes are currently in dev_only status.
+    - text: Daily Inspiration AI engine refinements.
+      evidence:
+        commits:
+        - 1c60de459
+        - 3e33b8c5d
+        - 856c4b738
+      reason: Daily Inspiration AI updates are currently in dev_only status.
+    - text: Redesigned Apps workspace.
+      evidence:
+        commits:
+        - a444b18c1
+        - 374c43a1a
+      reason: The Apps workspace and natural-language request features are associated with disabled features (platform:workflows).
+    - text: Apple platform feature parity.
+      evidence:
+        commits:
+        - c8e7d4f6f
+        - 25dfaf520
+      reason: Apple platform parity work is associated with disabled features (platform:ios, platform:macos, platform:apple-watch).
+    rationale: All user-facing changes from this period are currently in dev_only status or associated with disabled features,
+      making them ineligible for public communication.
+  social_video_recommendations:
+  - idea: Demonstrate the new apartment search experience, highlighting the integrated map markers and improved gallery layouts.
+    priority: medium
+    reason: The visual updates to housing search provide a clear product story for users looking for apartments.
+    evidence:
+      commits:
+      - b5a27aac7
+  - idea: Preview the natural-language request flow in the redesigned Apps workspace.
+    priority: low
+    reason: While unreleased, the shift to natural-language interaction for workspace tools is a significant product direction.
+    evidence:
+      commits:
+      - a444b18c1
+  quality_notes:
+  - Extensive test coverage was added for the new apartment search pipeline and the redesigned Apps workspace.
+  - AI copy review was strengthened for multilingual support in the Daily Inspiration feature.
+  validation_warnings: []
