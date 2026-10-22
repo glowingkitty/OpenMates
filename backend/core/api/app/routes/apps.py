@@ -413,6 +413,7 @@ def resolve_translation(
 class AppMetadataResponse(BaseModel):
     """Response model for app metadata endpoint."""
     apps: Dict[str, AppMetadataItem]
+    assistant_speech_available: bool = False
 
 
 class ProviderMetadataItem(BaseModel):
@@ -965,7 +966,9 @@ async def get_apps_metadata(
             logger.debug(f"Skipping app '{app_id}' - no available components after provider and permission checks")
     
     logger.info(f"Returning metadata for {len(apps_metadata)} apps")
-    return AppMetadataResponse(apps=apps_metadata)
+    return AppMetadataResponse(apps=apps_metadata, assistant_speech_available=(
+        await check_provider_api_key_available("mistral_ai", secrets_manager)
+    ))
 
 
 @router.get("/{app_id}/skills/{skill_id}/details", response_model=SkillDetailsResponse)

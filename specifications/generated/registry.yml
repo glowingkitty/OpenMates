@@ -417,10 +417,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.assistant-response-speech:
-    version: 7
+    version: 8
     status: draft
     path: features/assistant-response-speech
-    fingerprint: 1769a5b65c9f839e95ac6e820d7b84b1e6dc033d5ce6d877fcb1f32417cd6a2a
+    fingerprint: f7bd8a970f4b138ce4ff25ebdf2a48ca74e04d96f947c13494ec67c7e9a071b9
     required_applies_to:
     - rest_api
     - cli
@@ -577,10 +577,10 @@ specifications:
     required_applies_to:
     - gui.web
   feature.message-input:
-    version: 7
+    version: 8
     status: draft
     path: features/message-input
-    fingerprint: 4f53bdcfe02d1451ce918a895363557183229551cd4465d35273b46518a022b9
+    fingerprint: a65f80624c78cbf522f641af9f91ba6f9780f3ba16001f50a42e178a063d6fb2
     required_applies_to:
     - gui.web
     - gui.apple
@@ -5246,7 +5246,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.chat-scoped-default-off:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 148542f594f9abc4c5fdc93f176d5ff8e8875176f47bb3a5e62eb7affbc69177
@@ -5256,7 +5256,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.voice-recording-visible-activation:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 6f19e3f1b5a3915027e63bdaa4516a9f0e8398b9825c913a59d5be850526703a
@@ -5266,57 +5266,57 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.deterministic-free:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 9a640a03e14c0e59c64761261994d69a8d3ba1c25f7dd135e97be09d227f116b
+    fingerprint: 8533c6275022da5b9cb35855b5d7b3a559a27f01432e1952ddd1462cb1e3c3d4
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: 16aa02c297fa0af82ed409e0daf0d658590fc7e13fc8e975f9f655a6232705b3
+    fingerprint: fa05f4afcf53c4a93a2beeed902ca882fa0e4e16e9364510855c267915004b8a
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.voice.fixed-versioned-mate-profile:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 70a2ebf0c5299d0ac594f48720b00e50e303c22b20428e715146b01152de7a05
+    fingerprint: 5849e7d24172ad42a2fda80a9de160c0a0ab150e5e2d89807cbaa228c42ada04
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.one-file-per-segment:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 9c93671c1f653a7357a8e102b30b7c1d8cf10ae4ab544788ee4b8c6588962916
+    fingerprint: ea8fcce50ff72fb860927b49a763402641838fac6f8be9dcc6fe55f564b99b8c
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.immutable-source:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 9deebf417a1afd86903bd3d1fa6306110981281b3da3f69ffde4cb8e8accbd89
+    fingerprint: 6bcf60f02def51294ab8365021eb6e354623542f4f7c7668071e57f7f9e295d9
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.projection.deterministic-semantic:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: dd71ca709413c96339aeb1d2c31d56915086f1dfd09c9dcb063bf8536f9ebd60
@@ -5326,27 +5326,27 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.no-cleanup-inference:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: aa329031468d7d007a10ab1d8f2a35a7026df8635a54c339fcb5c02941399294
+    fingerprint: 413acdbe620c7274a9fd7b311423b5fcaf72d4816bbebfc3ede8e8cbca6a5ab7
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.execution.text-stream-independent:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 398062221dc1ec6122c0c3b6667f2f9a6e7f6444172eb3c5fe7792b4f1d0f556
+    fingerprint: adb13f975bd57ca222ca5858b81ef9fa895a354406cfe527a451d6a12b9ca926
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.execution.app-skill-progressive:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 20928f112ebe227be696437319477a76c1f6b5b9b0fc4fa1fe9178c9517071bc
@@ -5356,7 +5356,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.first-segment-progressive:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 32c5347e23f4ff3b88738122ed37ceb6f99205cdcba2746c984c55f64ad4d7e1
@@ -5366,17 +5366,17 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.web-paragraph-demand:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 2f055b9fe39a727488f6e7185d31cef7c97526f664ee9aeaf752a7818168a59f
+    fingerprint: 9fb1f26883b5cf0adfb691ca9d12797c1870055c974f63f0972c41efd9f97fd1
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.playback.single-queue-segment-control:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: e61742ab271766484184514b6af7c1923c05095ce93494dbd8033d678958c7a2
@@ -5386,27 +5386,27 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.deterministic-chapter-labels:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: a38fcd3c410b8e252bab2f3b5a0b00b299d111015ca6ff8051479ae985eb94ab
+    fingerprint: 327f4239724920968e8f7f445e924d8253ed87267e7e2d6598b2d71240c25e3b
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.playback.pinned-full-response-waveform:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: 980eef7f8db90b95d6552d32b8ddb7d92307740802359a2d08a460f37bb577de
+    fingerprint: 51660292c85181476bfbddcda72bcf191c0005ff52d4c4d95c641445b65c84ee
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.playback.two-second-idle-grace:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 33416a442e755490b64119207988fa3dfaeeeb403aea5a21c8593113651f7a5d
@@ -5416,27 +5416,27 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.os-controls-best-effort:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 5f0cf27aa8c4b4ea3faa9d49ff6a1c105e1cfba47393cef1ae7a056fa46df55d
+    fingerprint: e17ddddd5e17e7a42a3a95e3b96e32d60ef993eb4a10a87ae79227c243561576
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.playback.autoplay-recovery-visible:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: failure
-    fingerprint: 98c5c46b99c086fbcab13b00230b4426ce03137414faa1fb98aa87cdcb8904b5
+    fingerprint: 1067558cb045a7c6a449a32021cbdce66231c173c86f193e999425556cf35264
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.on-demand.generate-missing-only:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 03ba11efd4329a27153bdb13d85d9f082b840d4a685ffeaad86a92b26bf9334c
@@ -5446,7 +5446,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.cli.owner-generated-existing-messages:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 64448164c0a9786e31f9caadfd8d03d100ac7da08adcff31a31334fa11cde313
@@ -5456,7 +5456,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.public-example.reviewed-fixture-playback:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: 0517fe4418778250ca4c81cc6df9302c300b1f98c95e6046b9d696d1ce51b44f
@@ -5466,57 +5466,57 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.access.first-party-owner-scoped:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 434b247f8d300af3a97c810ae657cf0e20e84b5f16dea6748914f96b8a7a97cf
+    fingerprint: 55b12c69fc2eace58c65552443f1cd2f362fbe9d063d9bee80002ddeb0bd5d5c
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.safety.provider-after-approval:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: c3d7a985f4e0e2eecd1b5215d4d93605bc6d0b6ca7c8604f090452ce207d58e0
+    fingerprint: 3c1b8abac27a73537a0d35c765aa76b12eae7140caf5906772587876ffe9e579
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.privacy.transient-plaintext-encrypted-audio:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: a18d43608876fd349b9730a75d7f34a917fd827c717adcf0e893eed07dcb3a3f
+    fingerprint: 67bd9462546751895d85e047c5e87b4605f65cbf31fcb3122945c545db7170ad
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.billing.segment-success-once:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: e4a68d67d18928f6da4e82d21f413516ca16d81e400cc34c6ab8d2e41f3047ba
+    fingerprint: ba8e814a9235095aaf688562334f5dce99b642cc818f40f91befc3a5e79ced70
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.failure.nonblocking-visible-resumable:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: failure
-    fingerprint: ccf26403685c03b72b02cf81962d55f459790b3a5a44ff197aeb563ade55d7ba
+    fingerprint: 892387caa5bb52202af1c0a2ee91281a96d1cabdf4a9cdf47d9e112441ee7f45
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.lifecycle.disable-delete-invalidate:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: e57a16adbc5d4fbd575a7982563b05eabb1148c71201452b13abcd0511802e26
@@ -5526,10 +5526,10 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.surface.semantic-parity:
-    specification: feature.assistant-response-speech@7
+    specification: feature.assistant-response-speech@8
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 81e8a815f09f7296a495c9e7bb0c1431a54b099109d66e022d3ae5ad5c870560
+    fingerprint: d4931c0f29ad3b7e16b9205f59ef734b8a847106950127a4df33b7f6fd0c9c30
     required_applies_to:
     - rest_api
     - cli
@@ -7439,7 +7439,7 @@ assertions:
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
@@ -7447,7 +7447,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: c933fbea8f93821c45a3a877c156d7d6b06d85ae4f4091f423d967748a818df3
@@ -7455,7 +7455,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.workspace-suppression:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: c7a2ea4163b551346229632a481846960f46511195a333b32d02edf473ddeec0
@@ -7463,7 +7463,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.actions.visibility:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5c8d4b857988f7d4ea4b2d12b52a224fa96539dba11fcf7344322a1a525af091
@@ -7471,7 +7471,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: a3f26a82f400ea4d23e90bb8676f9f2e8790f48705ab90b1c55c553df301f193
@@ -7479,7 +7479,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.embeds.gated-send:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: invariant
     fingerprint: 46746526a0af42d964d369b9828526da2d2a2b4886cb1ffad657501051bf286c
@@ -7487,7 +7487,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.recording.lifecycle:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 57b9517de2eb6c4d7e8e89975c97bdc94035c92240bba5f0e463e39a97e06c98
@@ -7495,7 +7495,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestions.contextual:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
@@ -7503,7 +7503,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.send.ownership:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
@@ -7511,7 +7511,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.privacy-context:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: privacy
     fingerprint: 6b26620a7d7a2eecf45ff9b5a4e4e404f73838448e431b5c9db8c8433166e5e1
@@ -7519,7 +7519,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.layout.responsive-parity:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: parity
     fingerprint: ae4b23f1ed3345bae9cdd0f1021af7d30ec0f359fab64707a860472438ccc562
@@ -7527,7 +7527,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.editable-transcript:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0f8a3a92cf81f20dd560dc3757edb6b291128531f4237be20325ba5f9196a22a
@@ -7535,7 +7535,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.editable-acceptance:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6d9b131cf10f3eade559e3dc78557e5c7312793796661c81072f45999df37028
@@ -7543,7 +7543,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.keyboard-ownership:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5ba10c97b4bf3796634e80c21584fc3e9b3f8c41b7d3e4cd8ca9244321107249
@@ -7551,7 +7551,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.dismissal:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 2ff79519a5de3f85c64b88c777ef871115b196d61ee0d4be231b4c70644a91ce
@@ -7559,7 +7559,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.draft-priority:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 13a8c2b349bbc566be559a348bf09719a8a4bb1fd6d9d887c6a87318bedf312f
@@ -7567,10 +7567,26 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.touch-acceptance:
-    specification: feature.message-input@7
+    specification: feature.message-input@8
     specification_id: feature.message-input
     type: behavior
     fingerprint: 22eff2e48adf2c7e7c8b90598c9e977918672097d84e43d4f23ccbc562c53ab2
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.audio.realtime-voxtral3:
+    specification: feature.message-input@8
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 1b6a541dfdc8556ed20a60a48c4810aee5ecf73816bdd36fe38c537df04b021a
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.audio.single-line-preview:
+    specification: feature.message-input@8
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 603f2c0c2b2c9980e72273b0fff258b292f946bf4af14e54a247cb0d0771ce23
     required_applies_to:
     - gui.web
     - gui.apple

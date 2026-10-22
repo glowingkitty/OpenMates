@@ -15499,12 +15499,12 @@ providers.ai_models.mistral_v2.heading:
   de: Mistral AI
   verified_by_human: []
 providers.ai_models.mistral_v2.description:
-  context: Mistral disclosure for selected chat models and voice transcription
-  en: Mistral processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio
+  context: Mistral disclosure for selected chat models, transcription and assistant-message speech
+  en: Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak or enable spoken responses. It processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio
     when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message
     placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for
     abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path.
-  de: Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder
+  de: Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen, wenn du Vorlesen auswählst oder gesprochene Antworten aktivierst. Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder
     hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen
     enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben
     und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung

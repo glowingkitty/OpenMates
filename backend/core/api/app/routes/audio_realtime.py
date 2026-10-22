@@ -52,7 +52,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/apps/audio")
 
 MISTRAL_REALTIME_URL = "wss://api.mistral.ai/v1/audio/transcriptions/realtime"
-MISTRAL_REALTIME_MODEL = "voxtral-mini-transcribe-realtime-2602"
+MISTRAL_REALTIME_MODEL = "voxtral-mini-transcribe-realtime-3-0"
+# Dictation favors accuracy over aggressive endpointing. Keep the existing
+# one-second preview delay; turn detection is for calls, not manually ended input.
+REALTIME_STREAMING_DELAY_MS = 1000
 PCM_SAMPLE_RATE = 16_000
 PCM_BYTES_PER_SECOND = PCM_SAMPLE_RATE * 2
 MAX_CHUNK_BYTES = 256 * 1024
@@ -380,7 +383,7 @@ async def realtime_transcription(
                                 "encoding": "pcm_s16le",
                                 "sample_rate": PCM_SAMPLE_RATE,
                             },
-                            "target_streaming_delay_ms": 1000,
+                            "target_streaming_delay_ms": REALTIME_STREAMING_DELAY_MS,
                         },
                     }
                 )
@@ -426,7 +429,6 @@ async def realtime_transcription(
                                     {"type": event_type, "audio": encoded}
                                 )
                             elif event_type == "input_audio.end":
-                                await provider.send_json({"type": "input_audio.flush"})
                                 await provider.send_json({"type": "input_audio.end"})
                             elif event_type == "session.metadata":
                                 candidate_chat_id = message.get("chat_id")

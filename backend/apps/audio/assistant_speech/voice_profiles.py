@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping
 
-from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL
+from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V4_TURBO_SPEECH_MODEL
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
 # Assistant-response narration should feel conversational. This remains scoped
 # to assistant speech; audio.speak keeps its existing request defaults.
@@ -38,6 +38,17 @@ ASSISTANT_VOICE_PROVIDER_IDS = MappingProxyType(
     }
 )
 
+# Version 2 uses Mistral presets; version 1 remains resolvable only for existing
+# segments. Distinct curated presets never expose raw provider IDs to clients.
+MISTRAL_VOICE_PROVIDER_IDS = MappingProxyType({
+    "ace": "voice_485", "burton": "voice_1788", "colin": "voice_591",
+    "denise": "voice_478", "elton": "voice_3149", "finn": "voice_3147",
+    "george": "voice_3150", "hiro": "voice_3133", "leon": "voice_482",
+    "lisa": "voice_447", "makani": "voice_480", "mark": "voice_3136",
+    "melvin": "voice_3153", "monika": "voice_1787", "scarlett": "voice_590",
+    "sophia": "voice_1786", "suki": "voice_3142",
+})
+
 
 @dataclass(frozen=True)
 class ResolvedAssistantVoiceProfile:
@@ -50,6 +61,12 @@ class ResolvedAssistantVoiceProfile:
     output_format: str
     voice_settings: Mapping[str, float]
     _elevenlabs_voice_id: str
+    _mistral_voice_id: str | None = None
+
+    def mistral_request(self) -> dict[str, str]:
+        if self.provider != "mistral" or not self._mistral_voice_id:
+            raise ValueError("Not a Mistral voice profile")
+        return {"voice_id": self._mistral_voice_id, "model": self.model}
 
     def elevenlabs_request(self) -> dict[str, object]:
         """Return provider input for backend task execution only."""
@@ -66,7 +83,7 @@ def _profile(key: str) -> ResolvedAssistantVoiceProfile:
         key=key,
         version=1,
         provider="elevenlabs",
-        model=ASSISTANT_RESPONSE_SPEECH_MODEL,
+        model=ELEVEN_V4_TURBO_SPEECH_MODEL,
         output_format=DEFAULT_OUTPUT_FORMAT,
         voice_settings=DEFAULT_VOICE_SETTINGS,
         _elevenlabs_voice_id=ASSISTANT_VOICE_PROVIDER_IDS[key],
@@ -74,11 +91,18 @@ def _profile(key: str) -> ResolvedAssistantVoiceProfile:
 
 
 _VOICE_PROFILES = {key: _profile(key) for key in ASSISTANT_VOICE_PROVIDER_IDS}
+_MISTRAL_PROFILES = {
+    key: ResolvedAssistantVoiceProfile(key=key, version=2, provider="mistral",
+        model=ASSISTANT_RESPONSE_SPEECH_MODEL, output_format="mp3",
+        voice_settings=MappingProxyType({}), _elevenlabs_voice_id="",
+        _mistral_voice_id=voice_id)
+    for key, voice_id in MISTRAL_VOICE_PROVIDER_IDS.items()
+}
 
 
 def resolve_assistant_voice_profile(key: str, *, version: int) -> ResolvedAssistantVoiceProfile:
     """Resolve an exact configured profile or fail before provider dispatch."""
-    profile = _VOICE_PROFILES.get(key)
+    profile = (_MISTRAL_PROFILES if version == 2 else _VOICE_PROFILES).get(key)
     if profile is None or profile.version != version:
         raise ValueError("Assistant voice profile is unavailable.")
     return profile

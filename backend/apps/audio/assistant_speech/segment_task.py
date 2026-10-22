@@ -31,6 +31,7 @@ from backend.apps.audio.tasks.common import (
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient
+from backend.shared.providers.mistral_speech import MistralSpeechClient
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
@@ -119,14 +120,19 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                     "duration_seconds": estimate_speech_duration_seconds(text),
                     "mime_type": "audio/mpeg",
                 }
-            request = profile.elevenlabs_request()
-            generated = await ElevenLabsClient(secrets_manager=task._secrets_manager).text_to_speech(
-                text=text,
-                voice_id=str(request["voice_id"]),
-                model=str(request["model"]),
-                output_format=str(request["output_format"]),
-                speed=float(dict(request["voice_settings"])["speed"]),
-            )
+            if profile.provider == "mistral":
+                generated = await MistralSpeechClient(secrets_manager=task._secrets_manager).text_to_speech(
+                    text=text, **profile.mistral_request())
+            else:
+                # Only pre-migration version-1 work may use its original provider.
+                request = profile.elevenlabs_request()
+                generated = await ElevenLabsClient(secrets_manager=task._secrets_manager).text_to_speech(
+                    text=text,
+                    voice_id=str(request["voice_id"]),
+                    model=str(request["model"]),
+                    output_format=str(request["output_format"]),
+                    speed=float(dict(request["voice_settings"])["speed"]),
+                )
             duration = generated.duration_seconds or estimate_speech_duration_seconds(text)
             return {"audio_bytes": generated.audio_bytes, "duration_seconds": duration, "mime_type": generated.mime_type}
 
@@ -171,7 +177,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         if live_mock_audio is None:
             await ensure_audio_credit_headroom(
                 user_id=user_id,
-                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text)),
+                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text), model=profile.model),
                 operation_name="assistant response speech",
                 log_prefix=log_prefix,
             )

@@ -1,0 +1,86 @@
+schema_version: 2
+profile: concise
+id: voxtral-3-migration
+title: Voxtral 3 transcription, assistant playback and modular calling proposal
+status: implementing
+goal: >-
+  Check the new Voxtral models and let's plan out how we should implement them.
+  We should upgrade speech-to-text transcription and switch web assistant-message
+  listening from ElevenLabs to Voxtral. Plan a custom voice calling setup using
+  Voxtral speech-to-text and text-to-speech with Jev, Mercury 3 for simpler tasks,
+  and other models for complex tasks; investigate reuse of regular pre, main and
+  post processing and reliable user interruptions.
+recorded_on: '2026-10-22'
+task: TASK-887
+research: research.md
+authorization: >-
+  The user explicitly requested implementation and dev deployment of composer
+  realtime transcription and message playback via Mistral on 2026-10-22.
+  The Audio transcribe app skill is excluded. Voice calling remains a recommendation.
+scope:
+  in:
+    - Source-backed model recommendations, compatibility findings and rollout design.
+    - Web manual listening and its shared assistant-speech backend.
+    - Live composer transcription and a recommendation for future custom calls.
+    - Shared AI orchestration, interruptions, privacy, billing and existing visual-call parity.
+  out:
+    - Audio transcribe app-skill migration and voice-call implementation in the current increment.
+    - Replacing explicit audio.speak or sound-effect generation, Apple local speech, or whole-call recording.
+recommended_models:
+  recorded_audio: voxtral-small-transcribe-3-0
+  recorded_audio_cost_candidate: voxtral-mini-transcribe-3-0
+  live_transcription: voxtral-mini-transcribe-realtime-3-0
+  assistant_message_playback: voxtral-mini-tts-3-0
+  call_synthesis: >-
+    Evaluate voxtral-mini-tts-realtime-3-0 access for independent orchestration;
+    use streamed complete-clause requests to voxtral-mini-tts-3-0 as the documented prototype route.
+  call_reasoning: Existing automatic Jev routing and Mercury 3 / higher-tier model selection.
+proposed_sequence:
+  - outcome: Verify launch API capabilities, voice choices and timestamp compatibility.
+    detail: Confirm account access, formats, supported languages, realtime TTS transport and usage semantics.
+  - outcome: Move web assistant-message playback to Voxtral behind a scoped rollout.
+    detail: Preserve private encrypted segments, demand generation, revision invalidation and successful-only settlement.
+  - outcome: Upgrade live and compatible batch transcription.
+    detail: Preserve explicit word-timestamp consumers on the existing route until their versioned contract is resolved.
+  - outcome: Prototype modular audio calls through the shared AI pipeline.
+    detail: Add provider-neutral turn events, complete-transcript admission, clause synthesis and full cancellation fencing.
+  - outcome: Evaluate and roll out calls after quality, interruption and visual-parity checks.
+    detail: Preserve the existing call route as an explicitly selected rollback; do not silently move an active call.
+contract_followup:
+  - specifications/features/assistant-response-speech/specification.yml
+  - specifications/features/video-call/specification.yml
+  - specifications/features/app-skills/videos-get-transcript/specification.yml
+  - specifications/features/ai-model-routing/specification.yml
+decisions_for_implementation:
+  - Choose curated replacement Mate voices after listening to language-specific samples.
+  - Preserve the existing word-timestamp contract; separately choose alignment support or a versioned segment-only contract.
+  - Confirm end-user pricing; provider costs change independently of existing credit formulas.
+  - Verify account-level processing, training and retention settings for each actual endpoint and provider.
+checks:
+  required_for_this_proposal:
+    - Official release, model, migration, turn-event, streaming and privacy documentation inspected.
+    - Current transcription, assistant speech, calling and AI routing sources inspected.
+    - python3 scripts/plan_validate.py docs/plans/voxtral-3-migration/plan.yml
+  future_implementation: >-
+    Focused unit checks and updated contract-mapped E2E coverage; product/browser
+    checks through isolated GitHub CI. Only real-inference checks run directly on
+    dev, with isolated test state and normal automatic OpenMates model routing.
+
+approval_prompt_waiver:
+  source: Current user implementation/deployment instruction and standing repository instructions.
+  instruction: Existing approval authorizes work; do not repeat approval.
+specification_refs:
+  - {id: feature.assistant-response-speech, version: 8}
+  - {id: feature.message-input, version: 8}
+implementation_scope:
+  - Composer realtime preview and dictation only; preserve the Audio transcribe app skill.
+  - Private assistant-message synthesis, provider capability, voice versioning and cost formulas.
+  - Verify focused unit and browser flows in isolated CI; deploy scoped dev changes.
+  - Recommend a non-Gemini voice pipeline without changing calls in this increment.
+
+recording_preview_followup:
+  authorization: User explicitly requested one newest readable transcript line on desktop and mobile.
+  required_checks:
+    - components/record-audio-live-transcript.spec.ts before broader browser flows
+    - audio-recording-and-speech.spec.ts
+    - assistant-speech-availability.spec.ts

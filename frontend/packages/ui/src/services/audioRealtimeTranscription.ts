@@ -2,7 +2,7 @@ import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
 
-export const REALTIME_TRANSCRIPTION_MODEL = 'voxtral-mini-transcribe-realtime-2602';
+export const REALTIME_TRANSCRIPTION_MODEL = 'voxtral-mini-transcribe-realtime-3-0';
 const TARGET_SAMPLE_RATE = 16_000;
 const MAX_QUEUED_CHUNKS = 96;
 const WS_TOKEN_REFRESH_LEEWAY_SECONDS = 30;

@@ -104,6 +104,8 @@ export function isFeatureEnabled(featureId: string, defaultEnabled: boolean = tr
 // --- User-Specific Skill Availability Store ---
 
 interface UserAvailableSkillsState {
+    /** First-party assistant playback uses Mistral independently of audio.speak. */
+    assistantSpeechAvailable?: boolean;
     /** Map of app_id -> available skill IDs for the current user. null = not yet fetched. */
     skillsByApp: Record<string, string[]> | null;
     /** Runtime app metadata filtered by backend provider/user availability. */
@@ -168,7 +170,7 @@ export async function initializeUserAvailableSkills(force: boolean = false): Pro
         }
 
         console.debug('[AppSkillsStore] User-available skills fetched:', skillsByApp);
-        userAvailableSkillsStore.set({ skillsByApp, appsById, initialized: true, loading: false });
+        userAvailableSkillsStore.set({ skillsByApp, appsById, assistantSpeechAvailable: data.assistant_speech_available === true, initialized: true, loading: false });
     } catch (e) {
         // Fail open: don't filter if the request fails
         console.warn('[AppSkillsStore] Failed to fetch user-available skills, skipping filtering:', e);

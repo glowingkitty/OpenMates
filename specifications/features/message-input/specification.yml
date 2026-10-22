@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 7
+version: 8
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -399,6 +399,17 @@ assertions:
   type: behavior
   must: A touch user can accept the visible ghost through a localized Use suggestion control and review or change the inserted draft before choosing Send.
   depends_on: [examples.composer_ghost]
+- id: message-input.audio.realtime-voxtral3
+  type: behavior
+  must: Web microphone dictation streams through the authenticated first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Realtime transcription retains the existing 20 percent markup policy at ten credits per started minute with idempotent settlement.
+  depends_on: [examples.voxtral3_dictation]
+
+
+- id: message-input.audio.single-line-preview
+  type: behavior
+  must: During web microphone recording, display only the most recent wrapped transcript line at every desktop, tablet and phone width. The current line remains fully readable; older lines never appear partially above or below it, including while new text arrives or the layout reflows. Do not animate vertically between lines. Preserve the complete transcript for final correction and editable insertion, and keep recording controls visible.
+  depends_on: [examples.single_line_recording]
+
 applies_to:
   rest_api:
     required: false

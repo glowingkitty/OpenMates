@@ -14,8 +14,7 @@ test('private Speak follows provider availability and surfaces rejected work', a
   let speechRequests = 0;
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.route(/\/v1\/apps\/metadata(?:\?.*)?$/, (route: any) => route.fulfill({
-    json: { apps: { audio: { id: 'audio', skills: available
-      ? [{ id: 'speak', providers: [{ name: 'ElevenLabs' }] }] : [] } } },
+    json: { assistant_speech_available: available, apps: { audio: { id: 'audio', skills: [] } } },
   }));
   page.on('websocket', (socket: any) => socket.on('framesent', (event: any) => {
     try {

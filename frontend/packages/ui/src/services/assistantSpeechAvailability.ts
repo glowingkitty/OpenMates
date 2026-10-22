@@ -6,7 +6,7 @@ import { featureAvailabilityStore, userAvailableSkillsStore } from "../stores/ap
 export const assistantSpeechGenerationAvailable = derived(
   [userAvailableSkillsStore, featureAvailabilityStore],
   ([skills, features]) => Boolean(
-    skills.skillsByApp?.audio?.includes("speak")
+    skills.assistantSpeechAvailable
     && !features.disabledById?.["app:audio"]
     && !features.disabledById?.["skill:audio:speak"],
   ),

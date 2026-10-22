@@ -286,6 +286,37 @@ models:
         price: 0.006
         currency: USD
 
+  - id: "voxtral-mini-transcribe-realtime-3-0"
+    name: "Voxtral Realtime Transcribe 3"
+    description: "Voxtral 3 streaming speech transcription for message input."
+    country_origin: "FR"
+    for_app_skill: "audio.transcribe"
+    release_date: "2026-10-20"
+    allow_auto_select: false
+    input_types: [audio]
+    output_types: [text]
+    default_server: "mistral"
+    servers:
+      - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-transcribe-realtime-3-0", region: "EU"}
+    pricing: {per_minute: 10}
+    costs:
+      per_minute: {price: 0.008, currency: USD}
+
+  - id: "voxtral-mini-tts-3-0"
+    name: "Voxtral TTS 3"
+    description: "Mistral speech synthesis for private assistant-message playback."
+    country_origin: "FR"
+    for_app_skill: "assistant_response_speech.segment"
+    release_date: "2026-10-20"
+    allow_auto_select: false
+    input_types: [text]
+    output_types: [audio]
+    default_server: "mistral"
+    servers:
+      - {id: "mistral", name: "Mistral", model_id: "voxtral-mini-tts-3-0", region: "EU"}
+    costs:
+      per_million_characters: {price: 13, currency: USD}
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token

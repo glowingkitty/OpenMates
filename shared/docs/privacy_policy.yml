@@ -416,10 +416,12 @@ provider_groups:
         location: EU
         used_for:
           - Mistral-family model inference (when you select a Mistral model)
+          - assistant-message speech synthesis when you choose Speak or enable spoken responses
           - realtime voice-recording transcription via Mistral Voxtral
           - batch transcription of uploaded recordings via Mistral Voxtral
         data_shared:
           - Chat messages with PII placeholders substituted client-side
+          - Current speakable assistant-message segment and curated voice settings for message playback
           - Realtime audio chunks or the decrypted recording file, plus language and transcription settings
           - Note: Voice audio may contain personal or sensitive information and is not protected by typed-message placeholder substitution
           - Note: Mistral states that ordinary API inputs and outputs may be kept for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path

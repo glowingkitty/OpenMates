@@ -4,7 +4,7 @@ import { get } from "svelte/store";
 vi.mock("../../stores/appSkillsStore", async () => {
   const { writable } = await import("svelte/store");
   return {
-    userAvailableSkillsStore: writable({ skillsByApp: null }),
+    userAvailableSkillsStore: writable({ skillsByApp: null, assistantSpeechAvailable: false }),
     featureAvailabilityStore: writable({ disabledById: {} }),
   };
 });
@@ -18,7 +18,7 @@ it("requires confirmed runtime speech availability and follows feature changes",
   expect(get(assistantSpeechGenerationAvailable)).toBe(false);
   userAvailableSkillsStore.update(state => ({ ...state, skillsByApp: { audio: ["generate"] } }));
   expect(get(assistantSpeechGenerationAvailable)).toBe(false);
-  userAvailableSkillsStore.update(state => ({ ...state, skillsByApp: { audio: ["speak"] } }));
+  userAvailableSkillsStore.update(state => ({ ...state, skillsByApp: { audio: [] }, assistantSpeechAvailable: true }));
   expect(get(assistantSpeechGenerationAvailable)).toBe(true);
   for (const featureId of ["app:audio", "skill:audio:speak"]) {
     featureAvailabilityStore.update(state => ({ ...state, disabledById: { [featureId]: true } }));
@@ -26,7 +26,7 @@ it("requires confirmed runtime speech availability and follows feature changes",
     featureAvailabilityStore.update(state => ({ ...state, disabledById: {} }));
     expect(get(assistantSpeechGenerationAvailable)).toBe(true);
   }
-  userAvailableSkillsStore.update(state => ({ ...state, skillsByApp: null }));
+  userAvailableSkillsStore.update(state => ({ ...state, skillsByApp: null, assistantSpeechAvailable: false }));
   expect(get(assistantSpeechGenerationAvailable)).toBe(false);
   unsubscribe();
 });

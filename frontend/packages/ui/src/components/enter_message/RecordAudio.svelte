@@ -125,13 +125,10 @@
     let liveTranscript = $state('');
     let liveTranscriptViewportElement = $state<HTMLSpanElement | null>(null);
     let liveTranscriptFlowElement = $state<HTMLSpanElement | null>(null);
-    let liveTranscriptLineHeight = $state(0);
     let liveTranscriptLineCount = $state(1);
     let transcriptMeasurementFrame: number | null = null;
     let transcriptResizeObserver: ResizeObserver | null = null;
-    let liveTranscriptOffset = $derived(
-        Math.max(0, liveTranscriptLineCount - 1) * liveTranscriptLineHeight,
-    );
+    let liveTranscriptOffset = $state(0);
     let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
     let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
     let realtimeHandedOff = false;
@@ -356,12 +353,17 @@
         if (!transcriptResizeObserver && typeof ResizeObserver !== 'undefined') {
             transcriptResizeObserver = new ResizeObserver(scheduleTranscriptMeasurement);
             transcriptResizeObserver.observe(viewport);
+            transcriptResizeObserver.observe(flow);
         }
 
         const lineHeight = Number.parseFloat(getComputedStyle(flow).lineHeight);
         if (!Number.isFinite(lineHeight) || lineHeight <= 0) return;
-        liveTranscriptLineHeight = lineHeight;
-        liveTranscriptLineCount = Math.max(1, Math.round(flow.scrollHeight / lineHeight));
+        // Keep fractional line geometry: scrollHeight rounds to integer pixels.
+        // Snap directly to the last line; animating this offset exposes clipped
+        // parts of two lines while a long transcript advances or reflows.
+        const height = flow.getBoundingClientRect().height;
+        liveTranscriptLineCount = Math.max(1, Math.round(height / lineHeight));
+        liveTranscriptOffset = Math.max(0, height - lineHeight);
     }
 
     function stopTranscriptMeasurement() {
@@ -704,7 +706,6 @@
                     <span
                         bind:this={liveTranscriptViewportElement}
                         class="live-transcript-viewport"
-                        class:has-previous-line={liveTranscriptLineCount > 1}
                         data-testid="recording-live-transcript"
                         data-line-count={liveTranscriptLineCount}
                         aria-live="polite"
@@ -826,13 +827,8 @@
     .live-transcript-viewport {
         display: block;
         width: 100%;
-        height: 1.3em;
+        height: 1lh;
         overflow: hidden;
-    }
-
-    .live-transcript-viewport.has-previous-line {
-        -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
-        mask-image: linear-gradient(to bottom, transparent 0, #000 4px, #000 100%);
     }
 
     .live-transcript-flow {
@@ -840,8 +836,7 @@
         width: 100%;
         line-height: 1.3;
         overflow-wrap: anywhere;
-        transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
-        will-change: transform;
+        transition: none;
     }
 
     .processing-text {

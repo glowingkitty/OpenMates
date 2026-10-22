@@ -27,4 +27,9 @@ export const variants = {
         previewTranscript:
             'Earlier words that should leave the bounded header as recognition continues. The latest spoken sentence remains visible here.',
     },
+    veryLongTranscript: {
+        ...defaultProps,
+        previewTranscript: 'Earlier spoken words from a long recording. '.repeat(150)
+            + 'The newest words must remain fully readable.',
+    },
 };

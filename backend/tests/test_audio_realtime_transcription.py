@@ -41,20 +41,20 @@ class _FakeWebSocket:
         )
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
 def test_message_input_realtime_pricing_is_separate_from_batch_skill() -> None:
     assert VOXTRAL_MODEL == "voxtral-mini-2602"
     assert audio_realtime.MISTRAL_REALTIME_MODEL == (
-        "voxtral-mini-transcribe-realtime-2602"
+        "voxtral-mini-transcribe-realtime-3-0"
     )
     assert VOXTRAL_MODEL != audio_realtime.MISTRAL_REALTIME_MODEL
     assert BATCH_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 3
-    assert REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE == Decimal("0.006")
+    assert REALTIME_TRANSCRIPTION_PROVIDER_COST_USD_PER_MINUTE == Decimal("0.008")
     assert REALTIME_TRANSCRIPTION_PRICE_MULTIPLIER == Decimal("1.20")
-    assert REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 8
+    assert REALTIME_TRANSCRIPTION_CREDITS_PER_STARTED_MINUTE == 10
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
 def test_batch_skill_and_realtime_model_metadata_keep_separate_prices() -> None:
     backend_root = Path(__file__).resolve().parents[1]
     app_config = yaml.safe_load(
@@ -71,10 +71,10 @@ def test_batch_skill_and_realtime_model_metadata_keep_separate_prices() -> None:
     )
     models = {model["id"]: model for model in provider_config["models"]}
     assert models["voxtral-mini-2602"]["pricing"]["per_minute"] == 3
-    assert models["voxtral-mini-transcribe-realtime-2602"]["pricing"]["per_minute"] == 8
+    assert models["voxtral-mini-transcribe-realtime-3-0"]["pricing"]["per_minute"] == 10
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
 def test_realtime_audio_proxy_only_accepts_the_first_party_origin() -> None:
     assert audio_realtime._origin_is_allowed(_FakeWebSocket()) is True
     assert (
@@ -129,7 +129,7 @@ async def test_realtime_audio_rejects_token_bound_to_another_user(
     )
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
 @pytest.mark.asyncio
 async def test_realtime_audio_admission_fails_closed_without_cache() -> None:
     cache = SimpleNamespace(client=asyncio.sleep(0, result=None))
@@ -140,7 +140,7 @@ async def test_realtime_audio_admission_fails_closed_without_cache() -> None:
     assert token
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
 @pytest.mark.asyncio
 async def test_realtime_audio_billing_rounds_started_minutes_once(
     monkeypatch: pytest.MonkeyPatch,
@@ -165,16 +165,16 @@ async def test_realtime_audio_billing_rounds_started_minutes_once(
         chat_id="chat-1",
     )
 
-    assert captured["credits_to_deduct"] == 16
+    assert captured["credits_to_deduct"] == 20
     assert captured["idempotency_key"] == "audio-realtime:provider-request-1"
     assert captured["usage_details"] == {
         "duration_seconds": 61.2,
         "billed_minutes": 2,
         "requests_transcribed": 1,
         "model": audio_realtime.MISTRAL_REALTIME_MODEL,
-        "provider_cost_usd_per_minute": 0.006,
+        "provider_cost_usd_per_minute": 0.008,
         "price_markup_percent": 20,
-        "credits_per_started_minute": 8,
+        "credits_per_started_minute": 10,
         "usage_type": audio_realtime.REALTIME_USAGE_TYPE,
         "chat_id": "chat-1",
     }
@@ -335,8 +335,7 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     assert [message["type"] for message in provider_messages] == [
         "session.update",
         "input_audio.append",
-        "input_audio.flush",
-        "input_audio.end",
+                "input_audio.end",
     ]
     assert [message["type"] for message in browser_messages] == [
         "session.ready",
@@ -473,7 +472,7 @@ async def test_realtime_audio_bills_accepted_audio_when_recording_is_interrupted
     assert released == [(None, "lock", "token")]
 
 
-# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
+# contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send,message-input.audio.realtime-voxtral3
 @pytest.mark.asyncio
 async def test_realtime_correction_failure_keeps_raw_transcript(
     monkeypatch: pytest.MonkeyPatch,

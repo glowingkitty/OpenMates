@@ -20,7 +20,7 @@ MAX_SPEAKABLE_TEXT_LENGTH = 2_000
 SAFE_RESULT_FIELDS = ("segment_id", "sequence", "request_sequence", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
 ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
 ASSISTANT_SPEECH_INELIGIBLE_STATUSES = {"cancelled", "deleted", "invalidated"}
-HISTORICAL_SPEECH_VOICE_PROFILE = {"key": "george", "version": 1}
+HISTORICAL_SPEECH_VOICE_PROFILE = {"key": "george", "version": 2}
 
 
 async def handle_assistant_speech_request(

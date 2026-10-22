@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 7
+version: 8
 status: draft
 title: Assistant Response Speech
 summary: >
@@ -18,8 +18,8 @@ scope:
     - Deterministic selection of a prerecorded acknowledgement by mate voice, response language, and preprocessor request category.
     - Immediate acknowledgement playback alongside optional thinking, followed by a generated app-use announcement while selected app previews remain visibly processing.
     - Immutable speakable prose paragraphs, app-use announcements, and structured summaries generated independently from the visual response stream.
-    - One ElevenLabs generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
-    - Web voice-message, Auto speak response, and manual Speak playback that registers paragraph order without generating every paragraph, then requests ElevenLabs audio only for the first needed paragraph and each later paragraph as playback approaches it or the listener selects it.
+    - One Mistral generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
+    - Web voice-message, Auto speak response, and manual Speak playback that registers paragraph order without generating every paragraph, then requests Mistral audio only for the first needed paragraph and each later paragraph as playback approaches it or the listener selects it.
     - Faster pitch-preserving browser playback and a local repeating confirmation sound while a selected chapter is pending.
     - A responsive full-width playback bar pinned over the top of the active-chat history, below the chat action buttons, that follows the approved Figma chapter, waveform, mate-avatar, loading, and control hierarchy on desktop and mobile.
     - A persistent localized Loading state while another response clip may still arrive, including immediate pending-chapter selection with a flat placeholder waveform that transitions to the ready audio waveform.
@@ -27,8 +27,8 @@ scope:
     - An authenticated `openmates chats speak` command that generates or reuses private encrypted speech for existing assistant messages through the same owner-scoped first-party pipeline.
     - A reviewed example-publication step that copies approved generated segments into immutable public S3 fixtures for unauthenticated playback without enabling anonymous generation.
     - In-app paragraph controls for play, pause, close, previous paragraph, and next paragraph, plus best-effort operating-system media controls.
-    - A successful-generation-only charge after each ready provider segment, with cumulative message-level rounding at one credit per 14 exact characters.
-    - Eleven v3 Conversational for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
+    - A successful-generation-only charge after each ready provider segment, with cumulative message-level rounding at 13 credits per 1,000 exact characters.
+    - Voxtral TTS 3 for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
     - Web and Apple semantic parity after the approved first-party server contract is complete.
     - Optional local-first private assistant playback on supported Apple targets using verified installed Supertonic3 assets, with an explicit online retry after local failure.
@@ -92,7 +92,7 @@ models:
     provider:
       type: enum
       required: true
-      values: [elevenlabs]
+      values: [mistral, elevenlabs]
     provider_voice_id:
       type: server_secret_reference
       required: true
@@ -100,7 +100,7 @@ models:
     model:
       type: server_configured_model
       required: true
-      constraints: {assistant_response_speech: eleven_v3_conversational, audio_speak_default_unchanged: eleven_v3, silent_substitution: forbidden}
+      constraints: {assistant_response_speech: voxtral-mini-tts-3-0, audio_speak_default_unchanged: eleven_v3, silent_substitution: forbidden}
 
   AcknowledgementClip:
     clip_id:
@@ -230,11 +230,11 @@ models:
     credits_charged:
       type: integer
       required: true
-      constraints: {minimum: 0, cumulative_rounding: true, formula: ceil_new_total_divided_by_14_minus_ceil_previous_total_divided_by_14}
+      constraints: {minimum: 0, cumulative_rounding: true, formula: ceil_new_total_times_0_013_minus_ceil_previous_total_times_0_013}
     user_price_usd_per_1000_characters:
       type: number
       required: true
-      constraints: {approximate_value: 0.07, provider_reference_price_usd: 0.05, credit_catalog_currency: EUR}
+      constraints: {approximate_value: 0.013, provider_reference_price_usd: 0.013, credit_catalog_currency: EUR}
     duration_seconds:
       type: number
       nullable: true
@@ -370,13 +370,13 @@ assertions:
     depends_on: [models.AcknowledgementClip, models.MateVoiceProfile, examples.acknowledgements]
   - id: assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds
     type: behavior
-    must: Within five seconds after an Auto speak response send is accepted, the web client presents useful speech feedback by either starting the prerecorded acknowledgement or showing the explicit autoplay-recovery action; this client-observed threshold is independent from generated ElevenLabs segment latency, which is measured separately with a real-provider smoke and never hidden by fixture-only evidence.
-    depends_on: [models.AcknowledgementClip, models.PlaybackQueue.state, examples.acknowledgements, examples.failures]
+    must: Within five seconds after an Auto speak response send is accepted, the web client presents useful speech feedback by either starting the prerecorded acknowledgement or showing the explicit autoplay-recovery action; this client-observed threshold is independent from generated Mistral segment latency, which is measured separately with a real-provider smoke and never hidden by fixture-only evidence.
+    depends_on: [models.AcknowledgementClip, models.PlaybackQueue.state, examples.voxtral_timely_feedback]
   - id: assistant-speech.voice.fixed-versioned-mate-profile
     type: security
     must: >-
       Provider-backed assistant speech uses each mate's product-curated, versioned
-      Eleven v3 Conversational voice with a deterministic language-compatible fallback;
+      Voxtral TTS 3 preset with version-2 profiles; version-1 queued work and ready assets retain their original provider and model without a silent fallback;
       the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
       On supported Apple targets, verified installed optional Supertonic3 assets are
       preferred for private assistant-response playback using the approved local
@@ -390,11 +390,11 @@ assertions:
       provider route. Clients cannot discover raw provider voice IDs, request voice
       cloning or silently substitute an unapproved engine or model. Installing assets
       does not qualify device speed, voice quality or an absolute no-audio-transmission claim.
-    depends_on: [models.MateVoiceProfile, examples.voice_profiles, examples.optional_local_speech]
+    depends_on: [models.MateVoiceProfile, examples.voxtral_versioned_voices]
   - id: assistant-speech.segmentation.one-file-per-segment
     type: invariant
-    must: Every immutable speakable prose paragraph, app-use announcement, or structured non-prose summary has one stable segment ID, one ElevenLabs generation request, and exactly one independently encrypted private S3 audio object; a message-level combined audio object is forbidden.
-    depends_on: [models.SpeechManifest, models.SpeechSegment, examples.segmentation]
+    must: Every immutable speakable prose paragraph, app-use announcement, or structured non-prose summary has one stable segment ID, one Mistral generation request, and exactly one independently encrypted private S3 audio object; a message-level combined audio object is forbidden.
+    depends_on: [models.SpeechManifest, models.SpeechSegment, examples.voxtral_encrypted_paragraphs]
   - id: assistant-speech.segmentation.immutable-source
     type: invariant
     must: Automatic generation begins only for an immutable speech segment whose source hash and message revision are fixed; later authoritative text or voice-profile changes invalidate only affected segment files and never leave mismatched audio presented as current.
@@ -427,8 +427,8 @@ assertions:
     depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue]
   - id: assistant-speech.execution.web-paragraph-demand
     type: invariant
-    must: For web voice-message replies, Auto speak response, and manual Speak, registering all immutable paragraph identities and chapter labels makes no ElevenLabs request for later paragraphs. The first needed paragraph is requested alone. During playback, only the immediate next missing paragraph is requested once when the current paragraph has at most six seconds of audible playback left; the following paragraph waits until playback progresses through its predecessor. Selecting an unready chapter requests that chapter immediately. A paragraph with a matching ready encrypted audio file is replayed without a new ElevenLabs request or charge, and stopping before the threshold leaves later paragraphs unrequested and uncharged.
-    depends_on: [models.SpeechManifest.ordered_segment_ids, models.SpeechSegment.status, models.PlaybackQueue]
+    must: For web voice-message replies, Auto speak response, and manual Speak, registering all immutable paragraph identities and chapter labels makes no Mistral request for later paragraphs. The first needed paragraph is requested alone. During playback, only the immediate next missing paragraph is requested once when the current paragraph has at most six seconds of audible playback left; the following paragraph waits until playback progresses through its predecessor. Selecting an unready chapter requests that chapter immediately. A paragraph with a matching ready encrypted audio file is replayed without a new Mistral request or charge, and stopping before the threshold leaves later paragraphs unrequested and uncharged.
+    depends_on: [models.SpeechManifest.ordered_segment_ids, models.SpeechSegment.status, models.PlaybackQueue, examples.voxtral_lazy_mistral_generation]
   - id: assistant-speech.playback.single-queue-segment-control
     type: behavior
     must: Only one assistant-response speech queue plays at a time; replayable playback supports pause plus previous and next chapter navigation, pausing reveals separate Play and Close controls, and Close or starting another response stops playback and cancels unclaimed queued generation while preserving ready files.
@@ -488,16 +488,16 @@ assertions:
     depends_on: [models.SpeechGenerationRequest, examples.privacy, applies_to]
   - id: assistant-speech.safety.provider-after-approval
     type: security
-    must: Runtime-generated segment text receives deterministic safety checks and a minimal non-rewriting semantic safety decision before ElevenLabs execution; rejected or safety-error segments call no speech provider, charge no credits, expose a safe visible error, and do not affect the text response.
-    depends_on: [models.SpeechSegment.speakable_text, models.SpeechSegment.status, examples.failures, examples.privacy]
+    must: Runtime-generated segment text receives deterministic safety checks and a minimal non-rewriting semantic safety decision before Mistral execution; rejected or safety-error segments call no speech provider, charge no credits, expose a safe visible error, and do not affect the text response.
+    depends_on: [models.SpeechSegment.speakable_text, models.SpeechSegment.status, examples.voxtral_safety_before_generation]
   - id: assistant-speech.privacy.transient-plaintext-encrypted-audio
     type: privacy
-    must: The server and ElevenLabs receive only the current speakable segment text and required voice settings; unrelated chat state, encryption material, provider credentials, safety reasoning, and raw embed payloads are excluded, segment plaintext is not durably stored or logged, and every generated paragraph audio file is encrypted before private S3 persistence.
-    depends_on: [models.SpeechSegment, models.MateVoiceProfile.provider_voice_id, examples.privacy]
+    must: The server and Mistral receive only the current speakable segment text and required voice settings; unrelated chat state, encryption material, provider credentials, safety reasoning, and raw embed payloads are excluded, segment plaintext is not durably stored or logged, and every generated paragraph audio file is encrypted before private S3 persistence.
+    depends_on: [models.SpeechSegment, models.MateVoiceProfile.provider_voice_id, examples.voxtral_segment_privacy]
   - id: assistant-speech.billing.segment-success-once
     type: invariant
-    must: Each runtime-generated segment performs a character-based credit preflight before provider dispatch, and every ready provider segment contributes its exact submitted character count once to a durable message ledger. Each positive charge has a stable segment identity and chat/message/provider/model attribution; charge only the increase in ceil(cumulative characters / 14), with zero-credit increments recorded as settled. Failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits. A later successful retry adds only its cumulative increment.
-    depends_on: [models.SpeechManifest.billing_settled_segment_ids, models.SpeechSegment.billable_character_count, models.SpeechBillingSettlement, models.AcknowledgementClip.audio_asset]
+    must: Each runtime-generated segment performs a character-based credit preflight before provider dispatch, and every ready provider segment contributes its exact submitted character count once to a durable message ledger. Each positive charge has a stable segment identity and chat/message/provider/model attribution; charge only the increase in ceil(cumulative characters * 0.013), with zero-credit increments recorded as settled. Failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits. A later successful retry adds only its cumulative increment.
+    depends_on: [models.SpeechManifest.billing_settled_segment_ids, models.SpeechSegment.billable_character_count, models.SpeechBillingSettlement, models.AcknowledgementClip.audio_asset, examples.voxtral_cumulative_mistral_price]
   - id: assistant-speech.failure.nonblocking-visible-resumable
     type: failure
     must: Insufficient credits, safety rejection, provider failure, storage failure, or generation failure stops playback at the affected segment, preserves earlier ready files, disables Auto speak response for that chat, and shows one safe visible status with retry and chat-usage actions; retry resumes from the first failed or missing segment without duplicating successful work or charges.

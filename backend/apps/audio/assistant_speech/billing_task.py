@@ -11,7 +11,7 @@ from typing import Any
 from backend.apps.audio.assistant_speech.persistence import complete_segment_billing, prepare_next_segment_billing
 from backend.apps.audio.pricing import (
     ASSISTANT_RESPONSE_SPEECH_MODEL,
-    ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL,
+    ASSISTANT_SPEECH_CREDITS_PER_CHARACTER,
     calculate_assistant_response_speech_credits,
 )
 from backend.apps.audio.tasks.common import charge_audio_generation_credits
@@ -32,11 +32,11 @@ def assistant_speech_billing_task(self: BaseServiceTask, arguments: dict[str, An
                     return {"status": "settled" if settled else "pending", "segments": settled, "credits": charged}
                 model = str(billing["model"])
                 # Legacy manifests can still have an unsettled v3 segment.
-                if model not in {ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL}:
+                if model not in ASSISTANT_SPEECH_CREDITS_PER_CHARACTER:
                     raise RuntimeError("Assistant speech manifest has an unsupported billing model")
-                before = calculate_assistant_response_speech_credits(submitted_characters=int(billing["settled_characters"]))
+                before = calculate_assistant_response_speech_credits(submitted_characters=int(billing["settled_characters"]), model=model)
                 after = calculate_assistant_response_speech_credits(
-                    submitted_characters=int(billing["settled_characters"]) + int(billing["submitted_characters"])
+                    submitted_characters=int(billing["settled_characters"]) + int(billing["submitted_characters"]), model=model
                 )
                 credits = after - before
                 usage_id = None
@@ -44,7 +44,7 @@ def assistant_speech_billing_task(self: BaseServiceTask, arguments: dict[str, An
                     result = await charge_audio_generation_credits(
                         user_id=str(billing["user_id"]), app_id="assistant_response_speech", skill_id="segment",
                         task_id=f"assistant-speech:{arguments['manifest_id']}", request_id=str(billing["segment_id"]), credits=credits,
-                        model_ref=f"elevenlabs/{model}", duration_seconds=float(billing["duration_seconds"]),
+                        model_ref=f"{'mistral' if model == ASSISTANT_RESPONSE_SPEECH_MODEL else 'elevenlabs'}/{model}", duration_seconds=float(billing["duration_seconds"]),
                         chat_id=str(billing["chat_id"]), message_id=str(billing["assistant_message_id"]), external_request=False,
                         api_key_hash=None, device_hash=None, api_key_name=None, log_prefix="[assistant-speech billing]", raise_on_failure=True,
                     )

@@ -26,7 +26,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 from backend.apps.audio.assistant_speech.acknowledgements import ACKNOWLEDGEMENT_TEXTS  # noqa: E402
 from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS  # noqa: E402
-from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL  # noqa: E402
+from backend.apps.audio.pricing import ELEVEN_V4_TURBO_SPEECH_MODEL as ASSISTANT_RESPONSE_SPEECH_MODEL  # noqa: E402
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 from backend.shared.providers.elevenlabs.client import DEFAULT_OUTPUT_FORMAT, ElevenLabsClient  # noqa: E402
 

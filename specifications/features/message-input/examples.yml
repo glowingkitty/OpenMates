@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@7
+specification: feature.message-input@8
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -323,3 +323,27 @@ october_apple_privacy:
     given: An immutable saved turn has an explicit current-turn privacy exclusion and transport reconnects before admission completes.
     when: The exact turn retries within its original account and workspace, or account, key, server or Team ownership changes.
     then: A valid retry keeps the same protected payload and deliberate exclusion only after a fresh scoped receipt; replacement ownership cannot consume the turn, draft or prepared privacy.
+
+voxtral3_dictation:
+- id: preview-and-editable-result
+  assertion_ids: [message-input.audio.realtime-voxtral3]
+  given: A signed-in user starts microphone dictation in an unsent draft.
+  when: The user speaks and then stops the recording.
+  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation.
+- id: realtime-price-and-separate-batch
+  assertion_ids: [message-input.audio.realtime-voxtral3]
+  given: A user streams 61 seconds of dictation and later transcribes an uploaded file with the Audio transcribe app skill.
+  when: The dictation usage settles and the uploaded-file request is processed.
+  then: Dictation settles once for twenty credits using the Voxtral 3 realtime model. The separate app skill retains its existing model and three-credit-per-started-minute price.
+
+single_line_recording:
+- id: long-desktop-dictation
+  assertion_ids: [message-input.audio.single-line-preview]
+  given: A desktop user has spoken enough text to wrap into many transcript lines.
+  when: More recognized words arrive and wrap onto another line.
+  then: Only the newest complete line is visible, without a sliding transition or clipped older line. The full transcript remains available when recording stops.
+- id: responsive-recording-reflow
+  assertion_ids: [message-input.audio.single-line-preview]
+  given: A long recording is active and its newest transcript line is visible.
+  when: The recording overlay changes between laptop, tablet and phone widths.
+  then: The preview immediately settles on exactly one fully readable newest line and recording controls remain visible.

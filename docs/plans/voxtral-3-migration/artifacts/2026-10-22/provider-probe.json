@@ -1,0 +1,44 @@
+{
+  "scope": "Public synthetic fixtures; direct speech-provider capability and paired realtime probes, not OpenMates end-to-end proof.",
+  "streaming_delay_ms": 1000,
+  "results": [
+    {
+      "tts_voice": "voice_3150",
+      "status": 200,
+      "audio_bytes": 11782
+    },
+    {
+      "tts_voice": "voice_481",
+      "status": 200,
+      "audio_bytes": 12644
+    },
+    {
+      "model": "voxtral-mini-transcribe-realtime-2602",
+      "fixture": "realtime_transcription_speech.wav",
+      "transcript": "Real-time transcription is working correctly in OpenMates.",
+      "first_delta_seconds": 2.7738034315407276,
+      "total_seconds": 6.3037169352173805
+    },
+    {
+      "model": "voxtral-mini-transcribe-realtime-3-0",
+      "fixture": "realtime_transcription_speech.wav",
+      "transcript": "Real-time transcription is working correctly in OpenMates.",
+      "first_delta_seconds": 2.8444905765354633,
+      "total_seconds": 6.875307596288621
+    },
+    {
+      "model": "voxtral-mini-transcribe-realtime-2602",
+      "fixture": "realtime_transcription_long_speech.wav",
+      "transcript": "At the beginning, preserve the library and keep the budget below 500 euros for the first workshop. Invite the design team and prepare the agenda for the second workshop. Bring printed notes and arrange travel for the speakers. For the third workshop, confirm that every attendee has a seat and a copy of the presentation. In the middle of this message, remember that the deadline is Wednesday and the organizer is named Marta. For the fourth workshop, check the projector and the microphones before the doors open. For the fifth workshop, include time for questions and a short break. For the sixth workshop, collect feedback and share the results with the team. For the seventh workshop, prepare clear signs at the entrance and check the accessible route. For the eighth workshop, ask the speakers for their slides and publish the schedule. For the ninth workshop, check the attendee list and arrange the reception desk. For the tenth workshop, prepare the feedback form and confirm who will close the room. At the end, send the room confirmation to Daniel before Thursday. Keep the library reservation and the original budget in the final message.",
+      "first_delta_seconds": 1.8389226095750928,
+      "total_seconds": 63.7024798579514
+    },
+    {
+      "model": "voxtral-mini-transcribe-realtime-3-0",
+      "fixture": "realtime_transcription_long_speech.wav",
+      "transcript": "At the beginning, reserve the library and keep the budget below 500 euros for the first workshop. Invite the design team and prepare the agenda for the second workshop. Bring printed notes and arrange travel for the speakers. For the third workshop, confirm that every attendee has a sheet and a copy of the presentation. In the middle of this message, remember that the deadline is Wednesday and the organizer is named Marta. For the fourth workshop, check the projector and the microphones before the doors open. For the fifth workshop, include time for questions and a short break. For the sixth workshop, collect feedback and share the results with the team. For the seventh workshop, prepare clear signs at the entrance and check the accessible route. For the eighth workshop, ask the speakers for their slides and publish the schedule. For the ninth workshop, check the attendee list and arrange the reception desk. For the tenth workshop, prepare the feedback form and confirm who will close the room. At the end, send the room confirmation to Daniel before Thursday. Keep the library reservation and the original budget in the final message.",
+      "first_delta_seconds": 1.8890100754797459,
+      "total_seconds": 64.07397412974387
+    }
+  ]
+}

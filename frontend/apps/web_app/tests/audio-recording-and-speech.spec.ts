@@ -92,7 +92,7 @@ test.use({
 test.describe.serial('Audio recording and assistant speech', () => {
 	test.setTimeout(900_000);
 
-	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,message-input.audio.editable-transcript,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
+	// contract-test: direct surface=gui.web assertions=message-input.audio.realtime-voxtral3,assistant-speech.preference.chat-scoped-default-off,message-input.audio.editable-transcript,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
 	test('sends corrected transcript text and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
@@ -103,6 +103,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await page.route(metadataUrl, async (route: any) => {
 			const response = await route.fetch();
 			const data = await response.json();
+			data.assistant_speech_available = speechProviderAvailable;
 			const audio = data.apps?.audio ?? {};
 			const otherSkills = (audio.skills ?? []).filter((skill: { id: string }) => skill.id !== 'speak');
 			data.apps = { ...data.apps, audio: { ...audio, skills: speechProviderAvailable
@@ -186,7 +187,8 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			if (request.url().includes('/v1/apps/audio/skills/transcribe')) batchTranscriptions++;
 		});
 		await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
-			socket.send(JSON.stringify({ type: 'session.ready' }));
+			socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-3-0' }));
+            socket.send(JSON.stringify({ type: 'transcription.text.delta', text: 'Live preview while speaking.' }));
 			socket.onMessage((payload: string) => {
 				if (JSON.parse(payload).type !== 'input_audio.end') return;
 				socket.send(JSON.stringify({ type: 'transcription.done', transcript: TRANSCRIPTION_TEXT, model: 'test-realtime' }));
@@ -248,7 +250,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await mic.dispatchEvent('mousedown');
 		const recording = page.getByTestId('record-overlay');
 		await expect(recording).toBeVisible({ timeout: 10_000 });
-		await page.waitForTimeout(700);
+		await expect(recording.getByTestId('recording-live-transcript')).toContainText('Live preview while speaking.');
 		await recording.getByTestId('record-finish-button').click();
 		await expect(editor).toHaveText(TRANSCRIPTION_TEXT, { timeout: 30_000 });
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'false');

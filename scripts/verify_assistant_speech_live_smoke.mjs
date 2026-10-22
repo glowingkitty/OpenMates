@@ -25,7 +25,7 @@ const DEFAULT_CLI = "/home/superdev/.npm-global/bin/openmates";
 const DEFAULT_OUTPUT_DIR = resolve(REPO_ROOT, "docs/specs/assistant-response-speech/artifacts");
 const PROMPT = "Reply with exactly one short sentence: Speech check complete.";
 const EXPECTED_ASSISTANT = "Speech check complete.";
-const ASSISTANT_CHARACTERS_PER_CREDIT = 25;
+const ASSISTANT_CREDITS_PER_THOUSAND_CHARACTERS = 13;
 const READY_TIMEOUT_MS = 180_000;
 const OPEN_TIMEOUT_MS = 15_000;
 const SAFE_READY_FIELDS = new Set([
@@ -189,13 +189,13 @@ async function speechBillingEntries(apiUrl, session, chatId, messageId) {
 }
 
 async function waitForSpeechBilling(apiUrl, session, chatId, messageId, text) {
-  const expectedCredits = Math.ceil(Array.from(text).length / ASSISTANT_CHARACTERS_PER_CREDIT);
+  const expectedCredits = Math.ceil(Array.from(text).length * ASSISTANT_CREDITS_PER_THOUSAND_CHARACTERS / 1000);
   const deadline = performance.now() + 60_000;
   do {
     const entries = await speechBillingEntries(apiUrl, session, chatId, messageId);
     if (entries.length) {
       const credits = entries.reduce((total, entry) => total + Number(entry.credits), 0);
-      if (credits !== expectedCredits || entries.some((entry) => entry.model_used !== "elevenlabs/eleven_v4_turbo")) {
+      if (credits !== expectedCredits || entries.some((entry) => entry.model_used !== "mistral/voxtral-mini-tts-3-0")) {
         throw new Error("Assistant speech usage has an unexpected charge or provider model.");
       }
       return { credits, entries: entries.length };
@@ -425,10 +425,10 @@ async function main() {
         accepted_status: "queued",
         accepted_latency_ms: acceptedLatencyMs,
         ready_status: "ready",
-        real_elevenlabs_path_ready_latency_ms: readyLatencyMs,
+        real_mistral_path_ready_latency_ms: readyLatencyMs,
         speech_credits: billing.credits,
         speech_billing_entries: billing.entries,
-        speech_model: "elevenlabs/eleven_v4_turbo",
+        speech_model: "mistral/voxtral-mini-tts-3-0",
         cached_replay_reused: true,
         cached_replay_extra_credits: 0,
         safe_ready_fields: readyFields,
