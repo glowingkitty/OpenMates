@@ -17,7 +17,7 @@ from backend.apps.ai.daily_inspiration.thumbnail_review import review_thumbnails
 from backend.shared.providers.typesafe.models import ChoiceAnswer, ScoreAnswer
 
 logger = logging.getLogger(__name__)
-POLICY_VERSION = "daily-editorial-v9"
+POLICY_VERSION = "daily-editorial-v10"
 EDITORIAL_POLICY = (
     "Public educational feed. Reject conspiracy theories promoted as fact, pseudoscience, "
     "miracle cures, unsupported sensational claims and obvious misleading clickbait. "
@@ -139,9 +139,13 @@ def build_review_batches(candidates: list[dict[str, Any]], *, topic: str = "", r
                     "type": "choice",
                     "instructions": (f"Assess only {key}.evidence.{field} against its source title, "
                                      "description and extract using state.grounding_rubric. "
-                                     "Check every claim and question premise in this field independently."),
+                                     "Check every assertion and question premise in this field independently, "
+                                     "including scope, qualifiers, quantifiers and causal roles. Usually/mostly "
+                                     "does not entail always/only/all. Questions can hide exclusive claims. "
+                                     "A changed qualifier or actor's causal role is unsupported regardless "
+                                     "of matching topic or language."),
                     "criteria": {"supported": "Source-preserving copy without a material unsupported claim.",
-                                 "unsupported": "Added specific fact/premise or changed scope, role, cause or time.",
+                                 "unsupported": "Added specific fact/premise or changed qualifier, scope, role, cause or time.",
                                  "uncertain": "Cannot establish source support."},
                 }
                 if candidate.get("language"):

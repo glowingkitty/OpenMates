@@ -143,7 +143,7 @@ async def test_german_defaults_remove_english_fill_even_when_stamped_german():
     assert all(item["language"] == "de" for item in items)
     assert not any(item["phrase"] == english["phrase"] for item in items)
     assert any(item["phrase"] == german["phrase"] for item in items)
-    assert redis.set.call_args.args[0] == "public:default_inspirations:v18:de"
+    assert redis.set.call_args.args[0] == "public:default_inspirations:v19:de"
 
 
 @pytest.mark.asyncio
@@ -203,7 +203,7 @@ async def test_legacy_dynamic_wiki_defaults_are_withheld_and_static_ten_recover(
     if legacy != "missing_proof":
         row["editorial_review"] = editorial_review_digest(row)
     if legacy == "old_proof":
-        row["editorial_review"] = row["editorial_review"].replace("daily-editorial-v9:", "daily-editorial-v5:")
+        row["editorial_review"] = row["editorial_review"].replace("daily-editorial-v10:", "daily-editorial-v5:")
     elif legacy == "changed_source":
         row["wiki_metadata"]["extract"] = "A changed source passage."
     elif legacy == "missing_source":

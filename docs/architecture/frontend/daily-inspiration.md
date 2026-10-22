@@ -183,7 +183,7 @@ Wikipedia cards carry their actual retrieval edition. The card copy remains loca
 
 ### Granular recovery and cost accounting (2026-10-21)
 
-The review proof is versioned `daily-editorial-v9`; public cache keys use `v18`.
+The review proof is versioned `daily-editorial-v10`; public cache keys use `v19`.
 Older video/wiki approvals cannot satisfy the stronger gate. Jev confidence remains an
 abstention heuristic at the existing threshold, not a calibrated correctness
 probability. Field-level repair codes contain no arbitrary provider prose and

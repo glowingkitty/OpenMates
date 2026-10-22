@@ -39,6 +39,9 @@ checks:
   current gates, including the previously cancelled Mercury source; gate-only recheck of the ten clear
   positives, five real grounding negatives and explicit wrong-language/off-topic controls. Preserve the
   original one-attempt comparison unchanged.
+- 'After the observed v9 qualifier false admission, one v10 gate-only native recheck on the same fixed
+  nineteen cases plus four actual release drafts and one independent English exclusivity mutation: fourteen
+  positives and ten negatives. No further LLM writing calls; preserve failed v9 evidence.'
 decision_notes:
 - 'The previous three-source check did not establish Mercury incapability: all responses were structured
   correctly and all five withholds appeared to be Jev false holds in source-only automated review.'
@@ -173,9 +176,10 @@ previous_v8_evidence:
     can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
     cover incomplete results. No additional paid sweeps or production-server deployment.
 evidence:
-  status: Clear Mercury request integrated as sole writer; final CI/native release verification pending.
-  policy_version: daily-editorial-v9
-  public_cache_version: v18
+  status: Mercury writer verified and deployed; v9 gate exposed one qualifier false admission. Bounded
+    v10 grounding clarification implemented; final CI/native gate check pending.
+  policy_version: daily-editorial-v10
+  public_cache_version: v19
   current_report: docs/plans/daily-inspiration-jev/mercury-prompt-evaluation-2026-10-22.md
   diagnostic_commit: 0b8885c012fbf3de81e8888210b330a15ff5527f
   focused_local: 292 focused tests passed; subsequent fingerprint/config checks 39 passed. Scoped lint
@@ -191,3 +195,17 @@ evidence:
     withheld by unchanged v8 Jev. Automated source-only audit, not native-speaker gold.'
   audit_report: docs/plans/daily-inspiration-jev/mercury-prompt-blind-audit-2026-10-22.json
   cost_aggregate: docs/plans/daily-inspiration-jev/mercury-prompt-costs-2026-10-22.json
+  implementation_commit: 32d62b7f4adf328ce5530d6f71ef670eaffc35d1
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39747886416
+  isolated_ci_result: 292 focused runtime checks passed; all 25 scoped paths matched tested candidate;
+    receipt/evidence command retrieved with empty unit recording inventory.
+  runtime: docker-88327cf3 all seventeen consumers healthy; fourteen runtime hashes verified before the
+    v9 native release diagnostic.
+  v9_native: All four fresh source gates eligible, all four Mercury writing calls parsed and admitted;
+    previously cancelled source recovered. All nineteen controls available; six of ten positives admitted,
+    four of five material negatives withheld and all four wrong-language/off-topic negatives withheld.
+    One real mostly-to-only false admission makes this gate check FAIL; raw receipts retained.
+  v9_release_report: docs/plans/daily-inspiration-jev/mercury-release-check-2026-10-22.json
+  v10_repair: Clarify scope, qualifiers/quantifiers and causal roles locally in every existing grounding
+    question; usually/mostly does not imply always/only/all, including question premises. Choices and
+    confidence threshold unchanged. New native-boundary unit cases green.

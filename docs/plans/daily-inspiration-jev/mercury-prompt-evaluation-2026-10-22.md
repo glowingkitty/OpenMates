@@ -63,8 +63,76 @@ This review is automated, not human/native-speaker gold.
 
 ## Result and decision
 
-Native comparison and blinded source-only audit are in progress. The runtime
-writer remains Gemini until the comparison supports replacement. Costs are
-captured supplier estimates before credits, with absent cache usage and external
-retrieval/infrastructure charges reported separately; no full-refresh savings
-claim follows from a small first-attempt source comparison.
+**Use Mercury 3 with the clearer source-bound request.** The writer is capable
+of this task when instructions are consistent. The original request produced
+several unsupported premises; the clearer request's ten returned drafts all
+passed the model/admission-blind source-only review, including format checks.
+One of its eleven requests timed out, rather than returning invalid copy.
+
+Twelve planned slots yielded eleven eligible sources; one English recycling
+video slot had a terminal discovery shortfall. Every arm received the same
+source/JPEG hashes, and all fourteen runtime module hashes matched before calls.
+
+| Writer/request | Returned drafts | Source-only audit | v8 Jev admission | Median writer latency | Captured writer + production Jev estimate |
+| --- | ---: | --- | ---: | ---: | ---: |
+| Gemini, original request | 11/11 | 8 pass, 2 minor, 1 material | 5/11 | 12.74 s | $0.075037362 |
+| Mercury, original request | 11/11 | 6 pass, 4 material, 1 uncertain | 0/11 | 2.29 s | $0.008111076 |
+| Mercury, clearer request | 10/11; one 30 s timeout | **10 pass, no material or formatting issues** | 3/11 | **1.35 s** | **$0.004382172 plus unknown timeout spend** |
+
+The five material flags and one uncertainty were all withheld by Jev. Material
+flags include changing “mostly near the poles” into “only,” changing a recycling
+quantity relationship, and attributing auroras to cultural meaning. These labels
+were fixed before unblinding. Some source-coverage extrapolations may be true
+outside the supplied passages; the audit is not evidence they are all unsafe or
+factually false. See the [fixed audit](mercury-prompt-blind-audit-2026-10-22.json).
+
+Every clearer-Mercury copy rejection was a favorable Jev language/grounding answer
+below the existing confidence threshold. This is a distinct gate-yield issue,
+not a Mercury writing error. Inspection found an erroneous blanket warning
+against English sentences even for English targets. The v9 question names the
+target language explicitly and permits normal headings/fragments and necessary
+names/terms. Choices, uncertainty handling, finite-confidence threshold, source
+policy, grounding, follow-up relevance and actual pixel checks stay unchanged.
+Old proofs and defaults caches are invalidated (`daily-editorial-v9`, `v18`).
+
+Both runtime generators now use the clearer packet and cleaned schema. The sole
+writer is `inception/mercury-3`, LOW reasoning, temperature 0.5, a 4,096-token cap
+and a 30-second attempt limit. Provider/schema failures may retry Mercury once;
+editorial rejections are terminal. There is no Gemini writing/review stage or
+cross-model fallback. Activity gates and localized recovery remain in place.
+
+## Cost interpretation
+
+The [native accounting aggregate](mercury-prompt-costs-2026-10-22.json) counts each
+actual native response once, including reasoning inside output usage. The table
+compares captured first-attempt costs for the same eleven eligible source slots;
+it is not a completed-refresh price or a complete bill. Google's cache counters
+were absent in eleven responses, so its value assumes uncached input. Mercury's
+cancelled request had no captured usage and remains unpriced. The ten successful
+clear-Mercury responses had median writer latency 1.26 seconds; the all-attempt
+median above also includes the timeout.
+
+At regular Mercury prices, doubling only its launch-rate writer charge gives
+$0.007238442 including the same Jev work, plus unknown cancelled spend. Shared
+source collection ($0.002371866) and locale assessment ($0.000198198) are separate.
+Search/API/infra charges are unmetered; credits are not subtracted. The original
+pre-Jev architecture's historical full-refresh replay is a different workload
+and cannot establish a savings percentage for this cohort.
+
+## Current rollout verification
+
+- **292 focused tests passed locally and in [CI run 39747886416](https://github.com/glowingkitty/OpenMates/actions/runs/39747886416)**.
+  Subsequent fingerprint/config checks passed 39 tests; these overlap and are
+  not added. Scoped Ruff and independent integration review passed.
+- Implementation deployed to dev as
+  `32d62b7f4adf328ce5530d6f71ef670eaffc35d1`. All 25 scoped files matched tested
+  candidate `38c5bbec12b2ad31aef6dce150f17a2c5447ffad`; three unrelated local
+  dispatcher-adoption files were excluded. CI receipt/evidence retrieval
+  completed with no unit recording inventory.
+- Runtime reload `docker-88327cf3` completed with all seventeen consumers
+  healthy. Final exact-source readiness and the bounded v9 release diagnostic
+  are in progress. The latter includes the previously timed-out source, four
+  production writing calls and nineteen separate native Jev-only controls.
+
+The comparison is small and focused on English/German, not twenty-language
+quality certification. No production-server deployment was performed.

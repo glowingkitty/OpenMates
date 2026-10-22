@@ -302,6 +302,49 @@ def completed_card(language, identity):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("choice,confidence,allowed", [
+    ("supported", .5, True), ("unsupported", .5, False),
+    ("supported", .49, False), ("supported", float("nan"), False),
+    ("supported", float("inf"), False),
+])
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_field_local_grounding_scope_and_qualifiers_keep_strict_admission(choice, confidence, allowed):
+    row = completed_card("de", "server-source")
+    row["description"] = "The animals mostly gather near the river."
+    row["follow_up_suggestions"][0] = "Warum versammeln sich die Tiere nur am Fluss?"
+
+    async def handler(request):
+        body = json.loads(request.content)
+        assert body["state"]["policy_version"] == "daily-editorial-v10"
+        questions = body["questions"]
+        for field in ("card_title", "phrase", "assistant_response", "follow_up_0", "follow_up_1", "follow_up_2"):
+            question = questions[f"candidate_000_{field}_grounding"]
+            instruction = question["instructions"]
+            assert f"Assess only candidate_000.evidence.{field} against its source" in instruction
+            assert "every assertion and question premise in this field independently" in instruction
+            assert "scope, qualifiers, quantifiers and causal roles" in instruction
+            assert "Usually/mostly does not entail always/only/all" in instruction
+            assert "Questions can hide exclusive claims" in instruction
+            assert "unsupported regardless of matching topic or language" in instruction
+            assert question["criteria"] == {
+                "supported": "Source-preserving copy without a material unsupported claim.",
+                "unsupported": "Added specific fact/premise or changed qualifier, scope, role, cause or time.",
+                "uncertain": "Cannot establish source support.",
+            }
+        answers = native_answers(questions)
+        answers["candidate_000_follow_up_0_grounding"] = {
+            "type": "choice", "choice": choice,
+            "probabilities": {choice: 1.0}, "confidence": confidence,
+        }
+        return httpx.Response(200, content=json.dumps({"model": "jev-1.14.0", "answers": answers}))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        admitted = await decisions.review_candidates([row], Secrets(), client=JevDecisionClient(
+            secrets_manager=Secrets(), http_client=http, provider="typesafe", max_retries=0))
+    assert bool(admitted) is allowed
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("language", ["en", "de"])
 @pytest.mark.parametrize("choice,confidence,allowed", [
     ("correct", .5, True), ("wrong", 1.0, False), ("uncertain", 1.0, False),
@@ -313,7 +356,7 @@ async def test_explicit_field_language_prompt_keeps_strict_admission(language, c
 
     async def handler(request):
         body = json.loads(request.content)
-        assert body["state"]["policy_version"] == "daily-editorial-v9"
+        assert body["state"]["policy_version"] == "daily-editorial-v10"
         questions = body["questions"]
         for field in ("card_title", "phrase", "assistant_response", "follow_up_0", "follow_up_1", "follow_up_2"):
             question = questions[f"candidate_000_{field}_language"]
