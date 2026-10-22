@@ -456,7 +456,20 @@ jobs:
       - name: Install browser
         if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts')) || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
+        timeout-minutes: 10
         run: |
+          # Change only the disposable GitHub runner; retain Ubuntu's signed
+          # package sources and keyrings while avoiding the throttled Azure mirror.
+          if [[ "$RUNNER_ENVIRONMENT" == 'github-hosted' ]]; then
+            for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+              if [[ -f "$source" ]]; then
+                sudo sed -i 's#://azure\.archive\.ubuntu\.com/ubuntu#://archive.ubuntu.com/ubuntu#g' "$source"
+              fi
+            done
+            if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+              printf '%s\n' 'http://archive.ubuntu.com/ubuntu' 'http://security.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+          fi
           if [[ "$PLAYWRIGHT_BROWSER_NAME" == 'webkit' ]]; then
             npx playwright install --with-deps webkit
           else
