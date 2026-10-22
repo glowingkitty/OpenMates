@@ -1,0 +1,23 @@
+schema_version: 2
+profile: concise
+title: Independent Jev Reasoning Recommendations
+status: implementing
+id: jev-model-reasoning
+goal: >
+  Implement Jev’s separate reasoning recommendation with model-specific clamping,
+  Mercury medium by default and high selectively. Keep the Gemini tier defaults,
+  adjust timeouts and token budgets, then test and deploy to dev.
+decisions:
+  - The user's explicit implementation directive approves this policy; no additional product decision is pending.
+  - Optional effort is separate from routing provenance and is serialized for continuation and recovery.
+  - Only verified model/server metadata enables native controls; fixed variants and undeclared routes retain defaults.
+  - Mercury LOW/MEDIUM/HIGH use 5/15/60 second substantive deadlines and 8192/16384/32768 completion caps before credit admission.
+  - Auxiliary inference and Gemini tier identities/defaults stay unchanged.
+checks:
+  required:
+    - Focused preprocessing, resolver/provider, routing, dispatch, budget and recovery unit checks.
+    - Isolated mercury3-model-picker browser replay with independent reasoning, native clamping and affordable recovery.
+    - Scoped dev deployment and coordinated API/AI runtime health verification.
+approval_provenance:
+  source: Explicit user instruction in Codex chat 01a162e9-2f93-75e2-8275-d363b34b9b34 on 2026-10-22.
+  note: The directive approved the policy before this transcription; no claim of prior review of the generated PDF is made.

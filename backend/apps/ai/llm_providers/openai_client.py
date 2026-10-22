@@ -107,10 +107,15 @@ def _get_openai_request_reasoning_effort(
     catalog_model_id: Optional[str] = None,
     *,
     has_tools: bool = False,
+    requested_effort: Optional[str] = None,
 ) -> Optional[str]:
     lookup_model_id = _normalize_openai_model_id(catalog_model_id or model_id)
     if has_tools and lookup_model_id in OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS:
         return "none"
+    if requested_effort is not None:
+        if requested_effort not in OPENAI_REASONING_EFFORTS:
+            raise ValueError(f"Invalid OpenAI reasoning effort override: {requested_effort!r}")
+        return requested_effort
     return _get_openai_reasoning_effort(model_id, catalog_model_id)
 
 
@@ -284,6 +289,7 @@ async def _invoke_openai_direct_api(
     catalog_model_id: Optional[str] = None,
     cacheable_system_prefix: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if not _openai_direct_client:
         error_msg = "OpenAI direct client is not initialized."
@@ -292,6 +298,7 @@ async def _invoke_openai_direct_api(
             raise ValueError(error_msg)
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
+    requested_reasoning_effort = reasoning_effort
     request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
     # Native replay already contains the complete frozen provider history.
     # A legacy explicit marker would change the first input item and make the
@@ -315,7 +322,9 @@ async def _invoke_openai_direct_api(
             response = await invoke_responses(
                 client=_openai_direct_client, task_id=task_id,
                 model_id=request_model_id,
-                messages=request_messages, reasoning_effort=_get_openai_reasoning_effort(model_id, catalog_model_id),
+                messages=request_messages, reasoning_effort=_get_openai_request_reasoning_effort(
+                    model_id, catalog_model_id, requested_effort=requested_reasoning_effort,
+                ),
                 tools=_map_tools_to_openai_format(tools) if tools else None,
                 tool_choice=tool_choice, max_tokens=max_tokens, stream=stream,
                 native_cache_context=native_cache_context,
@@ -394,6 +403,7 @@ async def _invoke_openai_direct_api(
             model_id,
             catalog_model_id,
             has_tools=bool(tools),
+            requested_effort=requested_reasoning_effort,
         )
         is_reasoning = _is_reasoning_model(catalog_model_id or model_id)
 
@@ -606,6 +616,7 @@ async def _invoke_openai_direct_api(
         model_id,
         catalog_model_id,
         has_tools=bool(tools),
+        requested_effort=requested_reasoning_effort,
     )
     is_reasoning = _is_reasoning_model(catalog_model_id or model_id)
 
@@ -662,6 +673,7 @@ async def invoke_openai_chat_completions(
     catalog_model_id: Optional[str] = None,
     cacheable_system_prefix: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if secrets_manager and not _openai_client_initialized:
         await initialize_openai_client(secrets_manager)
@@ -684,6 +696,7 @@ async def invoke_openai_chat_completions(
             tools=tools,
             tool_choice=tool_choice,
             stream=stream,
+            reasoning_effort=reasoning_effort,
         )
     else:
         # Default to openai direct
@@ -699,6 +712,7 @@ async def invoke_openai_chat_completions(
             catalog_model_id=catalog_lookup_model_id,
             cacheable_system_prefix=cacheable_system_prefix,
             native_cache_context=native_cache_context,
+            reasoning_effort=reasoning_effort,
         )
 
     # AUTOMATIC FALLBACK: If primary failed (non-streaming only), try other available servers
@@ -732,6 +746,7 @@ async def invoke_openai_chat_completions(
                                     tools=tools,
                                     tool_choice=tool_choice,
                                     stream=False,
+                                    reasoning_effort=reasoning_effort,
                                 )
                                 if fallback_response.success:
                                     logger.info("[%s] OpenAI Client: Fallback to OpenRouter successful.", task_id)
@@ -750,6 +765,7 @@ async def invoke_openai_chat_completions(
                                     tool_choice=tool_choice,
                                     stream=False,
                                     catalog_model_id=catalog_lookup_model_id,
+                                    reasoning_effort=reasoning_effort,
                                 )
                                 if fallback_response.success:
                                     logger.info("[%s] OpenAI Client: Fallback to OpenAI Direct successful.", task_id)

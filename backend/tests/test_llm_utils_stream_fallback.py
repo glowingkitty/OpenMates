@@ -10,8 +10,10 @@
 
 import asyncio
 from types import SimpleNamespace
+from pathlib import Path
 
 import pytest
+import yaml
 
 try:
     from backend.apps.ai.llm_providers.google_client import (
@@ -869,7 +871,18 @@ def test_mercury_deadline_stops_after_substantive_output_and_closes_on_cancel():
     assert closed == [True]
 
 
-def test_mercury_timeout_preserves_usage_and_enables_gemini_low_fallback(monkeypatch):
+@pytest.fixture
+def reasoning_catalog(monkeypatch):
+    """Use source capabilities independently of container-only config mounts."""
+    providers = Path(__file__).resolve().parents[1] / "providers"
+    monkeypatch.setattr(llm_utils.config_manager, "_provider_configs", {
+        provider: yaml.safe_load((providers / f"{provider}.yml").read_text())
+        for provider in ("google", "inception")
+    })
+
+
+@pytest.mark.parametrize("requested,native", [(None, "medium"), ("LOW", "low"), ("MEDIUM", "medium"), ("HIGH", "high"), ("EXTRA_HIGH", "high")])
+def test_mercury_timeout_preserves_usage_and_enables_gemini_low_fallback(monkeypatch, reasoning_catalog, requested, native):
     from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
     closed, calls, chunks = [], [], []
     async def provider(**arguments):
@@ -890,11 +903,11 @@ def test_mercury_timeout_preserves_usage_and_enables_gemini_low_fallback(monkeyp
             async for chunk in llm_utils.call_main_llm_stream(
                 task_id="task", model_id="inception/mercury-3", system_prompt="system",
                 message_history=[{"role": "user", "content": "hello"}], temperature=.7,
-                first_substantive_timeout_seconds=.025,
+                first_substantive_timeout_seconds=.025, requested_reasoning_level=requested,
             ):
                 chunks.append(chunk)
     asyncio.run(run())
-    assert calls[0]["reasoning_effort"] == "low"
+    assert calls[0]["reasoning_effort"] == native
     assert closed == [True]
     assert len(chunks) == 1 and chunks[0].input_tokens == 7
     assert chunks[0]._normalized_llm_usage.model_id == "inception/mercury-3"
@@ -977,3 +990,56 @@ def test_automatic_mercury_missing_key_returns_clean_model_fallback_signal(monke
     with pytest.raises(AllServersFailedError):
         asyncio.run(run())
     secrets.get_secret.assert_awaited_once_with(secret_path="kv/data/providers/inception_labs", secret_key="api_key")
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize("model,server,recommendation,expected", [
+    ("inception/mercury-3", "inception/mercury-3", None, {"reasoning_effort": "medium"}),
+    ("inception/mercury-3", "inception/mercury-3", "EXTRA_HIGH", {"reasoning_effort": "high"}),
+    ("google/gemini-3.8-flash", "google_ai_studio/gemini-3.8-flash", "EXTRA_HIGH", {"thinking_level": "HIGH"}),
+    ("google/gemini-3.8-flash", "google/gemini-3.8-flash", "LOW", {"thinking_level": "LOW"}),
+    ("google/gemini-3.8-flash", "openrouter/google/gemini-3.8-flash", "EXTRA_HIGH", {}),
+])
+def test_main_reasoning_recommendation_is_resolved_per_actual_server(monkeypatch, reasoning_catalog, model, server, recommendation, expected):
+    calls = []
+    async def provider(**kwargs):
+        calls.append(kwargs)
+        async def stream():
+            yield "Answer"
+        return stream()
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: (server.split("/", 1)[0], server))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id=model, system_prompt="system", message_history=[],
+            temperature=.7, requested_reasoning_level=recommendation,
+        )]
+    assert asyncio.run(run()) == ["Answer"]
+    assert {key: calls[0][key] for key in ("reasoning_effort", "thinking_level") if key in calls[0]} == expected
+
+
+def test_mercury_high_deadline_is_not_shortened_by_generic_watchdogs(monkeypatch, reasoning_catalog):
+    observed = []
+    async def provider(**_):
+        async def stream():
+            yield "answer"
+        return stream()
+    async def watchdog(stream, first, inter):
+        observed.append((first, inter))
+        async for chunk in stream:
+            yield chunk
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "get_first_chunk_timeout_seconds", lambda **_: 15.)
+    monkeypatch.setattr(llm_utils, "get_inter_chunk_timeout_seconds", lambda **_: 45.)
+    monkeypatch.setattr(llm_utils, "stream_with_first_chunk_timeout", watchdog)
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="test", model_id="inception/mercury-3", system_prompt="system", message_history=[],
+            temperature=.7, requested_reasoning_level="HIGH", first_substantive_timeout_seconds=60.,
+        )]
+    assert asyncio.run(run()) == ["answer"]
+    assert observed == [(60., 60.)]

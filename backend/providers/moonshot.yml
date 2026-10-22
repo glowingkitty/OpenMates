@@ -143,6 +143,10 @@ models:
     default_server: "together" # Default to Together AI for serverless inference
     servers:
       - id: "together"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "max"}
+          source_url: https://www.together.ai/blog/kimi-k3-guide
         name: "Together AI"
         model_id: "moonshotai/Kimi-K3"
         region: "US" # Server region for UI display

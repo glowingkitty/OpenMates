@@ -187,6 +187,7 @@ async def invoke_mistral_chat_completions(
     stream: bool = False,
     prompt_cache_key: Optional[str] = None,
     catalog_model_id: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedMistralResponse, AsyncIterator[Union[str, UnifiedStreamChunk, ParsedMistralToolCall, MistralUsage]]]:
     global MISTRAL_API_KEY
     if not MISTRAL_API_KEY and secrets_manager:
@@ -219,10 +220,16 @@ async def invoke_mistral_chat_completions(
         payload["prompt_cache_key"] = prompt_cache_key
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
+    requested_reasoning_effort = reasoning_effort
     reasoning_effort = (
         _get_mistral_reasoning_effort(model_id, catalog_model_id)
         if catalog_model_id else _get_mistral_reasoning_effort(model_id)
     )
+    if requested_reasoning_effort is not None:
+        supported = GLM_REASONING_EFFORTS if model_id.startswith("zai-glm-") else MISTRAL_REASONING_EFFORTS
+        if requested_reasoning_effort not in supported:
+            raise ValueError(f"Invalid Mistral reasoning effort override: {requested_reasoning_effort!r}")
+        reasoning_effort = requested_reasoning_effort
     if reasoning_effort is not None:
         payload["reasoning_effort"] = reasoning_effort
     if tools:

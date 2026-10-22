@@ -203,6 +203,17 @@ async def _evaluate_preprocessing_questions(*, state: dict[str, Any], questions:
 
 def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) -> dict[str, dict[str, Any]]:
     questions: dict[str, dict[str, Any]] = {
+        "reasoning_level": {"type": "choice", "instructions": (
+            "Recommend reasoning effort independently of model-routing complexity. Choose medium for "
+            "normal analysis or synthesis; low only for trivial or simple requests. Choose high "
+            "selectively for difficult tasks, and extra_high only for exceptional reasoning needs. "
+            "Exclude reasoning delegated to app skills. This recommendation does not select a model."
+        ), "criteria": {
+            "low": "Trivial or simple answers, direct retrieval, or straightforward transformations.",
+            "medium": "Normal analysis, synthesis, comparisons, writing, or bounded multi-step work.",
+            "high": "Difficult debugging, proofs, judgment, or interacting constraints needing deeper reasoning.",
+            "extra_high": "Exceptional reasoning needs beyond ordinary difficult tasks, with deeply interdependent constraints.",
+        }},
         "complexity": {"type": "choice", "instructions": (
             "Select the minimum reasoning depth the main assistant needs for a high-quality answer, "
             "excluding reasoning delegated to app skills. Most requests are low. "
@@ -235,6 +246,17 @@ def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) ->
     return questions
 
 
+def _optional_reasoning_level(response: DecisionResponse | None) -> str | None:
+    """Optional effort must never invalidate otherwise complete routing decisions."""
+    if response is None:
+        return None
+    try:
+        value = choice_value(response, "reasoning_level", min_confidence=.05)
+    except (ValueError, KeyError, TypeError):
+        return None
+    return value if value in {"low", "medium", "high", "extra_high"} else None
+
+
 def _validated_early_decisions(response: DecisionResponse, topic_areas: list[str],
                                skip_mate_routing: bool, is_first_message: bool) -> dict[str, Any] | None:
     """Only a complete routing response may suppress later detailed discovery."""
@@ -257,6 +279,7 @@ def _validated_early_decisions(response: DecisionResponse, topic_areas: list[str
     except (ValueError, KeyError, TypeError):
         return None
     return {
+        "reasoning_level": _optional_reasoning_level(response),
         "complexity": choices["complexity"], "task_area": choices["task_area"],
         "user_unhappy": nouls["user_unhappy"] >= .5,
         "china_model_sensitive": nouls["china_sensitive"] >= .5,
@@ -609,7 +632,7 @@ async def decide_preprocessing_with_jev(
 
     questions = _early_routing_questions(topic_areas, skip_mate_routing)
     if early_decisions:
-        for key in ("complexity", "task_area", "user_unhappy", "china_sensitive",
+        for key in ("reasoning_level", "complexity", "task_area", "user_unhappy", "china_sensitive",
                     "needs_detailed_context", "needs_related_work", "topic_area", "topic_shift"):
             questions.pop(key, None)
     public_decisions = (early_decisions or {}).get("public_decisions")
@@ -731,6 +754,8 @@ async def decide_preprocessing_with_jev(
 
     result: dict[str, Any] = {
         "llm_response_temp": temperature,
+        "reasoning_level": (early_decisions.get("reasoning_level") if early_decisions
+                            else _optional_reasoning_level(response)),
         "complexity": early_decisions["complexity"] if early_decisions else choice_value(response, "complexity", min_confidence=0.05),
         "task_area": early_decisions["task_area"] if early_decisions else choice_value(response, "task_area", min_confidence=0.05),
         "user_unhappy": early_decisions["user_unhappy"] if early_decisions else noul_value(response, "user_unhappy") >= 0.5,

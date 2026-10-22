@@ -2959,3 +2959,114 @@ async def test_mercury_rechecks_media_restored_in_answer_recovery(monkeypatch):
     assert len(calls) == 2
     assert restored == [True]
     assert any(isinstance(chunk, dict) and chunk.get('__main_processing_failure__') for chunk in _output)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize('effort,deadline,cap', [
+    (None, 15, 16_384), ('LOW', 5, 8_192), ('MEDIUM', 15, 16_384),
+    ('HIGH', 60, 32_768), ('EXTRA_HIGH', 60, 32_768),
+])
+async def test_jev_mercury_effort_caps_real_loop_before_reservation(monkeypatch, effort, deadline, cap):
+    inception = yaml.safe_load((Path(__file__).resolve().parents[1] / 'providers/inception.yml').read_text())
+    monkeypatch.setattr(main_processor.config_manager, '_provider_configs', {
+        **main_processor.config_manager._provider_configs, 'inception': inception,
+    })
+    events = []
+
+    async def reserve(**kwargs):
+        events.append(('reserve', kwargs['output_token_limit']))
+        assert kwargs['output_token_limit'] == cap
+        return None
+
+    def dispatch(kwargs):
+        events.append(('dispatch', kwargs['max_tokens']))
+        assert kwargs['first_substantive_timeout_seconds'] == deadline
+        assert kwargs['requested_reasoning_level'] == effort
+        assert kwargs['thinking_level'] == 'MEDIUM'
+
+    monkeypatch.setattr(main_processor, '_reserve_ai_iteration', reserve)
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [['Answer.']], on_provider_call=dispatch,
+        preprocessing_overrides={'complexity': 'low',
+            'selected_main_llm_model_id': 'inception/mercury-3',
+            'selected_main_llm_thinking_level': 'LOW', 'requested_reasoning_level': effort},
+    )
+    assert len(calls) == 1
+    assert events == [('reserve', cap), ('dispatch', cap)]
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize('scope,expected', [('anonymous', 4096), ('orchestration', 2048)])
+async def test_jev_mercury_high_effort_preserves_smaller_scope_limits(monkeypatch, scope, expected):
+    inception = yaml.safe_load((Path(__file__).resolve().parents[1] / 'providers/inception.yml').read_text())
+    if scope == 'orchestration':
+        next(model for model in inception['models'] if model['id'] == 'mercury-3')['features']['max_output_tokens'] = 2048
+    monkeypatch.setattr(main_processor.config_manager, '_provider_configs', {
+        **main_processor.config_manager._provider_configs, 'inception': inception,
+    })
+    reserve = AsyncMock(return_value=None)
+    monkeypatch.setattr(main_processor, '_reserve_ai_iteration', reserve)
+    # Budget storage is external; leave the real initial scope/model cap in place.
+    async def fit(**kwargs):
+        return kwargs['requested_output_token_limit']
+    monkeypatch.setattr(main_processor, '_fit_anonymous_output_token_limit', fit)
+    monkeypatch.setattr(main_processor, '_fit_orchestrated_output_token_limit', fit)
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [['Answer.']],
+        request_overrides={'is_anonymous': scope == 'anonymous',
+                           'orchestration_id': 'scope-budget' if scope == 'orchestration' else None},
+        preprocessing_overrides={'complexity': 'low',
+            'selected_main_llm_model_id': 'inception/mercury-3',
+            'selected_main_llm_thinking_level': 'LOW', 'requested_reasoning_level': 'HIGH'},
+    )
+    assert len(calls) == 1
+    assert calls[0]['max_tokens'] == expected
+    assert calls[0]['first_substantive_timeout_seconds'] == 60
+    assert reserve.await_args.kwargs['output_token_limit'] == expected
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize('profile,effort', [('MEDIUM', None), ('HIGH', 'LOW'), (None, 'EXTRA_HIGH')])
+async def test_jev_gemini_effort_stays_independent_of_profile_provenance(monkeypatch, profile, effort):
+    model = 'google/gemini-3.8-flash'
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [['Answer.']],
+        preprocessing_overrides={'complexity': 'medium', 'selected_main_llm_model_id': model,
+            'selected_main_llm_thinking_level': profile, 'requested_reasoning_level': effort},
+        user_overrides_for_main=SimpleNamespace(model_id=model, model_provider='google',
+            skills=None, wikipedia_references=[]),
+    )
+    assert len(calls) == 1
+    assert calls[0]['model_id'] == model
+    assert calls[0]['thinking_level'] == profile
+    assert calls[0]['requested_reasoning_level'] == effort
+    assert calls[0]['first_substantive_timeout_seconds'] is None
+    if profile is None:
+        assert calls[0]['allowed_server_ids'] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+async def test_jev_mercury_effort_survives_protocol_answer_recovery(monkeypatch):
+    inception = yaml.safe_load((Path(__file__).resolve().parents[1] / 'providers/inception.yml').read_text())
+    monkeypatch.setattr(main_processor.config_manager, '_provider_configs', {
+        **main_processor.config_manager._provider_configs, 'inception': inception,
+    })
+    monkeypatch.setattr(main_processor, 'MAX_TOOL_CALL_ITERATIONS', 1)
+    reserve = AsyncMock(return_value=None)
+    monkeypatch.setattr(main_processor, '_reserve_ai_iteration', reserve)
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{'fake_google_tool_call': 'unavailable-tool'}], ['Recovered answer.']],
+        preprocessing_overrides={'complexity': 'low',
+            'selected_main_llm_model_id': 'inception/mercury-3',
+            'selected_main_llm_thinking_level': 'MEDIUM', 'requested_reasoning_level': 'HIGH'},
+    )
+    assert len(calls) == 2
+    for call in calls:
+        assert call['requested_reasoning_level'] == 'HIGH'
+        assert call['thinking_level'] == 'MEDIUM'
+        assert call['first_substantive_timeout_seconds'] == 60
+        assert call['max_tokens'] == 32_768
+    assert calls[1]['tools'] is None
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]['system_prompt']
+    assert all(call.kwargs['output_token_limit'] == 32_768 for call in reserve.await_args_list)
+    assert 'Recovered answer.' in ''.join(chunk for chunk in output if isinstance(chunk, str))

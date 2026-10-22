@@ -43,6 +43,10 @@ models:
     default_server: "google_ai_studio"
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
         name: "Google AI Studio"
         model_id: "gemini-4-argon"
         region: "US"
@@ -148,10 +152,18 @@ models:
     default_server: "google_ai_studio" # AI Studio preferred — known US location for user transparency
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
         name: "Google AI Studio"
         model_id: "gemini-3-flash-preview"
         region: "US" # Server region for UI display
       - id: "google"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking
         name: "Google Vertex AI"
         model_id: "gemini-3-flash-preview" # Google Vertex AI uses the model ID as-is
         region: "global" # Preview models only available on global endpoint (not regional)
@@ -204,10 +216,19 @@ models:
     default_server: "google_ai_studio" # AI Studio preferred — known US location for user transparency
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          # Google routes this legacy ID to Gemini 3.8 Flash; both support these levels.
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/models/gemini-3.7-flash
         name: "Google AI Studio"
         model_id: "gemini-3.7-flash"
         region: "US" # Server region for UI display
       - id: "google"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking
         name: "Google Vertex AI"
         model_id: "gemini-3.7-flash"
         region: "global"
@@ -313,10 +334,18 @@ models:
     default_server: "google_ai_studio"
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
         name: "Google AI Studio"
         model_id: "gemini-3.8-flash"
         region: "US"
       - id: "google"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
         name: "Google Vertex AI"
         model_id: "gemini-3.8-flash"
         region: "global"
@@ -420,10 +449,18 @@ models:
     default_server: "google_ai_studio" # AI Studio preferred — known US location for user transparency
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
         name: "Google AI Studio"
         model_id: "gemini-3.1-pro-preview"
         region: "US" # Server region for UI display
       - id: "google"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking
         name: "Google Vertex AI"
         model_id: "gemini-3.1-pro-preview" # Google Vertex AI uses the model ID as-is
         region: "global" # Preview models only available on global endpoint (not regional)
@@ -497,10 +534,19 @@ models:
     default_server: "google_ai_studio" # AI Studio preferred — known US location for user transparency
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          # Google routes this legacy ID to Gemini 3.6 Flash; both support these levels.
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking
         name: "Google AI Studio"
         model_id: "gemini-3.5-flash"
         region: "US" # Server region for UI display
       - id: "google"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking
         name: "Google Vertex AI"
         model_id: "gemini-3.5-flash" # Google Vertex AI uses the model ID as-is
         region: "global"
@@ -553,10 +599,18 @@ models:
     default_server: "google_ai_studio" # AI Studio preferred — known US location for user transparency
     servers:
       - id: "google_ai_studio"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://ai.google.dev/gemini-api/docs/thinking
         name: "Google AI Studio"
         model_id: "gemini-3.5-flash-lite"
         region: "US" # Server region for UI display
       - id: "google"
+        reasoning_control:
+          parameter: thinking_level
+          levels: {LOW: "LOW", MEDIUM: "MEDIUM", HIGH: "HIGH"}
+          source_url: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking
         name: "Google Vertex AI"
         model_id: "gemini-3.5-flash-lite"
         region: "global"

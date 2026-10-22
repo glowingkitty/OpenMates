@@ -43,7 +43,7 @@ LEGACY_REQUEST_TIERS: dict[str, RequestTier] = {
 DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
     LOW_TIER: {
         "model": "inception/mercury-3",
-        "thinking_level": "LOW",
+        "thinking_level": "MEDIUM",
     },
     MEDIUM_TIER: {
         "model": "google/gemini-3.8-flash",
@@ -62,7 +62,19 @@ DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
 
 LOW_FALLBACK_MODEL = "google/gemini-3.8-flash"
 MERCURY_MODEL = "inception/mercury-3"
-MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS = 5.0
+MERCURY_REASONING_BUDGETS = {
+    "LOW": (5.0, 8192),
+    "MEDIUM": (15.0, 16384),
+    "HIGH": (60.0, 32768),
+}
+
+
+def mercury_reasoning_budget(requested_level: str | None) -> tuple[float, int]:
+    """Bound reasoning plus visible output without increasing credit limits."""
+    from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level
+
+    level = normalize_reasoning_level(requested_level) or "MEDIUM"
+    return MERCURY_REASONING_BUDGETS["HIGH" if level == "EXTRA_HIGH" else level]
 
 
 def automatic_model_candidates(tier: str) -> list[str]:
@@ -73,10 +85,12 @@ def automatic_model_candidates(tier: str) -> list[str]:
 
 
 def automatic_attempt_thinking_level(tier: str, model_id: str, primary_level: str | None) -> str | None:
-    """Preserve Gemini's tier profile and use LOW for cheap Mercury recovery."""
+    """Retain automatic provenance separately from a Jev effort recommendation."""
     if primary_level is None or model_id not in automatic_model_candidates(tier):
         return None
     if model_id == MERCURY_MODEL:
+        return "MEDIUM"
+    if normalize_request_tier(tier) == LOW_TIER:
         return "LOW"
     return primary_level
 
@@ -183,7 +197,9 @@ def automatic_profile_thinking_level(tier: RequestTier, model_id: str | None) ->
     profile = default_profile_for_tier(tier)
     if model_id not in automatic_model_candidates(tier):
         return None
-    return "LOW" if model_id == MERCURY_MODEL else profile["thinking_level"]
+    if model_id == MERCURY_MODEL:
+        return "MEDIUM"
+    return "LOW" if normalize_request_tier(tier) == LOW_TIER else profile["thinking_level"]
 
 
 def explicit_api_model_override(
@@ -272,5 +288,5 @@ def resolve_model_routing(
         chat_model_preference=AUTO_CHAT_MODEL_PREFERENCE,
         complexity_classifier_used_for_model=True,
         source="configured_fallback",
-        thinking_level=profile["thinking_level"],
+        thinking_level=automatic_profile_thinking_level(tier, fallback_model),
     )

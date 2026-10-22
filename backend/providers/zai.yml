@@ -40,6 +40,10 @@ models:
     default_server: "mistral"
     servers:
       - id: "mistral"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "max"}
+          source_url: https://docs.mistral.ai/studio/conversations/reasoning
         name: "Mistral"
         model_id: "zai-glm-5-3"
         region: "EU"
@@ -96,6 +100,10 @@ models:
     default_server: "openrouter"
     servers:
       - id: "openrouter"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter"
         model_id: "z-ai/glm-5.2"
         region: "US" # Server region for UI display

@@ -40,7 +40,9 @@ def test_catalog_routes_preview_with_regular_costs_and_customer_rates():
     assert model["reasoning_effort"] == "high"
     assert model["input_types"] == ["text", "image"]
     assert model["default_server"] == "mistral"
-    assert model["servers"] == [{"id": "mistral", "name": "Mistral", "model_id": "mistral-large-4", "region": "EU"}]
+    assert model["servers"] == [{"id": "mistral", "name": "Mistral", "model_id": "mistral-large-4", "region": "EU",
+        "reasoning_control": {"parameter": "reasoning_effort", "levels": {"HIGH": "high"},
+            "source_url": "https://docs.mistral.ai/studio/conversations/reasoning"}}]
     for direction, expected, units in [("input", 1.36, 245), ("output", 4.18, 79)]:
         cost = model["costs"][f"{direction}_per_million_token"]
         assert cost["price"] == expected

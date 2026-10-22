@@ -36,6 +36,7 @@ from backend.apps.ai.llm_providers.openai_shared import (
     _sanitize_schema_for_llm_providers,
 )
 from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES, LOW_FALLBACK_MODEL, MERCURY_MODEL
+from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level, resolve_reasoning_parameters
 from backend.apps.ai.llm_providers.native_cache_context import (
     NativeCacheProviderOutput,
     NativeCacheSchemaChanged,
@@ -2045,6 +2046,7 @@ async def call_main_llm_stream(
     pre_dispatch_admission: Optional[Callable[..., Awaitable[int]]] = None,
     customer_cache_pricing_enabled: bool = False,
     thinking_level: Optional[str] = None,
+    requested_reasoning_level: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
     failed_servers_in_turn: Optional[set[str]] = None,
     private_logging: bool = False,
@@ -2119,6 +2121,18 @@ async def call_main_llm_stream(
     # Store original model_id for fallback resolution and provider override resolution (needed for openrouter)
     original_model_id = model_id
     is_reasoning_model = _is_reasoning_model(original_model_id)
+    reasoning_model_config = None
+    if "/" in original_model_id:
+        reasoning_provider_id, reasoning_model_suffix = original_model_id.split("/", 1)
+        reasoning_provider = config_manager.get_provider_config(reasoning_provider_id) or {}
+        reasoning_model_config = next((entry for entry in reasoning_provider.get("models", [])
+                                       if isinstance(entry, dict) and entry.get("id") == reasoning_model_suffix), None)
+    # Effort is independent of automatic-route provenance and resolved again for
+    # each hosting server. Mercury's main-answer default never affects auxiliary
+    # uses of its adapter (which retain their existing defaults).
+    effective_requested_reasoning = normalize_reasoning_level(requested_reasoning_level)
+    if effective_requested_reasoning is None and original_model_id == MERCURY_MODEL:
+        effective_requested_reasoning = "MEDIUM"
     
     # Resolve fallback servers from provider config (if any).
     # This enables per-model fallbacks (e.g., Google AI Studio -> OpenRouter) configured in provider YAML.
@@ -2389,6 +2403,9 @@ async def call_main_llm_stream(
             )
             if _retry_thinking_level:
                 _retry_input["thinking_level"] = _retry_thinking_level
+            _retry_input.update(resolve_reasoning_parameters(
+                reasoning_model_config, _retry_provider_prefix, effective_requested_reasoning,
+            ))
             _retry_attempt_id = uuid.uuid4().hex
             _retry_region = _configured_server_region(
                 original_model_id, _retry_provider_prefix, _retry_actual_model_id,
@@ -2561,6 +2578,9 @@ async def call_main_llm_stream(
         )
         if server_thinking_level:
             server_llm_input_details["thinking_level"] = server_thinking_level
+        server_llm_input_details.update(resolve_reasoning_parameters(
+            reasoning_model_config, server_provider_prefix, effective_requested_reasoning,
+        ))
         
         # For openrouter, if the original model has provider_overrides configured, 
         # we need to pass the original model_id (e.g., "alibaba/qwen3-235b-a22b-2507") 
@@ -2672,7 +2692,6 @@ async def call_main_llm_stream(
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
             if (original_model_id == MERCURY_MODEL and server_provider_prefix == "inception"
                     and first_substantive_timeout_seconds is not None):
-                server_llm_input_details["reasoning_effort"] = "low"
                 raw_chunk_stream = _dispatch_with_substantive_deadline(
                     provider_client, {"secrets_manager": secrets_manager, **server_llm_input_details},
                     first_substantive_timeout_seconds,
@@ -2684,6 +2703,11 @@ async def call_main_llm_stream(
                 # Success! Wrap stream with timeout for first chunk AND inter-chunk timeout
                 first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                if original_model_id == MERCURY_MODEL and first_substantive_timeout_seconds is not None:
+                    # The generic idle watchdog must not cut a healthy HIGH
+                    # reasoning attempt short before its substantive deadline.
+                    first_chunk_timeout_seconds = max(first_chunk_timeout_seconds, first_substantive_timeout_seconds)
+                    inter_chunk_timeout_seconds = max(inter_chunk_timeout_seconds, first_substantive_timeout_seconds)
                 logger.info(
                     f"{attempt_log_prefix} Provider returned a lazy stream iterator. "
                     f"Streaming response with {first_chunk_timeout_seconds}s first-chunk timeout, "

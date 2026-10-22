@@ -162,6 +162,7 @@ async def invoke_openrouter_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     fallback_models: Optional[List[str]] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Public wrapper for invoking the OpenRouter API with OpenAI models.
@@ -236,6 +237,7 @@ async def invoke_openrouter_chat_completions(
     return await invoke_openrouter_api(
         task_id=task_id,
         model_id=resolved_model_id,
+        reasoning_effort=reasoning_effort,
         messages=messages,
         api_key=api_key,
         temperature=temperature,

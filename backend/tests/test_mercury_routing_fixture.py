@@ -16,7 +16,8 @@ from backend.apps.ai.processing.model_routing import LOW_FALLBACK_MODEL, MERCURY
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.testing.mercury_routing_fixture import (
     GROUP, SUCCESS_PROMPT, FALLBACK_PROMPT, SUCCESS_RESPONSE, FALLBACK_RESPONSE,
-    DISABLED_PROMPT, DISABLED_RESPONSE,
+    DISABLED_PROMPT, DISABLED_RESPONSE, HIGH_PROMPT, HIGH_RESPONSE,
+    EXTRA_HIGH_PROMPT, EXTRA_HIGH_RESPONSE, HIGH_RECOVERY_PROMPT, HIGH_RECOVERY_RESPONSE,
     GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE, CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE,
     active, jev_response, llm_fixture,
 )
@@ -61,8 +62,13 @@ def test_fixture_is_inert_outside_isolated_replay(replay, monkeypatch, key, valu
 
 
 @pytest.mark.asyncio
-async def test_actual_jev_questions_classify_low_without_skill_or_project(replay):
-    history = [{"role": "user", "content": SUCCESS_PROMPT}]
+@pytest.mark.parametrize("prompt,complexity,recommendation", [
+    (SUCCESS_PROMPT, "low", None), (HIGH_PROMPT, "low", "high"),
+    (EXTRA_HIGH_PROMPT, "low", "extra_high"),
+    (HIGH_RECOVERY_PROMPT, "medium", "extra_high"),
+])
+async def test_actual_jev_questions_separate_complexity_from_reasoning(replay, prompt, complexity, recommendation):
+    history = [{"role": "user", "content": prompt}]
     routing = await decide_app_and_project_routing_with_jev(
         model_id="typesafe/jev-1.13", secrets_manager=None, message_history=history,
         available_apps=["web", "shopping"], available_skills=[], available_focus_modes=[],
@@ -76,7 +82,8 @@ async def test_actual_jev_questions_classify_low_without_skill_or_project(replay
         previous_category=None, is_first_message=True, available_apps=["web", "shopping"],
         selected_app_ids=[], early_decisions=routing["early_decisions"],
     )
-    assert selected["complexity"] == "low"
+    assert selected["complexity"] == complexity
+    assert selected["reasoning_level"] == recommendation
     assert selected["relevant_app_skills"] == []
 
 
@@ -87,8 +94,8 @@ async def test_wrapper_delivers_typed_success_and_requires_real_failure_before_f
 
     wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
     async def collect(model, prompt, task_id):
-        stream = await wrapped(model_id=model, stream=True, task_id=task_id, reasoning_effort="low",
-                               messages=[{"role": "user", "content": prompt}], tools=[])
+        stream = await wrapped(model_id=model, stream=True, task_id=task_id, reasoning_effort="medium",
+                               thinking_level="LOW", max_tokens=16384, messages=[{"role": "user", "content": prompt}], tools=[])
         return [chunk async for chunk in stream]
 
     success = await collect("mercury-3", SUCCESS_PROMPT, "success-task")
@@ -120,7 +127,7 @@ def test_unrelated_or_changed_classifier_request_is_rejected(replay):
 
 def test_disabled_model_path_forbids_mercury_and_admits_native_gemini(replay):
     kwargs = {"model_id": "mercury-3", "stream": True, "task_id": "disabled-task",
-              "reasoning_effort": "low", "messages": [{"role": "user", "content": DISABLED_PROMPT}]}
+              "reasoning_effort": "medium", "thinking_level": "LOW", "messages": [{"role": "user", "content": DISABLED_PROMPT}]}
     with pytest.raises(AssertionError, match="disabled Mercury"):
         llm_fixture("llm/mercury-3", kwargs)
     fallback = LOW_FALLBACK_MODEL.split("/", 1)[1]
@@ -132,6 +139,7 @@ def test_disabled_model_path_forbids_mercury_and_admits_native_gemini(replay):
 @pytest.mark.parametrize("prompt,expected", [
     (GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE),
     (CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE),
+    (HIGH_RECOVERY_PROMPT, HIGH_RECOVERY_RESPONSE),
 ])
 async def test_recovery_fixture_handles_actual_published_prefix_history(replay, tmp_path: Path, prompt, expected):
     async def forbidden_provider(**_kwargs):
@@ -142,8 +150,11 @@ async def test_recovery_fixture_handles_actual_published_prefix_history(replay, 
     messages = [{"role": "user", "content": prompt}]
 
     async def collect(model, history):
-        stream = await wrapped(model_id=model, stream=True, task_id=task_id, reasoning_effort="low",
-                               messages=history, tools=[], tool_choice="none")
+        high = prompt == HIGH_RECOVERY_PROMPT
+        stream = await wrapped(model_id=model, stream=True, task_id=task_id,
+                               reasoning_effort="high" if high else "medium",
+                               thinking_level="HIGH" if high else "MEDIUM",
+                               max_tokens=32768 if high else 16384, messages=history, tools=[], tool_choice="none")
         return [chunk async for chunk in stream]
 
     gemini = LOW_FALLBACK_MODEL.split("/", 1)[1]
@@ -177,3 +188,38 @@ def test_isolated_internal_allowlist_never_permits_provider_http(replay, monkeyp
         assert not _allow_isolated_capacity_internal("http://api:8000/v1/apps/ai/ask", "POST")
     finally:
         live_mock_receipt_var.reset(receipt)
+
+
+@pytest.mark.asyncio
+async def test_low_complexity_high_recommendation_and_extra_high_fallback(replay, tmp_path: Path):
+    async def forbidden_provider(**_kwargs):
+        raise AssertionError("Reasoning replay must never dispatch a real provider")
+
+    wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
+
+    async def collect(model, prompt, task_id, **policy):
+        stream = await wrapped(model_id=model, stream=True, task_id=task_id,
+                               messages=[{"role": "user", "content": prompt}], tools=[], **policy)
+        return [chunk async for chunk in stream]
+
+    success = await collect("mercury-3", HIGH_PROMPT, "high-task", reasoning_effort="high", max_tokens=32768)
+    assert success[0] == HIGH_RESPONSE
+    with pytest.raises(InceptionError, match="503"):
+        await collect("mercury-3", EXTRA_HIGH_PROMPT, "extra-high-task",
+                      reasoning_effort="high", max_tokens=32768)
+    recovered = await collect(LOW_FALLBACK_MODEL.split("/", 1)[1], EXTRA_HIGH_PROMPT,
+                              "extra-high-task", thinking_level="HIGH")
+    assert recovered[0] == EXTRA_HIGH_RESPONSE
+
+
+@pytest.mark.parametrize("policy", [
+    {"reasoning_effort": "low", "max_tokens": 8192},
+    {"reasoning_effort": "medium", "max_tokens": 32768},
+    {"reasoning_effort": "high", "max_tokens": 32768},
+])
+def test_default_medium_fixture_rejects_changed_provider_policy(replay, policy):
+    with pytest.raises(AssertionError, match="Mercury must use"):
+        llm_fixture("llm/mercury-3", {
+            "model_id": "mercury-3", "stream": True, "task_id": "wrong-policy",
+            "messages": [{"role": "user", "content": SUCCESS_PROMPT}], **policy,
+        })

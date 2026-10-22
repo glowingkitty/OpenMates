@@ -40,7 +40,7 @@ from backend.apps.ai.processing.search_skill_reliability import (
     omit_unstated_generic_repository_criteria,
 )
 from backend.apps.ai.processing.model_routing import (
-    LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS,
+    LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, mercury_reasoning_budget,
     automatic_attempt_thinking_level, automatic_model_allowed_servers,
     automatic_profile_thinking_level, history_requires_non_text,
     normalize_request_tier,
@@ -6666,6 +6666,15 @@ async def handle_main_processing(
                     request_data.orchestration_id,
                     bool(getattr(request_data, "is_anonymous", False)),
                 )
+                requested_reasoning_level = getattr(preprocessing_results, "requested_reasoning_level", None)
+                mercury_deadline = None
+                if current_model_id == MERCURY_MODEL:
+                    mercury_deadline, mercury_token_cap = mercury_reasoning_budget(requested_reasoning_level)
+                    current_output_token_limit = min(
+                        current_output_token_limit, mercury_token_cap,
+                    ) if current_output_token_limit is not None else min(
+                        _personal_chat_output_token_limit(current_model_id), mercury_token_cap,
+                    )
                 current_output_token_limit = await _fit_orchestrated_output_token_limit(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
@@ -6960,11 +6969,9 @@ async def handle_main_processing(
                             if current_model_id == preprocessing_results.selected_main_llm_model_id else None
                         )
                     ),
+                    requested_reasoning_level=requested_reasoning_level,
                     allowed_server_ids=permitted_automatic_servers,
-                    first_substantive_timeout_seconds=(
-                        MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS
-                        if automatic_attempt_level and current_model_id == MERCURY_MODEL else None
-                    ),
+                    first_substantive_timeout_seconds=mercury_deadline,
                     secrets_manager=secrets_manager,
                     tools=iteration_tools,
                     tool_choice=current_tool_choice,

@@ -26,6 +26,10 @@ models:
     default_server: inception
     servers:
       - id: inception
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          source_url: https://docs.inceptionlabs.ai/capabilities/reasoning-efforts
         name: Inception
         model_id: mercury-3
         region: US

@@ -45,6 +45,7 @@ async def invoke_openrouter_api(
     stream: bool = False,
     provider_overrides: Optional[Dict[str, Any]] = None,
     fallback_models: Optional[List[str]] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invokes the OpenRouter API with the given parameters.
@@ -91,6 +92,10 @@ async def invoke_openrouter_api(
     # Add optional parameters if provided
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
+    if reasoning_effort is not None:
+        if reasoning_effort not in {"low", "medium", "high", "xhigh"}:
+            raise ValueError("Invalid OpenRouter reasoning effort")
+        payload["reasoning"] = {"effort": reasoning_effort}
     
     if tools:
         openrouter_tools = _map_tools_to_openai_format(tools)

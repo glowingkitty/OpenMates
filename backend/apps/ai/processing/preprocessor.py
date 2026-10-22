@@ -51,6 +51,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
+from backend.apps.ai.utils.model_reasoning import normalize_reasoning_level as _canonical_requested_reasoning_level
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
@@ -1443,6 +1444,9 @@ class PreprocessingResult(BaseModel):
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
+    requested_reasoning_level: Optional[Literal["LOW", "MEDIUM", "HIGH", "EXTRA_HIGH"]] = Field(
+        None, description="Independent optional reasoning recommendation; model capabilities clamp it at dispatch.",
+    )
     selected_main_llm_thinking_level: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = Field(
         None, description="Server-selected reasoning level for the automatic default model profile.",
     )
@@ -4488,6 +4492,7 @@ async def handle_preprocessing(
         requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
+        requested_reasoning_level=_canonical_requested_reasoning_level(llm_analysis_args.get("reasoning_level")),
         selected_main_llm_thinking_level=selected_llm_thinking_level,
         selected_secondary_model_id=selected_secondary_model_id,  # Secondary fallback model from leaderboard selection
         selected_fallback_model_id=selected_fallback_model_id,  # Final fallback model (hardcoded reliable default)

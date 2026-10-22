@@ -4,6 +4,8 @@
 import logging
 import json
 import copy
+
+from .anthropic_reasoning import claude_reasoning_body
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import tiktoken
 import anthropic
@@ -79,6 +81,7 @@ async def invoke_direct_api(
     stream: bool = False,
     cacheable_system_prefix: Optional[str] = None,
     native_cache_context: Optional[Dict[str, Any]] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedAnthropicResponse, AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]]:
     """Handle requests using Anthropic's direct API"""
     log_prefix = f"[{task_id}] Anthropic Direct API ({model_id}):"
@@ -111,6 +114,13 @@ async def invoke_direct_api(
             "max_tokens": max_tokens or 16384
         }
 
+        reasoning_body = claude_reasoning_body(model_id, "anthropic", reasoning_effort)
+        adaptive_reasoning = bool(reasoning_body.get("thinking"))
+        if reasoning_body:
+            # The pinned SDK predates output_config/adaptive typing; extra_body
+            # supplies the documented wire shape on both standard and beta APIs.
+            request_kwargs["extra_body"] = reasoning_body
+
         # Adaptive-thinking Claude models do not accept `temperature`.
         # Strip the model ID prefix (e.g. "eu.anthropic.") to normalise Bedrock IDs.
         bare_model = model_id.rsplit(".", 1)[-1] if model_id.startswith("eu.") else model_id
@@ -122,7 +132,7 @@ async def invoke_direct_api(
             "claude-opus-4-7",
             "claude-opus-4-8",
         ))
-        if not temperature_unsupported:
+        if not temperature_unsupported and not adaptive_reasoning:
             request_kwargs["temperature"] = temperature
         
         if system_prompt:
@@ -139,7 +149,7 @@ async def invoke_direct_api(
                 if tool_choice == "required":
                     # Sonnet 5.5 rejects forced tool choice. Enforce the
                     # caller's required-tool contract on the response below.
-                    choice = "auto" if bare_model.startswith("claude-sonnet-5-5") else "any"
+                    choice = "auto" if adaptive_reasoning or bare_model.startswith("claude-sonnet-5-5") else "any"
                     request_kwargs["tool_choice"] = {"type": choice}
                 elif tool_choice == "none":
                     request_kwargs["tool_choice"] = {"type": "auto"}
@@ -149,11 +159,11 @@ async def invoke_direct_api(
             # The pinned Anthropic SDK accepts beta headers but predates the
             # top-level automatic cache_control parameter. extra_body merges it
             # into the wire JSON without changing legacy request typing.
-            request_kwargs["extra_body"] = {"cache_control": {"type": "ephemeral"}}
+            request_kwargs.setdefault("extra_body", {})["cache_control"] = {"type": "ephemeral"}
 
         logger.debug(f"{log_prefix} Request prepared with caching optimizations.")
 
-        require_tool = bool(anthropic_tools and tool_choice == "required" and bare_model.startswith("claude-sonnet-5-5"))
+        require_tool = bool(anthropic_tools and tool_choice == "required" and (adaptive_reasoning or bare_model.startswith("claude-sonnet-5-5")))
         if stream:
             response_stream = _iterate_direct_api_stream(task_id, model_id, request_kwargs, anthropic_client, messages, log_prefix, tools=tools, native_cache_context=native_cache_context)
             return _require_tool_call_stream(response_stream) if require_tool else response_stream

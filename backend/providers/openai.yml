@@ -82,6 +82,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-6-astra
         name: "OpenAI API"
         model_id: "gpt-6-astra"
         region: "US"
@@ -165,6 +169,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-6.1-sol
         name: "OpenAI API"
         model_id: "gpt-6.1-sol"
         region: "US"
@@ -249,6 +257,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-6-luna
         name: "OpenAI API"
         model_id: "gpt-6-luna"
         region: "US"
@@ -329,6 +341,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.6-terra
         name: "OpenAI API"
         model_id: "gpt-5.6-terra"
         region: "US"
@@ -407,6 +423,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-6-sol
         name: "OpenAI API"
         model_id: "gpt-6-sol"
         region: "US"
@@ -469,6 +489,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.6-sol
         name: "OpenAI API"
         model_id: "gpt-5.6-sol"
         region: "US"
@@ -590,6 +614,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.6-luna
         name: "OpenAI API"
         model_id: "gpt-5.6-luna"
         region: "US"
@@ -652,6 +680,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.5
         name: "OpenAI API"
         model_id: "gpt-5.5"
         region: "US"
@@ -709,6 +741,11 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          # Pro supports medium as its minimum; LOW recommendations respect that floor.
+          parameter: reasoning_effort
+          levels: {LOW: "medium", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.5-pro
         name: "OpenAI API"
         model_id: "gpt-5.5-pro"
         region: "US"
@@ -762,6 +799,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.4
         name: "OpenAI API"
         model_id: "gpt-5.4"
         region: "US"
@@ -819,6 +860,11 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          # Pro supports medium as its minimum; LOW recommendations respect that floor.
+          parameter: reasoning_effort
+          levels: {LOW: "medium", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.4-pro
         name: "OpenAI API"
         model_id: "gpt-5.4-pro"
         region: "US"
@@ -872,6 +918,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.4-mini
         name: "OpenAI API"
         model_id: "gpt-5.4-mini"
         region: "US"
@@ -915,6 +965,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.4-nano
         name: "OpenAI API"
         model_id: "gpt-5.4-nano"
         region: "US"
@@ -957,6 +1011,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.2
         name: "OpenAI API"
         model_id: "gpt-5.2"
         region: "US"
@@ -999,6 +1057,11 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          # Pro supports medium as its minimum; LOW recommendations respect that floor.
+          parameter: reasoning_effort
+          levels: {LOW: "medium", MEDIUM: "medium", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.2-pro
         name: "OpenAI API"
         model_id: "gpt-5.2-pro"
         region: "US"
@@ -1040,6 +1103,10 @@ models:
     default_server: "openai"
     servers:
       - id: "openai"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          source_url: https://developers.openai.com/api/docs/models/gpt-5.1
         name: "OpenAI API"
         model_id: "gpt-5.1"
         region: "US"
@@ -1084,11 +1151,19 @@ models:
     default_server: "aws_bedrock" # Default to AWS Bedrock (EU), with OpenRouter as fallback
     servers:
       - id: "aws_bedrock"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-openai.html
         name: "AWS Bedrock"
         model_id: "openai.gpt-oss-120b-1:0" # Bedrock model ID
         aws_region: "eu-central-1"
         region: "EU"
       - id: "openrouter"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "low", MEDIUM: "medium", HIGH: "high"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter API"
         model_id: "openai/gpt-oss-120b"
         region: "US"

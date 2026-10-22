@@ -11,6 +11,7 @@
 # Architecture: docs/architecture/ai/ai-model-selection.md
 
 import logging
+import copy
 import json
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
 import boto3
@@ -18,6 +19,7 @@ from botocore.exceptions import ClientError
 import tiktoken
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.config_manager import config_manager
 from .bedrock_shared import (
     BedrockUsageMetadata,
     ParsedBedrockToolCall,
@@ -28,10 +30,32 @@ from .bedrock_shared import (
     convert_messages_to_converse_format,
     convert_tools_to_converse_format,
     convert_tool_choice_to_converse_format,
+    encode_bedrock_reasoning,
 )
 from .openai_shared import calculate_token_breakdown
+from .anthropic_reasoning import claude_reasoning_body
 
 logger = logging.getLogger(__name__)
+
+
+def _bedrock_reasoning_body(model_id: str, effort: Optional[str]) -> Dict[str, Any]:
+    """Use Claude's nested shape or explicitly declared OpenAI OSS wire fields."""
+    body = claude_reasoning_body(model_id, "aws_bedrock", effort)
+    if body or effort is None:
+        return body
+    for model in (config_manager.get_provider_config("openai") or {}).get("models", []):
+        if (model.get("reasoning_control") or {}).get("fixed"):
+            continue
+        for server in model.get("servers") or []:
+            if server.get("id") != "aws_bedrock" or server.get("model_id") != model_id:
+                continue
+            control = server.get("reasoning_control") or {}
+            if control.get("fixed") or control.get("parameter") != "reasoning_effort":
+                return {}
+            if effort not in (control.get("levels") or {}).values():
+                raise ValueError("Unsupported reasoning effort for the declared Bedrock route")
+            return {"reasoning_effort": effort}
+    return {}
 
 
 def _controlled_five_minute_cache_write(
@@ -106,6 +130,7 @@ async def invoke_aws_bedrock_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     cacheable_system_prefix: Optional[str] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedBedrockResponse, AsyncIterator[Union[str, ParsedBedrockToolCall, BedrockUsageMetadata]]]:
     """
     Unified entry point for all AWS Bedrock model inference via the Converse API.
@@ -160,22 +185,36 @@ async def invoke_aws_bedrock_chat_completions(
             },
         }
 
+        reasoning_body = _bedrock_reasoning_body(model_id, reasoning_effort)
+        if reasoning_body:
+            request_kwargs["additionalModelRequestFields"] = reasoning_body
+            if reasoning_body.get("thinking"):
+                request_kwargs["inferenceConfig"].pop("temperature", None)
+        require_tool = bool(reasoning_body.get("thinking") and tools and tool_choice == "required")
+
         if system_prompts:
             request_kwargs["system"] = system_prompts
 
         tool_config = convert_tools_to_converse_format(tools)
         if tool_config:
             request_kwargs["toolConfig"] = tool_config
-            tool_choice_config = convert_tool_choice_to_converse_format(tool_choice, has_tools=True)
+            tool_choice_config = ({"auto": {}} if require_tool
+                                  else convert_tool_choice_to_converse_format(tool_choice, has_tools=True))
             if tool_choice_config:
                 request_kwargs["toolConfig"]["toolChoice"] = tool_choice_config
 
         logger.debug(f"{log_prefix} Converse API request prepared.")
 
         if stream:
-            return _iterate_converse_stream(task_id, model_id, request_kwargs, messages, log_prefix, tools=tools)
+            response_stream = _iterate_converse_stream(task_id, model_id, request_kwargs, messages, log_prefix, tools=tools)
+            return _require_bedrock_tool_stream(response_stream) if require_tool else response_stream
         else:
-            return await _process_converse_response(task_id, model_id, request_kwargs, messages, log_prefix, tools=tools)
+            response = await _process_converse_response(task_id, model_id, request_kwargs, messages, log_prefix, tools=tools)
+            if require_tool and response.success and not response.tool_calls_made:
+                response.success = False
+                response.direct_message_content = None
+                response.error_message = "Bedrock response omitted the required tool call"
+            return response
 
     except Exception as e:
         err_msg = f"Error during Bedrock Converse request preparation: {e}"
@@ -183,6 +222,27 @@ async def invoke_aws_bedrock_chat_completions(
         if stream:
             raise ValueError(err_msg)
         return UnifiedBedrockResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
+
+
+async def _require_bedrock_tool_stream(response_stream):
+    """Preserve required-tool semantics when adaptive thinking needs auto choice."""
+    pending = []
+    tool_seen = False
+    async for item in response_stream:
+        if not tool_seen:
+            if not isinstance(item, ParsedBedrockToolCall):
+                pending.append(item)
+                continue
+            tool_seen = True
+            for buffered in pending:
+                yield buffered
+            pending.clear()
+        yield item
+    if not tool_seen:
+        for buffered in pending:
+            if isinstance(buffered, BedrockUsageMetadata):
+                yield buffered
+        raise IOError("Bedrock response omitted the required tool call")
 
 
 async def _process_converse_response(
@@ -250,6 +310,8 @@ async def _process_converse_response(
                     function_name=tc["name"],
                     function_arguments_parsed=args_dict,
                     function_arguments_raw=json.dumps(args_dict),
+                    provider_transport_state=({"bedrock_reasoning": encode_bedrock_reasoning(copy.deepcopy(content_blocks))}
+                        if any("reasoningContent" in block for block in content_blocks) else None),
                 ))
             logger.info(f"{log_prefix} Call resulted in {len(unified_resp.tool_calls_made)} tool call(s).")
         elif text_content:
@@ -296,6 +358,7 @@ async def _iterate_converse_stream(
     usage = None
     current_tool_call: Optional[Dict[str, Any]] = None
     tool_input_json_buffer = ""
+    reasoning_blocks: Dict[int, Dict[str, Any]] = {}
 
     try:
         response = _bedrock_runtime_client.converse_stream(**request_kwargs)
@@ -310,7 +373,18 @@ async def _iterate_converse_stream(
                 # Text content delta
                 if "contentBlockDelta" in event:
                     delta = event["contentBlockDelta"].get("delta", {})
-                    if "text" in delta:
+                    if "reasoningContent" in delta:
+                        index = event["contentBlockDelta"].get("contentBlockIndex", 0)
+                        reasoning_delta = delta["reasoningContent"]
+                        if "redactedContent" in reasoning_delta:
+                            reasoning = reasoning_blocks.setdefault(index, {"reasoningContent": {"redactedContent": b""}})
+                            reasoning["reasoningContent"]["redactedContent"] += reasoning_delta["redactedContent"]
+                        else:
+                            reasoning = reasoning_blocks.setdefault(index, {"reasoningContent": {"reasoningText": {"text": "", "signature": ""}}})
+                            text = reasoning["reasoningContent"]["reasoningText"]
+                            for key in ("text", "signature"):
+                                text[key] += reasoning_delta.get(key, "")
+                    elif "text" in delta:
                         text_chunk = delta["text"]
                         output_buffer += text_chunk
                         yield text_chunk
@@ -343,6 +417,8 @@ async def _iterate_converse_stream(
                             function_name=current_tool_call["name"],
                             function_arguments_parsed=args,
                             function_arguments_raw=tool_input_json_buffer or "{}",
+                            provider_transport_state=({"bedrock_reasoning": encode_bedrock_reasoning(copy.deepcopy(list(reasoning_blocks.values())))}
+                                if reasoning_blocks else None),
                         )
                         logger.info(f"{log_prefix} Yielding tool call from stream: {current_tool_call['name']}")
                         yield parsed_tool_call

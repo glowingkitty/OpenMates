@@ -51,6 +51,7 @@ async def invoke_together_api(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     top_p: Optional[float] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invokes the Together AI API with the given parameters.
@@ -86,6 +87,10 @@ async def invoke_together_api(
         "temperature": temperature,
         "stream": stream
     }
+    if reasoning_effort is not None:
+        if reasoning_effort not in {"low", "high", "max"}:
+            raise ValueError("Invalid Together reasoning effort")
+        payload["reasoning_effort"] = reasoning_effort
     
     # Add optional parameters if provided
     if max_tokens is not None:

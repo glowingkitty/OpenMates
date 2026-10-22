@@ -180,6 +180,10 @@ preprocess_request_tool:
           type: "string"
           description: "Required reasoning depth; follow the rules above."
           enum: ["low", "medium", "high", "max"]
+        reasoning_level:
+          type: "string"
+          description: "Optional reasoning effort independent of model-routing complexity: low only for trivial/simple requests, medium for normal analysis/synthesis, high selectively for difficult tasks, extra_high only for exceptional reasoning needs. Exclude work delegated to app skills. This does not select a model."
+          enum: ["low", "medium", "high", "extra_high"]
         task_area:
           type: "string"
           description: "Primary task area for model selection."

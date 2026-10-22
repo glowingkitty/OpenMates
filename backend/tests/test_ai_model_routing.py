@@ -59,7 +59,7 @@ def test_routing_uses_approved_google_profiles_for_all_four_auto_tiers() -> None
     assert profiles == {
         "low": {
             "model": "inception/mercury-3",
-            "thinking_level": "LOW",
+            "thinking_level": "MEDIUM",
         },
         "medium": {
             "model": "google/gemini-3.8-flash",
@@ -75,7 +75,7 @@ def test_routing_uses_approved_google_profiles_for_all_four_auto_tiers() -> None
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto
 @pytest.mark.parametrize("tier,level", [
-    ("low", "LOW"), ("medium", "MEDIUM"), ("high", "HIGH"), ("max", "HIGH"),
+    ("low", "MEDIUM"), ("medium", "MEDIUM"), ("high", "HIGH"), ("max", "HIGH"),
 ])
 def test_automatic_profile_applies_only_when_selected_model_matches(tier: str, level: str) -> None:
     routing = _routing_module()
@@ -250,7 +250,7 @@ def test_preprocessor_automatic_low_eligibility_and_disabled_selector(monkeypatc
         {"complexity": "low", "china_model_sensitive": False}, request, skill, None, "test"))
     expected = "inception/mercury-3" if restriction == "none" else "google/gemini-3.8-flash"
     assert result["selected_llm_for_main_id"] == expected
-    assert result["selected_llm_thinking_level"] == "LOW"
+    assert result["selected_llm_thinking_level"] == ("MEDIUM" if restriction == "none" else "LOW")
     assert result["selected_fallback_model_id"] == ("google/gemini-3.8-flash" if restriction == "none" else None)
 
 
@@ -377,3 +377,16 @@ def test_disabled_automatic_selection_preserves_configured_primary(monkeypatch):
     assert result['selected_llm_for_main_id'] == 'mistral/configured-model'
     assert result['selected_secondary_model_id'] == 'google/gemini-3.8-flash'
     assert result['selected_fallback_model_id'] == 'inception/mercury-3'
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation
+@pytest.mark.parametrize("level,deadline,cap", [
+    (None, 15., 16384), ("invalid", 15., 16384), ("LOW", 5., 8192),
+    ("MEDIUM", 15., 16384), ("HIGH", 60., 32768), ("EXTRA_HIGH", 60., 32768),
+])
+def test_mercury_reasoning_budget_is_effort_specific(level, deadline, cap):
+    routing = _routing_module()
+    assert routing.mercury_reasoning_budget(level) == (deadline, cap)
+    # The default Mercury effort must not leak into its low-tier Gemini fallback.
+    assert routing.automatic_attempt_thinking_level("low", routing.LOW_FALLBACK_MODEL, "MEDIUM") == "LOW"
+    assert routing.automatic_attempt_thinking_level("medium", routing.MERCURY_MODEL, "HIGH") == "MEDIUM"

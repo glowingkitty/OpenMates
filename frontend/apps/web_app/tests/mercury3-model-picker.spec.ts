@@ -71,9 +71,9 @@ test('Mercury 3 is manually selectable through Inception with medium capability'
 	await expect(menu).not.toBeVisible();
 });
 
-// contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.recovery.affordable-current-models
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.reasoning.preprocessor-recommendation,ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.recovery.affordable-current-models
 test('Auto uses current affordable models and recovers Gemini before Mercury', async ({ page }: { page: any }) => {
-	test.setTimeout(360000);
+	test.setTimeout(540000);
 	test.skip(process.env.CI !== 'true' || process.env.CI_TEST_MODE !== 'e2e'
 		|| process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the isolated provider-free product stack.');
 	skipWithoutCredentials(test, email, password, otpKey);
@@ -107,10 +107,13 @@ test('Auto uses current affordable models and recovers Gemini before Mercury', a
 
 	for (const scenario of [
 		{ id: 'success', question: 'What is 2 + 2?', answer: 'The answer is 4. Automatic routing completed successfully.', model: 'Mercury 3' },
+		{ id: 'high', question: 'What is 5 + 5?', answer: 'The answer is 10. Low complexity used the separate HIGH recommendation.', model: 'Mercury 3' },
+		{ id: 'extra_high', question: 'What is 6 + 6?', answer: 'The answer is 12. Google clamped the EXTRA_HIGH recommendation to HIGH.', model: 'Gemini 3.8 Flash' },
 		{ id: 'fallback', question: 'What is 3 + 3?', answer: 'The answer is 6. Automatic routing recovered successfully.', model: 'Gemini 3.8 Flash' },
 		{ id: 'disabled', question: 'What is 4 + 4?', answer: 'The answer is 8. Your disabled model was respected.', model: 'Gemini 3.8 Flash' },
 		{ id: 'gemini_retry', question: 'Compare the available evidence.', answer: 'Gemini completed the answer on its first clean retry.', model: 'Gemini 3.8 Flash' },
-		{ id: 'cheap_fallback', question: 'Summarize the available evidence.', answer: 'Mercury completed the answer as the inexpensive last resort.', model: 'Mercury 3' }
+		{ id: 'cheap_fallback', question: 'Summarize the available evidence.', answer: 'Mercury completed the answer as the inexpensive last resort.', model: 'Mercury 3' },
+		{ id: 'high_recovery', question: 'Review the interacting constraints.', answer: 'Mercury preserved the recommendation at HIGH during recovery.', model: 'Mercury 3' }
 	]) {
 		if (scenario.id === 'disabled') await setMercuryEnabled(false);
 		await startNewChat(page, log);
@@ -127,6 +130,8 @@ test('Auto uses current affordable models and recovers Gemini before Mercury', a
 		try {
 			// The signed LIVE marker only replaces Jev/provider boundaries. Real model
 			// selection, fallback, persistence, and WebSocket delivery still execute.
+			// The replay fails closed unless provider effort and Mercury output caps
+			// match Jev's independent recommendation (or the unchanged tier default).
 			await sendMessage(page,
 				`${scenario.question} MERCURY_ROUTING_E2E:${scenario.id} <<<TEST_LIVE_MOCK:mercury_auto_low>>>`,
 				log, screenshot, `auto-${scenario.id}`);
@@ -144,7 +149,7 @@ test('Auto uses current affordable models and recovers Gemini before Mercury', a
 			await expect(page.getByTestId('active-chat-container').getByTestId('message-assistant')).toHaveCount(1);
 			const answerOccurrences = (await assistant.textContent()).split(scenario.answer).length - 1;
 			expect(answerOccurrences).toBe(1);
-			if (['gemini_retry', 'cheap_fallback'].includes(scenario.id)) {
+			if (['gemini_retry', 'cheap_fallback', 'high_recovery'].includes(scenario.id)) {
 				const text = await assistant.innerText();
 				expect(text.split('Verified prefix.').length - 1).toBe(1);
 				expect(text).not.toMatch(/```(?:toon|tool_code)|app_id:|skill_id:|Sonnet|Gemini 3\.7/);

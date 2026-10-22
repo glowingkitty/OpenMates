@@ -38,11 +38,19 @@ models:
     default_server: "together" # Use Together directly; OpenRouter is fallback only
     servers:
       - id: "together"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "max"}
+          source_url: https://docs.together.ai/docs/deepseek-v4-quickstart#reasoning-effort
         name: "Together AI"
         model_id: "deepseek-ai/DeepSeek-V4-Pro-0813"
         health_check_preferred: true # Known serverless probe; the cheapest configured model requires a dedicated endpoint.
         region: "US" # Server region for UI display
       - id: "openrouter"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v4-pro"
         region: "US" # Server region for UI display
@@ -90,6 +98,10 @@ models:
     default_server: "openrouter" # OpenRouter routes to AtlasCloud first via provider_overrides
     servers:
       - id: "openrouter"
+        reasoning_control:
+          parameter: reasoning_effort
+          levels: {LOW: "high", MEDIUM: "high", HIGH: "high", EXTRA_HIGH: "xhigh"}
+          source_url: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens#discovering-per-model-reasoning-options
         name: "OpenRouter API"
         model_id: "deepseek/deepseek-v4-flash"
         region: "US" # Server region for UI display
