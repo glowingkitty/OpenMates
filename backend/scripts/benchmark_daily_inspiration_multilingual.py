@@ -387,7 +387,7 @@ async def instrumented_write(original_write, *, row, language, **kwargs):
     return cards
 
 
-async def qualify_batch(sources, kind, language, arm, row, manager, root):
+async def qualify_batch(sources, kind, language, arm, row, manager, root, *, writer_request_transform=None):
     original_write = writer.write_reviewed_cards
 
     async def call(**kwargs):
@@ -396,7 +396,10 @@ async def qualify_batch(sources, kind, language, arm, row, manager, root):
         # Diagnostic control only: production remains the fixed Gemini writer.
         if arm == 'mercury3_only':
             kwargs = {**kwargs, 'reasoning_effort': 'low', 'temperature': .5}
+        if writer_request_transform is not None:
+            kwargs = writer_request_transform(kwargs, sources, kind, language, arm)
         attempt = {'requested_model': kwargs['model_id'], 'request': kwargs['message_history'],
+                   'tool_definition': kwargs.get('tool_definition'),
                    'request_profile': {key: kwargs.get(key, 'provider_default' if key == 'reasoning_effort' else None)
                                        for key in ('temperature', 'reasoning_effort', 'max_output_tokens',
                                                    'allow_retries', 'fallback_models', 'single_attempt_timeout_seconds')},

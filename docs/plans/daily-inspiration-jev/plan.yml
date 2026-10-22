@@ -1,74 +1,45 @@
 schema_version: 2
 profile: concise
 id: daily-inspiration-jev
-title: Use one Jev decision model and one Gemini writer for active-user inspirations
-status: verified
-goal: Implement the approved Jev 1.14 plus Gemini 3.8 Flash setup with one LLM writing stage, no second
-  LLM reviewer or cross-model fallback, verify English/German quality and active-user generation gates,
-  and deploy the scoped dev changes.
+title: Evaluate clearer Mercury writing against Gemini with unchanged Jev gates
+status: implementing
+goal: Optimize the prompting and input given to Mercury 3 so the model has clearer instructions, evaluate
+  whether this fixes the issues, and decide whether it can replace Gemini 3.8 Flash for daily inspirations.
 scope_notes:
-- 'One production LLM: google/gemini-3.8-flash. A transport/provider/schema failure may retry the same
-  model once; editorial rejections are terminal and approved source-bound objects are retained.'
-- Jev handles source suitability/ranking/categories, semantic coherence, field grounding/language and
-  follow-up relevance, plus actual thumbnail pixels. Remove the separate Gemini semantic reviewer. Keep
-  source identities, policy thresholds and static recovery.
-- Keep all twenty localized static feeds. Anonymous reads, login and signup make no fresh generation calls.
-  Incomplete personal refreshes retain the previous set.
-- Daily personal generation requires tracked request activity under twenty-four hours and at least one
-  recorded inspiration view. First-run seeds require recent tracked activity but no prior view. Preserve
-  the current tracking meaning, including zero-credit requests; do not add concurrency locks or redesign
-  scheduling.
-- No account/chat routing changes. No production-server deployment. Shared background Jev pool review
-  remains separate from new personal generation.
+- Keep one Jev 1.14 decision model and one writing LLM. No additional runtime LLM reviewer, cross-model
+  fallback, account model override or activity-gate change.
+- Build a lean source-bound writer request with consistent tool descriptions and a single copy brief.
+  Preserve approved source identities, source passages, requested language, policy thresholds and thumbnail
+  gates.
+- Benchmark current Gemini, original-prompt Mercury and clearer-prompt Mercury on the same frozen EN/DE
+  evidence, keeping Mercury sampling and reasoning unchanged between its arms.
+- Inspect all raw drafts against the exact evidence independently of admission, separating malformed/provider
+  output, real copy errors and conservative Jev rejection.
+- Switch the sole daily writer to Mercury only if its output is practically comparable to Gemini, source/format
+  reliability and unchanged admission do not materially regress, and measured cost/latency favor replacement.
+  Otherwise retain Gemini and report the specific remaining cause.
+- Use scoped dev deployment for real-inference candidates; no production-server deployment or broad multilingual
+  optimization.
 checks:
-- Focused provider-free writer/source-identity/retry tests, Jev decision/pixel/proof/public recovery and
-  activity-boundary tests; scoped lint and isolated GitHub backend tests.
-- 'One small native English/German paired comparison on four fresh approved public sources: one video
-  and one wiki per locale, Gemini 3.8 versus Mercury 3 diagnostic arms, one writer attempt per arm under
-  the same current Jev gates. No separate LLM review and no account/pool writes.'
-- Deploy through the session helper, verify exact-source frontend readiness and coordinated backend health,
-  and pin actual runtime sources before native calls.
-- Report actual admissions, latency and captured supplier usage/unknowns; do not infer a full-refresh
-  price or savings from the small paired sample.
+- Focused provider-free prompt/source-whitelist/schema/retry and benchmark-isolation tests, scoped lint,
+  isolated GitHub CI.
+- One fresh paired cohort of twelve planned EN/DE source slots across auroras, recycling and seed dispersal;
+  one native writing attempt per arm/source. Record terminal source shortages rather than resample after
+  outputs.
+- Automated model/admission-blind source-only audit of every draft, plus current production Jev admission,
+  source identity, actual thumbnails, supplier usage and latency.
+- If replacement is supported, cover and verify actual runtime configuration and writer integration before
+  scoped dev rollout.
 decision_notes:
-- User explicitly rejected two LLM stages and approved Jev plus Gemini 3.8 as the sole writer. Mercury
-  and Gemini Flash-Lite runtime generation/review paths are removed, not hidden behind a fallback.
-- Keep the accepted practical English/German focus. Do not restart broad multilingual optimization or
-  require a perfect system.
-- Existing feature.daily-inspiration@2 and feature.language-preferences@1 apply; provider/prompt internals
-  are outside the permanent product contract. The recent-activity check enforces the existing first-paid-request
-  intent.
-- Batch processing, pool redesign, positive-credit billing changes, first-run concurrency locks and cooldowns
-  are outside this follow-up.
-evidence:
-  policy_version: daily-editorial-v8
-  public_cache_version: v17
-  current_report: docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
-  status: Approved single-LLM dev workflow implemented, tested and deployed; bounded native comparison
-    completed with conservative Jev admission limitations recorded.
-  implementation_commit: 1c60de459e0a4e828f6c886e8e8cf68bc23fa710
-  focused_local: 264 relevant backend/tooling tests passed; scoped Ruff passed.
-  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39644743177
-  isolated_ci_source: d85a8207a65847aec978da593fa0d44271ba6d52
-  isolated_ci_result: 264 selected tests passed; exact receipt retrieved and evidence command completed
-    with empty unit-recording inventory. All 26 scoped deployment paths matched the tested candidate; local
-    dispatcher-adoption files were excluded from deployment.
-  independent_review: No material blocker in core writer, decisions, source binding, activity guard or
-    proof/cache version review.
-  runtime: Coordinated docker-4120c7ff reload completed with all seventeen consumers healthy. Exact-source
-    frontend readiness passed for implementation commit 1c60de459e0a4e828f6c886e8e8cf68bc23fa710. Thirteen
-    runtime module hashes matched before native calls.
-  paired_comparison: Four planned EN/DE source slots, three eligible, one frozen English-video source
-    shortfall. Each model made three writing calls with no retry, fallback or LLM review. Gemini admitted
-    one card, Mercury zero under the same Jev gates; all six drafts had valid structures and source identities.
-  paired_report: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.md
-  paired_aggregate: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.json
-  source_only_audit: Independent automated review of all six drafts against retained source evidence
-    found no obvious material copy blocker. Gemini holds were correct-choice language/grounding answers
-    below the existing confidence threshold. Not native-speaker gold or a writer-quality ranking.
-  remaining_work: Medium-priority EN/DE Jev false-rejection calibration and recent German-video discovery
-    can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
-    cover incomplete results. No additional paid sweeps or production-server deployment.
+- 'The previous three-source check did not establish Mercury incapability: all responses were structured
+  correctly and all five withholds appeared to be Jev false holds in source-only automated review.'
+- 'Current video instructions conflict: rich three-to-five-sentence schema vs exact-three grounded system
+  brief; stale writer selection duties and unrelated examples remain. Clarify the request without relaxing
+  admission criteria.'
+- 'Follow Inception prompt guidance: short role/style, structured evidence, current task and critical
+  checks last. Keep LOW reasoning and temperature 0.5 in both Mercury arms to isolate prompt changes.'
+- Provider/prompt internals remain implementation details under existing feature.daily-inspiration@2 and
+  feature.language-preferences@1. Source-only review is automated, not native-speaker gold.
 previous_v7_evidence:
   implementation_commit: be96267b0894c144e54aec6d914946067a06251e
   core_implementation_commit: 3e33b8c5d1d57d6bdd6ee5edb688f7ba6edbf6c2
@@ -163,3 +134,36 @@ previous_v6_evidence:
   - docs/plans/daily-inspiration-jev/multilingual-aggregate-2026-10-20.json
   - docs/plans/daily-inspiration-jev/evaluation-2026-10-20.md
   - docs/plans/daily-inspiration-jev/recovery-qualification-2026-10-20.md
+previous_v8_evidence:
+  policy_version: daily-editorial-v8
+  public_cache_version: v17
+  current_report: docs/plans/daily-inspiration-jev/single-llm-release-2026-10-21.md
+  status: Approved single-LLM dev workflow implemented, tested and deployed; bounded native comparison
+    completed with conservative Jev admission limitations recorded.
+  implementation_commit: 1c60de459e0a4e828f6c886e8e8cf68bc23fa710
+  focused_local: 264 relevant backend/tooling tests passed; scoped Ruff passed.
+  isolated_ci: https://github.com/glowingkitty/OpenMates/actions/runs/39644743177
+  isolated_ci_source: d85a8207a65847aec978da593fa0d44271ba6d52
+  isolated_ci_result: 264 selected tests passed; exact receipt retrieved and evidence command completed
+    with empty unit-recording inventory. All 26 scoped deployment paths matched the tested candidate;
+    local dispatcher-adoption files were excluded from deployment.
+  independent_review: No material blocker in core writer, decisions, source binding, activity guard or
+    proof/cache version review.
+  runtime: Coordinated docker-4120c7ff reload completed with all seventeen consumers healthy. Exact-source
+    frontend readiness passed for implementation commit 1c60de459e0a4e828f6c886e8e8cf68bc23fa710. Thirteen
+    runtime module hashes matched before native calls.
+  paired_comparison: Four planned EN/DE source slots, three eligible, one frozen English-video source
+    shortfall. Each model made three writing calls with no retry, fallback or LLM review. Gemini admitted
+    one card, Mercury zero under the same Jev gates; all six drafts had valid structures and source identities.
+  paired_report: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.md
+  paired_aggregate: docs/plans/daily-inspiration-jev/single-llm-comparison-2026-10-21.json
+  source_only_audit: Independent automated review of all six drafts against retained source evidence found
+    no obvious material copy blocker. Gemini holds were correct-choice language/grounding answers below
+    the existing confidence threshold. Not native-speaker gold or a writer-quality ranking.
+  remaining_work: Medium-priority EN/DE Jev false-rejection calibration and recent German-video discovery
+    can improve yield. Thresholds remain unchanged; localized recovery and previous-personal-set retention
+    cover incomplete results. No additional paid sweeps or production-server deployment.
+evidence:
+  status: Prompt/input implementation and bounded comparison in progress.
+  policy_version: daily-editorial-v8
+  public_cache_version: v17
