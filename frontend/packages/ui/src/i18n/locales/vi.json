@@ -14726,6 +14726,11 @@
       }
     }
   },
+  "result_embed": {
+    "insurance": {
+      "text": "Bảo hiểm"
+    }
+  },
   "rules": {},
   "settings": {
     "account": {

@@ -14726,6 +14726,11 @@
       }
     }
   },
+  "result_embed": {
+    "insurance": {
+      "text": "保険"
+    }
+  },
   "rules": {},
   "settings": {
     "account": {

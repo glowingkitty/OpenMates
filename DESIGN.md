@@ -6,6 +6,10 @@ Use this document to keep new Svelte, React, native app, video, print, social, a
 
 ## Source Files
 
+Result previews and fullscreens must follow
+[`docs/design-guide/result-embeds.md`](docs/design-guide/result-embeds.md), including
+its shared structures, icon information, media fitting and specialized-editor exceptions.
+
 Use these files for exact implementation details:
 
 | Area | Source |

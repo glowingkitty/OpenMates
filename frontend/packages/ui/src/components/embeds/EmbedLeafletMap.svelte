@@ -105,6 +105,7 @@
     scrollWheelZoom?: boolean;
     /** Leaflet corner used for the zoom control (default: top-right) */
     zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
+    controlStyle?: 'default' | 'compact' | 'hidden';
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
     /** Called when a marker with a ref is clicked */
@@ -131,6 +132,7 @@
     minHeight = '220px',
     scrollWheelZoom = true,
     zoomControlPosition = 'topright',
+    controlStyle = 'default',
     onMapReady,
     onMarkerSelect,
     onRouteSelect,
@@ -561,6 +563,8 @@
 <div class="embed-leaflet-map-shell" style="height: {height}; min-height: {minHeight};">
 <div
   class="embed-leaflet-map"
+  class:compact-controls={controlStyle === 'compact'}
+  class:hide-zoom-controls={controlStyle === 'hidden'}
   data-testid="embed-leaflet-map"
   data-tiles-loaded={tilesLoaded ? 'true' : 'false'}
   data-map-ready={leafletReady ? 'true' : 'false'}
@@ -729,4 +733,11 @@
     font-size: 1.75rem;
     line-height: 1;
   }
+  :global(.embed-leaflet-map.compact-controls .leaflet-top .leaflet-control-zoom a) {
+    /* Legacy MapsView globals use !important; contain their sizing here. */
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.5rem;
+  }
+  :global(.embed-leaflet-map.hide-zoom-controls .leaflet-control-zoom) { display: none; }
 </style>

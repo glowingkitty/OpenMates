@@ -1,0 +1,24 @@
+insurance:
+  context: Caption for the insurance fact in a healthcare result embed
+  en: Insurance
+  de: Versicherung
+  zh: 保险
+  es: Seguro
+  fr: Assurance
+  pt: Seguro
+  ru: Страховка
+  ja: 保険
+  ko: 보험
+  it: Assicurazione
+  tr: Sigorta
+  vi: Bảo hiểm
+  id: Asuransi
+  pl: Ubezpieczenie
+  nl: Verzekering
+  ar: التأمين
+  hi: बीमा
+  th: ประกัน
+  cs: Pojištění
+  sv: Försäkring
+  he: ביטוח
+  verified_by_human: []

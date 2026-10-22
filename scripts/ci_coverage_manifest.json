@@ -872,6 +872,13 @@
       "specs": [
         "embed-canonical-replay.spec.ts"
       ]
+    },
+    "result_embed_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare component fixtures for result preview/fullscreen layout, gallery, icon explanations and missing-data states. Uses the Vite-only component profile; no backend, account, AI inference or external provider action is invoked.",
+      "specs": [
+        "components/result-entry-design.spec.ts"
+      ]
     }
   },
   "holds": {

@@ -865,6 +865,8 @@ const healthAppointmentResolver: PreviewResolver = async ({
       price: firstNumber(decodedContent.price, decodedContent.service_price),
       providerPlatform: firstText(decodedContent.providerPlatform, decodedContent.provider_platform, decodedContent.provider),
       additionalSlotCount: firstNumber(decodedContent.additionalSlotCount, decodedContent.additional_slot_count) ?? 0,
+      gpsCoordinates: { latitude: firstNumber((decodedContent.gps_coordinates && typeof decodedContent.gps_coordinates === 'object' ? decodedContent.gps_coordinates as Record<string, unknown> : {}).latitude, decodedContent.gps_coordinates_latitude), longitude: firstNumber((decodedContent.gps_coordinates && typeof decodedContent.gps_coordinates === 'object' ? decodedContent.gps_coordinates as Record<string, unknown> : {}).longitude, decodedContent.gps_coordinates_longitude) },
+      bookingUrl: firstText(decodedContent.booking_url, decodedContent.practice_url),
       status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
       isMobile: false,
       onFullscreen,

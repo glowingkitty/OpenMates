@@ -4,8 +4,8 @@
   import { text } from '../../i18n/translations';
   import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
 
-  let { appId, value = $bindable(''), files = $bindable<File[]>([]), disabled = false, submitting = false, placeholder,
-    onSubmit }: { appId: string; value?: string; files?: File[]; disabled?: boolean; submitting?: boolean; placeholder?: string;
+  let { appId, value = $bindable(''), files = $bindable<File[]>([]), disabled = false, submitting = false, placeholder, presentation = 'workspace',
+    onSubmit }: { appId: string; value?: string; files?: File[]; disabled?: boolean; submitting?: boolean; placeholder?: string; presentation?: 'workspace' | 'embed';
       onSubmit: (text: string, attachments: File[]) => void | boolean | Promise<void | boolean> } = $props();
   let input = $state<HTMLInputElement>();
   let recording = $state(false);
@@ -44,7 +44,7 @@
       {#each files as file, index (index)}<li><span>{file.name}</span><button type="button" aria-label={`${$text('apps_workspace.remove_file')} ${file.name}`} disabled={submitting} onclick={() => files = files.filter((_, i) => i !== index)}>×</button></li>{/each}
     </ul>
   {/if}
-  <WorkspacePromptComposer surface="projects" bind:value
+  <WorkspacePromptComposer surface="projects" {presentation} bind:value
     placeholder={placeholder ?? $text('apps_workspace.request_placeholder')}
     submitLabel={$text('apps_workspace.submit_request')} submittingLabel={$text('apps_workspace.interpreting_request')}
     disabled={disabled || transcribing} {submitting}

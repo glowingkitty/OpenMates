@@ -20,7 +20,11 @@ const defaultProps = {
       speciality: "Ophthalmologist",
       address: "Maximilianstraße 12\n80539 Munich",
       gps_coordinates: { latitude: 48.1397, longitude: 11.5784 },
-      insurance: "public",
+      insurance: "private",
+      rating: 4.8,
+      rating_count: 46,
+      price: 120,
+      description: "Ophthalmology consultations and preventive eye care in a welcoming practice.",
       telehealth: false,
       practice_url: "https://www.doctolib.de/ophtalmologe/munich/sophie-mueller",
       provider: "Doctolib",
@@ -38,6 +42,7 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  unknownInsurance: { data: { ...defaultProps.data, decodedContent: {...defaultProps.data.decodedContent, insurance: "unknown"} } },
   /** Telehealth cardiologist with private insurance (Doctolib) */
   telehealth: {
     data: {

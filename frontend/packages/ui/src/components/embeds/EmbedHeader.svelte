@@ -39,6 +39,7 @@
     providers?: string[];
     /** Skill icon name (e.g. 'search', 'coding'). Uses app icon when empty. */
     skillIconName?: string;
+    decorationIconName?: string;
     /** Optional app icon override when appId has no icon_rounded CSS mapping. */
     appIconName?: string;
     /** Show the skill icon instead of the app icon. Default true. */
@@ -79,6 +80,7 @@
     footer = '',
     providers = [],
     skillIconName = '',
+    decorationIconName,
     appIconName = '',
     showSkillIcon = true,
     title = '',
@@ -120,7 +122,9 @@
    * regardless of showSkillIcon (which is now only used by BasicInfosBar).
    * This prevents the full app icon (with gradient background) from appearing in the banner.
    */
-  let useDecoSkillIcon = $derived(!!skillIconName);
+  let decoIcon = $derived(decorationIconName ?? skillIconName);
+  let useDecoSkillIcon = $derived(!!decoIcon);
+  let decoIconStyle = $derived(`--embed-skill-icon-url: var(--icon-url-${normalizeIconName(resolveIconName(decoIcon))});`);
   let safeAppIconName = $derived(normalizeIconName(appIconName ? resolveIconName(appIconName) : undefined));
   // Icon expects the app-facing aliases used by AppStoreCard, rather than
   // the SVG filename, so its tile selects the matching app gradient.
@@ -243,7 +247,7 @@
          app icon appearing in the banner. showSkillIcon only governs the center icon. -->
     <div class="deco-icon deco-icon-left">
       {#if useDecoSkillIcon}
-        <div class="deco-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
+        <div class="deco-skill-icon" data-skill-icon={decoIcon} style={decoIconStyle}></div>
       {:else if safeAppIconName}
         <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
@@ -252,7 +256,7 @@
     </div>
     <div class="deco-icon deco-icon-right">
       {#if useDecoSkillIcon}
-        <div class="deco-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
+        <div class="deco-skill-icon" data-skill-icon={decoIcon} style={decoIconStyle}></div>
       {:else if safeAppIconName}
         <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}

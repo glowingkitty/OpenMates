@@ -12,17 +12,23 @@ const defaultProps = {
   name: "Dr. Sophie Müller",
   speciality: "Ophthalmologist",
   address: "Maximilianstraße 12\n80539 Munich",
-  insurance: "public",
+  insurance: "private",
+  rating: 4.8,
+  price: 120,
+  providerPlatform: "Doctolib",
+  bookingUrl: "https://www.doctolib.de/ophtalmologe/munich/sophie-mueller",
+  gpsCoordinates: {latitude: 48.1397, longitude: 11.5784},
   telehealth: false,
   status: "finished" as const,
   isMobile: false,
-  onFullscreen: () => {},
+  onFullscreen: () => console.log('[Preview] result expanded'),
 };
 
 export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  chat: {...defaultProps, resultContext: "chat" as const},
   /** Telehealth appointment slot (Doctolib) */
   telehealth: {
     ...defaultProps,

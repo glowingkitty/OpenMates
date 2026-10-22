@@ -14180,7 +14180,7 @@
               "text": "Mistral AI"
             },
             "description": {
-              "text": "Mistral processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path."
+              "text": "Mistral receives the current speakable assistant-message segment and curated voice settings when you choose Speak or enable spoken responses. It processes eligible chat messages when you select a Mistral model and processes realtime or uploaded voice audio when you use audio transcription. Voice audio can contain personal or sensitive information and does not receive typed-message placeholder substitution. Mistral states that ordinary API inputs and outputs may be retained for 30 rolling days for abuse monitoring unless zero-data retention is activated; OpenMates does not promise zero-data retention for this path."
             }
           },
           "openai_v2": {
@@ -17627,6 +17627,11 @@
       "repeat_heading": {
         "text": "Repeat?"
       }
+    }
+  },
+  "result_embed": {
+    "insurance": {
+      "text": "Insurance"
     }
   },
   "rules": {

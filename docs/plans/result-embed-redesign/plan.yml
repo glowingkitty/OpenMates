@@ -1,0 +1,31 @@
+schema_version: 2
+profile: concise
+id: result-embed-redesign
+title: Consistent result embed previews and fullscreens
+status: approved
+goal: >-
+  Redesign and finish embed previews and fullscreen views from the supplied Figma
+  PDFs, starting with home listings and health appointments, deploying those so
+  the user can review while the remaining result embeds are adapted.
+scope:
+  - Establish mandatory reusable result-embed design guidance.
+  - Reuse shared preview/fullscreen, fact, tooltip, map, media and composer structures.
+  - Preserve specialized Code, Docs and Sheets designs and existing product behavior.
+  - Exclude calendar views and new additional-results behavior from this phase.
+references:
+  - docs/design-guide/result-embeds.md
+  - specifications/features/app-skills/home-search/specification.yml
+  - specifications/features/app-skills/health-search-appointments/specification.yml
+decisions:
+  - Deploy Home/Health first; continue other results during user review.
+  - News mirrors websites and adds a publication-date badge.
+  - Git repositories use text-first identity and compact icon facts.
+  - 3D/image/video media remains uncropped; preserve existing playback and PiP.
+  - Assistant cards use selectable content and explicit Expand; result grids remain clickable.
+verification:
+  required:
+    - Focused local lint and unit checks for touched behavior.
+    - Isolated GitHub bare-preview component checks before deployment.
+    - Inspect artifacts against supplied PDF designs.
+    - Scoped dev deployment and reviewed phone/laptop visual smoke.
+    - Provide deployed previews and selected successful E2E recordings.

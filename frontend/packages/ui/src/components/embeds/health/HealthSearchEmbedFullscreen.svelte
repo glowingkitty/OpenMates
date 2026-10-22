@@ -335,6 +335,8 @@
       ratingCount={result.rating_count}
       price={result.price}
       providerPlatform={result.provider_platform}
+      gpsCoordinates={result.gps_coordinates}
+      bookingUrl={result.booking_url || result.practice_url}
       additionalSlotCount={result.additional_slot_count ?? 0}
       status="finished"
       isMobile={false}

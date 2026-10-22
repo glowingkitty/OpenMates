@@ -14753,6 +14753,11 @@
       }
     }
   },
+  "result_embed": {
+    "insurance": {
+      "text": "Seguro"
+    }
+  },
   "rules": {},
   "settings": {
     "account": {

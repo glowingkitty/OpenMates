@@ -13,8 +13,13 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { text } from '@repo/ui';
+  import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
+  import ResultEmbedMapPreview from "../ResultEmbedMapPreview.svelte";
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Star from '@lucide/svelte/icons/star';
+  import Shield from '@lucide/svelte/icons/shield-question';
+  import Video from '@lucide/svelte/icons/video';
+  import { text } from "@repo/ui";
 
   /**
    * Props for a single appointment slot card.
@@ -47,11 +52,14 @@
     /** Number of additional alternate slots available for this doctor */
     additionalSlotCount?: number;
     /** Processing status */
-    status?: 'processing' | 'finished' | 'error';
+    status?: "processing" | "finished" | "error";
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler to open fullscreen detail view */
     onFullscreen: () => void;
+    gpsCoordinates?: { latitude?: number; longitude?: number };
+    bookingUrl?: string;
+    resultContext?: "auto" | "chat" | "results";
   }
 
   let {
@@ -67,19 +75,28 @@
     price,
     providerPlatform,
     additionalSlotCount = 0,
-    status = 'finished',
+    status = "finished",
     isMobile = false,
     onFullscreen,
+    gpsCoordinates,
+    bookingUrl,
+    resultContext = "auto",
   }: Props = $props();
 
   /** Format ISO slot datetime as human-readable short date + time */
   function formatSlot(iso?: string): string {
-    if (!iso) return '';
+    if (!iso) return "";
     try {
       const dt = new Date(iso);
-      return dt.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
-        + ' · '
-        + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return (
+        dt.toLocaleDateString([], {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }) +
+        " · " +
+        dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      );
     } catch {
       return iso;
     }
@@ -88,9 +105,25 @@
   let effectiveSlotDatetime = $derived(slotDatetime);
   let slotDisplay = $derived(formatSlot(effectiveSlotDatetime));
 
+  let mapCenter = $derived(
+    gpsCoordinates?.latitude != null &&
+      gpsCoordinates.longitude != null &&
+      Number.isFinite(gpsCoordinates.latitude) &&
+      Number.isFinite(gpsCoordinates.longitude) &&
+      Math.abs(gpsCoordinates.latitude) <= 90 &&
+      Math.abs(gpsCoordinates.longitude) <= 180
+      ? { lat: gpsCoordinates.latitude, lon: gpsCoordinates.longitude }
+      : undefined,
+  );
+  let slotDate = $derived(
+    effectiveSlotDatetime ? new Date(effectiveSlotDatetime) : undefined,
+  );
+  let validDate = $derived(
+    slotDate && !Number.isNaN(slotDate.getTime()) ? slotDate : undefined,
+  );
   // Short display name used in the BasicInfosBar title area
-  let displayTitle = $derived(name || speciality || 'Doctor');
-  let providerName = $derived(providerPlatform?.trim() || 'the provider');
+  let displayTitle = $derived(name || speciality || "Doctor");
+  let providerName = $derived(providerPlatform?.trim() || "the provider");
 
   // No-op stop (individual slot cards are not cancellable tasks)
   async function handleStop() {
@@ -106,231 +139,199 @@
   {status}
   skillName={displayTitle}
   {isMobile}
-  onFullscreen={onFullscreen}
+  {onFullscreen}
   onStop={handleStop}
-  showStatus={false}
-  showSkillIcon={false}
+  resultPreview={true}
+  {resultContext}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="appointment-details" class:mobile={isMobileLayout}>
-
-      <!-- Slot datetime — prominent — with "+N more" badge when alternates exist -->
-      {#if slotDisplay}
-        <div class="slot-datetime-row">
-          <span class="slot-datetime">{slotDisplay}</span>
-          {#if additionalSlotCount > 0}
-            <span class="more-slots-badge">+{additionalSlotCount} more</span>
-          {/if}
+  {#snippet resultPrimaryAction()}
+    {#if bookingUrl}<a
+        href={bookingUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={$text("embeds.open_on_provider").replace(
+          "{provider}",
+          providerName,
+        )}
+        onclick={(event) => event.stopPropagation()}
+        ><ExternalLink size={18} aria-hidden="true" /></a
+      >{/if}
+  {/snippet}
+  {#snippet details()}
+    <div class="appointment-card" data-testid="health-appointment-result-card">
+      <div class="appointment-map">
+        {#if mapCenter}<ResultEmbedMapPreview
+            center={mapCenter}
+            markers={[{ ...mapCenter, label: displayTitle }]}
+          />{/if}
+      </div>
+      {#if validDate}
+        <div class="appointment-date" title={slotDisplay}>
+          <span>{validDate.toLocaleDateString([], { weekday: "short" })}</span
+          ><strong>{validDate.getDate()}</strong>
         </div>
+        <span class="appointment-time"
+          >{validDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}</span
+        >
       {/if}
-
-      <!-- Doctor name -->
-      {#if name}
-        <div class="doctor-name">{name}</div>
-      {/if}
-
-      <!-- Speciality -->
-      {#if speciality}
-        <div class="doctor-speciality">{speciality}</div>
-      {/if}
-
-      <!-- Address (first line only) -->
-      {#if address}
-        <div class="doctor-address">{address.split('\n')[0]}</div>
-      {/if}
-
-      <!-- Rating + Price row (combined Jameda + Google Places) -->
-      {#if rating != null || price != null || providerPlatform}
-        <div class="extras-row">
-          {#if rating != null}
-            <span class="rating-compact">
-              {rating.toFixed(1)} ★
-              {#if ratingCount != null && ratingCount > 0}
-                <span class="rating-count">({ratingCount})</span>
-              {/if}
-            </span>
-          {/if}
-          {#if price != null}
-            <span class="price-compact">{price} €</span>
-          {/if}
-          {#if providerPlatform}
-            <span class="provider-compact">{providerPlatform}</span>
-          {/if}
+      <div class="appointment-copy">
+        {#if speciality}<span class="speciality">{speciality}</span>{/if}
+        <strong class="doctor-name">{displayTitle}</strong>
+        <div class="appointment-meta">
+          {#if rating != null}<span
+              title={`${ratingCount ?? 0} ${$text("embeds.health.reviews")}`}
+              ><Star size={12} aria-hidden="true" />{rating.toFixed(1)}</span
+            >{/if}
+          {#if price != null}<span>{price} EUR</span>{/if}
+          {#if insurance === "unknown"}<span
+              class="insurance-unknown-badge"
+              title={$text("embeds.health.insurance_verify_tooltip").replace(
+                "{provider}",
+                providerName,
+              )}
+              ><Shield size={14} aria-hidden="true" /><span class="sr-only"
+                >{$text("embeds.health.insurance_verify_on_provider").replace(
+                  "{provider}",
+                  providerName,
+                )}</span
+              ></span
+            >
+          {:else if insurance}<span
+              >{insurance === "public"
+                ? $text("embeds.search_domain.insurance_public")
+                : insurance === "private"
+                  ? $text("embeds.search_domain.insurance_private")
+                  : insurance}</span
+            >{/if}
+          {#if telehealth}<span title={$text("embeds.health.telehealth")}
+              ><Video size={14} aria-hidden="true" /></span
+            >{/if}
+          {#if additionalSlotCount > 0}<span
+              title={$text("embeds.health.also_available")}
+              >+{additionalSlotCount}</span
+            >{/if}
         </div>
-      {/if}
-
-      <!-- Badges row: telehealth, insurance -->
-      {#if telehealth || insurance}
-        <div class="badges-row">
-          {#if telehealth}
-            <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
-          {/if}
-          {#if insurance === 'unknown'}
-            <span class="badge insurance-unknown-badge" title={$text('embeds.health.insurance_verify_tooltip').replace('{provider}', providerName)}>
-              {$text('embeds.health.insurance_verify_on_provider').replace('{provider}', providerName)}
-            </span>
-          {:else if insurance}
-            <span class="badge insurance-badge">{insurance}</span>
-          {/if}
-        </div>
-      {/if}
+        {#if address}<span class="sr-only">{address}</span>{/if}
+      </div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  /* =============================================
-     Appointment Card Content
-     ============================================= */
-
-  .appointment-details {
+  .appointment-card {
+    height: 100%;
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    height: 100%;
-    justify-content: center;
-    padding: 2px 0;
   }
-
-  .appointment-details.mobile {
-    justify-content: flex-start;
-  }
-
-  /* Slot datetime row — holds the primary time + optional "+N more" badge */
-  .slot-datetime-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    flex-wrap: wrap;
-  }
-
-  /* Slot datetime — most prominent element */
-  .slot-datetime {
-    font-weight: 700;
-    color: var(--color-primary);
-    line-height: 1.25;
-  }
-
-  .appointment-details.mobile .slot-datetime {
-    font-size: var(--font-size-small);
-  }
-
-  /* "+N more" badge showing alternate slots for the same doctor */
-  .more-slots-badge {
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: var(--radius-8);
-    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.1);
-    color: var(--color-primary);
-    line-height: 1.4;
-  }
-
-  /* Doctor name */
-  .doctor-name {
-    font-size: var(--font-size-small);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+  .appointment-map {
+    z-index: 0;
+    position: absolute;
+    inset: 0 0 2rem;
+    background: var(--color-grey-20);
     overflow: hidden;
-    text-overflow: ellipsis;
   }
-
-  .appointment-details.mobile .doctor-name {
-    font-size: var(--font-size-xs);
+  .appointment-map::after {
+    position: absolute;
+    content: "";
+    inset: 45% 0 0;
+    background: linear-gradient(transparent, var(--color-grey-0));
+    pointer-events: none;
+    z-index: 401;
   }
-
-  /* Speciality */
-  .doctor-speciality {
-    font-size: var(--font-size-xs);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-    font-weight: 500;
-  }
-
-  .appointment-details.mobile .doctor-speciality {
-    font-size: var(--font-size-xxs);
-  }
-
-  /* Address */
-  .doctor-address {
-    font-size: var(--font-size-xxs);
-    color: var(--color-grey-60);
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Rating + Price extras row */
-  .extras-row {
+  .appointment-date {
+    position: absolute;
+    z-index: 402;
+    top: var(--spacing-4);
+    left: 48px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: var(--spacing-3);
-    margin-top: 1px;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-3);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-sm);
+    line-height: 1.1;
   }
-
-  .rating-compact {
-    font-size: var(--font-size-xxs);
+  .appointment-date span {
+    font-size: 0.625rem;
+    color: var(--color-semantic-error);
+  }
+  .appointment-date strong {
+    font-size: 1.4rem;
+    font-weight: 400;
+  }
+  .appointment-time {
+    position: absolute;
+    z-index: 402;
+    top: var(--spacing-6);
+    left: 95px;
+    background: var(--color-grey-0);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--radius-2);
+    font-size: 0.75rem;
     font-weight: 600;
-    color: var(--color-warning, #f5a623);
   }
-
-  .rating-compact .rating-count {
-    color: var(--color-grey-60);
-    font-weight: 500;
-    margin-left: 2px;
+  .appointment-copy {
+    z-index: 402;
+    position: relative;
+    margin-top: auto;
+    padding: var(--spacing-5) var(--spacing-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
   }
-
-  .price-compact {
-    font-size: var(--font-size-xxs);
-    font-weight: 600;
+  .speciality,
+  .appointment-meta {
+    font-size: 0.75rem;
     color: var(--color-font-secondary);
   }
-
-  .provider-compact {
-    font-size: var(--font-size-tiny);
-    font-weight: 500;
-    color: var(--color-grey-50);
+  .doctor-name {
+    font-size: 0.875rem;
+    font-weight: 650;
+    line-height: 1.3;
   }
-
-  /* Badges row */
-  .badges-row {
+  .appointment-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-2);
-    margin-top: var(--spacing-1);
+    gap: var(--spacing-3);
   }
-
-  .badge {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: var(--radius-8);
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    line-height: 1.4;
+  .appointment-meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
   }
-
-  .telehealth-badge {
-    background-color: rgba(var(--color-primary-rgb, 74, 144, 226), 0.1);
-    color: var(--color-primary);
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
-
-  .insurance-badge {
-    background-color: var(--color-grey-10);
-    color: var(--color-grey-70);
-    border: 1px solid var(--color-grey-30);
-    text-transform: capitalize;
+  @container result-card (min-width: 400px) {
+    .appointment-map {
+      inset: 0 0 0 34%;
+    }
+    .appointment-map::after {
+      display: none;
+    }
+    .appointment-copy {
+      width: 34%;
+      box-sizing: border-box;
+      margin-block: auto;
+      padding-inline: var(--spacing-6);
+    }
+    .appointment-date {
+      top: 3.5rem;
+      left: var(--spacing-6);
+    }
+    .appointment-time {
+      top: 4rem;
+      left: 4rem;
+    }
   }
-
-  .insurance-unknown-badge {
-    background-color: rgba(var(--color-warning-rgb, 245, 166, 35), 0.12);
-    color: var(--color-warning, #f5a623);
-    border: 1px solid rgba(var(--color-warning-rgb, 245, 166, 35), 0.3);
-  }
-
 </style>

@@ -21,6 +21,7 @@
 
   let {
     surface,
+    presentation = 'workspace',
     value = $bindable(''),
     focusActive = $bindable(false),
     placeholder,
@@ -40,6 +41,7 @@
     onRecordingClose,
   }: {
     surface: WorkspaceSurface;
+    presentation?: 'workspace' | 'embed';
     value?: string;
     focusActive?: boolean;
     placeholder: string;
@@ -153,6 +155,7 @@
 <div class="workspace-prompt-shell" class:focused={collapsible && focused}>
 <form
   class="workspace-prompt-composer"
+  class:embed-presentation={presentation === 'embed'}
   class:focused
   class:has-text={hasText}
   class:hasFileImport={!!fileImport}
@@ -179,7 +182,7 @@
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
       onclick={fileImport.onClick}
-    ><span class="clickable-icon icon_files" aria-hidden="true"></span></button>
+    ><span class="clickable-icon" class:icon_files={presentation !== 'embed'} class:icon_ai={presentation === 'embed'} aria-hidden="true"></span></button>
   {:else}
     <span class="workspace-prompt-ai-icon" aria-hidden="true"></span>
   {/if}
@@ -617,4 +620,18 @@
       font-size: var(--font-size-small);
     }
   }
+  .workspace-prompt-composer.embed-presentation {
+    min-height: 44px;
+    padding: var(--spacing-4) 44px;
+    background: var(--color-grey-0);
+    border-radius: var(--radius-8);
+    box-shadow: var(--shadow-md);
+  }
+  .embed-presentation textarea { font-size: 0.8125rem; }
+  .embed-presentation .workspace-prompt-file { left: 4px; width: 36px; height: 36px; }
+  .embed-presentation .workspace-prompt-file span { width: 22px; height: 22px; background: var(--color-grey-60); }
+  .embed-presentation .workspace-prompt-mic { right: 12px; width: 22px; height: 22px; min-width: 0; min-height: 0; margin: 0; padding: 0; filter: none; }
+  .embed-presentation.has-text { padding-right: 44px; }
+  .embed-presentation .workspace-prompt-submit { min-width: 0; min-height: 32px; height: 32px; margin: 0; padding: 0 var(--spacing-4); font-size: 0.75rem; filter: none; }
+  .embed-presentation.recording { min-height: 220px; }
 </style>

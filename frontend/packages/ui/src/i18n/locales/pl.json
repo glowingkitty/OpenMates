@@ -14726,6 +14726,11 @@
       }
     }
   },
+  "result_embed": {
+    "insurance": {
+      "text": "Ubezpieczenie"
+    }
+  },
   "rules": {},
   "settings": {
     "account": {

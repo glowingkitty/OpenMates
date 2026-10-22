@@ -139,6 +139,8 @@
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
     /** Optional embed-specific actions in the standard header menu. */
     fixedBottom?: import('svelte').Snippet;
+    /** Result embeds float their composer over the content, as in the design references. */
+    floatingBottom?: boolean;
     /** App landing pages fit one screen; result collections retain scrolling. */
     contentLayout?: 'default' | 'app-home';
     embedHeaderContent?: import('svelte').Snippet;
@@ -202,6 +204,7 @@
      * When empty/undefined, shows the app icon (icon_rounded class).
      */
     skillIconName?: string;
+    decorationIconName?: string;
 
     /** Optional app icon override when appId has no icon_rounded CSS mapping. */
     appIconName?: string;
@@ -392,6 +395,7 @@
     showShare = true,
     content,
     fixedBottom,
+    floatingBottom = false,
     contentLayout = 'default',
     embedHeaderContent,
     headerPrimaryAction,
@@ -412,6 +416,7 @@
     embedHeaderFaviconUrl,
     embedHeaderFaviconIsCircular = false,
     skillIconName = '',
+    decorationIconName,
     appIconName = '',
     showSkillIcon = true,
     // Child embed loading props
@@ -1453,6 +1458,7 @@
           providers={embedHeaderProviders}
           {appId}
           {skillIconName}
+          {decorationIconName}
           {appIconName}
           {showSkillIcon}
           onHeaderIconClick={embedHeaderIconInteractive ? handleEmbedHeaderIconClick : undefined}
@@ -1488,7 +1494,7 @@
         {#if appsSave.state === 'error'}<button type="button" data-testid="apps-result-save-retry" onclick={() => appsSave.retry()}>{$text('apps_workspace.retry_save')}</button>{/if}
       </div>
     {/if}
-    {#if fixedBottom}<div class="fixed-bottom" data-testid="embed-fixed-bottom">{@render fixedBottom()}</div>{/if}
+    {#if fixedBottom}<div class="fixed-bottom" class:floating-bottom={floatingBottom} data-testid="embed-fixed-bottom">{@render fixedBottom()}</div>{/if}
 
     <!-- ── Action buttons (transparent overlay, positioned over the header) ──
          position: absolute so it does not push the content area down.
@@ -1628,6 +1634,8 @@
   .apps-save-state { position: relative; z-index: 1000; flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 6px 12px; font-size: var(--font-size-xs); color: var(--color-font-secondary); background: var(--embed-content-background); }
   .apps-save-state button { padding: 4px 8px; border: 0; border-radius: 8px; background: var(--color-grey-10); color: var(--color-font-primary); cursor: pointer; }
   .fixed-bottom { flex-shrink: 0; position: relative; z-index: 1000; padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)); background: var(--embed-content-background); }
+  .fixed-bottom.floating-bottom { position: absolute; inset-inline: 0; bottom: 0; background: linear-gradient(transparent, var(--embed-content-background)); pointer-events: none; }
+  .floating-bottom :global(.result-followup) { pointer-events: auto; }
   .content-area.app-home-content { display: flex; flex-direction: column; overflow: hidden; }
 
   .content-area {

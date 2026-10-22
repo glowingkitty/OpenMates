@@ -17,10 +17,16 @@
 -->
 
 <script lang="ts">
-  import { text } from '../../../i18n/translations';
-  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
+  import House from '@lucide/svelte/icons/house';
+  import Calendar from '@lucide/svelte/icons/calendar-days';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import { text } from "../../../i18n/translations";
+  import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
+  import {
+    proxyImage,
+    MAX_WIDTH_PREVIEW_THUMBNAIL,
+  } from "../../../utils/imageProxy";
+  import { handleImageError } from "../../../utils/offlineImageHandler";
 
   interface Props {
     /** Child embed ID */
@@ -51,6 +57,7 @@
     onSelect: () => void;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    resultContext?: "auto" | "chat" | "results";
   }
 
   let {
@@ -60,6 +67,7 @@
     size_sqm,
     rooms,
     address,
+    url,
     image_url,
     location_precision,
     location_approximate = true,
@@ -67,31 +75,30 @@
     listing_type: _listingType,
     available_from,
     onSelect,
-    isMobile = false
+    isMobile = false,
+    resultContext = "auto",
   }: Props = $props();
 
   let imageError = $state(false);
+  $effect(() => {
+    void image_url;
+    imageError = false;
+  });
 
   let proxiedImageUrl = $derived(
     image_url && !imageError
       ? proxyImage(image_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
-      : null
+      : null,
   );
 
-  let sizeDisplay = $derived(
-    size_sqm ? `${size_sqm} m\u00B2` : undefined
-  );
+  let sizeDisplay = $derived(size_sqm ? `${size_sqm} m\u00B2` : undefined);
 
   let roomsDisplay = $derived(
-    rooms ? `${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : undefined
+    rooms ? `${rooms} ${rooms === 1 ? "room" : "rooms"}` : undefined,
   );
 
   let availableDisplay = $derived(
-    available_from ? `from ${available_from}` : undefined
-  );
-
-  let metadataItems = $derived(
-    [sizeDisplay, roomsDisplay, availableDisplay].filter(Boolean)
+    available_from ? `from ${available_from}` : undefined,
   );
 
   function handleStop() {
@@ -102,163 +109,162 @@
 <UnifiedEmbedPreview
   id={embed_id}
   appId="home"
-  skillId="search"
-  skillIconName="search"
+  skillId="listing"
+  skillIconName="home"
   status="finished"
-  skillName={title || 'Listing'}
+  skillName={title || $text("home_listing.listing")}
   {isMobile}
   onFullscreen={onSelect}
   onStop={handleStop}
-  showStatus={false}
-  showSkillIcon={false}
-  hasFullWidthImage={!!proxiedImageUrl && !title && !price_label}
+  resultPreview={true}
+  {resultContext}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="listing-details" class:mobile={isMobileLayout}>
-      <div class="listing-content-row">
-        <!-- Text content (left side) -->
-        <div class="listing-text">
-          {#if price_label}
-            <div class="listing-price">{price_label}</div>
-          {/if}
-
-          {#if title}
-            <div class="listing-title">{title}</div>
-          {/if}
-
-          {#if address}
-            <div class="listing-address">{address}{location_approximate || location_precision !== 'building' ? ` · ${$text('home_listing.approximate')}` : ''}</div>
-          {/if}
-
-          {#if metadataItems.length > 0}
-            <div class="listing-metadata">
-              {metadataItems.join(' \u00B7 ')}
-            </div>
-          {/if}
+  {#snippet resultPrimaryAction()}
+    {#if url}<a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={$text("embeds.open_on_provider").replace(
+          "{provider}",
+          provider || "listing",
+        )}
+        onclick={(event) => event.stopPropagation()}
+        ><ExternalLink size={18} aria-hidden="true" /></a
+      >{/if}
+  {/snippet}
+  {#snippet details()}
+    <div
+      class="listing-card"
+      class:without-image={!proxiedImageUrl}
+      data-testid="home-listing-result-card"
+    >
+      {#if proxiedImageUrl}<div class="listing-image">
+          <img
+            src={proxiedImageUrl}
+            alt=""
+            loading="lazy"
+            onerror={(event) => {
+              imageError = true;
+              handleImageError(event.currentTarget);
+            }}
+          />
+        </div>{/if}
+      <div class="listing-copy">
+        <strong class="listing-title"
+          >{title || $text("home_listing.listing")}</strong
+        >
+        {#if price_label}<span class="listing-price">{price_label}</span>{/if}
+        <div class="listing-extra">
+          {#if sizeDisplay}<span title={sizeDisplay}
+              ><House size={14} aria-hidden="true" /> {sizeDisplay}</span
+            >{/if}{#if availableDisplay}<span title={availableDisplay}
+              ><Calendar size={14} aria-hidden="true" /> {available_from}</span
+            >{/if}
         </div>
-
-        <!-- Image (right side) -->
-        {#if proxiedImageUrl && !isMobileLayout}
-          <div class="listing-preview-image">
-            {#if provider}
-              <span class="provider-badge">{provider}</span>
-            {/if}
-            <img
-              src={proxiedImageUrl}
-              alt={title || 'Listing'}
-              loading="lazy"
-              crossorigin="anonymous"
-              onerror={(e) => {
-                imageError = true;
-                handleImageError(e.currentTarget as HTMLImageElement);
-              }}
-            />
-          </div>
-        {/if}
+        {#if address}<span class="sr-only"
+            >{address}{location_approximate || location_precision !== "building"
+              ? ` · ${$text("home_listing.approximate")}`
+              : ""}</span
+          >{/if}
+        {#if roomsDisplay}<span class="sr-only">{roomsDisplay}</span>{/if}
       </div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .listing-details {
+  .listing-card {
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    height: 100%;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .listing-details.mobile {
-    justify-content: flex-start;
-  }
-
-  .listing-content-row {
-    display: flex;
-    align-items: stretch;
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    width: 100%;
-  }
-
-  .listing-text {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    flex: 0 1 55%;
-    min-width: 0;
-    align-self: center;
-    padding: 4px 0;
-  }
-
-  .listing-price {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-  }
-
-  .listing-title {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-
-  .listing-address {
-    font-size: 0.8125rem;
-    color: var(--color-grey-70);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .listing-metadata {
-    font-size: 0.75rem;
-    color: var(--color-grey-60);
-    line-height: 1.3;
-    margin-top: var(--spacing-1);
-  }
-
-  /* Image on right side */
-  .listing-preview-image {
     position: relative;
-    flex: 1;
-    min-width: 0;
-    height: 171px;
-    transform: translateX(20px);
   }
-
-  .listing-preview-image img {
+  .listing-image {
+    position: absolute;
+    inset: 0 0 3rem;
+    overflow: hidden;
+  }
+  .listing-image img {
     width: 100%;
     height: 100%;
-    display: block;
     object-fit: cover;
   }
-
-  .provider-badge {
+  .listing-image::after {
+    content: "";
     position: absolute;
-    top: 8px;
-    right: 28px;
-    padding: 3px 8px;
-    border-radius: var(--radius-3);
-    background-color: rgba(0, 0, 0, 0.6);
-    color: var(--color-grey-0);
-    font-size: 0.6875rem;
-    font-weight: 500;
+    inset: 40% 0 0;
+    background: linear-gradient(transparent, var(--color-grey-0));
+  }
+  .listing-copy {
+    position: relative;
+    z-index: 1;
+    margin-top: auto;
+    padding: var(--spacing-5) var(--spacing-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+  .listing-title {
+    font-size: 0.875rem;
+    font-weight: 650;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+  .listing-price {
+    font-size: 0.75rem;
+    color: var(--color-font-secondary);
+  }
+  .listing-extra span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+  .listing-extra {
+    display: none;
+    gap: var(--spacing-6);
+    color: var(--color-font-secondary);
+    font-size: 0.75rem;
+  }
+  .without-image .listing-copy {
+    margin-block: auto;
+    padding-top: var(--spacing-20);
+  }
+  .without-image .listing-extra {
+    display: flex;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
     white-space: nowrap;
-    z-index: var(--z-index-raised);
+  }
+  @container result-card (min-width: 400px) {
+    .listing-card {
+      flex-direction: row;
+    }
+    .listing-copy {
+      width: 34%;
+      min-width: 0;
+      margin-block: auto;
+      box-sizing: border-box;
+      padding: var(--spacing-10) var(--spacing-6);
+    }
+    .listing-image {
+      inset: 0 0 0 34%;
+    }
+    .listing-image::after {
+      display: none;
+    }
+    .listing-extra {
+      display: flex;
+      flex-wrap: wrap;
+    }
   }
 </style>

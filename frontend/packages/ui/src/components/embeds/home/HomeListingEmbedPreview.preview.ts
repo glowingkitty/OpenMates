@@ -13,17 +13,19 @@ const defaultProps = {
 	size_sqm: 55,
 	rooms: 2,
 	address: 'Bergmannstr. 12, 10961 Berlin',
-	image_url: '',
+	image_url: '/store-examples/home-1.webp',
 	url: 'https://www.immobilienscout24.de/expose/12345',
 	provider: 'ImmoScout24',
 	listing_type: 'rent',
-	onSelect: () => {}
+	onSelect: () => console.log('[Preview] result expanded')
 };
 
 export default defaultProps;
 
 /** Named variants for different listing types */
 export const variants = {
+  noImage: {...defaultProps, image_url: ''},
+  chat: {...defaultProps, resultContext: 'chat' as const},
 	/** WG-Gesucht room listing */
 	wgRoom: {
 		embed_id: 'preview-listing-wg',
@@ -36,7 +38,7 @@ export const variants = {
 		url: 'https://www.wg-gesucht.de/wg-zimmer-in-Berlin.12345.html',
 		provider: 'WG-Gesucht',
 		listing_type: 'rent',
-		onSelect: () => {}
+		onSelect: () => console.log('[Preview] result expanded')
 	},
 
 	/** Kleinanzeigen listing */
@@ -51,7 +53,7 @@ export const variants = {
 		url: 'https://www.kleinanzeigen.de/s-anzeige/67890',
 		provider: 'Kleinanzeigen',
 		listing_type: 'rent',
-		onSelect: () => {}
+		onSelect: () => console.log('[Preview] result expanded')
 	},
 
 	/** Buy listing */
@@ -66,7 +68,7 @@ export const variants = {
 		url: 'https://www.immobilienscout24.de/expose/99999',
 		provider: 'ImmoScout24',
 		listing_type: 'buy',
-		onSelect: () => {}
+		onSelect: () => console.log('[Preview] result expanded')
 	},
 
 	/** Minimal data (no image, no size) */
@@ -78,6 +80,6 @@ export const variants = {
 		url: 'https://www.kleinanzeigen.de/s-anzeige/00000',
 		provider: 'Kleinanzeigen',
 		listing_type: 'rent',
-		onSelect: () => {}
+		onSelect: () => console.log('[Preview] result expanded')
 	}
 };

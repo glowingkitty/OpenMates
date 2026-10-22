@@ -14102,7 +14102,7 @@
               "text": "Mistral AI"
             },
             "description": {
-              "text": "Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung."
+              "text": "Mistral erhält den aktuellen vorlesbaren Abschnitt der Assistentennachricht und die kuratierten Stimmeinstellungen, wenn du Vorlesen auswählst oder gesprochene Antworten aktivierst. Mistral verarbeitet geeignete Chatnachrichten, wenn du ein Mistral-Modell auswählst, und verarbeitet Echtzeit- oder hochgeladenes Sprachaudio, wenn du die Audiotranskription nutzt. Sprachaudio kann personenbezogene oder sensible Informationen enthalten und erhält nicht die Platzhalterersetzung für eingetippte Nachrichten. Laut Mistral können gewöhnliche API-Eingaben und -Ausgaben für einen gleitenden Zeitraum von 30 Tagen zur Missbrauchsüberwachung aufbewahrt werden, sofern die Null-Datenaufbewahrung nicht aktiviert ist; OpenMates verspricht für diesen Verarbeitungspfad keine Null-Datenaufbewahrung."
             }
           },
           "openai_v2": {
@@ -17009,6 +17009,11 @@
       "repeat_heading": {
         "text": "Wiederholen?"
       }
+    }
+  },
+  "result_embed": {
+    "insurance": {
+      "text": "Versicherung"
     }
   },
   "rules": {

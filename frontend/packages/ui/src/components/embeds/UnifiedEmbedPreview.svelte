@@ -34,6 +34,7 @@
 -->
 
 <script lang="ts">
+  import { text } from '../../i18n/translations';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.chatId ?? null;
@@ -55,6 +56,10 @@
     inputEmbedIds?: string[];
     /** Reuse card rendering for parent-owned content without an embed record or sync. */
     presentationOnly?: boolean;
+    /** Approved result-card layout; specialized editor previews keep their existing design. */
+    resultPreview?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
+    resultPrimaryAction?: import('svelte').Snippet;
     /** Draft content can be read locally but has no server record to recover yet. */
     localOnly?: boolean;
     /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient color */
@@ -109,6 +114,9 @@
     id,
     inputEmbedIds: inputEmbedIdsProp,
     presentationOnly = false,
+    resultPreview = false,
+    resultContext = 'auto',
+    resultPrimaryAction,
     localOnly = false,
     appId,
     skillId,
@@ -474,6 +482,7 @@
   // and dev showcase (.large-container in the dev preview page) wrappers —
   // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
+  let isChatResult = $derived(resultPreview && (resultContext === 'chat' || (resultContext === 'auto' && !!previewElement?.closest('.read-only-message, .embed-preview-large-container, .large-container'))));
   $effect(() => {
     if (previewElement) {
       isLargeContext = !!(
@@ -772,6 +781,7 @@
   // CRITICAL: Stop event propagation to prevent ReadOnlyMessage from showing context menu
   // BUT: Don't stop context menu events - let them bubble up for proper context menu handling
   function handleClick(e: MouseEvent) {
+    if (isChatResult) { e.stopPropagation(); return; }
     // If this was triggered right after a context menu opened, skip this click
     // The context menu flag auto-resets after 300ms, so this only blocks the
     // immediate click that might fire alongside the right-click
@@ -899,6 +909,8 @@
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
+  class:result-preview={resultPreview}
+  class:chat-result={isChatResult}
   data-testid="embed-preview"
   class:mobile={useMobileLayout}
   class:desktop={!useMobileLayout}
@@ -917,18 +929,18 @@
     tiltTransform ? `transform: ${tiltTransform};` : '',
     (!useMobileLayout && customHeight) ? `height: ${customHeight}px; min-height: ${customHeight}px; max-height: ${customHeight}px;` : ''
   ].filter(Boolean).join(' ')}
-  role={hasProcessingInputActions ? "group" : "button"}
+  role={hasProcessingInputActions || isChatResult ? "group" : "button"}
   aria-disabled={hasProcessingInputActions ? undefined : !isInteractive}
-  tabindex={isInteractive ? 0 : -1}
+  tabindex={isInteractive && !isChatResult ? 0 : -1}
   onclick={handleClick}
-  onkeydown={handleKeydown}
+  onkeydown={(event) => { if (!isChatResult) handleKeydown(event); }}
   onpointerdown={handlePointerDown}
   onmousedown={handleMouseDown}
   onmouseenter={handleMouseEnter}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   oncontextmenu={handleContextMenu}
-  ontouchstart={handleTouchStart}
+  ontouchstart={(event) => { if (!isChatResult) handleTouchStart(event); }}
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
@@ -937,7 +949,19 @@
       <Icon name="notes" size="16px" />
     </div>
   {/if}
-  {#if useMobileLayout}
+  {#if resultPreview}
+    <div class="result-corner" style:background={`var(--color-app-${appId})`} aria-hidden="true">
+      <span style:mask-image={`var(--icon-url-${appId === 'health' ? 'heart' : appId})`}></span>
+    </div>
+    {#if isChatResult}
+      <div class="result-tools">
+        {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
+        <button type="button" aria-label={$text('common.more_actions')} onclick={handleContextMenu} data-testid="result-preview-more">···</button>
+        <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
+      </div>
+    {/if}
+    <div class="result-preview-content">{#if details}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}</div>
+  {:else if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
     <div class="mobile-layout">
       <!-- Basic infos bar stays above skill details in every status. -->
@@ -1296,5 +1320,17 @@
       object-position: center;
       display: block;
     }
+  }
+  .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; width: 300px; max-width: 100%; height: 220px; padding: 0; background: var(--color-grey-0); overflow: hidden; border-radius: var(--radius-6); }
+  .unified-embed-preview.chat-result, .chat-result :global(*) { user-select: text; -webkit-user-select: text; }
+  .result-preview-content { width: 100%; height: 100%; min-width: 0; }
+  .result-corner { position: absolute; z-index: 2; top: 0; left: 0; width: 36px; height: 36px; border-end-end-radius: var(--radius-4); display: grid; place-items: center; }
+  .result-corner > span { width: 21px; height: 21px; mask-size: contain; mask-position: center; mask-repeat: no-repeat; background: var(--color-font-button); }
+  .result-tools { position: absolute; z-index: 3; top: var(--spacing-3); right: var(--spacing-3); display: flex; gap: var(--spacing-2); }
+  .result-tools button, .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-font-secondary); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; }
+  .result-tools button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+  .result-tools .clickable-icon { width: 18px; height: 18px; }
+  @container embed-preview (min-width: 400px) {
+    .unified-embed-preview.result-preview { width: 100%; height: 350px; }
   }
 </style>
