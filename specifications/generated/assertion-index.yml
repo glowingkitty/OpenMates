@@ -34474,57 +34474,57 @@ assertions:
     supporting_tests:
     - &id4319
       path: backend/tests/test_home_location_areas.py
-      line: 29
+      line: 32
       name: test_published_address_requires_a_house_not_a_postcode
       surface: rest_api
     - &id4320
       path: backend/tests/test_home_location_areas.py
-      line: 36
+      line: 39
       name: test_sixty_extents_are_enclosed
       surface: rest_api
     - &id4321
       path: backend/tests/test_home_location_areas.py
-      line: 47
+      line: 50
       name: test_extent_handles_dateline_and_rejects_points_without_extent
       surface: rest_api
     - &id4322
       path: backend/tests/test_home_location_areas.py
-      line: 58
+      line: 61
       name: test_numeric_allowances_and_walking_are_conservative_not_model_radii
       surface: rest_api
     - &id4323
       path: backend/tests/test_home_location_areas.py
-      line: 71
+      line: 74
       name: test_geo_match_must_match_the_advertised_address_and_anchor_type
       surface: rest_api
     - &id4324
       path: backend/tests/test_home_location_areas.py
-      line: 102
+      line: 105
       name: test_coordinates_without_address_become_city_circle_and_retain_original
       surface: rest_api
     - &id4325
       path: backend/tests/test_home_location_areas.py
-      line: 113
+      line: 116
       name: test_unrelated_building_cannot_turn_an_address_into_a_wrong_city_pin
       surface: rest_api
     - &id4326
       path: backend/tests/test_home_location_areas.py
-      line: 128
+      line: 131
       name: test_district_precedes_city_and_exact_address_stays_precise
       surface: rest_api
     - &id4327
       path: backend/tests/test_home_location_areas.py
-      line: 144
+      line: 147
       name: test_refinement_failure_and_deadline_retain_city_circle
       surface: rest_api
     - &id4328
       path: backend/tests/test_home_location_areas.py
-      line: 157
+      line: 160
       name: test_grounded_numeric_anchor_refines_and_namesake_conflicts_abstain
       surface: rest_api
     - &id4329
       path: backend/tests/test_home_location_areas.py
-      line: 176
+      line: 179
       name: test_candidate_cap_still_downgrades_unaddressed_building_claims
       surface: rest_api
     - &id4330
@@ -35007,57 +35007,57 @@ assertions:
       surface: rest_api
     - &id4395
       path: backend/tests/test_home_location_areas.py
-      line: 29
+      line: 32
       name: test_published_address_requires_a_house_not_a_postcode
       surface: rest_api
     - &id4396
       path: backend/tests/test_home_location_areas.py
-      line: 36
+      line: 39
       name: test_sixty_extents_are_enclosed
       surface: rest_api
     - &id4397
       path: backend/tests/test_home_location_areas.py
-      line: 47
+      line: 50
       name: test_extent_handles_dateline_and_rejects_points_without_extent
       surface: rest_api
     - &id4398
       path: backend/tests/test_home_location_areas.py
-      line: 58
+      line: 61
       name: test_numeric_allowances_and_walking_are_conservative_not_model_radii
       surface: rest_api
     - &id4399
       path: backend/tests/test_home_location_areas.py
-      line: 71
+      line: 74
       name: test_geo_match_must_match_the_advertised_address_and_anchor_type
       surface: rest_api
     - &id4400
       path: backend/tests/test_home_location_areas.py
-      line: 102
+      line: 105
       name: test_coordinates_without_address_become_city_circle_and_retain_original
       surface: rest_api
     - &id4401
       path: backend/tests/test_home_location_areas.py
-      line: 113
+      line: 116
       name: test_unrelated_building_cannot_turn_an_address_into_a_wrong_city_pin
       surface: rest_api
     - &id4402
       path: backend/tests/test_home_location_areas.py
-      line: 128
+      line: 131
       name: test_district_precedes_city_and_exact_address_stays_precise
       surface: rest_api
     - &id4403
       path: backend/tests/test_home_location_areas.py
-      line: 144
+      line: 147
       name: test_refinement_failure_and_deadline_retain_city_circle
       surface: rest_api
     - &id4404
       path: backend/tests/test_home_location_areas.py
-      line: 157
+      line: 160
       name: test_grounded_numeric_anchor_refines_and_namesake_conflicts_abstain
       surface: rest_api
     - &id4405
       path: backend/tests/test_home_location_areas.py
-      line: 176
+      line: 179
       name: test_candidate_cap_still_downgrades_unaddressed_building_claims
       surface: rest_api
     - &id4406
@@ -35324,57 +35324,57 @@ assertions:
     supporting_tests:
     - &id4429
       path: backend/tests/test_home_location_areas.py
-      line: 29
+      line: 32
       name: test_published_address_requires_a_house_not_a_postcode
       surface: rest_api
     - &id4430
       path: backend/tests/test_home_location_areas.py
-      line: 36
+      line: 39
       name: test_sixty_extents_are_enclosed
       surface: rest_api
     - &id4431
       path: backend/tests/test_home_location_areas.py
-      line: 47
+      line: 50
       name: test_extent_handles_dateline_and_rejects_points_without_extent
       surface: rest_api
     - &id4432
       path: backend/tests/test_home_location_areas.py
-      line: 58
+      line: 61
       name: test_numeric_allowances_and_walking_are_conservative_not_model_radii
       surface: rest_api
     - &id4433
       path: backend/tests/test_home_location_areas.py
-      line: 71
+      line: 74
       name: test_geo_match_must_match_the_advertised_address_and_anchor_type
       surface: rest_api
     - &id4434
       path: backend/tests/test_home_location_areas.py
-      line: 102
+      line: 105
       name: test_coordinates_without_address_become_city_circle_and_retain_original
       surface: rest_api
     - &id4435
       path: backend/tests/test_home_location_areas.py
-      line: 113
+      line: 116
       name: test_unrelated_building_cannot_turn_an_address_into_a_wrong_city_pin
       surface: rest_api
     - &id4436
       path: backend/tests/test_home_location_areas.py
-      line: 128
+      line: 131
       name: test_district_precedes_city_and_exact_address_stays_precise
       surface: rest_api
     - &id4437
       path: backend/tests/test_home_location_areas.py
-      line: 144
+      line: 147
       name: test_refinement_failure_and_deadline_retain_city_circle
       surface: rest_api
     - &id4438
       path: backend/tests/test_home_location_areas.py
-      line: 157
+      line: 160
       name: test_grounded_numeric_anchor_refines_and_namesake_conflicts_abstain
       surface: rest_api
     - &id4439
       path: backend/tests/test_home_location_areas.py
-      line: 176
+      line: 179
       name: test_candidate_cap_still_downgrades_unaddressed_building_claims
       surface: rest_api
     - &id4440

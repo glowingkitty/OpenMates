@@ -24,6 +24,9 @@ def region(name="Berlin", basis="city", bbox=None):
     ({"street": "Example Street"}, False),
     ({"latitude": 52.5, "longitude": 13.4, "location_precision": "building"}, False),
     ({"address": "Our office 12, Berlin"}, False),
+    ({"address": "500 m from Alexanderplatz, Berlin"}, False),
+    ({"address": "Near Alexanderplatz 12, Berlin"}, False),
+    ({"address": "5 minutes from Ostbahnhof, Berlin"}, False),
 ])
 # contract-test: supporting surface=rest_api assertions=home-search.location.precision,home-search.enrichment.bounded-and-reusable,home-search.output.safe-and-truthful
 def test_published_address_requires_a_house_not_a_postcode(listing, expected):

@@ -41,7 +41,10 @@ def normalized(value: Any) -> str:
 def address_components(listing: dict[str, Any]) -> tuple[str, str] | None:
     """Require a public street and house number, not a postcode or an anchor."""
     address = listing.get("address")
-    if re.search(r"\b(?:office|agency|advertiser|makler\w*|büro|buero|geschäftsstelle|impressum)\b", str(address or ""), re.I):
+    advertised = f"{address or ''} {listing.get('street') or ''}"
+    if re.search(r"\b(?:office|agency|advertiser|makler\w*|büro|buero|geschäftsstelle|impressum|near|close|around|nahe|nähe|naehe|unweit|entfernt|minutes?|minuten?)\b", advertised, re.I):
+        return None
+    if re.search(r"(?<!\w)\d+(?:[.,]\d+)?\s*(?:km|m|metres?|meters?|metern?|min\.?)\b", advertised, re.I):
         return None
     fields = address if isinstance(address, dict) else {}
     street = str(listing.get("street") or fields.get("street") or "").strip()
