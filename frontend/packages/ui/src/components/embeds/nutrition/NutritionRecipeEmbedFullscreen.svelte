@@ -11,7 +11,8 @@
 <script lang="ts">
   import { formatRecipeNutrient, parseRecipeResult, type RecipeResult } from './recipeNutrition';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
@@ -48,7 +49,7 @@
 
   /** Format minutes into a human-readable duration string */
   function formatDuration(minutes: number | null | undefined): string {
-    if (minutes == null || minutes <= 0) return '';
+    if (minutes == null || minutes < 0) return '';
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
     const remaining = minutes % 60;
@@ -86,84 +87,49 @@
       recipe.nutrition.fat_g != null ||
       recipe.nutrition.carbs_g != null)
   );
+  let failedImage = $state<string>();
+  function visibleText(value: unknown): string | undefined {
+    return typeof value === 'string' ? value : undefined;
+  }
+  function visibleNumber(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  }
+  // Supplied recipes can contain extra storage fields; project nested records too.
+  let visibleContext = $derived({
+    title: visibleText(title), description: visibleText(recipe.description), recipe_url: visibleText(recipe.recipe_url),
+    total_time_minutes: visibleNumber(recipe.total_time_minutes), difficulty: visibleText(recipe.difficulty),
+    servings: visibleNumber(recipe.servings), rating: visibleNumber(recipe.rating), rating_count: visibleNumber(recipe.rating_count),
+    ernaehrwert_score: visibleNumber(recipe.ernaehrwert_score),
+    dietary_tags: Array.isArray(recipe.dietary_tags) ? recipe.dietary_tags.filter((entry): entry is string => typeof entry === 'string') : [],
+    categories: Array.isArray(recipe.categories) ? recipe.categories.filter((entry): entry is string => typeof entry === 'string') : [],
+    ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.map((entry) => ({
+      amount: visibleText(entry.amount), unit: visibleText(entry.unit), name: visibleText(entry.name),
+    })) : [],
+    instructions: Array.isArray(recipe.instructions) ? recipe.instructions.map((entry) => ({ text: visibleText(entry.text) })) : [],
+    nutrition: {
+      calories_kcal: visibleNumber(recipe.nutrition?.calories_kcal), protein_g: visibleNumber(recipe.nutrition?.protein_g),
+      fat_g: visibleNumber(recipe.nutrition?.fat_g), carbs_g: visibleNumber(recipe.nutrition?.carbs_g),
+    },
+  });
 </script>
 
-<UnifiedEmbedFullscreen
-  appId="nutrition"
-  skillId="search_recipes"
-  embedHeaderTitle={title}
-  embedHeaderSubtitle={subtitle}
-  skillIconName="search"
-  showSkillIcon={true}
-  {onClose}
-  currentEmbedId={embedId}
-  {hasPreviousEmbed}
-  {hasNextEmbed}
-  {onNavigatePrevious}
-  {onNavigateNext}
->
-  {#snippet embedHeaderCta()}
-    {#if recipe.recipe_url}
-      <EmbedHeaderCtaButton label={$text('embeds.nutrition.view_source')} href={recipe.recipe_url} />
-    {/if}
+<ResultEmbedFullscreen appId="nutrition" skillId="search_recipes" skillIconName="search" embedHeaderTitle={title} embedHeaderSubtitle={subtitle} result={visibleContext} media={imageUrl && failedImage !== imageUrl ? resultMedia : undefined} {onClose} currentEmbedId={embedId} {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext}>
+  {#snippet embedHeaderCta()}{#if recipe.recipe_url}<EmbedHeaderCtaButton label={$text('embeds.nutrition.view_source')} href={recipe.recipe_url} />{/if}{/snippet}
+  {#snippet summary()}
+    {#if recipe.total_time_minutes != null}<ResultEmbedInfo icon="clock" label={$text('common.duration')} value={formatDuration(recipe.total_time_minutes)}><p>{formatDuration(recipe.total_time_minutes)}</p></ResultEmbedInfo>{/if}
+    {#if recipe.servings != null}<ResultEmbedInfo icon="users" label={$text('embeds.nutrition.servings')} value={`${recipe.servings} ${$text('embeds.nutrition.servings')}`}><p>{recipe.servings} {$text('embeds.nutrition.servings')}</p></ResultEmbedInfo>{/if}
+    {#if recipe.rating != null}<ResultEmbedInfo icon="star" label={$text('result_embed.rating')} value={ratingText}><p>{ratingText}{#if recipe.rating_count != null} ({recipe.rating_count}){/if}</p></ResultEmbedInfo>{/if}
   {/snippet}
-
-  {#snippet content()}
-    <div class="recipe-fullscreen">
-      <!-- Hero image -->
-      <div class="media-column">
-        {#if imageUrl}
-          <img class="recipe-image" data-testid="nutrition-recipe-image" src={imageUrl} alt={title} loading="lazy" />
-        {:else}
-          <div class="image-placeholder">🍳</div>
-        {/if}
+  {#snippet resultMedia()}{#if imageUrl}<img class="recipe-image" data-testid="nutrition-recipe-image" src={imageUrl} alt={title} loading="lazy" onerror={() => { failedImage = imageUrl; }} />{/if}{/snippet}
+  {#snippet detailContent()}
+    <div class="recipe-details" data-testid="nutrition-recipe-details">
+      {#if recipe.description}<div class="description"><MarkdownContent content={recipe.description} /></div>{/if}
+      <div class="result-icon-row">
+        {#if recipe.difficulty}<ResultEmbedInfo icon="chef-hat" label={$text('result_embed.difficulty')} value={formatDifficulty(recipe.difficulty)}><p>{formatDifficulty(recipe.difficulty)}</p></ResultEmbedInfo>{/if}
+        {#if recipe.dietary_tags?.length}<div data-testid="nutrition-recipe-tags"><ResultEmbedInfo icon="leaf" label={$text('result_embed.dietary')}>{#each recipe.dietary_tags as tag}<p>{tag}</p>{/each}</ResultEmbedInfo></div>{/if}
+        {#if recipe.categories?.length}<div data-testid="nutrition-recipe-categories"><ResultEmbedInfo icon="tags" label={$text('result_embed.categories')}>{#each recipe.categories as category}<p>{category}</p>{/each}</ResultEmbedInfo></div>{/if}
+        {#if recipe.ernaehrwert_score != null}<ResultEmbedInfo icon="heart" label={$text('embeds.nutrition.health_score')} value={`${recipe.ernaehrwert_score}/10`}><p>{$text('embeds.nutrition.health_score')}: {recipe.ernaehrwert_score}/10</p></ResultEmbedInfo>{/if}
       </div>
-
-      <div class="info-column">
-        <h2 class="title">{title}</h2>
-
-        {#if recipe.description}
-          <div class="description">
-            <MarkdownContent content={recipe.description} />
-          </div>
-        {/if}
-
-        <!-- Meta row: time, difficulty, servings, rating -->
-        <div class="meta-row" data-testid="nutrition-recipe-details">
-          {#if recipe.total_time_minutes}
-            <span class="meta-chip">{formatDuration(recipe.total_time_minutes)}</span>
-          {/if}
-          {#if recipe.difficulty}
-            <span class="meta-chip">{formatDifficulty(recipe.difficulty)}</span>
-          {/if}
-          {#if recipe.servings != null}
-            <span class="meta-chip">{recipe.servings} {$text('embeds.nutrition.servings')}</span>
-          {/if}
-          {#if ratingText}
-            <span class="meta-chip rating">{ratingText}{#if recipe.rating_count != null} ({recipe.rating_count}){/if}</span>
-          {/if}
-          {#if recipe.ernaehrwert_score != null}
-            <span class="meta-chip health-score">{$text('embeds.nutrition.health_score')}: {recipe.ernaehrwert_score}/10</span>
-          {/if}
-        </div>
-
-        <!-- Dietary tags -->
-        {#if recipe.dietary_tags && recipe.dietary_tags.length > 0}
-          <div class="tags-row" data-testid="nutrition-recipe-tags">
-            {#each recipe.dietary_tags as tag}
-              <span class="tag">{tag}</span>
-            {/each}
-          </div>
-        {/if}
-
-        {#if recipe.categories && recipe.categories.length > 0}
-          <div class="tags-row categories-row" data-testid="nutrition-recipe-categories">
-            {#each recipe.categories as category}
-              <span class="tag category-tag">{category}</span>
-            {/each}
-          </div>
-        {/if}
-
         <!-- Ingredients -->
         {#if recipe.ingredients && recipe.ingredients.length > 0}
           <div class="section">
@@ -197,148 +163,20 @@
           </div>
         {/if}
 
-        <!-- Nutrition macros -->
-        {#if hasNutrition}
-          <div class="section">
-            <h3 class="section-title">{$text('embeds.nutrition.nutrition_info')}</h3>
-            <div class="nutrition-grid">
-              {#if recipe.nutrition?.calories_kcal != null}
-                <div class="nutrition-item">
-                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.calories_kcal)}</span>
-                  <span class="nutrition-label">kcal</span>
-                </div>
-              {/if}
-              {#if recipe.nutrition?.protein_g != null}
-                <div class="nutrition-item">
-                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.protein_g)}g</span>
-                  <span class="nutrition-label">{$text('embeds.nutrition.protein')}</span>
-                </div>
-              {/if}
-              {#if recipe.nutrition?.fat_g != null}
-                <div class="nutrition-item">
-                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.fat_g)}g</span>
-                  <span class="nutrition-label">{$text('embeds.nutrition.fat')}</span>
-                </div>
-              {/if}
-              {#if recipe.nutrition?.carbs_g != null}
-                <div class="nutrition-item">
-                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.carbs_g)}g</span>
-                  <span class="nutrition-label">{$text('embeds.nutrition.carbs')}</span>
-                </div>
-              {/if}
-            </div>
-          </div>
-        {/if}
-      </div>
+      {#if hasNutrition}<section class="section"><h3 class="section-title">{$text('embeds.nutrition.nutrition_info')}</h3><div class="nutrition-grid">
+        {#if recipe.nutrition?.calories_kcal != null}<div class="nutrition-item"><span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.calories_kcal)}</span><span class="nutrition-label">kcal</span></div>{/if}
+        {#each [{ key: 'protein_g', label: $text('embeds.nutrition.protein') }, { key: 'fat_g', label: $text('embeds.nutrition.fat') }, { key: 'carbs_g', label: $text('embeds.nutrition.carbs') }] as nutrient}
+          {@const value = recipe.nutrition?.[nutrient.key as 'protein_g' | 'fat_g' | 'carbs_g']}
+          {#if value != null}<div class="nutrition-item"><span class="nutrition-value">{formatRecipeNutrient(value)}g</span><span class="nutrition-label">{nutrient.label}</span></div>{/if}
+        {/each}
+      </div></section>{/if}
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
-
+</ResultEmbedFullscreen>
 <style>
-  .recipe-fullscreen {
-    display: grid;
-    grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1fr);
-    gap: var(--spacing-10);
-    width: min(1040px, calc(100% - 24px));
-    margin: 24px auto 120px;
-  }
-
-  .media-column {
-    background: var(--color-grey-10);
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-7);
-    min-height: 320px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    position: sticky;
-    top: 24px;
-    align-self: start;
-  }
-
-  .recipe-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    max-height: 560px;
-    box-sizing: border-box;
-  }
-
-  .image-placeholder {
-    font-size: 3.25rem;
-    opacity: 0.45;
-  }
-
-  .info-column {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-6);
-    min-width: 0;
-  }
-
-  .title {
-    margin: 0;
-    font-size: var(--font-size-h2-mobile);
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--color-font-primary);
-    word-break: break-word;
-  }
-
-  .description {
-    margin: 0;
-  }
-  .description :global(.markdown-content) {
-    font-size: var(--font-size-small);
-    color: var(--color-font-secondary);
-    line-height: 1.5;
-  }
-
-  /* Meta chips row */
-  .meta-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
-  }
-
-  .meta-chip {
-    font-size: var(--font-size-xs);
-    font-weight: 500;
-    padding: var(--spacing-2) var(--spacing-5);
-    border-radius: 100px;
-    background: var(--color-grey-10);
-    border: 1px solid var(--color-grey-20);
-    color: var(--color-font-secondary);
-  }
-
-  .meta-chip.rating {
-    color: #f59e0b;
-    font-weight: 700;
-  }
-
-  .meta-chip.health-score {
-    background: rgba(34, 197, 94, 0.1);
-    border-color: rgba(34, 197, 94, 0.3);
-    color: #16a34a;
-  }
-
-  /* Tags */
-  .tags-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
-  }
-
-  .tag {
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: 100px;
-    background: rgba(var(--color-primary-rgb), 0.1);
-    color: var(--color-primary);
-  }
-
+ .recipe-image { display:block; width:100%; height:auto; max-height:65vh; object-fit:contain; }
+ .recipe-details { width:100%; display:flex; flex-direction:column; gap:var(--spacing-8); }
+ .description { font-size:var(--font-size-small); }
   /* Sections */
   .section {
     display: flex;
@@ -425,54 +263,9 @@
     min-width: 0;
   }
 
-  /* Nutrition grid */
-  .nutrition-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-4);
-  }
-
-  .nutrition-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-1);
-    padding: var(--spacing-5);
-    border-radius: var(--radius-5);
-    background: var(--color-grey-5);
-    border: 1px solid var(--color-grey-20);
-  }
-
-  .nutrition-value {
-    font-size: var(--font-size-h3);
-    font-weight: 700;
-    color: var(--color-font-primary);
-  }
-
-  .nutrition-label {
-    font-size: var(--font-size-tiny);
-    color: var(--color-font-secondary);
-    text-transform: capitalize;
-  }
-
-  @container fullscreen (max-width: 760px) {
-    .recipe-fullscreen {
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin-top: var(--spacing-8);
-    }
-
-    .media-column {
-      min-height: 220px;
-      position: static;
-    }
-
-    .title {
-      font-size: var(--font-size-h3);
-    }
-
-    .nutrition-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
+ .nutrition-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--spacing-4); }
+ .nutrition-item { display:flex; flex-direction:column; align-items:center; gap:var(--spacing-2); padding:var(--spacing-3); background:var(--color-grey-0); border-radius:var(--radius-4); }
+ .nutrition-value { font-size:var(--font-size-p); font-weight:650; }
+ .nutrition-label { font-size:var(--font-size-tiny); color:var(--color-font-secondary); }
+ @container fullscreen (max-width: 430px) { .nutrition-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 </style>

@@ -7,7 +7,8 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage } from '../../../utils/imageProxy';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -48,11 +49,13 @@
         : ''
   );
   let imageUrl = $derived(proxyImage(previewUrl, 960));
+  let failedImage = $state<string>();
   let ctaLabel = $derived(provider ? $text('embeds.models3d.search.open_on_provider', { values: { provider } }) : $text('embeds.models3d.search.open_result'));
 
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={Object.fromEntries(["title", "provider", "source_page_url", "creator_name", "license", "files_count"].filter(key => modelContent[key] !== undefined).map(key => [key, modelContent[key]]))}
   appId="models3d"
   skillId="model_result"
   skillIconName="3dmodels"
@@ -72,84 +75,30 @@
     {/if}
   {/snippet}
 
-  {#snippet content()}
-    <div class="model-result-fullscreen" data-testid="models3d-result-fullscreen">
-      <div class="preview-area">
-        {#if imageUrl}
-          <img src={imageUrl} alt={title} />
+  {#snippet summary()}{#if typeof modelContent.creator_name === 'string'}<ResultEmbedInfo icon="User" label="Creator" value={modelContent.creator_name}>{#snippet children()}{modelContent.creator_name}{/snippet}</ResultEmbedInfo>{/if}
+{#if typeof modelContent.license === 'string'}<ResultEmbedInfo icon="Scale" label="License" value={modelContent.license}>{#snippet children()}{modelContent.license}{/snippet}</ResultEmbedInfo>{/if}
+{#if typeof modelContent.files_count === 'number'}<ResultEmbedInfo icon="Files" label="Files" value={String(modelContent.files_count)}>{#snippet children()}{modelContent.files_count} catalogue files{/snippet}</ResultEmbedInfo>{/if}{/snippet}
+
+  {#snippet media()}      <div class="preview-area">
+        {#if imageUrl && failedImage !== imageUrl}
+          <img src={imageUrl} alt={title} onerror={() => failedImage = imageUrl} />
         {:else}
           <span class="clickable-icon icon_3dmodels placeholder-icon"></span>
         {/if}
       </div>
+  {/snippet}
+  {#snippet detailContent()}
+    <div class="model-result-fullscreen" data-testid="models3d-result-fullscreen">
       <section class="metadata">
         <h2>{title}</h2>
-        {#if typeof modelContent.creator_name === 'string'}<p>{modelContent.creator_name}</p>{/if}
-        {#if typeof modelContent.license === 'string'}<p>{modelContent.license}</p>{/if}
-        {#if typeof modelContent.files_count === 'number'}<p>{$text('embeds.models3d.search.files_count', { values: { count: modelContent.files_count } })}</p>{/if}
         {#if sourcePageUrl}
           <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer" data-testid="models3d-open-provider-cta-inline">{ctaLabel}</a>
         {/if}
       </section>
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .model-result-fullscreen {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
-    gap: var(--spacing-12);
-    width: 100%;
-    padding: var(--spacing-12);
-  }
-
-  .preview-area {
-    display: grid;
-    place-items: center;
-    min-height: 360px;
-    border-radius: 24px;
-    background: var(--color-grey-10);
-    overflow: hidden;
-  }
-
-  img {
-    width: 100%;
-    height: 100%;
-    max-height: 70vh;
-    object-fit: contain;
-  }
-
-  .placeholder-icon {
-    width: 44px;
-    height: 44px;
-    background: var(--color-grey-40) !important;
-  }
-
-  .metadata {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-5);
-    color: var(--color-font-primary);
-  }
-
-  h2 {
-    margin: 0;
-    font-size: var(--font-size-lg);
-  }
-
-  p { margin: 0; color: var(--color-font-secondary); }
-
-  a {
-    align-self: flex-start;
-    padding: 9px 13px;
-    border-radius: var(--radius-8);
-    background: var(--color-button-primary);
-    color: var(--color-font-button);
-    font-weight: 650;
-    text-decoration: none;
-  }
-
-  @media (max-width: 760px) {
-    .model-result-fullscreen { grid-template-columns: 1fr; }
-  }
+ .model-result-fullscreen {width:100%;} .preview-area {display:grid;place-items:center;width:100%;min-height:12rem;background:var(--color-grey-10);} .preview-area img {display:block;width:100%;height:auto;max-height:60vh;object-fit:contain;} .placeholder-icon {width:44px;height:44px;background:var(--color-grey-40) !important;} .metadata {display:flex;flex-direction:column;gap:var(--spacing-3);} h2 {margin:0;font-size:var(--font-size-h4);} a {color:var(--color-link);overflow-wrap:anywhere;}
 </style>

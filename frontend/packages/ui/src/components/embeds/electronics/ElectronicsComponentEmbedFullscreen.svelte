@@ -6,7 +6,8 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
@@ -66,7 +67,7 @@
 
   function asNumber(value: unknown): number | null {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
+    if (typeof value === 'string' && value.trim()) {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) return parsed;
     }
@@ -147,11 +148,11 @@
   let electricalDetails = $derived([
     detail(
       $text('embeds.electronics.input_voltage'),
-      `${formatNumber(componentData.input_voltage_min_v, ' V')} - ${formatNumber(componentData.input_voltage_max_v, ' V')}`.trim(),
+      [formatNumber(componentData.input_voltage_min_v, ' V'), formatNumber(componentData.input_voltage_max_v, ' V')].filter(Boolean).join(' – '),
     ),
     detail(
       $text('embeds.electronics.output_voltage'),
-      `${formatNumber(componentData.output_voltage_min_v, ' V')} - ${formatNumber(componentData.output_voltage_max_v, ' V')}`.trim(),
+      [formatNumber(componentData.output_voltage_min_v, ' V'), formatNumber(componentData.output_voltage_max_v, ' V')].filter(Boolean).join(' – '),
     ),
     detail($text('embeds.electronics.topology'), componentData.topology || ''),
     detail($text('embeds.electronics.regulator_type'), componentData.regulator_type || ''),
@@ -163,7 +164,8 @@
   ].filter((item): item is { label: string; value: string } => item != null && item.value !== ' -'));
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ part_number: componentData.part_number, title: componentData.title, provider: componentData.provider, description: componentData.description, product_url: componentData.product_url, datasheet_url: componentData.datasheet_url, topology: componentData.topology, efficiency_percent: componentData.efficiency_percent, bom_cost_usd: componentData.bom_cost_usd }}
   appId="electronics"
   skillId="search_components"
   embedHeaderTitle={title}
@@ -186,7 +188,10 @@
     {/if}
   {/snippet}
 
-  {#snippet content()}
+  {#snippet summary()}
+    {#each performanceDetails.slice(0, 3) as item}<ResultEmbedInfo icon="Gauge" label={item.label} value={item.value}>{#snippet children()}{item.label}: {item.value}{/snippet}</ResultEmbedInfo>{/each}
+  {/snippet}
+  {#snippet detailContent()}
     <div class="component-fullscreen">
       <section class="hero-card">
         <div class="eyebrow">{componentData.provider || 'TI WEBENCH'}</div>
@@ -204,129 +209,27 @@
         </div>
       </section>
 
-      <section class="details-section">
+      {#if performanceDetails.length > 3}<section class="details-section">
         <h3>{$text('embeds.electronics.performance')}</h3>
         <div class="detail-grid">
-          {#each performanceDetails as item}
-            <div class="detail-item">
-              <span class="detail-label">{item.label}</span>
-              <span class="detail-value">{item.value}</span>
-            </div>
+          {#each performanceDetails.slice(3) as item}
+            <ResultEmbedInfo icon="Cpu" label={item.label} value={item.value}>{#snippet children()}{item.label}: {item.value}{/snippet}</ResultEmbedInfo>
           {/each}
         </div>
-      </section>
+      </section>{/if}
 
-      <section class="details-section">
+      {#if electricalDetails.length}<section class="details-section">
         <h3>{$text('embeds.electronics.electrical')}</h3>
         <div class="detail-grid">
           {#each electricalDetails as item}
-            <div class="detail-item">
-              <span class="detail-label">{item.label}</span>
-              <span class="detail-value">{item.value}</span>
-            </div>
+            <ResultEmbedInfo icon="Cpu" label={item.label} value={item.value}>{#snippet children()}{item.label}: {item.value}{/snippet}</ResultEmbedInfo>
           {/each}
         </div>
-      </section>
+      </section>{/if}
     </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .component-fullscreen {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-6);
-    width: min(100%, 1000px);
-    margin: 0 auto;
-    padding: var(--spacing-6);
-  }
-
-  .hero-card,
-  .details-section {
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-6);
-    background: var(--color-grey-0);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  }
-
-  .hero-card {
-    padding: var(--spacing-7);
-  }
-
-  .eyebrow {
-    color: var(--color-primary);
-    font-size: var(--font-size-xs);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  h2,
-  h3,
-  p {
-    margin: 0;
-  }
-
-  h2 {
-    margin-top: var(--spacing-2);
-    color: var(--color-font-primary);
-    font-size: var(--font-size-h2);
-    line-height: 1.15;
-  }
-
-  p {
-    margin-top: var(--spacing-4);
-    color: var(--color-grey-70);
-    line-height: 1.55;
-  }
-
-  .link-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
-    margin-top: var(--spacing-5);
-  }
-
-  .link-row a {
-    color: var(--color-primary);
-    font-weight: 700;
-    text-decoration: none;
-  }
-
-  .details-section {
-    padding: var(--spacing-6);
-  }
-
-  h3 {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-h3);
-  }
-
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--spacing-3);
-    margin-top: var(--spacing-4);
-  }
-
-  .detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-1);
-    padding: var(--spacing-3);
-    border-radius: var(--radius-4);
-    background: var(--color-grey-5);
-  }
-
-  .detail-label {
-    color: var(--color-grey-60);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-  }
-
-  .detail-value {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 700;
-  }
+.component-fullscreen {display:flex;flex-direction:column;gap:var(--spacing-6);width:100%;} .eyebrow {color:var(--color-font-secondary);font-size:var(--font-size-small);} h2,h3,p {margin:0;} h2 {font-size:var(--font-size-h4);overflow-wrap:anywhere;} h3 {font-size:var(--font-size-p);} p {margin-top:var(--spacing-3);color:var(--color-font-secondary);line-height:1.5;} .link-row,.detail-grid {display:flex;flex-wrap:wrap;gap:var(--spacing-3);margin-top:var(--spacing-3);} a {color:var(--color-link);overflow-wrap:anywhere;}
 </style>

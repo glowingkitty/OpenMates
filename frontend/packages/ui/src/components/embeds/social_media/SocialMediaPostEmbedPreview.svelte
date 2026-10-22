@@ -9,9 +9,11 @@
 -->
 
 <script lang="ts">
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
   import { formatCount, formatPostedAt, socialSourceLabel, type SocialMediaPostResult } from './socialMediaEmbedUtils';
 
   interface Props extends Partial<SocialMediaPostResult> {
@@ -19,11 +21,15 @@
     status?: 'processing' | 'finished' | 'error';
     taskId?: string;
     isMobile?: boolean;
+    presentationOnly?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     onFullscreen: () => void;
   }
 
   let {
     id = '',
+    url,
+    body,
     platform,
     page,
     title,
@@ -39,11 +45,13 @@
     status = 'finished',
     taskId,
     isMobile = false,
+    presentationOnly = false,
+    resultContext = 'auto',
     onFullscreen,
   }: Props = $props();
 
   let avatar = $derived(author_avatar_url ? proxyImage(author_avatar_url, MAX_WIDTH_FAVICON) : undefined);
-  let image = $derived(media_url || thumbnail_url);
+  let image = $derived(proxyImage(media_url || thumbnail_url, 960));
   let displayAuthor = $derived(author_display_name || author || page || platform || 'Social post');
   let source = $derived(socialSourceLabel({ embed_id: id, platform, page }));
   let postedAt = $derived(formatPostedAt(published_at));
@@ -54,6 +62,9 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
+  {presentationOnly}
+  {resultContext}
   {id}
   appId="social_media"
   skillId="social_post"
@@ -68,120 +79,18 @@
   {onFullscreen}
   onStop={handleStop}
 >
+  {#snippet resultPrimaryAction()}{#if url}<a href={url} target="_blank" rel="noopener noreferrer" aria-label="Open post" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
   {#snippet details()}
-    <div class="social-post-preview">
-      <div class="post-author-row">
-        {#if avatar}
-          <img class="avatar" src={avatar} alt="" use:handleImageError />
-        {:else}
-          <div class="avatar avatar-fallback">{displayAuthor.slice(0, 1).toUpperCase()}</div>
-        {/if}
-        <div class="post-heading">
-          <div class="post-title">{title || displayAuthor}</div>
-          <div class="post-meta">
-            <span class="source">{source}</span>
-            {#if postedAt}
-              <span>·</span>
-              <span>{postedAt}</span>
-            {/if}
-          </div>
-        </div>
-      </div>
-      <div class="post-footer">
-        <span>{formatCount(like_count)} likes</span>
-        <span>{formatCount(reply_count)} comments</span>
-        {#if typeof repost_count === 'number' && repost_count > 0}
-          <span>{formatCount(repost_count)} reposts</span>
-        {/if}
-      </div>
-      {#if image}
-        <img class="post-image" src={image} alt="" use:handleImageError />
-      {/if}
+    <div data-testid="social-post-preview" class="catalog-result-preview">
+      <ResultEmbedCard title={title || displayAuthor} description={body} sourceLabel={[displayAuthor, source, postedAt].filter(Boolean).join(" · ")} faviconUrl={avatar} imageUrl={image} imageAlt={title || displayAuthor} mediaFit="cover">
+        {#snippet facts()}{#if like_count != null}<ResultEmbedInfo icon="Heart" label="Likes" value={formatCount(like_count)}>{#snippet children()}{formatCount(like_count)} likes{/snippet}</ResultEmbedInfo>{/if}
+{#if reply_count != null}<ResultEmbedInfo icon="MessageCircle" label="Replies" value={formatCount(reply_count)}>{#snippet children()}{formatCount(reply_count)} replies{/snippet}</ResultEmbedInfo>{/if}
+{#if repost_count != null}<ResultEmbedInfo icon="Repeat2" label="Reposts" value={formatCount(repost_count)}>{#snippet children()}{formatCount(repost_count)} reposts{/snippet}</ResultEmbedInfo>{/if}{/snippet}
+      </ResultEmbedCard>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .social-post-preview {
-    position: relative;
-    display: flex;
-    height: 100%;
-    flex-direction: column;
-    gap: var(--spacing-4);
-    padding: var(--spacing-7);
-    overflow: hidden;
-  }
-
-  .post-author-row {
-    display: flex;
-    gap: var(--spacing-4);
-    align-items: flex-start;
-    min-width: 0;
-  }
-
-  .avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex: 0 0 auto;
-  }
-
-  .avatar-fallback {
-    display: grid;
-    place-items: center;
-    background: var(--color-app-socialmedia, var(--color-primary));
-    color: var(--color-font-button);
-    font-weight: 800;
-  }
-
-  .post-heading {
-    min-width: 0;
-  }
-
-  .post-meta,
-  .post-footer {
-    display: flex;
-    gap: var(--spacing-2);
-    align-items: center;
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xxs);
-    min-width: 0;
-  }
-
-  .source {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .post-title {
-    color: var(--color-text-primary);
-    font-size: var(--font-size-sm);
-    font-weight: 650;
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .post-footer {
-    margin-top: auto;
-    gap: var(--spacing-5);
-    padding-top: var(--spacing-3);
-    border-top: 1px solid var(--color-border);
-  }
-
-  .post-image {
-    position: absolute;
-    right: var(--spacing-5);
-    bottom: var(--spacing-5);
-    width: 54px;
-    height: 54px;
-    object-fit: cover;
-    border-radius: var(--radius-md);
-    opacity: 0.88;
-  }
+  .catalog-result-preview { width: 100%; height: 100%; min-width: 0; }
 </style>

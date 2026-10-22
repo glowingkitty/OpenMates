@@ -15,7 +15,7 @@ const defaultProps = {
   price_eur: "1,39 €",
   was_price_cents: 179,
   grammage: "500g (0,28 €/100g)",
-  image_url: null,
+  image_url: "https://shopping.example/product-front.jpg",
   attributes: { is_organic: true, is_vegetarian: true },
   rating: 4.6,
   reviews: 832,
@@ -28,6 +28,10 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  assistant: { ...defaultProps, resultContext: 'chat' as const },
+  noImage: { ...defaultProps, image_url: null },
+  zero: { ...defaultProps, price_cents: 0, price_eur: null, was_price_cents: null, stock: 0, rating: 0, reviews: 0 },
+  longTitle: { ...defaultProps, title: 'A deliberately long product name with the complete brand, variation, colour, size, material and packaging description retained for accessibility' },
   amazon: {
     id: "preview-shopping-result-amazon",
     title: "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",

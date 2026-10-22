@@ -7,6 +7,8 @@ const job = {
 const defaultProps = { id: job.embed_id, job, presentationOnly: true, onFullscreen: () => {} };
 export default defaultProps;
 export const variants = {
+  missingData: { ...defaultProps, job: { ...job, company: undefined, location: undefined, remote: null, published_at: undefined } },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   remote: { ...defaultProps, job: { ...job, remote: true } },
   mobile: { ...defaultProps, isMobile: true },
   longTitle: { ...defaultProps, job: { ...job, title: 'Senior Climate Policy and Data Analysis Researcher for Regional Energy Transition Programs' } },

@@ -6,6 +6,8 @@
 -->
 
 <script lang="ts">
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
 
@@ -24,6 +26,8 @@
     footprint_mm2?: number | null;
     status?: 'processing' | 'finished' | 'error';
     isMobile?: boolean;
+    presentationOnly?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     onFullscreen: () => void;
   }
 
@@ -42,6 +46,8 @@
     footprint_mm2 = null,
     status = 'finished',
     isMobile = false,
+    presentationOnly = false,
+    resultContext = 'auto',
     onFullscreen,
   }: Props = $props();
 
@@ -62,6 +68,9 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
+  {presentationOnly}
+  {resultContext}
   {id}
   appId="electronics"
   skillId="search_components"
@@ -74,109 +83,13 @@
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="component-preview" class:mobile={isMobileLayout}>
-      <div class="component-title">{cardTitle}</div>
-      {#if subtitle}
-        <div class="component-subtitle">{subtitle}</div>
-      {/if}
-
-      <div class="metric-grid">
-        {#if efficiency}
-          <div class="metric">
-            <span class="metric-label">{$text('embeds.electronics.efficiency')}</span>
-            <span class="metric-value">{efficiency}</span>
-          </div>
-        {/if}
-        {#if bomCost}
-          <div class="metric">
-            <span class="metric-label">{$text('embeds.electronics.bom_cost')}</span>
-            <span class="metric-value">{bomCost}</span>
-          </div>
-        {/if}
-        {#if footprint}
-          <div class="metric">
-            <span class="metric-label">{$text('embeds.electronics.footprint')}</span>
-            <span class="metric-value">{footprint}</span>
-          </div>
-        {/if}
-        {#if bom_count != null}
-          <div class="metric">
-            <span class="metric-label">{$text('embeds.electronics.bom_count')}</span>
-            <span class="metric-value">{bom_count}</span>
-          </div>
-        {/if}
-      </div>
-
-      <div class="provider-row">
-        {#if regulator_type}<span>{regulator_type}</span>{/if}
-        <span>{provider}</span>
-      </div>
-    </div>
+  {#snippet details()}
+    <ResultEmbedCard title={cardTitle} sourceLabel={provider} description={subtitle} textFirst={true}>
+      {#snippet facts()}
+        {#if efficiency}<ResultEmbedInfo icon="Gauge" label={$text('embeds.electronics.efficiency')} value={efficiency}>{#snippet children()}{efficiency}{/snippet}</ResultEmbedInfo>{/if}
+        {#if bomCost}<ResultEmbedInfo icon="Banknote" label={$text('embeds.electronics.bom_cost')} value={bomCost}>{#snippet children()}{bomCost}{#if bom_count != null}<p>{$text('embeds.electronics.bom_count')}: {bom_count}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
+        {#if footprint || regulator_type || (bom_count != null && !bomCost)}<ResultEmbedInfo icon="Cpu" label={$text('embeds.electronics.electrical')}>{#snippet children()}{#if footprint}<p>{$text('embeds.electronics.footprint')}: {footprint}</p>{/if}{#if regulator_type}<p>{regulator_type}</p>{/if}{#if bom_count != null}<p>{$text('embeds.electronics.bom_count')}: {bom_count}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-
-<style>
-  .component-preview {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: var(--spacing-2);
-    height: 100%;
-    width: 100%;
-  }
-
-  .component-preview.mobile {
-    justify-content: flex-start;
-  }
-
-  .component-title {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  .component-subtitle,
-  .provider-row {
-    color: var(--color-grey-70);
-    font-size: var(--font-size-xxs);
-    line-height: 1.3;
-  }
-
-  .metric-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--spacing-2);
-    margin-top: var(--spacing-1);
-  }
-
-  .metric {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    padding: var(--spacing-2);
-    border-radius: var(--radius-3);
-    background: var(--color-grey-5);
-  }
-
-  .metric-label {
-    color: var(--color-grey-60);
-    font-size: var(--font-size-micro);
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-
-  .metric-value {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-xs);
-    font-weight: 700;
-  }
-
-  .provider-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
-  }
-</style>

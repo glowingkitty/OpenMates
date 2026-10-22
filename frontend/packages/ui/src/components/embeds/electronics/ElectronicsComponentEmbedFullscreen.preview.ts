@@ -1,12 +1,11 @@
 /**
  * Preview mock data for ElectronicsComponentEmbedFullscreen.
- * Provides a direct component prop for child-detail fullscreen rendering.
+ * Uses production decoded content for component-detail fullscreen rendering.
  * Access path: /dev/preview/embeds/electronics.
  * Architecture context: docs/architecture/embeds.md.
  */
 
-const defaultProps = {
-  component: {
+const component = {
     embed_id: "preview-electronics-component-fs-1",
     provider: "TI WEBENCH",
     part_number: "TPS564257DRLR",
@@ -31,29 +30,20 @@ const defaultProps = {
     output_voltage_min_v: 0.6,
     output_voltage_max_v: 7,
     isolated: false,
-  },
-  onClose: () => {},
-};
+  };
 
+const defaultProps = { data: { decodedContent: component }, onClose: () => {} };
 export default defaultProps;
-
 export const variants = {
+  missingData: { ...defaultProps, data: { decodedContent: { embed_id: 'preview-electronics-missing', part_number: 'Example component', provider: 'Example source' } } },
   alternate: {
-    component: {
-      ...defaultProps.component,
-      embed_id: "preview-electronics-component-fs-2",
-      part_number: "TPS563257DRLR",
-      base_part_number: "TPS563257",
-      product_url: "https://www.ti.com/product/TPS563257",
-      datasheet_url: "https://www.ti.com/lit/gpn/tps563257",
-      efficiency_percent: 91.8,
-      bom_cost_usd: 0.43,
-      footprint_mm2: 84.2,
-    },
-    onClose: () => {},
-    hasPreviousEmbed: true,
-    hasNextEmbed: true,
-    onNavigatePrevious: () => {},
-    onNavigateNext: () => {},
+    ...defaultProps,
+    data: { decodedContent: {
+      ...component,
+      embed_id: 'preview-electronics-component-fs-2', part_number: 'TPS563257DRLR', base_part_number: 'TPS563257',
+      product_url: 'https://www.ti.com/product/TPS563257', datasheet_url: 'https://www.ti.com/lit/gpn/tps563257',
+      efficiency_percent: 91.8, bom_cost_usd: 0.43, footprint_mm2: 84.2,
+    } },
+    hasPreviousEmbed: true, hasNextEmbed: true, onNavigatePrevious: () => {}, onNavigateNext: () => {},
   },
 };

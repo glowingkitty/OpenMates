@@ -7,7 +7,10 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
   interface Props {
@@ -23,6 +26,8 @@
     isFree?: boolean | null;
     status?: 'processing' | 'finished' | 'error';
     isMobile?: boolean;
+    presentationOnly?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     onFullscreen: () => void;
   }
 
@@ -31,6 +36,7 @@
     title = '',
     provider = '',
     creatorName = '',
+    sourcePageUrl = '',
     previewImageUrl = '',
     thumbnailUrl = '',
     license = '',
@@ -38,11 +44,11 @@
     isFree = null,
     status = 'finished',
     isMobile = false,
+    presentationOnly = false,
+    resultContext = 'auto',
     onFullscreen,
   }: Props = $props();
 
-  let imageLoaded = $state(false);
-  let imageFailed = $state(false);
   let displayImage = $derived(proxyImage(previewImageUrl || thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL));
   let cardTitle = $derived(title || $text('embeds.models3d.search.result_title'));
 
@@ -52,6 +58,9 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
+  {presentationOnly}
+  {resultContext}
   {id}
   appId="models3d"
   skillId="model_result"
@@ -64,115 +73,18 @@
   showStatus={false}
   showSkillIcon={false}
 >
+  {#snippet resultPrimaryAction()}{#if sourcePageUrl}<a href={sourcePageUrl} target="_blank" rel="noopener noreferrer" aria-label="Open provider" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
   {#snippet details()}
-    <article class="model-card" data-testid="models3d-result-card">
-      <div class="card-body" data-testid="models3d-result-card-body">
-        <h3>{cardTitle}</h3>
-        <div class="meta-line">
-          {#if creatorName}<span>{creatorName}</span>{/if}
-          {#if provider}<span>{provider}</span>{/if}
-        </div>
-        <div class="pills">
-          {#if isFree === true}<span>{$text('embeds.models3d.search.free')}</span>{/if}
-          {#if filesCount != null}<span>{$text('embeds.models3d.search.files_count', { values: { count: filesCount } })}</span>{/if}
-          {#if license}<span>{license}</span>{/if}
-        </div>
-      </div>
-      <div class="image-shell" data-testid="models3d-result-card-image">
-        {#if displayImage && !imageFailed}
-          <img
-            src={displayImage}
-            alt={cardTitle}
-            class:visible={imageLoaded}
-            loading="lazy"
-            onload={() => imageLoaded = true}
-            onerror={() => imageFailed = true}
-          />
-        {:else}
-          <span class="clickable-icon icon_3dmodels placeholder-icon"></span>
-        {/if}
-      </div>
-    </article>
+    <div data-testid="models3d-result-card" class="catalog-result-preview">
+      <ResultEmbedCard title={cardTitle} sourceLabel={[creatorName, provider].filter(Boolean).join(" · ")} imageUrl={displayImage} imageAlt={cardTitle} mediaFit="contain">
+        {#snippet facts()}{#if license}<ResultEmbedInfo icon="Scale" label="License" value={license}>{#snippet children()}{license}{/snippet}</ResultEmbedInfo>{/if}
+{#if filesCount != null}<ResultEmbedInfo icon="Files" label="Files" value={String(filesCount)}>{#snippet children()}{filesCount} catalogue files{/snippet}</ResultEmbedInfo>{/if}
+{#if isFree != null}<ResultEmbedInfo icon="BadgeDollarSign" label="Free model" state={isFree ? 'yes' : 'no'}>{#snippet children()}{isFree ? 'Listed as free by the provider.' : 'Not listed as free by the provider.'}{/snippet}</ResultEmbedInfo>{/if}{/snippet}
+      </ResultEmbedCard>
+    </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  .model-card {
-    display: flex;
-    align-items: stretch;
-    gap: var(--spacing-4);
-    width: 100%;
-    height: 100%;
-    padding: var(--spacing-6);
-  }
-
-  .image-shell {
-    flex: 0 0 40%;
-    display: grid;
-    place-items: center;
-    aspect-ratio: 4 / 3;
-    width: 40%;
-    min-width: 96px;
-    overflow: hidden;
-    border-radius: 18px;
-    background: var(--color-grey-10);
-  }
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    opacity: 0;
-    transition: opacity var(--duration-normal) var(--easing-default);
-  }
-
-  img.visible { opacity: 1; }
-
-  .placeholder-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--color-grey-40) !important;
-  }
-
-  .card-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-3);
-    justify-content: center;
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  h3 {
-    margin: 0;
-    color: var(--color-font-primary);
-    font-size: var(--font-size-sm);
-    font-weight: 650;
-    line-height: 1.25;
-  }
-
-  .meta-line,
-  .pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xs);
-  }
-
-  .pills span {
-    padding: 2px 7px;
-    border-radius: var(--radius-full);
-    background: var(--color-grey-10);
-  }
-
-  :global(.unified-embed-preview.mobile) .model-card {
-    flex-direction: column-reverse;
-  }
-
-  :global(.unified-embed-preview.mobile) .image-shell {
-    flex: 0 0 auto;
-    width: 100%;
-    min-width: 0;
-  }
+  .catalog-result-preview { width: 100%; height: 100%; min-width: 0; }
 </style>

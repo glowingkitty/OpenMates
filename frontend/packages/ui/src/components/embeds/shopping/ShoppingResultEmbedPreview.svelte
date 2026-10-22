@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
   import { proxyImage } from '../../../utils/imageProxy';
 
@@ -51,6 +52,7 @@
     prime?: boolean | null;
     status?: 'processing' | 'finished' | 'error';
     isMobile?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     variant?: 'small' | 'large';
     onFullscreen: () => void;
   }
@@ -62,9 +64,6 @@
     price_cents = null,
     price_eur = null,
     base_price = null,
-    stock = null,
-    availability = null,
-    color_child_item_ids = [],
     was_price_cents = null,
     grammage = null,
     image_url = null,
@@ -73,23 +72,22 @@
     price = null,
     price_amount = null,
     currency_symbol = null,
-    attributes,
     rating = null,
     reviews = null,
-    prime = null,
     status = 'finished',
     isMobile = false,
+    resultContext = 'auto',
     variant = 'small',
     onFullscreen,
   }: Props = $props();
 
   function formatCents(value: number | null | undefined): string {
-    if (value == null || value <= 0) return '';
+    if (value == null || value < 0) return '';
     return `${(value / 100).toFixed(2).replace('.', ',')} €`;
   }
 
   function formatAmount(value: number | null | undefined, symbol?: string | null): string {
-    if (value == null || value <= 0) return '';
+    if (value == null || value < 0) return '';
     const currency = symbol || '€';
     const amount = currency === '€' ? value.toFixed(2).replace('.', ',') : value.toFixed(2);
     return `${currency}${amount}`;
@@ -118,32 +116,12 @@
     return false;
   }
 
-  function getTags(): string[] {
-    const tags: string[] = [];
-    if (!attributes) return tags;
-    if (attributes.is_organic) tags.push('Bio');
-    if (attributes.is_vegan) tags.push('Vegan');
-    if (attributes.is_vegetarian) tags.push('Vegetarisch');
-    if (attributes.is_dairy_free) tags.push('Laktosefrei');
-    if (attributes.is_gluten_free) tags.push('Glutenfrei');
-    if (attributes.is_regional) tags.push('Regional');
-    return tags.slice(0, 2);
-  }
-
-  function formatStock(value: number | null | undefined): string {
-    if (value == null || value <= 0) return '';
-    return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
-  }
-
   let cardTitle = $derived(title || brand || 'Product');
   let displayPrice = $derived(getDisplayPrice());
   let displayOldPrice = $derived(getDisplayOldPrice());
   let onSale = $derived(hasSale());
-  let tags = $derived(getTags());
   let imageProxyWidth = $derived(variant === 'large' ? MAX_WIDTH_LARGE_PREVIEW_IMAGE : MAX_WIDTH_PREVIEW_IMAGE);
   let imageUrl = $derived(image_url ? proxyImage(image_url, imageProxyWidth) : '');
-  let stockText = $derived(formatStock(stock));
-  let colorCount = $derived(color_child_item_ids.length);
 
   function handleStop() {
     // Product cards are not cancellable.
@@ -160,287 +138,14 @@
   {isMobile}
   onFullscreen={onFullscreen}
   onStop={handleStop}
+  {resultContext}
+  resultPreview={true}
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="product-preview" class:mobile={isMobileLayout} class:large={variant === 'large'}>
-      <div class="product-content-row">
-        <!-- Text content (left side) -->
-        <div class="product-text">
-          <div class="product-title">{cardTitle}</div>
-          {#if brand}
-            <div class="product-brand">{brand}</div>
-          {/if}
-
-          <div class="price-row">
-            {#if displayPrice}
-              <span class="product-price" class:sale={onSale}>{displayPrice}</span>
-            {:else}
-              <span class="no-price">{$text('embeds.shopping.price_unavailable')}</span>
-            {/if}
-            {#if onSale && displayOldPrice}
-              <span class="old-price">{displayOldPrice}</span>
-            {/if}
-          </div>
-
-          {#if grammage}
-            <div class="grammage">{grammage}</div>
-          {/if}
-
-          {#if base_price}
-            <div class="grammage">{base_price}</div>
-          {/if}
-
-          {#if availability || stockText || colorCount > 0}
-            <div class="stoffe-details-row">
-              {#if availability}
-                <span class="detail-pill">{availability}</span>
-              {/if}
-              {#if stockText}
-                <span class="detail-pill">{$text('embeds.shopping.stock')}: {stockText}</span>
-              {/if}
-              {#if colorCount > 0}
-                <span class="detail-pill">{$text('embeds.shopping.colors')}: {colorCount}</span>
-              {/if}
-            </div>
-          {/if}
-
-          {#if rating != null}
-            <div class="rating-row">
-              <span class="rating">★ {rating.toFixed(1)}</span>
-              {#if reviews != null}
-                <span class="reviews">({reviews.toLocaleString()})</span>
-              {/if}
-              {#if prime}
-                <span class="prime">Prime</span>
-              {/if}
-            </div>
-          {/if}
-
-          {#if tags.length > 0}
-            <div class="tags-row">
-              {#each tags as tag}
-                <span class="tag">{tag}</span>
-              {/each}
-            </div>
-          {/if}
-        </div>
-
-        <!-- Image (right side) -->
-        {#if imageUrl && !isMobileLayout}
-          <div class="product-preview-image">
-            {#if onSale}
-              <span class="badge badge-sale">{$text('embeds.shopping.sale')}</span>
-            {/if}
-            {#if attributes?.is_new}
-              <span class="badge badge-new">{$text('embeds.shopping.new')}</span>
-            {/if}
-            <img src={imageUrl} alt={cardTitle} loading="lazy" />
-          </div>
-        {/if}
-      </div>
-    </div>
+  {#snippet details()}
+    <ResultEmbedCard title={cardTitle} description={[brand, grammage, base_price].filter(Boolean).join(' · ')} imageUrl={imageUrl} imageAlt={cardTitle} mediaFit="contain">
+      {#snippet facts()}<span class="result-price">{displayPrice || $text('embeds.shopping.price_unavailable')}</span>{#if onSale && displayOldPrice}<s>{displayOldPrice}</s>{/if}{#if rating != null}<span>★ {rating.toFixed(1)}{#if reviews != null} ({reviews.toLocaleString()}){/if}</span>{/if}{/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-
-<style>
-  .product-preview {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .product-preview.mobile {
-    justify-content: flex-start;
-  }
-
-  .product-content-row {
-    display: flex;
-    align-items: stretch;
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    width: 100%;
-  }
-
-  .product-text {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    flex: 0 1 55%;
-    min-width: 0;
-    align-self: center;
-    padding: 2px 0;
-  }
-
-  /* Image on right side */
-  .product-preview-image {
-    position: relative;
-    flex: 1;
-    min-width: 0;
-    height: 171px;
-    transform: translateX(20px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-grey-10);
-  }
-
-  .product-preview-image img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: contain;
-    padding: var(--spacing-4);
-    box-sizing: border-box;
-  }
-
-  .product-preview.large .product-text {
-    flex-basis: 45%;
-  }
-
-  .product-preview.large .product-preview-image {
-    height: 291px;
-    transform: none;
-  }
-
-  .product-preview.large .badge {
-    right: 8px;
-  }
-
-  .badge {
-    position: absolute;
-    top: 6px;
-    right: 26px;
-    padding: 2px 7px;
-    border-radius: 100px;
-    font-size: null;
-    font-weight: 700;
-    color: var(--color-grey-0);
-    z-index: var(--z-index-raised);
-  }
-
-  .badge-sale {
-    background: var(--color-error);
-  }
-
-  .badge-new {
-    background: var(--color-primary);
-    top: 30px;
-  }
-
-  .product-title {
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .product-brand {
-    font-size: var(--font-size-tiny);
-    color: var(--color-grey-60);
-  }
-
-  .price-row {
-    display: flex;
-    align-items: baseline;
-    gap: var(--spacing-3);
-  }
-
-  .product-price {
-    font-size: null;
-    font-weight: 700;
-    color: var(--color-grey-100);
-  }
-
-  .product-price.sale {
-    color: var(--color-error);
-  }
-
-  .old-price {
-    font-size: var(--font-size-tiny);
-    color: var(--color-grey-60);
-    text-decoration: line-through;
-  }
-
-  .no-price {
-    font-size: var(--font-size-tiny);
-    color: var(--color-grey-60);
-    font-style: italic;
-  }
-
-  .grammage {
-    font-size: var(--font-size-tiny);
-    color: var(--color-grey-60);
-  }
-
-  .stoffe-details-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
-    margin-top: 1px;
-  }
-
-  .detail-pill {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--font-size-tiny);
-    color: var(--color-font-secondary);
-    background: var(--color-grey-10);
-    border-radius: var(--radius-4);
-    padding: 1px 6px;
-  }
-
-  .rating-row {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
-  }
-
-  .rating {
-    font-size: var(--font-size-tiny);
-    color: #f59e0b;
-    font-weight: 600;
-  }
-
-  .reviews {
-    font-size: null;
-    color: var(--color-grey-60);
-  }
-
-  .prime {
-    font-size: null;
-    font-weight: 700;
-    padding: 1px 5px;
-    border-radius: var(--radius-4);
-    background: rgba(59, 130, 246, 0.12);
-    color: #2563eb;
-  }
-
-  .tags-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
-    margin-top: 1px;
-  }
-
-  .tag {
-    font-size: null;
-    padding: 1px 6px;
-    border-radius: var(--radius-4);
-    background: rgba(var(--color-primary-rgb), 0.1);
-    color: var(--color-primary);
-    font-weight: 600;
-  }
-</style>

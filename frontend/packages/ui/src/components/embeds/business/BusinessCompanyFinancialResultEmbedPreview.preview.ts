@@ -6,6 +6,7 @@
  */
 
 const defaultProps = {
+  presentationOnly: true,
   id: 'preview-business-financial-calm',
   company: 'Cal-Maine Foods, Inc.',
   ticker: 'CALM',
@@ -24,6 +25,9 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  missingData: { ...defaultProps, revenue: null, netIncome: null, filed: '', form: '' },
+  longTitle: { ...defaultProps, company: 'Example International Research and Sustainable Infrastructure Corporation' },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   quarterly: {
     ...defaultProps,
     id: 'preview-business-financial-vitl-quarter',

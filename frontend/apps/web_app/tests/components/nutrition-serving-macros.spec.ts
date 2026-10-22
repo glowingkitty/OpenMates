@@ -27,7 +27,7 @@ test('recipe search opens real Edamam macros on the same per-serving basis as ca
   const card = page.getByTestId('search-template-grid').getByTestId('embed-preview');
   await expect(card).toHaveCount(1);
   await card.click();
-  await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4');
+  await expect(page.getByTestId('result-facts')).toContainText('4 servings');
   const macros = page.locator('.nutrition-grid');
   await expect(macros).toBeVisible();
   await expect(macros.locator('.nutrition-item').filter({ hasText: 'kcal' }).locator('.nutrition-value'))
@@ -61,8 +61,12 @@ test('direct inline recipe data opens complete provider fields and normalized ma
   await expect(viewport).toContainText('350 g of dry chickpeas, soaked in water for 12 hours');
   await expect(viewport).toContainText('200 g spinach or swiss chard');
   await expect(viewport).toContainText('Heat the oil in a small pan over high heat.');
-  await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
-  await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('american');
+  await page.getByTestId('nutrition-recipe-tags').getByRole('button').click();
+  await expect(page.getByRole('tooltip')).toContainText('Vegetarian');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('nutrition-recipe-categories').getByRole('button').click();
+  await expect(page.getByRole('tooltip')).toContainText('american');
+  await page.keyboard.press('Escape');
   await expect(page.locator('.nutrition-grid .nutrition-value')).toHaveText(['390.3', '20.4g', '7g', '65.8g']);
   await expect(viewport.getByText('Render Error', { exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);

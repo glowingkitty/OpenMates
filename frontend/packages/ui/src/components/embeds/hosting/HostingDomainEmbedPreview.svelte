@@ -1,7 +1,10 @@
 <script lang="ts">
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { formatTierMoney, headlineTier, isFirstYearOffer, normalizeDomain, quote, years, type DomainResult } from './hostingDomainData';
+  import { formatTierMoney, headlineTier, isFirstYearOffer, normalizeDomain, quote, safeGandiUrl, years, type DomainResult } from './hostingDomainData';
 
   interface Props {
     id: string;
@@ -9,10 +12,11 @@
     content?: Record<string, unknown>;
     isMobile?: boolean;
     presentationOnly?: boolean;
+    resultContext?: 'auto' | 'chat' | 'results';
     onFullscreen: () => void;
   }
 
-  let { id, domain, content, isMobile = false, presentationOnly = false, onFullscreen }: Props = $props();
+  let { id, domain, content, isMobile = false, presentationOnly = false, resultContext = 'auto', onFullscreen }: Props = $props();
   let result = $derived(domain ?? normalizeDomain(id, content ?? {}));
   let registrationTier = $derived(headlineTier(result.registration_tiers));
   let renewalTier = $derived(headlineTier(result.renewal_tiers));
@@ -25,11 +29,11 @@
       ? $text('embeds.hosting.search_domains.unavailable')
       : $text('embeds.hosting.search_domains.could_not_check'));
   let displayDomain = $derived(result.domain_unicode || result.domain_ascii);
-  let suffixStart = $derived(displayDomain.lastIndexOf('.'));
-  let showBodyName = $derived(displayDomain.length > 24 || displayDomain !== result.domain_ascii);
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
+  {resultContext}
   {id}
   appId="hosting"
   skillId="search_domains"
@@ -42,45 +46,20 @@
   showStatus={false}
   showSkillIcon={false}
 >
+  {#snippet resultPrimaryAction()}{#if safeGandiUrl(result.provider_url)}<a href={safeGandiUrl(result.provider_url)} target="_blank" rel="noopener noreferrer" aria-label={$text('embeds.hosting.search_domains.open_on_gandi')} onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
   {#snippet details()}
-    <div class="domain-preview" data-testid="hosting-domain-preview">
-      <div class="topline"><span class:unknown={result.availability === 'unknown'} class:available={result.availability === 'available'}>{statusLabel}</span>
-        {#if result.premium}<span class="badge">{$text('embeds.hosting.search_domains.premium')}</span>{/if}
-      </div>
-      {#if showBodyName}<div class="domain-name" title={displayDomain}>
-        {#if suffixStart > 0}<span class="domain-prefix">{displayDomain.slice(0, suffixStart)}</span><span class="domain-suffix">{displayDomain.slice(suffixStart)}</span>
-        {:else}{displayDomain}{/if}
-      </div>{/if}
-      {#if registration}
-        <div class="registration" data-testid="hosting-domain-registration">{formatTierMoney(registrationTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year'))}</div>
-        <div class="term">{minimum === 1 ? $text('embeds.hosting.search_domains.first_year') : minimum ? $text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(minimum)) : ''}</div>
-        {#if registration.basis === 'excluding'}<div class="term">{$text('embeds.hosting.search_domains.tax_excluded')}</div>{/if}
-      {:else}
-        <div class="unpriced" data-testid="hosting-domain-registration">{$text('embeds.hosting.search_domains.price_unavailable')}</div>
-      {/if}
-      {#if renewal}
-        <div class="renewal" data-testid="hosting-domain-renewal">{$text('embeds.hosting.search_domains.renewal_price').replace('{price}', formatTierMoney(renewalTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year')) || '')}</div>
-        {#if renewal.basis === 'excluding'}<div class="term">{$text('embeds.hosting.search_domains.tax_excluded')}</div>{/if}
-      {/if}
-      <div class="badges">
-        {#if isFirstYearOffer(registrationTier)}<span class="badge">{$text('embeds.hosting.search_domains.first_year_offer')}</span>{/if}
-        {#if minimum && minimum > 1}<span class="badge">{$text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(minimum))}</span>{/if}
-        {#if result.restrictions.length}<span class="badge">{$text('embeds.hosting.search_domains.registration_restrictions')}</span>{/if}
-      </div>
+    <div data-testid="hosting-domain-preview" class="domain-preview">
+      <ResultEmbedCard title={displayDomain} sourceLabel={result.provider} description={statusLabel} textFirst={true}>
+        {#snippet facts()}
+          <ResultEmbedInfo icon="Globe" label={statusLabel} state={result.availability === 'available' ? 'yes' : result.availability === 'unavailable' ? 'no' : 'unknown'}>{#snippet children()}{statusLabel}{#if result.premium}<p>{$text('embeds.hosting.search_domains.premium')}</p>{/if}{#each result.restrictions as restriction}<p>{restriction}</p>{/each}{/snippet}</ResultEmbedInfo>
+          <ResultEmbedInfo icon="Banknote" label={$text('embeds.hosting.search_domains.registration')} value={registration ? formatTierMoney(registrationTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year')) : $text('embeds.hosting.search_domains.price_unavailable')} testId="hosting-domain-registration">
+            {#snippet children()}{#if registration}{formatTierMoney(registrationTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year'))}<p>{minimum === 1 ? $text('embeds.hosting.search_domains.first_year') : minimum ? $text('embeds.hosting.search_domains.minimum_years').replace('{count}', String(minimum)) : ''}</p>{#if registration.basis === 'excluding'}<p>{$text('embeds.hosting.search_domains.tax_excluded')}</p>{/if}{#if isFirstYearOffer(registrationTier)}<p>{$text('embeds.hosting.search_domains.first_year_offer')}</p>{/if}{:else}{$text('embeds.hosting.search_domains.price_unavailable')}{/if}{/snippet}
+          </ResultEmbedInfo>
+          {#if renewal}<ResultEmbedInfo icon="RefreshCw" label={$text('embeds.hosting.search_domains.renewal')} testId="hosting-domain-renewal">{#snippet children()}{$text('embeds.hosting.search_domains.renewal_price').replace('{price}', formatTierMoney(renewalTier, result.currency || 'EUR', $text('embeds.hosting.search_domains.year')) || '')}{#if renewal.basis === 'excluding'}<p>{$text('embeds.hosting.search_domains.tax_excluded')}</p>{/if}{/snippet}</ResultEmbedInfo>{/if}
+        {/snippet}
+      </ResultEmbedCard>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
-<style>
-  .domain-preview { display: flex; flex-direction: column; gap: var(--spacing-2); min-width: 0; padding-top: var(--spacing-4); }
-  .topline { display: flex; justify-content: space-between; gap: var(--spacing-2); font-size: var(--font-size-small); font-weight: 600; }
-  .available { color: var(--color-primary); }
-  .unknown { color: var(--color-warning); }
-  .domain-name { display: flex; min-width: 0; color: var(--color-font-primary); font-weight: 600; line-height: 1.2; }
-  .domain-prefix { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .domain-suffix { flex: none; white-space: nowrap; }
-  .registration { color: var(--color-font-primary); font-size: var(--font-size-h3); font-weight: 700; }
-  .term, .renewal, .unpriced { color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  .badges { display: flex; flex-wrap: wrap; gap: var(--spacing-2); }
-  .badge { border: 1px solid var(--color-grey-30); border-radius: var(--radius-3); padding: 2px var(--spacing-2); color: var(--color-font-secondary); font-size: var(--font-size-small); }
-</style>
+<style>.domain-preview {width:100%;height:100%;min-width:0;}</style>

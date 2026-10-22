@@ -9,7 +9,7 @@ const sampleRecipe = {
   embed_id: 'preview-recipe-fs-001',
   title: 'Spaghetti Aglio e Olio',
   description: 'Klassisches italienisches Knoblauch-Pasta-Gericht mit Olivenöl, Knoblauch und Chili. Einfach, schnell und unglaublich lecker.',
-  image_url: null,
+  image_url: 'https://nutrition.example/recipe.jpg',
   recipe_url: 'https://www.edamam.com/results/recipes/?search=spaghetti%20aglio%20e%20olio',
   prep_time_minutes: 10,
   cook_time_minutes: 15,
@@ -53,6 +53,8 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  noImage: { recipe: { ...sampleRecipe, image_url: null } },
+  zero: { recipe: { ...sampleRecipe, total_time_minutes: 0, servings: 0, rating: 0, rating_count: 0, nutrition: { calories_kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0 } } },
   /** The raw envelope supplied by ActiveChat for a saved inline recipe child. */
   directData: {
     recipe: undefined, // Preview variants merge with default props; remove the legacy input.

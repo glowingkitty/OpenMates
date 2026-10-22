@@ -1,11 +1,9 @@
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
+  import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import HostingDomainEmbedPreview from './HostingDomainEmbedPreview.svelte';
   import HostingDomainEmbedFullscreen from './HostingDomainEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { restorePreviousFullscreenRoute, setChildFullscreenRouteFromParent } from '../../../services/embedFullscreenController';
   import { boundedView, idList, normalizeDomain, type DomainResult, type DomainSearchContent, type DomainView, type EmbedStatus } from './hostingDomainData';
 
   interface Props {
@@ -28,8 +26,6 @@
   let status = $state<EmbedStatus>('finished');
   let children = $state<DomainResult[]>([]);
   let view = $state<DomainView>('selected');
-  let selectedChildId = $state<string | null>(null);
-  let initialOpenHandled = $state(false);
 
   $effect(() => {
     searchData = (data?.decodedContent ?? {}) as DomainSearchContent;
@@ -53,41 +49,16 @@
     }
     return initial;
   });
-  let selectedIndex = $derived(selectedChildId ? children.findIndex((child) => child.embed_id === selectedChildId) : -1);
-  let selectedChild = $derived(selectedIndex >= 0 ? children[selectedIndex] : null);
   let headerSubtitle = $derived(`${$text('embeds.hosting.search_domains.provider_via').replace('{provider}', searchData.provider || 'Gandi')} · ${searchData.currency || 'EUR'}${searchData.country ? ` · ${searchData.country}` : ''}`);
-
-  $effect(() => {
-    const initialId = data.focusChildEmbedId;
-    if (initialId && !initialOpenHandled && children.some((child) => child.embed_id === initialId)) {
-      selectedChildId = initialId;
-      initialOpenHandled = true;
-    }
-  });
 
   function updated(event: { status: string; decodedContent: Record<string, unknown> }) {
     searchData = { ...searchData, ...event.decodedContent } as DomainSearchContent;
     if (event.status === 'processing' || event.status === 'finished' || event.status === 'error' || event.status === 'cancelled') status = event.status;
   }
 
-  function openChild(child: DomainResult) {
-    selectedChildId = child.embed_id;
-    if (!previewChildren && embedId) setChildFullscreenRouteFromParent(child.embed_id, embedId);
-  }
-
-  function closeChild() {
-    if (data.focusChildEmbedId) { onClose(); return; }
-    selectedChildId = null;
-    if (!previewChildren) restorePreviousFullscreenRoute(embedId ?? null);
-  }
-
-  function moveChild(offset: number) {
-    const next = children[selectedIndex + offset];
-    if (next) openChild(next);
-  }
 </script>
 
-<UnifiedEmbedFullscreen
+<SearchResultsTemplate
   testId="hosting-search-fullscreen"
   appId="hosting"
   skillId="search_domains"
@@ -105,12 +76,21 @@
   {showChatButton}
   {onShowChat}
   embedIds={previewChildren ? undefined : checkedIds}
+  localResults={!!previewChildren}
+  legacyResults={previewChildren}
+  legacyResultTransformer={items => items as DomainResult[]}
+  initialChildEmbedId={data.focusChildEmbedId}
+  status={children.length ? 'finished' : status}
+  errorMessage={searchData.error || undefined}
+  emptyTestId="hosting-search-empty"
+  gridTestId="hosting-domain-grid"
+  filters={{ controls: viewControls, matches: child => visible.some(item => item.embed_id === child.embed_id) }}
   childEmbedTransformer={normalizeDomain}
-  onChildrenLoaded={(loaded) => { if (!previewChildren) children = loaded as DomainResult[]; }}
+  onResultsLoaded={(loaded) => { if (!previewChildren) children = loaded as DomainResult[]; }}
   onEmbedDataUpdated={updated}
   headerActionCount={(searchData.unknown_count ?? 0) > 0 ? 5 : 4}
 >
-  {#snippet headerActions()}
+  {#snippet viewControls()}
     {#each [
       ['selected', $text('embeds.hosting.search_domains.selected_count').replace('{count}', String(searchData.result_count ?? selectedIds.length))],
       ['available', $text('embeds.hosting.search_domains.show_available')],
@@ -124,49 +104,21 @@
     {/each}
   {/snippet}
 
-  {#snippet content(ctx)}
-    <main class="search-results">
-      {#if visible.length}
-        <div class="grid" data-testid="hosting-domain-grid">
-          {#each visible as child (child.embed_id)}
-            <HostingDomainEmbedPreview id={child.embed_id} domain={child} presentationOnly={true} onFullscreen={() => openChild(child)} />
-          {/each}
-        </div>
-      {:else if ctx.isLoadingChildren || status === 'processing'}
-        <div class="loading" aria-busy="true">{$text('embeds.hosting.search_domains.processing')}</div>
-      {:else if status === 'cancelled'}
-        <div class="empty">{$text('embeds.hosting.search_domains.cancelled')}</div>
-      {:else if searchData.error}
-        <div class="empty" data-testid="hosting-search-error">{searchData.error}</div>
-      {:else}
-        <div class="empty" data-testid="hosting-search-empty">{$text('embeds.hosting.search_domains.no_domains_in_view')}</div>
-      {/if}
-    </main>
+  {#snippet headerActions()}{@render viewControls()}{/snippet}
+  {#snippet emptyContent()}
+    {#if status === 'processing'}<p aria-busy="true">{$text('embeds.hosting.search_domains.processing')}</p>
+    {:else if status === 'cancelled'}<p>{$text('embeds.hosting.search_domains.cancelled')}</p>
+    {:else if searchData.error}<p data-testid="hosting-search-error">{searchData.error}</p>
+    {:else}<p>{$text('embeds.hosting.search_domains.no_domains_in_view')}</p>{/if}
   {/snippet}
-</UnifiedEmbedFullscreen>
-
-{#if selectedChild}
-  <ChildEmbedOverlay instant={!!data.focusChildEmbedId}>
-    <HostingDomainEmbedFullscreen
-      domain={selectedChild}
-      embedId={selectedChild.embed_id}
-      onClose={closeChild}
-      hasPreviousEmbed={selectedIndex > 0}
-      hasNextEmbed={selectedIndex < children.length - 1}
-      onNavigatePrevious={() => moveChild(-1)}
-      onNavigateNext={() => moveChild(1)}
-    />
-  </ChildEmbedOverlay>
-{/if}
+  {#snippet resultCard({ result: child, onSelect })}
+    <HostingDomainEmbedPreview id={child.embed_id} domain={child} presentationOnly={true} onFullscreen={onSelect} />
+  {/snippet}
+  {#snippet childFullscreen({ result: child, onClose: closeChild, hasPrevious, hasNext, onPrevious, onNext })}
+    <HostingDomainEmbedFullscreen domain={child} embedId={child.embed_id} onClose={closeChild} hasPreviousEmbed={hasPrevious} hasNextEmbed={hasNext} onNavigatePrevious={onPrevious} onNavigateNext={onNext} />
+  {/snippet}
+</SearchResultsTemplate>
 
 <style>
-  .search-results { width: 100%; max-width: 1100px; box-sizing: border-box; margin: 0 auto; padding: var(--spacing-8); color: var(--color-font-primary); }
-  .domain-filter { border: 0; border-radius: 40px; padding: var(--spacing-4) var(--spacing-6); background: var(--color-grey-10); color: var(--color-font-primary); font: inherit; cursor: pointer; pointer-events: auto; }
-  .domain-filter[aria-pressed="true"] { color: var(--color-button-primary); }
-  .domain-filter:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--spacing-8); padding: var(--spacing-8) 0 96px; }
-  .grid :global(.unified-embed-preview) { margin: 0 auto; }
-  .loading, .empty { padding: var(--spacing-12); text-align: center; color: var(--color-font-secondary); }
-  @container fullscreen (max-width: 500px) { .search-results { padding: var(--spacing-4); } .grid { grid-template-columns: 1fr; gap: var(--spacing-5); } }
-  @container fullscreen (max-width: 340px) { .search-results { padding-inline: 0; } }
+.domain-filter {border:0;border-radius:var(--radius-full);padding:var(--spacing-3) var(--spacing-4);background:var(--color-grey-10);color:var(--color-font-primary);font:inherit;cursor:pointer;pointer-events:auto;} .domain-filter[aria-pressed="true"] {color:var(--color-button-primary);} .domain-filter:focus-visible {outline:2px solid var(--color-button-primary);outline-offset:2px;}
 </style>

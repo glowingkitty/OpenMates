@@ -44,6 +44,7 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  zero: { product: { ...defaultProps.product, price_cents: 0, price_eur: null, was_price_cents: null, stock: 0, rating: 0, reviews: 0, is_salable: false } },
   primaryOnly: { product: { ...defaultProps.product, image_urls: undefined } },
   missingImages: { product: { ...defaultProps.product, image_url: null, image_urls: [] } },
   toonGallery: {

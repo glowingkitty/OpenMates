@@ -1,0 +1,299 @@
+import { expect, test } from '../helpers/cookie-audit';
+import { waitForComponentPreview, waitForComponentMotion } from '../helpers/component-preview';
+// playwright-account: not_required reason=isolated_component_preview
+
+const components = [
+  ['code/CodeRepoEmbed', 'lemmingDev/ESP32-BLE-Gamepad'],
+  ['models3d/Model3DResultEmbed', 'Low-poly research observatory'],
+  ['jobs/JobsResultEmbed', 'Climate Data Analyst'],
+  ['business/BusinessCompanyFinancialResultEmbed', 'Cal-Maine Foods, Inc.'],
+  ['social_media/SocialMediaPostEmbed', 'Small cafe bar layout notes'],
+] as const;
+
+async function openPreview(page: import('@playwright/test').Page, component: string, width: number, variant?: string) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`/dev/preview/embeds/${component}?chrome=0&width=${width}&theme=light${width > 400 && component.endsWith('Preview') ? '&context=chat' : ''}${variant ? `&variant=${variant}` : ''}`);
+  await waitForComponentPreview(page);
+  if (component.endsWith('Fullscreen')) await waitForComponentMotion(page.locator('.unified-embed-fullscreen-overlay').first());
+}
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+for (const width of [390, 1000]) {
+  test(`catalog results share concise cards and truthful missing states at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(240_000);
+    const fixture = await page.request.get('/images/examples/group1.jpg');
+    expect(fixture.ok()).toBeTruthy();
+    const bytes = await fixture.body();
+    await page.route('**/api/v1/image?*', route => route.fulfill({ status: 200, contentType: 'image/jpeg', body: bytes }));
+    for (const [component, title] of components) {
+      await openPreview(page, `${component}Preview`, width, width > 400 ? 'chat' : undefined);
+      const card = page.getByTestId('embed-preview');
+      await expect(card).toHaveClass(/result-preview/);
+      await expect(page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]')).toHaveText(title);
+      if (width > 400 && !component.startsWith('business/')) {
+        const action = page.locator('.result-tools a');
+        await expect(action).toHaveCount(1);
+        await expect(action).toHaveAttribute('aria-label', /\S/);
+        await expect(action).toHaveText('');
+        await expect(action.locator('svg')).toBeVisible();
+        await expect(action).toHaveCSS('width', '32px');
+        await expect(action).toHaveCSS('height', '32px');
+      }
+      const box = await card.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      await testInfo.attach(`${component.replaceAll('/', '-')}-${width}`, { body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png' });
+      await openPreview(page, `${component}Preview`, width, 'longTitle');
+      await expect(page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]')).toBeVisible();
+      expect(await page.getByTestId('result-card-content').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+      await openPreview(page, `${component}Preview`, width, 'missingData');
+      await expect(page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]')).not.toBeEmpty();
+      if (component.startsWith('code/')) {
+        await expect(page.getByRole('button', { name: 'Stars', exact: true })).toHaveCount(0);
+      } else if (component.startsWith('models3d/')) {
+        await expect(page.getByRole('button', { name: 'Free model', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'License', exact: true })).toHaveCount(0);
+      } else if (component.startsWith('jobs/')) {
+        await expect(page.getByRole('button', { name: 'Remote work', exact: true })).toHaveAttribute('data-state', 'unknown');
+        await expect(page.getByTestId('jobs-salary')).toHaveCount(0);
+      } else if (component.startsWith('social_media/')) {
+        await expect(page.getByRole('button', { name: 'Likes', exact: true })).toHaveCount(0);
+      }
+      await openPreview(page, `${component}Fullscreen`, width);
+      const fullscreen = page.getByTestId('result-embed-content');
+      await expect(fullscreen).toBeVisible();
+      if (component.startsWith('code/')) {
+        await expect(page.getByRole('heading', { name: 'Languages', exact: true })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'Open on GitHub' })).toHaveAttribute('href', /github.com/);
+      } else if (component.startsWith('models3d/')) {
+        await expect(page.getByTestId('result-media').locator('img')).toHaveCSS('object-fit', 'contain');
+        await expect(page.getByTestId('models3d-open-provider-cta')).toHaveAttribute('href', 'https://example.com/models/observatory');
+      } else if (component.startsWith('jobs/')) {
+        await expect(page.getByTestId('jobs-description')).toContainText('climate datasets');
+        await expect(page.getByTestId('jobs-apply-link')).toHaveAttribute('href', /climate-data\/apply$/);
+        const primary = page.getByTestId('jobs-apply-link');
+        const source = page.getByTestId('jobs-detail-body').getByTestId('jobs-source-link');
+        const facts = page.getByTestId('result-facts');
+        await expect(primary).toBeVisible();
+        await expect(source).toBeVisible();
+        await expect(facts).toBeVisible();
+        // One DOM evaluation measures a single animation frame while the pane opens.
+        const geometry = await page.getByTestId('jobs-result-fullscreen').evaluate(root => {
+          const primary = root.querySelector('[data-testid="jobs-apply-link"]')!.getBoundingClientRect();
+          const facts = root.querySelector('[data-testid="result-facts"]')!.getBoundingClientRect();
+          const source = root.querySelector('[data-testid="jobs-detail-body"] [data-testid="jobs-source-link"]')!.getBoundingClientRect();
+          return { primaryBottom: primary.bottom, factsTop: facts.top, factsBottom: facts.bottom, sourceTop: source.top };
+        });
+        expect(geometry.primaryBottom).toBeLessThan(geometry.factsTop);
+        expect(geometry.sourceTop).toBeGreaterThan(geometry.factsBottom);
+      } else if (component.startsWith('business/')) {
+        await expect(fullscreen).toContainText('Cal-Maine Foods');
+        await expect(page.getByTestId('business-open-sec-filing')).toHaveAttribute('href', /sec.gov/);
+      } else {
+        await expect(fullscreen).toContainText('Community cafe research notes');
+        await expect(page.getByRole('link', { name: 'Read the research notes' })).toHaveAttribute('href', 'https://example.com/cafe-research');
+      }
+      await testInfo.attach(`${component.replaceAll('/', '-')}-fullscreen-${width}`, {
+        body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+    }
+  });
+}
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('repository facts explain known values on focus, keyboard, tap and Escape; fullscreen preserves provider and contributors', async ({ page }) => {
+  const expansions: string[] = [];
+  page.on('console', message => {
+    if (message.text() === '[Preview] Repo fullscreen clicked') expansions.push(message.text());
+  });
+  await openPreview(page, 'code/CodeRepoEmbedPreview', 390);
+  const stars = page.getByRole('button', { name: 'Stars', exact: true });
+  await stars.focus();
+  await expect(page.getByRole('tooltip')).toContainText('1516');
+  await stars.press('Escape');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  const gridCard = page.getByTestId('embed-preview');
+  await expect(gridCard).toHaveAttribute('role', 'button');
+  for (const key of ['Enter', 'Space']) {
+    await stars.focus();
+    await stars.press(key);
+    await expect(stars).toHaveAttribute('data-pinned', 'true');
+    await expect(page.getByRole('tooltip')).toContainText('1516');
+    expect(expansions).toHaveLength(0);
+    await stars.press('Escape');
+    await expect(stars).toHaveAttribute('data-pinned', 'false');
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
+  }
+  // Positive control proves the fixture callback detects outer-card expansion.
+  await gridCard.focus();
+  await gridCard.press('Enter');
+  await expect.poll(() => expansions.length).toBe(1);
+  await stars.click();
+  await expect(stars).toHaveAttribute('data-pinned', 'true');
+  await page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]').click();
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await openPreview(page, 'code/CodeRepoEmbedFullscreen', 1000);
+  await expect(page.getByTestId('result-embed-content')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open on GitHub' })).toHaveAttribute('href', 'https://github.com/lemmingDev/ESP32-BLE-Gamepad');
+  await expect(page.getByRole('heading', { name: 'Languages', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Top Contributors', exact: true })).toBeVisible();
+  await expect(page.getByRole('link').filter({ hasText: 'lemmingDev' })).toHaveAttribute('href', 'https://github.com/lemmingDev');
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('catalogue images stay uncropped and provider action never fetches model files', async ({ page }) => {
+  const requestedModels: string[] = [];
+  page.on('request', request => { if (/\.(glb|gltf|obj|stl|fbx)(\?|$)/i.test(request.url())) requestedModels.push(request.url()); });
+  const fixture = await page.request.get('/images/examples/group1.jpg');
+  const bytes = await fixture.body();
+  await page.route('**/api/v1/image?*', route => route.fulfill({ status: 200, contentType: 'image/jpeg', body: bytes }));
+  for (const width of [390, 1000]) {
+    await openPreview(page, 'models3d/Model3DResultEmbedPreview', width, width > 400 ? 'chat' : undefined);
+    const image = page.getByTestId('result-card-media').locator('img');
+    await expect(image).toHaveCSS('object-fit', 'contain');
+    await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    const source = new URL((await image.getAttribute('src'))!, page.url());
+    expect(source.pathname).toBe('/api/v1/image');
+    await openPreview(page, 'models3d/Model3DResultEmbedFullscreen', width);
+    await expect(page.getByTestId('result-media').locator('img')).toHaveCSS('object-fit', 'contain');
+    await expect(page.getByTestId('models3d-open-provider-cta')).toHaveAttribute('href', 'https://example.com/models/observatory');
+  }
+  await openPreview(page, 'models3d/Model3DResultEmbedFullscreen', 390, 'brokenImage');
+  await expect(page.getByTestId('result-media').locator('img')).toHaveCount(0);
+  expect(requestedModels).toEqual([]);
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('jobs, financials and social posts preserve their source, evidence and existing details', async ({ page }) => {
+  await openPreview(page, 'jobs/JobsResultEmbedFullscreen', 390, 'richDetails');
+  await expect(page.getByTestId('jobs-apply-link')).toHaveAttribute('href', 'https://example.com/jobs/climate-data/apply');
+  await expect(page.getByTestId('jobs-source-link')).toHaveAttribute('href', 'https://example.com/jobs/climate-data');
+  await expect(page.getByTestId('jobs-impact')).toContainText('healthcare');
+  await expect(page.getByTestId('jobs-description')).toContainText('Benefits');
+  await openPreview(page, 'jobs/JobsResultEmbedFullscreen', 390, 'summaryOnly');
+  await expect(page.getByTestId('jobs-details-warning')).toBeVisible();
+  await openPreview(page, 'business/BusinessCompanyFinancialResultEmbedFullscreen', 390);
+  await expect(page.getByTestId('business-open-sec-filing')).toHaveAttribute('href', /sec.gov/);
+  await page.getByRole('button', { name: 'Source filing', exact: true }).click();
+  await expect(page.getByRole('tooltip')).toContainText('0000016160-25-000050');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Notes', exact: true }).click();
+  await expect(page.getByRole('tooltip')).toContainText('Normalized from SEC');
+  await openPreview(page, 'social_media/SocialMediaPostEmbedFullscreen', 390, 'longPost');
+  const expand = page.getByRole('button', { name: 'Expand post' });
+  await expand.click();
+  await expect(page.getByRole('button', { name: 'Show less' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Read the research notes' })).toHaveAttribute('href', 'https://example.com/cafe-research');
+  await expect(page.getByText('The accessible shelf makes this much easier to use.')).toBeVisible();
+});
+
+for (const width of [390, 1000]) {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction,hosting-domains.quotes.truthful,hosting-domains.results.partial-and-safe
+  test(`hosting and electronics keep facts and missing-data states at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(180_000);
+    for (const [component, title] of [
+      ['hosting/HostingDomainEmbed', 'cedarcomet.net'],
+      ['electronics/ElectronicsComponentEmbed', 'TPS564257DRLR'],
+    ]) {
+      for (const variant of ['', 'missingData']) {
+        await openPreview(page, `${component}Preview`, width, variant || (width > 400 ? 'chat' : undefined));
+        await expect(page.getByTestId('result-card-title')).toContainText(variant ? (component.startsWith('hosting') ? 'cedarcomet.et' : title) : title);
+        if (component.startsWith('hosting')) {
+          if (width > 400) {
+            const action = page.locator('.result-tools a');
+            await expect(action).toHaveAttribute('aria-label', 'Open on Gandi');
+            await expect(action).toHaveText('');
+            await expect(action.locator('svg')).toBeVisible();
+            await expect(action).toHaveCSS('height', '32px');
+          }
+          const registration = page.getByTestId('hosting-domain-registration');
+          await registration.click();
+          await expect(page.getByRole('tooltip')).toContainText(variant ? /price unavailable/i : /first.year offer/i);
+          await registration.press('Escape');
+          if (variant) await expect(page.getByTestId('result-card-content').getByRole('button', { name: 'Could not check', exact: true })).toHaveAttribute('data-state', 'unknown');
+        } else if (variant) {
+          await expect(page.getByRole('button', { name: 'Efficiency', exact: true })).toHaveCount(0);
+        } else {
+          const efficiency = page.getByRole('button', { name: 'Efficiency', exact: true });
+          await efficiency.focus();
+          await expect(page.getByRole('tooltip')).toContainText('92.4%');
+          await efficiency.press('Escape');
+        }
+        await testInfo.attach(`${component.replaceAll('/', '-')}-preview-${variant || 'default'}-${width}`, {
+          body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        });
+        await openPreview(page, `${component}Fullscreen`, width, variant || undefined);
+        await expect(page.getByTestId('result-embed-content')).toBeVisible();
+        if (component.startsWith('hosting')) {
+          await expect(page.getByRole('link', { name: /open on Gandi/i })).toHaveAttribute('href', /^https:\/\/shop\.gandi\.net\//);
+          await expect(page.getByTestId('hosting-domain-registration')).toContainText(variant ? /price unavailable/i : /13[.,]09/);
+        } else if (variant) {
+          await expect(page.getByTestId('result-embed-content')).toContainText('Example component');
+          await expect(page.getByTestId('result-embed-content')).toContainText('Example source');
+          await expect(page.getByRole('link', { name: 'Datasheet', exact: true })).toHaveCount(0);
+          await expect(page.getByRole('button', { name: 'Input voltage', exact: true })).toHaveCount(0);
+        } else {
+          await expect(page.getByTestId('result-embed-content')).toContainText('TPS564257DRLR');
+          await expect(page.getByRole('link', { name: 'Datasheet', exact: true })).toHaveAttribute('href', 'https://www.ti.com/lit/gpn/tps564257');
+          await expect(page.getByRole('button', { name: 'Input voltage', exact: true })).toContainText('4.5 V');
+        }
+        await testInfo.attach(`${component.replaceAll('/', '-')}-fullscreen-${variant || 'default'}-${width}`, {
+          body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        });
+      }
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=hosting-domains.embeds.parent-child,trademarks.coverage,trademarks.evidence,trademarks.parity
+  test(`hosting and trademark collections preserve source coverage and local details at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(180_000);
+    for (const variant of ['', 'missingData']) {
+      await openPreview(page, 'hosting/HostingSearchEmbedFullscreen', width, variant || undefined);
+      const domains = page.getByTestId('hosting-domain-grid');
+      await expect(domains.getByTestId('hosting-domain-preview')).toHaveCount(variant ? 1 : 2);
+      if (variant) await expect(domains).toContainText(/could not check/i);
+      await testInfo.attach(`hosting-collection-${variant || 'default'}-${width}`, {
+        body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await domains.getByTestId('hosting-domain-preview').first().click();
+      await expect(page.getByTestId('hosting-domain-fullscreen')).toBeVisible();
+      await expect(page.getByTestId('hosting-domain-ascii')).toContainText(variant ? 'cedarcomet.et' : 'cedarcomet.com');
+      await testInfo.attach(`hosting-collection-child-${variant || 'default'}-${width}`, {
+        body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      await openPreview(page, 'business/BusinessTrademarkSearchEmbedFullscreen', width, variant || undefined);
+      await expect(page.getByTestId('trademark-search-coverage')).toContainText('DE');
+      await expect(page.getByTestId('trademark-fullscreen-limitation')).toContainText('legal availability');
+      const record = page.getByTestId('trademark-record');
+      await expect(record).toContainText(variant ? 'Example mark' : 'ADIDAS');
+      await testInfo.attach(`trademark-collection-${variant || 'default'}-${width}`, {
+        body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+      const initialHash = new URL(page.url()).hash;
+      if (variant) {
+        const status = record.getByTestId('result-card-content').getByRole('button', { name: 'Status unknown', exact: true });
+        await status.click();
+        await expect(page.getByRole('tooltip')).toContainText('Status unknown');
+        await expect(page.getByTestId('trademark-record-fullscreen')).toHaveCount(0);
+        await status.press('Escape');
+      }
+      await record.getByTestId('result-card-title').click();
+      const detail = page.getByTestId('trademark-record-fullscreen');
+      await expect(detail).toBeVisible();
+      await waitForComponentMotion(detail);
+      expect(new URL(page.url()).hash).toBe(initialHash);
+      if (variant) {
+        await expect(detail.getByTestId('trademark-record-source')).toHaveCount(0);
+        await expect(detail.getByTestId('trademark-record-detail')).not.toContainText('Application:');
+      } else {
+        await expect(detail.getByTestId('trademark-record-source')).toHaveAttribute('href', /^https:\/\/tsdr\.uspto\.gov\//);
+        await detail.locator('summary').click();
+        await expect(detail).toContainText('Tote bags.');
+      }
+      await testInfo.attach(`trademark-record-${variant || 'default'}-${width}`, {
+        body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png',
+      });
+    }
+  });
+}

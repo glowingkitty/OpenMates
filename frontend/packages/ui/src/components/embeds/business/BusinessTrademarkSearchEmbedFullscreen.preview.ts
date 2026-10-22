@@ -3,6 +3,7 @@ const saved = (value: Record<string,unknown>) => ({app_id:'business',skill_id:'s
 const props = {data:{decodedContent:saved(trademarkData)},onClose:()=>{}};
 export default props;
 export const variants = {
+  missingData: { ...props, data: { decodedContent: saved({ ...trademarkData, matches: [{ mark: 'Example mark', status: 'unknown' }] }) } },
   direct: {...props,data:{decodedContent:trademarkData}},
   empty: {...props,data:{decodedContent:saved(emptyData)}},
   error: {...props,data:{decodedContent:saved(errorData)}},

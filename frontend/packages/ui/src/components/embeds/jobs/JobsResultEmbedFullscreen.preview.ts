@@ -7,6 +7,7 @@ const job = {
 const defaultProps = { embedId: 'preview-job-result', data: { decodedContent: job }, onClose: () => {} };
 export default defaultProps;
 export const variants = {
+  sourceOnly: { ...defaultProps, data: { decodedContent: { ...job, apply_url: undefined } } },
   richDetails: { ...defaultProps, data: { decodedContent: { ...job,
     provider: 'hard_problems', sector: 'Healthcare', role: 'Product design',
     seniority: 'Senior', organization_type: 'For-profit', work_arrangement: 'Hybrid',

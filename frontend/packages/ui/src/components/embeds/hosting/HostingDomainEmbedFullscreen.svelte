@@ -1,5 +1,6 @@
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -50,7 +51,8 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ domain_ascii: result.domain_ascii, domain_unicode: result.domain_unicode, availability: result.availability, provider: result.provider, provider_url: providerUrl, currency: result.currency, country: result.country, checked_at: result.checked_at }}
   testId="hosting-domain-fullscreen"
   appId="hosting"
   skillId="search_domains"
@@ -70,7 +72,12 @@
     {#if providerUrl}<EmbedHeaderCtaButton label={$text('embeds.hosting.search_domains.open_on_gandi')} href={providerUrl} />{/if}
   {/snippet}
 
-  {#snippet content()}
+  {#snippet summary()}
+    <ResultEmbedInfo icon="Globe" label={statusLabel} state={result.availability === 'available' ? 'yes' : result.availability === 'unavailable' ? 'no' : 'unknown'}>{#snippet children()}{statusLabel}<p>{$text('embeds.hosting.search_domains.availability_may_change')}</p>{#if checked}<p>{$text('embeds.hosting.search_domains.checked_at').replace('{date}', checked)}</p>{/if}{/snippet}</ResultEmbedInfo>
+    {#if registration && quote(registration)}<ResultEmbedInfo icon="Banknote" label={$text('embeds.hosting.search_domains.registration')} value={price(registration)}>{#snippet children()}{term(registration)} · {taxLabel(registration)}{/snippet}</ResultEmbedInfo>{/if}
+    {#if renewal && quote(renewal)}<ResultEmbedInfo icon="RefreshCw" label={$text('embeds.hosting.search_domains.renewal')} value={price(renewal)}>{#snippet children()}{term(renewal)} · {taxLabel(renewal)}{/snippet}</ResultEmbedInfo>{/if}
+  {/snippet}
+  {#snippet detailContent()}
     <main class="domain-details" data-testid="hosting-domain-details">
       <section class="identity">
         <div class="field"><span>{$text('embeds.hosting.search_domains.domain_unicode')}</span><strong class="copyable">{result.domain_unicode || result.domain_ascii}</strong></div>
@@ -123,23 +130,8 @@
       <p class="disclaimer">{$text('embeds.hosting.search_domains.availability_may_change')}</p>
     </main>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
-  .domain-details { max-width: 760px; margin: 0 auto; padding: var(--spacing-8); display: grid; gap: var(--spacing-8); color: var(--color-font-primary); }
-  section { padding: var(--spacing-6); border: 1px solid var(--color-grey-30); border-radius: var(--radius-5); background: var(--color-grey-0); min-width: 0; }
-  h2 { margin: 0 0 var(--spacing-4); font-size: var(--font-size-h3); }
-  p { margin: var(--spacing-2) 0; }
-  .headline { font-size: var(--font-size-h3); font-weight: 700; }
-  .headline span { font-size: var(--font-size-p); font-weight: 400; color: var(--color-font-secondary); }
-  .field { display: flex; flex-wrap: wrap; gap: var(--spacing-3); justify-content: space-between; padding: var(--spacing-3) 0; border-bottom: 1px solid var(--color-grey-25); }
-  .field:last-child { border-bottom: 0; }
-  .field span { color: var(--color-font-secondary); }
-  .copyable { user-select: text; overflow-wrap: anywhere; }
-  .tier-tables { display: grid; gap: var(--spacing-6); }
-  table { width: 100%; border-collapse: collapse; text-align: left; }
-  caption { text-align: left; font-weight: 600; margin-bottom: var(--spacing-2); }
-  th, td { padding: var(--spacing-3); border-bottom: 1px solid var(--color-grey-25); }
-  .disclaimer { color: var(--color-font-secondary); font-size: var(--font-size-small); }
-  @media (max-width: 600px) { .domain-details { padding: var(--spacing-4); } .field { display: block; } .field strong { display: block; margin-top: var(--spacing-2); } }
+.domain-details {width:100%;display:flex;flex-direction:column;gap:var(--spacing-6);color:var(--color-font-primary);} section {min-width:0;} h2 {margin:0 0 var(--spacing-3);font-size:var(--font-size-p);} p {margin:var(--spacing-2) 0;line-height:1.5;} .headline {font-size:var(--font-size-p);font-weight:600;} .headline span,.field span,.disclaimer {color:var(--color-font-secondary);} .field {display:flex;flex-wrap:wrap;gap:var(--spacing-2);justify-content:space-between;padding-block:var(--spacing-2);} .copyable {user-select:text;overflow-wrap:anywhere;} .tier-tables {display:grid;gap:var(--spacing-4);} table {width:100%;border-collapse:collapse;text-align:left;overflow-wrap:anywhere;} caption {text-align:left;font-weight:600;} th,td {padding:var(--spacing-2);border-bottom:1px solid var(--color-grey-25);} .disclaimer {font-size:var(--font-size-small);}
 </style>
