@@ -5478,6 +5478,17 @@
     },
     "watch_newer_messages": {
       "text": "Neuere Nachrichten"
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Ein gespeichertes Ergebnis hat einen Versionskonflikt. Prüfe den Chat, bevor du Änderungen erneut speicherst."
+      },
+      "denied": {
+        "text": "Dieses gespeicherte Ergebnis konnte nicht synchronisiert werden. Prüfe den Zugriff auf seinen Chat."
+      },
+      "review_chat": {
+        "text": "Chat prüfen"
+      }
     }
   },
   "common": {

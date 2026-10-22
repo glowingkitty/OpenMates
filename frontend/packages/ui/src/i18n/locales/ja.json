@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "保存した結果のリビジョンが競合しています。変更を再度保存する前にチャットを確認してください。"
+      },
+      "denied": {
+        "text": "保存した結果を同期できませんでした。チャットへのアクセス権を確認してください。"
+      },
+      "review_chat": {
+        "text": "チャットを確認"
+      }
     }
   },
   "common": {

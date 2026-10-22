@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "已保存的结果存在版本冲突。请先查看聊天，再次保存更改。"
+      },
+      "denied": {
+        "text": "无法同步此已保存的结果。请检查其聊天访问权限。"
+      },
+      "review_chat": {
+        "text": "查看聊天"
+      }
     }
   },
   "common": {

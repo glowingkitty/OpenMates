@@ -3209,8 +3209,8 @@ export class ChatSynchronizationService extends EventTarget {
   ): Promise<void> {
     await senders.sendCancelSkillImpl(this, skillTaskId, embedId);
   }
-  public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<void> {
-    await senders.sendStoreEmbedImpl(this, payload);
+  public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<senders.EmbedPersistenceResult> {
+    return senders.sendStoreEmbedOperationImpl(this, payload);
   }
   public async sendDeleteNewChatSuggestion(
     encryptedSuggestion: string,

@@ -4480,6 +4480,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Um resultado salvo tem uma revisão em conflito. Revise a conversa antes de salvar as alterações novamente."
+      },
+      "denied": {
+        "text": "Não foi possível sincronizar este resultado salvo. Verifique o acesso à conversa."
+      },
+      "review_chat": {
+        "text": "Revisar conversa"
+      }
     }
   },
   "common": {

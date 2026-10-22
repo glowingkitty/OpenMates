@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Revize uloženého výsledku jsou v konfliktu. Před opětovným uložením změn zkontrolujte chat."
+      },
+      "denied": {
+        "text": "Tento uložený výsledek se nepodařilo synchronizovat. Zkontrolujte přístup k jeho chatu."
+      },
+      "review_chat": {
+        "text": "Zkontrolovat chat"
+      }
     }
   },
   "common": {

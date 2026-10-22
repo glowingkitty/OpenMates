@@ -429,7 +429,8 @@ test('ordinary legacy write cannot downgrade a newer head or bypass the current 
     await assert.rejects(writeLegacyEmbed(database, { embed_id: body.embed_id, actor_user_hash: ACTOR,
       payload: { embed_id: body.embed_id, hashed_user_id: ACTOR,
         version_number: version, encrypted_content: 'rewritten-cipher' } }),
-    (error) => error.code === 'acknowledged_embed_revision_immutable');
+    (error) => error.code === (version === 0 ? 'invalid_canonical_embed_version'
+      : 'acknowledged_embed_revision_immutable'));
     assert.deepEqual(database.rows, seed);
   }
   const { seed, body } = metadataEnrichmentFixture();
@@ -1661,4 +1662,132 @@ test('Team master wrapper writes recheck current source membership without chang
   const before = structuredClone(database.rows);
   await assert.rejects(writeLegacyEmbedKey(database, key), error => error instanceof ProtocolError);
   assert.deepEqual(database.rows, before);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('canonical precondition serializes concurrent same-version ciphertext writers and permits exact replay', async () => {
+  const { seed, hash } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs = [];
+  seed.embeds[0].version_number = null; // Real legacy v1, never migrated by reads.
+  const database = fakeDatabase(seed);
+  const head = seed.embeds[0];
+  const payload = { ...head, encrypted_content: 'writer-one' };
+  delete payload.id;
+  const body = { embed_id: head.embed_id, actor_user_hash: ACTOR, payload,
+    canonical_precondition: { version: 1, ciphertext_sha256: hash(head.encrypted_content) } };
+  const raced = await Promise.allSettled([
+    writeLegacyEmbed(database, body),
+    writeLegacyEmbed(database, { ...body, payload: { ...payload, encrypted_content: 'writer-two' } }),
+  ]);
+  assert.equal(raced.filter((result) => result.status === 'fulfilled').length, 1);
+  assert.equal(raced[1].reason.code, 'canonical_precondition_mismatch');
+  assert.equal(database.rows.embeds[0].encrypted_content, 'writer-one');
+  assert.equal(database.rows.embeds[0].version_number, null);
+  const beforeReplay = structuredClone(database.rows);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  assert.deepEqual(database.rows, beforeReplay);
+  await assert.rejects(writeLegacyEmbed(database, { ...body,
+    payload: { ...payload, updated_at: head.updated_at + 1 } }),
+  (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows, beforeReplay);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('absence precondition creates explicit v1, rejects changed replay, and never recreates a missing observed head', async () => {
+  for (const suppliedVersion of [undefined, null, 1]) {
+    const database = fakeDatabase({ embeds: [], project_items: [] });
+    const payload = { embed_id: 'cas-create', hashed_user_id: ACTOR, encrypted_content: 'sealed-create' };
+    if (suppliedVersion !== undefined) payload.version_number = suppliedVersion;
+    const body = { embed_id: payload.embed_id, actor_user_hash: ACTOR, payload,
+      canonical_precondition: { version: null, ciphertext_sha256: null } };
+    assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+    assert.equal(database.rows.embeds[0].version_number, 1);
+    const afterCreate = structuredClone(database.rows);
+    assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+    await assert.rejects(writeLegacyEmbed(database, { ...body,
+      payload: { ...payload, encrypted_content: 'different' } }),
+    (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+    assert.deepEqual(database.rows, afterCreate);
+  }
+  const database = fakeDatabase({ embeds: [], project_items: [] });
+  await assert.rejects(writeLegacyEmbed(database, {
+    embed_id: 'cas-missing', actor_user_hash: ACTOR,
+    payload: { embed_id: 'cas-missing', hashed_user_id: ACTOR, encrypted_content: 'sealed' },
+    canonical_precondition: { version: 1, ciphertext_sha256: 'a'.repeat(64) },
+  }), (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows.embeds, []);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('nullable acknowledged legacy v1 rejects replacement even with an exact canonical precondition', async () => {
+  const { seed, hash } = metadataEnrichmentFixture();
+  seed.embeds[0].version_number = null;
+  const database = fakeDatabase(seed);
+  const payload = { ...seed.embeds[0], encrypted_content: 're-encrypted' };
+  delete payload.id;
+  await assert.rejects(writeLegacyEmbed(database, {
+    embed_id: payload.embed_id, actor_user_hash: ACTOR, payload,
+    canonical_precondition: { version: 1, ciphertext_sha256: hash(seed.embeds[0].encrypted_content) },
+  }), (error) => error.status === 409 && error.code === 'acknowledged_embed_revision_immutable');
+  assert.deepEqual(database.rows, seed);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted
+test('canonical precondition and logical versions reject coercion, partial nulls and malformed digests', async () => {
+  const base = { embed_id: 'cas-invalid', actor_user_hash: ACTOR,
+    payload: { embed_id: 'cas-invalid', hashed_user_id: ACTOR, encrypted_content: 'sealed' } };
+  for (const precondition of [null, {}, { version: null, ciphertext_sha256: 'a'.repeat(64) },
+    { version: 1, ciphertext_sha256: null }, { version: '1', ciphertext_sha256: 'a'.repeat(64) },
+    { version: true, ciphertext_sha256: 'a'.repeat(64) }, { version: 0, ciphertext_sha256: 'a'.repeat(64) },
+    { version: 1, ciphertext_sha256: 'bad' }, { version: 2 ** 53, ciphertext_sha256: 'a'.repeat(64) }]) {
+    await assert.rejects(writeLegacyEmbed(fakeDatabase({}), { ...base, canonical_precondition: precondition }),
+      (error) => error.status === 400);
+  }
+  for (const version of [true, '1', 0, -1, 1.5, 2 ** 53]) {
+    await assert.rejects(writeLegacyEmbed(fakeDatabase({}), { ...base,
+      payload: { ...base.payload, version_number: version } }), (error) => error.status === 400);
+    const seed = { embeds: [{ id: 'bad-version-row', ...base.payload, version_number: version }], project_items: [] };
+    const database = fakeDatabase(seed);
+    await assert.rejects(writeLegacyEmbed(database, base), (error) => error.status === 409);
+    assert.deepEqual(database.rows, seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('initial processing root completion compares nullable-v1 empty ciphertext under the canonical lock', async () => {
+  const { seed, hash } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs = [];
+  seed.embeds[0].version_number = null;
+  seed.embeds[0].status = 'processing';
+  seed.embeds[0].encrypted_content = null;
+  const database = fakeDatabase(seed);
+  const payload = { ...seed.embeds[0], encrypted_content: 'completed-cipher', status: 'finished' };
+  delete payload.id;
+  const body = { embed_id: payload.embed_id, actor_user_hash: ACTOR, payload,
+    canonical_precondition: { version: 1, ciphertext_sha256: hash('') } };
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'updated');
+  assert.equal(database.rows.embeds[0].encrypted_content, 'completed-cipher');
+  assert.equal(database.rows.embeds[0].status, 'finished');
+  const completed = structuredClone(database.rows);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  await assert.rejects(writeLegacyEmbed(database, { ...body,
+    payload: { ...payload, encrypted_content: 'competing-cipher' } }),
+  (error) => error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows, completed);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('stale absence bundle retry verifies existing wrappers without repairing or replacing them', async () => {
+  const database = fakeDatabase(existingSeed());
+  const body = { ...bundleWrite(), canonical_precondition: { version: null, ciphertext_sha256: null } };
+  body.payload.version_number = null;
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'created');
+  const created = structuredClone(database.rows);
+  assert.equal((await writeLegacyEmbed(database, body)).status, 'idempotent');
+  assert.deepEqual(database.rows, created);
+  database.rows.embed_keys.pop();
+  const missingWrapper = structuredClone(database.rows);
+  await assert.rejects(writeLegacyEmbed(database, body),
+    (error) => error.status === 409 && error.code === 'canonical_precondition_mismatch');
+  assert.deepEqual(database.rows, missingWrapper);
 });

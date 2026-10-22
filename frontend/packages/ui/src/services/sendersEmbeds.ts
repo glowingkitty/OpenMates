@@ -11,6 +11,20 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
 import type { CanonicalEmbedWriteLease } from "./canonicalEmbedWriteCoordinator";
+import type { EmbedPersistenceResult } from "./embedSenders";
+export type { EmbedPersistenceResult } from "./embedSenders";
+
+/** Preserve the lazy sender boundary while exposing durable operation outcomes. */
+export async function sendStoreEmbedOperationImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: StoreEmbedPayload,
+  embedKeysPayload?: { keys: Array<Record<string, unknown>> },
+  lease?: CanonicalEmbedWriteLease,
+  origin = "canonical-embed-sender",
+): Promise<EmbedPersistenceResult> {
+  const { sendStoreEmbedOperationImpl: persistOperation } = await import("./embedSenders");
+  return persistOperation(serviceInstance, payload, embedKeysPayload, lease, origin);
+}
 
 /**
  * Send encrypted embed to server for Directus storage
@@ -20,10 +34,11 @@ export async function sendStoreEmbedImpl(
 	payload: StoreEmbedPayload,
 	embedKeysPayload?: { keys: Array<Record<string, unknown>> },
 	lease?: CanonicalEmbedWriteLease,
+	origin = "canonical-embed-sender",
 ): Promise<boolean> {
 	// Delegate to embedSenders.ts which handles offline queueing in IndexedDB
 	const { sendStoreEmbedImpl: embedSendersImpl } = await import("./embedSenders");
-	return embedSendersImpl(serviceInstance, payload, embedKeysPayload, lease);
+	return embedSendersImpl(serviceInstance, payload, embedKeysPayload, lease, origin);
 }
 
 /**

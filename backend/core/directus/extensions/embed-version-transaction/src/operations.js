@@ -77,6 +77,13 @@ const safeInteger = (value, code) => {
   return value;
 };
 const sha256 = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
+const logicalEmbedVersion = (value, status = 409) => {
+  if (value == null) return 1;
+  if (!Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647) {
+    fail(status, 'invalid_canonical_embed_version');
+  }
+  return value;
+};
 const stableJson = (value) => {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
   if (value !== null && typeof value === 'object') {
@@ -220,7 +227,7 @@ async function lockIdentity(trx, value) {
 
 /** A UUIDv5 legacy head is allowed only when a sealed AI child owns this exact identity. */
 async function requireRegisteredChildWrite(trx, embedId, actor, payload) {
-  const version = Number(payload.version_number ?? 1);
+  const version = logicalEmbedVersion(payload.version_number, 400);
   if (!Number.isSafeInteger(version) || version < 1 || payload.hashed_user_id !== actor
       || !payload.parent_embed_id
       || typeof payload.hashed_chat_id !== 'string'
@@ -396,7 +403,7 @@ export async function writeLegacyEmbedKey(database, raw) {
 /** Serialize a legacy client ciphertext write with Project revision publication. */
 export async function writeLegacyEmbed(database, raw) {
   const input = exactFields(raw, new Set(['embed_id', 'actor_user_hash', 'payload', 'bundle_context',
-    'canonical_metadata_enrichment']), [
+    'canonical_metadata_enrichment', 'canonical_precondition']), [
     'embed_id', 'actor_user_hash', 'payload',
   ]);
   const embedId = boundedString(input.embed_id, 'invalid_embed_id', 512);
@@ -405,6 +412,17 @@ export async function writeLegacyEmbed(database, raw) {
     'embed_id', 'hashed_user_id',
   ]);
   if (payload.embed_id !== embedId) fail(400, 'invalid_embed_id');
+  if ('version_number' in payload) logicalEmbedVersion(payload.version_number, 400);
+  let precondition = null;
+  if ('canonical_precondition' in input) {
+    precondition = exactFields(input.canonical_precondition,
+      new Set(['version', 'ciphertext_sha256']), ['version', 'ciphertext_sha256']);
+    if (precondition.version !== null || precondition.ciphertext_sha256 !== null) {
+      if (precondition.version === null) fail(400, 'invalid_canonical_precondition');
+      logicalEmbedVersion(precondition.version, 400);
+      hexDigest(precondition.ciphertext_sha256, 'invalid_canonical_precondition');
+    }
+  }
   let enrichment = null;
   if ('canonical_metadata_enrichment' in input) {
     enrichment = exactFields(input.canonical_metadata_enrichment,
@@ -525,7 +543,7 @@ export async function writeLegacyEmbed(database, raw) {
         const output = await trx(RECOVERY_OUTPUTS).where({ id: bundle.recovery_record_id,
           hashed_user_id: actor, subject_id: embedId, target_chat_id: bundle.chat_id,
           output_kind: 'embed', output_version: 1, state: 'PENDING' }).whereNull('deleted_at').forShare().first();
-        if (!output || payload.parent_embed_id != null || Number(payload.version_number ?? 1) !== 1
+        if (!output || payload.parent_embed_id != null || logicalEmbedVersion(payload.version_number, 400) !== 1
           || (output.root_hashed_team_id ?? null) !== bundle.hashed_team_id) {
           fail(403, 'recovery_bundle_scope_mismatch');
         }
@@ -558,10 +576,36 @@ export async function writeLegacyEmbed(database, raw) {
       if (!enrichment) storedPayload.hashed_team_id = teamHash;
     }
     const embed = await trx(EMBEDS).where({ embed_id: embedId }).forUpdate().first();
+    let preconditionMismatch = false;
     if (embed) {
       if (embed.hashed_user_id !== actor) fail(403, 'embed_access_denied');
+      const currentVersion = logicalEmbedVersion(embed.version_number);
+      if (precondition) {
+        const currentCiphertext = embed.encrypted_content == null
+          && embed.status === 'processing' && currentVersion === 1 ? '' : embed.encrypted_content;
+        preconditionMismatch = precondition.version !== currentVersion
+          || typeof currentCiphertext !== 'string'
+          || precondition.ciphertext_sha256 !== sha256(currentCiphertext);
+        if (preconditionMismatch) {
+          // Only a byte-for-byte replay may survive a stale observation. It
+          // still traverses the existing authorization/ACK gates below and
+          // must never update metadata or replace wrappers.
+          const exactReplay = !enrichment && Object.entries(storedPayload).every(([field, value]) => {
+            if (field === 'version_number') return logicalEmbedVersion(value, 400) === currentVersion;
+            if (['embed_ids', 'shared_with_users', 's3_file_keys'].includes(field)) {
+              try {
+                const existing = typeof embed[field] === 'string' ? JSON.parse(embed[field]) : embed[field];
+                const proposed = typeof value === 'string' ? JSON.parse(value) : value;
+                return stableJson(existing ?? null) === stableJson(proposed ?? null);
+              } catch { return false; }
+            }
+            return (embed[field] ?? null) === (value ?? null);
+          });
+          if (!exactReplay) fail(409, 'canonical_precondition_mismatch');
+        }
+      }
       if (enrichment) {
-        if (Number(embed.version_number ?? 1) !== enrichment.expected_version) {
+        if (currentVersion !== enrichment.expected_version) {
           fail(409, 'canonical_metadata_version_conflict');
         }
         if (typeof embed.encrypted_content !== 'string'
@@ -591,6 +635,7 @@ export async function writeLegacyEmbed(database, raw) {
         const additions = {};
         for (const [field, value] of Object.entries(storedPayload)) {
           if (field === 'embed_id') continue;
+          if (field === 'version_number' && logicalEmbedVersion(value, 400) === currentVersion) continue;
           if (ENRICHMENT_FIELDS.has(field) && embed[field] == null) {
             additions[field] = value;
             continue;
@@ -607,11 +652,10 @@ export async function writeLegacyEmbed(database, raw) {
         if (Object.keys(additions).length) await trx(EMBEDS).where({ id: embed.id }).update(additions);
         return { status: Object.keys(additions).length ? 'enriched' : 'idempotent', embed_id: embedId };
       }
-      const currentVersion = Number(embed.version_number ?? 1);
       // Omitting the field does not write a revision: ordinary metadata updates
       // retain the locked head's version. Explicit legacy null still means v1.
       const incomingVersion = 'version_number' in storedPayload
-        ? Number(storedPayload.version_number ?? 1) : currentVersion;
+        ? logicalEmbedVersion(storedPayload.version_number, 400) : currentVersion;
       // A typed recovery ACK binds this exact owner/chat/subject/version to the
       // ciphertext that was durably verified. A later legacy store_embed may
       // replay that ciphertext or update metadata, but must not silently
@@ -621,7 +665,7 @@ export async function writeLegacyEmbed(database, raw) {
       if (hasCiphertext || hasEncryptedType || incomingVersion !== currentVersion) {
         const acknowledged = await trx(RECOVERY_OUTPUTS).where({
           subject_id: embedId, hashed_user_id: actor, output_kind: 'embed',
-          output_version: Number(embed.version_number ?? 1), state: 'ACKNOWLEDGED',
+          output_version: currentVersion, state: 'ACKNOWLEDGED',
         }).whereNull('deleted_at');
         const matchingAcks = acknowledged.filter((output) =>
           sha256(output.target_chat_id) === embed.hashed_chat_id);
@@ -703,9 +747,10 @@ export async function writeLegacyEmbed(database, raw) {
         }
       }
       if (bundle) {
-        if (Number(embed.version_number ?? 1) !== 1) fail(409, 'bundle_head_advanced');
+        if (currentVersion !== 1) fail(409, 'bundle_head_advanced');
         for (const [field, value] of Object.entries(storedPayload)) {
           if (field === 'embed_id') continue;
+          if (field === 'version_number' && logicalEmbedVersion(value, 400) === currentVersion) continue;
           if (['embed_ids', 'shared_with_users', 's3_file_keys'].includes(field)
             && value != null && embed[field] != null) {
             try {
@@ -716,12 +761,12 @@ export async function writeLegacyEmbed(database, raw) {
           }
           if ((embed[field] ?? null) !== (value ?? null)) fail(409, 'bundle_head_mismatch');
         }
-        await persistBundleWrappers(trx, embedId, actor, bundle.key_wrappers);
+        await persistBundleWrappers(trx, embedId, actor, bundle.key_wrappers, preconditionMismatch);
         return { status: 'idempotent', embed_id: embedId };
       }
       if (embed.app_id === 'diagrams' && embed.skill_id === 'html'
-        && (embed.status !== 'processing' || Number(embed.version_number ?? 1) !== 1
-          || Number(payload.version_number ?? 1) !== 1)) {
+        && (embed.status !== 'processing' || currentVersion !== 1
+          || logicalEmbedVersion(payload.version_number, 400) !== 1)) {
         fail(409, 'chat_diagram_revision_required');
       }
       if (!Number.isSafeInteger(incomingVersion) || incomingVersion < currentVersion) {
@@ -738,21 +783,24 @@ export async function writeLegacyEmbed(database, raw) {
       }
       const updated = { ...storedPayload, hashed_user_id: actor, hashed_embed_id: sha256(embedId) };
       delete updated.embed_id;
+      if (preconditionMismatch) return { status: 'idempotent', embed_id: embedId };
       await trx(EMBEDS).where({ id: embed.id }).update(updated);
       return { status: 'updated', embed_id: embedId };
     }
     if (enrichment) fail(409, 'canonical_metadata_head_missing');
     if (payload.hashed_user_id !== actor) fail(403, 'embed_access_denied');
+    if (precondition && precondition.version !== null) fail(409, 'canonical_precondition_mismatch');
     if (bundle && bundlePreflightState === 'TERMINAL') fail(409, 'bundle_preflight_finished');
     await trx(EMBEDS).insert({
-      id: randomUUID(), ...storedPayload, hashed_embed_id: sha256(embedId),
+      id: randomUUID(), ...storedPayload, version_number: logicalEmbedVersion(storedPayload.version_number, 400),
+      hashed_embed_id: sha256(embedId),
     });
     if (bundle) await persistBundleWrappers(trx, embedId, actor, bundle.key_wrappers);
     return { status: 'created', embed_id: embedId };
   });
 }
 
-async function persistBundleWrappers(trx, embedId, actor, wrappers) {
+async function persistBundleWrappers(trx, embedId, actor, wrappers, verifyOnly = false) {
   const embedHash = sha256(embedId);
   for (const wrapper of wrappers) {
     const scope = {
@@ -770,6 +818,7 @@ async function persistBundleWrappers(trx, embedId, actor, wrappers) {
       }
       continue;
     }
+    if (verifyOnly) fail(409, 'canonical_precondition_mismatch');
     await trx(EMBED_KEYS).insert({ id: randomUUID(), ...wrapper });
   }
 }

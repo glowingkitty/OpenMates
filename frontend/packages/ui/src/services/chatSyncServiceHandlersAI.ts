@@ -272,7 +272,7 @@ async function storeVolatileFinalizedEmbedInMemory(
     query: embedPayload.query as string | undefined,
     provider: embedPayload.provider as string | undefined,
     results: embedPayload.results as unknown[] | undefined,
-    version_number: embedData.version_number,
+    version_number: embedData.version_number ?? 1,
     createdAt: embedData.createdAt || Date.now(),
     updatedAt: embedData.updatedAt || Date.now(),
   });
@@ -287,7 +287,7 @@ async function storeVolatileFinalizedEmbedInMemory(
         chat_id: embedData.chat_id,
         message_id: embedData.message_id,
         status: embedData.status,
-        version_number: embedData.version_number,
+        version_number: embedData.version_number ?? 1,
         child_embed_ids: embedData.embed_ids,
         isProcessing: false,
       },
@@ -3754,7 +3754,7 @@ export async function handleEmbedUpdateImpl(
                   updated_at: normalizeToUnixSeconds(updatedAt, nowSecs),
                 };
                 await sendStoreFunction(serviceInstance, storePayload,
-                  embedKeysForServer.length ? { keys: embedKeysForServer } : undefined);
+                  embedKeysForServer.length ? { keys: embedKeysForServer } : undefined, undefined, "stream-update");
                 console.debug(
                   `[ChatSyncService:AI] embed_update: Sent encrypted embed to server for ${payload.embed_id}`,
                 );
@@ -4237,7 +4237,7 @@ export async function handleSendEmbedDataImpl(
               message_id: embedData.message_id,
               task_id: embedData.task_id,
               status: embedData.status,
-              version_number: embedData.version_number,
+              version_number: embedData.version_number ?? 1,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
             },
@@ -4326,7 +4326,7 @@ export async function handleSendEmbedDataImpl(
           hashed_message_id: hashedMessageId,
           embed_ids: embedData.embed_ids,
           parent_embed_id: embedData.parent_embed_id,
-          version_number: embedData.version_number,
+          version_number: embedData.version_number ?? 1,
           file_path: embedData.file_path,
           content_hash: embedData.content_hash,
           text_length_chars: embedData.text_length_chars,
@@ -4676,7 +4676,7 @@ export async function handleSendEmbedDataImpl(
             detail: { embed_id: embedData.embed_id, type: embedData.type,
               chat_id: embedData.chat_id, message_id: embedData.message_id,
               task_id: embedData.task_id,
-              status: embedData.status, version_number: embedData.version_number,
+              status: embedData.status, version_number: embedData.version_number ?? 1,
               child_embed_ids: embedData.embed_ids, isProcessing: false },
           }));
           return;
@@ -4846,7 +4846,7 @@ export async function handleSendEmbedDataImpl(
         hashed_task_id: hashedTaskId,
         embed_ids: embedData.embed_ids,
         parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
-        version_number: embedData.version_number,
+        version_number: embedData.version_number ?? 1,
         file_path: embedData.file_path,
         content_hash: embedData.content_hash,
         text_length_chars: embedData.text_length_chars,
@@ -4936,7 +4936,7 @@ export async function handleSendEmbedDataImpl(
         hashed_user_id: hashedUserId,
         embed_ids: embedData.embed_ids,
         parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
-        version_number: embedData.version_number,
+        version_number: embedData.version_number ?? 1,
         file_path: embedData.file_path,
         content_hash: embedData.content_hash,
         text_length_chars: embedData.text_length_chars,
@@ -4969,7 +4969,7 @@ export async function handleSendEmbedDataImpl(
         }
 
         const durableHead = await sendStoreFunction(
-          serviceInstance, storePayload, embedKeysPayload, canonicalLease,
+          serviceInstance, storePayload, embedKeysPayload, canonicalLease, "stream-completion",
         );
         if (durableHead) {
           console.info(`[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in Directus`);
@@ -5048,7 +5048,7 @@ export async function handleSendEmbedDataImpl(
             message_id: embedData.message_id,
             task_id: embedData.task_id,
             status: embedData.status,
-            version_number: embedData.version_number,
+            version_number: embedData.version_number ?? 1,
             child_embed_ids: embedData.embed_ids,
             isProcessing: false,
           },

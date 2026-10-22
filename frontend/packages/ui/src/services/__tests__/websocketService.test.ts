@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webSocketService } from "../websocketService";
 import * as wsTracing from "../tracing/wsSpans";
 import { authStore } from "../../stores/authState";
+import { notificationStore } from "../../stores/notificationStore";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -380,5 +381,35 @@ describe("webSocketService connection preparation", () => {
     authStore.set({ isAuthenticated: false, isInitialized: true });
     webSocketService.disconnect();
     vi.unstubAllGlobals();
+  });
+});
+
+
+describe("request-owned embed errors", () => {
+  const defaultError = () => (webSocketService as unknown as {
+    messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+  }).messageHandlers.get("error")![0];
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("leaves a correlated embed error with its live owner and shows unmatched errors", () => {
+    const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
+    const release = webSocketService.ownEmbedProtocolRequest("embed-request", vi.fn());
+    const response = { request_id: "embed-request", code: "embed_revision_conflict", message: "Revision changed." };
+    defaultError()(response);
+    expect(toast).not.toHaveBeenCalled();
+    defaultError()({ ...response, request_id: "unmatched-request" });
+    expect(toast).toHaveBeenCalledTimes(1);
+    release();
+    defaultError()(response);
+    expect(toast).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("does not hide unrelated protocol errors carrying an owned request id", () => {
+    const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
+    const release = webSocketService.ownEmbedProtocolRequest("embed-request", vi.fn());
+    defaultError()({ request_id: "embed-request", code: "other_error", message: "Unexpected failure." });
+    release();
+    expect(toast).toHaveBeenCalledOnce();
   });
 });

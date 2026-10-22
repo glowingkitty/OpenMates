@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Версии сохранённого результата конфликтуют. Проверьте чат, прежде чем снова сохранять изменения."
+      },
+      "denied": {
+        "text": "Не удалось синхронизировать сохранённый результат. Проверьте доступ к его чату."
+      },
+      "review_chat": {
+        "text": "Проверить чат"
+      }
     }
   },
   "common": {

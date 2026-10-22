@@ -157,6 +157,28 @@ the previous encrypted version. Receipt acknowledgement and head writes share
 the embed advisory lock, so their ordering cannot leave a terminal receipt
 pointing at overwritten ciphertext.
 
+Legacy missing or null head versions mean logical version 1 at every read,
+availability, recovery, and write boundary; malformed versions fail closed. New
+initial heads explicitly write version 1. Explicitly version-probed availability returns a canonical
+revision descriptor (logical version, ciphertext SHA256, and mutable/immutable
+write policy). Missing policy means unknown, never permission to replace a head.
+Ordinary client writes carry an absence or version/digest precondition, compared
+inside the existing embed transaction lock. A racing acknowledgement or writer
+therefore cannot invalidate a preflight decision by overwriting protected bytes.
+
+Fullscreen preview enrichment is a bounded, memory-only display projection tied
+to its source content and revision. It never replaces canonical ciphertext,
+rewraps a key, queues a write, or persists decrypted data. Projections expire on
+source changes and key-cache clearing. Intentional durable edits continue through
+the versioned editing transaction with preserved history.
+
+The browser's durable embed queue distinguishes waiting operations from terminal
+conflicts and access denials. Terminal operations retain their original encrypted
+payloads and wrappers for resolution and do not automatically replay on reconnect.
+The sender exposes persisted/adopted/waiting/conflict/denied outcomes; correlated
+protocol responses belong to their requesting operation instead of generating
+one global error notification per retry. Unmatched errors remain visible.
+
 The CLI performs a fresh metadata read after persisting recovered outputs. Within
 one sync operation it remembers only successfully verified record identities,
 avoiding repeated recovery of the same acknowledged output across refreshes.

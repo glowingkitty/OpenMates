@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "저장된 결과의 버전이 충돌합니다. 변경 사항을 다시 저장하기 전에 채팅을 확인하세요."
+      },
+      "denied": {
+        "text": "저장된 결과를 동기화하지 못했습니다. 해당 채팅 접근 권한을 확인하세요."
+      },
+      "review_chat": {
+        "text": "채팅 확인"
+      }
     }
   },
   "common": {

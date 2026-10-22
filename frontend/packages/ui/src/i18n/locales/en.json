@@ -5523,6 +5523,17 @@
     },
     "watch_newer_messages": {
       "text": "Newer messages"
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "A saved result has a conflicting revision. Review the chat before saving changes again."
+      },
+      "denied": {
+        "text": "This saved result could not be synchronized. Review its chat access."
+      },
+      "review_chat": {
+        "text": "Review chat"
+      }
     }
   },
   "common": {

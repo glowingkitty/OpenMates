@@ -407,29 +407,34 @@ async def _reference_availability(
 async def _reference_recovery_ack_proofs(
     results: list[dict[str, Any]], versions: dict[str, int], chat_id: str,
     team_id: str | None, actor_hash: str, directus_service: DirectusService,
+    *, team_target_live: bool = True,
 ) -> None:
-    """Project only durable ACK metadata after the existing scoped read gate.
+    """Project owned root write policy after checking the current target scope.
 
-    The existing recovery status transaction rechecks current root/target access,
-    wrappers and ciphertext digest. No sealed payload or key leaves that boundary.
+    This descriptor does not prove read readiness or grant wrapper access. The
+    recovery status transaction rechecks root/target access, wrappers and digest
+    before projecting an immutable ACK. No sealed payload or key is returned.
     """
     from backend.core.api.app.services.chat_recovery_service import (
         ChatRecoveryProtocolError, ChatRecoveryService,
     )
+    from backend.core.api.app.services.embed_version_transaction_service import logical_embed_version
 
-    ready = [row["embed_id"] for row in results
-             if row["state"] == "ready" and row["embed_id"] in versions]
-    if not ready:
+    # Rendering probes need only bounded readiness metadata. Fetch canonical
+    # ciphertext/ACK policy solely for the sender's explicit revision probes.
+    eligible = [row["embed_id"] for row in results
+                if row["state"] in {"ready", "unusable"} and row["embed_id"] in versions]
+    if not eligible:
         return
     team_hash = _hash_value(team_id) if team_id else None
     try:
         heads = await directus_service.get_items("embeds", params={
-            "filter": {"embed_id": {"_in": ready}},
-            "fields": "embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,parent_embed_id,root_embed_id,version_number,status,encryption_mode",
+            "filter": {"embed_id": {"_in": eligible}},
+            "fields": "embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,parent_embed_id,root_embed_id,version_number,status,encryption_mode,encrypted_content",
             "limit": _REFERENCE_PROBE_LIMIT + 1,
         }, no_cache=True, admin_required=True, raise_on_error=True)
         records = await directus_service.get_items("chat_recovery_outputs", params={
-            "filter": {"subject_id": {"_in": ready}, "hashed_user_id": {"_eq": actor_hash},
+            "filter": {"subject_id": {"_in": eligible}, "hashed_user_id": {"_eq": actor_hash},
                        "target_chat_id": {"_eq": chat_id}, "root_hashed_team_id": {"_null": True} if team_hash is None else {"_eq": team_hash},
                        "output_kind": {"_eq": "embed"}, "state": {"_eq": "ACKNOWLEDGED"},
                        "deleted_at": {"_null": True}},
@@ -443,35 +448,90 @@ async def _reference_recovery_ack_proofs(
         by_id = {row.get("embed_id"): row for row in heads}
         if len(by_id) != len(heads):
             raise ValueError("Ambiguous ACK head")
+        # Initial processing children still need their first completion write.
+        # Require the same bounded parent relationship and wrapper readiness
+        # used by ordinary child reads before exposing their write policy.
+        parent_ids = list({head["parent_embed_id"] for head in heads
+                           if isinstance(head.get("parent_embed_id"), str)
+                           and 0 < len(head["parent_embed_id"]) <= 128
+                           and head.get("hashed_user_id") == actor_hash
+                           and head.get("hashed_chat_id") == _hash_value(chat_id)
+                           and (head.get("hashed_team_id") or None) == team_hash})
+        ready_parents: set[str] = set()
+        if parent_ids:
+            parents = await directus_service.get_items("embeds", params={
+                "filter": {"embed_id": {"_in": parent_ids}},
+                "fields": "embed_id,hashed_user_id,hashed_chat_id,hashed_team_id,parent_embed_id,root_embed_id",
+                "limit": _REFERENCE_PROBE_LIMIT + 1,
+            }, no_cache=True, admin_required=True, raise_on_error=True)
+            if (not isinstance(parents, list) or len(parents) > _REFERENCE_PROBE_LIMIT
+                    or any(not isinstance(parent, dict) for parent in parents)
+                    or len({parent.get("embed_id") for parent in parents}) != len(parents)):
+                raise ValueError("Ambiguous canonical parent metadata")
+            valid_parent_ids = [parent["embed_id"] for parent in parents
+                if parent.get("embed_id") in parent_ids and parent.get("hashed_user_id") == actor_hash
+                and parent.get("hashed_chat_id") == _hash_value(chat_id)
+                and (parent.get("hashed_team_id") or None) == team_hash
+                and parent.get("parent_embed_id") is None
+                and parent.get("root_embed_id") in (None, parent.get("embed_id"))]
+            if valid_parent_ids:
+                parent_states = await _reference_availability(
+                    valid_parent_ids, _hash_value(chat_id), actor_hash, team_id is not None,
+                    directus_service, team_target_live=team_target_live,
+                )
+                ready_parents = {parent["embed_id"] for parent in parent_states if parent["state"] == "ready"}
         for result in results:
             embed_id = result["embed_id"]
-            if embed_id not in ready:
+            if embed_id not in eligible:
                 continue
-            version = versions[embed_id]
             head = by_id.get(embed_id)
             if (not head or head.get("hashed_user_id") != actor_hash
                     or head.get("hashed_chat_id") != _hash_value(chat_id)
-                    or (head.get("hashed_team_id") or None) != team_hash
-                    or head.get("parent_embed_id") is not None
-                    or head.get("root_embed_id") not in (None, embed_id)
-                    or not (head.get("status") == "finished" or (
-                        head.get("status") == "error" and head.get("encryption_mode") == "client"
-                    ))
-                    or type(head.get("version_number")) is not int or head["version_number"] != version):
+                    or (head.get("hashed_team_id") or None) != team_hash):
                 continue
-            matching = [row for row in records if row.get("subject_id") == embed_id
-                        and type(row.get("output_version")) is int and row["output_version"] == version]
+            try:
+                version = logical_embed_version(head.get("version_number"))
+            except ValueError:
+                # Corrupt versions are unknown, never an inferred writable v1.
+                continue
+            initial_processing = head.get("status") == "processing" and version == 1
+            parent_id = head.get("parent_embed_id")
+            if parent_id is not None:
+                if (not isinstance(parent_id, str) or parent_id == embed_id
+                        or parent_id not in ready_parents or not initial_processing
+                        or head.get("root_embed_id") not in (None, parent_id)):
+                    continue
+            elif head.get("root_embed_id") not in (None, embed_id):
+                continue
+            ciphertext = head.get("encrypted_content")
+            if ciphertext is None and initial_processing:
+                ciphertext = ""
+            if (not isinstance(ciphertext, str) or (not ciphertext and not initial_processing)
+                    or not (head.get("status") in {"finished", "processing"} or (
+                        head.get("status") == "error" and head.get("encryption_mode") == "client"))):
+                continue
+            digest = hashlib.sha256(ciphertext.encode("utf-8")).hexdigest()
+            revision = {"version": version, "ciphertext_sha256": digest}
+            subject_records = [row for row in records if row.get("subject_id") == embed_id]
+            if any(row.get("hashed_user_id") != actor_hash or row.get("target_chat_id") != chat_id
+                   or (row.get("root_hashed_team_id") or None) != team_hash
+                   or row.get("output_kind") != "embed" or row.get("state") != "ACKNOWLEDGED"
+                   or row.get("deleted_at") is not None or not isinstance(row.get("id"), str)
+                   or type(row.get("output_version")) is not int
+                   or not 1 <= row["output_version"] <= 2_147_483_647
+                   or not re.fullmatch(r"[0-9a-f]{64}", row.get("canonical_digest") or "")
+                   for row in subject_records):
+                # A malformed page cannot prove the absence of a current ACK.
+                continue
+            matching = [row for row in subject_records if row["output_version"] == version]
             if len(matching) > 1:
                 raise ValueError("Ambiguous ACK record")
             if not matching:
+                result["canonical_revision"] = {**revision, "write_state": "mutable"}
                 continue
+            if parent_id is not None:
+                continue  # A current child ACK can never imply a writable child.
             row = matching[0]
-            if (row.get("hashed_user_id") != actor_hash or row.get("target_chat_id") != chat_id
-                    or (row.get("root_hashed_team_id") or None) != team_hash
-                    or row.get("output_kind") != "embed" or row.get("state") != "ACKNOWLEDGED"
-                    or row.get("deleted_at") is not None or not isinstance(row.get("id"), str)
-                    or not re.fullmatch(r"[0-9a-f]{64}", row.get("canonical_digest") or "")):
-                continue
             try:
                 status = await ChatRecoveryService(directus_service).execute("get_output_status", {
                     "protocol_version": 1, "record_id": row["id"],
@@ -487,10 +547,13 @@ async def _reference_recovery_ack_proofs(
                     or status.get("target_chat_id") != chat_id or status.get("root_chat_id") != row.get("root_chat_id")
                     or (status.get("root_hashed_team_id") or None) != team_hash
                     or status.get("output_kind") != "embed" or type(status.get("output_version")) is not int
-                    or status["output_version"] != version or status.get("canonical_digest") != row["canonical_digest"]):
+                    or status["output_version"] != version or status.get("canonical_digest") != row["canonical_digest"]
+                    or status.get("canonical_digest") != digest):
                 continue
-            result["recovery_ack"] = {"state": "ACKNOWLEDGED", "version": version,
-                                      "canonical_digest": status["canonical_digest"]}
+            result["canonical_revision"] = {**revision, "write_state": "immutable"}
+            if versions.get(embed_id) == version:
+                result["recovery_ack"] = {"state": "ACKNOWLEDGED", "version": version,
+                                          "canonical_digest": status["canonical_digest"]}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Recovery acknowledgement lookup unavailable") from exc
 
@@ -505,7 +568,12 @@ async def get_embed_reference_availability(
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
 ):
-    """Tell a sender which references are readable without returning ciphertext."""
+    """First-party encrypted-reference probe; scoped owner/Team access, 120/min.
+
+    No paid work or credits. Session/API capability authentication and current
+    chat access precede metadata lookup; public Caddy exposure is unchanged.
+    Ciphertext is read only to hash it and is never returned by this route.
+    """
     ids = payload.get("embed_ids") if isinstance(payload, dict) and set(payload) <= {"embed_ids", "required_recovery_versions"} else None
     versions = payload.get("required_recovery_versions", {}) if isinstance(payload, dict) else None
     if (not isinstance(ids, list) or not 1 <= len(ids) <= _REFERENCE_PROBE_LIMIT
@@ -524,9 +592,8 @@ async def get_embed_reference_availability(
     results = await _reference_availability(
         ids, chat_hash, actor_hash, is_team, directus_service, team_target_live=target_live,
     )
-    if versions:
-        await _reference_recovery_ack_proofs(results, versions, chat_id, team_id,
-                                             actor_hash, directus_service)
+    await _reference_recovery_ack_proofs(results, versions, chat_id, team_id,
+                                         actor_hash, directus_service, team_target_live=target_live)
     response = {"results": results}
     if len(json.dumps(response, separators=(",", ":")).encode("utf-8")) > _REFERENCE_PROBE_RESPONSE_BYTES:
         raise HTTPException(status_code=413, detail="Embed reference probe exceeds response limit")

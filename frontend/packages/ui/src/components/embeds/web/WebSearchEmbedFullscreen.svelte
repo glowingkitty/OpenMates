@@ -318,10 +318,6 @@
     const result = await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, fields);
     if (!result.updated) return;
 
-    if (result.storePayload) {
-      await chatSyncService.sendStoreEmbed(result.storePayload);
-    }
-
     chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
       detail: {
         embed_id: embedId,

@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "सहेजे गए परिणाम के संस्करणों में टकराव है। बदलाव दोबारा सहेजने से पहले चैट की समीक्षा करें।"
+      },
+      "denied": {
+        "text": "यह सहेजा गया परिणाम सिंक नहीं हो सका। इसकी चैट की ऐक्सेस जाँचें।"
+      },
+      "review_chat": {
+        "text": "चैट की समीक्षा करें"
+      }
     }
   },
   "common": {

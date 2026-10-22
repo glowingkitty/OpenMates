@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Revisi hasil tersimpan mengalami konflik. Periksa percakapan sebelum menyimpan perubahan lagi."
+      },
+      "denied": {
+        "text": "Hasil tersimpan ini tidak dapat disinkronkan. Periksa akses percakapannya."
+      },
+      "review_chat": {
+        "text": "Periksa percakapan"
+      }
     }
   },
   "common": {

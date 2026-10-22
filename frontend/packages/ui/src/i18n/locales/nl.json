@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Een opgeslagen resultaat heeft een versieconflict. Bekijk de chat voordat je wijzigingen opnieuw opslaat."
+      },
+      "denied": {
+        "text": "Dit opgeslagen resultaat kon niet worden gesynchroniseerd. Controleer de toegang tot de chat."
+      },
+      "review_chat": {
+        "text": "Chat bekijken"
+      }
     }
   },
   "common": {

@@ -711,7 +711,7 @@
         };
         flightTrackState = 'loaded';
 
-        // Persist into embed so reopening is free (no second API call)
+        // Cache display details for reopening without changing the encrypted source
         persistFlightDetailsInEmbed(resolvedFlightTrack);
       } else {
         // Flight not found or no track data — silent fallback to arc
@@ -728,128 +728,17 @@
     }
   }
 
-  /**
-   * Persist the resolved flight track data into the child embed's content
-   * so the real map polyline survives close/reopen of the fullscreen view.
-   *
-   * Mirrors persistBookingUrlInEmbed() exactly — same IDB + server sync flow.
-   * Non-blocking: failures are logged but do not affect the UI.
-   */
+  /** Keep fetched display details separate from the immutable source revision. */
   async function persistFlightDetailsInEmbed(
     flightTrack: NonNullable<ConnectionData['flight_track']>,
   ) {
-    if (!embedId) {
-      console.debug('[TravelConnectionEmbedFullscreen] No embedId, skipping flight track persistence');
-      return;
-    }
-
+    if (!embedId) return;
     try {
-      const contentRef = `embed:${embedId}`;
-
-      const existingEmbed = await embedStore.get(contentRef);
-      if (!existingEmbed) {
-        console.warn('[TravelConnectionEmbedFullscreen] Embed not found in store, cannot persist flight track:', embedId);
-        return;
-      }
-
-      const { decodeToonContent } = await import('../../../services/embedResolver');
-      let decodedContent: Record<string, unknown> = {};
-      if (existingEmbed.content && typeof existingEmbed.content === 'string') {
-        decodedContent = (await decodeToonContent(existingEmbed.content)) || {};
-      } else if (typeof existingEmbed.content === 'object' && existingEmbed.content !== null) {
-        decodedContent = existingEmbed.content as Record<string, unknown>;
-      }
-
-      // Inject the flight track data
-      decodedContent.flight_track = flightTrack;
-
-      const { encode: toonEncode } = await import('@toon-format/toon');
-      const updatedToonContent = toonEncode(decodedContent);
-
-      const embedHashed = existingEmbed.hashed_chat_id || undefined;
-      const embedKey = await embedStore.getEmbedKey(embedId, embedHashed);
-
-      if (!embedKey) {
-        console.warn('[TravelConnectionEmbedFullscreen] No embed key found, cannot persist flight track:', embedId);
-        return;
-      }
-
-      const { encryptWithEmbedKey } = await import('../../../services/cryptoService');
-      const encryptedContent = await encryptWithEmbedKey(updatedToonContent, embedKey);
-      if (!encryptedContent) {
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to encrypt updated content');
-        return;
-      }
-
-      const embedType = existingEmbed.type || existingEmbed.embed_type || 'app-skill-use';
-      const encryptedType = (await encryptWithEmbedKey(embedType, embedKey)) || undefined;
-
-      const nowMs = Date.now();
-
-      const encryptedEmbedForStorage = {
-        embed_id: existingEmbed.embed_id || embedId,
-        encrypted_content: encryptedContent,
-        encrypted_type: encryptedType,
-        encrypted_text_preview: existingEmbed.encrypted_text_preview,
-        status: existingEmbed.status || 'finished',
-        hashed_chat_id: existingEmbed.hashed_chat_id,
-        hashed_message_id: existingEmbed.hashed_message_id,
-        hashed_task_id: existingEmbed.hashed_task_id,
-        hashed_user_id: existingEmbed.hashed_user_id,
-        embed_ids: existingEmbed.embed_ids,
-        parent_embed_id: existingEmbed.parent_embed_id,
-        version_number: existingEmbed.version_number,
-        file_path: existingEmbed.file_path,
-        content_hash: existingEmbed.content_hash,
-        text_length_chars: existingEmbed.text_length_chars,
-        is_private: existingEmbed.is_private ?? false,
-        is_shared: existingEmbed.is_shared ?? false,
-        createdAt: existingEmbed.createdAt,
-        updatedAt: nowMs,
-      };
-
-      await embedStore.putEncrypted(
-        contentRef,
-        encryptedEmbedForStorage,
-        embedType as import('../../../message_parsing/types').EmbedType,
-        updatedToonContent,
-        { app_id: existingEmbed.app_id, skill_id: existingEmbed.skill_id },
-      );
-
-      console.info('[TravelConnectionEmbedFullscreen] Persisted flight track in embed:', embedId);
-
-      try {
-        const { chatSyncService } = await import('../../../services/chatSyncService');
-        const nowSecs = Math.floor(nowMs / 1000);
-        await chatSyncService.sendStoreEmbed({
-          embed_id: encryptedEmbedForStorage.embed_id || embedId,
-          encrypted_type: encryptedEmbedForStorage.encrypted_type || '',
-          encrypted_content: encryptedEmbedForStorage.encrypted_content,
-          encrypted_text_preview: encryptedEmbedForStorage.encrypted_text_preview,
-          status: encryptedEmbedForStorage.status || 'finished',
-          hashed_chat_id: encryptedEmbedForStorage.hashed_chat_id || '',
-          hashed_message_id: encryptedEmbedForStorage.hashed_message_id || '',
-          hashed_task_id: encryptedEmbedForStorage.hashed_task_id,
-          hashed_user_id: encryptedEmbedForStorage.hashed_user_id || '',
-          embed_ids: encryptedEmbedForStorage.embed_ids,
-          parent_embed_id: encryptedEmbedForStorage.parent_embed_id,
-          version_number: encryptedEmbedForStorage.version_number,
-          file_path: encryptedEmbedForStorage.file_path,
-          content_hash: encryptedEmbedForStorage.content_hash,
-          text_length_chars: encryptedEmbedForStorage.text_length_chars,
-          is_private: encryptedEmbedForStorage.is_private,
-          is_shared: encryptedEmbedForStorage.is_shared,
-          created_at: encryptedEmbedForStorage.createdAt
-            ? Math.floor(encryptedEmbedForStorage.createdAt / 1000)
-            : nowSecs,
-          updated_at: nowSecs,
-        });
-        console.debug('[TravelConnectionEmbedFullscreen] Sent updated embed (flight track) to server:', embedId);
-      } catch (sendError) {
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to send updated embed (flight track) to server:', sendError);
-      }
+      await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, {
+        flight_track: flightTrack,
+      });
     } catch (error) {
-      console.warn('[TravelConnectionEmbedFullscreen] Failed to persist flight track in embed:', error);
+      console.warn('[TravelConnectionEmbedFullscreen] Failed to cache flight details:', error);
     }
   }
 
@@ -1049,145 +938,19 @@
     });
   }
   
-  /**
-   * Persist the resolved booking URL and provider into the child embed's content
-   * so the booking button survives close/reopen of the fullscreen view.
-   *
-   * Flow:
-   * 1. Load the existing embed from embedStore (decrypted)
-   * 2. Decode its TOON content and inject booking_url + booking_provider
-   * 3. Re-encode as TOON, re-encrypt with the embed key, and store locally
-   * 4. Send the updated encrypted embed to the server via store_embed WebSocket event
-   *
-   * This is non-blocking — failures are logged but don't affect the UI.
-   */
+  /** Cache derived booking details without rewriting the canonical embed. */
   async function persistBookingUrlInEmbed(bookingUrl: string, bookingProvider: string) {
-    if (!embedId) {
-      console.debug('[TravelConnectionEmbedFullscreen] No embedId, skipping booking URL persistence');
-      return;
-    }
-    
+    if (!embedId) return;
     try {
-      const contentRef = `embed:${embedId}`;
-      
-      // Load the existing embed data (decrypted)
-      const existingEmbed = await embedStore.get(contentRef);
-      if (!existingEmbed) {
-        console.warn('[TravelConnectionEmbedFullscreen] Embed not found in store, cannot persist booking URL:', embedId);
-        return;
-      }
-      
-      // Decode the TOON content to a plain object so we can add booking_url
-      const { decodeToonContent } = await import('../../../services/embedResolver');
-      let decodedContent: Record<string, unknown> = {};
-      if (existingEmbed.content && typeof existingEmbed.content === 'string') {
-        decodedContent = (await decodeToonContent(existingEmbed.content)) || {};
-      } else if (typeof existingEmbed.content === 'object' && existingEmbed.content !== null) {
-        decodedContent = existingEmbed.content as Record<string, unknown>;
-      }
-      
-      // Inject the resolved booking URL and provider into the content
-      decodedContent.booking_url = bookingUrl;
-      decodedContent.booking_provider = bookingProvider;
-      
-      // Re-encode as TOON
-      const { encode: toonEncode } = await import('@toon-format/toon');
-      const updatedToonContent = toonEncode(decodedContent);
-      
-      // Get the embed key for encryption (child embeds inherit parent's key)
-      const hashedChatId = existingEmbed.hashed_chat_id || undefined;
-      const embedKey = await embedStore.getEmbedKey(embedId, hashedChatId);
-      
-      if (!embedKey) {
-        console.warn('[TravelConnectionEmbedFullscreen] No embed key found, cannot persist booking URL:', embedId);
-        return;
-      }
-      
-      // Encrypt the updated content
-      const { encryptWithEmbedKey } = await import('../../../services/cryptoService');
-      const encryptedContent = await encryptWithEmbedKey(updatedToonContent, embedKey);
-      if (!encryptedContent) {
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to encrypt updated content');
-        return;
-      }
-      
-      // Encrypt the type
-      const embedType = existingEmbed.type || existingEmbed.embed_type || 'app-skill-use';
-      const encryptedType = (await encryptWithEmbedKey(embedType, embedKey)) || undefined;
-      
-      const nowMs = Date.now();
-      
-      // Build the encrypted embed object for local storage
-      const encryptedEmbedForStorage = {
-        embed_id: existingEmbed.embed_id || embedId,
-        encrypted_content: encryptedContent,
-        encrypted_type: encryptedType,
-        encrypted_text_preview: existingEmbed.encrypted_text_preview,
-        status: existingEmbed.status || 'finished',
-        hashed_chat_id: existingEmbed.hashed_chat_id,
-        hashed_message_id: existingEmbed.hashed_message_id,
-        hashed_task_id: existingEmbed.hashed_task_id,
-        hashed_user_id: existingEmbed.hashed_user_id,
-        embed_ids: existingEmbed.embed_ids,
-        parent_embed_id: existingEmbed.parent_embed_id,
-        version_number: existingEmbed.version_number,
-        file_path: existingEmbed.file_path,
-        content_hash: existingEmbed.content_hash,
-        text_length_chars: existingEmbed.text_length_chars,
-        is_private: existingEmbed.is_private ?? false,
-        is_shared: existingEmbed.is_shared ?? false,
-        createdAt: existingEmbed.createdAt,
-        updatedAt: nowMs,
-      };
-      
-      // Store locally via putEncrypted (updates IndexedDB + memory cache)
-      await embedStore.putEncrypted(
-        contentRef,
-        encryptedEmbedForStorage,
-        embedType as import('../../../message_parsing/types').EmbedType,
-        updatedToonContent,
-        { app_id: existingEmbed.app_id, skill_id: existingEmbed.skill_id },
-      );
-      
-      console.info('[TravelConnectionEmbedFullscreen] Persisted booking URL in embed:', embedId);
-      
-      // Send updated embed to server via store_embed WebSocket event
-      try {
-        const { chatSyncService } = await import('../../../services/chatSyncService');
-        const nowSecs = Math.floor(nowMs / 1000);
-        await chatSyncService.sendStoreEmbed({
-          embed_id: encryptedEmbedForStorage.embed_id || embedId,
-          encrypted_type: encryptedEmbedForStorage.encrypted_type || '',
-          encrypted_content: encryptedEmbedForStorage.encrypted_content,
-          encrypted_text_preview: encryptedEmbedForStorage.encrypted_text_preview,
-          status: encryptedEmbedForStorage.status || 'finished',
-          hashed_chat_id: encryptedEmbedForStorage.hashed_chat_id || '',
-          hashed_message_id: encryptedEmbedForStorage.hashed_message_id || '',
-          hashed_task_id: encryptedEmbedForStorage.hashed_task_id,
-          hashed_user_id: encryptedEmbedForStorage.hashed_user_id || '',
-          embed_ids: encryptedEmbedForStorage.embed_ids,
-          parent_embed_id: encryptedEmbedForStorage.parent_embed_id,
-          version_number: encryptedEmbedForStorage.version_number,
-          file_path: encryptedEmbedForStorage.file_path,
-          content_hash: encryptedEmbedForStorage.content_hash,
-          text_length_chars: encryptedEmbedForStorage.text_length_chars,
-          is_private: encryptedEmbedForStorage.is_private,
-          is_shared: encryptedEmbedForStorage.is_shared,
-          created_at: encryptedEmbedForStorage.createdAt ? Math.floor(encryptedEmbedForStorage.createdAt / 1000) : nowSecs,
-          updated_at: nowSecs,
-        });
-        
-        console.debug('[TravelConnectionEmbedFullscreen] Sent updated embed to server:', embedId);
-      } catch (sendError) {
-        // Non-fatal — embed is stored locally, will sync on next connection
-        console.warn('[TravelConnectionEmbedFullscreen] Failed to send updated embed to server:', sendError);
-      }
+      await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, {
+        booking_url: bookingUrl,
+        booking_provider: bookingProvider,
+      });
     } catch (error) {
-      // Non-blocking — the booking button still works, just won't survive close/reopen
-      console.warn('[TravelConnectionEmbedFullscreen] Failed to persist booking URL in embed:', error);
+      console.warn('[TravelConnectionEmbedFullscreen] Failed to cache booking details:', error);
     }
   }
-  
+
   // ---------------------------------------------------------------------------
   // Share connection embed
   // ---------------------------------------------------------------------------

@@ -205,6 +205,7 @@ class WebSocketService extends EventTarget {
   private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
+  private readonly ownedEmbedProtocolRequests = new Map<string, MessageHandler>();
   private earlyMessagesByType: Map<string, unknown[]> = new Map();
   private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
@@ -501,8 +502,21 @@ class WebSocketService extends EventTarget {
     }
   }
 
+  /** Only an active correlated embed receipt listener may own its protocol errors. */
+  public ownEmbedProtocolRequest(requestId: string, onError: MessageHandler): () => void {
+    this.on("error", onError);
+    this.ownedEmbedProtocolRequests.set(requestId, onError);
+    return () => {
+      this.off("error", onError);
+      if (this.ownedEmbedProtocolRequests.get(requestId) === onError) this.ownedEmbedProtocolRequests.delete(requestId);
+    };
+  }
+
   private registerDefaultErrorHandlers(): void {
     this.on("error", (payload: unknown) => {
+      if (isRecord(payload) && typeof payload.request_id === "string"
+        && typeof payload.code === "string" && payload.code.startsWith("embed_")
+        && this.messageHandlers.get("error")?.includes(this.ownedEmbedProtocolRequests.get(payload.request_id)!)) return;
       if (isRetryableRecoveryProtocolError(payload)) {
         console.debug(
           "[WebSocketService] Received retryable recovery protocol error:",

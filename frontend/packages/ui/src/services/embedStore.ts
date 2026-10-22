@@ -97,7 +97,6 @@ const FILE_LIKE_EMBED_TYPES = new Set([
 
 export interface PreviewBackfillMergeResult {
   updated: boolean;
-  storePayload?: StoreEmbedPayload;
 }
 
 export interface VersionRestoreUpdateResult {
@@ -255,6 +254,11 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  // Derived display data never replaces canonical ciphertext or enters IDB.
+  // Bound it independently and invalidate it when its source revision changes.
+  private readonly previewProjections = new BoundedCache<string, {
+    source: unknown; version: unknown; fields: Record<string, unknown>;
+  }>(8 * 1024 * 1024, 500);
   private readonly pendingEmbedIdsByChatId = new Map<string, Set<string>>();
   private readonly childRepairAttempts = new Map<string, number>();
   private readonly childRepairInFlight = new Map<string, Promise<void>>();
@@ -1856,6 +1860,24 @@ export class EmbedStore {
   async get(
     contentRef: string,
   ): Promise<Record<string, unknown> | string | undefined> {
+    const canonical = await this.readCanonicalEmbed(contentRef);
+    const projection = this.previewProjections.get(contentRef);
+    if (!projection || !canonical || typeof canonical !== "object") return canonical;
+    if (projection.source !== canonical.content
+      || projection.version !== (canonical.version_number ?? 1)) {
+      this.previewProjections.delete(contentRef);
+      return canonical;
+    }
+    const decoded = typeof canonical.content === "string"
+      ? await decodeRefRepairContent(canonical.content) : canonical.content;
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) return canonical;
+    return { ...canonical, ...projection.fields,
+      content: JSON.stringify({ ...decoded, ...projection.fields }) };
+  }
+
+  private async readCanonicalEmbed(
+    contentRef: string,
+  ): Promise<Record<string, unknown> | string | undefined> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
 
@@ -2289,136 +2311,49 @@ export class EmbedStore {
   }
 
   /**
-   * Merge lightweight preview metadata into a parent embed and prepare a durable
-   * store_embed payload when this is a writable owner copy.
-   *
-   * Shared/read-only copies intentionally stop after the local merge so shared
-   * chat recipients never rewrite encrypted parent state on the server.
+   * Overlay derived display fields without mutating canonical content, even for
+   * owner copies. Viewing an embed is never a revision-edit command.
    */
   async mergeDecodedContentForPreviewBackfill(
     contentRef: string,
     fields: Record<string, unknown>,
   ): Promise<PreviewBackfillMergeResult> {
-    const existing = await this.get(contentRef);
+    const existing = await this.readCanonicalEmbed(contentRef);
     if (!existing || typeof existing !== "object") {
       return { updated: false };
     }
 
-    const rawEntry = embedCache.get(contentRef);
+    const permitted = new Set([
+      "result_count", "preview_results", "preview_results_json",
+      "flight_track", "booking_url", "booking_provider",
+    ]);
+    if (Object.keys(fields).some((field) => !permitted.has(field))) {
+      throw new Error("Derived preview fields cannot change canonical embed identity or content.");
+    }
     const rawContent = existing.content;
     let decodedContent: Record<string, unknown> = {};
     if (rawContent && typeof rawContent === "string") {
-      const decoded = await decodeToonContentLocal(rawContent);
+      const decoded = await decodeRefRepairContent(rawContent);
       if (decoded && typeof decoded === "object") {
         decodedContent = decoded as Record<string, unknown>;
       }
     }
 
+    const prior = this.previewProjections.get(contentRef);
+    const previousFields = prior?.source === rawContent
+      && prior.version === (existing.version_number ?? 1) ? prior.fields : {};
     const changed = Object.entries(fields).some(
-      ([key, value]) => JSON.stringify(decodedContent[key]) !== JSON.stringify(value),
+      ([key, value]) => JSON.stringify(previousFields[key] ?? decodedContent[key]) !== JSON.stringify(value),
     );
     if (!changed) {
       return { updated: false };
     }
 
-    const mergedContent = { ...decodedContent, ...fields };
-    const mergedContentString = JSON.stringify(mergedContent);
-    const nowMs = Date.now();
-
-    this.setInMemoryOnly(contentRef, {
-      ...existing,
-      ...fields,
-      content: mergedContentString,
-      status: existing.status || fields.status || "finished",
-      updatedAt: nowMs,
+    this.previewProjections.set(contentRef, {
+      source: rawContent, version: existing.version_number ?? 1,
+      fields: { ...previousFields, ...fields },
     });
-
-    if (!canStorePreviewBackfillLocally(rawEntry)) {
-      return { updated: true };
-    }
-
-    const embedId = rawEntry.embed_id || contentRef.replace("embed:", "");
-    const embedKey = await this.getEmbedKey(embedId, rawEntry.hashed_chat_id);
-    if (!embedKey) {
-      return { updated: true };
-    }
-
-    const encryptedContent = await encryptWithEmbedKey(
-      mergedContentString,
-      embedKey,
-    );
-    if (!encryptedContent) {
-      return { updated: true };
-    }
-
-    const updatedAtSeconds = Math.floor(nowMs / 1000);
-    const createdAt = rawEntry.createdAt || nowMs;
-    const createdAtSeconds =
-      createdAt > 10_000_000_000 ? Math.floor(createdAt / 1000) : createdAt;
-
-    const encryptedData = {
-      embed_id: embedId,
-      encrypted_type: rawEntry.encrypted_type,
-      encrypted_content: encryptedContent,
-      encrypted_text_preview: rawEntry.encrypted_text_preview,
-      status: rawEntry.status || "finished",
-      hashed_chat_id: rawEntry.hashed_chat_id,
-      hashed_message_id: rawEntry.hashed_message_id,
-      hashed_task_id: rawEntry.hashed_task_id,
-      hashed_user_id: rawEntry.hashed_user_id,
-      embed_ids: rawEntry.embed_ids,
-      parent_embed_id: rawEntry.parent_embed_id,
-      version_number: rawEntry.version_number,
-      file_path: rawEntry.file_path,
-      content_hash: rawEntry.content_hash,
-      text_length_chars: rawEntry.text_length_chars,
-      is_private: rawEntry.is_private ?? false,
-      is_shared: rawEntry.is_shared ?? false,
-      createdAt: rawEntry.createdAt,
-      updatedAt: nowMs,
-    };
-
-    await this.putEncrypted(
-      contentRef,
-      encryptedData,
-      rawEntry.type,
-      mergedContentString,
-      {
-        app_id: rawEntry.app_id,
-        skill_id: rawEntry.skill_id,
-        encryption_mode: rawEntry.encryption_mode,
-        vault_key_id: rawEntry.vault_key_id,
-      },
-    );
-
-    if (!canPersistPreviewBackfill(rawEntry)) {
-      return { updated: true };
-    }
-
-    return {
-      updated: true,
-      storePayload: {
-        embed_id: embedId,
-        encrypted_type: rawEntry.encrypted_type,
-        encrypted_content: encryptedContent,
-        encrypted_text_preview: rawEntry.encrypted_text_preview,
-        status: rawEntry.status || "finished",
-        hashed_chat_id: rawEntry.hashed_chat_id,
-        hashed_message_id: rawEntry.hashed_message_id,
-        hashed_task_id: rawEntry.hashed_task_id,
-        hashed_user_id: rawEntry.hashed_user_id,
-        embed_ids: rawEntry.embed_ids,
-        parent_embed_id: rawEntry.parent_embed_id,
-        version_number: rawEntry.version_number,
-        file_path: rawEntry.file_path,
-        content_hash: rawEntry.content_hash,
-        text_length_chars: rawEntry.text_length_chars,
-        is_private: rawEntry.is_private ?? false,
-        is_shared: rawEntry.is_shared ?? false,
-        created_at: createdAtSeconds,
-        updated_at: updatedAtSeconds,
-      },
-    };
+    return { updated: true };
   }
 
   /**
@@ -3136,6 +3071,7 @@ export class EmbedStore {
     chatIdHashCache.clear();
     embedKeyNegativeCache.clear();
     this.pendingEmbedIdsByChatId.clear();
+    this.previewProjections.clear();
     console.debug("[EmbedStore] Cleared embed key cache");
   }
 

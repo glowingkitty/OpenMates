@@ -518,6 +518,7 @@
         "default-model-cli.spec.ts",
         "default-model-settings-proof.spec.ts",
         "default-model-settings.spec.ts",
+        "embed-canonical-replay.spec.ts",
         "embed-json-leak.spec.ts",
         "focus-mode-career-insights.spec.ts",
         "focus-mode-rejection.spec.ts",

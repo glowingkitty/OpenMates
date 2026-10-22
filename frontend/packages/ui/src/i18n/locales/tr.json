@@ -4453,6 +4453,17 @@
       "report_description": {
         "text": "A chat processing error happened. I consent to include the current chat context for debugging this incident."
       }
+    },
+    "embed_sync": {
+      "conflict": {
+        "text": "Kaydedilen bir sonucun sürümü çakışıyor. Değişiklikleri yeniden kaydetmeden önce sohbeti inceleyin."
+      },
+      "denied": {
+        "text": "Bu kaydedilmiş sonuç eşitlenemedi. Sohbet erişimini inceleyin."
+      },
+      "review_chat": {
+        "text": "Sohbeti incele"
+      }
     }
   },
   "common": {

@@ -82,10 +82,12 @@ export async function installE2ETestHooks() {
     __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
     __openmatesE2EDraftState?: () => Record<string, unknown>;
-    __openmatesE2ESeedCanonicalEmbedReplay?: () => Promise<Record<string, unknown>>;
+    __openmatesE2ESeedCanonicalEmbedReplay?: (input?: { legacyWeb?: boolean }) => Promise<Record<string, unknown>>;
+    __openmatesE2EInitialCanonicalEmbedWrite?: (input: { chatId: string; head: Record<string, unknown> }) => Promise<Record<string, unknown>>;
+    __openmatesE2ECanonicalLifecycle?: (input: { action: 'inspect' | 'reconnect' | 'preview'; chatId: string; embedId?: string; operationIds?: string[] }) => Promise<unknown>;
     __openmatesE2EReplayCanonicalEmbedWrite?: (input: {
-      chatId: string; embedId: string; changeContent?: boolean;
-    }) => Promise<{ pending: boolean; connected: boolean }>;
+      chatId: string; embedId: string; changeContent?: boolean; queueOnly?: boolean;
+    }) => Promise<Record<string, unknown>>;
     __openmatesE2EExampleEmbedCollision?: (input: {
       exampleChatId: string; seedPrivate?: boolean;
       sourceProbe?: { chatId: string; embedId: string; cleanup?: boolean };
@@ -286,8 +288,9 @@ export async function installE2ETestHooks() {
   );
 
   // Build a provider-free encrypted fixture using this disposable owner's real
-  // browser keys. Export ciphertext only; the isolated runner seeds server rows.
-  testWindow.__openmatesE2ESeedCanonicalEmbedReplay = async () => {
+  // browser keys. Secret keys stay here; the runner receives fixture ciphertext
+  // and public recovery material for provider-free sealed output envelopes.
+  testWindow.__openmatesE2ESeedCanonicalEmbedReplay = async ({ legacyWeb = false } = {}) => {
     const { authStore } = await import('../stores/authState');
     const { userDB } = await import('./userDB');
     const { chatKeyManager } = await import('./encryption/ChatKeyManager');
@@ -321,17 +324,20 @@ export async function installE2ETestHooks() {
     await chatDB.saveMessage(localMessage as Parameters<typeof chatDB.saveMessage>[0]);
     const message = { id: messageId, client_message_id: messageId, chat_id: chatId,
       hashed_user_id: ownerHash, role: 'assistant', created_at: now, updated_at: now, ...messageFields };
-    const content = 'type: code\ncode: canonical replay fixture';
+    const type = legacyWeb ? 'app-skill-use' : 'code';
+    const content = legacyWeb
+      ? 'type: app-skill-use\napp_id: web\nskill_id: search\nquery: canonical replay fixture\nstatus: finished'
+      : 'type: code\ncode: canonical replay fixture';
     const encryptedContent = await encryptWithEmbedKey(content, embedKey);
-    const encryptedType = await encryptWithEmbedKey('code', embedKey);
+    const encryptedType = await encryptWithEmbedKey(type, embedKey);
     if (!encryptedContent || !encryptedType) throw new Error('Canonical fixture embed encryption failed');
     const parentHash = await computeSHA256(parentId);
     const parent = { id: crypto.randomUUID(), embed_id: parentId, hashed_embed_id: parentHash,
       hashed_chat_id: chatHash, hashed_message_id: await computeSHA256(messageId), hashed_user_id: ownerHash,
       encrypted_content: encryptedContent, encrypted_type: encryptedType, status: 'finished',
-      version_number: 1, encryption_mode: 'client', is_private: false, is_shared: false, created_at: now, updated_at: now };
+      version_number: legacyWeb ? null : 1, ...(legacyWeb ? { app_id: 'web', skill_id: 'search' } : {}), encryption_mode: 'client', is_private: false, is_shared: false, created_at: now, updated_at: now };
     const child = { ...parent, id: crypto.randomUUID(), embed_id: childId,
-      hashed_embed_id: await computeSHA256(childId), parent_embed_id: parentId, root_embed_id: parentId };
+      hashed_embed_id: await computeSHA256(childId), version_number: 1, parent_embed_id: parentId, root_embed_id: parentId };
     const keys = [];
     for (let index = 0; index < 2; index++) {
       const master = await wrapEmbedKeyWithMasterKey(embedKey);
@@ -343,7 +349,7 @@ export async function installE2ETestHooks() {
         hashed_chat_id: chatHash, encrypted_embed_key: wrappedChat, hashed_user_id: ownerHash, created_at: now });
     }
     await embedStore.storeEmbedKeys(keys);
-    for (const embed of [parent, child]) await embedStore.putEncrypted(`embed:${embed.embed_id}`, embed, 'code', content);
+    for (const embed of [parent, child]) await embedStore.putEncrypted(`embed:${embed.embed_id}`, embed, type, content);
     const outputs = await Promise.all([parent, child].map(async (embed) => ({
       id: crypto.randomUUID(), hashed_user_id: ownerHash, root_chat_id: chatId, root_hashed_team_id: null,
       target_chat_id: chatId, turn_id: crypto.randomUUID(), preflight_id: crypto.randomUUID(),
@@ -353,17 +359,22 @@ export async function installE2ETestHooks() {
       payload_size_bytes: 1, state: 'ACKNOWLEDGED', created_at: date, acknowledged_at: date,
       canonical_digest: await computeSHA256(encryptedContent),
     })));
-    return { chatId, parentId, childId, ownerId, chat, message, parent, child, keys, outputs };
+    const { deriveChatCompletionRecoveryKeypair } = await import('../utils/chatCompletionRecovery');
+    const encodedChatKey = btoa(String.fromCharCode(...chatKey)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const { publicKey: recoveryPublicKey } = await deriveChatCompletionRecoveryKeypair(encodedChatKey, chatId, 1);
+    return { chatId, parentId, childId, ownerId, chat, message, parent, child, keys, outputs,
+      recoveryPublicKey, outputContent: { content, type, message_id: messageId, chat_id: chatId,
+        ...(legacyWeb ? { app_id: 'web', skill_id: 'search' } : {}) } };
   };
 
   // Exercise the real sender against an owner-authorized recovered head. Return
   // only queue state; neither the plaintext nor encrypted material reaches E2E logs.
-  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false }) => {
+  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false, queueOnly = false }) => {
     const { getApiEndpoint, storageArchiveFetch } = await import('../config/api');
     const { embedStore } = await import('./embedStore');
     const { decryptWithEmbedKey, encryptWithEmbedKey } = await import('./encryption/MetadataEncryptor');
     const { chatSyncService } = await import('./chatSyncService');
-    const { sendStoreEmbedImpl } = await import('./embedSenders');
+    const { sendStoreEmbedOperationImpl } = await import('./embedSenders');
     const chat = await chatDB.getRawChat(chatId);
     if (!chat) throw new Error('E2E canonical replay chat is unavailable');
     const query = chat.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : '';
@@ -371,13 +382,18 @@ export async function installE2ETestHooks() {
       `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}${query}`,
     ), { credentials: 'include' });
     if (!response.ok) throw new Error(`E2E canonical replay head read failed (${response.status})`);
-    const page = await response.json() as { embed?: Record<string, unknown> };
+    const page = await response.json() as { embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> };
     const head = page.embed;
     if (!head || head.embed_id !== embedId || typeof head.hashed_chat_id !== 'string'
       || typeof head.encrypted_content !== 'string' || typeof head.encrypted_type !== 'string') {
       throw new Error('E2E canonical replay head is incomplete');
     }
-    const key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    let key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    if (!key) {
+      const { requestEmbedFromServerOnce } = await import('./embedResolver');
+      await requestEmbedFromServerOnce(embedId, 'canonical-lifecycle-cold-hydration', { chatId });
+      key = await embedStore.getEmbedKey(embedId, head.hashed_chat_id);
+    }
     if (!key) throw new Error('E2E canonical replay key is unavailable');
     const content = await decryptWithEmbedKey(head.encrypted_content, key);
     const type = await decryptWithEmbedKey(head.encrypted_type, key);
@@ -391,7 +407,7 @@ export async function installE2ETestHooks() {
     }
     const connected = chatSyncService.webSocketConnected_FOR_SENDERS_ONLY;
     if (!connected) throw new Error('E2E canonical replay WebSocket is disconnected');
-    await sendStoreEmbedImpl(chatSyncService, {
+    const payload = {
       embed_id: embedId, chat_id: chatId, team_id: chat.team_id ?? null,
       encrypted_content: encryptedContent, encrypted_type: encryptedType,
       encrypted_text_preview: head.encrypted_text_preview as string | undefined,
@@ -409,8 +425,56 @@ export async function installE2ETestHooks() {
       is_shared: head.is_shared as boolean | undefined,
       created_at: head.created_at as number,
       updated_at: head.updated_at as number,
-    } as Parameters<typeof sendStoreEmbedImpl>[1]);
+    } as Parameters<typeof sendStoreEmbedOperationImpl>[1];
+    if (queueOnly) {
+      const operationId = crypto.randomUUID();
+      await chatDB.addPendingEmbedOperation({ operation_id: operationId, embed_id: embedId,
+        store_embed_payload: payload, store_embed_keys_payload: { keys: page.embed_keys ?? [] }, created_at: Date.now() });
+      return { operationId };
+    }
+    const result = await sendStoreEmbedOperationImpl(chatSyncService, payload);
     const pending = (await chatDB.getPendingEmbedOperations()).some((operation) => operation.embed_id === embedId);
-    return { pending, connected };
+    return { pending, connected, ...result };
+  };
+
+  testWindow.__openmatesE2EInitialCanonicalEmbedWrite = async ({ chatId, head }) => {
+    const { chatSyncService } = await import('./chatSyncService');
+    const fields = { ...head };
+    delete fields.id;
+    // These identities are derived by the storage transaction, not accepted
+    // from ordinary producer payloads.
+    delete fields.hashed_embed_id;
+    const embedId = head.embed_id;
+    return { ...await chatSyncService.sendStoreEmbed({
+      ...fields, embed_id: embedId, chat_id: chatId, team_id: null,
+      // Exercise the public service/barrel used by ordinary producers.
+      ...(head.version_number == null ? { version_number: undefined } : {}),
+    } as Parameters<typeof chatSyncService.sendStoreEmbed>[0]) };
+  };
+
+  testWindow.__openmatesE2ECanonicalLifecycle = async ({ action, chatId, embedId, operationIds }) => {
+    const { embedStore } = await import('./embedStore');
+    if (action === 'reconnect') {
+      const { webSocketService } = await import('./websocketService');
+      webSocketService.forceReconnect('E2E canonical lifecycle reconnect');
+      return true;
+    }
+    if (action === 'preview') {
+      if (!embedId) throw new Error('Preview requires an embed');
+      const canonicalBefore = await embedStore.getPersistencePayload(embedId);
+      if (!canonicalBefore) throw new Error('Preview canonical fixture is unavailable');
+      const result = await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, {
+        result_count: 1, preview_results: [{ title: 'Enriched canonical preview', url: 'https://example.com/canonical-fixture' }],
+      });
+      const local = await embedStore.get(`embed:${embedId}`);
+      if (!local || typeof local !== 'object') throw new Error('Preview projection is unavailable');
+      return { updated: result.updated, durablePayloadReturned: 'storePayload' in result,
+        resultCount: local?.result_count, previewResults: local?.preview_results,
+        canonicalPayloadUnchanged: JSON.stringify(canonicalBefore) === JSON.stringify(await embedStore.getPersistencePayload(embedId)) };
+    }
+    const operations = (await chatDB.getPendingEmbedOperations()).filter((operation) =>
+      operationIds ? operationIds.includes(operation.operation_id)
+        : operation.store_embed_payload.chat_id === chatId);
+    return operations.map((operation) => ({ ...operation }));
   };
 }

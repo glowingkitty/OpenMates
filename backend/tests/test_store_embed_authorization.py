@@ -631,7 +631,8 @@ async def test_metadata_enrichment_transaction_conflict_has_no_confirmation_or_b
     assert manager.broadcasts == []
     assert directus.embed.updated == []
     assert manager.personal_messages[0][0]["payload"]["request_id"] == "conflict-1"
-    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_write_denied"
+    assert manager.personal_messages[0][0]["payload"]["code"] == "embed_revision_conflict"
+    assert manager.personal_messages[0][0]["payload"]["reason"] == "canonical_metadata_version_conflict"
 
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
@@ -676,5 +677,58 @@ async def test_recovery_bundle_rejects_uncorrelated_or_noninitial_payload_before
         payload["recovery_key_wrappers"] = [{}]
     await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
         directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1", payload=payload)
+    assert directus.write_calls == []
+    assert manager.personal_messages[0][0]["type"] == "error"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("condition", [
+    {"version": None, "ciphertext_sha256": None},
+    {"version": 1, "ciphertext_sha256": "a" * 64},
+])
+async def test_store_embed_forwards_typed_precondition_without_persisting_protocol_field(condition):
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(canonical_precondition=condition))
+    assert directus.write_calls[0]["canonical_precondition"] == condition
+    assert "canonical_precondition" not in directus.write_calls[0]["payload"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("condition", [None, {}, {"version": True, "ciphertext_sha256": "a" * 64},
+    {"version": 0, "ciphertext_sha256": "a" * 64}, {"version": "1", "ciphertext_sha256": "a" * 64},
+    {"version": None, "ciphertext_sha256": "a" * 64}, {"version": 1, "ciphertext_sha256": None}])
+async def test_store_embed_rejects_malformed_precondition_before_transaction(condition):
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(canonical_precondition=condition))
+    assert directus.write_calls == []
+    assert manager.personal_messages[0][0]["type"] == "error"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_store_embed_operation_identity_is_protocol_correlation_not_a_head_column():
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(request_id="attempt-1", operation_id="stable-offline-operation-1"))
+    assert "operation_id" not in directus.write_calls[0]["payload"]
+    assert "operation_id" not in directus.embed.existing_embed
+    assert manager.personal_messages[0][0]["payload"]["operation_id"] == "stable-offline-operation-1"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation_id", [None, "", "x" * 129, "not an opaque id", 42])
+async def test_store_embed_rejects_invalid_operation_identity_before_writes(operation_id):
+    directus, manager = FakeDirectusService(), FakeConnectionManager()
+    await get_handle_store_embed()(websocket=None, manager=manager, cache_service=FakeCacheService(),
+        directus_service=directus, user_id=OWNER_ID, device_fingerprint_hash="device-1",
+        payload=store_payload(operation_id=operation_id))
     assert directus.write_calls == []
     assert manager.personal_messages[0][0]["type"] == "error"

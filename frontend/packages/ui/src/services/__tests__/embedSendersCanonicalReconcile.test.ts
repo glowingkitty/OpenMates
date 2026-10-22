@@ -19,6 +19,14 @@ const state = vi.hoisted(() => ({
   availabilityState: "ready",
   parentAvailabilityState: "ready",
   acknowledged: true,
+  writeState: "immutable",
+  descriptor: true,
+  writeError: "embed_write_denied",
+  writeReason: undefined as string | undefined,
+  descriptorForUnusable: false,
+  uuidCounter: 0,
+  masterReady: true,
+  chatKeyReady: true,
   readStatus: 200,
   reads: 0,
   localWrites: [] as Array<Record<string, unknown>>,
@@ -40,8 +48,9 @@ vi.mock("../canonicalEmbedWriteCoordinator", () => ({
   withCanonicalEmbedWrite: vi.fn(async (embedId: string, write: (lease: unknown) => Promise<unknown>) =>
     write({ embedId })),
 }));
-vi.mock("../../message_parsing/utils", () => ({ computeSHA256: vi.fn(async (text: string) => `hash:${text}`) }));
-vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: { getKey: vi.fn(async () => new Uint8Array([3, 4])) } }));
+vi.mock("../../message_parsing/utils", () => ({ computeSHA256: vi.fn(async (text: string) => text.startsWith("cipher:") ? "a".repeat(64) : `hash:${text}`) }));
+vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: { getKey: vi.fn(async () => state.chatKeyReady ? new Uint8Array([3, 4]) : null) } }));
+vi.mock("../cryptoService", () => ({ getKeyFromStorage: vi.fn(async () => state.masterReady ? {} : null) }));
 vi.mock("../encryption/MetadataEncryptor", () => ({
   decryptWithEmbedKey: vi.fn(async (encrypted: string) => encrypted.startsWith("cipher:")
     ? encrypted.split(":")[1] : null),
@@ -91,6 +100,11 @@ vi.mock("../../config/api", () => ({
   }),
 }));
 vi.mock("../websocketService", () => ({ webSocketService: {
+  ownEmbedProtocolRequest: vi.fn((_requestId: string, listener: (payload: unknown) => void) => {
+    const listeners = state.handlers.get("error") ?? new Set();
+    listeners.add(listener); state.handlers.set("error", listeners);
+    return () => { listeners.delete(listener); };
+  }),
   on: vi.fn((type: string, listener: (payload: unknown) => void) => {
     const listeners = state.handlers.get(type) ?? new Set();
     listeners.add(listener); state.handlers.set(type, listeners);
@@ -106,7 +120,7 @@ vi.mock("../websocketService", () => ({ webSocketService: {
     state.sent.push({ type, payload });
     queueMicrotask(() => {
       if (type === "store_embed") emit("error", {
-        request_id: payload.request_id, code: "embed_write_denied",
+        request_id: payload.request_id, code: state.writeError, reason: state.writeReason,
       });
       if (type === "store_embed_keys") {
         const incoming = payload.keys as Array<Record<string, unknown>>;
@@ -125,7 +139,7 @@ vi.mock("../websocketService", () => ({ webSocketService: {
   }),
 } }));
 
-import { flushPendingEmbedOperations, sendStoreEmbedImpl } from "../embedSenders";
+import { flushPendingEmbedOperations, sendStoreEmbedImpl, sendStoreEmbedOperationImpl } from "../embedSenders";
 
 const payload = {
   embed_id: "embed-1", chat_id: "chat-1", team_id: null,
@@ -139,6 +153,8 @@ const keys = { keys: [{ key_type: "master", hashed_embed_id: "hash:embed-1",
 const service = { webSocketConnected_FOR_SENDERS_ONLY: true } as never;
 
 beforeEach(() => {
+  state.uuidCounter = 0; state.masterReady = true; state.chatKeyReady = true;
+  vi.mocked(crypto.randomUUID).mockImplementation(() => `canonical-op-${++state.uuidCounter}` as `${string}-${string}-${string}-${string}-${string}`);
   state.queued.clear(); state.sent.length = 0; state.handlers.clear(); state.closeHandlers.clear();
   state.canonicalContent = "cipher:body:old"; state.canonicalType = "cipher:app_skill_use:old";
   state.canonicalPreview = null;
@@ -150,12 +166,16 @@ beforeEach(() => {
   state.availabilityState = "ready";
   state.parentAvailabilityState = "ready";
   state.acknowledged = true;
+  state.writeState = "immutable"; state.descriptor = true; state.writeError = "embed_write_denied"; state.writeReason = undefined; state.descriptorForUnusable = false;
   state.localWrites.length = 0;
   state.historicalSource = "matching-source";
   vi.stubGlobal("fetch", vi.fn(async (_url: string, options: { body: string }) => ({
     ok: true, status: 200,
     json: async () => ({ results: JSON.parse(options.body).embed_ids.map((embed_id: string, index: number) => ({
       embed_id, state: index === 0 ? state.availabilityState : state.parentAvailabilityState,
+      ...(index === 0 && state.descriptor && (state.availabilityState === "ready" || state.descriptorForUnusable) ? { canonical_revision: {
+        version: state.canonicalVersion, ciphertext_sha256: "a".repeat(64), write_state: state.writeState,
+      } } : {}),
       ...(index === 0 && state.acknowledged ? { recovery_ack: {
         state: "ACKNOWLEDGED", version: JSON.parse(options.body).required_recovery_versions[embed_id], canonical_digest: "a".repeat(64),
       } } : {}),
@@ -303,7 +323,7 @@ describe("canonical embed conflict reconciliation", () => {
   it("settles an equivalent re-encrypted v1 before any write or denial, including reconnect flush", async () => {
     await sendStoreEmbedImpl(service, payload, keys);
     expect(state.sent).toEqual([]);
-    expect(state.reads).toBe(2);
+    expect(state.reads).toBe(1);
     expect(state.queued.size).toBe(0);
     expect(state.localWrites).toHaveLength(1);
     expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
@@ -313,10 +333,11 @@ describe("canonical embed conflict reconciliation", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
-  it("keeps the ordinary v1 write path when its unfinished head is not yet readable", async () => {
+  it("defers a v1 write when its unfinished head has no canonical descriptor", async () => {
     state.availabilityState = "unusable";
     await sendStoreEmbedImpl(service, payload, keys);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(state.sent).toEqual([]);
+    expect(Array.from(state.queued.values())[0].state).toBe("pending");
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
@@ -470,13 +491,137 @@ describe("historical parent wrappers and child queue replay", () => {
   it.each([false, true])("preserves initial mutable writes before a recovery ACK (child=%s)", async (child) => {
     state.acknowledged = false;
     state.availabilityState = child ? "unusable" : "ready";
+    state.writeState = "mutable";
     const { webSocketService } = await import("../websocketService");
-    vi.mocked(webSocketService.sendMessage).mockImplementationOnce(async (type, payload) => {
+    if (!child) vi.mocked(webSocketService.sendMessage).mockImplementationOnce(async (type, rawPayload) => {
+      const payload = rawPayload as Record<string, unknown>;
       state.sent.push({ type, payload });
-      emit("store_embed_confirmed", { ...payload, canonical_digest: `hash:${payload.encrypted_content}` });
+      emit("store_embed_confirmed", { ...payload, canonical_digest: "a".repeat(64) });
     });
-    expect(await sendStoreEmbedImpl(service, { ...payload, ...(child ? { parent_embed_id: "parent-1" } : {}) })).toBe(true);
-    expect(state.sent.map((entry) => entry.type)).toEqual(["store_embed"]);
+    expect(await sendStoreEmbedImpl(service, { ...payload, ...(child ? { parent_embed_id: "parent-1" } : {}) })).toBe(!child);
+    expect(state.sent.map((entry) => entry.type)).toEqual(child ? [] : ["store_embed"]);
+    expect(state.queued.size).toBe(child ? 1 : 0);
+    if (!child) expect(state.sent[0].payload.canonical_precondition).toEqual({ version: 1, ciphertext_sha256: "a".repeat(64) });
+  });
+});
+
+
+describe("durable canonical operation outcomes", () => {
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("adopts a legacy null-v1 immutable head without relying on a recovery ACK", async () => {
+    state.acknowledged = false;
+    const { storageArchiveFetch } = await import("../../config/api");
+    const original = vi.mocked(storageArchiveFetch).getMockImplementation()!;
+    vi.mocked(storageArchiveFetch).mockImplementationOnce(async (...args) => {
+      const response = await original(...args);
+      const page = await response.json();
+      page.embed.version_number = null;
+      return { ...response, json: async () => page };
+    });
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "adopted" });
+    expect(state.sent).toEqual([]);
     expect(state.queued.size).toBe(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("permits only proven read-only adoption without a descriptor or ACK", async () => {
+    state.acknowledged = false; state.descriptor = false;
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "adopted" });
+    expect(state.sent).toEqual([]);
+    expect(state.queued.size).toBe(0);
+    state.canonicalContent = "cipher:changed:old";
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "conflict" });
+    await flushPendingEmbedOperations();
+    expect(state.sent).toEqual([]);
+    expect(Array.from(state.queued.values())[0]).toMatchObject({ state: "conflict", store_embed_payload: payload, store_embed_keys_payload: keys });
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("preserves original conflicting ciphertext and wrappers and skips it on reconnect", async () => {
+    state.canonicalContent = "cipher:other:old";
+    const result = await sendStoreEmbedOperationImpl(service, payload, keys);
+    expect(result).toMatchObject({ status: "conflict", failure_code: "embed_content_or_type_conflict" });
+    const retained = structuredClone(Array.from(state.queued.values())[0]);
+    const reads = state.reads;
+    await flushPendingEmbedOperations(); await flushPendingEmbedOperations();
+    expect(state.reads).toBe(reads);
+    expect(state.sent).toEqual([]);
+    expect(Array.from(state.queued.values())[0]).toEqual(retained);
+    expect(retained).toMatchObject({ operation_id: result.operation_id, state: "conflict", store_embed_payload: payload, store_embed_keys_payload: keys });
+    // A new equivalent operation can settle without deleting the conflicting evidence.
+    state.canonicalContent = "cipher:body:old";
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "adopted" });
+    expect(state.queued.size).toBe(1);
+    expect(Array.from(state.queued.values())[0]).toEqual(retained);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each(["embed_revision_conflict", "embed_write_denied"])("retains terminal %s without reconnect retry", async (code) => {
+    state.writeState = "mutable"; state.writeError = code;
+    const result = await sendStoreEmbedOperationImpl(service, payload, keys);
+    expect(result).toMatchObject({ status: code === "embed_write_denied" ? "denied" : "conflict", failure_code: code });
+    expect(state.sent).toHaveLength(1);
+    expect(state.sent[0].payload).toMatchObject({ canonical_precondition: { version: 1, ciphertext_sha256: "a".repeat(64) }, operation_id: result.operation_id });
+    await flushPendingEmbedOperations();
+    expect(state.sent).toHaveLength(1);
+    expect(state.queued.size).toBe(1);
+    expect(state.localWrites).toEqual([]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("retries a transient canonical read using the same durable operation identity", async () => {
+    state.readStatus = 503;
+    const result = await sendStoreEmbedOperationImpl(service, payload, keys);
+    expect(result.status).toBe("waiting");
+    expect(Array.from(state.queued.values())[0].operation_id).toBe(result.operation_id);
+    state.readStatus = 200;
+    await flushPendingEmbedOperations();
+    expect(state.queued.size).toBe(0);
+    expect(state.sent).toEqual([]);
+    expect(state.localWrites).toHaveLength(1);
+  });
+});
+
+
+describe("canonical reconciliation dependencies", () => {
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each(["master", "chat"])("defers unavailable local %s keys without recording a semantic conflict", async (scope) => {
+    if (scope === "master") state.masterReady = false;
+    else {
+      state.chatKeyReady = false;
+      state.canonicalWrappers = [{ ...keys.keys[0], key_type: "chat", hashed_chat_id: "hash:chat-1", encrypted_embed_key: "chat-wrapper" }];
+    }
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "waiting" });
+    expect(Array.from(state.queued.values())[0]).toMatchObject({ state: "pending", store_embed_keys_payload: keys });
+    state.masterReady = true; state.chatKeyReady = true;
+    await flushPendingEmbedOperations();
+    expect(state.queued.size).toBe(0);
+  });
+});
+
+
+describe("guarded initial completion", () => {
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([false, true])("completes a scoped mutable processing head with a descriptor (child=%s)", async (child) => {
+    state.availabilityState = "unusable"; state.descriptorForUnusable = true;
+    state.writeState = "mutable";
+    const { webSocketService } = await import("../websocketService");
+    vi.mocked(webSocketService.sendMessage).mockImplementationOnce(async (type, rawPayload) => {
+      const payload = rawPayload as Record<string, unknown>;
+      state.sent.push({ type, payload });
+      emit("store_embed_confirmed", { ...payload, canonical_digest: "a".repeat(64) });
+    });
+    expect(await sendStoreEmbedOperationImpl(service, { ...payload, ...(child ? { parent_embed_id: "parent-1" } : {}) })).toMatchObject({ status: "persisted" });
+    expect(state.sent).toHaveLength(1);
+    expect(state.sent[0].payload.canonical_precondition).toEqual({ version: 1, ciphertext_sha256: "a".repeat(64) });
+    expect(state.reads).toBe(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("retains a safe server conflict reason for later revision resolution", async () => {
+    state.writeState = "mutable"; state.writeError = "embed_revision_conflict";
+    state.writeReason = "canonical_precondition_mismatch";
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "conflict", failure_code: "canonical_precondition_mismatch" });
+    expect(Array.from(state.queued.values())[0].failure_code).toBe("canonical_precondition_mismatch");
   });
 });

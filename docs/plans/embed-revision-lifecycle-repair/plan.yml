@@ -1,0 +1,33 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: embed-revision-lifecycle-repair
+title: Preserve canonical encrypted embeds through rendering and reconnect
+goal: >-
+  Implement the proper architecture fix, not just the null-version patch.
+  Preserve all encrypted data, add full lifecycle regression coverage, deploy
+  to dev and verify the recurring errors are gone.
+scope:
+  - Consistent logical revision interpretation and explicit scoped canonical write policy.
+  - Atomic version/digest preconditions and distinct conflict versus authorization responses.
+  - Derived preview state separated from canonical encrypted bodies.
+  - Durable conflict classification preserving original encrypted queued operations without repeated reconnect writes.
+  - Correlated operation errors and explicit persistence outcomes.
+contracts:
+  - specifications/features/chats/specification.yml
+  - specifications/architecture/storage-lifecycle/specification.yml
+constraints:
+  - No encrypted data or wrapper deletion, migration, arbitrary selection or canonical ciphertext rewrite.
+  - Preserve owner, Team, Project, direct-chat, version, key and recovery acknowledgement guards.
+  - No inference model/provider override or real-account test mutation.
+  - Existing public API exposure and rate limits remain unchanged; availability is a scoped first-party encrypted read and revision writes are authenticated first-party WebSocket/internal transactions.
+required_checks:
+  - Focused backend policy, precondition and authorization unit regressions.
+  - Focused client replay, durable conflict, preview projection and notification unit regressions.
+  - Isolated provider-free browser lifecycle coverage for null/explicit initial versions, acknowledgement, preview enrichment, queued conflicts, reconnect/reload and unauthorized access.
+  - Immutable canonical ciphertext and key-wrapper preservation assertions through the lifecycle.
+  - Scoped lint and existing Specification assertion checks.
+  - Managed dev deployment, backend/frontend readiness and a bounded post-rollout retained-log check for the recurring denial signature.
+evidence:
+  task: TASK-826
+  investigation: docs/findings/issues/dev/2026/31b52ec8-aa64-4b71-b537-a5aef6fbb5db-admin-tons-of-x27-server-error-not-authorized-to-store-e.md

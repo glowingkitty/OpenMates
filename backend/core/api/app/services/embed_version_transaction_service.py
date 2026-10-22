@@ -7,13 +7,40 @@ import logging
 import os
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
 
 HOSTED_PROJECT_EMBED_ID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
+
+
+def logical_embed_version(value: object) -> int:
+    """Interpret legacy nullable initial heads without coercing corrupt values."""
+    if value is None:
+        return 1
+    if type(value) is not int or not 1 <= value <= 2_147_483_647:
+        raise ValueError("Invalid canonical embed version")
+    return value
+
+
+class CanonicalEmbedPrecondition(TypedDict):
+    version: int | None
+    ciphertext_sha256: str | None
+
+
+def validate_canonical_precondition(value: object) -> CanonicalEmbedPrecondition:
+    """Validate the protocol-only compare-and-swap condition for an opaque head."""
+    if not isinstance(value, dict) or set(value) != {"version", "ciphertext_sha256"}:
+        raise ValueError("Invalid canonical embed precondition")
+    version, digest = value["version"], value["ciphertext_sha256"]
+    if version is None and digest is None:
+        return {"version": None, "ciphertext_sha256": None}
+    if (version is None or logical_embed_version(version) != version
+            or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+        raise ValueError("Invalid canonical embed precondition")
+    return {"version": version, "ciphertext_sha256": digest}
 
 
 def is_hosted_project_embed_id(embed_id: object) -> bool:
@@ -83,6 +110,7 @@ class EmbedVersionTransactionService:
         self, embed_id: str, payload: Mapping[str, Any], *, user_id: str,
         bundle_context: Mapping[str, Any] | None = None,
         canonical_metadata_enrichment: Mapping[str, Any] | None = None,
+        canonical_precondition: CanonicalEmbedPrecondition | None = None,
     ) -> dict[str, Any]:
         """Persist one client-encrypted embed under the Project revision lock."""
         token = os.getenv("INTERNAL_API_SHARED_TOKEN")
@@ -99,6 +127,8 @@ class EmbedVersionTransactionService:
                 **({"bundle_context": dict(bundle_context)} if bundle_context is not None else {}),
                 **({"canonical_metadata_enrichment": dict(canonical_metadata_enrichment)}
                    if canonical_metadata_enrichment is not None else {}),
+                **({"canonical_precondition": validate_canonical_precondition(canonical_precondition)}
+                   if canonical_precondition is not None else {}),
             },
         )
         try:

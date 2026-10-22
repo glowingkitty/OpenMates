@@ -89,6 +89,10 @@ const isDateValue = (value: unknown): value is Date => value instanceof Date;
  */
 export interface PendingEmbedOperation {
   operation_id: string;
+  /** Absent on legacy rows, which are treated as pending. */
+  state?: "pending" | "conflict" | "denied";
+  failure_code?: string;
+  origin?: string;
   embed_id: string;
   store_embed_payload: StoreEmbedPayload;
   store_embed_keys_payload?: { keys: Array<Record<string, unknown>> };
