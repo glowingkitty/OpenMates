@@ -1009,8 +1009,8 @@ def compose_profile(
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
         ai_worker = deepcopy(worker)
-        # The camera call fixture runs the actual detached H3 storage path on
-        # this guarded worker; other replay specs retain their existing queues.
+        # Video work stays on the guarded fixture worker. Speech gets its own
+        # worker below so audio can begin while the single AI slot is streaming.
         ai_queues = "app_ai,app_ai_routing" + (",app_videos" if voice_camera else "")
         ai_worker["environment"].update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1",
@@ -1019,6 +1019,12 @@ def compose_profile(
         ai_worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={ai_queues}") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
+        if voice_camera:
+            speech_worker = deepcopy(ai_worker)
+            speech_worker["environment"]["CELERY_QUEUES"] = "app_music"
+            speech_worker["command"] = [part.replace(f"--queues={ai_queues}", "--queues=app_music")
+                                        for part in ai_worker["command"]]
+            services["speech-worker"] = speech_worker
         if storage_capacity:
             ai_worker["command"] = [part.replace("--concurrency=1", f"--concurrency={TARGET_SLOTS_PER_WORKER if capacity_target else capacity_concurrency}")
                                     for part in ai_worker["command"]]
@@ -1348,6 +1354,14 @@ def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]
     return validate_ai_worker_queues(command, output[1].partition("=")[2], voice_camera=voice_camera)
 
 
+def inspect_speech_worker_queues(container: str) -> list[str]:
+    """Prove speech has an independent consumer without the busy AI queue."""
+    queues = inspect_ai_worker_queues(container, voice_camera=False)
+    if queues != ["app_music"]:
+        raise RuntimeError("Voice fixture requires an independent shared-speech queue consumer")
+    return queues
+
+
 def main():
     require_runner()
     action = sys.argv[1]
@@ -1503,9 +1517,11 @@ def main():
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
         voice_camera = "voice-call.spec.ts" in json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
-        if voice_camera and "ai-worker" not in profile["services"]:
-            raise RuntimeError("Voice camera fixture requires its isolated AI worker")
+        if voice_camera and not {"ai-worker", "speech-worker"}.issubset(profile["services"]):
+            raise RuntimeError("Voice camera fixture requires independent AI and speech workers")
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if voice_camera:
+            required.append("speech-worker")
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
             evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo", "Gandi", "JobTech"], "paid_provider_credentials": "absent"}
@@ -1581,6 +1597,8 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
+            if service == "speech-worker":
+                identities[service]["queues"] = inspect_speech_worker_queues(container)
             if service == "ai-worker" or service.startswith("ai-worker-"):
                 identities[service]["queues"] = inspect_ai_worker_queues(container, voice_camera=voice_camera)
             if (evidence.get("target_capacity_admission") or calibration_active) and (
@@ -1596,7 +1614,7 @@ def main():
                 if not children.isdecimal() or int(children) < TARGET_SLOTS_PER_WORKER:
                     raise RuntimeError("Target worker has fewer live prefork processes than admitted")
                 observed_worker_slots += TARGET_SLOTS_PER_WORKER
-            if (service in ("api", "core-worker", "uploads", "workflow-scheduler") or service.startswith("ai-worker")):
+            if (service in ("api", "core-worker", "speech-worker", "uploads", "workflow-scheduler") or service.startswith("ai-worker")):
                 mounts = [
                     mount
                     for mount in info["Mounts"]
