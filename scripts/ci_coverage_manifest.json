@@ -270,6 +270,7 @@
         "components/diagram-html-embed.spec.ts",
         "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
+        "components/map-result-deduplication.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/publication-code-highlighting.spec.ts",
         "components/marketing-landing.spec.ts",

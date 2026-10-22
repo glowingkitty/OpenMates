@@ -24,6 +24,7 @@
   import { userProfile } from '../../stores/userProfile';
   import type { Component } from 'svelte';
   import { extractResultRoute, buildResultRoutePaths, buildResultMapMarkers } from './resultMapRoutes';
+  import { deduplicateResultViewEntries } from './resultViewEntries';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
   import { resolveResultsViewRefToId } from '../../services/resultsViewRefResolver';
@@ -1160,9 +1161,16 @@
       return;
     }
 
-    const resolvedEntries = await Promise.all(refs.slice(0, MAX_VISIBLE_ENTRIES).map(resolveEntry));
-    if (generation !== loadGeneration) return;
-    entries = resolvedEntries;
+    let resolvedEntries: MapViewEntry[] = [];
+    // Cap unique results, not raw refs: aliases and overlapping searches must
+    // neither repeat cards nor consume slots belonging to later unique events.
+    for (let offset = 0; offset < refs.length; offset += MAX_VISIBLE_ENTRIES) {
+      const batch = await Promise.all(refs.slice(offset, offset + MAX_VISIBLE_ENTRIES).map(resolveEntry));
+      if (generation !== loadGeneration) return;
+      resolvedEntries = deduplicateResultViewEntries([...resolvedEntries, ...batch]);
+      if (resolvedEntries.length >= MAX_VISIBLE_ENTRIES) break;
+    }
+    entries = resolvedEntries.slice(0, MAX_VISIBLE_ENTRIES);
     hoveredRef = null;
     isLoading = false;
   }
