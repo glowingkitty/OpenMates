@@ -44,10 +44,10 @@ def test_audit_accepts_expected_frontend_pins() -> None:
   '@tiptap/starter-kit@3.30.5':
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-model@1.25.7:
+  prosemirror-model@1.25.8:
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-view@1.41.8:
+  prosemirror-view@1.42.3:
     resolution: {{integrity: sha512-ok}}
 """
     )
@@ -65,13 +65,13 @@ def test_audit_rejects_duplicate_prosemirror_model_versions() -> None:
   '@tiptap/core@3.30.5':
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-model@1.25.7:
+  prosemirror-model@1.25.8:
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-model@1.25.8:
+  prosemirror-model@1.25.7:
     resolution: {{integrity: sha512-bad}}
 
-  prosemirror-view@1.41.8:
+  prosemirror-view@1.42.3:
     resolution: {{integrity: sha512-ok}}
 """
     )
@@ -91,10 +91,10 @@ def test_audit_rejects_tiptap_train_drift() -> None:
   '@tiptap/core@3.30.6':
     resolution: {{integrity: sha512-bad}}
 
-  prosemirror-model@1.25.7:
+  prosemirror-model@1.25.8:
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-view@1.41.8:
+  prosemirror-view@1.42.3:
     resolution: {{integrity: sha512-ok}}
 """
     )
@@ -114,10 +114,10 @@ def test_audit_rejects_sveltekit_asset_regression_version() -> None:
   '@tiptap/core@3.30.5':
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-model@1.25.7:
+  prosemirror-model@1.25.8:
     resolution: {{integrity: sha512-ok}}
 
-  prosemirror-view@1.41.8:
+  prosemirror-view@1.42.3:
     resolution: {{integrity: sha512-ok}}
 """
     )

@@ -42,7 +42,6 @@ context_discovery:
   docs:
     - docs/plans/projects-remote-sources/plan.yml
     - docs/plans/forced-logout-local-data-purge/plan.yml
-    - docs/plans/vscode-extension-v1/plan.yml
     - docs/architecture/platforms/cli-package.md
     - docs/user-guide/cli/remote-access.md
     - docs/contributing/guides/spec-driven-development.md
@@ -849,10 +848,6 @@ implementation_notes:
       reason: Package command examples and foreground behavior.
     - path: docs/architecture/platforms/cli-package.md
       reason: Correct partial-implementation and current architecture claims.
-    - path: frontend/apps/vscode_extension/src/extension.ts
-      reason: Correct setup command and live bridge explanation.
-    - path: frontend/apps/vscode_extension/src/webviewHtml.ts
-      reason: Correct setup copy shown inside VS Code.
     - path: scripts/audit_cli_remote_access_docs.py
       reason: Prevent lifecycle-command and capability documentation drift.
     - path: scripts/audit_cli_remote_access_privacy.py
@@ -982,8 +977,6 @@ tasks:
       - docs/user-guide/cli/remote-access.md
       - frontend/packages/openmates-cli/README.md
       - docs/architecture/platforms/cli-package.md
-      - frontend/apps/vscode_extension/src/extension.ts
-      - frontend/apps/vscode_extension/src/webviewHtml.ts
       - scripts/audit_cli_remote_access_docs.py
       - scripts/audit_cli_remote_access_privacy.py
     verification_ids: [T-DOCS-AUDIT, T-PRIVACY-AUDIT, V-SDK-PARITY]
@@ -995,9 +988,7 @@ tasks:
         - docs/architecture/platforms/cli-package.md
         - scripts/audit_cli_remote_access_docs.py
         - scripts/audit_cli_remote_access_privacy.py
-      shared_files:
-        - frontend/apps/vscode_extension/src/extension.ts
-        - frontend/apps/vscode_extension/src/webviewHtml.ts
+      shared_files: []
     blockers: []
     follow_up_tasks: [TASK-6]
     independently_deployable: false

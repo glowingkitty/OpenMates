@@ -230,5 +230,4 @@ export { tooltip } from "./src/actions/tooltip";
 export * from "./src/config/links";
 export * from "./src/config/meta";
 export * from "./src/config/api"; // Export API config helpers
-export * from "./src/platform/runtime";
 export * from "./src/data/openmatesEvents";

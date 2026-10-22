@@ -2,8 +2,8 @@
 """Audit public documentation for the canonical remote-access command.
 
 The live bridge has one foreground command rather than lifecycle subcommands.
-This deterministic check prevents package, user-guide, architecture, and VS
-Code setup copy from drifting back to synthetic or daemon-style behavior.
+This deterministic check prevents package, user-guide, and architecture
+documentation from drifting back to synthetic or daemon-style behavior.
 Spec: docs/specs/cli-remote-access-live-bridge/spec.yml.
 """
 
@@ -19,8 +19,6 @@ DOCS = [
     ROOT / "docs/user-guide/cli/remote-access.md",
     ROOT / "frontend/packages/openmates-cli/README.md",
     ROOT / "docs/architecture/platforms/cli-package.md",
-    ROOT / "frontend/apps/vscode_extension/src/extension.ts",
-    ROOT / "frontend/apps/vscode_extension/src/webviewHtml.ts",
 ]
 REQUIRED_GUIDE_MARKERS = [
     "foreground",

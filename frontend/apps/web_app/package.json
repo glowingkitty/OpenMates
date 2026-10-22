@@ -7,7 +7,6 @@
     "dev": "node scripts/process-docs.js && vite dev",
     "prebuild": "pnpm --dir ../../packages/ui build && pnpm --dir ../../packages/public-site build",
     "build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
-    "build:vscode": "node scripts/process-docs.js && node scripts/build-vscode.js",
     "build:docs": "node scripts/process-docs.js",
     "audit:seo": "node scripts/audit-example-seo.js",
     "preview": "vite preview",
@@ -26,7 +25,7 @@
     "@fontsource-variable/lexend-deca": "^5.2.9",
     "@repo/ui": "workspace:*",
     "dompurify": "^3.4.16",
-    "markdown-it": "^14.3.1",
+    "markdown-it": "^14.3.3",
     "svelte-i18n": "^4.0.1",
     "yaml": "^2.9.0",
     "@repo/public-site": "workspace:*"
@@ -48,10 +47,10 @@
     "svelte-check": "^4.6.0",
     "tslib": "^2.8.1",
     "typescript": "5.9.2",
-    "vite": "^7.3.6",
+    "vite": "^7.3.7",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "web-vitals": "^5.3.0"
   }
 }

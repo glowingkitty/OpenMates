@@ -256,9 +256,8 @@ synchronization; it never rewrites the source to fabricate a newer base.
 
 These legacy workflows now fail explicitly before shared-dev execution. They are
 unmigrated coverage, not passing skips: typed Task/Workflow CLI smoke, main-processor
-CLI smoke, installed VSIX login, and release core journeys. Their runner-local
-profiles and cloud-only/provider requirements must be implemented before release.
-Existing unit/build checks in the VS Code workflow remain executable. Public
+CLI smoke and release core journeys. Their runner-local profiles and
+cloud-only/provider requirements must be implemented before release. Public
 self-host mocks do not replace official-cloud billing, eligibility or budget proof.
 
 

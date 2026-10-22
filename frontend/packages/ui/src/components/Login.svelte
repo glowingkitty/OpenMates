@@ -40,7 +40,6 @@
     import { notificationStore } from '../stores/notificationStore';
     import { setLastAuthMethod } from '../utils/lastAuthMethod';
     import { loginStayLoggedInRequested } from '../stores/uiStateStore';
-    import { isVscodePairOnlyLogin } from '../platform/runtime';
     import { getSessionId } from '../utils/sessionId';
 
     /** PRF extension results from WebAuthn client */
@@ -70,7 +69,6 @@
     
     const dispatch = createEventDispatcher();
     const CONDITIONAL_UI_CANCEL_SETTLE_TIMEOUT_MS = 750;
-    const vscodePairOnlyLogin = isVscodePairOnlyLogin();
 
     function normalizePostSignupLoginUser(user: Record<string, unknown> | null | undefined): void {
         const lastOpened = user?.last_opened;
@@ -93,7 +91,7 @@
     
     // New state variables for multi-step login flow using $state (Svelte 5 runes mode)
     type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code' | 'pair-initiate';
-    let currentLoginStep = $state<LoginStep>(vscodePairOnlyLogin ? 'pair-initiate' : 'email'); // Start with the runtime's allowed login step
+    let currentLoginStep = $state<LoginStep>('email'); // Start with email login
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let preferredLoginMethod = $state('password'); // Default to password
     let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
@@ -117,11 +115,6 @@
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
-        if (vscodePairOnlyLogin) {
-            currentLoginStep = 'pair-initiate';
-            return;
-        }
-
         // This ensures the step is a valid LoginStep value
         if (step === 'email' || step === 'password' || step === 'passkey' ||
             step === 'security_key' || step === 'recovery_key' || step === 'backup_code' ||
@@ -1832,10 +1825,7 @@
         // Start conditional UI passkey flow immediately when component mounts
         // This enables automatic passkey suggestions as soon as the page loads
         // Don't wait for other async operations - start it right away
-        if (vscodePairOnlyLogin && !$authStore.isAuthenticated && !$isInSignupProcess) {
-            currentLoginStep = 'pair-initiate';
-            isConditionalUISupported = false;
-        } else if (!$authStore.isAuthenticated && !$isInSignupProcess) {
+        if (!$authStore.isAuthenticated && !$isInSignupProcess) {
             // Check support and start asynchronously without blocking
             if (window.PublicKeyCredential) {
                 PublicKeyCredential.isConditionalMediationAvailable?.().then((available) => {
@@ -1994,8 +1984,8 @@
         localStorage.clear();
         sessionStorage.clear();
         
-        // Reset to the runtime's allowed first login step.
-        currentLoginStep = vscodePairOnlyLogin ? 'pair-initiate' : 'email';
+        // Reset to the email login step.
+        currentLoginStep = 'email';
         
         // Clear any error states
         loginFailedWarning = false;
@@ -2069,7 +2059,7 @@
         tfaErrorMessage = null;
         verifyDeviceErrorMessage = null;
         loginFailedWarning = false;
-        currentLoginStep = vscodePairOnlyLogin ? 'pair-initiate' : 'email';
+        currentLoginStep = 'email';
         
         // PRIVACY: Clear pending draft when user switches back from Device Verify to login
         // This ensures the saved message is deleted if user doesn't complete the flow
@@ -2110,7 +2100,7 @@
     $effect(() => {
         if ($loginStayLoggedInRequested && currentView === 'login' && !$authStore.isAuthenticated) {
             stayLoggedIn = true;
-            currentLoginStep = vscodePairOnlyLogin ? 'pair-initiate' : 'email';
+            currentLoginStep = 'email';
             showForm = true;
             loginStayLoggedInRequested.set(false);
         }
@@ -2120,7 +2110,6 @@
     // Tabs should only be visible on login screen or during alpha disclaimer and basics steps
     // Once user reaches confirm email step, tabs should be hidden
     let showTabs = $derived(
-        !vscodePairOnlyLogin &&
         (currentView === 'login' || 
         (currentView === 'signup' && ($currentSignupStep === STEP_ALPHA_DISCLAIMER || $currentSignupStep === STEP_BASICS)))
     );
@@ -2203,7 +2192,6 @@
         // 6. Not already active
         if (
             currentView === 'login' &&
-            !vscodePairOnlyLogin &&
             !$authStore.isAuthenticated &&
             !$isCheckingAuth &&
             showForm &&

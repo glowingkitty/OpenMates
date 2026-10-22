@@ -56,7 +56,7 @@ def test_bootstrap_is_worktree_local_and_idempotent(monkeypatch: pytest.MonkeyPa
     assert all(cwd == worktree for _, cwd in calls)
     assert all(str(root / "node_modules") not in " ".join(command) for command, _ in calls)
     assert "--config.engine-strict=false" in calls[0][0]
-    assert "--filter=!openmates-vscode-extension" not in calls[0][0]
+    assert not any(argument.startswith("--filter") for argument in calls[0][0])
 
 
 def test_bootstrap_failure_never_reports_ready(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -118,7 +118,7 @@ def test_scoped_integration_uses_prepared_dependencies(monkeypatch: pytest.Monke
 
 
 @pytest.mark.parametrize("changed_file", [
-    "frontend/apps/vscode_extension/package.json",
+    "frontend/packages/ui/package.json",
     "frontend/apps/web_app/package.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs",
     "patches/example.patch",

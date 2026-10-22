@@ -18,7 +18,6 @@ build/
 develop-eggs/
 dist/
 .vscode-test/
-frontend/apps/vscode_extension/media/app/
 downloads/
 eggs/
 .eggs/
@@ -232,7 +231,6 @@ deployment/prod_server/prod-cloud-config.yaml
 .ruff_cache
 .vscode
 /marketing/
-/vscode_extension/
 .env.openmates-backup-*
 
 *-env*

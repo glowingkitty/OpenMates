@@ -14,7 +14,7 @@ redis==5.2.1
 slowapi==0.1.9
 python-json-logger==3.3.0
 pyyaml==6.0.3
-aiohttp==3.14.3
+aiohttp==3.14.5
 boto3==1.42.56
 python-multipart==0.0.31
 cryptography==50.0.0
@@ -22,11 +22,11 @@ toon-format @ git+https://github.com/toon-format/toon-python.git@6034550ceec432a
 
 # --- Uploads-specific ---
 # Image processing (resizing, WEBP conversion, preview generation)
-Pillow==12.3.0
+Pillow==13.0.0
 # SVG rasterization — converts user-uploaded SVGs to JPEG/WEBP for AI vision.
 # Requires system libs: libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libgdk-pixbuf-2.0-0
 # (installed in Dockerfile via apt-get).
-cairosvg==2.9.0
+cairosvg==2.9.1
 # ClamAV daemon client via TCP socket
 pyclamd==0.4.0
 # MIME type detection (uses libmagic under the hood)
