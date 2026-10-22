@@ -307,7 +307,7 @@
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
-  const mapMarkers = $derived(searchResultMapMarkers(allResults.filter(matchesFilter)));
+  const mapMarkers = $derived(searchResultMapMarkers(allResults.filter(matchesFilter), {home: appId === 'home', translate: $text}));
   let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);

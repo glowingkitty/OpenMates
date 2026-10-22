@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-  import { homeListingContent, homeNumber, homeImages, homeMatchesFilters } from './homeListingData';
+  import { homeListingContent, homeNumber, homeImages, homeMatchesFilters, homeApproximate } from './homeListingData';
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import HomeListingEmbedPreview from './HomeListingEmbedPreview.svelte';
   import HomeListingEmbedFullscreen from './HomeListingEmbedFullscreen.svelte';
@@ -267,7 +267,7 @@
       listing_type={result.listing_type}
       available_from={result.available_from}
       location_precision={result.location_precision as string | undefined}
-      location_approximate={result.location_approximate !== false}
+      location_approximate={homeApproximate(result)}
       {onSelect}
     />
   {/snippet}

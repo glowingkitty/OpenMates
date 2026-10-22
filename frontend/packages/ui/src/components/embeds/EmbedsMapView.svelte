@@ -17,6 +17,8 @@
   import ResultsRangeFilter from './ResultsRangeFilter.svelte';
   import ResultsDateRangeFilter from './ResultsDateRangeFilter.svelte';
   import { getLucideIcon } from '../../utils/categoryUtils';
+  import { text } from '../../i18n/translations';
+  import { homeMapGeometry, homeMapLabel, type HomeMapGeometry } from './home/homeListingData';
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import { EMBED_METADATA, normalizeEmbedType } from '../../data/embedRegistry.generated';
   import { userProfile } from '../../stores/userProfile';
@@ -90,6 +92,7 @@
     lat?: number;
     lon?: number;
     route?: MapPathPoint[];
+    homeGeometry?: HomeMapGeometry;
     embedData?: EmbedData;
     decodedContent?: Record<string, unknown> | null;
     preview?: EntryPreview | null;
@@ -362,6 +365,7 @@
   }
 
   function buildMapMarkers(sourceEntries: MapViewEntry[], activeRefs: Set<string>, selectedMarkerKey: string | null): MapMarker[] {
+    const homeMarkers: MapMarker[] = [];
     const markers = new Map<string, {
       point: MapPathPoint;
       role: 'endpoint-start' | 'endpoint-end' | 'stop' | 'location';
@@ -392,6 +396,15 @@
     };
 
     for (const entry of sourceEntries) {
+      if (entry.homeGeometry) {
+        const geometry = entry.homeGeometry;
+        const key = `home:${entry.ref}:${geometry.lat}:${geometry.lon}:${geometry.radiusM ?? 0}`;
+        const isActive = activeRefs.has(entry.ref);
+        homeMarkers.push({...geometry, homeLocation: true, ref: entry.ref, relatedRefs: [entry.ref], selectionKey: key,
+          selected: selectedMarkerKey === key, color: mapEntryColor(entry), opacity: activeRefs.size > 0 && !isActive ? 0.5 : 1,
+          testId: geometry.radiusM ? 'home-location-area' : 'home-location-pin', label: `${entry.title} · ${homeMapLabel(geometry, $text)}`});
+        continue;
+      }
       if (entry.route && entry.route.length > 1) {
         entry.route.forEach((point, index) => {
           const isEndpoint = index === 0 || index === entry.route!.length - 1;
@@ -407,7 +420,7 @@
       }
     }
 
-    return Array.from(markers.values()).map((marker) => {
+    return [...homeMarkers, ...Array.from(markers.values()).map((marker) => {
       const key = markerCoordinateKey(marker.point);
       const relatedRefs = Array.from(marker.refs);
       const isActive = relatedRefs.some((ref) => activeRefs.has(ref));
@@ -424,7 +437,7 @@
         iconClass: `embeds-map-view-marker embeds-map-view-marker-${marker.role}${isActive ? ' embeds-map-view-marker-active' : ''}${selectedMarkerKey === key ? ' embeds-map-view-marker-selected' : ''}`,
         opacity: activeRefs.size > 0 && !isActive ? 0.5 : 1,
       };
-    });
+    })];
   }
 
   function firstString(...values: unknown[]): string {
@@ -1326,8 +1339,10 @@
 
     const decodedContent = await decodeToonContent(embedData.content);
     const category = getCategory(embedData.type, decodedContent);
-    const point = extractPoint(decodedContent);
-    const route = extractRoute(decodedContent);
+    const isHome = normalizeEmbedType(embedData.type) === 'home-listing' || decodedContent?.app_id === 'home';
+    const homeGeometry = isHome && decodedContent ? homeMapGeometry(decodedContent) : undefined;
+    const point: Partial<CoordinatePair> = isHome ? homeGeometry ?? {} : extractPoint(decodedContent);
+    const route = isHome ? [] : extractRoute(decodedContent);
     const entry: MapViewEntry = {
       ref,
       embedId,
@@ -1340,6 +1355,7 @@
       lat: point.lat,
       lon: point.lon,
       route,
+      homeGeometry,
       embedData,
       decodedContent,
       preview: null,
@@ -1441,6 +1457,19 @@
   }
 
   function entryIntersectsBounds(entry: MapViewEntry, bounds: MapViewportBounds): boolean {
+    if (entry.homeGeometry?.radiusM) {
+      const {lat, lon, radiusM} = entry.homeGeometry;
+      const closestLat = Math.max(bounds.south, Math.min(bounds.north, lat));
+      // Normalize longitudes around the area center, including dateline viewports.
+      const delta = (value: number) => ((value - lon + 540) % 360) - 180;
+      const west = delta(bounds.west), east = delta(bounds.east);
+      const insideLon = bounds.west <= bounds.east ? lon >= bounds.west && lon <= bounds.east : lon >= bounds.west || lon <= bounds.east;
+      const lonDelta = insideLon ? 0 : Math.min(Math.abs(west), Math.abs(east));
+      const radians = Math.PI / 180;
+      const a = Math.sin((closestLat - lat) * radians / 2) ** 2
+        + Math.cos(lat * radians) * Math.cos(closestLat * radians) * Math.sin(lonDelta * radians / 2) ** 2;
+      return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a))) <= radiusM;
+    }
     if (entry.lat != null && entry.lon != null && pointIsInBounds({ lat: entry.lat, lon: entry.lon }, bounds)) return true;
     return entry.route?.some((point) => pointIsInBounds(point, bounds)) ?? false;
   }

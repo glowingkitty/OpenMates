@@ -21,7 +21,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from '../../../utils/imageProxy';
   import { text } from '../../../i18n/translations';
-  import { homeListingContent, homeNumber, homeObject, homeImages, homeBoolean, homeApproximate, homeEvidence } from './homeListingData';
+  import { homeListingContent, homeNumber, homeObject, homeImages, homeBoolean, homeApproximate, homeMapGeometry, homeMapLabel, homeEvidence } from './homeListingData';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { authStore } from '../../../stores/authStore';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
@@ -147,18 +147,12 @@
     }
   });
 
-  // Map data — only when listing has geocoded coordinates
-  let mapCenter = $derived(
-    latitude != null && longitude != null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
-      ? { lat: latitude, lon: longitude }
-      : undefined
-  );
-
-  let mapMarkers = $derived(
-    mapCenter
-      ? [{ lat: mapCenter.lat, lon: mapCenter.lon, label: `${title || address || ''} · ${approximate ? $text('home_listing.approximate') : $text('home_listing.building')}`, iconClass: approximate ? 'approximate-location' : undefined }]
-      : []
-  );
+  let geometry = $derived(homeMapGeometry(dc));
+  let mapCenter = $derived(geometry ? {lat: geometry.lat, lon: geometry.lon} : undefined);
+  let mapMarkers = $derived(geometry ? [{...geometry, homeLocation: true,
+    testId: geometry.radiusM ? 'home-location-area' : 'home-location-pin',
+    label: `${title || address || ''} · ${homeMapLabel(geometry, $text)}`} ] : []);
+  let locationArea = $derived(homeObject(homeObject(dc.location).area));
 
   /** Format size with unit */
   let sizeDisplay = $derived(
@@ -317,8 +311,16 @@
     {/if}
     <section class="listing-section" data-testid="home-location-evidence">
       <h3>{$text('home_listing.location')}</h3>
-      <p>{mapCenter ? approximate ? $text('home_listing.approximate') : $text('home_listing.building') : $text('home_listing.no_location')}</p>
+      <p>{geometry ? geometry.radiusM ? $text('home_listing.approximate') : $text('home_listing.building') : latitude !== undefined && longitude !== undefined ? $text('home_listing.approximate') : $text('home_listing.no_location')}</p>
       <p>{homeEvidence(dc.location_precision)} · {homeEvidence(dc.location_source)}</p>
+      {#if geometry?.radiusM}
+        <p data-testid="home-location-area-label">{homeMapLabel(geometry, $text)}</p>
+        <p>{homeEvidence(locationArea.source)}</p>
+        {#if locationArea.anchor_name}<p>{homeEvidence(locationArea.anchor_name)}</p>{/if}
+        {#if locationArea.evidence_quote}<blockquote>{homeEvidence(locationArea.evidence_quote)}</blockquote>{/if}
+      {:else if approximate && latitude !== undefined && longitude !== undefined}
+        <p>{$text('home_listing.area_unavailable')}</p>
+      {/if}
       {#if approximate}<p class="uncertainty">{$text('home_listing.location_warning')}</p>{/if}
     </section>
     {#if typeof dc.description === 'string' && dc.description}

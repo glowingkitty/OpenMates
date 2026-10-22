@@ -13400,6 +13400,21 @@
     },
     "status_ok": {
       "text": "Verfügbar"
+    },
+    "area_description": {
+      "text": "Aus der Angebotsbeschreibung abgeleitetes Gebiet"
+    },
+    "area_district": {
+      "text": "Ungefähres Stadtteilgebiet"
+    },
+    "area_city": {
+      "text": "Ungefähres Stadtgebiet"
+    },
+    "radius": {
+      "text": "Radius"
+    },
+    "area_unavailable": {
+      "text": "Die Ausdehnung des ungefähren Gebiets ist unbekannt; es wird keine Standortmarkierung angezeigt."
     }
   },
   "invoices_and_credit_notes": {

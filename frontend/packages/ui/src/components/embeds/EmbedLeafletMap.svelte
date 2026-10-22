@@ -29,6 +29,10 @@
   export interface MapMarker {
     lat: number;
     lon: number;
+    /** Meter-radius area, rendered as a circle instead of a point pin. */
+    radiusM?: number;
+    areaBasis?: 'description' | 'district' | 'city';
+    homeLocation?: boolean;
     /** Optional ref for selection callbacks */
     ref?: string;
     /** Optional label (used as tooltip) */
@@ -135,7 +139,7 @@
   }: Props = $props();
 
   let shouldFitBounds = $derived(
-    fitBoundsProp ?? (markers.length > 1 || path.length > 0 || paths.length > 0)
+    fitBoundsProp ?? (markers.length > 1 || markers.some(marker => !!marker.radiusM) || path.length > 0 || paths.length > 0)
   );
   let normalizedPaths = $derived(
     [
@@ -168,6 +172,7 @@
   let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
+  let lastInteractionSignature = '';
   const markerIconHtml = mapsMarkerIconSvg
     .replace('<svg ', '<svg class="embed-map-pin" viewBox="0 0 48 48" aria-hidden="true" ')
     .replace('fill="#000"', 'fill="currentColor"');
@@ -179,11 +184,21 @@
 
   function geometrySignature(): string {
     return JSON.stringify({
-      center,
-      markers: markers.map((marker) => [marker.lat, marker.lon]),
+      center: [center.lat, center.lon],
+      markers: markers.map((marker) => [marker.lat, marker.lon, marker.radiusM]),
       paths: normalizedPaths.map((routePath) => routePath.points.map((point) => [point.lat, point.lon])),
       shouldFitBounds,
       fitBoundsPadding,
+    });
+  }
+
+  // Event handlers capture the rendered geometry's identity. Equal coordinates
+  // may represent a different filtered result, so replace handlers without
+  // resetting the user's viewport or refitting on shared-stop hover.
+  function interactionSignature(): string {
+    return JSON.stringify({
+      markers: markers.map(marker => [marker.ref, marker.relatedRefs, marker.selectionKey]),
+      paths: normalizedPaths.map(routePath => routePath.ref),
     });
   }
 
@@ -192,6 +207,9 @@
       markers: markers.map((marker) => [
         marker.lat,
         marker.lon,
+        marker.radiusM,
+        marker.areaBasis,
+        marker.homeLocation,
         marker.ref,
         marker.relatedRefs,
         marker.selectionKey,
@@ -216,6 +234,18 @@
     });
   }
 
+  function circleStyle(marker: MapMarker) {
+    const opacity = marker.opacity ?? 1;
+    return {color: marker.color ?? 'var(--color-app-home-start)', weight: marker.selected ? 4 : 2,
+      opacity, fillOpacity: (marker.selected ? 0.28 : 0.16) * opacity};
+  }
+  function setAreaAttributes(element: Element | undefined, marker: MapMarker) {
+    if (marker.homeLocation) element?.setAttribute('data-home-location', marker.radiusM ? 'area' : 'exact');
+    if (marker.radiusM) element?.setAttribute('data-radius-m', String(marker.radiusM));
+    if (marker.areaBasis) element?.setAttribute('data-area-basis', marker.areaBasis);
+    if (marker.radiusM && marker.ref) element?.setAttribute('aria-label', marker.label ?? marker.ref);
+  }
+
   function renderLeafletLayers({ fitBoundsToGeometry = false } = {}) {
     if (!leafletMap || !leafletModule) return;
     const L = leafletModule;
@@ -235,22 +265,34 @@
         iconAnchor: [20, 40],
       });
 
-      const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
-      m.setOpacity(marker.opacity ?? 1);
+      const m = marker.radiusM
+        ? L.circle([marker.lat, marker.lon], {radius: marker.radiusM, ...circleStyle(marker), className: 'embed-map-area'}).addTo(markerLayerGroup)
+        : L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
+      m.setOpacity?.(marker.opacity ?? 1);
       const element = m.getElement?.();
       element?.style.setProperty('--embed-map-pin-color', marker.color ?? 'var(--color-app-maps-start)');
+      setAreaAttributes(element, marker);
       if (marker.testId) element?.setAttribute('data-testid', marker.testId);
       if (marker.label) element?.setAttribute('data-marker-label', marker.label);
       if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
       if (marker.ref) {
         element?.setAttribute('data-marker-ref', marker.ref);
-        m.on('click', () => onMarkerSelect?.(marker.ref!, marker.relatedRefs, marker.selectionKey));
+        const select = () => onMarkerSelect?.(marker.ref!, marker.relatedRefs, marker.selectionKey);
+        m.on('click', select);
+        if (marker.radiusM) {
+          element?.setAttribute('tabindex', '0');
+          element?.setAttribute('role', 'button');
+          element?.setAttribute('aria-label', marker.label ?? marker.ref);
+          element?.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); }
+          });
+        }
       }
       if (marker.label) {
         m.bindTooltip(marker.label, {
           permanent: marker.selected === true,
           direction: 'top',
-          offset: [0, -34],
+          offset: marker.radiusM ? [0, 0] : [0, -34],
           className: 'embed-map-marker-label',
         });
       }
@@ -282,8 +324,18 @@
           ...markers.map(m => [m.lat, m.lon] as [number, number]),
           ...normalizedPaths.flatMap(routePath => routePath.points.map(p => [p.lat, p.lon] as [number, number])),
         ];
-        if (allPoints.length > 1) {
-          leafletMap.fitBounds(L.latLngBounds(allPoints), { padding: [fitBoundsPadding, fitBoundsPadding] });
+        const bounds = L.latLngBounds(allPoints);
+        markerLayers.forEach(layer => { if (layer.getBounds) bounds.extend(layer.getBounds()); });
+        if (allPoints.length > 1 || markers.some(marker => !!marker.radiusM)) {
+          const hasArea = markers.some(marker => !!marker.radiusM);
+          const areaOffset = hasArea ? Math.abs(getEffectiveCenterOffsetX()) : 0;
+          // A stacked map is only 150px tall: fixed 50px padding on both sides
+          // shrinks its useful geographic area before Leaflet rounds the zoom.
+          const padding = hasArea && mapContainer
+            ? Math.min(fitBoundsPadding, Math.min(mapContainer.clientWidth, mapContainer.clientHeight) * 0.12)
+            : fitBoundsPadding;
+          leafletMap.fitBounds(bounds, { padding: [padding + areaOffset, padding], animate: false });
+          if (hasArea) appliedCenterPanX = 0;
         } else {
           leafletMap.setView([center.lat, center.lon], zoom, { animate: false });
         }
@@ -294,6 +346,7 @@
     applyCenterOffset();
     emitBoundsChange();
     lastLayerSignature = layerSignature();
+    lastInteractionSignature = interactionSignature();
   }
 
   function emitBoundsChange() {
@@ -315,6 +368,7 @@
       const markerLayer = markerLayers[index];
       if (!markerLayer) return;
       markerLayer.setOpacity?.(marker.opacity ?? 1);
+      if (marker.radiusM) markerLayer.setStyle?.(circleStyle(marker));
       markerLayer.setIcon?.(L.divIcon({
         className: marker.iconClass || 'default-map-marker',
         html: markerIconHtml,
@@ -323,6 +377,7 @@
       }));
       const element = markerLayer.getElement?.();
       element?.style.setProperty('--embed-map-pin-color', marker.color ?? 'var(--color-app-maps-start)');
+      setAreaAttributes(element, marker);
       if (marker.testId) element?.setAttribute('data-testid', marker.testId);
       if (marker.label) element?.setAttribute('data-marker-label', marker.label);
       if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
@@ -331,7 +386,7 @@
         markerLayer.bindTooltip?.(marker.label, {
           permanent: marker.selected === true,
           direction: 'top',
-          offset: [0, -34],
+          offset: marker.radiusM ? [0, 0] : [0, -34],
           className: 'embed-map-marker-label',
         });
       }
@@ -353,7 +408,8 @@
       resizeAnimationFrame = null;
       if (!leafletMap) return;
       leafletMap.invalidateSize();
-      applyCenterOffset();
+      if (markers.some(marker => !!marker.radiusM)) renderLeafletLayers({fitBoundsToGeometry: true});
+      else applyCenterOffset();
     });
   }
 
@@ -474,6 +530,7 @@
     tilesLoaded = false;
     lastFitGeometrySignature = '';
     lastLayerSignature = '';
+    lastInteractionSignature = '';
   }
 
   onDestroy(() => {
@@ -484,12 +541,17 @@
   $effect(() => {
     const nextLayerSignature = layerSignature();
     const nextGeometrySignature = geometrySignature();
+    const nextInteractionSignature = interactionSignature();
     if (!leafletReady) return;
-    if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature) return;
+    if (nextLayerSignature === lastLayerSignature && nextGeometrySignature === lastFitGeometrySignature && nextInteractionSignature === lastInteractionSignature) return;
     const shouldRefit = nextGeometrySignature !== lastFitGeometrySignature;
     if (shouldRefit) {
       renderLeafletLayers({ fitBoundsToGeometry: true });
       lastFitGeometrySignature = nextGeometrySignature;
+      return;
+    }
+    if (nextInteractionSignature !== lastInteractionSignature) {
+      renderLeafletLayers();
       return;
     }
     updateLeafletLayerStyles();
@@ -552,6 +614,11 @@
   :global(.embed-leaflet-map .default-map-marker) {
     background: none;
     border: none;
+  }
+
+  :global(.embed-leaflet-map .embed-map-area:focus-visible) {
+    outline: 3px solid var(--color-primary-start);
+    outline-offset: 3px;
   }
 
   :global(.embed-leaflet-map .approximate-location) {

@@ -455,3 +455,29 @@ status_ok:
   en: Available
   de: Verfügbar
   verified_by_human: []
+
+area_description:
+  context: Basis for an approximate home location circle
+  en: Area inferred from listing description
+  de: Aus der Angebotsbeschreibung abgeleitetes Gebiet
+  verified_by_human: []
+area_district:
+  context: Basis for an approximate home location circle
+  en: Approximate district area
+  de: Ungefähres Stadtteilgebiet
+  verified_by_human: []
+area_city:
+  context: Basis for an approximate home location circle
+  en: Approximate city area
+  de: Ungefähres Stadtgebiet
+  verified_by_human: []
+radius:
+  context: Meter radius of an approximate home location area
+  en: radius
+  de: Radius
+  verified_by_human: []
+area_unavailable:
+  context: Legacy home location has a center but no supported area radius
+  en: Approximate area extent unavailable; no location pin is shown.
+  de: Die Ausdehnung des ungefähren Gebiets ist unbekannt; es wird keine Standortmarkierung angezeigt.
+  verified_by_human: []

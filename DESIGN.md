@@ -399,6 +399,19 @@ Preview interaction:
 | Active | Scale to about `0.96`. |
 | Reduced motion | Disable tilt/scroll-driven effects. |
 
+### Home location maps
+
+A home pin requires a published exact address and coordinates confirmed to match
+that address precisely. Render approximate home locations as translucent circles
+whose radius is measured in meters; show the description, district, or city basis
+and radius in readable labels. Fit the whole circle inside the available map area,
+including space for overlapping detail panels. Keep area selection accessible by
+pointer and keyboard and linked to the matching cards and filters in listing,
+search, and shared maps. Never place an apartment pin at an approximate area's
+center. Legacy approximate centers without a supported radius show uncertainty
+text without invented geometry. Use `EmbedLeafletMap`'s `MapMarker.radiusM` so
+ordinary map pins and travel routes retain their existing behavior.
+
 ### BasicInfosBar
 
 Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`.

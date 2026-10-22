@@ -159,6 +159,17 @@ embed_types:
         type: boolean
       - name: location_source
         type: string
+      - name: location
+        type: object
+        description: "Exact-address eligibility, source provenance and approximate area center/radius. An area center is never an apartment address."
+      - name: street
+        type: string
+      - name: house_number
+        type: string
+      - name: city
+        type: string
+      - name: district
+        type: string
       - name: amenities
         type: object
       - name: amenity_conflicts

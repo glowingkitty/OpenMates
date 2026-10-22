@@ -39,6 +39,12 @@ for (const width of [390, 1280]) {
     await expect(facts.locator('dl > div').filter({hasText: 'Cold rent'})).toContainText('1000 EUR');
     await expect(facts.locator('dl > div').filter({hasText: 'Warm rent'})).toContainText('1250 EUR');
     await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate location');
+    if (width === 390) {
+      const mapBox = await page.getByTestId('embed-leaflet-map').boundingBox();
+      const areaBox = await page.getByTestId('home-location-area').boundingBox();
+      expect(mapBox).not.toBeNull(); expect(areaBox).not.toBeNull();
+      expect(Math.min(areaBox!.width, areaBox!.height)).toBeGreaterThanOrEqual(Math.min(mapBox!.width, mapBox!.height) * 0.35);
+    }
     await expect(page.getByTestId('home-location-evidence')).toContainText('walking access are unknown');
     await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('Geoapify');
     await expect(page.getByTestId('home-neighborhood-evidence')).toContainText('2026-10-21');
@@ -62,13 +68,16 @@ for (const width of [390, 1280]) {
     await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay').first());
     const grid = page.getByTestId('search-template-grid');
     await expect(grid.getByTestId('embed-preview')).toHaveCount(3);
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(2);
+    await expect(page.locator('[data-home-location]')).toHaveCount(2);
+    await expect(page.getByTestId('home-location-pin')).toHaveCount(1);
+    await expect(page.getByTestId('home-location-area')).toHaveAttribute('data-radius-m', '1200');
     const filter = page.getByTestId('search-template-filter');
     await filter.fill('District loft');
     await expect(grid.getByTestId('embed-preview')).toHaveCount(1);
     await expect(grid).toContainText('Approximate location');
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
-    await page.locator('.leaflet-marker-icon').click();
+    await expect(page.locator('[data-home-location]')).toHaveCount(1);
+    await page.getByTestId('home-location-area').focus();
+    await page.keyboard.press('Enter');
     await expect(page.getByTestId('home-gallery')).toBeVisible();
     await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate location');
   });
@@ -100,7 +109,7 @@ test('home serialized gallery deduplicates and missing-coordinate listings remai
   await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay').first());
   await page.getByTestId('search-template-filter').fill('Garden apartment without coordinates');
   await expect(page.getByTestId('search-template-grid').getByTestId('embed-preview')).toHaveCount(1);
-  await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+  await expect(page.locator('[data-home-location]')).toHaveCount(0);
   await page.getByTestId('search-template-grid').getByTestId('embed-preview').click();
   await expect(page.getByTestId('home-gallery')).toBeVisible();
   await expect(page.getByTestId('home-location-evidence')).toContainText('Location unavailable');
@@ -164,10 +173,10 @@ for (const width of [390, 1280]) {
     await maxPrice.fill('1000');
     await expect(cards).toHaveCount(1);
     await expect(cards).toContainText('Garden apartment without coordinates');
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+    await expect(page.locator('[data-home-location]')).toHaveCount(0);
     await basis.selectOption('cold');
     await expect(cards).toHaveCount(2);
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
+    await expect(page.locator('[data-home-location]')).toHaveCount(1);
     await basis.selectOption('warm');
     await expect(cards).toHaveCount(1);
     await expect(cards).toContainText('Garden apartment without coordinates');
@@ -179,23 +188,23 @@ for (const width of [390, 1280]) {
     await expect(cards).toContainText('District loft');
     await amenity.selectOption('balcony');
     await expect(cards).toHaveCount(0);
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+    await expect(page.locator('[data-home-location]')).toHaveCount(0);
     await reset.click();
     await amenity.selectOption('balcony');
     await expect(cards).toHaveCount(1);
     await expect(cards).toContainText('Canal apartment with balcony');
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
+    await expect(page.locator('[data-home-location]')).toHaveCount(1);
     await amenity.selectOption('garden');
     await expect(cards).toHaveCount(1);
     await expect(cards).toContainText('Garden apartment without coordinates');
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+    await expect(page.locator('[data-home-location]')).toHaveCount(0);
     await amenity.selectOption('terrace');
     await expect(cards).toHaveCount(1);
     await expect(cards).toContainText('District loft');
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
+    await expect(page.locator('[data-home-location]')).toHaveCount(1);
     await reset.click();
     await expect(cards).toHaveCount(3);
-    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(2);
+    await expect(page.locator('[data-home-location]')).toHaveCount(2);
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
     await expect(page.getByTestId('embed-fullscreen-overlay').first()).toBeVisible();
@@ -308,3 +317,96 @@ for (const width of [390, 1280]) {
     await testInfo.attach(`home-preview-${width}-unknownResults`, {body: await page.screenshot(), contentType: 'image/png'});
   });
 }
+
+// contract-test: direct surface=gui.web assertions=home-search.location.precision,home-search.web.map-and-filter
+test('home area extent is geographic and legacy centers never become apartment pins', async ({page}) => {
+  for (const [variant, basis, radius] of [['cityArea', 'city', '18000'], ['persistedFlattened', 'description', '650']] as const) {
+    await page.goto(`${listingPath}?${capture(390, variant)}`);
+    await waitForComponentPreview(page);
+    await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay').first());
+    const area = page.getByTestId('home-location-area');
+    await expect(area).toBeVisible();
+    await expect(area).toHaveAttribute('data-radius-m', radius);
+    await expect(area).toHaveAttribute('data-area-basis', basis);
+    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+    // Sample both rectangles in one frame after the fullscreen slide-in settles.
+    // Separate protocol calls can otherwise compare different animation positions.
+    const {mapBox, areaBox} = await area.evaluate(element => {
+      const map = element.closest('[data-testid="embed-leaflet-map"]');
+      if (!map) throw new Error('Home area must belong to its Leaflet map');
+      return {mapBox: map.getBoundingClientRect().toJSON(), areaBox: element.getBoundingClientRect().toJSON()};
+    });
+    expect(mapBox).not.toBeNull(); expect(areaBox).not.toBeNull();
+    expect(Math.min(areaBox!.width, areaBox!.height)).toBeGreaterThanOrEqual(Math.min(mapBox!.width, mapBox!.height) * 0.35);
+    expect(areaBox!.x).toBeGreaterThanOrEqual(mapBox!.x);
+    expect(areaBox!.x + areaBox!.width).toBeLessThanOrEqual(mapBox!.x + mapBox!.width);
+    expect(areaBox!.y).toBeGreaterThanOrEqual(mapBox!.y);
+    expect(areaBox!.y + areaBox!.height).toBeLessThanOrEqual(mapBox!.y + mapBox!.height);
+    await expect(page.getByTestId('home-location-area-label')).toContainText(`${radius} m radius`);
+    await page.locator('.leaflet-control-zoom-out').click();
+    await expect.poll(async () => (await area.boundingBox())!.width).toBeLessThan(areaBox!.width);
+    await expect(area).toHaveAttribute('data-radius-m', radius);
+  }
+  await page.goto(`${listingPath}?${capture(390, 'legacyApproximate')}`);
+  await waitForComponentPreview(page);
+  await expect(page.locator('[data-home-location]')).toHaveCount(0);
+  await expect(page.getByTestId('home-location-evidence')).toContainText('Approximate area extent unavailable');
+  await page.goto(`${listingPath}?${capture(390, 'precise')}`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('home-location-pin')).toBeVisible();
+  await expect(page.getByTestId('home-location-area')).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.location.precision
+test('shared home map keeps overlapping area selections and provider filters linked to cards', async ({page}) => {
+  await page.setViewportSize({width: 1280, height: 900});
+  await page.goto(`/dev/preview/embeds/EmbedsMapView?${capture(1100, 'homes')}`);
+  await waitForComponentPreview(page);
+  const cards = page.getByTestId('embeds-map-view-card');
+  await expect(cards).toHaveCount(3);
+  await expect(page.getByTestId('home-location-area')).toHaveCount(2);
+  await expect(page.getByTestId('home-location-pin')).toHaveCount(1);
+  const area = page.locator('[data-home-location="area"][data-area-basis="description"]');
+  await area.focus();
+  await page.keyboard.press('Enter');
+  await expect(cards).toHaveCount(1);
+  await expect(cards).toContainText('Description home');
+  await page.getByTestId('embeds-map-view-show-all-results').click();
+  await expect(cards).toHaveCount(3);
+  await page.getByTestId('embeds-map-view-filter-button').click();
+  const provider = page.getByTestId('embeds-map-view-option-provider-immoscout24');
+  await provider.click();
+  await expect(provider).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByTestId('home-location-pin')).toHaveCount(0);
+  await expect(page.getByTestId('home-location-area')).toHaveCount(2);
+  await expect(cards).toHaveCount(2);
+});
+
+// contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.location.precision
+test('filtering between homes with identical city geometry updates area activation identity', async ({page}) => {
+  await page.setViewportSize({width: 390, height: 900});
+  await page.goto(`${searchPath}?${capture(390, 'sameCityArea')}`);
+  await waitForComponentPreview(page);
+  await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay').first());
+  const filter = page.getByTestId('search-template-filter');
+  const area = page.getByTestId('home-location-area');
+  await filter.fill('Same city home A');
+  await expect(area).toHaveCount(1);
+  await expect(area).toHaveAttribute('aria-label', /Same city home A/);
+  const firstRef = await area.getAttribute('data-marker-ref');
+  const fittedDiameter = (await area.boundingBox())!.width;
+  await page.locator('.leaflet-control-zoom-out').click();
+  await expect.poll(async () => (await area.boundingBox())!.width).toBeLessThan(fittedDiameter);
+  await expect(page.locator('.leaflet-zoom-anim')).toHaveCount(0);
+  const zoomedDiameter = (await area.boundingBox())!.width;
+  // Both filtered arrays have one circle with equal center and meter radius.
+  await filter.fill('Same city home B');
+  await expect(area).toHaveCount(1);
+  await expect(area).toHaveAttribute('aria-label', /Same city home B/);
+  await expect(area).not.toHaveAttribute('data-marker-ref', firstRef!);
+  expect((await area.boundingBox())!.width).toBeCloseTo(zoomedDiameter, 0);
+  await area.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('home-gallery')).toBeVisible();
+  await expect(page.getByTestId('embed-header-title').last()).toHaveText('Same city home B');
+});

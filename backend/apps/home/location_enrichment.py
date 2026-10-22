@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 import re
 from datetime import datetime, timezone
@@ -15,6 +16,13 @@ from backend.shared.providers.geoapify.places import (
     GeoapifyPlacesSearchResult,
 )
 from backend.shared.python_utils.geo_utils import geocode_address
+from backend.apps.home.location_clues import extract_location_clues
+from backend.apps.home.location_areas import (
+    apply_area, area_from_feature, clue_area, distance, feature_point,
+    has_exact_address, matching_address, matching_anchor, matching_region, normalized,
+)
+
+logger = logging.getLogger(__name__)
 
 MAX_LOCATION_CANDIDATES = 24
 MAX_LOCATION_REQUESTS = 36
@@ -65,6 +73,8 @@ async def enrich_home_locations(
     warnings: set[str] = set()
     semaphore = asyncio.Semaphore(MAX_LOCATION_CONCURRENCY)
     requests_used = 0
+    regions: dict[tuple[str, str, str], asyncio.Task[Any]] = {}
+    usage = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0}
 
     async def call(method: Any, *args: Any, **kwargs: Any) -> GeoapifyPlacesSearchResult:
         nonlocal requests_used
@@ -76,6 +86,116 @@ async def enrich_home_locations(
         except Exception:
             # Preserve usable housing evidence on optional provider failure.
             return GeoapifyPlacesSearchResult(status="unavailable")
+
+    def locality(listing: dict[str, Any]) -> str:
+        address = _mapping(listing.get("address"))
+        return str(listing.get("city") or address.get("city") or city).strip()[:200]
+
+    async def region(name: str, basis: str, context: str) -> dict[str, Any] | None:
+        key = (normalized(name), basis, normalized(context))
+        method = getattr(provider, "geocode_area", None)
+        if not name or not callable(method):
+            return None
+        async def lookup() -> dict[str, Any] | None:
+            async with semaphore:
+                query = name if basis == "city" else f"{name}, {context}"
+                result = await call(method, query)
+                matches = []
+                for feature in result.places[:2] if result.status == "ok" else []:
+                    if not isinstance(feature, dict) or not matching_region(feature, name, basis, context):
+                        continue
+                    confidence = _number(_mapping(_mapping(feature.get("properties")).get("rank")).get("confidence"))
+                    if confidence is not None and confidence < 0.8:
+                        continue
+                    area = area_from_feature(feature, basis=basis, source=GEOAPIFY_SOURCE_LABEL, checked_at=result.checked_at)
+                    if area:
+                        area["cache_hit"] = result.cache_hit
+                        matches.append(area)
+                if len(matches) > 1 and distance((matches[0]["latitude"], matches[0]["longitude"]), (matches[1]["latitude"], matches[1]["longitude"])) > 100:
+                    return None
+                return matches[0] if matches else None
+        if key not in regions:
+            regions[key] = asyncio.create_task(lookup())
+        return await asyncio.shield(regions[key])
+
+    def precise(listing: dict[str, Any]) -> bool:
+        return has_exact_address(listing) and listing.get("location_precision") == "building" and listing.get("location_approximate") is False
+
+    def baseline(listing: dict[str, Any]) -> None:
+        if precise(listing) or _mapping(listing.get("location")).get("area"):
+            return
+        name = locality(listing)
+        task = regions.get((normalized(name), "city", normalized(name)))
+        if task and task.done() and not task.cancelled() and task.exception() is None and task.result():
+            apply_area(listing, dict(task.result()))
+
+    async def district_area(listing: dict[str, Any]) -> None:
+        if precise(listing):
+            return
+        district = str(listing.get("district") or _mapping(listing.get("address")).get("district") or "").strip()[:200]
+        if not district:
+            return
+        area = await region(district, "district", locality(listing))
+        broad = _mapping(_mapping(listing.get("location")).get("area"))
+        if area and (not broad or distance((area["latitude"], area["longitude"]), (broad["latitude"], broad["longitude"])) <= broad["radius_m"]):
+            apply_area(listing, area)
+
+    async def refine(listing: dict[str, Any]) -> None:
+        if precise(listing):
+            return
+        if not any(isinstance(listing.get(field), str) and listing[field].strip() for field in ("description", "location_description", "location_details", "title")):
+            listing["location"]["refinement_status"] = "no_clues"
+            return
+        async with semaphore:
+            result = await extract_location_clues(listing, secrets_manager=secrets_manager, cache_service=cache_service)
+            location = listing["location"]
+            location["refinement_status"] = result["status"]
+            billed = result.get("usage")
+            if isinstance(billed, dict):
+                usage["calls"] += 1
+                for field in ("prompt_tokens", "completion_tokens"):
+                    usage[field] += int(billed.get(field) or 0)
+            areas = []
+            for clue in result.get("clues", [])[:2]:
+                if clue.get("relation") not in {"distance", "walk_time"}:
+                    continue  # Qualitative claims retain the district/city circle.
+                match = await call(provider.geocode_address, f"{clue['anchor_name']}, {locality(listing)}")
+                candidates = []
+                for feature in match.places[:2] if match.status == "ok" else []:
+                    if not isinstance(feature, dict):
+                        continue
+                    props = _mapping(feature.get("properties"))
+                    confidence = _number(_mapping(props.get("rank")).get("confidence"))
+                    if not matching_anchor(feature, clue, locality(listing)) or confidence is None or confidence < 0.8:
+                        continue
+                    point = feature_point(feature)
+                    broad = _mapping(location.get("area"))
+                    if point and broad and distance(point, (broad["latitude"], broad["longitude"])) > broad["radius_m"]:
+                        continue
+                    if point:
+                        candidates.append(feature)
+                # Separate distant namesakes from entrances/platforms of one anchor.
+                if len(candidates) > 1 and distance(feature_point(candidates[0]), feature_point(candidates[1])) > 250:
+                    location["refinement_status"] = "ambiguous"
+                    return
+                if candidates:
+                    area = clue_area(clue, candidates[0], source=GEOAPIFY_SOURCE_LABEL, checked_at=match.checked_at)
+                    if area:
+                        if len(candidates) > 1:
+                            area["radius_m"] += math.ceil(distance(feature_point(candidates[0]), feature_point(candidates[1])))
+                        areas.append(area)
+            if not areas:
+                if result["status"] == "ok":
+                    location["refinement_status"] = "broad_area_retained"
+                return
+            if len(areas) > 1 and distance((areas[0]["latitude"], areas[0]["longitude"]), (areas[1]["latitude"], areas[1]["longitude"])) > areas[0]["radius_m"] + areas[1]["radius_m"]:
+                location["refinement_status"] = "conflicting"
+                return
+            area = min(areas, key=lambda row: row["radius_m"])
+            broad = _mapping(location.get("area"))
+            if not broad or area["radius_m"] < broad["radius_m"]:
+                apply_area(listing, area)
+                listing["location"]["refinement_status"] = "estimated"
 
     # One fallback per search; city-only even if Nominatim could find an address.
     fallback_task: asyncio.Task[Any] | None = None
@@ -156,6 +276,19 @@ async def enrich_home_locations(
             neighborhood["checked_at"] = datetime.now(timezone.utc).isoformat()
 
     for index, listing in enumerate(listings):
+        # Preserve the original point separately when a better display area wins.
+        previous = _mapping(listing.get("location"))
+        if "provider_location" not in previous and _coords(listing.get("latitude"), listing.get("longitude")):
+            previous["provider_location"] = {key: listing.get(key) for key in ("latitude", "longitude", "location_precision", "location_approximate", "location_source")}
+        previous["exact_address"] = has_exact_address(listing)
+        if not previous["exact_address"]:
+            listing["location_approximate"] = True
+            previous["approximate"] = True
+            if listing.get("location_precision") == "building":
+                listing["location_precision"] = "unknown"
+            if previous.get("precision") == "building":
+                previous["precision"] = "unknown"
+        listing["location"] = previous
         if _is_city_fallback(listing):
             set_city_fallback(listing, _coords(listing.get("latitude"), listing.get("longitude")))
         if categories:
@@ -166,9 +299,21 @@ async def enrich_home_locations(
                 "coverage": {category: {"status": "not_checked", "exhaustive": False} for category in categories},
                 "features": {category: [] for category in categories},
             }
-    tasks = [asyncio.create_task(locate(listing)) for listing in listings[:MAX_LOCATION_CANDIDATES]]
+    bounded = listings[:MAX_LOCATION_CANDIDATES]
+    tasks: list[asyncio.Task[Any]] = []
     try:
         async with asyncio.timeout(LOCATION_TIMEOUT_SECONDS):
+            # Resolve shared city extents first so optional work cannot consume
+            # the deadline and strand an approximate listing on a center pin.
+            tasks = [asyncio.create_task(region(name, "city", name)) for name in dict.fromkeys(locality(row) for row in bounded if not precise(row))]
+            await asyncio.gather(*tasks)
+            tasks = [asyncio.create_task(locate(listing)) for listing in bounded]
+            await asyncio.gather(*tasks)
+            for listing in bounded:
+                baseline(listing)
+            tasks = [asyncio.create_task(district_area(listing)) for listing in bounded]
+            await asyncio.gather(*tasks)
+            tasks = [asyncio.create_task(refine(listing)) for listing in bounded]
             await asyncio.gather(*tasks)
             # Locate all prioritized candidates before spending the remaining
             # shared budget on optional category searches for a few addresses.
@@ -181,12 +326,19 @@ async def enrich_home_locations(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        for task in regions.values():
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*regions.values(), return_exceptions=True)
         if fallback_task is not None and not fallback_task.done():
             fallback_task.cancel()
             await asyncio.gather(fallback_task, return_exceptions=True)
     for index, listing in enumerate(listings):
         if "location" not in listing:
             _provider_location(listing, status="candidate_limit" if index >= MAX_LOCATION_CANDIDATES else "timed_out")
+        elif "precision" not in listing["location"]:
+            _provider_location(listing, status="candidate_limit" if index >= MAX_LOCATION_CANDIDATES else "timed_out")
+        baseline(listing)
         listing["location_source"] = listing["location"].get("source")
         neighborhood = listing.get("neighborhood")
         if categories and neighborhood["status"] == "pending":
@@ -197,6 +349,8 @@ async def enrich_home_locations(
                     coverage["status"] = neighborhood["status"]
     if len(listings) > MAX_LOCATION_CANDIDATES:
         warnings.add("Home location enrichment candidate limit reached; remaining locations retain provider evidence.")
+    if usage["calls"]:
+        logger.info("Home location extraction calls=%d input_tokens=%d output_tokens=%d", usage["calls"], usage["prompt_tokens"], usage["completion_tokens"])
     return sorted(warnings)
 
 
@@ -207,6 +361,8 @@ async def _locate(listing: dict[str, Any], city: str, call: Any, provider: Any, 
         _provider_location(listing)
         return
     address = listing.get("address")
+    if listing.get("street") and listing.get("house_number"):
+        address = ", ".join(str(part) for part in (f"{listing['street']} {listing['house_number']}", listing.get("postcode"), listing.get("district")) if part)
     if isinstance(address, dict):
         address = ", ".join(str(address.get(key) or "") for key in ("street", "house_number", "postcode", "district", "city") if address.get(key))
     query = ", ".join(part for part in (str(address or "").strip(), city) if part)
@@ -236,9 +392,12 @@ async def _locate(listing: dict[str, Any], city: str, call: Any, provider: Any, 
             declared = _precision(listing.get("location_precision"))
             if declared in {"city", "district"} and not was_city_fallback:
                 precision = declared
-            approximate = precision != "building" or _declared_approximation(listing)
+            approximate = precision != "building" or _declared_approximation(listing) or not matching_address(first, listing, city)
+            if precision == "building" and approximate:
+                precision = "unknown"
             listing.update(latitude=lat, longitude=lon, location_precision=precision, location_approximate=approximate, location_source=GEOAPIFY_SOURCE_LABEL)
             listing["location"] = {
+                **_mapping(listing.get("location")), "exact_address": has_exact_address(listing),
                 "status": "ok", "precision": precision, "approximate": approximate,
                 "source": GEOAPIFY_SOURCE_LABEL, "method": "address_geocode",
                 "match_type": rank.get("match_type"), "confidence": confidence,
@@ -260,11 +419,14 @@ def _provider_location(listing: dict[str, Any], status: str = "provider") -> Non
     previous = listing.get("location") if isinstance(listing.get("location"), dict) else {}
     precision = _precision(listing.get("location_precision") or previous.get("precision"))
     coords = _coords(listing.get("latitude"), listing.get("longitude"))
-    approximate = _is_approximate(listing) or precision != "building"
+    approximate = _is_approximate(listing) or precision != "building" or not has_exact_address(listing)
+    if precision == "building" and approximate:
+        precision = "unknown"
     listing["location_precision"] = precision
     listing["location_approximate"] = approximate
     listing["location"] = {
         **previous, "status": status if coords or status != "provider" else "unavailable",
+        "exact_address": has_exact_address(listing),
         "precision": precision, "approximate": approximate,
         "source": previous.get("source") or listing.get("location_source") or listing.get("provider") or "listing provider",
         "method": "provider_coordinates" if coords else "unknown",
@@ -461,6 +623,7 @@ def set_city_fallback(
         location_precision="city", location_approximate=True, location_source=source,
     )
     listing["location"] = {
+        **previous, "exact_address": has_exact_address(listing),
         "status": "approximate" if coords else "unavailable", "precision": "city",
         "approximate": True, "source": source, "method": "city_fallback", "checked_at": None,
         "geocode_status": geocode_status or previous.get("geocode_status") or previous.get("status") or "not_checked",

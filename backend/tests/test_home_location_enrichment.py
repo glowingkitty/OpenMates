@@ -27,6 +27,7 @@ def provider(monkeypatch):
     fake.walking_route = AsyncMock(return_value=GeoapifyPlacesSearchResult(status="unavailable"))
     monkeypatch.setattr(home, "GeoapifyPlacesProvider", lambda **kwargs: fake)
     monkeypatch.setattr(home, "geocode_address", AsyncMock(return_value=(52.52, 13.405)))
+    monkeypatch.setattr(home, "extract_location_clues", AsyncMock(return_value={"status": "no_clues", "clues": []}))
     return fake
 
 
@@ -35,7 +36,7 @@ def point(lon=13.401, lat=52.52, **properties):
 
 
 def listing(**kwargs):
-    return {"latitude": 52.52, "longitude": 13.4, "location_precision": "building", "provider": "Example", **kwargs}
+    return {"latitude": 52.52, "longitude": 13.4, "location_precision": "building", "provider": "Example", "address": "Example Street 12, Berlin", "street": "Example Street", "house_number": "12", **kwargs}
 
 
 async def run(items, request=None):
@@ -277,7 +278,7 @@ async def test_provider_initialized_unknown_default_does_not_prevent_exact_addre
     item["location_approximate"] = True
     assert item["latitude"] is None and item["location_source"] is None
     provider.geocode_address.return_value = GeoapifyPlacesSearchResult(
-        status="ok", places=[point(result_type="building", rank={"confidence": 1, "match_type": "full_match"})],
+        status="ok", places=[point(result_type="building", street="Example Street", housenumber="123", city="Berlin", rank={"confidence": 1, "match_type": "full_match"})],
     )
     await run([item])
     assert item["location_precision"] == "building"
@@ -371,9 +372,13 @@ async def test_real_provider_point_at_city_center_is_never_guessed_to_be_fallbac
 # contract-test: supporting surface=rest_api assertions=home-search.enrichment.bounded-and-reusable
 async def test_coordinates_use_finite_budget_before_optional_category_calls(provider, monkeypatch):
     monkeypatch.setattr(home, "MAX_LOCATION_REQUESTS", 3)
-    provider.geocode_address.return_value = GeoapifyPlacesSearchResult(
-        status="ok", places=[point(result_type="building", rank={"confidence": 0.99, "match_type": "full_match"})],
-    )
+    async def matched_address(query):
+        return GeoapifyPlacesSearchResult(status="ok", places=[point(
+            result_type="building", street="Example Street", city="Berlin",
+            housenumber=query.split(",")[0].rsplit(" ", 1)[1],
+            rank={"confidence": 0.99, "match_type": "full_match"},
+        )])
+    provider.geocode_address.side_effect = matched_address
     items = [{"address": f"Example Street {i}"} for i in range(3)]
     await run(items, {"neighborhood_categories": list(home.CATEGORIES)})
     assert provider.geocode_address.await_count == 3

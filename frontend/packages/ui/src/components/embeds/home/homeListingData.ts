@@ -37,6 +37,10 @@ export function homeListingContent(value: unknown): Record<string, unknown> {
         }
         if (assigned) break;
       }
+      if (!assigned && namespace === 'location' && suffix.startsWith('area_')) {
+        rebuilt.area = { ...homeObject(rebuilt.area), [suffix.slice(5)]: field };
+        assigned = true;
+      }
       if (!assigned) rebuilt[suffix] = field;
     }
     // Normalize nested JSON and flattened JSON with the same semantics.
@@ -50,6 +54,13 @@ export function homeListingContent(value: unknown): Record<string, unknown> {
         } else collection[key] = homeObject(child);
       }
       rebuilt[group] = collection;
+    }
+    if (namespace === 'location') {
+      const area = { ...homeObject(rebuilt.area) };
+      for (const [key, field] of Object.entries(rebuilt)) {
+        if (key.startsWith('area_')) area[key.slice(5)] = field;
+      }
+      if (Object.keys(area).length) rebuilt.area = area;
     }
     listing[namespace] = rebuilt;
   }
@@ -65,8 +76,45 @@ export function homeBoolean(value: unknown): boolean | undefined {
   if (value === false || value === 'false') return false;
   return undefined;
 }
+export interface HomeMapGeometry {
+  lat: number;
+  lon: number;
+  radiusM?: number;
+  areaBasis?: 'description' | 'district' | 'city';
+}
+/** Only the explicit provider-backed exact-address contract permits a home pin. */
+export function homeExactLocation(raw: Record<string, unknown>): boolean {
+  const content = homeListingContent(raw);
+  const location = homeObject(content.location);
+  const lat = homeNumber(content.latitude), lon = homeNumber(content.longitude);
+  return lat !== undefined && lon !== undefined && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+    && homeBoolean(location.exact_address) === true
+    && homeBoolean(content.location_approximate) === false && content.location_precision === 'building'
+    && typeof content.address === 'string' && !!content.address.trim()
+    && !Object.keys(homeObject(location.area)).length;
+}
 export function homeApproximate(content: Record<string, unknown>): boolean {
-  return homeBoolean(content.location_approximate) !== false || content.location_precision !== 'building';
+  return !homeExactLocation(content);
+}
+export function homeMapGeometry(raw: Record<string, unknown>): HomeMapGeometry | undefined {
+  const content = homeListingContent(raw);
+  const area = homeObject(homeObject(content.location).area);
+  const coordinate = (lat: unknown, lon: unknown) => {
+    const latitude = homeNumber(lat), longitude = homeNumber(lon);
+    return latitude !== undefined && longitude !== undefined && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+      ? {lat: latitude, lon: longitude} : undefined;
+  };
+  const center = coordinate(area.latitude, area.longitude);
+  const radiusM = homeNumber(area.radius_m);
+  if (center && radiusM !== undefined && radiusM > 0 && ['description', 'district', 'city'].includes(String(area.basis))) {
+    return {...center, radiusM, areaBasis: area.basis as HomeMapGeometry['areaBasis']};
+  }
+  // A legacy approximate center has no known extent: never invent a pin or radius.
+  return homeExactLocation(content) ? coordinate(content.latitude, content.longitude) : undefined;
+}
+export function homeMapLabel(geometry: HomeMapGeometry, translate: (key: string) => string): string {
+  return geometry.radiusM ? `${translate(`home_listing.area_${geometry.areaBasis}`)} · ${geometry.radiusM} m ${translate('home_listing.radius')}`
+    : translate('home_listing.building');
 }
 /** Render scalar provider facts only: no raw HTML and no implicit certainty. */
 export function homeEvidence(value: unknown): string {

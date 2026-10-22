@@ -35,6 +35,10 @@ def home_rest(monkeypatch):
         "amenities": {"balcony": True}, "floor": 3, "rooms": 2, "size_sqm": 65,
         "latitude": 52.52, "longitude": 13.405, "location_precision": "district",
         "location_approximate": True, "location_source": "Kleinanzeigen",
+        "location": {"exact_address": False, "precision": "district", "approximate": True,
+                     "area": {"latitude": 52.52, "longitude": 13.405, "radius_m": 2800,
+                              "basis": "district", "source": "OpenStreetMap via Geoapify",
+                              "method": "administrative_extent"}},
     }
     unknown = {**deepcopy(base), "id": "ka_unknown", "url": "https://www.kleinanzeigen.de/s-anzeige/unknown/124-203",
                "price": 1200, "amenities": {"balcony": None}, "warm_rent_eur": None}
@@ -127,6 +131,10 @@ def test_home_rest_preserves_gallery_evidence_and_explicit_unknown_filters(home_
     assert dispatched["required_amenities"] == ["balcony"] and dispatched["max_warm_rent_eur"] == 1500
     assert dispatched["include_unconfirmed"] is True
     assert calls["safety"] and calls["priced"] == ["search"]
+    assert confirmed["location"] == base["location"]
+    assert confirmed["location"]["exact_address"] is False
+    assert confirmed["location"]["area"]["basis"] == "district"
+    assert confirmed["location"]["area"]["radius_m"] == 2800
     request["include_unconfirmed"] = False
     confirmed_only = client.post("/v1/apps/home/skills/search", json={"requests": [request]})
     assert confirmed_only.status_code == 200

@@ -13478,6 +13478,21 @@
     },
     "status_ok": {
       "text": "Available"
+    },
+    "area_description": {
+      "text": "Area inferred from listing description"
+    },
+    "area_district": {
+      "text": "Approximate district area"
+    },
+    "area_city": {
+      "text": "Approximate city area"
+    },
+    "radius": {
+      "text": "radius"
+    },
+    "area_unavailable": {
+      "text": "Approximate area extent unavailable; no location pin is shown."
     }
   },
   "invoices_and_credit_notes": {

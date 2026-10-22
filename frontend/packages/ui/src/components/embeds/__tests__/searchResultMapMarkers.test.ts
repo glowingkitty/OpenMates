@@ -14,11 +14,15 @@ describe('real result header map coordinates', () => {
     expect(searchResultMapMarkers([{ embed_id: 'x', lat: 52, lon: 13, location: { lat: 52, lon: 13 } }])).toHaveLength(1);
   });
   // contract-test: direct surface=gui.web assertions=home-search.web.map-and-filter,home-search.location.precision
-  it('labels approximate apartment pins and does not turn nearby water into apartment markers', () => {
-    expect(searchResultMapMarkers([{ embed_id: 'home', provider: 'WG-Gesucht', title: 'Apartment', latitude: 52, longitude: 13,
+  it('uses home area geometry and never turns compatibility centers or POIs into pins', () => {
+    const result = {embed_id: 'home', provider: 'WG-Gesucht', title: 'Apartment', latitude: 52, longitude: 13,
       location_precision: 'district', location_approximate: true,
-      neighborhood: { features: { water: [{ latitude: 52.1, longitude: 13.1 }] } } }])).toEqual([
-      { ref: 'home', lat: 52, lon: 13, label: 'Apartment · Approximate location', iconClass: 'approximate-location' },
+      location: {area: {latitude: 52.1, longitude: 13.1, radius_m: 800, basis: 'district'}},
+      neighborhood: {features: {water: [{latitude: 52.2, longitude: 13.2}]}}};
+    expect(searchResultMapMarkers([result])).toEqual([
+      {ref: 'home', lat: 52.1, lon: 13.1, radiusM: 800, areaBasis: 'district', homeLocation: true, testId: 'home-location-area', label: 'Apartment · district · 800 m'},
     ]);
+    expect(searchResultMapMarkers([{...result, location: {}}])).toEqual([]);
+    expect(searchResultMapMarkers([{...result, provider: 'Unknown', location: {}}], {home: true})).toEqual([]);
   });
 });

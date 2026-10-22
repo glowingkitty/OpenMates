@@ -7,6 +7,7 @@
 
 import type { ComponentProps } from 'svelte';
 import type EmbedsMapView from './EmbedsMapView.svelte';
+import { listing as homeListing } from './home/HomeListingEmbedFullscreen.preview';
 import { embedStore } from '../../services/embedStore';
 import { flightsBerlinBangkokChat } from '../../demo_chats/data/example_chats/flights-berlin-to-bangkok';
 
@@ -40,6 +41,15 @@ for (const [embedId, content] of Object.entries({
   embedStore.registerStaticEmbed({ embedId, type: 'event', appId: 'events', content: JSON.stringify(content) });
 }
 
+const HOME_REFS = ['preview-home-district', 'preview-home-description', 'preview-home-exact', 'preview-home-legacy'];
+for (const [index, embedId] of HOME_REFS.entries()) {
+  const content = index === 0 ? {...homeListing, title: 'District home', price: 1200}
+    : index === 1 ? {...homeListing, title: 'Description home', price: 1400, location: {area: {...homeListing.location.area, radius_m: 650, basis: 'description'}}}
+    : index === 2 ? {...homeListing, title: 'Published exact home', provider: 'ImmoScout24', price: 1600, address: 'Example Street 12, Berlin', location: {exact_address: true}, location_precision: 'building', location_approximate: false}
+    : {...homeListing, title: 'Legacy approximate center', location: {}};
+  embedStore.registerStaticEmbed({embedId, type: 'home-listing', appId: 'home', content: JSON.stringify(content)});
+}
+
 
 const previewProps = {
 	id: 'preview-map-view',
@@ -51,4 +61,4 @@ const previewProps = {
 
 export default previewProps;
 
-export const variants = { fullscreen: { ...previewProps, highlightRefs: [], fullscreen: true }, fullscreenCalendar: { ...previewProps, highlightRefs: [], fullscreen: true, initialVisualTab: 'calendar' } };
+export const variants = { homes: {...previewProps, id: 'preview-home-map-view', title: 'Homes with truthful location geometry', embedRefs: HOME_REFS, sourceRefs: [], highlightRefs: [], interactionMode: 'select'}, fullscreen: { ...previewProps, highlightRefs: [], fullscreen: true }, fullscreenCalendar: { ...previewProps, highlightRefs: [], fullscreen: true, initialVisualTab: 'calendar' } };
