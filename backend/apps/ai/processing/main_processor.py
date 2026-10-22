@@ -4399,6 +4399,7 @@ async def handle_main_processing(
             log_prefix,
             sorted(task_app_skill_mentions),
         )
+    baseline_skills = set()
     if user_requested_skills_only and preselected_skills:
         logger.info(
             f"{log_prefix} [USER_SKILLS] User explicitly requested skill(s); not merging always_include_skills. "
@@ -4407,22 +4408,20 @@ async def handle_main_processing(
     elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
-        # Keep app helpers, but inspection is selected semantically or by the
-        # preprocessor's image-question fallback, never by always-include policy.
-        scoped_always_include = {
+        # Baseline capabilities do not depend on the preprocessor's app shortlist.
+        # Image inspection still requires semantic selection or the image-question
+        # fallback; it is never enabled by the always-include policy.
+        baseline_skills = {
             skill for skill in always_include_skills
-            if skill != "images-view" and (
-                selected_app_ids is None
-                or any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
-            )
+            if skill != "images-view"
         }
-        skills_to_add = scoped_always_include - preselected_skills
+        skills_to_add = baseline_skills - preselected_skills
         if skills_to_add:
             logger.info(
                 f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
-                "These helper skills belong to apps selected for this turn."
+                "These capabilities are available independently of app preselection."
             )
-        preselected_skills = preselected_skills | scoped_always_include
+        preselected_skills = preselected_skills | baseline_skills
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
 
     # Active naming research needs all three finalist checks offered together.
@@ -4754,9 +4753,14 @@ async def handle_main_processing(
                         continue
                     # Embed-type match — skip skill preselection, fall through to category check
                 else:
-                    # Stage one chose the apps whose ordinary instructions can
-                    # enter this turn. An empty skill set no longer means all apps.
-                    if selected_app_ids is not None and app_id not in selected_app_ids:
+                    # Baseline tools need their app guidance even if stage one
+                    # omitted their app. Other apps retain shortlist gating.
+                    app_has_baseline_skill = any(
+                        f"{app_id}-{skill.id}" in baseline_skills
+                        for skill in app_metadata.skills or []
+                    ) and app_has_preselected_skill
+                    if (selected_app_ids is not None and app_id not in selected_app_ids
+                            and not app_has_baseline_skill):
                         continue
                     if (app_metadata.skills and not app_has_preselected_skill
                             and (selected_app_ids is not None or preselected_skills)):
@@ -5627,8 +5631,8 @@ async def handle_main_processing(
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
-    # Strict allow-list: the main LLM may ONLY call tools that the preprocessor
-    # explicitly forwarded into available_tools_for_llm (including rule-based
+    # Strict allow-list: the main LLM may ONLY call tools generated into
+    # available_tools_for_llm (including preprocessor selections, rule-based
     # image-question fallback and always_include_skills). Any
     # other tool name is a hallucination (e.g. invented "mail|get_apps_settings")
     # and must be rejected before it reaches skill execution. See OPE-399.
@@ -6276,6 +6280,12 @@ async def handle_main_processing(
                 latest_user=request_data.current_user_content, candidates=candidate_tools,
                 secrets_manager=secrets_manager)
             if selected is not None:
+                # Retain only baseline tools that survived this request's app,
+                # Mate, anonymous-user and first-step policy gates.
+                selected_names = {t.get("function", {}).get("name") for t in selected}
+                selected = selected + [t for t in available_tools_for_llm
+                    if t.get("function", {}).get("name") in baseline_skills
+                    and t.get("function", {}).get("name") not in selected_names]
                 # Preserve internal lifecycle/task/context tools installed by this
                 # request. Refresh the generated app skills and existing workflow tools.
                 generated_names = {t.get("function", {}).get("name") for t in candidate_tools}
