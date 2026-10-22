@@ -101,15 +101,22 @@ Model selection is configured in [`backend/apps/ai/app.yml`](../../backend/apps/
 
 | Request complexity | Automatic model | Thinking | Saved preference bucket |
 | --- | --- | --- | --- |
-| low | Mercury 3 (direct Inception) | LOW | Simple |
+| low | Mercury 3 (direct Inception) | MEDIUM | Simple |
 | medium | Gemini 3.8 Flash | MEDIUM | Complex |
 | high | Gemini 3.8 Flash | HIGH | Complex |
 | max | Gemini 4 Argon | HIGH | Most demanding |
 
-Eligible low-complexity text uses native Mercury 3 LOW. Gemini 3.8 Flash LOW
+These are defaults when Jev supplies no separate effort recommendation. Jev may
+recommend LOW, MEDIUM, HIGH or EXTRA_HIGH independently of complexity, resolved
+against each actual model/server's documented controls. See
+[main-answer reasoning recommendations](./reasoning-routing.md).
+
+Eligible low-complexity text uses native Mercury 3 MEDIUM by default. Gemini 3.8 Flash LOW
 handles unavailable credentials/models, disabled model/server restrictions,
-unsupported modalities and provider outages, or a five-second deadline before
-the first substantive output. A stream that has already published useful output
+unsupported modalities and provider outages, or an effort-specific deadline before
+the first substantive output (5/15/60 seconds for Mercury LOW/MEDIUM/HIGH).
+Its combined reasoning-plus-answer caps are 8192/16384/32768 tokens, reduced by
+smaller existing credit and output limits. A stream that has already published useful output
 is not silently replayed through another model. Exact chat choices and saved
 preferences retain precedence over this automatic default.
 
@@ -210,9 +217,9 @@ Automatic recovery uses current models with a bounded cost:
 
 | Tier | Source | Example |
 |------|--------|---------|
-| Primary | Configured request-tier profile | Mercury 3 LOW, Gemini 3.8 Flash MEDIUM/HIGH, or Gemini 4 Argon HIGH |
+| Primary | Configured request-tier profile | Mercury 3 MEDIUM, Gemini 3.8 Flash MEDIUM/HIGH, or Gemini 4 Argon HIGH |
 | Secondary | Current compatible Gemini recovery, when different from primary | `google/gemini-3.8-flash` |
-| Last resort | Inexpensive text-only recovery, when different from primary | `inception/mercury-3` LOW |
+| Last resort | Inexpensive text-only recovery, when different from primary | `inception/mercury-3` MEDIUM by default; Jev effort is retained and clamped |
 
 Each model tries its configured servers in order (e.g., Bedrock then direct API) before moving to the next tier.
 
