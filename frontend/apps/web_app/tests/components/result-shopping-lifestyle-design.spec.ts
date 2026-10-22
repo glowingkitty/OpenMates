@@ -4,16 +4,10 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
 const previews = [
-  { app: 'shopping', name: 'ShoppingResultEmbed', title: 'Bio Vollmilch-Joghurt Naturell' },
-  { app: 'nutrition', name: 'NutritionRecipeEmbed', title: 'Spaghetti Aglio e Olio' },
-  { app: 'fitness', name: 'FitnessResultEmbed', title: 'Morning Yoga Flow' },
+  { app: 'shopping', name: 'ShoppingResultEmbed', title: 'Bio Vollmilch-Joghurt Naturell', image: '/store-examples/generate-1.webp' },
+  { app: 'nutrition', name: 'NutritionRecipeEmbed', title: 'Spaghetti Aglio e Olio', image: '/store-examples/generate-1.webp' },
+  { app: 'fitness', name: 'FitnessResultEmbed', title: 'Morning Yoga Flow', image: '/store-examples/home-2.webp' },
 ];
-async function mockPhotos(page: Page) {
-  const response = await page.request.get('/images/examples/group1.jpg');
-  expect(response.ok()).toBeTruthy();
-  const body = await response.body();
-  await page.route('**/api/v1/image?*', route => route.fulfill({ status: 200, contentType: 'image/jpeg', body }));
-}
 async function open(page: Page, app: string, name: string, width: number, variant?: string) {
   await page.setViewportSize({ width, height: 900 });
   await page.goto(`/dev/preview/embeds/${app}/${name}?chrome=0&theme=light&width=${width}${variant ? `&variant=${variant}` : ''}`);
@@ -26,16 +20,60 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   });
 }
 for (const width of [390, 1100]) {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test(`fitness class calendar and time/venue stay visible without inventing dates at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const path = `/dev/preview/embeds/fitness/FitnessResultEmbedPreview?chrome=0&theme=light&width=${width}&context=chat`;
+    await page.goto(path);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-07-10T00:00:00.000Z');
+    await expect(page.getByTestId('result-card-content')).not.toContainText('2026-07-10');
+    const time = page.getByTestId('fitness-class-time');
+    const venue = page.getByTestId('fitness-class-venue');
+    await expect(time).toBeVisible();
+    await expect(time).toHaveText('07:30 - 08:30');
+    await expect(venue).toBeVisible();
+    await expect(venue).toHaveText('Yoga Studio Kreuzberg');
+    expect(await venue.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await time.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    if (width > 401) expect((await page.getByTestId('embed-preview').boundingBox())!.width).toBeGreaterThan(401);
+    await checkpoint(page, testInfo, `fitness-class-calendar-${width}px`);
+    for (const date of [undefined, 'not-a-date', '2026-02-30']) {
+      const props = encodeURIComponent(JSON.stringify({ result: {
+        name: 'Morning Yoga Flow', date, time_range: '07:30 - 08:30', venue_name: 'Yoga Studio Kreuzberg',
+        image_url: '/store-examples/home-2.webp',
+      }, skillId: 'search_classes' }));
+      await page.goto(`${path}&props=${props}`);
+      await waitForComponentPreview(page);
+      await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
+      await expect(time).toBeVisible();
+      await expect(venue).toBeVisible();
+    }
+    const gymProps = encodeURIComponent(JSON.stringify({ skillId: 'search_locations', result: {
+      name: 'Local gym', date: '2026-07-10', time_range: '07:30 - 08:30', image_url: '/store-examples/home-2.webp',
+    } }));
+    await page.goto(`${path}&props=${gymProps}`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
+    await expect(time).toHaveCount(0);
+    await expect(venue).toHaveCount(0);
+  });
   for (const result of previews) {
     // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     test(`${result.app} preview keeps image, fallback and long title inside ${width}px`, async ({ page }, testInfo) => {
-      await mockPhotos(page);
       await open(page, result.app, `${result.name}Preview`, width);
       await expect(page.getByTestId('result-card-title')).toHaveText(result.title);
       const image = page.getByTestId('result-card-media').locator('img');
       await expect(image).toBeVisible();
-      expect(new URL((await image.getAttribute('src'))!, page.url()).pathname).toBe('/api/v1/image');
+      expect(new URL((await image.getAttribute('src'))!, page.url()).pathname).toBe(result.image);
       await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+      if (result.app === 'fitness') {
+        await expect(page.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-07-10T00:00:00.000Z');
+        await expect(page.getByTestId('fitness-class-time')).toHaveText('07:30 - 08:30');
+        await expect(page.getByTestId('fitness-class-time')).toBeVisible();
+        await expect(page.getByTestId('fitness-class-venue')).toHaveText('Yoga Studio Kreuzberg');
+        await expect(page.getByTestId('fitness-class-venue')).toBeVisible();
+      }
       await checkpoint(page, testInfo, `${result.app}-preview-default-${width}px`);
       await open(page, result.app, `${result.name}Preview`, width, 'noImage');
       await expect(page.getByTestId('result-card-media')).toHaveCount(0);
@@ -50,7 +88,6 @@ for (const width of [390, 1100]) {
     });
     // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     test(`${result.app} default fullscreen retains result content at ${width}px`, async ({ page }, testInfo) => {
-      await mockPhotos(page);
       await open(page, result.app, `${result.name}Fullscreen`, width);
       await expect(page.getByTestId('result-embed-content')).toBeVisible();
       const image = result.app === 'shopping' ? page.getByTestId('shopping-product-image')
@@ -58,10 +95,18 @@ for (const width of [390, 1100]) {
         : page.locator('.fitness-detail-image');
       await expect(image).toBeVisible();
       await expect(image).toHaveCSS('object-fit', 'contain');
+      expect(new URL((await image.getAttribute('src'))!, page.url()).pathname).toBe(result.image);
       await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
       if (result.app === 'shopping') {
         await expect(page.getByTestId('result-facts')).toContainText('1,39 €');
         await expect(page.getByTestId('shopping-product-gallery').getByRole('button')).toHaveCount(3);
+        const thumbnails = page.getByTestId('shopping-product-gallery').locator('img');
+        await expect.poll(() => thumbnails.evaluateAll(images => images.length === 3 && images.every(image =>
+          (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0
+        ))).toBe(true);
+        expect(await thumbnails.evaluateAll(images => images.map(image => image.getAttribute('src')))).toEqual([
+          '/store-examples/generate-1.webp', '/store-examples/events-1.webp', '/store-examples/generate-draft-1.webp',
+        ]);
       } else if (result.app === 'nutrition') {
         await expect(page.getByTestId('result-facts')).toContainText('25 min');
         await expect(page.locator('.ingredients-list li')).toHaveCount(6);
@@ -76,7 +121,6 @@ for (const width of [390, 1100]) {
   }
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   test(`shopping zero stock and price remain factual with accessible availability at ${width}px`, async ({ page }) => {
-    await mockPhotos(page);
     await open(page, 'shopping', 'ShoppingResultEmbedFullscreen', width, 'zero');
     await expect(page.getByTestId('result-facts')).toContainText('0,00 €');
     await expect(page.getByTestId('result-facts')).toContainText('0');
@@ -94,7 +138,6 @@ for (const width of [390, 1100]) {
   });
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   test(`recipe details preserve all ingredients, steps and zero nutrients at ${width}px`, async ({ page }) => {
-    await mockPhotos(page);
     await open(page, 'nutrition', 'NutritionRecipeEmbedFullscreen', width, 'zero');
     await expect(page.getByTestId('result-facts')).toContainText('0 min');
     await expect(page.locator('.ingredients-list li')).toHaveCount(6);
@@ -104,7 +147,6 @@ for (const width of [390, 1100]) {
   });
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   test(`fitness keeps class identity, zero distance and provider action at ${width}px`, async ({ page }) => {
-    await mockPhotos(page);
     await open(page, 'fitness', 'FitnessResultEmbedFullscreen', width, 'zero');
     await expect(page.getByTestId('result-facts')).toContainText('0.00 km');
     await expect(page.getByTestId('result-facts')).toContainText('0 spots left');
@@ -116,7 +158,6 @@ for (const width of [390, 1100]) {
 }
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 test('assistant result cards retain selectable copy and explicit expand', async ({ page }) => {
-  await mockPhotos(page);
   for (const result of previews) {
     await open(page, result.app, `${result.name}Preview`, 1100, 'assistant');
     const card = page.getByTestId('embed-preview');

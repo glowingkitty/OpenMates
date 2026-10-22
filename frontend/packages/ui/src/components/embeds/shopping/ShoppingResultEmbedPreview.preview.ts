@@ -15,7 +15,7 @@ const defaultProps = {
   price_eur: "1,39 €",
   was_price_cents: 179,
   grammage: "500g (0,28 €/100g)",
-  image_url: "https://shopping.example/product-front.jpg",
+  image_url: "/store-examples/generate-1.webp",
   attributes: { is_organic: true, is_vegetarian: true },
   rating: 4.6,
   reviews: 832,

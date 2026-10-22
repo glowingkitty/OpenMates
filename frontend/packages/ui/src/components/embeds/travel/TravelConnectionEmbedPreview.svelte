@@ -15,6 +15,7 @@
 <script lang="ts">
   import transportIconUrl from '../../../../static/icons/travel.svg';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import ResultEmbedMapPreview from '../ResultEmbedMapPreview.svelte';
   import { extractResultRoute } from '../resultMapRoutes';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
@@ -123,6 +124,9 @@
     const legs = Array.isArray(connection?.legs) ? connection.legs as Record<string, unknown>[] : [];
     return legs.length ? legs : [{ origin, destination, departure, arrival: _arrival, duration }];
   });
+  let firstDeparture = $derived(previewLegs.map(leg => leg.departure).find((value): value is string =>
+    typeof value === 'string' && value.length > 0 && !Number.isNaN(new Date(value).getTime())));
+  let departureTimezone = $derived(typeof connection?.timezone === 'string' ? connection.timezone : undefined);
   function legDate(value: unknown) {
     if (typeof value !== 'string') return '';
     const date = new Date(value);
@@ -266,6 +270,7 @@
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-result-layout">
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
+      {#if firstDeparture}<div class="connection-calendar"><EmbedCalendarDate date={firstDeparture} timezone={departureTimezone} /></div>{/if}
       <div class="carrier-row">
         {#if carrierLogos.length > 0}
           <div class="airline-logos" data-testid="airline-logos">
@@ -321,8 +326,9 @@
 </UnifiedEmbedPreview>
 
 <style>
-  .connection-result-layout { height: 100%; display: flex; align-items: stretch; min-width: 0; box-sizing: border-box; }
+  .connection-result-layout { position: relative; height: 100%; display: flex; align-items: stretch; min-width: 0; box-sizing: border-box; }
   .connection-details { display: flex; flex-direction: column; gap: 5px; box-sizing: border-box; min-width: 0; width: 100%; height: 100%; padding: 48px 48px 12px; }
+  .connection-calendar { position: absolute; top: 6px; left: 54px; }
   .carrier-row { display: flex; align-items: center; gap: 8px; min-height: 22px; }
   .airline-logos { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
   .airline-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: contain; background: var(--color-grey-0); }
@@ -345,7 +351,8 @@
   .seats-warning { color: var(--color-warning); }
   .connection-map { display: none; }
   @container result-card (min-width: 400px) {
-    .connection-details { width: 33.3333%; padding: 54px 28px 48px; }
+    .connection-details { width: 33.3333%; padding: 54px 48px 48px; }
+    .connection-calendar { position: static; align-self: flex-start; margin-bottom: 4px; }
     .connection-map { display: block; flex: 1; min-width: 0; }
   }
 </style>

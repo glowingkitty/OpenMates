@@ -14,8 +14,8 @@ const sampleResults = [
     price_eur: "1,39 €",
     grammage: "500g (0,28 €/100g)",
     purchase_url: "https://shop.rewe.de/p/weihenstephan-bio-joghurt/12345",
-    image_url: 'https://shopping.example/product-front.jpg',
-    image_urls: 'https://shopping.example/product-front.jpg|https://shopping.example/product-back.jpg|https://shopping.example/product-detail.jpg',
+    image_url: '/store-examples/generate-1.webp',
+    image_urls: '/store-examples/generate-1.webp|/store-examples/events-1.webp|/store-examples/generate-draft-1.webp',
     attributes: { is_organic: true },
   },
   {

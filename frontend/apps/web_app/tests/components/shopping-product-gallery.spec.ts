@@ -5,25 +5,27 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 
 const productPreview = '/dev/preview/embeds/shopping/ShoppingResultEmbedFullscreen';
 const searchPreview = '/dev/preview/embeds/shopping/ShoppingSearchEmbedFullscreen';
-const photos = ['front', 'back', 'detail'].map((view) => `https://shopping.example/product-${view}.jpg`);
+const photos = ['/store-examples/generate-1.webp', '/store-examples/events-1.webp', '/store-examples/generate-draft-1.webp'];
+const transportPhotos = ['front', 'back', 'detail'].map((view) => `https://shopping.example/product-${view}.jpg`);
 
-async function mockPhotos(page: Page) {
+async function mockTransportPhotos(page: Page) {
   const fixture = await page.request.get('/images/examples/group1.jpg');
   expect(fixture.ok()).toBeTruthy();
   const bytes = await fixture.body();
-  await page.route('**/api/v1/image?*', (route) => route.fulfill({
-    status: 200, contentType: 'image/jpeg', body: bytes,
-  }));
+  await page.route('**/api/v1/image?*', (route) => new URL(route.request().url()).searchParams.get('url')?.startsWith('https://shopping.example/')
+    ? route.fulfill({ status: 200, contentType: 'image/jpeg', body: bytes }) : route.fallback());
 }
 
-async function expectPhoto(page: Page, index: number) {
+async function expectPhoto(page: Page, index: number, external = false) {
   const image = page.getByTestId('shopping-product-image');
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
   const source = new URL((await image.getAttribute('src'))!, page.url());
-  expect(source.pathname).toBe('/api/v1/image');
-  expect(source.searchParams.get('url')).toBe(photos[index]);
-  expect(source.searchParams.get('max_width')).toBe('1200');
+  if (external) {
+    expect(source.pathname).toBe('/api/v1/image');
+    expect(source.searchParams.get('url')).toBe(transportPhotos[index]);
+    expect(source.searchParams.get('max_width')).toBe('1200');
+  } else expect(source.pathname).toBe(photos[index]);
 }
 
 for (const { width, theme } of [{ width: 1100, theme: 'light' }, { width: 390, theme: 'dark' }]) {
@@ -31,7 +33,6 @@ for (const { width, theme } of [{ width: 1100, theme: 'light' }, { width: 390, t
   // contract-test: supporting surface=gui.web assertions=shopping-search.products.supplied-gallery
   test(`all supplied shopping photos support pointer and keyboard navigation at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await mockPhotos(page);
     await page.goto(`${productPreview}?theme=${theme}&background=%23dbeafe&width=${width}&chrome=0`);
     await waitForComponentPreview(page);
     await expectPhoto(page, 0);
@@ -60,24 +61,30 @@ for (const { width, theme } of [{ width: 1100, theme: 'light' }, { width: 390, t
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(width);
-    for (const image of await gallery.locator('img').all()) {
-      const source = new URL((await image.getAttribute('src'))!, page.url());
-      expect(source.pathname).toBe('/api/v1/image');
-      expect(source.searchParams.get('max_width')).toBe('120');
-    }
+    const images = gallery.locator('img');
+    expect(await images.evaluateAll(nodes => nodes.map(node => node.getAttribute('src')))).toEqual(photos);
+    await expect.poll(() => images.evaluateAll(nodes => nodes.every(node =>
+      (node as HTMLImageElement).complete && (node as HTMLImageElement).naturalWidth > 0
+    ))).toBe(true);
   });
 }
 
 // specification: feature.app-skill.shopping-search@1
 // contract-test: supporting surface=gui.web assertions=shopping-search.products.supplied-gallery
 test('TOON decoded galleries, primary-only products and missing photos retain compatibility', async ({ page }) => {
-  await mockPhotos(page);
+  await mockTransportPhotos(page);
   const config = 'theme=light&background=%23dbeafe&width=1100&chrome=0';
   await page.goto(`${productPreview}?${config}&variant=toonGallery`);
   await waitForComponentPreview(page);
   await expect(page.getByTestId('shopping-product-gallery').getByRole('button')).toHaveCount(3);
   await page.getByTestId('shopping-product-gallery').getByRole('button').nth(2).click();
-  await expectPhoto(page, 2);
+  await expectPhoto(page, 2, true);
+  for (const image of await page.getByTestId('shopping-product-gallery').locator('img').all()) {
+    const source = new URL((await image.getAttribute('src'))!, page.url());
+    expect(source.pathname).toBe('/api/v1/image');
+    expect(source.searchParams.get('max_width')).toBe('120');
+  }
+  await page.unroute('**/api/v1/image?*');
   await page.goto(`${productPreview}?${config}&variant=primaryOnly`);
   await waitForComponentPreview(page);
   await expectPhoto(page, 0);
@@ -92,7 +99,6 @@ test('TOON decoded galleries, primary-only products and missing photos retain co
 // specification: feature.app-skill.shopping-search@1
 // contract-test: supporting surface=gui.web assertions=shopping-search.products.supplied-gallery
 test('search child fullscreens retain their supplied gallery and reset on product navigation', async ({ page }) => {
-  await mockPhotos(page);
   await page.goto(`${searchPreview}?theme=light&background=%23dbeafe&width=1100&chrome=0`);
   await waitForComponentPreview(page);
   const cards = page.getByTestId('search-template-grid').getByTestId('embed-preview');
@@ -112,12 +118,7 @@ test('search child fullscreens retain their supplied gallery and reset on produc
 // specification: feature.app-skill.shopping-search@1
 // contract-test: supporting surface=gui.web assertions=shopping-search.products.supplied-gallery
 test('a failed photo leaves the remaining gallery selectable', async ({ page }) => {
-  await mockPhotos(page);
-  await page.route('**/api/v1/image?*', (route) => {
-    const source = new URL(route.request().url());
-    return source.searchParams.get('url') === photos[0]
-      ? route.fulfill({ status: 404, body: '' }) : route.fallback();
-  });
+  await page.route(`**${photos[0]}`, route => route.fulfill({ status: 404, body: '' }));
   await page.goto(`${productPreview}?theme=light&background=%23dbeafe&width=1100&chrome=0`);
   await waitForComponentPreview(page);
   await expect(page.getByTestId('shopping-product-placeholder')).toBeVisible();

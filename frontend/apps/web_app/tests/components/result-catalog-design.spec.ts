@@ -10,9 +10,9 @@ const components = [
   ['social_media/SocialMediaPostEmbed', 'Small cafe bar layout notes'],
 ] as const;
 
-async function openPreview(page: import('@playwright/test').Page, component: string, width: number, variant?: string) {
+async function openPreview(page: import('@playwright/test').Page, component: string, width: number, variant?: string, props?: Record<string, unknown>) {
   await page.setViewportSize({ width, height: 900 });
-  await page.goto(`/dev/preview/embeds/${component}?chrome=0&width=${width}&theme=light${width > 400 && component.endsWith('Preview') ? '&context=chat' : ''}${variant ? `&variant=${variant}` : ''}`);
+  await page.goto(`/dev/preview/embeds/${component}?chrome=0&width=${width}&theme=light${width > 400 && component.endsWith('Preview') ? '&context=chat' : ''}${variant ? `&variant=${variant}` : ''}${props ? `&props=${encodeURIComponent(JSON.stringify(props))}` : ''}`);
   await waitForComponentPreview(page);
   if (component.endsWith('Fullscreen')) await waitForComponentMotion(page.locator('.unified-embed-fullscreen-overlay').first());
 }
@@ -36,8 +36,19 @@ for (const width of [390, 1000]) {
         await expect(action).toHaveAttribute('aria-label', /\S/);
         await expect(action).toHaveText('');
         await expect(action.locator('svg')).toBeVisible();
-        await expect(action).toHaveCSS('width', '32px');
-        await expect(action).toHaveCSS('height', '32px');
+        await expect(action).toHaveCSS('width', '36px');
+        await expect(action).toHaveCSS('height', '36px');
+      }
+      const suppliedDate = component.startsWith('jobs/') ? '2026-10-01T00:00:00.000Z'
+        : component.startsWith('social_media/') ? '2026-05-24T10:30:00.000Z'
+        : component.startsWith('business/') ? '2025-07-18T00:00:00.000Z' : undefined;
+      if (suppliedDate) {
+        const calendar = card.getByTestId('embed-calendar-date');
+        await expect(calendar).toHaveCount(1);
+        await expect(calendar).toBeVisible();
+        await expect(calendar).toHaveAttribute('datetime', suppliedDate);
+        await expect(calendar.locator('strong')).toHaveText(String(new Date(suppliedDate).getUTCDate()));
+        await expect(card.getByRole('button', { name: 'Published', exact: true })).toHaveCount(0);
       }
       const box = await card.boundingBox();
       expect(box).not.toBeNull();
@@ -47,7 +58,8 @@ for (const width of [390, 1000]) {
       await openPreview(page, `${component}Preview`, width, 'longTitle');
       await expect(page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]')).toBeVisible();
       expect(await page.getByTestId('result-card-content').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
-      await openPreview(page, `${component}Preview`, width, 'missingData');
+      await openPreview(page, `${component}Preview`, width, 'missingData', component.startsWith('social_media/') ? { published_at: '' } : undefined);
+      if (suppliedDate) await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
       await expect(page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]')).not.toBeEmpty();
       if (component.startsWith('code/')) {
         await expect(page.getByRole('button', { name: 'Stars', exact: true })).toHaveCount(0);
@@ -131,7 +143,8 @@ test('repository facts explain known values on focus, keyboard, tap and Escape; 
   await expect.poll(() => expansions.length).toBe(1);
   await stars.click();
   await expect(stars).toHaveAttribute('data-pinned', 'true');
-  await page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]').click();
+  // The pinned panel may cover the title; the canvas corner is outside the fact and panel.
+  await page.getByTestId('component-preview-canvas').click({ position: { x: 2, y: 2 } });
   await expect(page.getByRole('tooltip')).toHaveCount(0);
   await openPreview(page, 'code/CodeRepoEmbedFullscreen', 1000);
   await expect(page.getByTestId('result-embed-content')).toBeVisible();
@@ -143,24 +156,48 @@ test('repository facts explain known values on focus, keyboard, tap and Escape; 
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 test('catalogue images stay uncropped and provider action never fetches model files', async ({ page }) => {
+  // Eight independent mounts cover loaded, missing and failed images at both widths.
+  test.setTimeout(120_000);
   const requestedModels: string[] = [];
   page.on('request', request => { if (/\.(glb|gltf|obj|stl|fbx)(\?|$)/i.test(request.url())) requestedModels.push(request.url()); });
-  const fixture = await page.request.get('/images/examples/group1.jpg');
-  const bytes = await fixture.body();
-  await page.route('**/api/v1/image?*', route => route.fulfill({ status: 200, contentType: 'image/jpeg', body: bytes }));
   for (const width of [390, 1000]) {
     await openPreview(page, 'models3d/Model3DResultEmbedPreview', width, width > 400 ? 'chat' : undefined);
     const image = page.getByTestId('result-card-media').locator('img');
     await expect(image).toHaveCSS('object-fit', 'contain');
     await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
     const source = new URL((await image.getAttribute('src'))!, page.url());
-    expect(source.pathname).toBe('/api/v1/image');
+    expect(source.pathname).toBe('/store-examples/generate-2.webp');
     await openPreview(page, 'models3d/Model3DResultEmbedFullscreen', width);
-    await expect(page.getByTestId('result-media').locator('img')).toHaveCSS('object-fit', 'contain');
+    const fullscreenImage = page.getByTestId('result-media').locator('img');
+    await expect(fullscreenImage).toHaveCSS('object-fit', 'contain');
+    await expect.poll(() => fullscreenImage.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(page.getByTestId('embed-header-title')).toHaveText('Low-poly research observatory');
+    await expect(page.getByText('Low-poly research observatory', { exact: true })).toHaveCount(1);
+    await expect(page.locator('a[href="https://example.com/models/observatory"]')).toHaveCount(1);
     await expect(page.getByTestId('models3d-open-provider-cta')).toHaveAttribute('href', 'https://example.com/models/observatory');
+    for (const variant of ['missingData', 'brokenImage']) {
+      await openPreview(page, 'models3d/Model3DResultEmbedFullscreen', width, variant);
+      await expect(page.getByTestId('result-media').locator('img')).toHaveCount(0);
+      const fallback = page.getByTestId('models3d-preview-unavailable');
+      await expect(fallback).toBeVisible();
+      await expect(fallback).toHaveText('A preview is unavailable for this file.');
+      const placeholderIcon = fallback.locator('.placeholder-icon');
+      await expect(placeholderIcon).toHaveCSS('mask-image', /^url\(/);
+      // Vite may inline the SVG or emit an asset URL; either must decode as a real image.
+      expect(await placeholderIcon.evaluate(async element => {
+        const mask = getComputedStyle(element).maskImage;
+        const source = mask.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+        if (!source) return false;
+        return await new Promise<boolean>(resolve => {
+          const image = new Image();
+          image.onload = () => resolve(image.naturalWidth > 0 && image.naturalHeight > 0);
+          image.onerror = () => resolve(false);
+          image.src = source;
+        });
+      })).toBe(true);
+      await expect(page.locator('a[href="https://example.com/models/observatory"]')).toHaveCount(1);
+    }
   }
-  await openPreview(page, 'models3d/Model3DResultEmbedFullscreen', 390, 'brokenImage');
-  await expect(page.getByTestId('result-media').locator('img')).toHaveCount(0);
   expect(requestedModels).toEqual([]);
 });
 
@@ -205,7 +242,7 @@ for (const width of [390, 1000]) {
             await expect(action).toHaveAttribute('aria-label', 'Open on Gandi');
             await expect(action).toHaveText('');
             await expect(action.locator('svg')).toBeVisible();
-            await expect(action).toHaveCSS('height', '32px');
+            await expect(action).toHaveCSS('height', '36px');
           }
           const registration = page.getByTestId('hosting-domain-registration');
           await registration.click();

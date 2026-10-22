@@ -79,26 +79,51 @@
 {#if typeof modelContent.license === 'string'}<ResultEmbedInfo icon="Scale" label="License" value={modelContent.license}>{#snippet children()}{modelContent.license}{/snippet}</ResultEmbedInfo>{/if}
 {#if typeof modelContent.files_count === 'number'}<ResultEmbedInfo icon="Files" label="Files" value={String(modelContent.files_count)}>{#snippet children()}{modelContent.files_count} catalogue files{/snippet}</ResultEmbedInfo>{/if}{/snippet}
 
-  {#snippet media()}      <div class="preview-area">
-        {#if imageUrl && failedImage !== imageUrl}
-          <img src={imageUrl} alt={title} onerror={() => failedImage = imageUrl} />
-        {:else}
-          <span class="clickable-icon icon_3dmodels placeholder-icon"></span>
-        {/if}
-      </div>
-  {/snippet}
-  {#snippet detailContent()}
-    <div class="model-result-fullscreen" data-testid="models3d-result-fullscreen">
-      <section class="metadata">
-        <h2>{title}</h2>
-        {#if sourcePageUrl}
-          <a href={sourcePageUrl} target="_blank" rel="noopener noreferrer" data-testid="models3d-open-provider-cta-inline">{ctaLabel}</a>
-        {/if}
-      </section>
+  {#snippet media()}
+    <div class="preview-area" data-testid="models3d-result-fullscreen">
+      {#if imageUrl && failedImage !== imageUrl}
+        <img src={imageUrl} alt={title} onerror={() => failedImage = imageUrl} />
+      {:else}
+        <div class="preview-placeholder" data-testid="models3d-preview-unavailable" role="status">
+          <span class="placeholder-icon" aria-hidden="true"></span>
+          <span>{$text('embeds.projects.references.preview_unavailable')}</span>
+        </div>
+      {/if}
     </div>
   {/snippet}
 </ResultEmbedFullscreen>
 
 <style>
- .model-result-fullscreen {width:100%;} .preview-area {display:grid;place-items:center;width:100%;min-height:12rem;background:var(--color-grey-10);} .preview-area img {display:block;width:100%;height:auto;max-height:60vh;object-fit:contain;} .placeholder-icon {width:44px;height:44px;background:var(--color-grey-40) !important;} .metadata {display:flex;flex-direction:column;gap:var(--spacing-3);} h2 {margin:0;font-size:var(--font-size-h4);} a {color:var(--color-link);overflow-wrap:anywhere;}
+  .preview-area {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 12rem;
+    background: var(--color-grey-10);
+  }
+
+  .preview-area img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 60vh;
+    object-fit: contain;
+  }
+
+  .preview-placeholder {
+    display: grid;
+    justify-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    color: var(--color-font-secondary);
+    text-align: center;
+  }
+
+  .placeholder-icon {
+    width: 44px;
+    height: 44px;
+    background: currentColor;
+    -webkit-mask: url('@openmates/ui/static/icons/3dmodels.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/3dmodels.svg') center / contain no-repeat;
+  }
 </style>

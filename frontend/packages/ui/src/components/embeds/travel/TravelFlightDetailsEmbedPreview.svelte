@@ -16,6 +16,7 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
 
   interface Props {
     resultContext?: 'auto' | 'chat' | 'results';
@@ -97,7 +98,9 @@
 
   let takeoffTime = $derived(formatTime(actualTakeoff));
   let landingTime = $derived(formatTime(actualLanding));
-  let displayDate = $derived(formatDate(actualTakeoff || departureDate));
+  let occurrenceDate = $derived([actualTakeoff, departureDate].find(value =>
+    typeof value === 'string' && value.length > 0 && !Number.isNaN(new Date(value).getTime())));
+  let displayDate = $derived(formatDate(occurrenceDate));
 
   let hasTrack = $derived(trackPointCount > 0);
 </script>
@@ -118,6 +121,7 @@
 >
   {#snippet details()}
     <ResultEmbedCard title={flightNumber || 'Flight Track'} description={routeDisplay} sourceLabel="Flightradar24" textFirst>
+      {#snippet badge()}{#if occurrenceDate}<EmbedCalendarDate date={occurrenceDate} />{/if}{/snippet}
       {#snippet facts()}
         {#if displayDate}<span>{displayDate}</span>{/if}
         {#if takeoffTime || landingTime}<span>{takeoffTime || '—'} → {landingTime || '—'}</span>{/if}

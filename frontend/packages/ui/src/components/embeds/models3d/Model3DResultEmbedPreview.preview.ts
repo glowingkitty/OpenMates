@@ -2,7 +2,7 @@ const defaultProps = {
   id: 'preview-model-catalog', title: 'Low-poly research observatory', provider: 'Example Catalogue',
   creatorName: 'Example Artist', license: 'CC BY 4.0', filesCount: 3, isFree: true,
   sourcePageUrl: 'https://example.com/models/observatory',
-  previewImageUrl: 'https://images.example.com/models/observatory.png',
+  previewImageUrl: '/store-examples/generate-2.webp',
   presentationOnly: true, onFullscreen: () => {},
 };
 export default defaultProps;

@@ -56,10 +56,11 @@ for (const width of [390, 1280]) {
   // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   test(`website and news fullscreens retain provider, quotes and followup at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
-    for (const path of ['web/WebsiteEmbedFullscreen', 'news/NewsEmbedFullscreen']) {
+    for (const path of ['web/WebsiteEmbedFullscreen', 'news/NewsEmbedFullscreen', 'news/NewsArticleEmbedFullscreen']) {
       await page.goto(preview(path, width, 'withSnippets'));
       await waitForComponentPreview(page);
       await expect(page.getByTestId('result-embed-content')).toBeVisible();
+      await expect(page.getByTestId('embed-header-title')).toContainText(/svelte/i);
       await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
       await expect(page.getByTestId('external-provider-cta')).toBeVisible();
       await expect(page.getByTestId('apps-request-textarea')).toBeVisible();

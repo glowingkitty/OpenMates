@@ -9,7 +9,7 @@ const defaultProps = {
   id: 'preview-nutrition-recipe-1',
   title: 'Spaghetti Aglio e Olio',
   description: 'Klassisches italienisches Knoblauch-Pasta-Gericht mit Olivenöl und Chili',
-  image_url: 'https://nutrition.example/recipe.jpg',
+  image_url: '/store-examples/generate-1.webp',
   total_time_minutes: 25,
   difficulty: 'einfach',
   rating: 4.7,

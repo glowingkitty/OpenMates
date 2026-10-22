@@ -1210,10 +1210,10 @@
   // ---------------------------------------------------------------------------
 
   /** Leaflet module reference (set by onMapReady) */
-  let L: typeof import('leaflet') | null = null;
+  let L = $state.raw<typeof import('leaflet') | null>(null);
 
   /** Leaflet map instance (set by onMapReady) */
-  let map: LeafletMap | null = null;
+  let map = $state.raw<LeafletMap | null>(null);
 
   let routeLineLayer: import('leaflet').LayerGroup | null = null;
 
@@ -1460,7 +1460,11 @@
     map = mapInstance as LeafletMap;
     L = leafletModule as typeof import('leaflet');
 
-    if (!L || !map || routeWaypoints.length < 2) return;
+    if (!L || !map) return;
+
+    // Tracks can be available without named segment stops. Draw the route
+    // independently so optional stop markers cannot suppress valid geometry.
+    drawRoutePath();
 
     try {
       const stopIcon = L.divIcon({
@@ -1475,8 +1479,6 @@
           .addTo(map)
           .bindPopup(wp.code);
       }
-
-      drawRoutePath();
     } catch (err) {
       console.error('[TravelConnectionEmbedFullscreen] Failed to render map overlays:', err);
     }

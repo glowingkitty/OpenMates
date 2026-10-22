@@ -9,7 +9,7 @@ const sampleRecipe = {
   embed_id: 'preview-recipe-fs-001',
   title: 'Spaghetti Aglio e Olio',
   description: 'Klassisches italienisches Knoblauch-Pasta-Gericht mit Olivenöl, Knoblauch und Chili. Einfach, schnell und unglaublich lecker.',
-  image_url: 'https://nutrition.example/recipe.jpg',
+  image_url: '/store-examples/generate-1.webp',
   recipe_url: 'https://www.edamam.com/results/recipes/?search=spaghetti%20aglio%20e%20olio',
   prep_time_minutes: 10,
   cook_time_minutes: 15,

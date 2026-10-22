@@ -1,7 +1,7 @@
 const model = {
  title: 'Low-poly research observatory', provider: 'Example Catalogue', creator_name: 'Example Artist',
  license: 'CC BY 4.0', files_count: 3, source_page_url: 'https://example.com/models/observatory',
- preview_image_url: 'https://images.example.com/models/observatory.png',
+ preview_image_url: '/store-examples/generate-2.webp',
 };
 const defaultProps = { embedId: 'preview-model-catalog', data: { decodedContent: model }, onClose: () => {} };
 export default defaultProps;

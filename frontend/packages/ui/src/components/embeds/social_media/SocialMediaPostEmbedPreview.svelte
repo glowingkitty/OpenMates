@@ -11,10 +11,11 @@
 <script lang="ts">
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
-  import { formatCount, formatPostedAt, socialSourceLabel, type SocialMediaPostResult } from './socialMediaEmbedUtils';
+  import { formatCount, socialSourceLabel, type SocialMediaPostResult } from './socialMediaEmbedUtils';
 
   interface Props extends Partial<SocialMediaPostResult> {
     id?: string;
@@ -54,7 +55,6 @@
   let image = $derived(proxyImage(media_url || thumbnail_url, 960));
   let displayAuthor = $derived(author_display_name || author || page || platform || 'Social post');
   let source = $derived(socialSourceLabel({ embed_id: id, platform, page }));
-  let postedAt = $derived(formatPostedAt(published_at));
 
   function handleStop() {
     // Child posts are already resolved server-side.
@@ -82,7 +82,8 @@
   {#snippet resultPrimaryAction()}{#if url}<a href={url} target="_blank" rel="noopener noreferrer" aria-label="Open post" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
   {#snippet details()}
     <div data-testid="social-post-preview" class="catalog-result-preview">
-      <ResultEmbedCard title={title || displayAuthor} description={body} sourceLabel={[displayAuthor, source, postedAt].filter(Boolean).join(" · ")} faviconUrl={avatar} imageUrl={image} imageAlt={title || displayAuthor} mediaFit="cover">
+      <ResultEmbedCard title={title || displayAuthor} description={body} sourceLabel={[displayAuthor, source].filter(Boolean).join(" · ")} faviconUrl={avatar} imageUrl={image} imageAlt={title || displayAuthor} mediaFit="cover">
+        {#snippet badge()}{#if published_at}<EmbedCalendarDate date={published_at} />{/if}{/snippet}
         {#snippet facts()}{#if like_count != null}<ResultEmbedInfo icon="Heart" label="Likes" value={formatCount(like_count)}>{#snippet children()}{formatCount(like_count)} likes{/snippet}</ResultEmbedInfo>{/if}
 {#if reply_count != null}<ResultEmbedInfo icon="MessageCircle" label="Replies" value={formatCount(reply_count)}>{#snippet children()}{formatCount(reply_count)} replies{/snippet}</ResultEmbedInfo>{/if}
 {#if repost_count != null}<ResultEmbedInfo icon="Repeat2" label="Reposts" value={formatCount(repost_count)}>{#snippet children()}{formatCount(repost_count)} reposts{/snippet}</ResultEmbedInfo>{/if}{/snippet}

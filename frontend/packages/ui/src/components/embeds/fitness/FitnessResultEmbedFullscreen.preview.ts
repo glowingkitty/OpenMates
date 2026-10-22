@@ -3,7 +3,7 @@ const result = {
   id: 'fitness-class-design', name: 'Morning Yoga Flow', skill_id: 'search_classes',
   date: '2026-10-26', time_range: '07:30 - 08:30', venue_name: 'Yoga Studio Kreuzberg',
   venue_address: 'Oranienstr. 1, 10997 Berlin', venue_lat: 52.502, venue_lon: 13.421,
-  image_url: 'https://fitness.example/studio.jpg', distance_km: 0.9, spots_display: '5 spots left',
+  image_url: '/store-examples/home-2.webp', distance_km: 0.9, spots_display: '5 spots left',
   plans_required: ['Classic', 'Premium'], disciplines: ['Yoga', 'Pilates'], attendance_mode: 'In person',
   detail_url: 'https://urbansportsclub.com/en/venues/yoga-studio',
 };

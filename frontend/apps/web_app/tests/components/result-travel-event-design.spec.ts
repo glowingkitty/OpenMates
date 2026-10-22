@@ -14,6 +14,20 @@ for (const width of [390, 1280]) {
     await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
     await expect(page.getByTestId('result-facts')).toContainText('189');
     await expect(page.getByTestId('result-map')).toBeVisible();
+    const route = page.getByTestId('travel-route-path');
+    await expect(route).toBeVisible();
+    await expect(route).toHaveAttribute('d', /[ML]/);
+    const routeBounds = (await route.boundingBox())!;
+    expect(routeBounds.width).toBeGreaterThan(20);
+    expect(routeBounds.height).toBeGreaterThan(5);
+    const mapBounds = (await page.getByTestId('result-map').boundingBox())!;
+    expect(routeBounds.x + routeBounds.width).toBeGreaterThan(mapBounds.x);
+    expect(routeBounds.x).toBeLessThan(mapBounds.x + mapBounds.width);
+    expect(routeBounds.y + routeBounds.height).toBeGreaterThan(mapBounds.y);
+    expect(routeBounds.y).toBeLessThan(mapBounds.y + mapBounds.height);
+    await expect(route).toHaveAttribute('stroke-opacity', '0.85');
+    await expect(page.getByTestId('departure-code')).toContainText('Munich Airport (MUC)');
+    await expect(page.getByTestId('arrival-code')).toContainText('London Heathrow (LHR)');
     await expect.poll(() => page.getByTestId('header-airline-logos').locator('img').evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
     await expect(page.getByTestId('flight-details-card')).toContainText('Airbus A320neo');
     await expect(page.getByTestId('flight-details-card')).toContainText('Munich');
@@ -147,6 +161,15 @@ for (const width of [390, 1280]) {
         await expect(page.getByTestId('connection-price')).toContainText('189');
         await expect(page.getByTestId('connection-route')).toContainText('Munich');
         await expect(page.getByTestId('connection-time')).toContainText('MUC');
+        const badge = page.getByTestId('embed-calendar-date');
+        await expect(badge.locator('strong')).toHaveText('15');
+        await expect(badge.locator('span')).toHaveText('Sun');
+        const badgeBounds = (await badge.boundingBox())!;
+        const cardBounds = (await card.boundingBox())!;
+        expect(badgeBounds.x).toBeGreaterThanOrEqual(cardBounds.x + 48);
+        expect(badgeBounds.y).toBeGreaterThanOrEqual(cardBounds.y);
+        expect(badgeBounds.y + badgeBounds.height).toBeLessThanOrEqual((await page.getByTestId('connection-route').boundingBox())!.y);
+        expect(badgeBounds.x + badgeBounds.width).toBeLessThanOrEqual(cardBounds.x + cardBounds.width - 48);
         if (width > 600) await expect(card.locator('.connection-map')).toBeVisible();
         else await expect(card.locator('.connection-map')).toBeHidden();
       } else await expect(page.getByTestId('result-card-title')).toBeVisible();
@@ -196,6 +219,8 @@ test('connection previews retain both journey legs and rail realtime provenance'
   await expect(page.locator('.itinerary-leg')).toHaveCount(2);
   await expect(page.locator('.itinerary-leg').first()).toContainText('MUC');
   await expect(page.locator('.itinerary-leg').last()).toContainText('LHR');
+  await expect(page.locator('.journey-date')).toHaveText([/Mar 15/, /Mar 22/]);
+  await expect(page.getByTestId('embed-calendar-date').locator('strong')).toHaveText('15');
   await page.goto(preview('travel/TravelConnectionEmbedPreview', 390, 'trainRealtime'));
   await waitForComponentPreview(page);
   await expect(page.getByTestId('connection-realtime-status')).toHaveText('+12 min arrival');
@@ -264,6 +289,15 @@ for (const width of [390, 1280]) {
       else {
         await expect(page.getByTestId('result-card-content')).toContainText('MUC → LHR');
         await expect(page.getByTestId('result-card-content')).toContainText('4 pts');
+        const badge = page.getByTestId('embed-calendar-date');
+        await expect(badge.locator('strong')).toHaveText('20');
+        await expect(badge.locator('span')).toHaveText('Tue');
+        const badgeBounds = (await badge.boundingBox())!;
+        const cardBounds = (await page.getByTestId('embed-preview').boundingBox())!;
+        expect(badgeBounds.x).toBeGreaterThanOrEqual(cardBounds.x + 48);
+        expect(badgeBounds.y).toBeGreaterThanOrEqual(cardBounds.y);
+        expect(badgeBounds.y + badgeBounds.height).toBeLessThanOrEqual((await page.getByTestId('result-card-title').boundingBox())!.y);
+        expect(badgeBounds.x + badgeBounds.width).toBeLessThanOrEqual(cardBounds.x + cardBounds.width - 48);
       }
       await testInfo.attach(`${path.split('/').pop()}-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
     }
@@ -333,4 +367,15 @@ test('event description preserves provider HTML structure safely and dates use t
   await expect(page.getByTestId('embed-calendar-date').locator('span')).toHaveText('Mon');
   await expect(page.getByTestId('event-preview-attribution')).toContainText('12:30 AM, by Berlin Lingua Hub');
   await expect(page.getByTestId('event-preview-attribution')).toHaveCSS('text-overflow', 'ellipsis');
+});
+
+// contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
+test('undated travel previews do not invent calendar dates', async ({ page }) => {
+  for (const path of ['TravelConnectionEmbedPreview', 'TravelFlightDetailsEmbedPreview']) {
+    const props = encodeURIComponent(JSON.stringify({ departure: null, connection: {}, actualTakeoff: null, departureDate: null }));
+    await page.goto(`${preview(`travel/${path}`, 390)}&props=${props}`);
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-preview')).toBeVisible();
+    await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
+  }
 });
