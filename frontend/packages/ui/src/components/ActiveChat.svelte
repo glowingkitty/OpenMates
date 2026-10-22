@@ -14037,7 +14037,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <div
                     class="chat-side"
                     class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
-                    inert={messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
+                    inert={showWelcome && messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}

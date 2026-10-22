@@ -198,3 +198,31 @@ export async function waitForStickyCallControlsReady(page: Page, testInfo: TestI
     throw error;
   }
 }
+
+/** Exercise native wheel scrolling without dismissing the active composer. */
+export async function expectFocusedChatWheelScroll(page: Page): Promise<void> {
+  const history = page.getByTestId('chat-history-container');
+  const field = page.getByTestId('message-field');
+  const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+  await expect(field).toHaveAttribute('data-focused', 'true');
+  await expect(editor).toBeFocused();
+  await expect(history).toHaveAttribute('data-scroll-state', 'ready');
+  await expect.poll(() => history.evaluate(element => element.scrollHeight - element.clientHeight)).toBeGreaterThan(600);
+  // Position the fixture in the middle so both directions have real history.
+  // Only setup uses scrollTo; the regression assertions require native input.
+  const initialTop = await history.evaluate(element => {
+    element.scrollTo({ top: (element.scrollHeight - element.clientHeight) / 2, behavior: 'instant' });
+    return element.scrollTop;
+  });
+  const bounds = await history.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width * 0.75, bounds!.y + bounds!.height * 0.5);
+  await page.mouse.wheel(0, -280);
+  await expect.poll(() => history.evaluate(element => element.scrollTop)).toBeLessThan(initialTop - 100);
+  await expect(editor).toBeFocused();
+  const afterUp = await history.evaluate(element => element.scrollTop);
+  await page.mouse.wheel(0, 280);
+  await expect.poll(() => history.evaluate(element => element.scrollTop)).toBeGreaterThan(afterUp + 100);
+  await expect(field).toHaveAttribute('data-focused', 'true');
+  await expect(editor).toBeFocused();
+}

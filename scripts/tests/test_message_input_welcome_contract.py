@@ -1,7 +1,7 @@
 """Message input workspace-focus contract guards.
 
 The approved composer behavior fades new-chat welcome content without changing
-its layout measurements. Existing transcripts remain at full opacity, with
+its layout measurements. Existing transcripts remain scrollable at full opacity, with
 queued controls reachable. Isolated Playwright coverage verifies rendered
 focus and dismissal transitions.
 """
@@ -35,13 +35,13 @@ def test_focused_workspace_preserves_reachable_queued_controls() -> None:
         "Special overlay suppression must remain independent of ordinary welcome focus"
     )
     inert = re.search(r"\binert=\{([^}]*)\}", workspace.group(1))
-    assert inert, "The focused workspace must retain an inert predicate"
+    assert inert, "The focused welcome must retain an inert predicate"
     assert re.sub(r"\s+", "", inert.group(1)) == (
-        "messageInputFocused&&!hasQueuedFollowUpActions"
+        "showWelcome&&messageInputFocused&&!hasQueuedFollowUpActions"
         "&&!voiceContextConsentVisible&&!showVoiceCallBarHere"
     ), (
-        "Ordinary focus must disable the workspace unless queued controls, voice consent, "
-        "or bound-call controls must remain reachable"
+        "Ordinary focus must disable only welcome content, keeping chat history scrollable "
+        "and queued controls, voice consent, and bound-call controls reachable"
     )
     assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
         "Ordinary focus must hide new-chat welcome content without affecting established chats"

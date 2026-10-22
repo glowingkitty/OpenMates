@@ -428,6 +428,7 @@
         "landing-web-laptop.spec.ts",
         "components/chat-open-focus.spec.ts",
         "public-example-input-focus.spec.ts",
+        "chat-focused-scroll.spec.ts",
         "components/questionnaire-recipe-options.spec.ts",
         "questionnaire-recipe-options-public.spec.ts",
         "components/landing-section-replay.spec.ts",

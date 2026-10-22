@@ -1,8 +1,9 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { expectFocusedChatWheelScroll } from '../helpers/chat-scroll';
 
-const first = 'example-example-chat-task-planning';
+const first = 'example-ai-workshops-meetups-berlin';
 const second = 'example-deutschlandticket-train-fare-breakdown';
 
 for (const width of [390, 1280]) {
@@ -41,5 +42,8 @@ for (const width of [390, 1280]) {
     await expect(field).toHaveAttribute('data-focused', 'true');
     await page.keyboard.type('Manual entry remains available');
     await expect(editor).toContainText('Manual entry remains available');
+    await test.step('Scroll the conversation in both directions while typing stays active', async () => {
+      await expectFocusedChatWheelScroll(page);
+    });
   });
 }
