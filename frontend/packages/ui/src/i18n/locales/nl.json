@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Verzekering"
+    },
+    "rating": {
+      "text": "Beoordeling"
+    },
+    "difficulty": {
+      "text": "Moeilijkheid"
+    },
+    "dietary": {
+      "text": "Voedingsinformatie"
+    },
+    "categories": {
+      "text": "Categorieën"
+    },
+    "distance": {
+      "text": "Afstand"
+    },
+    "spots": {
+      "text": "Beschikbare plekken"
+    },
+    "mode": {
+      "text": "Vorm"
+    },
+    "disciplines": {
+      "text": "Disciplines"
+    },
+    "delivery": {
+      "text": "Bezorging"
+    },
+    "availability_unknown": {
+      "text": "Beschikbaarheid onbekend"
+    },
+    "organic": {
+      "text": "Biologisch"
+    },
+    "vegan": {
+      "text": "Vegan"
+    },
+    "vegetarian": {
+      "text": "Vegetarisch"
+    },
+    "dairy_free": {
+      "text": "Zuivelvrij"
+    },
+    "gluten_free": {
+      "text": "Glutenvrij"
+    },
+    "regional": {
+      "text": "Regionaal"
+    },
+    "product_attributes": {
+      "text": "Producteigenschappen"
+    },
+    "temperature": {
+      "text": "Temperatuur"
+    },
+    "rain_chance": {
+      "text": "Kans op regen"
+    },
+    "precipitation": {
+      "text": "Neerslag"
+    },
+    "rain_hours": {
+      "text": "Regenuren"
+    },
+    "wind": {
+      "text": "Wind"
+    },
+    "clouds": {
+      "text": "Bewolking"
+    },
+    "humidity": {
+      "text": "Luchtvochtigheid"
+    },
+    "hourly_forecast": {
+      "text": "Uurverwachting"
+    },
+    "no_hourly_data": {
+      "text": "Uurverwachting niet beschikbaar"
     }
   },
   "rules": {},

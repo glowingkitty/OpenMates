@@ -19,8 +19,8 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
 
   /**
    * A single event result from the events/search skill backend.
@@ -64,6 +64,7 @@
   }
 
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
     /** Child embed ID used as UnifiedEmbedPreview id */
     id: string;
     /** Full structured event data */
@@ -79,6 +80,7 @@
   }
 
   let {
+    resultContext = 'auto',
     id,
     event,
     isMobile = false,
@@ -190,7 +192,7 @@
     return rawImageUrl ? proxyImage(rawImageUrl, MAX_WIDTH_PREVIEW_THUMBNAIL) : '';
   });
 
-  let imageError = $state(false);
+
 
   // No-op stop handler — child event embeds are already finished
   async function handleStop() {
@@ -199,6 +201,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="events"
   skillId="event"
@@ -212,208 +216,20 @@
   showSkillIcon={false}
   hasFullWidthImage={!!eventImageUrl && !event.title}
 >
-  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout = false })}
-    <div class="event-preview-details" class:mobile={isMobileLayout} class:large={isLargeLayout}>
-      <div class="event-content-row">
-        <!-- Text content (left side) -->
-        <div class="event-text">
-          {#if isLargeLayout}
-            <div class="event-title">{event.title || ''}</div>
-          {/if}
-
-          <!-- Date + location -->
-          <div class="event-meta">
-            {#if eventDateParts.date}
-              <span class="event-date">{eventDateParts.date}</span>
-            {/if}
-            {#if eventDateParts.time}
-              <span class="event-time">{eventDateParts.time}</span>
-            {/if}
-            {#if eventLocation}
-              <span class="event-location">{eventLocation}</span>
-            {/if}
-          </div>
-
-          <!-- Bottom row: type badge + RSVP count / fee + source -->
-          <div class="event-footer">
-            {#if event.event_type}
-              <span class="event-type-badge" class:online={isOnline}>
-                {isOnline ? onlineLabel : inPersonLabel}
-              </span>
-            {/if}
-            {#if isPaid && feeDisplay}
-              <span class="event-fee">{feeDisplay}</span>
-            {:else if event.rsvp_count != null && event.rsvp_count > 0}
-              <span class="event-rsvp">{event.rsvp_count.toLocaleString()} {rsvpLabel}</span>
-            {/if}
-            {#if providerLabel}
-              <span class="event-source">{providerLabel}</span>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Image (right side) -->
-        {#if eventImageUrl && !imageError && !isMobileLayout}
-          <div class="event-preview-image">
-            <img
-              src={eventImageUrl}
-              alt={event.title || 'Event'}
-              loading="lazy"
-              crossorigin="anonymous"
-              onerror={(e) => {
-                imageError = true;
-                handleImageError(e.currentTarget as HTMLImageElement);
-              }}
-            />
-          </div>
-        {/if}
-      </div>
-    </div>
+  {#snippet details()}
+    <ResultEmbedCard title={event.title || 'Event'} imageUrl={eventImageUrl || undefined} imageAlt={event.title || 'Event'} description={event.description} sourceLabel={providerLabel || undefined}>
+      {#snippet badge()}{#if eventDateParts.date}<span class="date-badge">{eventDateParts.date}</span>{/if}{/snippet}
+      {#snippet facts()}
+        {#if eventDateParts.time}<span>{eventDateParts.time}</span>{/if}
+        {#if eventLocation}<span>{eventLocation}</span>{/if}
+        {#if event.event_type}<span>{isOnline ? onlineLabel : inPersonLabel}</span>{/if}
+        {#if isPaid && feeDisplay}<span>{feeDisplay}</span>{:else if event.is_paid === false}<span>Free</span>{/if}
+        {#if event.rsvp_count != null && event.rsvp_count > 0}<span>{event.rsvp_count.toLocaleString()} {rsvpLabel}</span>{/if}
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  /* ── Details layout ──────────────────────────────────────────────────────── */
-
-  .event-preview-details {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-    justify-content: center;
-    text-align: left;
-  }
-
-  .event-preview-details.mobile {
-    justify-content: flex-start;
-  }
-
-  .event-content-row {
-    display: flex;
-    align-items: stretch;
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    width: 100%;
-    gap: var(--spacing-4);
-    margin-right: calc(-1 * var(--spacing-10));
-  }
-
-  .event-text {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-2);
-    flex: 1 1 auto;
-    min-width: 0;
-    align-self: center;
-    padding: 2px 0;
-  }
-
-  /* ── Event title (large preview only) ────────────────────────────────────── */
-
-  .event-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--color-grey-100);
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-
-  /* ── Meta: date + location ───────────────────────────────────────────────── */
-
-  .event-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .event-date,
-  .event-time {
-    font-size: 0.875rem;
-    color: var(--color-grey-70);
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .event-preview-details.large .event-date,
-  .event-preview-details.large .event-time {
-    font-size: 1rem;
-  }
-
-  .event-location {
-    font-size: 0.75rem;
-    color: var(--color-grey-60);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* ── Footer: badges row ──────────────────────────────────────────────────── */
-
-  .event-footer {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--spacing-2);
-    margin-top: var(--spacing-1);
-  }
-
-  .event-type-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--spacing-1) var(--spacing-4);
-    border-radius: 100px;
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--color-app-events-start, #a20000);
-    color: #fff; /* intentional: always white on brand colour */
-  }
-
-  .event-type-badge.online {
-    background: #1a6b5a; /* intentional: brand teal for online events */
-  }
-
-  .event-fee {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--color-grey-70);
-  }
-
-  .event-rsvp {
-    font-size: 0.6875rem;
-    color: var(--color-grey-60);
-  }
-
-  .event-source {
-    font-size: 0.6875rem;
-    color: var(--color-grey-50);
-  }
-
-  /* ── Image (right side) ──────────────────────────────────────────────────── */
-
-  .event-preview-image {
-    flex: 0 0 auto;
-    aspect-ratio: 1 / 1;
-    min-width: 0;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .event-preview-image img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: contain;
-  }
+.date-badge { background: var(--color-grey-0); color: var(--color-font-primary); padding: var(--spacing-2); border-radius: var(--radius-3); font-size: 12px; }
 </style>

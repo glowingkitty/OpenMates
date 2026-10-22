@@ -42,9 +42,9 @@ const defaultProps = {
         "Laundry service",
       ],
       images: [
-        { thumbnail: "", original_image: "" },
-        { thumbnail: "", original_image: "" },
-        { thumbnail: "", original_image: "" },
+        { thumbnail: "/store-examples/home-1.webp", original_image: "/store-examples/home-1.webp" },
+        { thumbnail: "/store-examples/home-2.webp", original_image: "/store-examples/home-2.webp" },
+        { thumbnail: "/store-examples/home-3.webp", original_image: "/store-examples/home-3.webp" },
       ],
       thumbnail: "",
       nearby_places: [

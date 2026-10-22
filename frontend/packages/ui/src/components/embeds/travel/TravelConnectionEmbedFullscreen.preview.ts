@@ -16,6 +16,8 @@ const defaultProps = {
     decodedContent: {
       embed_id: "preview-connection-detail-1",
       type: "connection",
+      is_store_example: true,
+      flight_track: { tracks: [{timestamp: 1773563400, lat: 48.3537, lon: 11.775}, {timestamp: 1773572400, lat: 51.47, lon: -0.4543}] },
       transport_method: "airplane",
       trip_type: "one_way",
       total_price: "189.00",
@@ -49,6 +51,8 @@ const defaultProps = {
               carrier: "Lufthansa",
               carrier_code: "LH",
               number: "LH 2478",
+              departure_latitude: 48.3537, departure_longitude: 11.775,
+              arrival_latitude: 51.47, arrival_longitude: -0.4543,
               departure_station: "Munich Airport (MUC)",
               departure_time: "2026-03-15T08:30:00",
               arrival_station: "London Heathrow (LHR)",
@@ -76,6 +80,8 @@ export const variants = {
       decodedContent: {
         embed_id: "preview-connection-detail-multi",
         type: "connection",
+      is_store_example: true,
+      flight_track: { tracks: [{timestamp: 1773563400, lat: 48.3537, lon: 11.775}, {timestamp: 1773572400, lat: 51.47, lon: -0.4543}] },
         transport_method: "airplane",
         trip_type: "one_way",
         total_price: "245.50",

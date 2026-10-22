@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Försäkring"
+    },
+    "rating": {
+      "text": "Betyg"
+    },
+    "difficulty": {
+      "text": "Svårighetsgrad"
+    },
+    "dietary": {
+      "text": "Kostinformation"
+    },
+    "categories": {
+      "text": "Kategorier"
+    },
+    "distance": {
+      "text": "Avstånd"
+    },
+    "spots": {
+      "text": "Lediga platser"
+    },
+    "mode": {
+      "text": "Läge"
+    },
+    "disciplines": {
+      "text": "Discipliner"
+    },
+    "delivery": {
+      "text": "Leverans"
+    },
+    "availability_unknown": {
+      "text": "Tillgänglighet okänd"
+    },
+    "organic": {
+      "text": "Ekologisk"
+    },
+    "vegan": {
+      "text": "Vegansk"
+    },
+    "vegetarian": {
+      "text": "Vegetarisk"
+    },
+    "dairy_free": {
+      "text": "Mjölkfri"
+    },
+    "gluten_free": {
+      "text": "Glutenfri"
+    },
+    "regional": {
+      "text": "Regional"
+    },
+    "product_attributes": {
+      "text": "Produktegenskaper"
+    },
+    "temperature": {
+      "text": "Temperatur"
+    },
+    "rain_chance": {
+      "text": "Risk för regn"
+    },
+    "precipitation": {
+      "text": "Nederbörd"
+    },
+    "rain_hours": {
+      "text": "Regntimmar"
+    },
+    "wind": {
+      "text": "Vind"
+    },
+    "clouds": {
+      "text": "Molnighet"
+    },
+    "humidity": {
+      "text": "Luftfuktighet"
+    },
+    "hourly_forecast": {
+      "text": "Timprognos"
+    },
+    "no_hourly_data": {
+      "text": "Timprognos saknas"
     }
   },
   "rules": {},

@@ -564,6 +564,7 @@
     const fare = extractTravelFare(content);
 
     return {
+      ...Object.fromEntries(['route_points', 'route', 'path', 'polyline_points', 'flight_track', 'origin_latitude', 'origin_longitude', 'destination_latitude', 'destination_longitude', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon'].filter(key => content[key] !== undefined).map(key => [key, content[key]])),
       embed_id: embedId,
       type: (content.type as string) || 'connection',
       transport_method: (content.transport_method as string) || 'airplane',
@@ -699,6 +700,7 @@
   {#snippet resultCard({ result, onSelect })}
     <TravelConnectionEmbedPreview
       id={result.embed_id}
+      connection={result as unknown as Record<string, unknown>}
       price={result.total_price}
       currency={result.currency}
       fare={result.fare}

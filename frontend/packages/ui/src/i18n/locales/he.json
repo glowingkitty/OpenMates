@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "ביטוח"
+    },
+    "rating": {
+      "text": "דירוג"
+    },
+    "difficulty": {
+      "text": "רמת קושי"
+    },
+    "dietary": {
+      "text": "מידע תזונתי"
+    },
+    "categories": {
+      "text": "קטגוריות"
+    },
+    "distance": {
+      "text": "מרחק"
+    },
+    "spots": {
+      "text": "מקומות פנויים"
+    },
+    "mode": {
+      "text": "מצב"
+    },
+    "disciplines": {
+      "text": "תחומים"
+    },
+    "delivery": {
+      "text": "משלוח"
+    },
+    "availability_unknown": {
+      "text": "זמינות לא ידועה"
+    },
+    "organic": {
+      "text": "אורגני"
+    },
+    "vegan": {
+      "text": "טבעוני"
+    },
+    "vegetarian": {
+      "text": "צמחוני"
+    },
+    "dairy_free": {
+      "text": "ללא מוצרי חלב"
+    },
+    "gluten_free": {
+      "text": "ללא גלוטן"
+    },
+    "regional": {
+      "text": "מקומי"
+    },
+    "product_attributes": {
+      "text": "מאפייני מוצר"
+    },
+    "temperature": {
+      "text": "טמפרטורה"
+    },
+    "rain_chance": {
+      "text": "סיכוי לגשם"
+    },
+    "precipitation": {
+      "text": "משקעים"
+    },
+    "rain_hours": {
+      "text": "שעות גשם"
+    },
+    "wind": {
+      "text": "רוח"
+    },
+    "clouds": {
+      "text": "כיסוי עננים"
+    },
+    "humidity": {
+      "text": "לחות"
+    },
+    "hourly_forecast": {
+      "text": "תחזית לפי שעה"
+    },
+    "no_hourly_data": {
+      "text": "תחזית לפי שעה אינה זמינה"
     }
   },
   "rules": {},

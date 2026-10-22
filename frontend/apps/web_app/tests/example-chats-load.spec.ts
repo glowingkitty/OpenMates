@@ -539,9 +539,13 @@ test.describe('Example chats loading for new users', () => {
 		await expect(selectedRecipeCard.getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
 		await selectedRecipeCard.click();
 		await expect(page.getByTestId('nutrition-recipe-image')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4 servings');
-		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
-		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('american');
+		await expect(page.getByTestId('result-facts')).toContainText('4 servings');
+		await page.getByTestId('nutrition-recipe-tags').getByRole('button').click();
+		await expect(page.getByRole('tooltip')).toContainText('Vegetarian');
+		await page.keyboard.press('Escape');
+		await page.getByTestId('nutrition-recipe-categories').getByRole('button').click();
+		await expect(page.getByRole('tooltip')).toContainText('american');
+		await page.keyboard.press('Escape');
 		// Reviewed selected result: 81.44995g total protein / 4 servings.
 		await expect(page.locator('body')).toContainText('20.4g');
 	});

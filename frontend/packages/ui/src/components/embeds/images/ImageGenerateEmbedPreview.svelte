@@ -17,6 +17,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
@@ -310,6 +311,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
   {inputEmbedIds}
   appId="images"
@@ -326,6 +328,8 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
+    <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaFit="contain">
+      {#snippet media()}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
       {#if status === 'finished' && !error && imageUrl}
         <!-- Finished state with loaded image: show decrypted image with model info overlay -->
@@ -333,14 +337,7 @@
           <div class="image-container">
             <img src={imageUrl} alt={prompt || 'Generated image'} class="preview-image" />
           </div>
-          {#if modelDisplayName}
-            <div class="image-model-badge">
-              {#if modelIconUrl}
-                <img src={modelIconUrl} alt="" class="model-icon" />
-              {/if}
-              <span class="generating-via">{$text('embeds.image_generate.generated_by')} {modelDisplayName}</span>
-            </div>
-          {/if}
+
         </div>
       {:else if status === 'finished' && !error && imageError}
         <!-- Finished state but image decryption failed -->
@@ -351,22 +348,10 @@
       {:else if status !== 'error'}
         <!-- Processing state OR finished-but-still-loading-image: show the prompt text -->
         <div class="prompt-content">
-          {#if prompt}
-            {#if modelDisplayName}
-              <div class="model-info-line">
-                {#if modelIconUrl}
-                  <img src={modelIconUrl} alt="" class="model-icon" />
-                {/if}
-                <span class="generating-via">{$text('embeds.image_generate.generating_via')} {modelDisplayName}:</span>
-              </div>
-            {/if}
-            <span class="prompt-text">{prompt}</span>
-          {:else}
-            <div class="skeleton-lines">
-              <div class="skeleton-line long"></div>
-              <div class="skeleton-line short"></div>
-            </div>
-          {/if}
+          <div class="skeleton-lines">
+            <div class="skeleton-line long"></div>
+            <div class="skeleton-line short"></div>
+          </div>
         </div>
       {:else}
         <!-- Error state -->
@@ -376,6 +361,8 @@
         </div>
       {/if}
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -405,37 +392,9 @@
   }
   
   /* "Generating via {Model}:" label shown above the prompt during processing */
-  .prompt-content .generating-via {
-    font-size: var(--font-size-xxs);
-    font-weight: 600;
-    color: var(--color-grey-50, #888);
-    line-height: 1.4;
-  }
   
-  .model-info-line {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    margin-bottom: var(--spacing-2);
-  }
   
-  .model-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
   
-  .prompt-content .prompt-text {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70, #555);
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word;
-  }
   
   /* Skeleton lines fallback when prompt is not yet available */
   .skeleton-lines {
@@ -487,31 +446,12 @@
   .preview-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
   }
   
   /* Model badge shown over finished images */
-  .image-model-badge {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    padding: var(--spacing-2) var(--spacing-4);
-    border-radius: var(--radius-1);
-    font-size: var(--font-size-tiny);
-    font-weight: 500;
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-  }
   
-  .image-model-badge .model-icon {
-    width: 14px;
-    height: 14px;
-  }
   
   .image-content {
     position: relative;
@@ -578,13 +518,7 @@
   /* Mobile adjustments - no special handling needed since prompt was removed from preview */
   
   /* Dark mode support */
-  :global(.dark) .prompt-content .generating-via {
-    color: var(--color-grey-50, #888);
-  }
   
-  :global(.dark) .prompt-content .prompt-text {
-    color: var(--color-grey-40, #aaa);
-  }
   
   :global(.dark) .skeleton-line {
     background: var(--color-grey-80, #333);

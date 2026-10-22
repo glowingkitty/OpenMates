@@ -14756,6 +14756,84 @@
   "result_embed": {
     "insurance": {
       "text": "Assurance"
+    },
+    "rating": {
+      "text": "Note"
+    },
+    "difficulty": {
+      "text": "Difficulté"
+    },
+    "dietary": {
+      "text": "Informations alimentaires"
+    },
+    "categories": {
+      "text": "Catégories"
+    },
+    "distance": {
+      "text": "Distance"
+    },
+    "spots": {
+      "text": "Places disponibles"
+    },
+    "mode": {
+      "text": "Modalité"
+    },
+    "disciplines": {
+      "text": "Disciplines"
+    },
+    "delivery": {
+      "text": "Livraison"
+    },
+    "availability_unknown": {
+      "text": "Disponibilité inconnue"
+    },
+    "organic": {
+      "text": "Biologique"
+    },
+    "vegan": {
+      "text": "Végétalien"
+    },
+    "vegetarian": {
+      "text": "Végétarien"
+    },
+    "dairy_free": {
+      "text": "Sans produits laitiers"
+    },
+    "gluten_free": {
+      "text": "Sans gluten"
+    },
+    "regional": {
+      "text": "Régional"
+    },
+    "product_attributes": {
+      "text": "Caractéristiques du produit"
+    },
+    "temperature": {
+      "text": "Température"
+    },
+    "rain_chance": {
+      "text": "Probabilité de pluie"
+    },
+    "precipitation": {
+      "text": "Précipitations"
+    },
+    "rain_hours": {
+      "text": "Heures de pluie"
+    },
+    "wind": {
+      "text": "Vent"
+    },
+    "clouds": {
+      "text": "Couverture nuageuse"
+    },
+    "humidity": {
+      "text": "Humidité"
+    },
+    "hourly_forecast": {
+      "text": "Prévisions horaires"
+    },
+    "no_hourly_data": {
+      "text": "Prévisions horaires indisponibles"
     }
   },
   "rules": {},

@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Sigorta"
+    },
+    "rating": {
+      "text": "Puan"
+    },
+    "difficulty": {
+      "text": "Zorluk"
+    },
+    "dietary": {
+      "text": "Beslenme bilgileri"
+    },
+    "categories": {
+      "text": "Kategoriler"
+    },
+    "distance": {
+      "text": "Mesafe"
+    },
+    "spots": {
+      "text": "Boş kontenjan"
+    },
+    "mode": {
+      "text": "Katılım türü"
+    },
+    "disciplines": {
+      "text": "Disiplinler"
+    },
+    "delivery": {
+      "text": "Teslimat"
+    },
+    "availability_unknown": {
+      "text": "Stok durumu bilinmiyor"
+    },
+    "organic": {
+      "text": "Organik"
+    },
+    "vegan": {
+      "text": "Vegan"
+    },
+    "vegetarian": {
+      "text": "Vejetaryen"
+    },
+    "dairy_free": {
+      "text": "Süt içermez"
+    },
+    "gluten_free": {
+      "text": "Glutensiz"
+    },
+    "regional": {
+      "text": "Yerel"
+    },
+    "product_attributes": {
+      "text": "Ürün özellikleri"
+    },
+    "temperature": {
+      "text": "Sıcaklık"
+    },
+    "rain_chance": {
+      "text": "Yağmur olasılığı"
+    },
+    "precipitation": {
+      "text": "Yağış"
+    },
+    "rain_hours": {
+      "text": "Yağışlı saatler"
+    },
+    "wind": {
+      "text": "Rüzgar"
+    },
+    "clouds": {
+      "text": "Bulutluluk"
+    },
+    "humidity": {
+      "text": "Nem"
+    },
+    "hourly_forecast": {
+      "text": "Saatlik tahmin"
+    },
+    "no_hourly_data": {
+      "text": "Saatlik tahmin mevcut değil"
     }
   },
   "rules": {},

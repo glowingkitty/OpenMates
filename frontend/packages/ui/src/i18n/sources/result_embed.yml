@@ -22,3 +22,627 @@ insurance:
   sv: Försäkring
   he: ביטוח
   verified_by_human: []
+rating:
+  context: Accessible label for compact result embed facts and explanations
+  en: Rating
+  de: Bewertung
+  zh: 评分
+  es: Calificación
+  fr: Note
+  pt: Avaliação
+  ru: Рейтинг
+  ja: 評価
+  ko: 평점
+  it: Valutazione
+  tr: Puan
+  vi: Đánh giá
+  id: Penilaian
+  pl: Ocena
+  nl: Beoordeling
+  ar: التقييم
+  hi: रेटिंग
+  th: คะแนน
+  cs: Hodnocení
+  sv: Betyg
+  he: דירוג
+  verified_by_human: []
+difficulty:
+  context: Accessible label for compact result embed facts and explanations
+  en: Difficulty
+  de: Schwierigkeit
+  zh: 难度
+  es: Dificultad
+  fr: Difficulté
+  pt: Dificuldade
+  ru: Сложность
+  ja: 難易度
+  ko: 난이도
+  it: Difficoltà
+  tr: Zorluk
+  vi: Độ khó
+  id: Tingkat kesulitan
+  pl: Poziom trudności
+  nl: Moeilijkheid
+  ar: الصعوبة
+  hi: कठिनाई
+  th: ความยาก
+  cs: Obtížnost
+  sv: Svårighetsgrad
+  he: רמת קושי
+  verified_by_human: []
+dietary:
+  context: Accessible label for compact result embed facts and explanations
+  en: Dietary information
+  de: Ernährungsinformationen
+  zh: 饮食信息
+  es: Información alimentaria
+  fr: Informations alimentaires
+  pt: Informações alimentares
+  ru: Диетическая информация
+  ja: 食事情報
+  ko: 식이 정보
+  it: Informazioni alimentari
+  tr: Beslenme bilgileri
+  vi: Thông tin chế độ ăn
+  id: Informasi diet
+  pl: Informacje żywieniowe
+  nl: Voedingsinformatie
+  ar: معلومات غذائية
+  hi: आहार संबंधी जानकारी
+  th: ข้อมูลอาหาร
+  cs: Informace o stravování
+  sv: Kostinformation
+  he: מידע תזונתי
+  verified_by_human: []
+categories:
+  context: Accessible label for compact result embed facts and explanations
+  en: Categories
+  de: Kategorien
+  zh: 分类
+  es: Categorías
+  fr: Catégories
+  pt: Categorias
+  ru: Категории
+  ja: カテゴリー
+  ko: 카테고리
+  it: Categorie
+  tr: Kategoriler
+  vi: Danh mục
+  id: Kategori
+  pl: Kategorie
+  nl: Categorieën
+  ar: الفئات
+  hi: श्रेणियाँ
+  th: หมวดหมู่
+  cs: Kategorie
+  sv: Kategorier
+  he: קטגוריות
+  verified_by_human: []
+distance:
+  context: Accessible label for compact result embed facts and explanations
+  en: Distance
+  de: Entfernung
+  zh: 距离
+  es: Distancia
+  fr: Distance
+  pt: Distância
+  ru: Расстояние
+  ja: 距離
+  ko: 거리
+  it: Distanza
+  tr: Mesafe
+  vi: Khoảng cách
+  id: Jarak
+  pl: Odległość
+  nl: Afstand
+  ar: المسافة
+  hi: दूरी
+  th: ระยะทาง
+  cs: Vzdálenost
+  sv: Avstånd
+  he: מרחק
+  verified_by_human: []
+spots:
+  context: Accessible label for compact result embed facts and explanations
+  en: Available spots
+  de: Freie Plätze
+  zh: 可用名额
+  es: Plazas disponibles
+  fr: Places disponibles
+  pt: Vagas disponíveis
+  ru: Свободные места
+  ja: 空き枠
+  ko: 잔여 자리
+  it: Posti disponibili
+  tr: Boş kontenjan
+  vi: Chỗ trống
+  id: Tempat tersedia
+  pl: Dostępne miejsca
+  nl: Beschikbare plekken
+  ar: أماكن متاحة
+  hi: उपलब्ध स्थान
+  th: ที่ว่าง
+  cs: Volná místa
+  sv: Lediga platser
+  he: מקומות פנויים
+  verified_by_human: []
+mode:
+  context: Accessible label for compact result embed facts and explanations
+  en: Mode
+  de: Modus
+  zh: 方式
+  es: Modalidad
+  fr: Modalité
+  pt: Modalidade
+  ru: Формат
+  ja: 形式
+  ko: 방식
+  it: Modalità
+  tr: Katılım türü
+  vi: Hình thức
+  id: Mode
+  pl: Tryb
+  nl: Vorm
+  ar: النمط
+  hi: तरीका
+  th: รูปแบบ
+  cs: Režim
+  sv: Läge
+  he: מצב
+  verified_by_human: []
+disciplines:
+  context: Accessible label for compact result embed facts and explanations
+  en: Disciplines
+  de: Disziplinen
+  zh: 项目
+  es: Disciplinas
+  fr: Disciplines
+  pt: Modalidades
+  ru: Дисциплины
+  ja: 種目
+  ko: 종목
+  it: Discipline
+  tr: Disiplinler
+  vi: Bộ môn
+  id: Cabang
+  pl: Dyscypliny
+  nl: Disciplines
+  ar: التخصصات
+  hi: विधाएँ
+  th: ประเภทกิจกรรม
+  cs: Disciplíny
+  sv: Discipliner
+  he: תחומים
+  verified_by_human: []
+delivery:
+  context: Accessible label for compact result embed facts and explanations
+  en: Delivery
+  de: Lieferung
+  zh: 配送
+  es: Entrega
+  fr: Livraison
+  pt: Entrega
+  ru: Доставка
+  ja: 配送
+  ko: 배송
+  it: Consegna
+  tr: Teslimat
+  vi: Giao hàng
+  id: Pengiriman
+  pl: Dostawa
+  nl: Bezorging
+  ar: التوصيل
+  hi: डिलीवरी
+  th: การจัดส่ง
+  cs: Doručení
+  sv: Leverans
+  he: משלוח
+  verified_by_human: []
+availability_unknown:
+  context: Accessible label for compact result embed facts and explanations
+  en: Availability unknown
+  de: Verfügbarkeit unbekannt
+  zh: 库存未知
+  es: Disponibilidad desconocida
+  fr: Disponibilité inconnue
+  pt: Disponibilidade desconhecida
+  ru: Доступность неизвестна
+  ja: 在庫状況不明
+  ko: 재고 여부 알 수 없음
+  it: Disponibilità sconosciuta
+  tr: Stok durumu bilinmiyor
+  vi: Chưa rõ tình trạng còn hàng
+  id: Ketersediaan tidak diketahui
+  pl: Dostępność nieznana
+  nl: Beschikbaarheid onbekend
+  ar: التوفر غير معروف
+  hi: उपलब्धता अज्ञात
+  th: ไม่ทราบสถานะสินค้า
+  cs: Dostupnost není známa
+  sv: Tillgänglighet okänd
+  he: זמינות לא ידועה
+  verified_by_human: []
+organic:
+  context: Accessible label for compact result embed facts and explanations
+  en: Organic
+  de: Bio
+  zh: 有机
+  es: Ecológico
+  fr: Biologique
+  pt: Orgânico
+  ru: Органический
+  ja: オーガニック
+  ko: 유기농
+  it: Biologico
+  tr: Organik
+  vi: Hữu cơ
+  id: Organik
+  pl: Ekologiczny
+  nl: Biologisch
+  ar: عضوي
+  hi: जैविक
+  th: ออร์แกนิก
+  cs: Bio
+  sv: Ekologisk
+  he: אורגני
+  verified_by_human: []
+vegan:
+  context: Accessible label for compact result embed facts and explanations
+  en: Vegan
+  de: Vegan
+  zh: 纯素
+  es: Vegano
+  fr: Végétalien
+  pt: Vegano
+  ru: Веганский
+  ja: ヴィーガン
+  ko: 비건
+  it: Vegano
+  tr: Vegan
+  vi: Thuần chay
+  id: Vegan
+  pl: Wegański
+  nl: Vegan
+  ar: نباتي صرف
+  hi: वीगन
+  th: วีแกน
+  cs: Veganské
+  sv: Vegansk
+  he: טבעוני
+  verified_by_human: []
+vegetarian:
+  context: Accessible label for compact result embed facts and explanations
+  en: Vegetarian
+  de: Vegetarisch
+  zh: 素食
+  es: Vegetariano
+  fr: Végétarien
+  pt: Vegetariano
+  ru: Вегетарианский
+  ja: ベジタリアン
+  ko: 채식
+  it: Vegetariano
+  tr: Vejetaryen
+  vi: Ăn chay
+  id: Vegetarian
+  pl: Wegetariański
+  nl: Vegetarisch
+  ar: نباتي
+  hi: शाकाहारी
+  th: มังสวิรัติ
+  cs: Vegetariánské
+  sv: Vegetarisk
+  he: צמחוני
+  verified_by_human: []
+dairy_free:
+  context: Accessible label for compact result embed facts and explanations
+  en: Dairy free
+  de: Milchfrei
+  zh: 不含乳制品
+  es: Sin lácteos
+  fr: Sans produits laitiers
+  pt: Sem laticínios
+  ru: Без молочных продуктов
+  ja: 乳製品不使用
+  ko: 유제품 무첨가
+  it: Senza latticini
+  tr: Süt içermez
+  vi: Không chứa sữa
+  id: Bebas susu
+  pl: Bez produktów mlecznych
+  nl: Zuivelvrij
+  ar: خالٍ من الألبان
+  hi: डेयरी मुक्त
+  th: ปราศจากนม
+  cs: Bez mléčných výrobků
+  sv: Mjölkfri
+  he: ללא מוצרי חלב
+  verified_by_human: []
+gluten_free:
+  context: Accessible label for compact result embed facts and explanations
+  en: Gluten free
+  de: Glutenfrei
+  zh: 无麸质
+  es: Sin gluten
+  fr: Sans gluten
+  pt: Sem glúten
+  ru: Без глютена
+  ja: グルテンフリー
+  ko: 글루텐 프리
+  it: Senza glutine
+  tr: Glutensiz
+  vi: Không chứa gluten
+  id: Bebas gluten
+  pl: Bezglutenowy
+  nl: Glutenvrij
+  ar: خالٍ من الغلوتين
+  hi: ग्लूटेन मुक्त
+  th: ปราศจากกลูเตน
+  cs: Bezlepkové
+  sv: Glutenfri
+  he: ללא גלוטן
+  verified_by_human: []
+regional:
+  context: Accessible label for compact result embed facts and explanations
+  en: Regional
+  de: Regional
+  zh: 本地
+  es: Regional
+  fr: Régional
+  pt: Regional
+  ru: Местный
+  ja: 地域産
+  ko: 지역산
+  it: Locale
+  tr: Yerel
+  vi: Địa phương
+  id: Lokal
+  pl: Regionalny
+  nl: Regionaal
+  ar: محلي
+  hi: क्षेत्रीय
+  th: ในท้องถิ่น
+  cs: Regionální
+  sv: Regional
+  he: מקומי
+  verified_by_human: []
+product_attributes:
+  context: Accessible label for compact result embed facts and explanations
+  en: Product attributes
+  de: Produkteigenschaften
+  zh: 产品属性
+  es: Características del producto
+  fr: Caractéristiques du produit
+  pt: Características do produto
+  ru: Характеристики товара
+  ja: 商品の特徴
+  ko: 제품 특성
+  it: Caratteristiche del prodotto
+  tr: Ürün özellikleri
+  vi: Đặc tính sản phẩm
+  id: Atribut produk
+  pl: Cechy produktu
+  nl: Producteigenschappen
+  ar: خصائص المنتج
+  hi: उत्पाद की विशेषताएँ
+  th: คุณลักษณะสินค้า
+  cs: Vlastnosti produktu
+  sv: Produktegenskaper
+  he: מאפייני מוצר
+  verified_by_human: []
+temperature:
+  context: Accessible weather result information label
+  en: Temperature
+  de: Temperatur
+  zh: 温度
+  es: Temperatura
+  fr: Température
+  pt: Temperatura
+  ru: Температура
+  ja: 気温
+  ko: 기온
+  it: Temperatura
+  tr: Sıcaklık
+  vi: Nhiệt độ
+  id: Suhu
+  pl: Temperatura
+  nl: Temperatuur
+  ar: درجة الحرارة
+  hi: तापमान
+  th: อุณหภูมิ
+  cs: Teplota
+  sv: Temperatur
+  he: טמפרטורה
+  verified_by_human: []
+rain_chance:
+  context: Accessible weather result information label
+  en: Chance of rain
+  de: Regenwahrscheinlichkeit
+  zh: 降雨概率
+  es: Probabilidad de lluvia
+  fr: Probabilité de pluie
+  pt: Probabilidade de chuva
+  ru: Вероятность дождя
+  ja: 降水確率
+  ko: 강수 확률
+  it: Probabilità di pioggia
+  tr: Yağmur olasılığı
+  vi: Khả năng mưa
+  id: Peluang hujan
+  pl: Prawdopodobieństwo deszczu
+  nl: Kans op regen
+  ar: احتمال المطر
+  hi: बारिश की संभावना
+  th: โอกาสฝนตก
+  cs: Pravděpodobnost deště
+  sv: Risk för regn
+  he: סיכוי לגשם
+  verified_by_human: []
+precipitation:
+  context: Accessible weather result information label
+  en: Precipitation
+  de: Niederschlag
+  zh: 降水量
+  es: Precipitación
+  fr: Précipitations
+  pt: Precipitação
+  ru: Осадки
+  ja: 降水量
+  ko: 강수량
+  it: Precipitazioni
+  tr: Yağış
+  vi: Lượng mưa
+  id: Curah hujan
+  pl: Opady
+  nl: Neerslag
+  ar: هطول الأمطار
+  hi: वर्षा
+  th: ปริมาณฝน
+  cs: Srážky
+  sv: Nederbörd
+  he: משקעים
+  verified_by_human: []
+rain_hours:
+  context: Accessible weather result information label
+  en: Hours of rain
+  de: Regenstunden
+  zh: 降雨时数
+  es: Horas de lluvia
+  fr: Heures de pluie
+  pt: Horas de chuva
+  ru: Часы дождя
+  ja: 降雨時間
+  ko: 강우 시간
+  it: Ore di pioggia
+  tr: Yağışlı saatler
+  vi: Số giờ mưa
+  id: Jam hujan
+  pl: Godziny deszczu
+  nl: Regenuren
+  ar: ساعات المطر
+  hi: बारिश के घंटे
+  th: จำนวนชั่วโมงที่ฝนตก
+  cs: Hodiny deště
+  sv: Regntimmar
+  he: שעות גשם
+  verified_by_human: []
+wind:
+  context: Accessible weather result information label
+  en: Wind
+  de: Wind
+  zh: 风
+  es: Viento
+  fr: Vent
+  pt: Vento
+  ru: Ветер
+  ja: 風
+  ko: 바람
+  it: Vento
+  tr: Rüzgar
+  vi: Gió
+  id: Angin
+  pl: Wiatr
+  nl: Wind
+  ar: الرياح
+  hi: हवा
+  th: ลม
+  cs: Vítr
+  sv: Vind
+  he: רוח
+  verified_by_human: []
+clouds:
+  context: Accessible weather result information label
+  en: Cloud cover
+  de: Bewölkung
+  zh: 云量
+  es: Nubosidad
+  fr: Couverture nuageuse
+  pt: Nebulosidade
+  ru: Облачность
+  ja: 雲量
+  ko: 운량
+  it: Nuvolosità
+  tr: Bulutluluk
+  vi: Mây che phủ
+  id: Tutupan awan
+  pl: Zachmurzenie
+  nl: Bewolking
+  ar: الغطاء السحابي
+  hi: बादलों की मात्रा
+  th: ปริมาณเมฆ
+  cs: Oblačnost
+  sv: Molnighet
+  he: כיסוי עננים
+  verified_by_human: []
+humidity:
+  context: Accessible weather result information label
+  en: Humidity
+  de: Luftfeuchtigkeit
+  zh: 湿度
+  es: Humedad
+  fr: Humidité
+  pt: Umidade
+  ru: Влажность
+  ja: 湿度
+  ko: 습도
+  it: Umidità
+  tr: Nem
+  vi: Độ ẩm
+  id: Kelembapan
+  pl: Wilgotność
+  nl: Luchtvochtigheid
+  ar: الرطوبة
+  hi: आर्द्रता
+  th: ความชื้น
+  cs: Vlhkost
+  sv: Luftfuktighet
+  he: לחות
+  verified_by_human: []
+hourly_forecast:
+  context: Accessible weather result information label
+  en: Hourly forecast
+  de: Stündliche Vorhersage
+  zh: 逐小时预报
+  es: Pronóstico por horas
+  fr: Prévisions horaires
+  pt: Previsão por hora
+  ru: Почасовой прогноз
+  ja: 時間別予報
+  ko: 시간별 예보
+  it: Previsioni orarie
+  tr: Saatlik tahmin
+  vi: Dự báo theo giờ
+  id: Prakiraan per jam
+  pl: Prognoza godzinowa
+  nl: Uurverwachting
+  ar: التوقعات لكل ساعة
+  hi: प्रति घंटे का पूर्वानुमान
+  th: พยากรณ์รายชั่วโมง
+  cs: Hodinová předpověď
+  sv: Timprognos
+  he: תחזית לפי שעה
+  verified_by_human: []
+no_hourly_data:
+  context: Accessible weather result information label
+  en: Hourly forecast unavailable
+  de: Stündliche Vorhersage nicht verfügbar
+  zh: 暂无逐小时预报
+  es: Pronóstico por horas no disponible
+  fr: Prévisions horaires indisponibles
+  pt: Previsão por hora indisponível
+  ru: Почасовой прогноз недоступен
+  ja: 時間別予報はありません
+  ko: 시간별 예보 없음
+  it: Previsioni orarie non disponibili
+  tr: Saatlik tahmin mevcut değil
+  vi: Chưa có dự báo theo giờ
+  id: Prakiraan per jam tidak tersedia
+  pl: Prognoza godzinowa niedostępna
+  nl: Uurverwachting niet beschikbaar
+  ar: التوقعات لكل ساعة غير متاحة
+  hi: प्रति घंटे का पूर्वानुमान उपलब्ध नहीं
+  th: ไม่มีพยากรณ์รายชั่วโมง
+  cs: Hodinová předpověď není k dispozici
+  sv: Timprognos saknas
+  he: תחזית לפי שעה אינה זמינה
+  verified_by_human: []

@@ -10,7 +10,8 @@
 const defaultProps = {
 	prompt: 'A serene mountain landscape at sunset with vibrant orange and purple skies',
 	model: 'flux-schnell',
-	aspectRatio: '16:9',
+	previewImageUrl: '/images/examples/group1.jpg',
+	aspect_ratio: '16:9',
 	status: 'finished',
 	skillId: 'generate' as const,
 	generatedAt: '2026-02-17T10:30:00Z',
@@ -61,7 +62,7 @@ export const variants = {
 	/** Square aspect ratio */
 	square: {
 		...defaultProps,
-		aspectRatio: '1:1',
+		aspect_ratio: '1:1',
 		prompt: 'A detailed portrait of a robot reading a book in a cozy library'
 	}
 };

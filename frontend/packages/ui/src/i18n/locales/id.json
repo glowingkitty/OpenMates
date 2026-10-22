@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Asuransi"
+    },
+    "rating": {
+      "text": "Penilaian"
+    },
+    "difficulty": {
+      "text": "Tingkat kesulitan"
+    },
+    "dietary": {
+      "text": "Informasi diet"
+    },
+    "categories": {
+      "text": "Kategori"
+    },
+    "distance": {
+      "text": "Jarak"
+    },
+    "spots": {
+      "text": "Tempat tersedia"
+    },
+    "mode": {
+      "text": "Mode"
+    },
+    "disciplines": {
+      "text": "Cabang"
+    },
+    "delivery": {
+      "text": "Pengiriman"
+    },
+    "availability_unknown": {
+      "text": "Ketersediaan tidak diketahui"
+    },
+    "organic": {
+      "text": "Organik"
+    },
+    "vegan": {
+      "text": "Vegan"
+    },
+    "vegetarian": {
+      "text": "Vegetarian"
+    },
+    "dairy_free": {
+      "text": "Bebas susu"
+    },
+    "gluten_free": {
+      "text": "Bebas gluten"
+    },
+    "regional": {
+      "text": "Lokal"
+    },
+    "product_attributes": {
+      "text": "Atribut produk"
+    },
+    "temperature": {
+      "text": "Suhu"
+    },
+    "rain_chance": {
+      "text": "Peluang hujan"
+    },
+    "precipitation": {
+      "text": "Curah hujan"
+    },
+    "rain_hours": {
+      "text": "Jam hujan"
+    },
+    "wind": {
+      "text": "Angin"
+    },
+    "clouds": {
+      "text": "Tutupan awan"
+    },
+    "humidity": {
+      "text": "Kelembapan"
+    },
+    "hourly_forecast": {
+      "text": "Prakiraan per jam"
+    },
+    "no_hourly_data": {
+      "text": "Prakiraan per jam tidak tersedia"
     }
   },
   "rules": {},

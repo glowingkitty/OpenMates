@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "保险"
+    },
+    "rating": {
+      "text": "评分"
+    },
+    "difficulty": {
+      "text": "难度"
+    },
+    "dietary": {
+      "text": "饮食信息"
+    },
+    "categories": {
+      "text": "分类"
+    },
+    "distance": {
+      "text": "距离"
+    },
+    "spots": {
+      "text": "可用名额"
+    },
+    "mode": {
+      "text": "方式"
+    },
+    "disciplines": {
+      "text": "项目"
+    },
+    "delivery": {
+      "text": "配送"
+    },
+    "availability_unknown": {
+      "text": "库存未知"
+    },
+    "organic": {
+      "text": "有机"
+    },
+    "vegan": {
+      "text": "纯素"
+    },
+    "vegetarian": {
+      "text": "素食"
+    },
+    "dairy_free": {
+      "text": "不含乳制品"
+    },
+    "gluten_free": {
+      "text": "无麸质"
+    },
+    "regional": {
+      "text": "本地"
+    },
+    "product_attributes": {
+      "text": "产品属性"
+    },
+    "temperature": {
+      "text": "温度"
+    },
+    "rain_chance": {
+      "text": "降雨概率"
+    },
+    "precipitation": {
+      "text": "降水量"
+    },
+    "rain_hours": {
+      "text": "降雨时数"
+    },
+    "wind": {
+      "text": "风"
+    },
+    "clouds": {
+      "text": "云量"
+    },
+    "humidity": {
+      "text": "湿度"
+    },
+    "hourly_forecast": {
+      "text": "逐小时预报"
+    },
+    "no_hourly_data": {
+      "text": "暂无逐小时预报"
     }
   },
   "rules": {},

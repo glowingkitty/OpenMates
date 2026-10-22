@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
 
   Fullscreen detail view for a single travel connection (child embed).
-  Uses EntryWithMapTemplate for map-background layout with overlapping detail card.
+  Uses ResultEmbedFullscreen for map-background layout with overlapping detail card.
 
   Layout (wide):
   - Gradient header: price, route, trip info, CTA
@@ -18,7 +18,9 @@
 -->
 
 <script lang="ts">
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import transportIconUrl from '../../../../static/icons/travel.svg';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { onDestroy } from 'svelte';
@@ -534,6 +536,7 @@
   });
 
   /** Airline logos for the header area (from carrier codes) */
+  let failedHeaderLogos = $state<string[]>([]);
   let headerAirlineLogos = $derived.by(() => {
     const conn = connection as MaybeConnection;
     const codes = conn?.carrier_codes;
@@ -1292,7 +1295,7 @@
    * Uses jspdf (dynamically imported) to create a clean A4 document
    * with route, price, date, leg details, and carrier info.
    */
-  async function _handleDownload() {
+  async function handleDownload() {
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -1440,7 +1443,7 @@
   }
   
   // ---------------------------------------------------------------------------
-  // Route map (via EntryWithMapTemplate's onMapReady callback)
+  // Route map (via ResultEmbedFullscreen's onMapReady callback)
   // ---------------------------------------------------------------------------
 
   /** Leaflet module reference (set by onMapReady) */
@@ -1686,7 +1689,7 @@
   });
 
   /**
-   * onMapReady callback for EntryWithMapTemplate.
+   * onMapReady callback for ResultEmbedFullscreen.
    * Called with the raw Leaflet map instance and L module when the map is mounted.
    * Draws segment-colored route lines, FR24 tracks, and stop markers.
    */
@@ -1775,11 +1778,13 @@
 </script>
 
 {#if connection}
-<EntryWithMapTemplate
+<ResultEmbedFullscreen
+  result={connection as unknown as Record<string, unknown>}
   appId="travel"
   skillId="connection"
   {onClose}
   onCopy={handleCopy}
+  onDownload={handleDownload}
   skillIconName="travel"
   embedHeaderTitle={priceHeader}
   embedHeaderSubtitle={headerSubtitle}
@@ -1800,7 +1805,8 @@
         {#each headerAirlineLogos as logo}
           <img
             class="header-airline-logo"
-            src={logo.url}
+            src={failedHeaderLogos.includes(logo.url) ? transportIconUrl : logo.url}
+            onerror={() => { if (!failedHeaderLogos.includes(logo.url)) failedHeaderLogos = [...failedHeaderLogos, logo.url]; }}
             alt={logo.code}
             width="28"
             height="28"
@@ -1825,7 +1831,13 @@
     </div>
   {/snippet}
 
-  {#snippet detailContent(_childContext)}
+  {#snippet summary()}
+    {#if formattedPrice}<ResultEmbedInfo icon="euro" label="Fare" value={formattedPrice}>{fareSummary || formattedPrice}</ResultEmbedInfo>{/if}
+    {#if connection.duration}<ResultEmbedInfo icon="clock" label="Journey duration" value={connection.duration}>{connection.duration}</ResultEmbedInfo>{/if}
+    {#if travelClassLabel}<ResultEmbedInfo icon="armchair" label="Travel class" value={travelClassLabel}>{travelClassLabel}</ResultEmbedInfo>{/if}
+  {/snippet}
+
+  {#snippet detailContent()}
     <div class="flight-card" data-testid="flight-details-card">
       {#if routeHeaderWithFlags}
         <div class="route-header-pill" data-testid="route-header">{routeHeaderWithFlags}</div>
@@ -2020,7 +2032,7 @@
       {/if}
     </div>
   {/snippet}
-</EntryWithMapTemplate>
+</ResultEmbedFullscreen>
 {/if}
 
 <style>

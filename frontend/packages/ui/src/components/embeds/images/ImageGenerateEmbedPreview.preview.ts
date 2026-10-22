@@ -12,6 +12,7 @@ const defaultProps = {
 	skillId: 'generate' as const,
 	prompt: 'A serene mountain landscape at sunset with vibrant orange and purple skies',
 	model: 'flux-schnell',
+	previewImageUrl: '/images/examples/group1.jpg',
 	status: 'finished' as const,
 	isMobile: false,
 	onFullscreen: () => {}

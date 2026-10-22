@@ -16,8 +16,9 @@
 
 <script lang="ts">
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { proxyFavicon, proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
 
   interface Props {
     /** Unique embed ID */
@@ -80,6 +81,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
   appId="images"
   skillId="image_result"
@@ -96,6 +98,8 @@
   onStop={handleStop}
 >
   {#snippet details()}
+    <ResultEmbedCard title={title || "Image"} sourceLabel={sourceDomain} faviconUrl={proxyFavicon(faviconUrl)} mediaFit="contain">
+      {#snippet media()}
     <div class="image-result-content">
       {#if displayImage && !imageFailed && status === 'finished'}
         <img
@@ -108,11 +112,7 @@
           onerror={handleFail}
           use:handleImageError
         />
-        {#if imageLoaded && title}
-          <div class="card-overlay">
-            <span class="result-title">{title}</span>
-          </div>
-        {/if}
+
       {:else if status === 'processing'}
         <div class="skeleton-image"></div>
       {:else}
@@ -121,6 +121,8 @@
         </div>
       {/if}
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -163,30 +165,7 @@
     background: var(--color-grey-40, #bbb) !important;
   }
 
-  .card-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    padding: 12px 14px 32px;
-    background: linear-gradient(rgba(0, 0, 0, 0.5), transparent);
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
 
-  .result-title {
-    font-size: var(--font-size-xxs);
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.95);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word;
-  }
 
   .skeleton-image {
     width: 100%;

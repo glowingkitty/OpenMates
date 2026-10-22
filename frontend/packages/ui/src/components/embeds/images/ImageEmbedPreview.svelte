@@ -31,6 +31,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
@@ -444,6 +445,7 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview={true}
   {id}
   {localOnly}
   appId="images"
@@ -461,6 +463,8 @@
   customHeight={isPortrait ? portraitCardHeight : undefined}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
+    <ResultEmbedCard title={filename || skillName} sourceLabel={statusText} mediaFit="contain">
+      {#snippet media()}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 
       {#if displayUrl && !imageError}
@@ -469,39 +473,10 @@
           Shown full-bleed with no overlay — status is communicated via the
           card's subtitle (customStatusText), not drawn on top of the image.
         -->
-        {#if isFullscreenEnabled}
-          <div
-            class="image-content clickable"
-            onclick={onFullscreen}
-            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFullscreen?.(); } }}
-            role="button"
-            tabindex="0"
-          >
-            <img
-              src={displayUrl}
-              alt={filename || 'Uploaded image'}
-              class="preview-image"
-              class:portrait={isPortrait}
-              onload={handleImageLoad}
-            />
-            {#if status === 'finished'}
-              <ImageAuthenticityBadge {aiDetection} />
-            {/if}
-          </div>
-        {:else}
-          <div class="image-content">
-            <img
-              src={displayUrl}
-              alt={filename || 'Uploaded image'}
-              class="preview-image"
-              class:portrait={isPortrait}
-              onload={handleImageLoad}
-            />
-            {#if status === 'finished'}
-              <ImageAuthenticityBadge {aiDetection} />
-            {/if}
-          </div>
-        {/if}
+        <div class="image-content">
+          <img src={displayUrl} alt={filename || 'Uploaded image'} class="preview-image" class:portrait={isPortrait} onload={handleImageLoad} />
+          {#if status === 'finished'}<ImageAuthenticityBadge {aiDetection} />{/if}
+        </div>
 
       {:else if imageError}
         <!-- S3 decryption failed (read-only context) -->
@@ -521,6 +496,8 @@
       {/if}
 
     </div>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -550,14 +527,11 @@
     background: var(--color-grey-10, #f5f5f5);
   }
 
-  .image-content.clickable {
-    cursor: zoom-in;
-  }
 
   .preview-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
     transition: opacity var(--duration-fast) var(--easing-default);
   }
@@ -572,9 +546,6 @@
     background: var(--color-grey-20, #f0f0f0);
   }
 
-  .image-content.clickable:hover .preview-image {
-    opacity: 0.92;
-  }
 
   /* Loading skeleton */
   .skeleton-content {

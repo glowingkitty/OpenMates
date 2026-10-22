@@ -32,7 +32,7 @@ test.describe('Image result fullscreen preview', () => {
 		);
 		await expect(page.getByTestId('image-result-fullscreen-placeholder')).toHaveCount(0);
 		await expect(page.locator('.result-title')).toHaveText('Golden Gate Bridge at dusk');
-		await expect(page.locator('.source-link')).toHaveAttribute('href', 'https://unsplash.com/photos/Cs99I6PYLlk');
+		await expect(page.getByTestId('image-result-source')).toHaveAttribute('href', 'https://unsplash.com/photos/Cs99I6PYLlk');
 		await expect(page.locator('.open-image-link')).toHaveAttribute(
 			'href',
 			'https://images.unsplash.com/photo-1501594907352-04cda38ebc29'
@@ -55,7 +55,7 @@ test.describe('Image result fullscreen preview', () => {
 		await expect(placeholder).toHaveCSS('width', '200px');
 		await expect(placeholder).toHaveCSS('height', '200px');
 		await expect(page.getByTestId('image-result-fullscreen-image')).toHaveCount(0);
-		await expect(page.locator('.source-link')).toHaveAttribute('href', 'https://unsplash.com/photos/Cs99I6PYLlk');
+		await expect(page.getByTestId('image-result-source')).toHaveAttribute('href', 'https://unsplash.com/photos/Cs99I6PYLlk');
 		await expect(page.locator('.open-image-link')).toHaveAttribute('href', 'data:image/png;base64,invalid-image');
 	});
 });

@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "ประกัน"
+    },
+    "rating": {
+      "text": "คะแนน"
+    },
+    "difficulty": {
+      "text": "ความยาก"
+    },
+    "dietary": {
+      "text": "ข้อมูลอาหาร"
+    },
+    "categories": {
+      "text": "หมวดหมู่"
+    },
+    "distance": {
+      "text": "ระยะทาง"
+    },
+    "spots": {
+      "text": "ที่ว่าง"
+    },
+    "mode": {
+      "text": "รูปแบบ"
+    },
+    "disciplines": {
+      "text": "ประเภทกิจกรรม"
+    },
+    "delivery": {
+      "text": "การจัดส่ง"
+    },
+    "availability_unknown": {
+      "text": "ไม่ทราบสถานะสินค้า"
+    },
+    "organic": {
+      "text": "ออร์แกนิก"
+    },
+    "vegan": {
+      "text": "วีแกน"
+    },
+    "vegetarian": {
+      "text": "มังสวิรัติ"
+    },
+    "dairy_free": {
+      "text": "ปราศจากนม"
+    },
+    "gluten_free": {
+      "text": "ปราศจากกลูเตน"
+    },
+    "regional": {
+      "text": "ในท้องถิ่น"
+    },
+    "product_attributes": {
+      "text": "คุณลักษณะสินค้า"
+    },
+    "temperature": {
+      "text": "อุณหภูมิ"
+    },
+    "rain_chance": {
+      "text": "โอกาสฝนตก"
+    },
+    "precipitation": {
+      "text": "ปริมาณฝน"
+    },
+    "rain_hours": {
+      "text": "จำนวนชั่วโมงที่ฝนตก"
+    },
+    "wind": {
+      "text": "ลม"
+    },
+    "clouds": {
+      "text": "ปริมาณเมฆ"
+    },
+    "humidity": {
+      "text": "ความชื้น"
+    },
+    "hourly_forecast": {
+      "text": "พยากรณ์รายชั่วโมง"
+    },
+    "no_hourly_data": {
+      "text": "ไม่มีพยากรณ์รายชั่วโมง"
     }
   },
   "rules": {},

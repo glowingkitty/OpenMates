@@ -90,15 +90,15 @@ test('expanded and full-image previews keep one visible info bar above content',
   await page.goto('/dev/preview/embeds/images/ImageResultEmbedPreview?chrome=0&theme=light');
   await waitForComponentPreview(page);
   const imageCard = page.getByTestId('embed-preview');
-  await expect(imageCard.getByTestId('embed-basic-infos-bar')).toHaveCount(1);
+  await expect(imageCard.getByTestId('embed-basic-infos-bar')).toHaveCount(0);
+  await expect(imageCard.getByTestId('result-card-title')).toBeVisible();
+  await expect(imageCard.getByTestId('image-result-preview-image')).toHaveCSS('object-fit', 'contain');
   const imageBounds = await imageCard.evaluate((element) => {
     const card = element.getBoundingClientRect();
-    const bar = element.querySelector('[data-testid="embed-basic-infos-bar"]')!.getBoundingClientRect();
-    const details = element.querySelector('.details-section.full-width-image')!.getBoundingClientRect();
-    return { cardBottom: card.bottom, barBottom: bar.bottom, detailsTop: details.top, detailsBottom: details.bottom };
+    const content = element.querySelector('[data-testid="result-card-content"]')!.getBoundingClientRect();
+    return { cardBottom: card.bottom, contentBottom: content.bottom };
   });
-  expect(imageBounds.barBottom).toBeLessThanOrEqual(imageBounds.detailsTop + 1);
-  expect(imageBounds.detailsBottom).toBeLessThanOrEqual(imageBounds.cardBottom + 1);
+  expect(imageBounds.contentBottom).toBeLessThanOrEqual(imageBounds.cardBottom + 1);
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.preview-info-top

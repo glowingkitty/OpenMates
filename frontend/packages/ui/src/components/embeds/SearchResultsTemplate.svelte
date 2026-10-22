@@ -29,6 +29,7 @@
   import { text } from '@repo/ui';
   import { onDestroy, getContext, tick } from 'svelte';
   import { getAppsLibrary, isAppsSearchSaved, appsSearchQuery, saveAppsSearchWithNotice, type AppsLibrary } from '../../services/appsWorkspaceLibraryService';
+  import { extractResultRoute, buildResultRoutePaths, buildResultMapMarkers } from './resultMapRoutes';
   import { searchResultMapMarkers } from './searchResultMapMarkers';
   import { getLucideIcon } from '../../utils/categoryUtils';
   import EmbedLeafletMap from './EmbedLeafletMap.svelte';
@@ -71,6 +72,8 @@
     // ── UnifiedEmbedFullscreen passthrough props ──
     testId?: string;
     closeTestId?: string;
+    headerActions?: Snippet;
+    headerActionCount?: number;
     appId: string;
     skillId?: string;
     embedHeaderTitle?: string;
@@ -95,6 +98,8 @@
     childEmbedTransformer?: (embedId: string, content: Record<string, unknown>) => T;
     /** Legacy results fallback (pre-child-embed format) */
     legacyResults?: unknown[];
+    /** Local fixture/result IDs have no global fullscreen route. */
+    localResults?: boolean;
     /** Transform legacy results to typed results */
     legacyResultTransformer?: (results: unknown[]) => T[];
     /** Initial child embed ID to auto-open (from inline badge click) */
@@ -107,6 +112,7 @@
     // ── Template configuration ──
     /** Minimum card width for the CSS grid (default: '280px') */
     minCardWidth?: string;
+    gridTestId?: string;
     /** Max width for the results grid container (default: '1000px') */
     maxGridWidth?: string;
     /** Number of skeleton cards to show while loading (default: 6) */
@@ -115,6 +121,7 @@
     errorMessage?: string;
     /** Optional data-testid for the empty state. */
     emptyTestId?: string;
+    emptyContent?: Snippet;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Original search query string. Kept for callers that also display it elsewhere. */
@@ -135,6 +142,8 @@
     // Unified passthrough
     testId,
     closeTestId,
+    headerActions,
+    headerActionCount,
     appId,
     skillId,
     embedHeaderTitle,
@@ -156,6 +165,7 @@
     embedIds,
     childEmbedTransformer,
     legacyResults,
+    localResults = false,
     legacyResultTransformer,
     initialChildEmbedId,
     onEmbedDataUpdated,
@@ -163,10 +173,12 @@
 
     // Template config
     minCardWidth = '280px',
+    gridTestId = 'search-template-grid',
     maxGridWidth = '1000px',
     skeletonCount = 6,
     errorMessage: errorMessageProp,
     emptyTestId = 'search-template-empty',
+    emptyContent,
     status = 'finished',
     query,
     filters,
@@ -245,7 +257,9 @@
   function updateFilterPanelHeight() {
     if (filtersOpen && filterPanel) {
       const scrollport = filterPanel.closest('.content-area');
-      const bottom = Math.min(window.innerHeight, scrollport?.getBoundingClientRect().bottom ?? window.innerHeight);
+      const composer = filterPanel.closest('.fullscreen-container')?.querySelector('[data-testid="embed-fixed-bottom"]');
+      const bottom = Math.min(window.innerHeight, scrollport?.getBoundingClientRect().bottom ?? window.innerHeight,
+        composer?.getBoundingClientRect().top ?? window.innerHeight);
       filterPanelHeight = Math.max(160, Math.min(535, bottom - filterPanel.getBoundingClientRect().top - 16));
     }
   }
@@ -307,7 +321,24 @@
   let selectedIndex = $state(-1);
   /** All loaded results for sibling navigation */
   let allResults = $state<T[]>([]);
-  const mapMarkers = $derived(searchResultMapMarkers(allResults.filter(matchesFilter), {home: appId === 'home', translate: $text}));
+  let hoveredResultRef = $state<string>();
+  let focusedResultRef = $state<string>();
+  const activeMapRefs = $derived(new Set([hoveredResultRef ?? focusedResultRef].filter((ref): ref is string => !!ref)));
+  const filteredMapResults = $derived(allResults.filter(matchesFilter));
+  const routeEntries = $derived(appId === 'travel' ? filteredMapResults.map(result => ({
+    ref: result.embed_id,
+    title: typeof (result as Record<string, unknown>).title === 'string' ? String((result as Record<string, unknown>).title) : '',
+    color: 'var(--color-app-travel-start)',
+    route: extractResultRoute(result as Record<string, unknown>),
+  })).filter(entry => entry.route.length > 1) : []);
+  const mapPaths = $derived(buildResultRoutePaths(routeEntries, activeMapRefs));
+  const mapMarkers = $derived(appId === 'travel' && routeEntries.length
+    ? buildResultMapMarkers(routeEntries, activeMapRefs, null, 'search-result')
+    : searchResultMapMarkers(filteredMapResults, {home: appId === 'home', translate: $text}));
+  function openMapResult(ref: string) {
+    const index = allResults.findIndex(result => result.embed_id === ref);
+    if (index >= 0) handleResultSelect(index, allResults);
+  }
   let selectedResult = $derived(selectedIndex >= 0 ? allResults[selectedIndex] ?? null : null);
 
   let initialChildLookupComplete = $state(false);
@@ -399,7 +430,7 @@
     // synthetic IDs that are only valid inside this mounted fullscreen; publishing
     // them to the global hash makes the app-level resolver chase an unresolvable
     // embed and can hide the nested child overlay.
-    if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+    if (!localResults && result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
       if (currentEmbedId) {
         setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
       } else {
@@ -414,7 +445,7 @@
       onClose();
     } else {
       selectedIndex = -1;
-      restorePreviousFullscreenRoute(currentEmbedId ?? null);
+      if (!localResults) restorePreviousFullscreenRoute(currentEmbedId ?? null);
     }
   }
 
@@ -430,7 +461,7 @@
     if (selectedIndex > 0) {
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
-      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+      if (!localResults && result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
         if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
         else setCanonicalFullscreenRoute(result.embed_id);
       }
@@ -441,7 +472,7 @@
     if (selectedIndex < allResults.length - 1) {
       selectedIndex += 1;
       const result = allResults[selectedIndex];
-      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+      if (!localResults && result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
         if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
         else setCanonicalFullscreenRoute(result.embed_id);
       }
@@ -474,12 +505,16 @@
 -->
 
   {#snippet mapHeader()}
-      <EmbedLeafletMap center={mapMarkers[0]} markers={mapMarkers} height="300px" fitBounds={true} scrollWheelZoom={false}
-        onMarkerSelect={(ref) => { const index = allResults.findIndex(result => result.embed_id === ref); if (index >= 0) handleResultSelect(index, allResults); }} />
+      <div data-testid="search-results-map" data-route-count={mapPaths.length}>
+        <EmbedLeafletMap center={mapMarkers[0] ?? mapPaths[0]?.points[0]} markers={mapMarkers} paths={mapPaths} height="300px" fitBounds={true} scrollWheelZoom={false}
+          zoomControlPosition="topleft" controlStyle="compact" onMarkerSelect={openMapResult} onRouteSelect={openMapResult} />
+      </div>
   {/snippet}
 
   {#snippet followupComposer()}
-      <AppsRequestComposer {appId} submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
+    <div class="result-followup">
+      <AppsRequestComposer presentation="embed" {appId} submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
+    </div>
   {/snippet}
 
 {#snippet searchHeaderActions()}
@@ -500,9 +535,12 @@
   headerPrimaryAction={!initialChildEmbedId ? searchHeaderActions : undefined}
   {testId}
   {closeTestId}
+  {headerActions}
+  {headerActionCount}
   {appId}
   {skillId}
-  {embedHeaderTitle}
+  embedHeaderTitle={displayQuery}
+  embedHeaderTitleTestId={mapMarkers.length ? undefined : 'search-template-query'}
   {embedHeaderSubtitle}
   {embedHeaderFaviconUrl}
   {skillIconName}
@@ -533,14 +571,14 @@
   {onEmbedDataUpdated}
   {embedHeaderCta}
   embedHeaderContent={mapMarkers.length > 0 && !initialChildEmbedId ? mapHeader : undefined}
+  floatingBottom={true}
   fixedBottom={!initialChildEmbedId ? followupComposer : undefined}
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}
     {#if !initialChildEmbedId && status !== 'error'}
       <div class="search-template-summary" data-testid="search-template-summary">
-        <p>{$text('apps_workspace.results_for')}</p>
-        <h2 data-testid="search-template-query">{displayQuery}</h2>
+        {#if mapMarkers.length}<h2 data-testid="search-template-query">{displayQuery}</h2>{/if}
         <div class="search-template-actions">
           {#if skillId && (actions?.onSaveSearch || parentContent.input || query)}
             <button type="button" class="search-link" class:search-saved={searchSaved}
@@ -590,25 +628,34 @@
         </div>
       {:else}
         <div class="search-template-empty" data-testid={emptyTestId}>
+          {#if emptyContent}{@render emptyContent()}{:else}
           <p data-testid="search-no-results-message">
             {$text('embeds.search_no_results')}
           </p>
+          {/if}
         </div>
       {/if}
     {:else}
       {#if !results.some(matchesFilter)}
-        <div class="search-template-empty" role="status">{$text('embeds.search_no_results')}</div>
+        <div class="search-template-empty" data-testid={emptyTestId} role="status">
+          {#if emptyContent}{@render emptyContent()}{:else}{$text('embeds.search_no_results')}{/if}
+        </div>
       {/if}
       <!-- Results grid -->
       <div
         class="search-template-grid"
-        data-testid="search-template-grid"
+        data-testid={gridTestId}
         inert={filtersOpen && Boolean(filters)}
         data-selected-index={selectedIndex}
         style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};"
       >
         {#each results as result, i (result.embed_id)}
-          {#if matchesFilter(result)}{@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}{/if}
+          {#if matchesFilter(result)}<div role="group" class="search-result-card" data-result-ref={result.embed_id}
+            onpointerenter={() => hoveredResultRef = result.embed_id} onpointerleave={() => hoveredResultRef = undefined}
+            onfocusin={() => focusedResultRef = result.embed_id}
+            onfocusout={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) focusedResultRef = undefined; }}>
+            {@render resultCard({ result, index: i, onSelect: () => handleResultSelect(i, results) })}
+          </div>{/if}
         {/each}
       </div>
     {/if}
@@ -637,7 +684,6 @@
 
 <style>
   .search-template-summary { padding: var(--spacing-12) var(--spacing-8) var(--spacing-6); text-align: center; }
-  .search-template-summary p { margin: 0 0 var(--spacing-3); color: var(--color-font-secondary); font-size: var(--font-size-small); }
   .search-template-summary h2 { margin: 0; color: var(--color-font-primary); font-size: var(--font-size-h3); overflow-wrap: anywhere; }
   .search-template-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--spacing-6); margin-top: var(--spacing-5); }
   .search-template-actions .search-link { all: unset; display: inline-flex; align-items: center; gap: var(--spacing-2); color: var(--color-font-secondary); font-size: var(--font-size-small); text-decoration: none; cursor: pointer; }
@@ -667,6 +713,7 @@
   .filter-menu button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
   @container fullscreen (max-width: 520px) { .filter-menu { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 20px; padding: 25px 16px 16px; } .filter-menu-summary { gap: 7px; } .filter-summary { font-size: var(--font-size-small); } }
   /* Results grid -- responsive auto-fill columns */
+  .search-result-card { min-width: 0; }
   .search-template-grid {
     display: grid;
     gap: var(--spacing-8);
@@ -674,7 +721,7 @@
     max-width: var(--max-grid-width, 1000px);
     margin: 0 auto;
     padding: var(--spacing-12) var(--spacing-5);
-    padding-bottom: 24px;
+    padding-bottom: 100px;
     box-sizing: border-box;
     overflow: clip;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--min-card-width, 280px)), 1fr));
@@ -706,7 +753,7 @@
   /* Ensure each embed preview card fills grid cell properly */
   .search-template-grid :global(.unified-embed-preview) {
     width: 100%;
-    max-width: 320px;
+    max-width: 300px;
     margin: 0 auto;
   }
 
@@ -716,7 +763,7 @@
   .search-template-grid :global(.unified-embed-preview.desktop) {
     width: 100% !important;
     min-width: unset !important;
-    max-width: 320px !important;
+    max-width: 300px !important;
   }
 
   /* Skeleton loading cards */

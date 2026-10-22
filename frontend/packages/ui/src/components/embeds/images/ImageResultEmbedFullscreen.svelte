@@ -12,7 +12,8 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { resolveImageSourceDomain } from '../../../utils/embedSourceDomain';
@@ -56,20 +57,11 @@
   let imageFailed = $state(false);
   let thumbnailFailed = $state(false);
   let showThumbnail = $state(true); // show thumbnail as placeholder until full image loads
-  let isVerticalImage = $state(false);
 
-  function updateImageOrientation(img: HTMLImageElement) {
-    isVerticalImage = img.naturalHeight > img.naturalWidth;
-  }
 
-  function handleImageLoad(event: Event) {
-    updateImageOrientation(event.currentTarget as HTMLImageElement);
+  function handleImageLoad() {
     imageLoaded = true;
     showThumbnail = false;
-  }
-
-  function handleThumbnailLoad(event: Event) {
-    if (!imageLoaded) updateImageOrientation(event.currentTarget as HTMLImageElement);
   }
 
   function handleImageFail() {
@@ -81,7 +73,9 @@
   let embedHeaderSubtitle = $derived(sourceDomain || '');
 </script>
 
-<UnifiedEmbedFullscreen
+<ResultEmbedFullscreen
+  result={{ title, source_domain: sourceDomain, source_page_url: sourcePageUrl, image_url: imageUrl }}
+  mediaLayout="immersive"
   appId="images"
   skillId="image_result"
   {embedHeaderTitle}
@@ -95,8 +89,13 @@
   {onNavigatePrevious}
   {onNavigateNext}
 >
-  {#snippet content()}
-    <div class="result-fullscreen" class:vertical-image={isVerticalImage}>
+  {#snippet embedHeaderCta()}
+    {#if sourcePageUrl}
+      <EmbedHeaderCtaButton href={sourcePageUrl} label={$text('embeds.image_search.view_source')} testId="image-result-source" />
+    {/if}
+  {/snippet}
+  {#snippet media()}
+    <div class="result-fullscreen" >
       <!-- Image display section -->
       <div class="image-section">
         {#if displayImageUrl && !imageFailed}
@@ -105,16 +104,15 @@
             <img
               src={displayThumbnailUrl}
               alt={title || ''}
-              class="display-image blurred"
-              onload={handleThumbnailLoad}
-              onerror={() => { thumbnailFailed = true; }}
+              class="result-primary-media display-image blurred"
+                onerror={() => { thumbnailFailed = true; }}
               use:handleImageError
             />
           {/if}
           <img
             src={displayImageUrl}
             alt={title || ''}
-            class="display-image"
+            class="result-primary-media display-image"
             data-testid="image-result-fullscreen-image"
             class:hidden={!imageLoaded}
             onload={handleImageLoad}
@@ -125,8 +123,7 @@
           <img
             src={displayThumbnailUrl}
             alt={title || ''}
-            class="display-image"
-            onload={handleThumbnailLoad}
+            class="result-primary-media display-image"
             onerror={() => { thumbnailFailed = true; }}
             use:handleImageError
           />
@@ -137,24 +134,14 @@
         {/if}
       </div>
 
+    </div>
+  {/snippet}
+  {#snippet detailContent()}
       <!-- Metadata section -->
       <div class="meta-section">
         <!-- Title -->
         {#if title}
           <h2 class="result-title">{title}</h2>
-        {/if}
-
-        <!-- Source page link -->
-        {#if sourcePageUrl}
-          <a
-            href={sourcePageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="source-link"
-          >
-            <span class="clickable-icon icon_web link-icon"></span>
-            <span>{$text('embeds.image_search.view_source')}</span>
-          </a>
         {/if}
 
         <!-- Open full image link -->
@@ -170,25 +157,18 @@
           </a>
         {/if}
       </div>
-    </div>
   {/snippet}
-</UnifiedEmbedFullscreen>
+</ResultEmbedFullscreen>
 
 <style>
   .result-fullscreen {
     display: flex;
     flex-direction: column;
     width: 100%;
-    min-height: calc(100vh - 220px);
+    min-height: 0;
     overflow-y: auto;
   }
 
-  .result-fullscreen.vertical-image {
-    flex-direction: row;
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-  }
 
   /* Image section — top by default; left column only for portrait images. */
   .image-section {
@@ -198,32 +178,26 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    padding: var(--spacing-12);
+    padding: 0;
     width: 100%;
-    max-height: min(60vh, 720px);
+    max-height: none;
     min-width: 0;
     overflow: hidden;
     background: var(--color-grey-5, #fafafa);
   }
 
-  .result-fullscreen.vertical-image .image-section {
-    flex: 1;
-    width: auto;
-    max-height: none;
-  }
 
   .display-image {
+    width: 100%;
+    height: auto;
     max-width: 100%;
-    max-height: min(60vh, 720px);
+    max-height: none;
     object-fit: contain;
     border-radius: var(--radius-4);
     box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.15);
     display: block;
   }
 
-  .result-fullscreen.vertical-image .display-image {
-    max-height: 100%;
-  }
 
   .display-image.blurred {
     filter: blur(4px);
@@ -260,17 +234,11 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
-    padding: var(--spacing-12);
+    padding: 0;
     overflow-y: auto;
     align-self: flex-start;
   }
 
-  .result-fullscreen.vertical-image .meta-section {
-    width: 280px;
-    max-width: none;
-    flex-shrink: 0;
-    align-self: center;
-  }
 
   .result-title {
     font-family: 'Lexend Deca', sans-serif;
@@ -282,7 +250,6 @@
     word-break: break-word;
   }
 
-  .source-link,
   .open-image-link {
     display: inline-flex;
     align-items: center;
@@ -294,12 +261,10 @@
     padding: 6px 0;
   }
 
-  .source-link:hover,
   .open-image-link:hover {
     text-decoration: underline;
   }
 
-  .link-icon,
   .open-icon {
     width: 16px;
     height: 16px;
@@ -324,12 +289,10 @@
     background: var(--color-grey-70, #555) !important;
   }
 
-  :global([data-theme="dark"]) .source-link,
   :global([data-theme="dark"]) .open-image-link {
     color: var(--color-primary-40, #7a9ed0);
   }
 
-  :global([data-theme="dark"]) .link-icon,
   :global([data-theme="dark"]) .open-icon {
     background: var(--color-primary-40, #7a9ed0) !important;
   }
@@ -339,25 +302,22 @@
     .result-fullscreen {
       flex-direction: column;
       height: auto;
-      min-height: calc(100vh - 220px);
+      min-height: 0;
       overflow-y: auto;
     }
 
-    .image-section,
-    .result-fullscreen.vertical-image .image-section {
+    .image-section {
       flex: none;
       width: 100%;
-      max-height: min(60vh, 520px);
-      padding: var(--spacing-8);
+      max-height: none;
+      padding: 0;
     }
 
-    .display-image,
-    .result-fullscreen.vertical-image .display-image {
-      max-height: min(60vh, 520px);
+    .display-image {
+      max-height: none;
     }
 
-    .meta-section,
-    .result-fullscreen.vertical-image .meta-section {
+    .meta-section {
       width: 100%;
       max-width: none;
       padding: 0 16px 16px 16px;

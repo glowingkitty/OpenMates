@@ -12,7 +12,7 @@ const defaultProps = {
   description:
     "The Svelte team has announced the stable release of Svelte 5, featuring the new runes reactivity system.",
   favicon: "/favicon.png",
-  thumbnail: "/images/og-image.jpg",
+  thumbnail: "/store-examples/events-1.webp",
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
@@ -26,7 +26,7 @@ export const variants = {
   sourceThumbnailOnly: {
     ...defaultProps,
     thumbnail: undefined,
-    thumbnail_src: '/images/og-image.jpg',
+    thumbnail_src: '/store-examples/events-1.webp',
   },
   /** With navigation arrows */
   withNavigation: {
@@ -51,7 +51,7 @@ export const variants = {
   minimal: {
     url: "https://techcrunch.com/news/article",
     favicon: "/favicon.png",
-    thumbnail: "/images/og-image.jpg",
+    thumbnail: "/store-examples/events-1.webp",
     onClose: () => {},
   },
 };

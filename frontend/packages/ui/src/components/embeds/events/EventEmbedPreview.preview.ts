@@ -37,7 +37,7 @@ const sampleEvent = {
   rsvp_count: 142,
   is_paid: false,
   fee: null,
-  image_url: null,
+  image_url: "/store-examples/home-1.webp",
 };
 
 const sampleOnlineEvent = {
@@ -93,14 +93,14 @@ const defaultProps = {
   id: sampleEvent.embed_id,
   event: sampleEvent,
   isMobile: false,
-  onFullscreen: () =>
-    () => {},
+  onFullscreen: () => console.info('[Preview] travel/event result expanded'),
 };
 
 export default defaultProps;
 
 /** Named variants */
 export const variants = {
+  chat: { ...defaultProps, resultContext: 'chat' as const },
   /** Online event */
   online: {
     id: sampleOnlineEvent.embed_id,

@@ -1,17 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { MapMarker } from "./EmbedLeafletMap.svelte";
+  import type { MapMarker, MapPathPoint, MapRoutePath } from "./EmbedLeafletMap.svelte";
 
   let {
     center,
     markers = [],
     zoom = 13,
     paused = false,
+    path = [],
+    paths = [],
   }: {
     center?: { lat: number; lon: number };
     markers?: MapMarker[];
     zoom?: number;
     paused?: boolean;
+    path?: MapPathPoint[];
+    paths?: MapRoutePath[];
   } = $props();
   let host = $state<HTMLDivElement>();
   let visible = $state(false);
@@ -39,6 +43,9 @@
       {center}
       {markers}
       {zoom}
+      {path}
+      {paths}
+      fitBounds={true}
       height="100%"
       minHeight="120px"
       scrollWheelZoom={false}

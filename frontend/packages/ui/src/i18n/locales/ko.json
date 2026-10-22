@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "보험"
+    },
+    "rating": {
+      "text": "평점"
+    },
+    "difficulty": {
+      "text": "난이도"
+    },
+    "dietary": {
+      "text": "식이 정보"
+    },
+    "categories": {
+      "text": "카테고리"
+    },
+    "distance": {
+      "text": "거리"
+    },
+    "spots": {
+      "text": "잔여 자리"
+    },
+    "mode": {
+      "text": "방식"
+    },
+    "disciplines": {
+      "text": "종목"
+    },
+    "delivery": {
+      "text": "배송"
+    },
+    "availability_unknown": {
+      "text": "재고 여부 알 수 없음"
+    },
+    "organic": {
+      "text": "유기농"
+    },
+    "vegan": {
+      "text": "비건"
+    },
+    "vegetarian": {
+      "text": "채식"
+    },
+    "dairy_free": {
+      "text": "유제품 무첨가"
+    },
+    "gluten_free": {
+      "text": "글루텐 프리"
+    },
+    "regional": {
+      "text": "지역산"
+    },
+    "product_attributes": {
+      "text": "제품 특성"
+    },
+    "temperature": {
+      "text": "기온"
+    },
+    "rain_chance": {
+      "text": "강수 확률"
+    },
+    "precipitation": {
+      "text": "강수량"
+    },
+    "rain_hours": {
+      "text": "강우 시간"
+    },
+    "wind": {
+      "text": "바람"
+    },
+    "clouds": {
+      "text": "운량"
+    },
+    "humidity": {
+      "text": "습도"
+    },
+    "hourly_forecast": {
+      "text": "시간별 예보"
+    },
+    "no_hourly_data": {
+      "text": "시간별 예보 없음"
     }
   },
   "rules": {},

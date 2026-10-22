@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "التأمين"
+    },
+    "rating": {
+      "text": "التقييم"
+    },
+    "difficulty": {
+      "text": "الصعوبة"
+    },
+    "dietary": {
+      "text": "معلومات غذائية"
+    },
+    "categories": {
+      "text": "الفئات"
+    },
+    "distance": {
+      "text": "المسافة"
+    },
+    "spots": {
+      "text": "أماكن متاحة"
+    },
+    "mode": {
+      "text": "النمط"
+    },
+    "disciplines": {
+      "text": "التخصصات"
+    },
+    "delivery": {
+      "text": "التوصيل"
+    },
+    "availability_unknown": {
+      "text": "التوفر غير معروف"
+    },
+    "organic": {
+      "text": "عضوي"
+    },
+    "vegan": {
+      "text": "نباتي صرف"
+    },
+    "vegetarian": {
+      "text": "نباتي"
+    },
+    "dairy_free": {
+      "text": "خالٍ من الألبان"
+    },
+    "gluten_free": {
+      "text": "خالٍ من الغلوتين"
+    },
+    "regional": {
+      "text": "محلي"
+    },
+    "product_attributes": {
+      "text": "خصائص المنتج"
+    },
+    "temperature": {
+      "text": "درجة الحرارة"
+    },
+    "rain_chance": {
+      "text": "احتمال المطر"
+    },
+    "precipitation": {
+      "text": "هطول الأمطار"
+    },
+    "rain_hours": {
+      "text": "ساعات المطر"
+    },
+    "wind": {
+      "text": "الرياح"
+    },
+    "clouds": {
+      "text": "الغطاء السحابي"
+    },
+    "humidity": {
+      "text": "الرطوبة"
+    },
+    "hourly_forecast": {
+      "text": "التوقعات لكل ساعة"
+    },
+    "no_hourly_data": {
+      "text": "التوقعات لكل ساعة غير متاحة"
     }
   },
   "rules": {},

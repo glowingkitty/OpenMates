@@ -9,7 +9,7 @@
 const defaultProps = {
 	id: 'preview-travel-stay-1',
 	name: 'Hotel Maximilian',
-	thumbnail: '',
+	thumbnail: '/store-examples/home-1.webp',
 	hotelClass: 4,
 	overallRating: 4.3,
 	reviews: 1248,
@@ -22,13 +22,14 @@ const defaultProps = {
 	freeCancellation: true,
 	status: 'finished' as const,
 	isMobile: false,
-	onFullscreen: () => {}
+	onFullscreen: () => console.info('[Preview] travel/event result expanded')
 };
 
 export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  chat: { ...defaultProps, resultContext: 'chat' as const },
 	/** Budget option — cheapest */
 	budget: {
 		...defaultProps,

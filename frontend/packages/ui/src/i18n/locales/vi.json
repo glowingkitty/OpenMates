@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Bảo hiểm"
+    },
+    "rating": {
+      "text": "Đánh giá"
+    },
+    "difficulty": {
+      "text": "Độ khó"
+    },
+    "dietary": {
+      "text": "Thông tin chế độ ăn"
+    },
+    "categories": {
+      "text": "Danh mục"
+    },
+    "distance": {
+      "text": "Khoảng cách"
+    },
+    "spots": {
+      "text": "Chỗ trống"
+    },
+    "mode": {
+      "text": "Hình thức"
+    },
+    "disciplines": {
+      "text": "Bộ môn"
+    },
+    "delivery": {
+      "text": "Giao hàng"
+    },
+    "availability_unknown": {
+      "text": "Chưa rõ tình trạng còn hàng"
+    },
+    "organic": {
+      "text": "Hữu cơ"
+    },
+    "vegan": {
+      "text": "Thuần chay"
+    },
+    "vegetarian": {
+      "text": "Ăn chay"
+    },
+    "dairy_free": {
+      "text": "Không chứa sữa"
+    },
+    "gluten_free": {
+      "text": "Không chứa gluten"
+    },
+    "regional": {
+      "text": "Địa phương"
+    },
+    "product_attributes": {
+      "text": "Đặc tính sản phẩm"
+    },
+    "temperature": {
+      "text": "Nhiệt độ"
+    },
+    "rain_chance": {
+      "text": "Khả năng mưa"
+    },
+    "precipitation": {
+      "text": "Lượng mưa"
+    },
+    "rain_hours": {
+      "text": "Số giờ mưa"
+    },
+    "wind": {
+      "text": "Gió"
+    },
+    "clouds": {
+      "text": "Mây che phủ"
+    },
+    "humidity": {
+      "text": "Độ ẩm"
+    },
+    "hourly_forecast": {
+      "text": "Dự báo theo giờ"
+    },
+    "no_hourly_data": {
+      "text": "Chưa có dự báo theo giờ"
     }
   },
   "rules": {},

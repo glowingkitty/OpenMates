@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "बीमा"
+    },
+    "rating": {
+      "text": "रेटिंग"
+    },
+    "difficulty": {
+      "text": "कठिनाई"
+    },
+    "dietary": {
+      "text": "आहार संबंधी जानकारी"
+    },
+    "categories": {
+      "text": "श्रेणियाँ"
+    },
+    "distance": {
+      "text": "दूरी"
+    },
+    "spots": {
+      "text": "उपलब्ध स्थान"
+    },
+    "mode": {
+      "text": "तरीका"
+    },
+    "disciplines": {
+      "text": "विधाएँ"
+    },
+    "delivery": {
+      "text": "डिलीवरी"
+    },
+    "availability_unknown": {
+      "text": "उपलब्धता अज्ञात"
+    },
+    "organic": {
+      "text": "जैविक"
+    },
+    "vegan": {
+      "text": "वीगन"
+    },
+    "vegetarian": {
+      "text": "शाकाहारी"
+    },
+    "dairy_free": {
+      "text": "डेयरी मुक्त"
+    },
+    "gluten_free": {
+      "text": "ग्लूटेन मुक्त"
+    },
+    "regional": {
+      "text": "क्षेत्रीय"
+    },
+    "product_attributes": {
+      "text": "उत्पाद की विशेषताएँ"
+    },
+    "temperature": {
+      "text": "तापमान"
+    },
+    "rain_chance": {
+      "text": "बारिश की संभावना"
+    },
+    "precipitation": {
+      "text": "वर्षा"
+    },
+    "rain_hours": {
+      "text": "बारिश के घंटे"
+    },
+    "wind": {
+      "text": "हवा"
+    },
+    "clouds": {
+      "text": "बादलों की मात्रा"
+    },
+    "humidity": {
+      "text": "आर्द्रता"
+    },
+    "hourly_forecast": {
+      "text": "प्रति घंटे का पूर्वानुमान"
+    },
+    "no_hourly_data": {
+      "text": "प्रति घंटे का पूर्वानुमान उपलब्ध नहीं"
     }
   },
   "rules": {},

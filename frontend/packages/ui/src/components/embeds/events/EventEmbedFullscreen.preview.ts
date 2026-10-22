@@ -44,7 +44,7 @@ const sampleEvent = {
   rsvp_count: 142,
   is_paid: false,
   fee: null,
-  image_url: null,
+  image_url: "/store-examples/home-1.webp",
 };
 
 const sampleOnlineEvent = {
@@ -117,6 +117,10 @@ export default defaultProps;
 
 /** Named variants */
 export const variants = {
+  unknownFee: {
+    data: { decodedContent: { ...sampleEvent, is_paid: undefined, fee: undefined, image_url: null } },
+    onClose: () => {},
+  },
   /** Online event — no venue address */
   online: {
     data: {

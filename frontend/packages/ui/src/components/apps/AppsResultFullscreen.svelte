@@ -35,7 +35,9 @@
     return { ...context, skill_id: typeof decodedContent?.skill_id === 'string' ? decodedContent.skill_id : typeof parentContent?.skill_id === 'string' ? parentContent.skill_id : context.skill_id,
       input: (parentContent?.input && typeof parentContent.input === 'object' ? parentContent.input as Record<string, unknown> : undefined) ?? (decodedContent?.input && typeof decodedContent.input === 'object' ? decodedContent.input as Record<string, unknown> : context.input),
       chat_id: typeof decodedContent?.chat_id === 'string' ? decodedContent.chat_id : typeof data?.chat_id === 'string' ? data.chat_id : typeof parentContent?.chat_id === 'string' ? parentContent.chat_id : context.chat_id,
-      result: { ...parentContent, ...decodedContent, ...context.result } };
+      // A result renderer owns its visible-data projection. Reintroducing the
+      // parent/child transport envelopes here would bypass that privacy boundary.
+      result: context.result !== undefined ? context.result : { ...parentContent, ...decodedContent } };
   }
   if (untrack(() => onSubmit)) setContext<AppsResultsActionsContext>(APPS_RESULTS_ACTIONS_CONTEXT, {
     onSubmit: (text, attachments, context) => onSubmit!(text, attachments, enrichContext(context)),

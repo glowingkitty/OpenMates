@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Pojištění"
+    },
+    "rating": {
+      "text": "Hodnocení"
+    },
+    "difficulty": {
+      "text": "Obtížnost"
+    },
+    "dietary": {
+      "text": "Informace o stravování"
+    },
+    "categories": {
+      "text": "Kategorie"
+    },
+    "distance": {
+      "text": "Vzdálenost"
+    },
+    "spots": {
+      "text": "Volná místa"
+    },
+    "mode": {
+      "text": "Režim"
+    },
+    "disciplines": {
+      "text": "Disciplíny"
+    },
+    "delivery": {
+      "text": "Doručení"
+    },
+    "availability_unknown": {
+      "text": "Dostupnost není známa"
+    },
+    "organic": {
+      "text": "Bio"
+    },
+    "vegan": {
+      "text": "Veganské"
+    },
+    "vegetarian": {
+      "text": "Vegetariánské"
+    },
+    "dairy_free": {
+      "text": "Bez mléčných výrobků"
+    },
+    "gluten_free": {
+      "text": "Bezlepkové"
+    },
+    "regional": {
+      "text": "Regionální"
+    },
+    "product_attributes": {
+      "text": "Vlastnosti produktu"
+    },
+    "temperature": {
+      "text": "Teplota"
+    },
+    "rain_chance": {
+      "text": "Pravděpodobnost deště"
+    },
+    "precipitation": {
+      "text": "Srážky"
+    },
+    "rain_hours": {
+      "text": "Hodiny deště"
+    },
+    "wind": {
+      "text": "Vítr"
+    },
+    "clouds": {
+      "text": "Oblačnost"
+    },
+    "humidity": {
+      "text": "Vlhkost"
+    },
+    "hourly_forecast": {
+      "text": "Hodinová předpověď"
+    },
+    "no_hourly_data": {
+      "text": "Hodinová předpověď není k dispozici"
     }
   },
   "rules": {},

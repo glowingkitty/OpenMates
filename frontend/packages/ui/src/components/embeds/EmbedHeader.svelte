@@ -47,6 +47,7 @@
 
     /** Main title (bold white, centered). */
     title?: string;
+    titleTestId?: string;
     /** Subtitle (smaller, 0.85 opacity). */
     subtitle?: string;
     /** Optional source provenance shown above the subtitle with a cloud icon. */
@@ -84,6 +85,7 @@
     appIconName = '',
     showSkillIcon = true,
     title = '',
+    titleTestId,
     subtitle = '',
     provenance = '',
     faviconUrl,
@@ -309,7 +311,7 @@
       {/if}
 
       {#if title}
-        <div class="header-title">
+        <div class="header-title" data-testid={titleTestId}>
           {#if safeFaviconUrl}
             <img
               src={safeFaviconUrl}

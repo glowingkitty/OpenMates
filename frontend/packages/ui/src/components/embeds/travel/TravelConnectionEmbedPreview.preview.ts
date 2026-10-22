@@ -8,6 +8,7 @@
 /** Default props — shows a finished flight connection card */
 const defaultProps = {
 	id: 'preview-travel-connection-1',
+	connection: { route_points: [{lat: 48.3537, lon: 11.775}, {lat: 51.47, lon: -0.4543}] },
 	price: '189.00',
 	currency: 'EUR',
 	transportMethod: 'airplane',
@@ -25,13 +26,31 @@ const defaultProps = {
 	isCheapest: true,
 	status: 'finished' as const,
 	isMobile: false,
-	onFullscreen: () => {}
+	onFullscreen: () => console.info('[Preview] travel/event result expanded')
 };
 
 export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  brokenCarrier: {
+    ...defaultProps, transportMethod: 'train', bookingProvider: 'Rail provider', carriers: ['Rail provider'], carrierCodes: [],
+    airlineLogo: '/missing-carrier-fixture.png',
+  },
+  roundTripItinerary: {
+    ...defaultProps,
+    tripType: 'round_trip',
+    connection: { legs: [
+      { origin: 'Munich (MUC)', destination: 'London Heathrow (LHR)', departure: '2026-03-15T08:30:00', arrival: '2026-03-15T10:00:00', duration: '2h 30m' },
+      { origin: 'London Heathrow (LHR)', destination: 'Munich (MUC)', departure: '2026-03-22T18:00:00', arrival: '2026-03-22T20:30:00', duration: '1h 30m' },
+    ], route_points: [{lat: 48.3537, lon: 11.775}, {lat: 51.47, lon: -0.4543}] },
+  },
+  trainRealtime: {
+    ...defaultProps, transportMethod: 'train', bookingProvider: 'Deutsche Bahn',
+    carriers: ['Deutsche Bahn'], carrierCodes: [], arrivalDelayMinutes: 12,
+    optimization: { optimized_by: 'openmates', badge: 'Optimized by OpenMates' },
+  },
+  chat: { ...defaultProps, resultContext: 'chat' as const },
 	/** Multi-stop connection */
 	multiStop: {
 		...defaultProps,

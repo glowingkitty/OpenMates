@@ -59,7 +59,12 @@
   onMount(() => {
     const reposition = () => { if (shown) void reveal(); };
     window.addEventListener("scroll", reposition, true);
-    return () => window.removeEventListener("scroll", reposition, true);
+    // Preview cards stop bubbling pointer events; outside dismissal must run first.
+    window.addEventListener("pointerdown", outside, true);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("pointerdown", outside, true);
+    };
   });
   function outside(event: PointerEvent) {
     if (
@@ -70,7 +75,7 @@
   }
 </script>
 
-<svelte:window onpointerdown={outside} onresize={dismiss} />
+<svelte:window onresize={dismiss} />
 
 <div class="result-info">
   <button
@@ -145,10 +150,13 @@
   .result-info {
     display: inline-flex;
     min-width: 0;
+    max-width: 100%;
   }
   .info-trigger {
     all: unset;
     box-sizing: border-box;
+    max-width: 100%;
+    overflow-wrap: anywhere;
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -180,6 +188,8 @@
     background: var(--color-grey-25);
   }
   .fact-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
     display: flex;
     flex-direction: column;
     text-align: left;

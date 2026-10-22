@@ -33,8 +33,8 @@
 -->
 
 <script lang="ts">
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, proxyFavicon, getMetadataUrl, MAX_WIDTH_FAVICON, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   
   // ===========================================
@@ -80,6 +80,8 @@
     favicon?: string;
     /** Preview/thumbnail image URL (if not provided, will be fetched from preview server) */
     image?: string;
+    resultContext?: 'auto' | 'chat' | 'results';
+    publicationDate?: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
     /** Task ID for cancellation */
@@ -104,6 +106,8 @@
     status,
     taskId,
     isMobile = false,
+    resultContext = 'auto',
+    publicationDate,
     onFullscreen
   }: Props = $props();
   
@@ -312,19 +316,6 @@
     return proxyImage(effectiveImage, MAX_WIDTH_PREVIEW_THUMBNAIL);
   });
   
-  // Track image loading errors for graceful fallback
-  let imageLoadError = $state(false);
-  
-  // Determine if we should use full-width image layout (no description, has image)
-  // This is passed to UnifiedEmbedPreview to remove padding from details section
-  // Use cleanedDescription to check for actual visible content (not just HTML tags)
-  let shouldUseFullWidthImage = $derived(
-    !cleanedDescription && 
-    !!imageUrl && 
-    !imageLoadError && 
-    !isMobile
-  );
-  
   // Compute effective status:
   // - If FALLBACK fetch is in progress, show as 'processing' (temporary loading state)
   // - If FALLBACK fetch failed, still show as 'finished' (user sees hostname at minimum)
@@ -379,193 +370,19 @@
 </script>
 
 <UnifiedEmbedPreview
-  {id}
-  appId="news"
-  skillId="article"
-  skillIconName={skillIconName}
-  status={effectiveStatus}
-  skillName={displayTitle}
-  {taskId}
-  {isMobile}
-  onFullscreen={handleFullscreen}
-  onStop={handleStop}
-  showStatus={false}
-  faviconUrl={faviconUrl}
-  showSkillIcon={false}
-  hasFullWidthImage={shouldUseFullWidthImage}
+  {id} appId="news" skillId="article" skillIconName={skillIconName}
+  status={effectiveStatus} skillName={displayTitle} {taskId} {isMobile} {resultContext}
+  resultPreview={true} onFullscreen={handleFullscreen} onStop={handleStop}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="news-details" class:mobile={isMobileLayout}>
-      {#if effectiveStatus === 'processing'}
-        <!-- Processing/Loading state: show hostname only -->
-        <div class="news-hostname">{hostname}</div>
-      {:else if effectiveStatus === 'finished'}
-        <!-- Finished state: description on LEFT, larger image on RIGHT -->
-        <!-- If no description, image takes FULL WIDTH -->
-        <!-- Title and favicon are shown in BasicInfosBar, not here -->
-        <div class="news-content-row" class:no-description={!cleanedDescription}>
-          {#if cleanedDescription}
-            <div class="news-description">{cleanedDescription}</div>
-          {/if}
-          
-          {#if imageUrl && !imageLoadError && !isMobileLayout}
-            <!-- Preview image: full width when no description, right side when description exists -->
-            <div class="news-preview-image" class:full-width={!cleanedDescription}>
-              <img 
-                src={imageUrl} 
-                alt={displayTitle}
-                loading="lazy"
-                crossorigin="anonymous"
-                onerror={(e) => {
-                  imageLoadError = true;
-                  handleImageError(e.currentTarget as HTMLImageElement);
-                  console.debug('[NewsEmbedPreview] Image load error, showing placeholder');
-                }}
-              />
-            </div>
-          {/if}
-        </div>
-      {:else}
-        <!-- Error state -->
-        <div class="news-error">{hostname}</div>
-      {/if}
-    </div>
+  {#snippet resultPrimaryAction()}
+    <a href={url} target="_blank" rel="noopener noreferrer" aria-label={hostname} title={hostname} onclick={(event) => event.stopPropagation()}>↗</a>
+  {/snippet}
+  {#snippet details()}
+    <ResultEmbedCard title={displayTitle} description={cleanedDescription} sourceLabel={hostname} faviconUrl={faviconUrl ?? undefined} imageUrl={imageUrl ?? undefined} imageAlt={displayTitle}>
+      {#snippet badge()}{#if publicationDate}<time class="publication-date" data-testid="news-publication-date">{publicationDate}</time>{/if}{/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-
 <style>
-  /* ===========================================
-     News Details Content
-     =========================================== */
-  
-  .news-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-    height: 100%;
-    width: 100%; /* Ensure full width of parent */
-  }
-  
-  /* Desktop layout: vertically centered content */
-  .news-details:not(.mobile) {
-    justify-content: center;
-  }
-  
-  /* Mobile layout: top-aligned content */
-  .news-details.mobile {
-    justify-content: flex-start;
-  }
-  
-  /* ===========================================
-     News Content Row (description left, image right)
-     =========================================== */
-  
-  .news-content-row {
-    display: flex;
-    align-items: stretch; /* Stretch items to fill height */
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    width: 100%; /* Ensure full width of parent */
-  }
-  
-  /* ===========================================
-     News Description (Left side)
-     =========================================== */
-  
-  .news-description {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.4;
-    flex: 1;
-    min-width: 0;
-    /* Limit lines with ellipsis */
-    display: -webkit-box;
-    -webkit-line-clamp: 6;
-    line-clamp: 6;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-    /* Vertically align text to top */
-    align-self: flex-start;
-    padding-top: var(--spacing-5);
-  }
-  
-  .news-details.mobile .news-description {
-    font-size: var(--font-size-xxs);
-    -webkit-line-clamp: 6;
-    line-clamp: 6;
-  }
-  
-  /* ===========================================
-     Large Preview Image (Right side by default)
-     =========================================== */
-  
-  .news-preview-image {
-    width: 150px;
-    height: 171px;
-    transform: translateX(20px);
-  }
-  
-  .news-preview-image img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-  }
-  
-  /* ===========================================
-     Full-Width Image (when no description)
-     =========================================== */
-  
-  /* When no description, make content row fill available width */
-  .news-content-row.no-description {
-    width: 100%;
-  }
-  
-  /* Full-width image styling when no description */
-  .news-preview-image.full-width {
-    width: 100%;
-    min-width: 100%; /* Prevent flex shrinking */
-    height: 100%; /* Fill parent height */
-    transform: none; /* Remove the translateX offset */
-  }
-  
-  .news-preview-image.full-width img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-  }
-  
-  /* When no image, description takes full width */
-  .news-content-row:not(:has(.news-preview-image)) .news-description {
-    flex: 1;
-    max-width: 100%;
-  }
-  
-  /* ===========================================
-     News Hostname (Processing state)
-     =========================================== */
-  
-  .news-hostname {
-    font-size: var(--font-size-small);
-    color: var(--color-grey-70);
-    line-height: 1.3;
-  }
-  
-  .news-details.mobile .news-hostname {
-    font-size: var(--font-size-xxs);
-  }
-  
-  /* ===========================================
-     Error State
-     =========================================== */
-  
-  .news-error {
-    font-size: var(--font-size-small);
-    color: var(--color-error);
-    line-height: 1.3;
-  }
+  .publication-date { display: block; max-width: 12rem; padding: var(--spacing-2) var(--spacing-3); border-radius: var(--radius-3); background: var(--color-grey-0); color: var(--color-font-primary); font-size: var(--font-size-xxs); font-weight: 600; box-shadow: var(--shadow-sm); }
 </style>

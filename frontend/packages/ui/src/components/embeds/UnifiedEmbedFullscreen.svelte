@@ -168,6 +168,7 @@
      * Shown bold and white, centered below the icon.
      */
     embedHeaderTitle?: string;
+    embedHeaderTitleTestId?: string;
     
     /**
      * Subtitle displayed below the title in the header banner.
@@ -405,6 +406,7 @@
     embedHeaderCta,
     // Embed header props
     embedHeaderTitle = '',
+    embedHeaderTitleTestId,
     embedHeaderSubtitle = '',
     embedHeaderPresentation = 'embed',
     embedHeaderCompact = false,
@@ -1463,6 +1465,7 @@
           {showSkillIcon}
           onHeaderIconClick={embedHeaderIconInteractive ? handleEmbedHeaderIconClick : undefined}
           title={embedHeaderTitle}
+          titleTestId={embedHeaderTitleTestId}
           provenance={embedHeaderProvenance}
           subtitle={embedHeaderSubtitle}
           faviconUrl={embedHeaderFaviconUrl}

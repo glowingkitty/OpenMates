@@ -15,8 +15,10 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedCard from '../ResultEmbedCard.svelte';
 
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
     /** Embed ID */
     id: string;
     /** IATA flight number (e.g. 'LH2472') */
@@ -44,6 +46,7 @@
   }
 
   let {
+    resultContext = 'auto',
     id,
     flightNumber,
     departureDate,
@@ -100,6 +103,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="travel"
   skillId="get_flight"
@@ -111,132 +116,14 @@
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="flight-details-preview" class:mobile={isMobileLayout}>
-      <!-- Flight number headline -->
-      <div class="flight-number-row">
-        <span class="flight-number">{flightNumber || '—'}</span>
-        {#if diverted}
-          <span class="diversion-badge">Diverted</span>
-        {/if}
-      </div>
-
-      <!-- Route -->
-      {#if routeDisplay}
-        <div class="route-row">{routeDisplay}</div>
-      {/if}
-
-      <!-- Date -->
-      {#if displayDate}
-        <div class="date-row">{displayDate}</div>
-      {/if}
-
-      <!-- Actual times -->
-      {#if takeoffTime || landingTime}
-        <div class="times-row">
-          {#if takeoffTime}
-            <span class="time">{takeoffTime}</span>
-            <span class="arrow">→</span>
-          {/if}
-          {#if landingTime}
-            <span class="time">{landingTime}</span>
-          {/if}
-        </div>
-      {/if}
-
-      <!-- Track indicator -->
-      <div class="track-indicator">
-        {#if hasTrack}
-          <span class="track-badge">Track available · {trackPointCount} pts</span>
-        {:else if status === 'processing'}
-          <span class="track-badge track-loading">Loading track…</span>
-        {:else}
-          <span class="track-badge track-unavailable">No track data</span>
-        {/if}
-      </div>
-    </div>
+  {#snippet details()}
+    <ResultEmbedCard title={flightNumber || 'Flight Track'} description={routeDisplay} sourceLabel="Flightradar24" textFirst>
+      {#snippet facts()}
+        {#if displayDate}<span>{displayDate}</span>{/if}
+        {#if takeoffTime || landingTime}<span>{takeoffTime || '—'} → {landingTime || '—'}</span>{/if}
+        {#if diverted}<strong>Diverted</strong>{/if}
+        <span>{hasTrack ? `Track available · ${trackPointCount} pts` : status === 'processing' ? 'Loading track…' : 'No track data'}</span>
+      {/snippet}
+    </ResultEmbedCard>
   {/snippet}
 </UnifiedEmbedPreview>
-
-<style>
-  .flight-details-preview {
-    padding: 2px 0 4px;
-  }
-
-  .flight-number-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    margin-bottom: 3px;
-  }
-
-  .flight-number {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    letter-spacing: 0.02em;
-  }
-
-  .diversion-badge {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--color-warning, #f59e0b);
-    background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
-    border-radius: var(--radius-1);
-    padding: 1px 6px;
-  }
-
-  .route-row {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--color-text-primary);
-    margin-bottom: 1px;
-  }
-
-  .date-row {
-    font-size: 0.78rem;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-2);
-  }
-
-  .times-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    margin-bottom: var(--spacing-3);
-  }
-
-  .time {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .arrow {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-  }
-
-  .track-indicator {
-    display: flex;
-  }
-
-  .track-badge {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-    background: var(--color-grey-20, rgba(0, 0, 0, 0.06));
-    border-radius: var(--radius-1);
-    padding: var(--spacing-1) var(--spacing-3);
-  }
-
-  .track-loading {
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
-
-  .track-unavailable {
-    color: var(--color-text-tertiary, var(--color-text-secondary));
-  }
-</style>

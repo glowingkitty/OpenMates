@@ -13,7 +13,7 @@ const defaultProps = {
   description:
     "Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps.",
   favicon: "https://svelte.dev/favicon.png",
-  image: "",
+  image: "/store-examples/events-1.webp",
   status: "finished" as const,
   isMobile: false,
   onFullscreen: () => {},
@@ -23,6 +23,11 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  chat: { ...defaultProps, resultContext: 'chat', onFullscreen: () => console.info('[Preview] result expanded') },
+  results: { ...defaultProps, resultContext: 'results', onFullscreen: () => console.info('[Preview] result expanded') },
+  noImage: { ...defaultProps, image: '', description: 'A concise source description without an image. Read useful context about this source, including the central topic, the information available and why the result may help answer your question. The card keeps this description readable while remaining within its compact bounds.' },
+  brokenImage: { ...defaultProps, image: '/missing-result-preview-image.webp' },
+  longTitle: { ...defaultProps, title: 'A deliberately long result title that remains readable in narrow cards without overflowing the page or hiding the source identity' },
   /** Processing state — shows loading while fetching metadata */
   processing: {
     id: "preview-website-processing",
@@ -47,7 +52,7 @@ export const variants = {
     description:
       "The official Svelte repository on GitHub. Contribute to the future of frontend development.",
     favicon: "https://github.githubassets.com/favicons/favicon.svg",
-    image: "",
+    image: "/store-examples/events-1.webp",
     status: "finished" as const,
     isMobile: false,
   },

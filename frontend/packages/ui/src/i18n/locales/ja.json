@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "保険"
+    },
+    "rating": {
+      "text": "評価"
+    },
+    "difficulty": {
+      "text": "難易度"
+    },
+    "dietary": {
+      "text": "食事情報"
+    },
+    "categories": {
+      "text": "カテゴリー"
+    },
+    "distance": {
+      "text": "距離"
+    },
+    "spots": {
+      "text": "空き枠"
+    },
+    "mode": {
+      "text": "形式"
+    },
+    "disciplines": {
+      "text": "種目"
+    },
+    "delivery": {
+      "text": "配送"
+    },
+    "availability_unknown": {
+      "text": "在庫状況不明"
+    },
+    "organic": {
+      "text": "オーガニック"
+    },
+    "vegan": {
+      "text": "ヴィーガン"
+    },
+    "vegetarian": {
+      "text": "ベジタリアン"
+    },
+    "dairy_free": {
+      "text": "乳製品不使用"
+    },
+    "gluten_free": {
+      "text": "グルテンフリー"
+    },
+    "regional": {
+      "text": "地域産"
+    },
+    "product_attributes": {
+      "text": "商品の特徴"
+    },
+    "temperature": {
+      "text": "気温"
+    },
+    "rain_chance": {
+      "text": "降水確率"
+    },
+    "precipitation": {
+      "text": "降水量"
+    },
+    "rain_hours": {
+      "text": "降雨時間"
+    },
+    "wind": {
+      "text": "風"
+    },
+    "clouds": {
+      "text": "雲量"
+    },
+    "humidity": {
+      "text": "湿度"
+    },
+    "hourly_forecast": {
+      "text": "時間別予報"
+    },
+    "no_hourly_data": {
+      "text": "時間別予報はありません"
     }
   },
   "rules": {},

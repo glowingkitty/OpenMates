@@ -1,9 +1,10 @@
 <!-- Shared result-detail structure; specialized editors retain their own layout. -->
 <script lang="ts">
-  import { getContext, onDestroy, type Snippet } from "svelte";
+  import { getContext, onDestroy, type Snippet, type ComponentProps } from "svelte";
   import { get } from "svelte/store";
   import UnifiedEmbedFullscreen from "./UnifiedEmbedFullscreen.svelte";
-  import EmbedLeafletMap, { type MapMarker } from "./EmbedLeafletMap.svelte";
+  import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from "./EmbedLeafletMap.svelte";
+  import { proxyImage, MAX_WIDTH_HEADER_IMAGE } from "../../utils/imageProxy";
   import AppsRequestComposer from "../apps/AppsRequestComposer.svelte";
   import { text } from "../../i18n/translations";
   import { authStore } from "../../stores/authState";
@@ -25,60 +26,51 @@
     type EmbedSourceChatContext,
   } from "../../types/embedFullscreen";
 
-  interface Props {
-    appId: string;
-    skillId: string;
-    skillIconName: string;
-    decorationIconName?: string;
-    embedHeaderTitle?: string;
-    embedHeaderSubtitle?: string;
-    currentEmbedId?: string;
+  type Props = Omit<ComponentProps<typeof UnifiedEmbedFullscreen>, "content" | "fixedBottom" | "floatingBottom"> & {
+    /** Visible, safe result metadata only; never encryption keys or transport records. */
     result: Record<string, unknown>;
-    onClose: () => void;
-    onCalendar?: () => void;
-    showShare?: boolean;
-    hasPreviousEmbed?: boolean;
-    hasNextEmbed?: boolean;
-    onNavigatePrevious?: () => void;
-    onNavigateNext?: () => void;
-    navigateDirection?: "previous" | "next";
-    showChatButton?: boolean;
-    onShowChat?: () => void;
+    summary?: Snippet;
+    media?: Snippet;
+    detailContent?: Snippet;
+    mediaLayout?: "standard" | "immersive";
     mapCenter?: { lat: number; lon: number };
     mapMarkers?: MapMarker[];
     mapZoom?: number;
-    summary: Snippet;
-    media?: Snippet;
-    detailContent: Snippet;
-    embedHeaderCta?: Snippet;
-  }
+    mapPath?: MapPathPoint[];
+    mapPaths?: MapRoutePath[];
+    mapPathColor?: string;
+    mapScrollWheelZoom?: boolean;
+    onMapReady?: (map: unknown, L: unknown) => void;
+    staticMapImageUrl?: string;
+  };
+  // This Svelte-only adapter forwards the fullscreen API; it is not a custom element.
+  // svelte-ignore custom_element_props_identifier
   let {
-    appId,
-    skillId,
-    skillIconName,
-    decorationIconName,
-    embedHeaderTitle,
-    embedHeaderSubtitle,
-    currentEmbedId,
-    result,
-    onClose,
-    onCalendar,
-    showShare,
-    hasPreviousEmbed = false,
-    hasNextEmbed = false,
-    onNavigatePrevious,
-    onNavigateNext,
-    navigateDirection,
-    showChatButton = false,
-    onShowChat,
-    mapCenter,
-    mapMarkers = [],
-    mapZoom = 15,
-    summary,
-    media,
-    detailContent,
-    embedHeaderCta,
+    result, summary, media, detailContent, mediaLayout = "standard",
+    mapCenter, mapMarkers = [], mapZoom = 15, mapPath = [], mapPaths = [],
+    mapPathColor, mapScrollWheelZoom = false, onMapReady, staticMapImageUrl,
+    ...fullscreen
   }: Props = $props();
+  const appId = $derived(fullscreen.appId);
+  const currentEmbedId = $derived(fullscreen.currentEmbedId);
+  const onClose = $derived(fullscreen.onClose);
+  let contentElement = $state<HTMLDivElement>();
+  let fullscreenHeight = $state<number>();
+  $effect(() => {
+    if (mediaLayout !== "immersive" || !contentElement) return;
+    const overlay = contentElement.closest<HTMLElement>(".unified-embed-fullscreen-overlay");
+    if (!overlay) return;
+    // Apps and split panes can be shorter than the viewport. Budget media
+    // against the actual shell, independently of its entrance translation.
+    const updateHeight = () => { fullscreenHeight = overlay.clientHeight; };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(overlay);
+    return () => observer.disconnect();
+  });
+  let failedMapImage = $state<string>();
+  const mapImage = $derived(proxyImage(staticMapImageUrl, MAX_WIDTH_HEADER_IMAGE));
+  const hasMap = $derived(!!mapCenter || !!mapImage);
   const actions = getContext<AppsResultsActionsContext | undefined>(
     APPS_RESULTS_ACTIONS_CONTEXT,
   );
@@ -144,63 +136,52 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen
-  {appId}
-  {skillId}
-  {skillIconName}
-  {decorationIconName}
-  {embedHeaderTitle}
-  {embedHeaderSubtitle}
-  {currentEmbedId}
-  {onClose}
-  {onCalendar}
-  {showShare}
-  {hasPreviousEmbed}
-  {hasNextEmbed}
-  {onNavigatePrevious}
-  {onNavigateNext}
-  {navigateDirection}
-  {showChatButton}
-  {onShowChat}
-  {embedHeaderCta}
-  floatingBottom={true}
->
+<UnifiedEmbedFullscreen {...fullscreen} floatingBottom={true}>
   {#snippet content()}
     <div
+      bind:this={contentElement}
+      style:--result-fullscreen-height={fullscreenHeight ? `${fullscreenHeight}px` : undefined}
       class="result-embed-content"
+      class:immersive={mediaLayout === "immersive"}
       data-testid="result-embed-content"
       data-app-id={appId}
     >
-      <div class="result-summary" data-testid="result-facts">
+      {#if summary}<div class="result-summary" data-testid="result-facts">
         {@render summary()}
-      </div>
-      {#if media || mapCenter}
+      </div>{/if}
+      {#if media || hasMap}
         <div
           class="result-media"
-          class:split={!!media && !!mapCenter}
+          class:split={!!media && hasMap}
           data-testid="result-media"
         >
           {#if media}<div class="result-media-panel">
               {@render media()}
             </div>{/if}
-          {#if mapCenter}
+          {#if hasMap}
             <div class="result-map" data-testid="result-map">
-              <EmbedLeafletMap
+              {#if mapImage && failedMapImage !== mapImage}
+                <img class="static-map" src={mapImage} alt={$text("apps.maps")} onerror={() => failedMapImage = mapImage} />
+              {:else if mapCenter}<EmbedLeafletMap
                 center={mapCenter}
                 markers={mapMarkers}
                 zoom={mapZoom}
+                path={mapPath}
+                paths={mapPaths}
+                pathColor={mapPathColor}
+                {onMapReady}
                 fitBounds={true}
-                scrollWheelZoom={false}
+                scrollWheelZoom={mapScrollWheelZoom}
                 zoomControlPosition="topleft"
                 controlStyle="compact"
                 height="100%"
                 minHeight="200px"
-              />
+              />{:else}<p role="status">{$text("common.detail_load_error", {values: {item: $text("apps.maps")}})}</p>{/if}
             </div>
           {/if}
         </div>
       {/if}
-      <div class="result-detail-content">{@render detailContent()}</div>
+      {#if detailContent}<div class="result-detail-content">{@render detailContent()}</div>{/if}
     </div>
   {/snippet}
   {#snippet fixedBottom()}
@@ -238,6 +219,7 @@
     padding: var(--spacing-2) var(--spacing-4);
     max-width: 100%;
   }
+  .result-summary:empty { display: none; }
   .result-media {
     width: 100%;
     min-width: 0;
@@ -309,5 +291,15 @@
       height: 100%;
       min-height: 15rem;
     }
+  }
+  .static-map { width: 100%; height: 100%; object-fit: contain; }
+  .result-embed-content.immersive { width: 100%; }
+  .immersive .result-media-panel { background: transparent; }
+  .immersive .result-media-panel :global(.result-primary-media) {
+    display: block;
+    max-width: 100%;
+    max-height: max(12rem, calc(var(--result-fullscreen-height, 100dvh) - 27rem));
+    object-fit: contain;
+    margin-inline: auto;
   }
 </style>

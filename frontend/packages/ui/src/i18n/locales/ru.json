@@ -14729,6 +14729,84 @@
   "result_embed": {
     "insurance": {
       "text": "Страховка"
+    },
+    "rating": {
+      "text": "Рейтинг"
+    },
+    "difficulty": {
+      "text": "Сложность"
+    },
+    "dietary": {
+      "text": "Диетическая информация"
+    },
+    "categories": {
+      "text": "Категории"
+    },
+    "distance": {
+      "text": "Расстояние"
+    },
+    "spots": {
+      "text": "Свободные места"
+    },
+    "mode": {
+      "text": "Формат"
+    },
+    "disciplines": {
+      "text": "Дисциплины"
+    },
+    "delivery": {
+      "text": "Доставка"
+    },
+    "availability_unknown": {
+      "text": "Доступность неизвестна"
+    },
+    "organic": {
+      "text": "Органический"
+    },
+    "vegan": {
+      "text": "Веганский"
+    },
+    "vegetarian": {
+      "text": "Вегетарианский"
+    },
+    "dairy_free": {
+      "text": "Без молочных продуктов"
+    },
+    "gluten_free": {
+      "text": "Без глютена"
+    },
+    "regional": {
+      "text": "Местный"
+    },
+    "product_attributes": {
+      "text": "Характеристики товара"
+    },
+    "temperature": {
+      "text": "Температура"
+    },
+    "rain_chance": {
+      "text": "Вероятность дождя"
+    },
+    "precipitation": {
+      "text": "Осадки"
+    },
+    "rain_hours": {
+      "text": "Часы дождя"
+    },
+    "wind": {
+      "text": "Ветер"
+    },
+    "clouds": {
+      "text": "Облачность"
+    },
+    "humidity": {
+      "text": "Влажность"
+    },
+    "hourly_forecast": {
+      "text": "Почасовой прогноз"
+    },
+    "no_hourly_data": {
+      "text": "Почасовой прогноз недоступен"
     }
   },
   "rules": {},

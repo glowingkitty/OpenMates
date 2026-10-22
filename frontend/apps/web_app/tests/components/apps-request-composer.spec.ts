@@ -138,3 +138,42 @@ test('declining a guest search save leaves the search unsaved and retryable', as
     await expect(saveSearch).toBeEnabled();
   }
 });
+
+// contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+test('Apps result host preserves the image renderer privacy projection in actual followup requests', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1000, height: 720 });
+  await page.route('**/v1/apps/workspace/interpret', route => route.fulfill({ status: 503, json: { detail: 'isolated component request' } }));
+  await page.goto('/dev/preview/apps/AppsResultFullscreen?chrome=0&width=700&variant=projectedImagePrivacy');
+  await waitForComponentPreview(page);
+  const result = page.getByTestId('result-embed-content');
+  await expect(result).toHaveAttribute('data-app-id', 'images');
+  const image = page.locator('.full-image');
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', '/images/examples/group1.jpg');
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  await expect(result).toContainText('2.0 KB');
+  await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+  const expectImageAboveComposer = async () => {
+    const imageBounds = await image.boundingBox();
+    const composerBounds = await page.getByTestId('apps-request-composer').boundingBox();
+    expect(imageBounds!.y + imageBounds!.height).toBeLessThanOrEqual(composerBounds!.y - 8);
+  };
+  await expectImageAboveComposer();
+  await page.getByTestId('apps-request-textarea').fill('Describe the visible image facts');
+  await expectImageAboveComposer();
+  const pending = page.waitForRequest('**/v1/apps/workspace/interpret');
+  await page.getByTestId('apps-request-submit').click();
+  const request = await pending;
+  const context = request.postDataJSON().context;
+  expect(context.result).toEqual({ filename: 'Projected photo.jpg', file_size: 2048, file_type: 'image/jpeg' });
+  expect(context.skill_id).toBe('view');
+  expect(context.input).toEqual({ prompt: 'A visible parent request' });
+  const serialized = JSON.stringify(context.result);
+  for (const sentinel of ['parent-private-crypto-sentinel', 'parent-private-storage-sentinel', 'child-private-crypto-sentinel', 'child-private-storage-sentinel']) {
+    expect(serialized).not.toContain(sentinel);
+  }
+  for (const key of ['aes_key', 'aesKey', 'aes_nonce', 'aesNonce', 's3_base_url', 'files']) {
+    expect(context.result).not.toHaveProperty(key);
+  }
+  await testInfo.attach('AppsResultFullscreen-image-projected-followup', { body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+});

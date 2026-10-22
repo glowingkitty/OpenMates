@@ -2,7 +2,7 @@
   frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
 
   Fullscreen detail view for a single event (child embed drill-down).
-  Uses EntryWithMapTemplate for responsive map + detail card layout.
+  Uses ResultEmbedFullscreen for responsive map + detail card layout.
 
   Shows map when venue has lat/lon coordinates (Meetup events).
   Falls back to details-only layout when no coordinates (Classictic, online events).
@@ -11,7 +11,8 @@
 -->
 
 <script lang="ts">
-  import EntryWithMapTemplate from '../EntryWithMapTemplate.svelte';
+  import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
+  import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import MarkdownContent from '../MarkdownContent.svelte';
   import { text } from '@repo/ui';
@@ -418,12 +419,18 @@
   }
 </script>
 
-<EntryWithMapTemplate
+  {#snippet resultMedia()}
+    {#if eventImageUrl}
+      <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
+    {/if}
+  {/snippet}
+<ResultEmbedFullscreen
+  media={eventImageUrl ? resultMedia : undefined}
+  result={event as unknown as Record<string, unknown>}
   appId="events"
   skillId="event"
   {onClose}
   skillIconName="event"
-  showSkillIcon={true}
   showShare={$authStore.isAuthenticated}
   embedHeaderTitle={headerTitle}
   embedHeaderSubtitle={headerSubtitle}
@@ -448,10 +455,13 @@
     </div>
   {/snippet}
 
-  {#snippet detailContent(_ctx)}
-    {#if eventImageUrl}
-      <img class="event-image" src={eventImageUrl} alt={event.title || 'Event'} loading="lazy" />
-    {/if}
+  {#snippet summary()}
+    {#if event.is_paid === false || feeDisplay}<ResultEmbedInfo icon="euro" label="Event fee" value={event.is_paid === false ? 'Free' : feeDisplay}>{event.is_paid === false ? 'Listed as free by the provider.' : feeDisplay}</ResultEmbedInfo>{/if}
+    {#if dateTimeDisplay.lines.length}<ResultEmbedInfo icon="calendar" label="Date and time" value={dateTimeDisplay.lines[0]} caption={dateTimeDisplay.relativeLabel || undefined}>{dateTimeDisplay.lines.join(' · ')}</ResultEmbedInfo>{/if}
+    {#if event.rsvp_count != null}<ResultEmbedInfo icon="users" label="RSVP count" value={event.rsvp_count.toLocaleString()} caption="RSVPs">Provider RSVP count; attendance may differ.</ResultEmbedInfo>{/if}
+  {/snippet}
+
+  {#snippet detailContent()}
 
     <!-- Type badge + RSVP row + source -->
     <div class="event-meta-row">
@@ -462,7 +472,7 @@
       {/if}
       {#if event.is_paid && feeDisplay}
         <span class="event-fee-badge">{feeDisplay}</span>
-      {:else if !event.is_paid}
+      {:else if event.is_paid === false}
         <span class="event-free-badge">Free</span>
       {/if}
       {#if event.rsvp_count != null && event.rsvp_count > 0}
@@ -515,7 +525,7 @@
       </div>
     {/if}
   {/snippet}
-</EntryWithMapTemplate>
+</ResultEmbedFullscreen>
 
 <style>
   .event-image {

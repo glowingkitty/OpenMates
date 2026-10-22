@@ -13,7 +13,10 @@
 -->
 
 <script lang="ts">
+  import transportIconUrl from '../../../../static/icons/travel.svg';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ResultEmbedMapPreview from '../ResultEmbedMapPreview.svelte';
+  import { extractResultRoute } from '../resultMapRoutes';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
   import { formatTravelFare, type TravelFare } from './fareDisplay';
 
@@ -28,6 +31,8 @@
    * raw TOON-decoded embed content into this structured format
    */
   interface Props {
+    resultContext?: 'auto' | 'chat' | 'results';
+    connection?: Record<string, unknown>;
     /** Unique embed ID */
     id: string;
     /** Total price (e.g., '245.50') */
@@ -86,7 +91,9 @@
   }
   
   let {
+    resultContext = 'auto',
     id,
+    connection,
     price,
     currency = 'EUR',
     fare,
@@ -115,6 +122,18 @@
     onFullscreen
   }: Props = $props();
   
+  let previewLegs = $derived.by(() => {
+    const legs = Array.isArray(connection?.legs) ? connection.legs as Record<string, unknown>[] : [];
+    return legs.length ? legs : [{ origin, destination, departure, arrival: _arrival, duration }];
+  });
+  function legDate(value: unknown) {
+    if (typeof value !== 'string') return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  function legText(value: unknown) { return typeof value === 'string' ? value : ''; }
+  let routeMap = $derived(extractResultRoute(connection || {}));
+
   // Defensive: TOON serialization may collapse arrays into bare strings.
   // Ensure carriers and carrierCodes are always arrays even if a non-array
   // value slips through from the renderer. Belt-and-suspenders with the
@@ -142,25 +161,6 @@
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  let departureTime = $derived(formatTime(departure));
-  let arrivalTime = $derived(formatTime(_arrival));
-
-  let timeLine = $derived.by(() => {
-    if (departureTime && arrivalTime) return `${departureTime} → ${arrivalTime}`;
-    return departureTime || arrivalTime;
-  });
-  
-  // Format departure date for display (e.g., "Sat, Mar 28")
-  let departureDate = $derived.by(() => {
-    if (!departure) return '';
-    try {
-      const date = new Date(departure);
-      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-    } catch {
-      return '';
-    }
-  });
-
   // Trip type label for price display
   let tripTypeLabel = $derived.by(() => {
     switch (tripType) {
@@ -170,15 +170,9 @@
     }
   });
 
-  // Combined meta line: "Sat, Mar 28 · 31h 20m · 2 stops"
-  let metaLine = $derived.by(() => {
-    const parts: string[] = [];
-    if (departureDate) parts.push(departureDate);
-    if (duration) parts.push(duration);
-    parts.push(stopsLabel);
-    return parts.join(' · ');
-  });
-  
+  let metaLine = $derived([duration, stopsLabel].filter(Boolean).join(' · '));
+  let failedCarrierLogos = $state<string[]>([]);
+
   let providerFaviconUrl = $derived.by(() => {
     if (airlineLogo) return airlineLogo;
     const normalizedProvider = (bookingProvider || _carriers[0] || '').toLowerCase();
@@ -258,6 +252,8 @@
 </script>
 
 <UnifiedEmbedPreview
+  resultPreview
+  {resultContext}
   {id}
   appId="travel"
   skillId="connection"
@@ -272,45 +268,37 @@
   {customHeight}
 >
   {#snippet details({ isMobile: isMobileLayout })}
+    <div class="connection-result-layout">
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">
-      <!-- Price row: green price + trip type + airline logos -->
-      <div class="price-row">
-        {#if formattedPrice}
-          <span class="connection-price" data-testid="connection-price">{formattedPrice}</span>
-          <span class="trip-type-separator">|</span>
-          <span class="trip-type-label">{tripTypeLabel}</span>
+      <div class="carrier-row">
+        {#if carrierLogos.length > 0}
+          <div class="airline-logos" data-testid="airline-logos">
+            {#each carrierLogos as logo}
+              <img class="airline-logo" src={failedCarrierLogos.includes(logo.url) ? transportIconUrl : logo.url}
+                alt={logo.label} width="22" height="22" loading="lazy"
+                onerror={() => { if (!failedCarrierLogos.includes(logo.url)) failedCarrierLogos = [...failedCarrierLogos, logo.url]; }} />
+            {/each}
+          </div>
         {/if}
+        <span class="trip-type-label">{tripTypeLabel}</span>
       </div>
-
-      <!-- Carrier/provider logos row -->
-      {#if carrierLogos.length > 0}
-        <div class="airline-logos" data-testid="airline-logos">
-          {#each carrierLogos as logo}
-            <img
-              class="airline-logo"
-              src={logo.url}
-              alt={logo.label}
-              width="22"
-              height="22"
-              loading="lazy"
-            />
+      <div class="itinerary-columns" data-testid="connection-route">
+        <div class="itinerary-times" data-testid="connection-time">
+          {#each previewLegs as leg}
+            <div class="itinerary-leg">
+              <small class="journey-date">{legDate(leg.departure)}</small>
+              <strong class="journey-times">{formatTime(legText(leg.departure))} <span aria-hidden="true">→</span> {formatTime(legText(leg.arrival))}</strong>
+              <div class="journey-route" title={`${legText(leg.origin)} → ${legText(leg.destination)}`}>
+                <b>{legText(leg.origin) || origin || ''}</b><span aria-hidden="true"> → </span><b>{legText(leg.destination) || destination || ''}</b>
+              </div>
+            </div>
           {/each}
         </div>
-      {/if}
-
-      <!-- Route: "Berlin (BER) → Bangkok (BKK)" -->
-      {#if origin && destination}
-        <div class="connection-route" data-testid="connection-route">
-          <span class="route-text">{origin} → {destination}</span>
-        </div>
-      {/if}
-
-      {#if timeLine}
-        <div class="connection-time" data-testid="connection-time">{timeLine}</div>
-      {/if}
-
-      <!-- Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" -->
-      <div class="connection-meta" data-testid="connection-meta">{metaLine}</div>
+      </div>
+      <div class="connection-footer" data-testid="connection-footer">
+        {#if formattedPrice}<strong class="connection-price" data-testid="connection-price">{formattedPrice}</strong>{/if}
+        <span class="connection-meta" data-testid="connection-meta">{metaLine}</span>
+      </div>
 
       {#if realtimeStatus}
         <div class="realtime-status" class:late={realtimeStatusTone === 'late'} class:early={realtimeStatusTone === 'early'} class:ontime={realtimeStatusTone === 'ontime'} class:cancelled={realtimeStatusTone === 'cancelled'} data-testid="connection-realtime-status">
@@ -331,151 +319,37 @@
         </div>
       {/if}
     </div>
+    {#if routeMap.length > 1}<div class="connection-map"><ResultEmbedMapPreview center={routeMap[0]} path={routeMap} zoom={5} /></div>{/if}
+    </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
-  /* Connection Preview — Redesigned Card Layout
-     Matches Figma: node 4950-44635 (preview section) */
-
-  .connection-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-1);
-    height: 100%;
-    min-height: 0;
-    justify-content: flex-start;
-    padding: 2px 0;
-  }
-
-  .connection-details.mobile {
-    justify-content: flex-start;
-  }
-
-  /* Price row: "1.111 EUR | One way" */
-  .price-row {
-    display: flex;
-    align-items: baseline;
-    column-gap: var(--spacing-2);
-    row-gap: var(--spacing-1);
-    flex-wrap: wrap;
-  }
-
-  .connection-price {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-success, #00a313);
-    line-height: 1.2;
-  }
-
-  .connection-details.mobile .connection-price {
-    font-size: 1.1rem;
-  }
-
-  .trip-type-separator {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .trip-type-label {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-font-primary);
-    line-height: 1.2;
-  }
-
-  .connection-details.mobile .trip-type-separator,
-  .connection-details.mobile .trip-type-label {
-    font-size: 1.1rem;
-  }
-
-  /* Airline logos — overlapping circle stack */
-  .airline-logos {
-    display: flex;
-    align-items: center;
-  }
-
-  .airline-logos .airline-logo + .airline-logo {
-    margin-left: -6px;
-  }
-
-  .airline-logo {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: white;
-    border: 1.5px solid var(--color-grey-20, #e2e2e2);
-    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04);
-    flex-shrink: 0;
-  }
-
-  /* Route: "Berlin (BER) → Bangkok (BKK)" */
-  .connection-route {
-    font-size: 0.875rem;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .route-text {
-    font-weight: 600;
-  }
-
-  .connection-time {
-    font-size: 0.95rem;
-    color: var(--color-font-primary);
-    font-weight: 700;
-    line-height: 1.25;
-  }
-
-  /* Meta line: "Sat, Mar 28 · 31h 20m · 2 stops" */
-  .connection-meta {
-    font-size: 0.8125rem;
-    color: var(--color-grey-60);
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .realtime-status {
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    line-height: 1.2;
-  }
-
-  .realtime-status.late,
-  .realtime-status.cancelled {
-    color: #991b1b;
-    background: #fee2e2;
-  }
-
-  .realtime-status.early,
-  .realtime-status.ontime {
-    color: #166534;
-    background: #dcfce7;
-  }
-
-  .optimization-badge {
-    width: fit-content;
-    padding: 3px 8px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    line-height: 1.2;
-    color: var(--color-primary, #4867cd);
-    background: rgba(var(--color-primary-rgb), 0.1);
-  }
-
-  /* Seats warning */
-  .seats-warning {
-    font-size: 0.75rem;
-    color: var(--color-warning, #f59e0b);
-    font-weight: 600;
-    margin-top: 1px;
+  .connection-result-layout { height: 100%; display: flex; align-items: stretch; min-width: 0; box-sizing: border-box; }
+  .connection-details { display: flex; flex-direction: column; gap: 5px; box-sizing: border-box; min-width: 0; width: 100%; height: 100%; padding: 42px 10px 10px; }
+  .carrier-row { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+  .airline-logos { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .airline-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: contain; background: var(--color-grey-0); }
+  .trip-type-label { font-size: var(--font-size-xxs); color: var(--color-font-secondary); }
+  .itinerary-columns { min-width: 0; }
+  .itinerary-times { display: flex; gap: 10px; min-width: 0; overflow-x: auto; }
+  .itinerary-leg { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 0 110px; }
+  .itinerary-leg + .itinerary-leg { border-left: 1px solid var(--color-grey-20); padding-left: 10px; }
+  .journey-date { color: var(--color-font-secondary); font-size: var(--font-size-xxs); line-height: 1.2; }
+  .journey-times { font-size: var(--font-size-xxs); line-height: 1.3; white-space: nowrap; }
+  .journey-route { font-size: var(--font-size-xxs); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .journey-route b { font-weight: 600; }
+  .connection-footer { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 3px 8px; margin-top: auto; }
+  .connection-price { font-size: 1rem; font-weight: 700; color: var(--color-success); line-height: 1.2; }
+  .connection-meta { font-size: var(--font-size-xxs); color: var(--color-font-secondary); line-height: 1.2; }
+  .realtime-status, .optimization-badge, .seats-warning { font-size: var(--font-size-xxs); line-height: 1.2; }
+  .realtime-status.late, .realtime-status.cancelled { color: var(--color-error); }
+  .realtime-status.early, .realtime-status.ontime { color: var(--color-success); }
+  .optimization-badge { color: var(--color-primary); }
+  .seats-warning { color: var(--color-warning); }
+  .connection-map { display: none; }
+  @container result-card (min-width: 400px) {
+    .connection-details { width: 52%; padding: 46px 14px 12px; }
+    .connection-map { display: block; flex: 1; min-width: 0; }
   }
 </style>

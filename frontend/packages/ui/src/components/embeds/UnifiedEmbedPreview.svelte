@@ -35,6 +35,7 @@
 
 <script lang="ts">
   import { text } from '../../i18n/translations';
+  import { resolveIconName } from '../../utils/iconNameResolver';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.chatId ?? null;
@@ -58,6 +59,8 @@
     presentationOnly?: boolean;
     /** Approved result-card layout; specialized editor previews keep their existing design. */
     resultPreview?: boolean;
+    /** Selectable specialized preview with explicit tools, retaining its existing layout. */
+    previewTools?: boolean;
     resultContext?: 'auto' | 'chat' | 'results';
     resultPrimaryAction?: import('svelte').Snippet;
     /** Draft content can be read locally but has no server record to recover yet. */
@@ -115,6 +118,7 @@
     inputEmbedIds: inputEmbedIdsProp,
     presentationOnly = false,
     resultPreview = false,
+    previewTools = false,
     resultContext = 'auto',
     resultPrimaryAction,
     localOnly = false,
@@ -482,7 +486,7 @@
   // and dev showcase (.large-container in the dev preview page) wrappers —
   // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
-  let isChatResult = $derived(resultPreview && (resultContext === 'chat' || (resultContext === 'auto' && !!previewElement?.closest('.read-only-message, .embed-preview-large-container, .large-container'))));
+  let isChatResult = $derived(previewTools || resultPreview && (resultContext === 'chat' || (resultContext === 'auto' && !!previewElement?.closest('.read-only-message, .embed-preview-large-container, .large-container'))));
   $effect(() => {
     if (previewElement) {
       isLargeContext = !!(
@@ -867,6 +871,8 @@
   
   // Handle keyboard navigation
   function handleKeydown(e: KeyboardEvent) {
+    // Nested action buttons own their native Enter/Space activation.
+    if (e.target !== e.currentTarget) return;
     if ((e.key === 'Enter' || e.key === ' ') && status === 'finished') {
       e.preventDefault();
       // Create a synthetic mouse event for handleClick
@@ -904,6 +910,20 @@
   }
 </script>
 
+{#snippet previewToolbar(inFlow: boolean)}
+  <div class="result-tools" class:flow-tools={inFlow} data-testid="preview-tools">
+        {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
+        <button type="button" aria-label={$text('common.more_actions')} onclick={handleContextMenu} data-testid="result-preview-more">···</button>
+        <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
+      </div>
+{/snippet}
+{#snippet specializedHeaderActions()}
+  <div class="specialized-header-actions">
+    {#if actionButton}{@render actionButton()}{/if}
+    {#if previewTools && isInteractive}{@render previewToolbar(true)}{/if}
+  </div>
+{/snippet}
+
 <!-- The dynamic group role has tabindex -1; only interactive button cards receive 0. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
@@ -911,6 +931,7 @@
   class="unified-embed-preview"
   class:result-preview={resultPreview}
   class:chat-result={isChatResult}
+  class:tools-preview={previewTools}
   data-testid="embed-preview"
   class:mobile={useMobileLayout}
   class:desktop={!useMobileLayout}
@@ -949,17 +970,12 @@
       <Icon name="notes" size="16px" />
     </div>
   {/if}
+  {#if resultPreview && isChatResult}{@render previewToolbar(false)}{/if}
   {#if resultPreview}
     <div class="result-corner" style:background={`var(--color-app-${appId})`} aria-hidden="true">
-      <span style:mask-image={`var(--icon-url-${appId === 'health' ? 'heart' : appId})`}></span>
+      <span style:mask-image={`var(--icon-url-${resolveIconName(appIconName ?? appId)})`}></span>
     </div>
-    {#if isChatResult}
-      <div class="result-tools">
-        {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
-        <button type="button" aria-label={$text('common.more_actions')} onclick={handleContextMenu} data-testid="result-preview-more">···</button>
-        <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
-      </div>
-    {/if}
+
     <div class="result-preview-content">{#if details}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}</div>
   {:else if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
@@ -983,6 +999,7 @@
         {titleIcon}
         {actionButton}
       />
+      {#if previewTools && isInteractive}{@render previewToolbar(true)}{/if}
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section">
         {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
@@ -1018,7 +1035,7 @@
         showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
-        {actionButton}
+        actionButton={previewTools ? specializedHeaderActions : actionButton}
       />
       <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section" class:full-width-image={hasFullWidthImage}>
@@ -1096,8 +1113,8 @@
   }
   
   /* Clickable embeds act like a single button: children shouldn't capture pointer events. */
-  .unified-embed-preview.clickable .desktop-layout,
-  .unified-embed-preview.clickable .mobile-layout {
+  .unified-embed-preview.clickable:not(.tools-preview) .desktop-layout,
+  .unified-embed-preview.clickable:not(.tools-preview) .mobile-layout {
     pointer-events: none;
   }
   
@@ -1321,16 +1338,18 @@
       display: block;
     }
   }
-  .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; width: 300px; max-width: 100%; height: 220px; padding: 0; background: var(--color-grey-0); overflow: hidden; border-radius: var(--radius-6); }
+  .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; width: 300px; min-width: 0; max-width: 100%; height: 220px; min-height: 220px; max-height: 220px; padding: 0; background: var(--color-grey-0); overflow: hidden; border-radius: var(--radius-6); }
   .unified-embed-preview.chat-result, .chat-result :global(*) { user-select: text; -webkit-user-select: text; }
   .result-preview-content { width: 100%; height: 100%; min-width: 0; }
   .result-corner { position: absolute; z-index: 2; top: 0; left: 0; width: 36px; height: 36px; border-end-end-radius: var(--radius-4); display: grid; place-items: center; }
   .result-corner > span { width: 21px; height: 21px; mask-size: contain; mask-position: center; mask-repeat: no-repeat; background: var(--color-font-button); }
   .result-tools { position: absolute; z-index: 3; top: var(--spacing-3); right: var(--spacing-3); display: flex; gap: var(--spacing-2); }
-  .result-tools button, .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-font-secondary); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; }
-  .result-tools button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  .result-tools .clickable-icon { width: 18px; height: 18px; }
+  .result-tools.flow-tools { position: static; flex-shrink: 0; }
+  .specialized-header-actions { display: flex; align-items: center; gap: var(--spacing-2); flex-shrink: 0; margin-inline-end: var(--spacing-3); }
+  .result-tools :global(button), .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-font-secondary); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; }
+  .result-tools :global(button:focus-visible) { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+  .result-tools :global(.clickable-icon) { width: 18px; height: 18px; }
   @container embed-preview (min-width: 400px) {
-    .unified-embed-preview.result-preview { width: 100%; height: 350px; }
+    .unified-embed-preview.result-preview { width: 100%; height: 350px; min-height: 350px; max-height: 350px; }
   }
 </style>

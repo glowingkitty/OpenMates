@@ -23,6 +23,32 @@ const sharedResults = { embedId, appId: 'web', onClose,
 
 export default { embedId, appId: 'web', exampleData, onClose };
 export const variants = {
+  projectedImagePrivacy: {
+    embedId, appId: 'images', onClose,
+    presentationData: {
+      type: 'image',
+      parent: {
+        app_id: 'images', skill_id: 'generate', input: { prompt: 'A visible parent request' },
+        aes_key: 'parent-private-crypto-sentinel', aes_nonce: 'parent-private-crypto-sentinel',
+        s3_base_url: 'parent-private-storage-sentinel',
+        files: { original: { s3_key: 'parent-private-storage-sentinel', encryption: 'parent-private-crypto-sentinel' } },
+      },
+      content: {
+        app_id: 'images', skill_id: 'view', filename: 'Projected photo.jpg', file_size: 2048, file_type: 'image/jpeg',
+        src: '/images/examples/group1.jpg',
+        aes_key: 'child-private-crypto-sentinel', aesKey: 'child-private-crypto-sentinel',
+        aes_nonce: 'child-private-crypto-sentinel', aesNonce: 'child-private-crypto-sentinel',
+        // Local media bytes remain available while encrypted transport metadata
+        // exists; omit the remote base so this fixture uses the real src path.
+        files: { original: { s3_key: 'child-private-storage-sentinel', aes_nonce: 'child-private-crypto-sentinel', encryption: 'child-private-crypto-sentinel' } },
+      },
+    },
+    onSubmit: async (text: string, attachments: File[], context: AppsRequestContext) => {
+      const { runAppsWorkspaceRequest } = await import('../../services/appsWorkspaceRequestService');
+      await runAppsWorkspaceRequest({ appId: 'images', text, attachments, context, guest: true });
+      return true;
+    },
+  },
   transcription: { embedId, appId: 'audio', onClose, exampleData: { embedId, appId: 'audio', skillId: 'transcribe', decodedContent: { app_id: 'audio', skill_id: 'transcribe', input: { requests: [{ filename: 'Meeting.webm' }] }, results: [{ id: 'native-request', results: [{ transcript: 'The meeting starts at nine.', title: 'Meeting notes', duration_seconds: 12 }] }] } } },
   sharedResults,
   guestSaveDeclined: { ...sharedResults, onSaveSearch: async () => { window.dispatchEvent(new Event('apps-result-preview-signup')); return false; } },

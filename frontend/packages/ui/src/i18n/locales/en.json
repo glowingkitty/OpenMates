@@ -17632,6 +17632,84 @@
   "result_embed": {
     "insurance": {
       "text": "Insurance"
+    },
+    "rating": {
+      "text": "Rating"
+    },
+    "difficulty": {
+      "text": "Difficulty"
+    },
+    "dietary": {
+      "text": "Dietary information"
+    },
+    "categories": {
+      "text": "Categories"
+    },
+    "distance": {
+      "text": "Distance"
+    },
+    "spots": {
+      "text": "Available spots"
+    },
+    "mode": {
+      "text": "Mode"
+    },
+    "disciplines": {
+      "text": "Disciplines"
+    },
+    "delivery": {
+      "text": "Delivery"
+    },
+    "availability_unknown": {
+      "text": "Availability unknown"
+    },
+    "organic": {
+      "text": "Organic"
+    },
+    "vegan": {
+      "text": "Vegan"
+    },
+    "vegetarian": {
+      "text": "Vegetarian"
+    },
+    "dairy_free": {
+      "text": "Dairy free"
+    },
+    "gluten_free": {
+      "text": "Gluten free"
+    },
+    "regional": {
+      "text": "Regional"
+    },
+    "product_attributes": {
+      "text": "Product attributes"
+    },
+    "temperature": {
+      "text": "Temperature"
+    },
+    "rain_chance": {
+      "text": "Chance of rain"
+    },
+    "precipitation": {
+      "text": "Precipitation"
+    },
+    "rain_hours": {
+      "text": "Hours of rain"
+    },
+    "wind": {
+      "text": "Wind"
+    },
+    "clouds": {
+      "text": "Cloud cover"
+    },
+    "humidity": {
+      "text": "Humidity"
+    },
+    "hourly_forecast": {
+      "text": "Hourly forecast"
+    },
+    "no_hourly_data": {
+      "text": "Hourly forecast unavailable"
     }
   },
   "rules": {
