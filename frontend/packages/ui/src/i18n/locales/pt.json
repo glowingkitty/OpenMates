@@ -3437,6 +3437,9 @@
         "text": "Clique aqui para relatar o problema e ajudar a corrigi-lo."
       }
     },
+    "copy_message": {
+      "text": "Copiar mensagem"
+    },
     "generated_by": {
       "text": "gerado por {model}"
     },

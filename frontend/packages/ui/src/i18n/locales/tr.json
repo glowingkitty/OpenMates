@@ -3437,6 +3437,9 @@
         "text": "Sorunu bildirmek ve cozulmesine yardimci olmak icin buraya tiklayin."
       }
     },
+    "copy_message": {
+      "text": "Mesajı kopyala"
+    },
     "generated_by": {
       "text": "{model} tarafından oluşturuldu"
     },

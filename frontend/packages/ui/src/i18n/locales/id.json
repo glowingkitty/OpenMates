@@ -3437,6 +3437,9 @@
         "text": "Klik di sini untuk melaporkan masalah dan membantu memperbaikinya."
       }
     },
+    "copy_message": {
+      "text": "Salin pesan"
+    },
     "generated_by": {
       "text": "dibuat oleh {model}"
     },

@@ -3437,6 +3437,9 @@
         "text": "Nhan vao day de bao cao su co va giup khac phuc."
       }
     },
+    "copy_message": {
+      "text": "Sao chép tin nhắn"
+    },
     "generated_by": {
       "text": "được tạo bởi {model}"
     },

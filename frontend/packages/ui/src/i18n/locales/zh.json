@@ -3437,6 +3437,9 @@
         "text": "点击此处报告问题，以帮助修复它。"
       }
     },
+    "copy_message": {
+      "text": "复制消息"
+    },
     "generated_by": {
       "text": "由 {model} 生成"
     },

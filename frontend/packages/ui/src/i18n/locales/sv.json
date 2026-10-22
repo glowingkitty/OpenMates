@@ -3437,6 +3437,9 @@
         "text": "Klicka har for att rapportera problemet och hjalpa till att atgarda det."
       }
     },
+    "copy_message": {
+      "text": "Kopiera meddelande"
+    },
     "generated_by": {
       "text": "genererad av {model}"
     },

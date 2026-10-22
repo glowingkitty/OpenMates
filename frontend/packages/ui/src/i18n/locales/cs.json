@@ -3437,6 +3437,9 @@
         "text": "Kliknete sem pro nahlaseni problemu a pomoc pri jeho oprave."
       }
     },
+    "copy_message": {
+      "text": "Kopírovat zprávu"
+    },
     "generated_by": {
       "text": "generováno modelem {model}"
     },

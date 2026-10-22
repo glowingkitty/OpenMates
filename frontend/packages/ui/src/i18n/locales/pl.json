@@ -3437,6 +3437,9 @@
         "text": "Kliknij tutaj, aby zglosic problem i pomoc go naprawic."
       }
     },
+    "copy_message": {
+      "text": "Kopiuj wiadomość"
+    },
     "generated_by": {
       "text": "wygenerowane przez {model}"
     },

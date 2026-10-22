@@ -53,8 +53,8 @@
   import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
   import { appSkillsStore } from '../stores/appSkillsStore';
   import { buildSavedEmbedConfigFromDecodedContent, findSavedEmbedMemoryEntry, forgetEmbedMemory, saveEmbedMemory } from '../services/savedEmbedMemoryService';
-  import { writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
-  import type { TipTapNode } from '../message_parsing/types';
+  import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
+  import type { TipTapDoc, TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
   import { getCategoryGradientColors, getImportedAssistantProvider, getLucideIcon, getValidIconName } from '../utils/categoryUtils';
@@ -1853,11 +1853,11 @@
    * This allows pasting the message into MessageInput and having the embeds rendered
    * as live embed cards rather than plain markdown text.
    */
-  async function handleCopyMessage() {
+  async function handleCopyMessage(copySelection = true) {
     try {
       let contentToCopy: string;
       const selection = window.getSelection();
-      const isCopyingSelection = selectable && selection && selection.toString().length > 0;
+      const isCopyingSelection = copySelection && selectable && selection && selection.toString().length > 0;
       
       // If there's a selection and it's within this message, copy only the selection
       if (isCopyingSelection) {
@@ -1869,7 +1869,9 @@
         // When PII is hidden, the raw content already has placeholders — use as-is.
         contentToCopy = typeof original_message?.content === 'string' 
           ? original_message.content 
-          : JSON.stringify(content);
+          : typeof content === 'string'
+            ? content
+            : tipTapToCanonicalMarkdown(content as TipTapDoc);
         
         if (piiRevealed && piiMappings && piiMappings.length > 0) {
           // Revealed mode: user wants originals — restore placeholders → originals
@@ -1896,7 +1898,7 @@
           const { parse_message } = await import('../message_parsing/parse_message');
           const rawMarkdown = typeof original_message?.content === 'string'
             ? original_message.content
-            : '';
+            : contentToCopy;
           if (rawMarkdown) {
             const tiptapDoc = parse_message(rawMarkdown, 'read', {
               unifiedParsingEnabled: true,
@@ -3788,6 +3790,15 @@
         {#if model_name}
           <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
         {/if}
+        <button
+          type="button"
+          class="copy-message-btn"
+          data-testid="copy-message-button"
+          onclick={() => handleCopyMessage(false)}
+        >
+          <span class="clickable-icon icon_copy" aria-hidden="true"></span>
+          <span>{$text('chat.copy_message')}</span>
+        </button>
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
@@ -4659,6 +4670,7 @@
 
   .generated-by-container {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-4);
     margin-top: var(--spacing-3);
@@ -4669,6 +4681,25 @@
     justify-content: center;
     margin-inline-start: 0;
     text-align: center;
+  }
+
+  .copy-message-btn {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-1) 0;
+    border-radius: var(--radius-2);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    color: var(--color-grey-60);
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  .copy-message-btn:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
   }
 
   .report-bad-answer-btn {
@@ -4688,10 +4719,15 @@
     color: var(--color-primary);
   }
 
+  .copy-message-btn .clickable-icon,
   .report-bad-answer-btn .clickable-icon {
     width: 16px;
     height: 16px;
     background-color: currentColor;
+  }
+
+  .copy-message-btn .clickable-icon {
+    background: var(--color-grey-60);
   }
 
   .report-text {
