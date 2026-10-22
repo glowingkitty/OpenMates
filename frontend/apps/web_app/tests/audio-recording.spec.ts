@@ -665,12 +665,14 @@ test('Mercury corrected recording inserts editable text at the original caret wi
 test('long streamed recording preserves beginning middle and end in the editable draft', async ({ page }) => {
 	test.setTimeout(120000);
 	const sections = [
-		'First reserve the library and keep the opening budget below five hundred euros. ',
+		'Um first reserve the library and keep the opening budget below five hundred euros. ',
 		...Array.from({ length: 12 }, (_, index) =>
 			`For workshop ${index + 1}, invite the team and prepare the agenda, printed notes, and travel arrangements. `),
-		'Finally send the room confirmation to Marta before Thursday.'
+		'Uh finally send the room confirmation to Marta before Thursday.'
 	];
 	const transcript = sections.join('');
+	const correctedTranscript = transcript.replace('Um first', 'First').replace('Uh finally', 'Finally');
+	let correctedBeforeStop = false;
 	let streamed = false;
 	let endedRecordings = 0;
 	let audioUploadRequests = 0;
@@ -683,13 +685,19 @@ test('long streamed recording preserves beginning middle and end in the editable
 			const type = JSON.parse(String(payload)).type;
 			if (type === 'input_audio.append' && !streamed) {
 				streamed = true;
-				for (const text of sections) socket.send(JSON.stringify({ type: 'transcription.text.delta', text }));
+				for (const [index, text] of sections.entries()) {
+					socket.send(JSON.stringify({ type: 'transcription.text.delta', text }));
+					if (index === 8) {
+						socket.send(JSON.stringify({ type: 'correction.progress', processed_chars: sections.slice(0, 8).join('').length }));
+						correctedBeforeStop = endedRecordings === 0;
+					}
+				}
 			}
 			if (type !== 'input_audio.end') return;
 			endedRecordings++;
 			// The API must finalize the complete stream, including earlier windows.
 			socket.send(JSON.stringify({ type: 'transcription.done', transcript, model: 'test-realtime' }));
-			socket.send(JSON.stringify({ type: 'correction.done', transcript }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript: correctedTranscript }));
 		});
 	});
 	await setupAndFocusMessageField(page);
@@ -699,13 +707,14 @@ test('long streamed recording preserves beginning middle and end in the editable
 	await editor.press('End');
 	const userMessages = await page.getByTestId('user-message-content').count();
 	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true);
-	await expect(editor).toHaveText(`Existing notes. ${transcript}`);
+	await expect(editor).toHaveText(`Existing notes. ${correctedTranscript}`);
 	await expect(editor).toBeFocused();
 	await page.keyboard.type(' Reviewed.');
-	await expect(editor).toHaveText(`Existing notes. ${transcript} Reviewed.`);
+	await expect(editor).toHaveText(`Existing notes. ${correctedTranscript} Reviewed.`);
 	await expect(page.getByTestId('user-message-content')).toHaveCount(userMessages);
 	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
 	expect(streamed).toBe(true);
+	expect(correctedBeforeStop).toBe(true);
 	expect(endedRecordings).toBe(1);
 	expect(audioUploadRequests).toBe(0);
 });

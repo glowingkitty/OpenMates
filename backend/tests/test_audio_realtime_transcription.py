@@ -195,9 +195,14 @@ async def test_realtime_audio_billing_rounds_started_minutes_once(
         (["Earlier speech. ", "Later speech."], None, "Earlier speech. Later speech."),
         (["Repeat this. ", "Repeat this."], "Repeat this.", "Repeat this. Repeat this."),
         ([], "Hello world.", "Hello world."),
+        (
+            ["Keep the budget below five hundred euros. " * 21, "Finally invite Marta."],
+            "Finally invite Marta.",
+            "Keep the budget below five hundred euros. " * 21 + "Finally invite Marta.",
+        ),
         ([" \n"], "Hello world.", "Hello world."),
     ],
-    ids=["full-final", "extended-final", "suffix-final", "empty-final", "missing-final", "repeated-speech", "no-deltas", "blank-deltas"],
+    ids=["full-final", "extended-final", "suffix-final", "empty-final", "missing-final", "repeated-speech", "no-deltas", "incremental-long", "blank-deltas"],
 )
 # contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,message-input.embeds.gated-send
 async def test_realtime_audio_relays_pcm_deltas_and_final_text(
@@ -210,6 +215,9 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     browser_messages: list[dict[str, object]] = []
     billed: dict[str, object] = {}
     released: list[tuple[object, str, str]] = []
+    corrected_batches: list[str] = []
+    background_corrected = asyncio.Event()
+    long_stream = len("".join(deltas)) >= 800
 
     class FakeProvider:
         def __init__(self) -> None:
@@ -237,10 +245,14 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
                 self.ended.set()
 
         async def receive(self) -> SimpleNamespace:
-            await self.ended.wait()
+            if not long_stream:
+                await self.ended.wait()
+            elif self.events[0]["type"] == "transcription.done":
+                await self.ended.wait()
+            event = self.events.pop(0)
             return SimpleNamespace(
                 type=audio_realtime.aiohttp.WSMsgType.TEXT,
-                data=json.dumps(self.events.pop(0)),
+                data=json.dumps(event),
             )
 
     provider = FakeProvider()
@@ -292,23 +304,26 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
             await asyncio.sleep(0)
             if not self.inputs:
                 await asyncio.Future()
+            if long_stream and json.loads(self.inputs[0])["type"] == "input_audio.end":
+                await asyncio.wait_for(background_corrected.wait(), 2)
             return self.inputs.pop(0)
 
         async def send_json(self, message: dict[str, object]) -> None:
             browser_messages.append(message)
+            if message["type"] == "correction.progress" and not provider.ended.is_set():
+                background_corrected.set()
 
     async def fake_correction(
-        websocket: BrowserSocket,
+        _websocket: BrowserSocket,
         raw: str,
         language: str | None,
         context: str | None = None,
-    ) -> None:
-        assert raw == expected_transcript
-        assert language == "en"
+    ) -> dict[str, str]:
+        assert raw in expected_transcript
+        assert language in (None, "en")
         assert context is None
-        await websocket.send_json(
-            {"type": "correction.done", "transcript": raw}
-        )
+        corrected_batches.append(raw)
+        return {"title": "Plans", "transcript": raw, "correction_model": "test"}
 
     async def fake_billing(_websocket: BrowserSocket, **kwargs: object) -> None:
         billed.update(kwargs)
@@ -323,7 +338,7 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
         lambda *_args: asyncio.sleep(0, result=(None, "lock", "token")),
     )
     monkeypatch.setattr(audio_realtime, "_release_stream_lock", fake_release)
-    monkeypatch.setattr(audio_realtime, "_correct_and_send", fake_correction)
+    monkeypatch.setattr(audio_realtime, "_correct_segment", fake_correction)
     monkeypatch.setattr(audio_realtime, "_bill_realtime_usage", fake_billing)
 
     socket = BrowserSocket()
@@ -337,14 +352,23 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
         "input_audio.append",
                 "input_audio.end",
     ]
-    assert [message["type"] for message in browser_messages] == [
+    terminal_events = [message for message in browser_messages if message["type"] != "correction.progress"]
+    assert [message["type"] for message in terminal_events] == [
         "session.ready",
         *["transcription.text.delta"] * len(deltas),
         "transcription.done",
+        "correction.started",
         "correction.done",
     ]
-    assert browser_messages[-2]["transcript"] == expected_transcript
-    assert browser_messages[-1]["transcript"] == expected_transcript
+    assert terminal_events[-3]["transcript"] == expected_transcript
+    assert terminal_events[-1]["transcript"] == expected_transcript
+    if long_stream:
+        assert background_corrected.is_set()
+        assert " ".join(corrected_batches) == expected_transcript
+        assert all(len(batch) <= 800 for batch in corrected_batches)
+        assert len(corrected_batches) > 1
+    else:
+        assert corrected_batches == [expected_transcript]
     assert [message["text"] for message in browser_messages if message["type"] == "transcription.text.delta"] == deltas
     assert billed["request_id"] == "provider-1"
     assert billed["audio_seconds"] == 1.25
