@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 7
+version: 8
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -11,12 +11,13 @@ summary: >
 
 scope:
   includes:
+    - Current, affordable automatic recovery and a consistent answer-only retry after suppressed model-generated tool protocol.
     - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
     - Four-level request classification (low, medium, high, max), preserving the existing Simple, Complex, and Most demanding user preference buckets.
     - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
     - Provider recommendations per tier and provider-independent model capability indicators.
     - Unauthenticated read-only discovery of available model metadata through the public model catalog.
-    - Provider-specific user-facing model variants such as Gemini 3.7 Flash and Gemini 3.7 Flash (High).
+    - Provider-specific user-facing model variants and their supported reasoning profiles.
     - Per-user, per-chat exact-model selection, encrypted persistence, cross-device convergence, and restore on chat load.
     - Composer Auto/model selection, exact-model and alias mention synchronization, and unavailable-model recovery.
     - Consolidated composer attachment menu and responsive model-selector presentation shown by the approved redesign.
@@ -275,6 +276,10 @@ assertions:
     type: behavior
     must: Automatic low-complexity text requests use direct Inception Mercury 3 with low reasoning, with Gemini 3.8 Flash LOW recovery for unavailable or ineligible Mercury and a five-second deadline through the first substantive output. Usage or reasoning metadata alone does not satisfy that deadline. Published answer content is never silently replayed from another model. Unsupported modalities use an eligible Gemini route. Medium and high remain Gemini 3.8 Flash MEDIUM and HIGH; max remains Gemini 4 Argon HIGH. Exact chat selections, saved preference-bucket choices and model/provider restrictions retain precedence; reasoning settings remain provider-specific.
     depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.default_profiles]
+  - id: ai-model-routing.recovery.affordable-current-models
+    type: failure
+    must: Automatic recovery preserves the configured tier default, then uses only eligible current Gemini 3.8 Flash and inexpensive Mercury 3 routes in that order, omitting duplicate models and honoring disabled models, providers, servers and actual input capabilities. Rankings cannot add older Gemini 3.7 or premium paid models to this chain. Mercury recovery uses LOW reasoning and never drops images or documents to admit a text-only model. After model-generated tool protocol is suppressed, one clean answer-only retry first retains the current model, disables native tools, removes tool-dispatch and tool-selection instructions, preserves safety, verified evidence and published text, and only then uses the next eligible configured model. Recovery remains bounded and exhaustion reports failure without an unapproved model or duplicated published text. Explicit model and preference-bucket choices retain precedence.
+    depends_on: [examples.answer_recovery]
   - id: ai-model-routing.chat-selection.encrypted-user-chat-scope
     type: privacy
     must: An exact composer model choice or Auto is stored per authenticated user and chat, is client-side encrypted before durable sync, converges across that user's devices, is restored before the composer presents its selection, and never changes another chat participant's selection.
@@ -336,4 +341,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]
+  required_groups: [required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]

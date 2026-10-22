@@ -138,8 +138,8 @@ class TestModelSelector:
             PREMIUM_MODELS,
         )
 
-        assert DEFAULT_FALLBACK_MODEL == "anthropic/claude-sonnet-5-5"
-        assert DEFAULT_FALLBACK_MODEL_ALT == "anthropic/claude-haiku-5-5"
+        assert DEFAULT_FALLBACK_MODEL == "inception/mercury-3"
+        assert DEFAULT_FALLBACK_MODEL_ALT == "google/gemini-3.8-flash"
         assert {model for model in ECONOMICAL_MODELS if model.startswith("claude-")} == {"claude-haiku-5-5"}
         assert {model for model in PREMIUM_MODELS if model.startswith("claude-")} == {
             "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5",
@@ -208,10 +208,10 @@ class TestModelSelector:
         selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
         result = selector.select_models(task_area="general", complexity="simple")
 
-        assert result.primary_model_id == "google/gemini-3.8-flash"
+        assert result.primary_model_id == "inception/mercury-3"
 
     @pytest.mark.parametrize("tier,model", [
-        ("low", "google/gemini-3.8-flash"),
+        ("low", "inception/mercury-3"),
         ("medium", "google/gemini-3.8-flash"),
         ("high", "google/gemini-3.8-flash"),
         ("max", "google/gemini-4-argon"),
@@ -308,7 +308,7 @@ class TestModelSelector:
 
         selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
         # Model IDs can be bare or provider-prefixed; include both forms
-        available = ["claude-sonnet-5-5", "anthropic/claude-sonnet-5-5", "mistral-large"]
+        available = ["mercury-3", "inception/mercury-3", "claude-sonnet-5-5"]
 
         result = selector.select_models(
             task_area="general",
@@ -609,3 +609,36 @@ def test_static_auto_select_warmup_reads_once_and_clear_reloads(tmp_path, monkey
     model_selector.clear_auto_select_cache()
     assert model_selector._load_auto_select_settings()["gemini-3.8-flash"] is False
     assert len(loads) == 2
+
+
+@pytest.mark.parametrize("tier,expected", [
+    ("low", ["inception/mercury-3", "google/gemini-3.8-flash"]),
+    ("medium", ["google/gemini-3.8-flash", "inception/mercury-3"]),
+    ("high", ["google/gemini-3.8-flash", "inception/mercury-3"]),
+    ("max", ["google/gemini-4-argon", "google/gemini-3.8-flash", "inception/mercury-3"]),
+])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+def test_automatic_recovery_ignores_older_and_premium_rankings(mock_leaderboard_data, tier, expected):
+    from backend.apps.ai.utils.model_selector import ModelSelector
+    selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
+    assert selector.get_model_ids_list(selector.select_models(complexity=tier)) == expected
+
+
+@pytest.mark.parametrize("available", [[], ["gemini-3.7-flash"], ["anthropic/claude-sonnet-5-5"]])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+def test_unapproved_or_empty_availability_cannot_escape_policy(available):
+    from backend.apps.ai.utils.model_selector import ModelSelector
+    with pytest.raises(ValueError, match="No permitted"):
+        ModelSelector().select_models(complexity="medium", available_model_ids=available)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+def test_text_fallback_respects_capability_and_provider_exclusions():
+    from backend.apps.ai.utils.model_selector import ModelSelector
+    selector = ModelSelector()
+    result = selector.select_models(complexity="medium", required_input_type="image")
+    assert selector.get_model_ids_list(result) == ["google/gemini-3.8-flash"]
+    result = selector.select_models(complexity="medium", excluded_provider_ids={"google"})
+    assert selector.get_model_ids_list(result) == ["inception/mercury-3"]
+    with pytest.raises(ValueError, match="No permitted"):
+        selector.select_models(complexity="medium", required_input_type="image", excluded_provider_ids={"google"})

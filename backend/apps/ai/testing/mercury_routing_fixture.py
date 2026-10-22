@@ -21,14 +21,20 @@ GROUP = "mercury_auto_low"
 SUCCESS_PROMPT = "What is 2 + 2? MERCURY_ROUTING_E2E:success"
 FALLBACK_PROMPT = "What is 3 + 3? MERCURY_ROUTING_E2E:fallback"
 DISABLED_PROMPT = "What is 4 + 4? MERCURY_ROUTING_E2E:disabled"
+GEMINI_RETRY_PROMPT = "Compare the available evidence. MERCURY_ROUTING_E2E:gemini_retry"
+CHEAP_FALLBACK_PROMPT = "Summarize the available evidence. MERCURY_ROUTING_E2E:cheap_fallback"
 SUCCESS_RESPONSE = "The answer is 4. Automatic routing completed successfully."
 FALLBACK_RESPONSE = "The answer is 6. Automatic routing recovered successfully."
 DISABLED_RESPONSE = "The answer is 8. Your disabled model was respected."
-PROMPTS = (SUCCESS_PROMPT, FALLBACK_PROMPT, DISABLED_PROMPT)
+GEMINI_RETRY_RESPONSE = "Gemini completed the answer on its first clean retry."
+CHEAP_FALLBACK_RESPONSE = "Mercury completed the answer as the inexpensive last resort."
+PROTOCOL_TEXT = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
+PROMPTS = (SUCCESS_PROMPT, FALLBACK_PROMPT, DISABLED_PROMPT, GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT)
 MAX_FAILURE_WITNESSES = 128
 # wait_for() consumes Mercury's first chunk in a child task, so a ContextVar set
 # there would not reach the fallback task. Store only opaque task IDs, bounded.
 _failed_tasks: OrderedDict[str, None] = OrderedDict()
+_protocol_failures: OrderedDict[str, int] = OrderedDict()
 
 
 def active() -> bool:
@@ -46,6 +52,11 @@ def _prompt(messages: Any) -> str | None:
     for message in reversed(messages):
         if isinstance(message, dict) and message.get("role") == "user":
             content = str(message.get("content") or "")
+            # Recovery appends this exact instruction after the original
+            # request when a safe prefix has already reached the user.
+            if content == ("Continue the answer immediately after the already-published prefix. "
+                           "Do not repeat or paraphrase any published text."):
+                continue
             return next((prompt for prompt in PROMPTS if prompt in content), None)
     return None
 
@@ -56,7 +67,8 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
     if not (_prompt(state.get("messages")) or any(
             prompt in str(state.get("user_message") or "") for prompt in PROMPTS)):
         return None
-    preferred = {"complexity": "low", "task_area": "general", "topic_shift": "noticeable_shift",
+    medium = any(prompt in str(state) for prompt in (GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT))
+    preferred = {"complexity": "medium" if medium else "low", "task_area": "general", "topic_shift": "noticeable_shift",
                  "temperature": "precise", "preview": "none", "language": "en", "icon": "calculator",
                  "project_target": "none", "topic_area": "general_misc"}
     answers: dict[str, dict[str, Any]] = {}
@@ -119,6 +131,30 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
                 "parsing_error": None}]}}}}
     if category != f"llm/{model}" or kwargs.get("stream") is False:
         return None
+    if prompt in {GEMINI_RETRY_PROMPT, CHEAP_FALLBACK_PROMPT}:
+        if model == LOW_FALLBACK_MODEL.split("/", 1)[1]:
+            failures = _protocol_failures.get(task_id, 0)
+            if failures:
+                from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION
+                system = "\n".join(str(message.get("content") or "") for message in kwargs.get("messages") or []
+                                   if isinstance(message, dict) and message.get("role") == "system")
+                if names or kwargs.get("tool_choice") != "none" or ANSWER_RECOVERY_INSTRUCTION not in system:
+                    raise AssertionError("Gemini retry must use a clean answer-only request")
+                if "Simply decide which tool to call" in system:
+                    raise AssertionError("Recovery still includes tool-selection instructions")
+                if prompt == GEMINI_RETRY_PROMPT:
+                    del _protocol_failures[task_id]
+                    return _packet(model, GEMINI_RETRY_RESPONSE)
+            _protocol_failures[task_id] = failures + 1
+            _protocol_failures.move_to_end(task_id)
+            while len(_protocol_failures) > MAX_FAILURE_WITNESSES:
+                _protocol_failures.popitem(last=False)
+            return _packet(model, ("Verified prefix.\n\n" if failures == 0 else "") + PROTOCOL_TEXT)
+        if model == MERCURY_MODEL.split("/", 1)[1] and prompt == CHEAP_FALLBACK_PROMPT:
+            if _protocol_failures.pop(task_id, None) != 2 or kwargs.get("reasoning_effort") != "low":
+                raise AssertionError("Mercury must follow exactly one clean Gemini retry at LOW")
+            return _packet(model, CHEAP_FALLBACK_RESPONSE)
+        raise AssertionError("Automatic recovery dispatched an unapproved or older model")
     if model == MERCURY_MODEL.split("/", 1)[1]:
         if prompt == DISABLED_PROMPT:
             raise AssertionError("A disabled Mercury model must never reach its provider")

@@ -16,7 +16,8 @@ from dataclasses import dataclass
 import yaml
 
 from backend.apps.ai.processing.model_routing import (
-    LOW_FALLBACK_MODEL, MERCURY_MODEL, default_profile_for_tier, normalize_request_tier,
+    LOW_FALLBACK_MODEL, MERCURY_MODEL, automatic_model_candidates,
+    normalize_request_tier,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,10 +56,10 @@ class ModelSelectionResult:
     filtered_cn_models: bool = False
 
 
-# Default fallback models (always available, reliable)
-# These MUST include provider prefix for billing/routing to work
-DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-5-5"  # Reliable Claude Sonnet
-DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-5-5"  # Fast, affordable fallback
+# Current, cost-bounded recovery models. Eligibility is checked for every route.
+# These MUST include provider prefix for billing/routing to work.
+DEFAULT_FALLBACK_MODEL = MERCURY_MODEL
+DEFAULT_FALLBACK_MODEL_ALT = LOW_FALLBACK_MODEL
 
 # Task area to leaderboard category mapping
 TASK_AREA_CATEGORIES = {
@@ -89,7 +90,7 @@ PREMIUM_MODELS = {
     "claude-fable-5-1",               # Latest max-capability Claude
     "claude-opus-5-5",                # Latest Opus
     "claude-sonnet-5-5",              # Latest Sonnet
-    "gemini-3.7-flash",              # Top Gemini Flash
+    "gemini-3.8-flash",              # Current Gemini Flash
 }
 
 # Cache for allow_auto_select settings (loaded once per process)
@@ -263,177 +264,40 @@ class ModelSelector:
         excluded_provider_ids: Optional[set[str]] = None,
         log_prefix: str = ""
     ) -> ModelSelectionResult:
-        """
-        Select the best models for a request based on various factors.
+        """Select an eligible tier default followed by current, affordable recovery.
 
-        Selection logic:
-        1. Get ranked models for the task area from leaderboard
-        2. Filter out CN models if china_related is True
-        3. Select the eligible pinned profile for low, medium, high, or max
-        4. Use economical/premium rankings for excluded defaults and fallback
-        5. Return primary, secondary, and configured fallback
-
-        Args:
-            task_area: The type of task (code, math, creative, instruction, general)
-            complexity: Task complexity (low, medium, high, max); legacy labels are accepted.
-            china_related: If True, exclude CN-origin models
-            user_unhappy: If True, use premium models to improve response quality
-            required_input_type: Required input type (e.g., "image" for vision)
-            available_model_ids: If provided, only select from these models
-            excluded_provider_ids: Provider IDs to exclude from selection
-            log_prefix: Prefix for log messages
-
-        Returns:
-            ModelSelectionResult with primary, secondary, and fallback model IDs
+        Leaderboard changes must not silently introduce an older Gemini model
+        or a premium paid model into an automatic failure path. Exact user
+        selections bypass this selector. An explicit empty availability list
+        means no permitted route, rather than unrestricted availability.
         """
         complexity = normalize_request_tier(complexity)
-        reasons = []
+        available = set(available_model_ids) if available_model_ids is not None else None
+        excluded = excluded_provider_ids or set()
+        candidates = []
+        for model_id in automatic_model_candidates(complexity):
+            provider, short_id = model_id.split("/", 1)
+            if provider in excluded:
+                continue
+            if available is not None and model_id not in available and short_id not in available:
+                continue
+            if model_id == MERCURY_MODEL and required_input_type not in {None, "text"}:
+                continue
+            candidates.append(model_id)
+        if not candidates:
+            raise ValueError(f"No permitted automatic {complexity} model is available")
 
-        # Step 1: Get ranked models (filtered by allow_auto_select=true by default)
-        ranked_models = self._get_ranked_models(exclude_cn=china_related)
-
-        if not ranked_models:
-            # Check if leaderboard has models but all are filtered out by allow_auto_select
-            all_ranked = self._get_ranked_models(
-                exclude_cn=china_related, only_auto_select_enabled=False
-            )
-            if all_ranked:
-                reasons.append(
-                    f"No models with allow_auto_select=true ({len(all_ranked)} models filtered)"
-                )
-            else:
-                reasons.append("No ranked models available in leaderboard")
-        else:
-            reasons.append(f"Filtered to {len(ranked_models)} models with allow_auto_select=true")
-
+        primary_full_id = candidates[0]
+        secondary_full_id = candidates[1] if len(candidates) > 1 else None
+        fallback_full_id = candidates[-1] if len(candidates) > 1 else None
+        reasons = [f"Selected configured {complexity} default or permitted recovery: {primary_full_id}",
+                   "Current cost-bounded automatic recovery; rankings cannot add providers"]
         if china_related:
             reasons.append("CN models excluded (China-sensitive content)")
-
-        if excluded_provider_ids:
-            before_count = len(ranked_models)
-            ranked_models = [
-                m for m in ranked_models
-                if m.get("provider_id") not in excluded_provider_ids
-            ]
-            filtered_count = before_count - len(ranked_models)
-            if filtered_count > 0:
-                reasons.append(
-                    f"Excluded {filtered_count} model(s) from providers: "
-                    f"{', '.join(sorted(excluded_provider_ids))}"
-                )
-
-        # Step 2: Filter by available models if specified
-        if available_model_ids:
-            available_set = set(available_model_ids)
-            ranked_models = [m for m in ranked_models if m.get("model_id") in available_set]
-            reasons.append(f"Filtered to {len(ranked_models)} available models")
-
-        # Step 3: Filter by capabilities
-        ranked_models = self._filter_by_capabilities(ranked_models, required_input_type)
-
-        # Step 4: Determine selection strategy based on complexity and user satisfaction
-        prefer_economical = complexity == "low" and not user_unhappy
-        prefer_premium = complexity in {"medium", "high", "max"} or user_unhappy
-
-        if prefer_premium:
-            reasons.append("Premium model preferred (complex task or user unhappy)")
-        elif prefer_economical:
-            reasons.append("Economical model preferred (simple task)")
-
-        # Step 5: Select primary model
-        # We need to track both the model_id (for matching against ECONOMICAL/PREMIUM sets) and
-        # the full qualified ID (provider_id/model_id) for the result
-        primary_model_id = None  # Short model_id for matching against sets
-        primary_full_id = None   # Full provider/model_id for result
-        secondary_full_id = None  # Full provider/model_id for result
-
-        # Helper function to build fully qualified model ID
-        def _build_full_model_id(model_entry: Dict[str, Any]) -> Optional[str]:
-            """Build provider_id/model_id from a leaderboard entry."""
-            provider_id = model_entry.get("provider_id")
-            model_id = model_entry.get("model_id")
-            if provider_id and model_id:
-                return f"{provider_id}/{model_id}"
-            return None
-
-        # Product validation owns the automatic default for each request tier.
-        # Rankings still provide fallback choices, and exact user preferences
-        # bypass this selector before it is called.
-        configured_model = default_profile_for_tier(complexity)["model"]
-        configured_provider, configured_model_id = configured_model.split("/", 1)
-        available_set = set(available_model_ids or [])
-        configured_default_is_eligible = (
-            configured_provider not in (excluded_provider_ids or set())
-            and not (configured_model == MERCURY_MODEL and required_input_type not in {None, "text"})
-            and (
-                not available_set
-                or configured_model in available_set
-                or configured_model_id in available_set
-            )
-        )
-
-        if ranked_models or configured_default_is_eligible:
-            if configured_default_is_eligible:
-                primary_model_id = configured_model_id
-                primary_full_id = configured_model
-                reasons.append(f"Selected configured {complexity} default: {primary_full_id}")
-
-            if not primary_model_id:
-                if prefer_economical:
-                    for model_entry in ranked_models:
-                        model_id = model_entry.get("model_id")
-                        if model_id and model_id in ECONOMICAL_MODELS:
-                            primary_model_id = model_id
-                            primary_full_id = _build_full_model_id(model_entry)
-                            reasons.append(f"Selected economical model: {primary_full_id}")
-                            break
-
-                elif prefer_premium:
-                    for model_entry in ranked_models:
-                        model_id = model_entry.get("model_id")
-                        if model_id and model_id in PREMIUM_MODELS:
-                            primary_model_id = model_id
-                            primary_full_id = _build_full_model_id(model_entry)
-                            reasons.append(f"Selected premium model: {primary_full_id}")
-                            break
-
-                if not primary_model_id and ranked_models:
-                    primary_model_id = ranked_models[0].get("model_id")
-                    primary_full_id = _build_full_model_id(ranked_models[0])
-                    reasons.append(f"Selected top-ranked fallback model: {primary_full_id}")
-
-            # Select secondary model (different from primary)
-            for model_entry in ranked_models:
-                model_id = model_entry.get("model_id")
-                if model_id and model_id != primary_model_id:
-                    secondary_full_id = _build_full_model_id(model_entry)
-                    break
-
-        # Step 6: Ensure we have at least a primary model (with provider prefix)
-        if not primary_full_id:
-            primary_full_id = DEFAULT_FALLBACK_MODEL
-            reasons.append(f"No ranked models available, using default: {primary_full_id}")
-
-        # Step 7: Set fallback model (always with provider prefix)
-        fallback_full_id = DEFAULT_FALLBACK_MODEL
-        if fallback_full_id == primary_full_id:
-            # Use a different fallback if primary is already the default
-            fallback_full_id = DEFAULT_FALLBACK_MODEL_ALT
-
-        if complexity == "low":
-            fallback_provider, fallback_model = LOW_FALLBACK_MODEL.split("/", 1)
-            fallback_eligible = (fallback_provider not in (excluded_provider_ids or set())
-                                 and (not available_set or LOW_FALLBACK_MODEL in available_set
-                                      or fallback_model in available_set))
-            if configured_default_is_eligible and primary_full_id == MERCURY_MODEL:
-                secondary_full_id = LOW_FALLBACK_MODEL if fallback_eligible else None
-                fallback_full_id = LOW_FALLBACK_MODEL if fallback_eligible else None
-            elif not configured_default_is_eligible:
-                if not fallback_eligible:
-                    raise ValueError("No permitted automatic low model is available")
-                primary_full_id = LOW_FALLBACK_MODEL
-                secondary_full_id = None
-                fallback_full_id = LOW_FALLBACK_MODEL
+        if excluded:
+            reasons.append(f"Excluded providers: {', '.join(sorted(excluded))}")
+        if user_unhappy:
+            reasons.append("User unhappy; preserve the configured tier without paid escalation")
 
         # Log the selection
         selection_reason = "; ".join(reasons)

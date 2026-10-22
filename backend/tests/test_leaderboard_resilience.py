@@ -284,6 +284,8 @@ def test_failed_scrape_keeps_real_model_selection_available(tmp_path, monkeypatc
 
     backend_dir = Path(__file__).resolve().parents[1]
     original = yaml.safe_load((backend_dir / "data/models_leaderboard.yml").read_text())
+    # Preserve the old ranking data as evidence; Auto must still use the
+    # current configured model rather than resurrecting the older entry.
     assert original["rankings"][0]["model_id"] == "gemini-3.7-flash"
     output_file = tmp_path / "models_leaderboard.yml"
     output_file.write_text(yaml.safe_dump(original))
@@ -323,9 +325,9 @@ def test_failed_scrape_keeps_real_model_selection_available(tmp_path, monkeypatc
     selection = selector.select_models(
         task_area="general",
         complexity="complex",
-        available_model_ids=["gemini-3.7-flash", "google/gemini-3.7-flash"],
+        available_model_ids=["gemini-3.8-flash", "google/gemini-3.8-flash"],
     )
 
     assert yaml.safe_load(output_file.read_text()) == original
     assert json.loads(cache[leaderboard_tasks.LEADERBOARD_CACHE_KEY]) == original
-    assert selection.primary_model_id == "google/gemini-3.7-flash"
+    assert selection.primary_model_id == "google/gemini-3.8-flash"

@@ -25,6 +25,7 @@ from backend.apps.ai.llm_providers.google_client import (
 from backend.apps.ai.processing import main_processor
 from backend.apps.ai.utils import llm_utils
 from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.instruction_loader import load_base_instructions
 
 
 pytestmark = pytest.mark.asyncio
@@ -40,6 +41,11 @@ ATTACHMENT_URL = (
 CITATION_URL = "https://evidence.test/source-1"
 EMBED_REFERENCE = "search-result-source-1"
 CURRENT_TOOL_EVIDENCE = "A newly completed search favors option one."
+_INSTRUCTIONS = load_base_instructions()
+BASE_INSTRUCTIONS = {key: _INSTRUCTIONS[key] for key in (
+    "base_ethics_instruction", "base_privacy_instruction", "base_tool_thinking_discipline_instruction",
+)}
+TOOL_DISCIPLINE = BASE_INSTRUCTIONS["base_tool_thinking_discipline_instruction"]
 ANSWER = f"The completed evidence supports the first option [source]({CITATION_URL})."
 
 
@@ -204,6 +210,10 @@ def _request(history: list[dict], current_user_content: str | None = CURRENT_REQ
         learning_mode=None,
         client_capabilities=[],
         is_anonymous=False,
+        same_turn_batch_id=None,
+        same_turn_checkpoint=None,
+        same_turn_slots=[],
+        auto_speak_response=False,
         anonymous_reservation_id=None,
         has_image_upload_embed=True,
         embed_file_path_index=None,
@@ -284,6 +294,7 @@ def answer_recovery_runner(monkeypatch):
     )
     monkeypatch.setattr(main_processor, "_reserve_authenticated_ai_turn", reserve_test_turn)
     monkeypatch.setattr(main_processor, "_fit_personal_chat_output_token_limit", reserve_test_turn)
+    monkeypatch.setattr(main_processor, "_load_main_agentic_context", AsyncMock(return_value=("", [])))
     monkeypatch.setattr(
         main_processor, "execute_skill_with_multiple_requests", skill_dispatch
     )
@@ -389,15 +400,16 @@ def answer_recovery_runner(monkeypatch):
 
         history = _seeded_history(signature_provider=signature_provider)
         original_history = copy.deepcopy(history)
+        preprocessing = _preprocessing(alternate_model, secondary_model, primary_model=primary_model)
+        if live_tool_call:
+            preprocessing.relevant_app_skills = ["web-search"]
         output = [
             chunk
             async for chunk in main_processor.handle_main_processing(
                 "task-answer-recovery",
                 _request(history, current_user_content),
-                _preprocessing(
-                    alternate_model, secondary_model, primary_model=primary_model
-                ),
-                {},
+                preprocessing,
+                BASE_INSTRUCTIONS,
                 None,
                 None,
                 None,
@@ -500,7 +512,7 @@ async def test_fabricated_protocol_uses_clean_context_and_one_configured_alterna
     assert [call["model_id"] for call in calls] == [
         "answer-primary", "answer-primary", "answer-alternate",
     ]
-    assert [call["provider_id"] for call in calls] == ["google", "google", "anthropic"]
+    assert [call["provider_id"] for call in calls] == ["google", "google", "google"]
     for call in calls[1:]:
         _assert_clean_recovery_payload(call)
         system_messages = [
@@ -519,7 +531,7 @@ async def test_fabricated_protocol_uses_clean_context_and_one_configured_alterna
     assert failures == ([] if alternate_succeeds else [
         {"__main_processing_failure__": True, "reason": "protocol_guard"},
     ])
-    _assert_usage(output, calls=3, successful_model=CROSS_PROVIDER_MODEL if alternate_succeeds else PRIMARY_MODEL)
+    _assert_usage(output, calls=3, successful_model=ALTERNATE_MODEL if alternate_succeeds else PRIMARY_MODEL)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
@@ -617,7 +629,7 @@ async def test_forbidden_clean_retry_uses_one_configured_alternate(
     _assert_usage(timeout_output, calls=3, successful_model=ALTERNATE_MODEL)
 
 
-async def test_repeated_forbidden_calls_prefer_a_different_provider_for_final_answer(
+async def test_repeated_forbidden_calls_preserve_configured_model_order(
     answer_recovery_runner,
 ) -> None:
     output, calls, _original_history = await answer_recovery_runner(
@@ -629,7 +641,7 @@ async def test_repeated_forbidden_calls_prefer_a_different_provider_for_final_an
     assert [call["provider_id"] for call in calls] == [
         "google",
         "google",
-        "anthropic",
+        "google",
     ]
     assert [call["model_id"] for call in calls] == [
         "answer-primary",
@@ -643,7 +655,7 @@ async def test_repeated_forbidden_calls_prefer_a_different_provider_for_final_an
         isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
         for chunk in output
     )
-    _assert_usage(output, calls=3, successful_model=CROSS_PROVIDER_MODEL)
+    _assert_usage(output, calls=3, successful_model=ALTERNATE_MODEL)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
@@ -749,3 +761,33 @@ async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
         {"__main_processing_failure__": True, "reason": "provider_exhausted"}
     ]
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == prefix
+
+
+@pytest.mark.parametrize("guarded", [False, True])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+async def test_gemini_final_synthesis_and_retry_remove_tool_selection_guidance(answer_recovery_runner, guarded):
+    prefix = "Verified opening. "
+    protocol = "```toon\napp_id: web\nskill_id: search\nstatus: finished\n```"
+    replies = [[_completed_tool_call()], [prefix + protocol if guarded else ANSWER]]
+    if guarded:
+        replies.append([ANSWER])
+    output, calls, _ = await answer_recovery_runner(
+        replies, alternate_model=CROSS_PROVIDER_MODEL, live_tool_call=True,
+        primary_model="google_ai_studio/answer-primary", signature_provider="google_ai_studio",
+    )
+    assert len(calls) == (3 if guarded else 2)
+    assert all(call["provider_id"] == "google" and call["model_id"] == "answer-primary" for call in calls)
+    assert TOOL_DISCIPLINE in calls[0]["messages"][0]["content"]
+    for call in calls[1:]:
+        system = next(message["content"] for message in call["messages"] if message["role"] == "system")
+        assert TOOL_DISCIPLINE not in system
+        assert "Simply decide which tool to call" not in system
+        assert BASE_INSTRUCTIONS["base_ethics_instruction"] in system
+        assert BASE_INSTRUCTIONS["base_privacy_instruction"] in system
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in system
+        assert call["tools"] is None and call["tool_choice"] == "none"
+    if guarded:
+        _assert_clean_recovery_payload(calls[-1])
+        assert prefix in json.dumps(calls[-1]["messages"])
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == (prefix + ANSWER if guarded else ANSWER)
+    assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)

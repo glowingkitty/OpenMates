@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@7
+specification: feature.ai-model-routing@8
 
 required_instructions:
   - id: incomplete-cache-does-not-start-inference
@@ -70,6 +70,18 @@ default_profiles:
     given: Alice leaves Simple requests on Auto, and a low-complexity request either contains an image or encounters an unavailable Mercury service.
     when: Routing checks the actual input and model restrictions, or Mercury provides no substantive answer or tool output within five seconds.
     then: An eligible Gemini 3.8 Flash LOW route serves the request with its actual model attribution. Metadata-only events do not keep Mercury waiting, and a response already shown to Alice is never silently restarted with duplicate text.
+
+answer_recovery:
+  - id: gemini-protocol-retry-stays-on-gemini
+    assertion_ids: [ai-model-routing.recovery.affordable-current-models]
+    given: Alice uses Auto for a medium request, Gemini 3.8 Flash has completed web research, and its answer contains an internal tool-result envelope.
+    when: The guard suppresses that envelope and the first answer-only retry runs.
+    then: Gemini 3.8 receives the verified research and already published text with tools and tool-selection instructions removed. Its successful continuation completes the same answer without repeating text or calling Mercury, Gemini 3.7 or Sonnet.
+  - id: affordable-recovery-or-explicit-exhaustion
+    assertion_ids: [ai-model-routing.recovery.affordable-current-models]
+    given: Gemini 3.8 cannot complete its clean retry and Alice has not explicitly selected another model.
+    when: Recovery checks the remaining permitted routes.
+    then: Eligible text requests may use Mercury 3 LOW as the inexpensive last resort. If Mercury is disabled or the request requires an image or document, the response preserves published text and reports failure; it never removes media, retries an exhausted model, or escalates to Sonnet or Gemini 3.7. A max request may first recover from Argon through current Gemini 3.8.
 
 catalog:
   - id: public-read-only-model-discovery

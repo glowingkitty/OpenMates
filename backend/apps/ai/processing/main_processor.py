@@ -41,7 +41,8 @@ from backend.apps.ai.processing.search_skill_reliability import (
 )
 from backend.apps.ai.processing.model_routing import (
     LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS,
-    automatic_attempt_thinking_level, automatic_low_allowed_servers, history_requires_non_text,
+    automatic_attempt_thinking_level, automatic_model_allowed_servers,
+    automatic_profile_thinking_level, history_requires_non_text,
     normalize_request_tier,
 )
 from backend.apps.ai.utils.instruction_loader import (
@@ -4818,6 +4819,7 @@ async def handle_main_processing(
         if thinking_discipline:
             prompt_parts.append(thinking_discipline)
             tool_only_prompt_parts.append(("any_tool", thinking_discipline))
+            research_only_prompt_parts.add(thinking_discipline)
             logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
     
     # Add generic proactive skill usage instruction (only when apps are available)
@@ -6540,7 +6542,7 @@ async def handle_main_processing(
         await refresh_agentic_context()
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
-        iteration_system_prompt = answer_recovery_system_prompt if answer_recovery.active else full_system_prompt
+        iteration_system_prompt = answer_recovery_system_prompt if force_no_tools else full_system_prompt
         if budget_warning_injected:
             if follow_up_suggestions_enabled:
                 budget_guidance = (
@@ -6562,7 +6564,7 @@ async def handle_main_processing(
             iteration_system_prompt += budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
 
-        if answer_recovery.active:
+        if force_no_tools:
             iteration_system_prompt += "\n\n" + ANSWER_RECOVERY_INSTRUCTION
 
         if omitted_news_search_requests:
@@ -6603,26 +6605,29 @@ async def handle_main_processing(
         while current_model_index < len(models_to_try):
             try:
                 current_model_id = models_to_try[current_model_index]
-                automatic_low_attempt = automatic_attempt_thinking_level(
-                    preprocessing_results.complexity, current_model_id,
-                    getattr(preprocessing_results, "selected_main_llm_thinking_level", None),
+                automatic_attempt_level = automatic_attempt_thinking_level(
+                    getattr(preprocessing_results, "complexity", "medium"), current_model_id,
+                    getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                    or (automatic_profile_thinking_level(
+                        getattr(preprocessing_results, "complexity", "medium"), current_model_id,
+                    ) if current_model_index > 0 else None),
                 )
-                permitted_low_servers = None
-                if automatic_low_attempt:
-                    permitted_low_servers = automatic_low_allowed_servers(
+                permitted_automatic_servers = None
+                if automatic_attempt_level or current_model_id == MERCURY_MODEL:
+                    permitted_automatic_servers = automatic_model_allowed_servers(
                         current_model_id, request_data.user_preferences,
                         config_manager.get_provider_config(current_model_id.split("/", 1)[0]),
                     )
                     incompatible_mercury = current_model_id == MERCURY_MODEL and history_requires_non_text(current_message_history)
-                    if not permitted_low_servers or incompatible_mercury:
+                    if not permitted_automatic_servers or incompatible_mercury:
                         # Later tool images and changed restrictions cannot admit
                         # a forbidden fallback or strip visual evidence.
-                        fallback_servers = automatic_low_allowed_servers(
+                        fallback_servers = automatic_model_allowed_servers(
                             LOW_FALLBACK_MODEL, request_data.user_preferences,
                             config_manager.get_provider_config("google"),
                         )
-                        if (current_model_id == MERCURY_MODEL and fallback_servers
-                                and LOW_FALLBACK_MODEL not in models_to_try[current_model_index + 1:]):
+                        if (automatic_attempt_level and current_model_id == MERCURY_MODEL and fallback_servers
+                                and LOW_FALLBACK_MODEL not in models_to_try):
                             models_to_try.append(LOW_FALLBACK_MODEL)
                         current_model_index += 1
                         continue
@@ -6650,6 +6655,12 @@ async def handle_main_processing(
                         current_message_history,
                         max_tokens=current_history_budget,
                     )
+                # Recovery can restore media from the pre-truncation evidence
+                # snapshot. Check that final payload before reservation/dispatch.
+                if (current_model_id == MERCURY_MODEL
+                        and history_requires_non_text(current_message_history)):
+                    current_model_index += 1
+                    continue
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
@@ -6944,15 +6955,15 @@ async def handle_main_processing(
                     model_id=current_model_id,  # Use current_model_id from fallback list
                     temperature=preprocessing_results.llm_response_temp,
                     thinking_level=(
-                        automatic_low_attempt or (
+                        automatic_attempt_level or (
                             getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
                             if current_model_id == preprocessing_results.selected_main_llm_model_id else None
                         )
                     ),
-                    allowed_server_ids=permitted_low_servers,
+                    allowed_server_ids=permitted_automatic_servers,
                     first_substantive_timeout_seconds=(
                         MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS
-                        if automatic_low_attempt and current_model_id == MERCURY_MODEL else None
+                        if automatic_attempt_level and current_model_id == MERCURY_MODEL else None
                     ),
                     secrets_manager=secrets_manager,
                     tools=iteration_tools,

@@ -164,7 +164,7 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
    - Uses the eligible pinned profile for the classified request complexity
    - If that profile is excluded or unavailable, low requests prefer economical ranked models; medium, high and max prefer premium ranked models
    - Dissatisfaction can affect ranked fallback selection without automatically promoting the request to max
-   - Returns primary + secondary + fallback (3 models total)
+   - Returns the eligible tier default and the ordered, current recovery models; rankings never add a premium model to failure handling
 
 4. **Main processing with fallback** ([`main_processor.py`](../../backend/apps/ai/processing/main_processor.py)):
    - Tries primary model first
@@ -206,15 +206,27 @@ Rankings are aggregated into a leaderboard file loaded to cache on server startu
 
 ### Fallback Strategy
 
-Three tiers of fallback ensure reliability:
+Automatic recovery uses current models with a bounded cost:
 
 | Tier | Source | Example |
 |------|--------|---------|
-| Primary | Best ranked for task area | `alibaba/qwen3-235b-a22b-2507` |
-| Secondary | Second-best ranked | `google/gemini-3.1-pro-preview` |
-| Tertiary | Hardcoded reliable default | `anthropic/claude-sonnet-5` |
+| Primary | Configured request-tier profile | Mercury 3 LOW, Gemini 3.8 Flash MEDIUM/HIGH, or Gemini 4 Argon HIGH |
+| Secondary | Current compatible Gemini recovery, when different from primary | `google/gemini-3.8-flash` |
+| Last resort | Inexpensive text-only recovery, when different from primary | `inception/mercury-3` LOW |
 
 Each model tries its configured servers in order (e.g., Bedrock then direct API) before moving to the next tier.
+
+Duplicates are omitted. Disabled models, providers and servers remain excluded;
+images and documents never lose their content to fit Mercury's text-only input.
+Gemini 3.7 and premium Anthropic/OpenAI models are not automatic recovery routes.
+Exact user selections and saved tier preferences retain their precedence.
+
+When a model emits internal tool-result protocol instead of a final answer, the
+guard suppresses it and first retries the same model with clean evidence and
+tools disabled. That retry removes tool-selection and dispatch instructions
+while retaining safety, supported citations and the already-published answer.
+Only a failed retry advances to the next permitted model in order; provider
+diversity cannot reorder this list. Two answer-only attempts bound recovery.
 
 Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
 

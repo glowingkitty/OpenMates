@@ -38,7 +38,7 @@ from backend.core.api.app.utils.override_parser import UserOverrides
 # This replaces the previous hardcoded keyword-based detection in china_sensitivity.py
 
 # Import model selector for intelligent model selection based on leaderboard rankings
-from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL, ModelSelector
+from backend.apps.ai.utils.model_selector import ModelSelector
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
@@ -54,11 +54,10 @@ from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_wi
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
-    LOW_FALLBACK_MODEL,
     MERCURY_MODEL,
     history_requires_non_text,
-    mercury_allowed_by_preferences,
-    automatic_low_allowed_servers,
+    automatic_model_candidates,
+    automatic_model_allowed_servers,
     LOW_TIER,
     MAX_TIER,
     MEDIUM_TIER,
@@ -2027,37 +2026,18 @@ async def _select_main_model(
                 )
             else:
                 logger.warning(
-                    f"{log_prefix} USER_OVERRIDE: Could not resolve provider for model '{override_model_id}'. "
-                    f"Model not found in any provider configuration. Falling back to {DEFAULT_FALLBACK_MODEL}."
+                    "%s USER_OVERRIDE: Unresolved model; using permitted automatic selection", log_prefix,
                 )
-                selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
-                fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
-                selected_llm_for_main_name = (
-                    config_manager.get_model_display_name(fallback_model_id, fallback_provider)
-                    or fallback_model_id
-                )
-                model_override_applied = True
-                model_selection_reason = f"Unresolved user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
 
-        # The parser accepts authored model IDs that may have since been removed.
-        # Keep the existing explicit-override fallback, but never dispatch a
-        # retired model or a non-chat model to its old provider.
+        # An invalid selection is automatic recovery, never an explicit choice
+        # that may bypass disabled-model or input-capability restrictions.
         validated_override = _usable_chat_model_reference(selected_llm_for_main_id, config_manager)
         if validated_override:
             selected_llm_for_main_id, selected_llm_for_main_name = validated_override
         else:
-            logger.warning(
-                f"{log_prefix} USER_OVERRIDE: Model '{selected_llm_for_main_id}' is not a routable "
-                f"chat model in the current catalogue. Falling back to {DEFAULT_FALLBACK_MODEL}."
-            )
-            selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
-            fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
-            selected_llm_for_main_name = (
-                config_manager.get_model_display_name(fallback_model_id, fallback_provider)
-                or fallback_model_id
-            )
-            model_override_applied = True
-            model_selection_reason = f"Invalid user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
+            model_override_applied = False
+            selected_llm_for_main_id = selected_llm_for_main_name = None
+            model_selection_reason = "Invalid user override; permitted automatic selection"
 
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "
@@ -2096,13 +2076,9 @@ async def _select_main_model(
         if enable_auto_select:
             # Use ModelSelector to select models based on leaderboard rankings
             try:
-                from backend.core.api.app.tasks.leaderboard_tasks import get_leaderboard_data
-
-                # Get leaderboard data from cache (preloaded on server startup)
-                leaderboard_data = await get_leaderboard_data()
-
-                # Create model selector and select models
-                model_selector = ModelSelector(leaderboard_data=leaderboard_data)
+                # Tier profiles and affordable recovery are deployment policy;
+                # external rankings cannot silently introduce another provider.
+                model_selector = ModelSelector()
                 selection_result = model_selector.select_models(
                     task_area=task_area_val,
                     complexity=complexity_val,
@@ -2181,33 +2157,39 @@ async def _select_main_model(
 
             model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
 
-    # Change only the approved automatic low route; explicit choices keep precedence.
-    if not model_override_applied and complexity_val == LOW_TIER:
-        def allowed_low_model(model_id):
+    # Apply the same restrictions to every automatic tier and recovery model.
+    # Explicit chat and saved-tier choices retain their existing precedence.
+    if not model_override_applied:
+        candidates = []
+        configured_candidates = automatic_model_candidates(complexity_val)
+        if not enable_auto_select and selected_llm_for_main_id:
+            # Disabling automatic selection preserves the operator's configured
+            # primary; recovery still uses the current affordable policy.
+            configured_candidates = list(dict.fromkeys([selected_llm_for_main_id, *configured_candidates]))
+        for model_id in configured_candidates:
             provider = model_id.split("/", 1)[0]
-            return bool(_usable_chat_model_reference(model_id, config_manager)) and bool(
-                automatic_low_allowed_servers(model_id, request_data.user_preferences,
-                                              config_manager.get_provider_config(provider)))
-        fallback_allowed = allowed_low_model(LOW_FALLBACK_MODEL)
-        if selected_llm_for_main_id == MERCURY_MODEL:
-            mercury_eligible = (
-                allowed_low_model(MERCURY_MODEL)
-                and not has_image_upload_embed
-                and not history_requires_non_text(request_data.message_history)
-                and mercury_allowed_by_preferences(request_data.user_preferences)
-            )
-            if mercury_eligible:
-                mercury_eligible = await is_provider_healthy("inception", CacheService())
-            if not mercury_eligible:
-                selected_llm_for_main_id = LOW_FALLBACK_MODEL if fallback_allowed else None
-                selected_llm_for_main_name = (
-                    config_manager.get_model_display_name("gemini-3.8-flash", "google") or "Gemini 3.8 Flash"
-                ) if fallback_allowed else None
-                model_selection_reason = f"{model_selection_reason}; Automatic low route uses configured permitted fallback or stops: Mercury unavailable or incompatible"
-        elif selected_llm_for_main_id == LOW_FALLBACK_MODEL and not fallback_allowed:
-            selected_llm_for_main_id = selected_llm_for_main_name = None
-        selected_secondary_model_id = LOW_FALLBACK_MODEL if selected_llm_for_main_id == MERCURY_MODEL and fallback_allowed else None
-        selected_fallback_model_id = LOW_FALLBACK_MODEL if fallback_allowed else None
+            if not _usable_chat_model_reference(model_id, config_manager):
+                continue
+            if not automatic_model_allowed_servers(
+                model_id, request_data.user_preferences, config_manager.get_provider_config(provider),
+            ):
+                continue
+            if model_id == MERCURY_MODEL:
+                if has_image_upload_embed or history_requires_non_text(request_data.message_history):
+                    continue
+                # Avoid a known unavailable primary without a provider call.
+                # Recovery attempts recheck health at the dispatch boundary.
+                if not candidates and not await is_provider_healthy("inception", CacheService()):
+                    continue
+            candidates.append(model_id)
+        selected_llm_for_main_id = candidates[0] if candidates else None
+        selected_secondary_model_id = candidates[1] if len(candidates) > 1 else None
+        selected_fallback_model_id = candidates[-1] if len(candidates) > 1 else None
+        selected_llm_for_main_name = None
+        if selected_llm_for_main_id:
+            provider, model = selected_llm_for_main_id.split("/", 1)
+            selected_llm_for_main_name = config_manager.get_model_display_name(model, provider) or model
+        model_selection_reason = f"{model_selection_reason}; Permitted automatic chain: {candidates}"
 
     selected_llm_thinking_level = (
         automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)

@@ -181,7 +181,7 @@ def _main_stream(model: str, *chunks: Any) -> dict[str, Any]:
 def _preprocessing_arguments(scenario: str) -> dict[str, Any]:
     return {
         "llm_response_temp": 0.4,
-        "complexity": "complex" if scenario in {"child", "recovery_save_failure"} else "simple",
+        "complexity": "complex" if scenario in {"child", "recovery_save_failure", "recovery_protocol"} else "simple",
         "task_area": "math" if scenario == "tool" else "code",
         "user_unhappy": False,
         "china_model_sensitive": False,
@@ -268,23 +268,24 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
                               "total_token_count": 140},
                 },
             }}}
-        if (scenario and model == "gemini-3.5-flash-lite"
+        if (scenario and model in {"gemini-3.5-flash-lite", "mercury-3"}
                 and names == {"analyze_request_properties"}
                 and kwargs.get("tool_choice") == "required"):
+            google = model == "gemini-3.5-flash-lite"
             return {"response": {"type": "non_stream", "value": {
                 "kind": "pydantic",
-                "module": "backend.apps.ai.llm_providers.google_client",
-                "class": "UnifiedGoogleResponse",
+                "module": ("backend.apps.ai.llm_providers.google_client" if google
+                           else "backend.apps.ai.llm_providers.openai_shared"),
+                "class": "UnifiedGoogleResponse" if google else "UnifiedOpenAIResponse",
                 "value": {
                     "task_id": str(kwargs.get("task_id", "capacity-preprocessing")),
                     "model_id": model,
                     "success": True,
                     "tool_calls_made": [_call(
                         "analyze_request_properties", _preprocessing_arguments(scenario),
-                        google=True, fingerprint=fingerprint,
+                        google=google, fingerprint=fingerprint,
                     )["value"]],
-                    "usage": {"prompt_token_count": 100, "candidates_token_count": 40,
-                              "total_token_count": 140},
+                    "usage": _main_usage(model)["value"],
                 },
             }}}
         if not all_text.startswith("You are a conversation compression assistant."):
@@ -393,7 +394,8 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
         system_text = _text([message for message in messages or []
                              if isinstance(message, dict) and message.get("role") == "system"])
         dispatch_guidance = ("MUST make a SINGLE skill call", "**Web Skills**",
-                             "For API/library documentation, prefer `code-get_docs`")
+                             "For API/library documentation, prefer `code-get_docs`",
+                             "Simply decide which tool to call")
         if ANSWER_RECOVERY_INSTRUCTION in system_text and not any(
             instruction in system_text for instruction in dispatch_guidance
         ):

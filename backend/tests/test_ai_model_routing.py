@@ -176,7 +176,7 @@ def test_automatic_low_fallback_has_low_profile_without_affecting_explicit_choic
     routing = _routing_module()
     assert routing.automatic_profile_thinking_level("low", routing.LOW_FALLBACK_MODEL) == "LOW"
     assert routing.automatic_attempt_thinking_level("low", routing.LOW_FALLBACK_MODEL, "LOW") == "LOW"
-    assert routing.automatic_attempt_thinking_level("medium", routing.LOW_FALLBACK_MODEL, "MEDIUM") is None
+    assert routing.automatic_attempt_thinking_level("medium", routing.LOW_FALLBACK_MODEL, "MEDIUM") == "MEDIUM"
     assert routing.automatic_attempt_thinking_level("low", routing.MERCURY_MODEL, None) is None
 
 
@@ -218,7 +218,7 @@ def test_low_selector_has_deterministic_gemini_fallback(monkeypatch):
         assert fallback.secondary_model_id is None
     medium = selector.select_models(complexity="medium")
     assert medium.primary_model_id == "google/gemini-3.8-flash"
-    assert medium.secondary_model_id == "anthropic/claude-sonnet-5-5"
+    assert medium.secondary_model_id == medium.fallback_model_id == "inception/mercury-3"
 
 
 def _low_routing_provider_config(provider):
@@ -251,7 +251,7 @@ def test_preprocessor_automatic_low_eligibility_and_disabled_selector(monkeypatc
     expected = "inception/mercury-3" if restriction == "none" else "google/gemini-3.8-flash"
     assert result["selected_llm_for_main_id"] == expected
     assert result["selected_llm_thinking_level"] == "LOW"
-    assert result["selected_fallback_model_id"] == "google/gemini-3.8-flash"
+    assert result["selected_fallback_model_id"] == ("google/gemini-3.8-flash" if restriction == "none" else None)
 
 
 @pytest.mark.parametrize("choice", ["exact", "saved", "medium"])
@@ -331,3 +331,49 @@ def test_low_routes_filter_disabled_google_host_without_losing_enabled_vertex():
     with pytest.raises(ValueError, match="No permitted"):
         routing.resolve_model_routing(classified_tier="low", chat_model_preference="auto",
             tier_preferences={}, automatic_model=routing.MERCURY_MODEL, is_model_available=lambda _: False)
+
+
+@pytest.mark.parametrize('restriction', ['image', 'disabled', 'all_disabled'])
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+def test_invalid_explicit_selection_uses_permitted_automatic_recovery(monkeypatch, restriction):
+    import asyncio
+    from types import SimpleNamespace
+    from backend.apps.ai.processing import preprocessor
+    from backend.core.api.app.utils.override_parser import UserOverrides
+    preferences = {'disabled_ai_models': ['mercury-3']} if restriction != 'image' else {}
+    if restriction == 'all_disabled':
+        preferences['disabled_ai_models'].append('gemini-3.8-flash')
+    request = SimpleNamespace(message_history=[], has_image_upload_embed=restriction == 'image', user_preferences=preferences)
+    skill = SimpleNamespace(enable_auto_model_selection=False, default_llms=SimpleNamespace(
+        main_processing_complex='google/gemini-3.8-flash', main_processing_complex_name='Gemini 3.8 Flash'))
+    monkeypatch.setattr(preprocessor, 'config_manager', SimpleNamespace(
+        get_model_display_name=lambda model, _: model, get_provider_config=_low_routing_provider_config))
+    monkeypatch.setattr(preprocessor, '_usable_chat_model_reference',
+        lambda model, _: None if model == 'google/retired-model' else (model, model))
+    result = asyncio.run(preprocessor._select_main_model(
+        {'complexity': 'medium', 'china_model_sensitive': False}, request, skill,
+        UserOverrides(model_id='google/retired-model'), 'test'))
+    assert result['model_override_applied'] is False
+    assert result['selected_llm_for_main_id'] == (None if restriction == 'all_disabled' else 'google/gemini-3.8-flash')
+    assert result['selected_secondary_model_id'] is None
+    assert result['selected_fallback_model_id'] is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+def test_disabled_automatic_selection_preserves_configured_primary(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from backend.apps.ai.processing import preprocessor
+    request = SimpleNamespace(message_history=[], has_image_upload_embed=False, user_preferences={})
+    skill = SimpleNamespace(enable_auto_model_selection=False, default_llms=SimpleNamespace(
+        main_processing_complex='mistral/configured-model', main_processing_complex_name='Configured model'))
+    def catalog(provider):
+        return {'models': [{'id': 'configured-model', 'servers': [{'id': 'mistral'}]}]} if provider == 'mistral' else _low_routing_provider_config(provider)
+    monkeypatch.setattr(preprocessor, 'config_manager', SimpleNamespace(
+        get_model_display_name=lambda model, _: model, get_provider_config=catalog))
+    monkeypatch.setattr(preprocessor, '_usable_chat_model_reference', lambda model, _: (model, model))
+    result = asyncio.run(preprocessor._select_main_model(
+        {'complexity': 'medium', 'china_model_sensitive': False}, request, skill, None, 'test'))
+    assert result['selected_llm_for_main_id'] == 'mistral/configured-model'
+    assert result['selected_secondary_model_id'] == 'google/gemini-3.8-flash'
+    assert result['selected_fallback_model_id'] == 'inception/mercury-3'

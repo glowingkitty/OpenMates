@@ -71,9 +71,9 @@ test('Mercury 3 is manually selectable through Inception with medium capability'
 	await expect(menu).not.toBeVisible();
 });
 
-// contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto
-test('Auto routes low requests to Mercury and respects outages and disabled models', async ({ page }: { page: any }) => {
-	test.setTimeout(240000);
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto,ai-model-routing.recovery.affordable-current-models
+test('Auto uses current affordable models and recovers Gemini before Mercury', async ({ page }: { page: any }) => {
+	test.setTimeout(360000);
 	test.skip(process.env.CI !== 'true' || process.env.CI_TEST_MODE !== 'e2e'
 		|| process.env.OPENMATES_CI_ISOLATED !== '1', 'Requires the isolated provider-free product stack.');
 	skipWithoutCredentials(test, email, password, otpKey);
@@ -108,7 +108,9 @@ test('Auto routes low requests to Mercury and respects outages and disabled mode
 	for (const scenario of [
 		{ id: 'success', question: 'What is 2 + 2?', answer: 'The answer is 4. Automatic routing completed successfully.', model: 'Mercury 3' },
 		{ id: 'fallback', question: 'What is 3 + 3?', answer: 'The answer is 6. Automatic routing recovered successfully.', model: 'Gemini 3.8 Flash' },
-		{ id: 'disabled', question: 'What is 4 + 4?', answer: 'The answer is 8. Your disabled model was respected.', model: 'Gemini 3.8 Flash' }
+		{ id: 'disabled', question: 'What is 4 + 4?', answer: 'The answer is 8. Your disabled model was respected.', model: 'Gemini 3.8 Flash' },
+		{ id: 'gemini_retry', question: 'Compare the available evidence.', answer: 'Gemini completed the answer on its first clean retry.', model: 'Gemini 3.8 Flash' },
+		{ id: 'cheap_fallback', question: 'Summarize the available evidence.', answer: 'Mercury completed the answer as the inexpensive last resort.', model: 'Mercury 3' }
 	]) {
 		if (scenario.id === 'disabled') await setMercuryEnabled(false);
 		await startNewChat(page, log);
@@ -142,6 +144,11 @@ test('Auto routes low requests to Mercury and respects outages and disabled mode
 			await expect(page.getByTestId('active-chat-container').getByTestId('message-assistant')).toHaveCount(1);
 			const answerOccurrences = (await assistant.textContent()).split(scenario.answer).length - 1;
 			expect(answerOccurrences).toBe(1);
+			if (['gemini_retry', 'cheap_fallback'].includes(scenario.id)) {
+				const text = await assistant.innerText();
+				expect(text.split('Verified prefix.').length - 1).toBe(1);
+				expect(text).not.toMatch(/```(?:toon|tool_code)|app_id:|skill_id:|Sonnet|Gemini 3\.7/);
+			}
 			// Focus Tiptap itself; the empty wrapper's center can be outside its text box.
 			await editor.locator('[contenteditable="true"]').click();
 			await page.keyboard.type(' ');

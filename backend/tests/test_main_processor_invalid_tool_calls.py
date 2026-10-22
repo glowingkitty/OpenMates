@@ -413,7 +413,8 @@ async def _run_mocked_protocol_guard_main_processor(
         "truncate_message_history_to_token_budget",
         truncate_history or (lambda history, **_kwargs: history),
     )
-    monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: history_budget)
+    monkeypatch.setattr(main_processor, "model_history_token_budget",
+                        history_budget if callable(history_budget) else lambda *_args, **_kwargs: history_budget)
     def generate_tools(**kwargs):
         if on_tool_generation is not None:
             return on_tool_generation(kwargs)
@@ -1624,7 +1625,7 @@ async def test_main_processor_uses_configured_alternate_after_repeated_protocol(
     )
 
     assert [call["model_id"] for call in calls] == [
-        "google/test-model", "google/test-model", "anthropic/recovery-model",
+        "google/test-model", "google/test-model", "google/secondary",
     ]
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == safe_prefix + continuation
     for call in calls[1:]:
@@ -2569,7 +2570,7 @@ async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_s
     from backend.shared.python_schemas.app_metadata_schemas import AppInstructionDefinition
     from backend.apps.ai.utils.instruction_loader import load_base_instructions
 
-    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 2)
     definitions = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/web/app.yml").read_text())
     instructions = [AppInstructionDefinition.model_validate(value) for value in definitions["instructions"]]
     presentation = "PRESENTATION_RULE: Quote only actual returned evidence and retain exact citations."
@@ -2916,3 +2917,45 @@ async def test_skill_failure_finalization_preserves_all_placeholders_and_zero_hi
     assert terminal == ["error" if expected_errors and not expected_successes else "finished"]
     markdown = "".join(chunk for chunk in output if isinstance(chunk, str))
     assert markdown.count('"type": "app_skill_use"') == request_count
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.recovery.affordable-current-models
+async def test_mercury_rechecks_media_restored_in_answer_recovery(monkeypatch):
+    protocol = '```toon\napp_id: web\nskill_id: search\nstatus: finished\n```'
+    def catalog(provider):
+        model = 'mercury-3' if provider == 'inception' else 'gemini-3.8-flash'
+        host = 'inception' if provider == 'inception' else 'google_ai_studio'
+        return {'models': [{'id': model, 'servers': [{'id': host}]}]}
+    monkeypatch.setattr(main_processor.config_manager, 'get_provider_config', catalog)
+    original_build = main_processor.build_answer_recovery_history
+    restored = []
+    def restore_media(history, current, **kwargs):
+        result = original_build(history, current, **kwargs)
+        # Model-dependent fitting can restore older evidence for Mercury's
+        # larger budget after a Gemini retry omitted it.
+        if kwargs['max_tokens'] == 200000:
+            restored.append(True)
+            result.insert(0, {'role': 'user', 'content': [
+                {'type': 'image_url', 'image_url': {'url': 'https://example.test/evidence.png'}},
+            ]})
+        return result
+    monkeypatch.setattr(main_processor, 'build_answer_recovery_history', restore_media)
+    observed = []
+    def budget(model, *_args, **_kwargs):
+        return 200000 if model == 'inception/mercury-3' else 100000
+    def record(call):
+        observed.append(call['model_id'])
+        assert call['model_id'] != 'inception/mercury-3'
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[protocol], [protocol]],
+        history_budget=budget,
+        preprocessing_overrides={'complexity': 'medium',
+            'selected_main_llm_model_id': 'google/gemini-3.8-flash',
+            'selected_main_llm_thinking_level': 'MEDIUM',
+            'selected_secondary_model_id': None, 'selected_fallback_model_id': 'inception/mercury-3'},
+        on_provider_call=record,
+    )
+    assert observed == ['google/gemini-3.8-flash', 'google/gemini-3.8-flash']
+    assert len(calls) == 2
+    assert restored == [True]
+    assert any(isinstance(chunk, dict) and chunk.get('__main_processing_failure__') for chunk in _output)

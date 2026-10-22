@@ -57,7 +57,7 @@ test('signed capacity replay completes a real encrypted chat turn', async ({ pag
 	await deleteActiveChat(page, log, screenshot, 'storage-capacity');
 });
 
-// contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
+// contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,ai-model-routing.recovery.affordable-current-models
 test('fabricated tool protocol recovers without skill-dispatch instructions as one persisted turn', async ({ page }: { page: any }) => {
 	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
 	if (!getTestAccount().email) throw new Error('Disposable isolated test account is required.');
@@ -79,6 +79,7 @@ test('fabricated tool protocol recovers without skill-dispatch instructions as o
 	await expect(messages).toHaveCount(previousCount + 1, { timeout: 90_000 });
 	const answer = messages.nth(previousCount);
 	await expect(answer).toContainText(PROTOCOL_CONTINUATION, { timeout: 90_000 });
+	await expect(answer.getByTestId('generated-by')).toContainText('Gemini 3.8 Flash');
 	await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
 	await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 	await expect(messages).toHaveCount(previousCount + 1);

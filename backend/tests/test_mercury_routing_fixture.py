@@ -12,16 +12,18 @@ import pytest
 from backend.apps.ai.processing.jev_preprocessing import (
     decide_app_and_project_routing_with_jev, decide_preprocessing_with_jev,
 )
-from backend.apps.ai.processing.model_routing import LOW_FALLBACK_MODEL
+from backend.apps.ai.processing.model_routing import LOW_FALLBACK_MODEL, MERCURY_MODEL
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.testing.mercury_routing_fixture import (
     GROUP, SUCCESS_PROMPT, FALLBACK_PROMPT, SUCCESS_RESPONSE, FALLBACK_RESPONSE,
     DISABLED_PROMPT, DISABLED_RESPONSE,
+    GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE, CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE,
     active, jev_response, llm_fixture,
 )
+from backend.apps.ai.utils.answer_recovery import ANSWER_RECOVERY_INSTRUCTION, build_answer_recovery_history
 from backend.shared.providers.inception import InceptionError
 from backend.shared.providers.typesafe import budget as jev_budget
-from backend.shared.testing.api_response_cache import ApiResponseCache
+from backend.shared.testing.api_response_cache import ApiResponseCache, MockCacheMiss
 from backend.shared.testing.mock_context import (
     _LiveMockReceiptState, _allow_isolated_capacity_internal, live_mock_receipt_var,
     mock_group_var, mock_mode_var,
@@ -124,6 +126,41 @@ def test_disabled_model_path_forbids_mercury_and_admits_native_gemini(replay):
     fallback = LOW_FALLBACK_MODEL.split("/", 1)[1]
     packet = llm_fixture(f"llm/{fallback}", {**kwargs, "model_id": fallback})
     assert packet["response"]["chunks"][0]["value"] == DISABLED_RESPONSE
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prompt,expected", [
+    (GEMINI_RETRY_PROMPT, GEMINI_RETRY_RESPONSE),
+    (CHEAP_FALLBACK_PROMPT, CHEAP_FALLBACK_RESPONSE),
+])
+async def test_recovery_fixture_handles_actual_published_prefix_history(replay, tmp_path: Path, prompt, expected):
+    async def forbidden_provider(**_kwargs):
+        raise AssertionError("Recovery replay must never dispatch a real provider")
+
+    wrapped = wrap_provider_with_cache(forbidden_provider, ApiResponseCache(root=tmp_path))
+    task_id = f"recovery-{prompt}"
+    messages = [{"role": "user", "content": prompt}]
+
+    async def collect(model, history):
+        stream = await wrapped(model_id=model, stream=True, task_id=task_id, reasoning_effort="low",
+                               messages=history, tools=[], tool_choice="none")
+        return [chunk async for chunk in stream]
+
+    gemini = LOW_FALLBACK_MODEL.split("/", 1)[1]
+    initial = await collect(gemini, messages)
+    assert initial[0].startswith("Verified prefix.")
+    history = [{"role": "system", "content": ANSWER_RECOVERY_INSTRUCTION},
+               *build_answer_recovery_history(messages, prompt, max_tokens=1000,
+                                              published_prefix="Verified prefix.")]
+    with pytest.raises(MockCacheMiss):
+        await collect(gemini, [*history, {"role": "user", "content": "An unrelated later request"}])
+    retried = await collect(gemini, history)
+    if prompt == GEMINI_RETRY_PROMPT:
+        assert retried[0] == expected
+    else:
+        assert "```toon" in retried[0]
+        recovered = await collect(MERCURY_MODEL.split("/", 1)[1], history)
+        assert recovered[0] == expected
 
 
 def test_isolated_internal_allowlist_never_permits_provider_http(replay, monkeypatch):

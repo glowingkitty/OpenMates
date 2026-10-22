@@ -65,11 +65,20 @@ MERCURY_MODEL = "inception/mercury-3"
 MERCURY_FIRST_OUTPUT_TIMEOUT_SECONDS = 5.0
 
 
+def automatic_model_candidates(tier: str) -> list[str]:
+    """Return current approved routes, ending with inexpensive text recovery."""
+    return list(dict.fromkeys([
+        default_profile_for_tier(tier)["model"], LOW_FALLBACK_MODEL, MERCURY_MODEL,
+    ]))
+
+
 def automatic_attempt_thinking_level(tier: str, model_id: str, primary_level: str | None) -> str | None:
-    """Keep the approved LOW setting on either automatic low-tier attempt."""
-    if normalize_request_tier(tier) == LOW_TIER and primary_level == "LOW" and model_id in {MERCURY_MODEL, LOW_FALLBACK_MODEL}:
+    """Preserve Gemini's tier profile and use LOW for cheap Mercury recovery."""
+    if primary_level is None or model_id not in automatic_model_candidates(tier):
+        return None
+    if model_id == MERCURY_MODEL:
         return "LOW"
-    return None
+    return primary_level
 
 
 def history_requires_non_text(history: Any) -> bool:
@@ -99,12 +108,12 @@ def mercury_allowed_by_preferences(preferences: Mapping[str, Any] | None) -> boo
             and "inception" not in excluded_providers)
 
 
-def automatic_low_allowed_servers(
+def automatic_model_allowed_servers(
     model_id: str, preferences: Mapping[str, Any] | None,
     provider_config: Mapping[str, Any] | None,
 ) -> set[str]:
-    """Restrict only the approved automatic low pair to permitted catalog routes."""
-    if model_id not in {MERCURY_MODEL, LOW_FALLBACK_MODEL} or not provider_config:
+    """Enforce model, provider and server restrictions on every automatic route."""
+    if not provider_config or "/" not in model_id:
         return set()
     preferences = preferences or {}
     provider, model = model_id.split("/", 1)
@@ -123,6 +132,16 @@ def automatic_low_allowed_servers(
     return {server["id"] for server in model_config.get("servers", [])
             if isinstance(server, Mapping) and isinstance(server.get("id"), str)
             and server["id"] not in blocked and server["id"] not in excluded}
+
+
+def automatic_low_allowed_servers(
+    model_id: str, preferences: Mapping[str, Any] | None,
+    provider_config: Mapping[str, Any] | None,
+) -> set[str]:
+    """Retain the existing low-pair boundary for callers restricted to that pair."""
+    if model_id not in {MERCURY_MODEL, LOW_FALLBACK_MODEL}:
+        return set()
+    return automatic_model_allowed_servers(model_id, preferences, provider_config)
 
 
 @dataclass(frozen=True)
@@ -162,9 +181,9 @@ def automatic_profile_thinking_level(tier: RequestTier, model_id: str | None) ->
     """Apply a tier's reasoning profile only to its automatically chosen model."""
 
     profile = default_profile_for_tier(tier)
-    if normalize_request_tier(tier) == LOW_TIER and model_id == LOW_FALLBACK_MODEL:
-        return "LOW"
-    return profile["thinking_level"] if model_id == profile["model"] else None
+    if model_id not in automatic_model_candidates(tier):
+        return None
+    return "LOW" if model_id == MERCURY_MODEL else profile["thinking_level"]
 
 
 def explicit_api_model_override(
