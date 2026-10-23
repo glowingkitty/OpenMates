@@ -9,8 +9,11 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import json
+import hashlib
+import math
 from datetime import datetime
 import os
+import re
 from pathlib import Path
 import selectors
 import shutil
@@ -220,6 +223,72 @@ def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
                     and services[name].get("running") is True for name in required))
 
 
+
+def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: str, *, trust: dict, expected_inputs: dict) -> bool:
+    """Require the exact reviewed plan, immutable candidate inputs and every stage."""
+    try:
+        from scripts.ci_sdk_conformance import LOCKS
+    except ModuleNotFoundError:
+        from ci_sdk_conformance import LOCKS
+    if (json.loads(job["specs"]) != ["sdk-conformance"]
+            or report.get("runtime_profile") != "sdk-conformance"
+            or report.get("results") != [{"suite": "sdk-conformance", "exit_code": 0,
+                                          "failed_stage": None, "failure_code": None}]
+            or not isinstance(sdk, dict) or sdk.get("status") != "passed"
+            or sdk.get("source_commit") != job["source"] or sdk.get("harness_commit") != harness
+            or str(sdk.get("run_id")) != str(job["run_id"])
+            or sdk.get("publication") is not False or sdk.get("services") != {}
+            or any(sdk.get(key) is not True for key in ("cleanupVerified", "loadIdentityVerified", "sourceHeld"))
+            or not expected_inputs or sdk.get("inputs") != expected_inputs
+            or sdk.get("inputSetSha256") != hashlib.sha256(json.dumps(expected_inputs, sort_keys=True).encode()).hexdigest()
+            or not all(name in expected_inputs for name in LOCKS)
+            or sdk.get("locks") != {name: expected_inputs[name] for name in LOCKS}):
+        return False
+    stages = ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", "binding-library-units", "napi-build",
+              "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]
+    steps = sdk.get("steps")
+    if (not isinstance(steps, list) or not all(isinstance(row, dict) for row in steps)
+            or [row.get("stage") for row in steps] != stages
+            or any(row.get("status") != "passed" or type(row.get("returncode")) is not int or row["returncode"] != 0
+                   or row.get("terminatedReturncode") != 0
+                   or type(row.get("elapsedSeconds")) not in (int, float)
+                   or not math.isfinite(row["elapsedSeconds"]) or row["elapsedSeconds"] < 0 for row in steps)):
+        return False
+    unit = steps[4].get("unitTests")
+    if (not isinstance(unit, dict) or type(unit.get("passed")) is not int or unit["passed"] <= 0
+            or type(unit.get("failed")) is not int or unit["failed"] != 0
+            or type(unit.get("ignored")) is not int or unit["ignored"] < 0):
+        return False
+    gate, artifacts, dist = sdk.get("gate"), sdk.get("artifacts"), sdk.get("dist")
+    if not isinstance(gate, dict) or not isinstance(artifacts, dict) or not isinstance(dist, dict):
+        return False
+    plan = trust["plan"]
+    rows, launches = gate.get("conformance"), gate.get("actualLaunches")
+    expected_rows = [{"capability": row["capability"], "language": row["language"],
+                      "fixtureSha256": row["fixtureSha256"], "vectors": row["vectors"], "status": "passed"} for row in plan]
+    def digest(value):
+        return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
+    return (gate.get("plan") == plan and rows == expected_rows
+            and gate.get("matrixSha256") == trust["contracts"]["config/sdk-capabilities.json"]
+            and gate.get("trustedProgramsSha256") == hashlib.sha256(json.dumps(trust["programs"], sort_keys=True).encode()).hexdigest()
+            and gate.get("openGapCount") == len(trust["gaps"])
+            and gate.get("releaseEligible") is (not trust["gaps"])
+            and gate.get("realRunCount") == len(plan)
+            and gate.get("vectorOutcomeCount") == sum(len(row["vectors"]) for row in plan)
+            and isinstance(launches, list) and len(launches) == len(plan)
+            and all(isinstance(value, dict) and value.get("capability") == row["capability"]
+                    and value.get("language") == row["language"] and value.get("status") == "passed"
+                    and digest(value.get("commandSha256")) for value, row in zip(launches, plan))
+            and set(artifacts) == {"npm", "python"}
+            and all(isinstance(value, dict) and value.get("elf") == "linux-x64"
+                    and digest(value.get("sha256")) and type(value.get("nlink")) is int and value["nlink"] == 1
+                    and all(type(value.get(key)) is int for key in ("device", "inode", "uid", "mode", "mtimeNs", "ctimeNs", "bytes"))
+                    and value["bytes"] > 64 and not value["mode"] & 0o002 for value in artifacts.values())
+            and "frontend/packages/openmates-cli/dist/sdk-entry.js" in dist
+            and all(isinstance(name, str) and name.startswith("frontend/packages/openmates-cli/dist/")
+                    and ".." not in Path(name).parts and digest(value) for name, value in dist.items()))
+
+
 def valid_e2e_case_coverage(report: dict, job: dict) -> bool:
     """A filtered green run covers one case and cannot credit a whole spec."""
     selected_case = job.get("case_title") or ""
@@ -422,6 +491,16 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                     report, environment_data, job,
                     expected_harness_commit=expected_harness_commit):
                 raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
+        if job["state"] == "success" and job.get("mode") == "sdk-conformance":
+            sdk_paths = list(extracted.rglob("ci-sdk-conformance.json"))
+            sdk_data = json.loads(sdk_paths[0].read_text()) if len(sdk_paths) == 1 else {}
+            try:
+                from scripts.ci_sdk_conformance import load_trust, source_inputs_from_git
+            except ModuleNotFoundError:
+                from ci_sdk_conformance import load_trust, source_inputs_from_git
+            if not valid_sdk_conformance_receipt(report, sdk_data, job, expected_harness_commit,
+                    trust=load_trust(), expected_inputs=source_inputs_from_git(root, job["source"])):
+                raise RuntimeError("Green SDK job lacks exact library/vector or cleanup evidence")
         if job["state"] == "success" and job.get("mode") == "artifact":
             if (report.get("runtime_profile") != "artifact"
                     or report.get("artifact_shared_dev_rejected") is not True

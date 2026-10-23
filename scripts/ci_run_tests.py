@@ -2309,6 +2309,11 @@ def main():
                     results=results,
                     **({"case_title": case_title} if case_title else {}),
                 )
+        elif mode == "sdk-conformance":
+            reject_inherited_accounts()
+            verify_shared_dev_rejected()
+            from ci_sdk_conformance import run
+            run(ROOT, results, pinned_node(), verify_node=verify_pinned_node_runtime)
         elif mode == "selfhost":
             reject_inherited_accounts()
             from ci_selfhost import run

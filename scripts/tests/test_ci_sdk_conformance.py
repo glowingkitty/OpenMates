@@ -1,0 +1,502 @@
+# contract-test-file: tooling
+"""Inert SDK-lane contracts; never install, compile, start a product or contact CI."""
+import copy
+import json
+import os
+from pathlib import Path
+import sys
+import subprocess
+import time
+
+import pytest
+
+from scripts import ci_sdk_conformance as sdk
+from scripts.ci_coordinator import Queue, enqueue_submission
+from scripts.ci_results import valid_sdk_conformance_receipt
+
+
+def test_exact_queue_target_no_preparation(tmp_path):
+    queue = Queue(tmp_path / "queue.sqlite")
+    jobs = enqueue_submission(queue, "synthetic", "a" * 40, [sdk.TARGET], sdk.TARGET)
+    assert len(jobs) == 1 and json.loads(jobs[0]["specs"]) == [sdk.TARGET]
+    assert not jobs[0].get("preparation_key")
+
+
+@pytest.mark.parametrize("targets", [[], ["sdk-conformance-extra"], ["nested/sdk-conformance"],
+                                      ["sdk-conformance", "extra.spec.ts"], ["sdk-conformance", "sdk-conformance"], ["--release"]])
+def test_queue_rejects_unknown_or_broadened_targets(tmp_path, targets):
+    queue = Queue(tmp_path / "queue.sqlite")
+    with pytest.raises(ValueError, match="exact unprepared target"):
+        queue.enqueue("synthetic", "a" * 40, targets, sdk.TARGET)
+
+
+def test_queue_rejects_prepared_or_backend_seed(tmp_path):
+    queue = Queue(tmp_path / "queue.sqlite")
+    for options in ({"preparation": {"key": "a" * 64}}, {"runtime_seed_job": "a" * 64}):
+        with pytest.raises(ValueError):
+            queue.enqueue("synthetic", "a" * 40, [sdk.TARGET], sdk.TARGET, **options)
+
+
+def gate_fixture(tmp_path):
+    root = tmp_path / "subject"
+    matrix = {"fixture": "tests/sdk-conformance/synthetic.json", "capabilities": [{
+        "id": "synthetic.local.v1", "languages": {name: {"conformance": True,
+          "status": "partial" if name == "rust" else "implemented", "gaps": ["synthetic gap"] if name == "rust" else []}
+          for name in ("rust", "npm", "python")}}]}
+    fixture = {"capabilities": {"synthetic.local.v1": {"vectors": [{"id": "synthetic-one"}, {"id": "synthetic-two"}]}}}
+    for path, value in [("config/sdk-capabilities.json", matrix), (matrix["fixture"], fixture)]:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(value))
+    fixture_hash = sdk.sha((root / matrix["fixture"]).read_bytes())
+    report = {"matrixSha256": sdk.sha((root / "config/sdk-capabilities.json").read_bytes()),
+              "openGaps": sdk.matrix_gaps(matrix), "releaseEligible": False,
+              "conformance": [{"capability": "synthetic.local.v1", "language": language,
+                               "fixtureSha256": fixture_hash, "status": "passed",
+                               "results": [{"id": "synthetic-one", "status": "passed"},
+                                           {"id": "synthetic-two", "status": "passed"}]} for language in ("rust", "npm", "python")]}
+    report["expectedPlan"] = sdk.execution_plan(root, matrix)
+    report["actualLaunches"] = [{"capability": row["capability"], "language": row["language"],
+                                 "status": "passed", "commandSha256": "d" * 64} for row in report["expectedPlan"]]
+    report["trustedProgramsSha256"] = sdk.sha(json.dumps({"synthetic.py": "e" * 64}, sort_keys=True).encode())
+    return root, report
+
+
+def synthetic_trust(root):
+    matrix = json.loads((root / "config/sdk-capabilities.json").read_text())
+    return {"contracts": {"config/sdk-capabilities.json": sdk.sha((root / "config/sdk-capabilities.json").read_bytes())},
+            "programs": {"synthetic.py": "e" * 64}, "plan": sdk.execution_plan(root, matrix), "gaps": sdk.matrix_gaps(matrix)}
+
+
+def test_real_result_projection_retains_gaps_and_all_vectors(tmp_path):
+    root, report = gate_fixture(tmp_path)
+    report["private_extra"] = "never-export"
+    report["conformance"][0]["private_extra"] = "never-export"
+    result = sdk.gate_receipt(root, report, trust=synthetic_trust(root))
+    assert result["realRunCount"] == 3 and result["vectorOutcomeCount"] == 6
+    assert result["openGapCount"] == 1 and result["releaseEligible"] is False
+    assert "never-export" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("fault", ["echo_only", "missing_language", "duplicate_language", "wrong_fixture", "missing_vector", "gap_waiver"])
+def test_gate_result_cannot_credit_echo_or_incomplete_runs(tmp_path, fault):
+    root, report = gate_fixture(tmp_path)
+    if fault == "echo_only":
+        report["conformance"] = []
+    elif fault == "missing_language":
+        report["conformance"].pop()
+    elif fault == "duplicate_language":
+        report["conformance"][1] = report["conformance"][0]
+    elif fault == "wrong_fixture":
+        report["conformance"][0]["fixtureSha256"] = "f" * 64
+    elif fault == "missing_vector":
+        report["conformance"][0]["results"].pop()
+    else:
+        report["releaseEligible"] = True
+    with pytest.raises(sdk.Refused):
+        sdk.gate_receipt(root, report, trust=synthetic_trust(root))
+
+
+def test_command_deadline_terminates_only_owned_inert_group(tmp_path):
+    env = {"PATH": os.defpath, "LANG": "C.UTF-8"}
+    commands = sdk.Commands(tmp_path, tmp_path, env, time.monotonic() + 0.2)
+    with pytest.raises(sdk.Refused, match="deadline"):
+        commands.run("inert-deadline", [sys.executable, "-c", "import time;time.sleep(30)"], seconds=20)
+    assert commands.steps[0]["status"] == "failed"
+    assert commands.steps[0]["elapsedSeconds"] < 5
+
+
+def test_nonzero_child_has_closed_failure_and_private_log(tmp_path):
+    commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath}, time.monotonic() + 10)
+    with pytest.raises(sdk.Refused, match="^child_failed$"):
+        commands.run("inert-failure", [sys.executable, "-c", "raise SystemExit(7)"])
+    assert commands.steps[0]["returncode"] == 7
+
+
+def test_regular_fifo_and_symlink_refused(tmp_path):
+    fifo = tmp_path / "fifo"
+    os.mkfifo(fifo, 0o600)
+    with pytest.raises(sdk.Refused, match="unsafe_file"):
+        sdk.regular(fifo)
+    link = tmp_path / "link"
+    link.symlink_to(fifo)
+    with pytest.raises(sdk.Refused, match="unsafe_file"):
+        sdk.regular(link)
+
+
+def test_non_runner_refuses_before_commands(tmp_path, monkeypatch):
+    (tmp_path / "test-results").mkdir()
+    monkeypatch.setattr(sdk.subprocess, "Popen", lambda *a, **k: pytest.fail("child started"))
+    results = []
+    sdk.run(tmp_path, results, "/synthetic/node", verify_node=lambda: None, environ={})
+    evidence = json.loads((tmp_path / "test-results/ci-sdk-conformance.json").read_text())
+    assert results[0]["exit_code"] == 1
+    assert evidence["code"] == "github_runner_required" and evidence["stage"] == "admission"
+    assert evidence["publication"] is False and evidence["services"] == {}
+
+
+def test_workflow_and_runner_do_not_enable_stack_or_publication():
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github/workflows/isolated-tests.yml").read_text()
+    runner = (root / "scripts/ci_run_tests.py").read_text()
+    assert "sdk-conformance]" in workflow
+    assert "inputs.mode == 'sdk-conformance' && '3.12'" in workflow
+    assert "inputs.mode != 'sdk-conformance'" in workflow
+    assert "CI_SDK_DEADLINE_MONOTONIC={started + 2700}" in workflow
+    import yaml
+    steps = yaml.safe_load(workflow)["jobs"]["test"]["steps"]
+    assert steps[0]["name"] == "Start bounded SDK conformance clock"
+    assert steps[0]["working-directory"] == "${{ github.workspace }}"
+    assert steps[1]["uses"] == "actions/checkout@v4"
+    assert "subject/test-results/ci-sdk-conformance.json" in workflow
+    assert 'elif mode == "sdk-conformance":' in runner
+    source = Path(sdk.__file__).read_text()
+    assert 'ci_sdk_conformance_exec.py' in source
+    executor = Path(sdk.__file__).with_name("ci_sdk_conformance_exec.py").read_text()
+    assert 'namespace["conformance"](matrix, root)' in executor
+    assert '"--release"' not in source
+
+
+def test_retrieved_green_sdk_evidence_requires_all_identity_and_cleanup(tmp_path):
+    root, raw = gate_fixture(tmp_path)
+    report = {"runtime_profile": sdk.TARGET, "results": [{"suite": sdk.TARGET, "exit_code": 0,
+                                                       "failed_stage": None, "failure_code": None}]}
+    job = {"specs": json.dumps([sdk.TARGET]), "source": "a" * 40, "run_id": 123}
+    evidence = {"source_commit": "a" * 40, "run_id": "123", "harness_commit": "b" * 40,
+                "status": "passed", "publication": False, "services": {}, "sourceHeld": True,
+                "loadIdentityVerified": True, "cleanupVerified": True,
+                "gate": sdk.gate_receipt(root, raw, trust=synthetic_trust(root)),
+                "artifacts": {language: {"sha256": "c" * 64, "elf": "linux-x64", "nlink": 1} for language in ("npm", "python")}}
+    inputs = {name: "c" * 64 for name in sdk.LOCKS}
+    evidence.update(inputs=inputs, inputSetSha256=sdk.sha(json.dumps(inputs, sort_keys=True).encode()),
+                    locks=dict(inputs), dist={"frontend/packages/openmates-cli/dist/sdk-entry.js": "d" * 64},
+                    steps=[{"stage": stage, "status": "passed", "returncode": 0, "terminatedReturncode": 0, "elapsedSeconds": 1}
+                           for stage in ["rust-toolchain", "python-environment", "node-dependencies", "python-dependencies", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]])
+    evidence["steps"][4]["unitTests"] = {"passed": 1, "failed": 0, "ignored": 0}
+    for value in evidence["artifacts"].values():
+        value.update(device=1, inode=1, uid=os.getuid(), mode=0o600, mtimeNs=1, ctimeNs=1, bytes=96)
+    expectation = {"trust": synthetic_trust(root), "expected_inputs": inputs}
+    assert valid_sdk_conformance_receipt(report, evidence, job, "b" * 40, **expectation)
+    for key, value in [("source_commit", "d" * 40), ("cleanupVerified", False),
+                       ("sourceHeld", False), ("loadIdentityVerified", False), ("publication", True)]:
+        changed = {**evidence, key: value}
+        assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
+    changed = copy.deepcopy(evidence)
+    changed["gate"]["conformance"].pop()
+    assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
+    for field in ("inputs", "locks", "dist", "steps"):
+        changed = copy.deepcopy(evidence)
+        changed[field] = {} if field != "steps" else []
+        assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
+    for field, value in [("plan", []), ("actualLaunches", []), ("openGapCount", 0), ("releaseEligible", True)]:
+        changed = copy.deepcopy(evidence)
+        changed["gate"][field] = value
+        assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
+    changed = copy.deepcopy(evidence)
+    changed["gate"]["conformance"] = [{"capability": "invented", "language": language,
+        "status": "passed", "vectors": ["invented-one"]} for language in ("rust", "npm", "python")]
+    assert not valid_sdk_conformance_receipt(report, changed, job, "b" * 40, **expectation)
+
+
+@pytest.mark.parametrize("fault", [None, "source_change", "artifact_change", "child_exception", "stale_artifact"])
+def test_pipeline_uses_fixed_real_commands_private_env_and_source_artifact_fences(tmp_path, monkeypatch, fault):
+    root, gate = gate_fixture(tmp_path)
+    monkeypatch.setattr(sdk, "load_trust", lambda: synthetic_trust(root))
+    monkeypatch.setattr(sdk, "verify_programs", lambda *args: None)
+    (root / "test-results").mkdir()
+    pyproject = root / "packages/openmates-python/pyproject.toml"
+    pyproject.parent.mkdir(parents=True)
+    pyproject.write_text('[project]\ndependencies = ["synthetic-sdk-dependency"]\n')
+    monkeypatch.setattr(sdk.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(sdk, "git", lambda root, *args: "a" * 40 if args[-1] == "HEAD" else "b" * 40)
+    monkeypatch.setattr(sdk.subprocess, "run", lambda *a, **k: type("Result", (), {"returncode": 1})())
+    monkeypatch.setattr(sdk.shutil, "which", lambda name: "/synthetic/tools/" + name)
+    inputs = {name: "c" * 64 for name in sdk.LOCKS}
+    monkeypatch.setattr(sdk, "snapshot", lambda root: dict(inputs))
+    monkeypatch.setattr(sdk, "source_inputs_from_git", lambda root, source: dict(inputs))
+    environment = {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted",
+                   "OPENMATES_CI_ISOLATED": "1", "BUILD_COMMIT_SHA": "a" * 40,
+                   "CI_CANDIDATE_TREE": "b" * 40, "CI_SPECS_JSON": json.dumps([sdk.TARGET]),
+                   "CI_SDK_STARTED_MONOTONIC": str(time.monotonic()), "GITHUB_RUN_ID": "123",
+                   "CI_HARNESS_COMMIT": "d" * 40, "OPENMATES_API_KEY": "never-export",
+                   "NODE_OPTIONS": "never-inherit", "DBUS_SESSION_BUS_ADDRESS": "never-inherit"}
+    environment["CI_SDK_DEADLINE_MONOTONIC"] = str(float(environment["CI_SDK_STARTED_MONOTONIC"]) + sdk.BUDGET)
+    calls = []
+    node_artifact = root / "frontend/packages/openmates-cli/native/linux-x64.node"
+    python_artifact = root / "packages/openmates-python/openmates/_native.abi3.so"
+    if fault == "stale_artifact":
+        node_artifact.parent.mkdir(parents=True)
+        node_artifact.write_bytes(b"synthetic stale library")
+    blob = bytearray(96)
+    blob[:6] = b"\x7fELF\x02\x01"
+    blob[18:20] = (62).to_bytes(2, "little")
+
+    def command(self, stage, command, **kwargs):
+        self.check()
+        calls.append((stage, command))
+        self.steps.append({"stage": stage, "status": "passed"})
+        assert not {"NODE_OPTIONS", "NODE_PATH", "DBUS_SESSION_BUS_ADDRESS", "OPENMATES_API_KEY", "GH_TOKEN"}.intersection(self.env)
+        assert Path(self.env["HOME"]).is_relative_to(self.private)
+        assert Path(self.env["TMPDIR"]).is_relative_to(self.private)
+        assert self.env["RUSTUP_TOOLCHAIN"] == "1.98.1" and self.env["CARGO_BUILD_JOBS"] == "2"
+        assert self.env["OPENMATES_STATE_DIR"].startswith(self.env["HOME"])
+        if stage == "rust-toolchain":
+            assert command == ["/synthetic/tools/rustup", "toolchain", "install", "1.98.1", "--profile", "minimal", "--component", "rustfmt"]
+        if fault == "child_exception" and stage == "napi-build":
+            raise RuntimeError("never-export")
+        if stage == "napi-build":
+            node_artifact.parent.mkdir(parents=True)
+            node_artifact.write_bytes(blob)
+        elif stage == "python-binding-build":
+            assert (self.private / "napi-preserved.node").read_bytes() == blob
+            assert (self.private / "napi-preserved.node").stat().st_mode & 0o777 == 0o600
+            python_artifact.parent.mkdir(parents=True)
+            python_artifact.write_bytes(blob + b"synthetic-python-feature")
+        elif stage == "sdk-facade-build":
+            dist = root / "frontend/packages/openmates-cli/dist"
+            dist.mkdir()
+            (dist / "sdk-entry.js").write_bytes(b"synthetic facade")
+        elif stage == "real-conformance":
+            assert Path(command[1]).name == "ci_sdk_conformance_exec.py" and command[2] == str(root)
+            assert "--release" not in command
+            Path(command[3]).write_text(json.dumps(gate))
+            if fault == "source_change":
+                inputs["synthetic-changed-input"] = "e" * 64
+            elif fault == "artifact_change":
+                node_artifact.write_bytes(blob + b"tamper")
+    monkeypatch.setattr(sdk.Commands, "run", command)
+    attestations = []
+    results = []
+    sdk.run(root, results, "/synthetic/attested/node", environ=environment,
+            verify_node=lambda: attestations.append(True))
+    evidence = json.loads((root / "test-results/ci-sdk-conformance.json").read_text())
+    assert "never-export" not in json.dumps(evidence)
+    assert evidence["cleanupVerified"] is True
+    assert not list((root / "test-results/ci-private").iterdir())
+    if fault is None:
+        assert results[0]["exit_code"] == 0 and evidence["status"] == "passed"
+        assert evidence["gate"]["realRunCount"] == 3
+        assert evidence["artifacts"]["npm"]["sha256"] != evidence["artifacts"]["python"]["sha256"]
+        assert evidence["gate"]["openGapCount"] == 1 and evidence["publication"] is False
+        assert len(attestations) == 3
+        assert [stage for stage, _ in calls] == ["rust-toolchain", "python-environment", "node-dependencies",
+            "python-dependencies", "binding-library-units", "napi-build", "python-binding-build", "sdk-facade-build", "napi-load", "python-load", "real-conformance"]
+    else:
+        assert results[0]["exit_code"] == 1 and evidence["status"] == "failed"
+        assert evidence["code"] == {"source_change": "source_changed", "artifact_change": "artifact_changed",
+                                    "child_exception": "unclassified", "stale_artifact": "preexisting_native_artifact"}[fault]
+
+
+
+def test_deadline_stops_owned_descendant_but_preserves_unrelated_inert_group(tmp_path):
+    sentinel = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"],
+                                start_new_session=True, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    marker = tmp_path / "inert-child.pid"
+    producer = ("import subprocess,sys,time,pathlib;"
+                "p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);"
+                "pathlib.Path(sys.argv[1]).write_text(str(p.pid));time.sleep(30)")
+    commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath}, time.monotonic() + 1)
+    try:
+        with pytest.raises(sdk.Refused, match="deadline"):
+            commands.run("inert-descendant", [sys.executable, "-c", producer, str(marker)])
+        assert marker.is_file()
+        process = Path("/proc") / marker.read_text() / "stat"
+        assert not process.exists() or process.read_text().split(")", 1)[1].split()[0] == "Z"
+        assert sentinel.poll() is None
+    finally:
+        sdk.terminate(sentinel)
+
+
+def test_completed_child_cannot_bypass_log_bound(tmp_path, monkeypatch):
+    monkeypatch.setattr(sdk, "MAX_LOG", 8)
+    commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath}, time.monotonic() + 10)
+    with pytest.raises(sdk.Refused, match="diagnostic_bound"):
+        commands.run("inert-output-bound", [sys.executable, "-c", "print('synthetic too long')"])
+
+
+def test_reviewed_program_pin_rejects_forged_candidate_aggregate_before_execution(tmp_path):
+    program = tmp_path / "scripts/check_sdk_conformance.py"
+    program.parent.mkdir()
+    program.write_bytes(b"synthetic reviewed controller")
+    trust = {"programs": {"scripts/check_sdk_conformance.py": sdk.sha(program.read_bytes())}, "contracts": {}}
+    sdk.verify_programs(tmp_path, trust)
+    program.write_bytes(b"print('forged allpass and zero gaps')")
+    with pytest.raises(sdk.Refused, match="reviewed_program_changed"):
+        sdk.verify_programs(tmp_path, trust)
+
+
+def test_forged_complete_vector_json_cannot_erase_reviewed_gaps(tmp_path):
+    root, report = gate_fixture(tmp_path)
+    report["openGaps"] = []
+    report["releaseEligible"] = True
+    with pytest.raises(sdk.Refused, match="gate_incomplete"):
+        sdk.gate_receipt(root, report, trust=synthetic_trust(root))
+
+
+def test_claimed_passes_without_actual_driver_launches_refused(tmp_path):
+    root, report = gate_fixture(tmp_path)
+    report["actualLaunches"] = []
+    with pytest.raises(sdk.Refused, match="gate_launches"):
+        sdk.gate_receipt(root, report, trust=synthetic_trust(root))
+
+
+def test_real_reviewed_contract_keeps_156_gaps_and_exact_54_by_615_plan():
+    trust = sdk.load_trust()
+    assert len(trust["gaps"]) == 156
+    assert len(trust["plan"]) == 54
+    assert sum(len(row["vectors"]) for row in trust["plan"]) == 615
+    assert "scripts/check_sdk_conformance.py" in trust["programs"]
+
+
+def test_raw_failure_log_retained_privately_but_only_closed_compiler_fields_export(tmp_path):
+    private_root = tmp_path / "ci-private"
+    private = private_root / "sdk-synthetic"
+    private.mkdir(parents=True, mode=0o700)
+    root = tmp_path / "subject"
+    tracked = "packages/openmates-session-bindings/src/session.rs"
+    data = ("error[E0425]: never-export-synthetic-private-value\n"
+            " --> " + tracked + ":12:7\n"
+            " --> /private/never-export-path:99:4\n").encode()
+    (private / "napi-build.log").write_bytes(data)
+    result = sdk.failure_diagnostics(private, root, "napi-build", {tracked: "a" * 64}, [])
+    assert result["compiler"] == [{"kind": "rustc", "code": "E0425",
+                                   "locations": [{"path": tracked, "line": 12, "column": 7}]}]
+    assert "never-export" not in json.dumps(result)
+    retained = list(private_root.glob("failure-sdk-*/napi-build.log"))
+    assert len(retained) == 1 and retained[0].read_bytes() == data
+    assert retained[0].stat().st_mode & 0o777 == 0o600
+    assert result["privateRetained"]["sha256"] == sdk.sha(data)
+    assert result["rawUpload"] is False
+
+
+def test_immutable_git_input_hashes_are_reconstructed_not_candidate_claims(tmp_path, monkeypatch):
+    source = "a" * 40
+    name = "packages/openmates-rust/Cargo.lock"
+    oid = "b" * 40
+    blob = b"synthetic immutable compiler input"
+    def check_output(command, **kwargs):
+        assert command == ["git", "ls-tree", "-r", "-z", source, "--", *sdk.INPUTS]
+        return f"100644 blob {oid}\t{name}\0".encode()
+    def run(command, **kwargs):
+        assert kwargs["input"] == (oid + "\n").encode()
+        if command[-1] == "--batch-check":
+            output = f"{oid} blob {len(blob)}\n".encode()
+        else:
+            assert command[-1] == "--batch"
+            output = f"{oid} blob {len(blob)}\n".encode() + blob + b"\n"
+        return type("Result", (), {"stdout": output})()
+    monkeypatch.setattr(sdk.subprocess, "check_output", check_output)
+    monkeypatch.setattr(sdk.subprocess, "run", run)
+    assert sdk.source_inputs_from_git(tmp_path, source) == {name: sdk.sha(blob)}
+
+
+def test_trusted_executor_launches_actual_inert_drivers_not_candidate_main(tmp_path, monkeypatch):
+    from scripts import ci_sdk_conformance_exec as executor
+    root, report = gate_fixture(tmp_path)
+    trust = synthetic_trust(root)
+    program = root / "scripts/check_sdk_conformance.py"
+    program.parent.mkdir()
+    program.write_text('''
+from pathlib import Path
+import sys,json
+ROOT=Path(__file__).resolve().parents[1]
+RUNNERS={language:[sys.executable,str(ROOT/'synthetic-driver.py'),'--language',language] for language in ('rust','npm','python')}
+ADAPTER_OVERRIDES={}
+def check_generated(root): pass
+def discover_inventory(root): return {}
+def validate_matrix(matrix,inventory,root): return ['synthetic.local.v1 [rust] partial: synthetic gap']
+def conformance(matrix,root):
+    output=[]
+    for language in ('rust','npm','python'):
+        result=subprocess.run(RUNNERS[language]+['--fixture',str(root/matrix['fixture']),'--capability','synthetic.local.v1'],cwd=root,capture_output=True,text=True,timeout=2)
+        output.append(json.loads(result.stdout))
+    return output
+if __name__=='__main__': raise RuntimeError('candidate main must never execute')
+''')
+    driver = root / "synthetic-driver.py"
+    driver.write_text('''
+import argparse,hashlib,json
+from pathlib import Path
+p=argparse.ArgumentParser();p.add_argument('--language');p.add_argument('--fixture');p.add_argument('--capability');a=p.parse_args()
+raw=Path(a.fixture).read_bytes();vectors=json.loads(raw)['capabilities'][a.capability]['vectors']
+print(json.dumps({'capability':a.capability,'language':a.language,'status':'passed','fixtureSha256':hashlib.sha256(raw).hexdigest(),'results':[{'id':row['id'],'status':'passed'} for row in vectors]}))
+''')
+    trust["programs"] = {"scripts/check_sdk_conformance.py": sdk.sha(program.read_bytes()),
+                         "synthetic-driver.py": sdk.sha(driver.read_bytes())}
+    monkeypatch.setattr(executor, "load_trust", lambda: trust)
+    monkeypatch.setattr(executor, "snapshot", lambda root: {})
+    destination = tmp_path / "protected.json"
+    executor.execute(root, destination, time.monotonic() + 5)
+    actual = json.loads(destination.read_text())
+    assert len(actual["actualLaunches"]) == 3
+    assert all(row["status"] == "passed" for row in actual["actualLaunches"])
+    assert actual["openGaps"] == trust["gaps"] and actual["releaseEligible"] is False
+    assert sdk.gate_receipt(root, actual, trust=trust)["vectorOutcomeCount"] == 6
+
+
+def test_bounded_driver_output_refused_and_recorded_without_raw_stream(tmp_path, monkeypatch):
+    from scripts import ci_sdk_conformance_exec as executor
+    monkeypatch.setattr(executor, "LIMIT", 8)
+    driver = executor.Driver(tmp_path, {"programs": {}, "contracts": {}}, [], time.monotonic() + 3)
+    with pytest.raises(sdk.Refused, match="driver_output_bound"):
+        driver.run([sys.executable, "-c", "print('never-export-private-stream')"], cwd=tmp_path,
+                   capture_output=True, text=True, timeout=2)
+    assert driver.failure["code"] == "driver_output_bound"
+    assert "never-export" not in json.dumps(driver.failure)
+
+
+@pytest.mark.parametrize("summary,accepted", [
+    ("test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out", True),
+    ("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out", False),
+    ("synthetic echo without unit evidence", False),
+])
+def test_unit_stage_requires_positive_actual_cargo_summary_shape(tmp_path, summary, accepted):
+    commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath}, time.monotonic() + 5)
+    command = [sys.executable, "-c", "print(" + repr(summary) + ")"]
+    if accepted:
+        commands.run("binding-library-units", command)
+        assert commands.steps[0]["unitTests"] == {"passed": 10, "failed": 0, "ignored": 0}
+    else:
+        with pytest.raises(sdk.Refused, match="unit_test_evidence"):
+            commands.run("binding-library-units", command)
+
+
+def test_failure_vector_attribution_only_accepts_reviewed_fixture_ids(tmp_path):
+    root, report = gate_fixture(tmp_path)
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    (private / "driver-failure.json").write_text(json.dumps({
+        "code": "driver_failed", "adapter": {"capability": "synthetic.local.v1", "language": "rust"},
+        "failedVectorIds": ["synthetic-one", "never-export-secret-id"], "returncode": 7,
+        "private_extra": "never-export-secret-payload"}))
+    actual = sdk.failure_diagnostics(private, root, "real-conformance", {}, report["expectedPlan"])
+    assert actual["failedVectorIds"] == ["synthetic-one"]
+    assert actual["vectorAttribution"] == "exact-known-ids"
+    assert actual["adapter"]["fixtureSha256"] == report["expectedPlan"][0]["fixtureSha256"]
+    assert actual["driverReturncode"] == 7
+    assert "never-export" not in json.dumps(actual)
+
+
+@pytest.mark.parametrize("invalid", [False, True])
+def test_driver_stream_metadata_survives_only_as_bounded_counts_and_digests(tmp_path, invalid):
+    root, raw = gate_fixture(tmp_path)
+    private = tmp_path / "private"
+    private.mkdir(mode=0o700)
+    output = {"code": "driver_failed", "returncode": 7,
+              "stdoutBytes": 12, "stdoutSha256": "a" * 64,
+              "stderrBytes": 34, "stderrSha256": "b" * 64,
+              "stdout": "never-export-synthetic-secret", "stderr": "never-export-synthetic-secret"}
+    if invalid:
+        output.update(stdoutBytes=True, stdoutSha256="never-export-secretlike-digest",
+                      stderrBytes=4 * 1024**2 + 65537)
+    (private / "driver-failure.json").write_text(json.dumps(output))
+    actual = sdk.failure_diagnostics(private, root, "real-conformance", {}, raw["expectedPlan"])
+    assert actual["driverReturncode"] == 7
+    for key in ("stdoutBytes", "stdoutSha256", "stderrBytes", "stderrSha256"):
+        if invalid:
+            assert key not in actual
+        else:
+            assert actual[key] == output[key]
+    assert "never-export" not in json.dumps(actual)
+    assert "stdout" not in actual and "stderr" not in actual

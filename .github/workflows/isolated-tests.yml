@@ -36,7 +36,7 @@ on:
         default: ''
       mode:
         type: choice
-        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
+        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke, sdk-conformance]
         default: e2e
       preparation_key:
         description: Exact immutable preparation identity supplied by the coordinator
@@ -110,12 +110,25 @@ jobs:
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
+      - name: Start bounded SDK conformance clock
+        if: inputs.mode == 'sdk-conformance'
+        working-directory: ${{ github.workspace }}
+        run: |
+          python3 - <<'PYSDK'
+          import os, time
+          started = time.monotonic()
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'CI_SDK_STARTED_MONOTONIC={started}\n')
+              output.write(f'CI_SDK_DEADLINE_MONOTONIC={started + 2700}\n')
+          PYSDK
       - uses: actions/checkout@v4
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 5 || 360 }}
         with:
           ref: ${{ inputs.checkout_ref }}
           path: subject
           persist-credentials: false
       - uses: actions/checkout@v4
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 5 || 360 }}
         with:
           ref: ${{ inputs.harness_commit || github.sha }}
           path: tooling
@@ -136,9 +149,11 @@ jobs:
           supplier_cache=$(mktemp -d "$RUNNER_TEMP/openmates-node-supplier.XXXXXXXX")
           echo "OPENMATES_CI_NODE_SUPPLIER_CACHE=$supplier_cache" >> "$GITHUB_ENV"
       - name: Download verified official Node supplier
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 3 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         run: python3 ../tooling/scripts/ci_download_node_supplier.py
       - name: Stage attested runner Node before candidate code or dependencies
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 3 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         env:
           OPENMATES_CI_EXPECTED_SOURCE: ${{ inputs.source_commit }}
@@ -149,6 +164,7 @@ jobs:
           RUNNER_TOOL_CACHE="$OPENMATES_CI_NODE_SUPPLIER_CACHE"
           "$OPENMATES_CI_NODE_SUPPLIER" ../tooling/scripts/ci_stage_node_runtime.mjs stage
       - name: Reconstruct and verify exact detached source
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 5 || 360 }}
         env:
           EXPECTED_SOURCE: ${{ inputs.source_commit }}
           EXPECTED_TREE: ${{ inputs.candidate_tree }}
@@ -212,30 +228,34 @@ jobs:
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 3 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         with:
           package_json_file: subject/package.json
       - uses: actions/setup-node@v4
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 3 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         with:
           node-version: '24'
           cache: pnpm
           cache-dependency-path: subject/pnpm-lock.yaml
       - name: Restore pinned Node after package-manager cache setup
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 1 || 360 }}
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         run: |
           env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs verify
           dirname "$OPENMATES_CI_NODE" >> "$GITHUB_PATH"
       - uses: actions/setup-python@v5
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 3 || 360 }}
         with:
-          python-version: '3.13'
+          python-version: ${{ inputs.mode == 'sdk-conformance' && '3.12' || '3.13' }}
           cache: ${{ inputs.mode == 'pytest' && 'pip' || '' }}
           cache-dependency-path: |
             subject/backend/requirements-dev.txt
             subject/backend/core/api/requirements.txt
             subject/packages/openmates-python/pyproject.toml
       - name: Install workspace dependencies
-        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe' && inputs.mode != 'sdk-conformance'
         run: pnpm install --frozen-lockfile
       - name: Stage exact capacity calibration and rate settings
         if: inputs.capacity_configuration != '' || contains(inputs.specs_json, 'storage-capacity-target.spec.ts')
@@ -512,6 +532,7 @@ jobs:
         if: inputs.mode == 'selfhost'
         run: python3 -m pip install pyyaml==6.0.2
       - name: Run selected checks
+        timeout-minutes: ${{ inputs.mode == 'sdk-conformance' && 46 || 360 }}
         if: inputs.mode != 'prepare' && inputs.mode != 'backend-probe'
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
@@ -551,6 +572,7 @@ jobs:
             subject/test-results/ci-codex.json
             subject/test-results/ci-cleanup.json
             subject/test-results/ci-selfhost-steps.json
+            subject/test-results/ci-sdk-conformance.json
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
