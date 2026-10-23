@@ -396,6 +396,10 @@ Use `UnifiedEmbedPreview.svelte`.
 
 Preview interaction:
 
+Per-card previous/next arrows are only for grouped individual results in assistant
+responses. App-skill execution rows use native horizontal scrolling and their
+position indicator, without per-card arrows, in every execution state.
+
 | State | Rule |
 |---|---|
 | Hover | Clickable cards only: subtle 3D tilt toward pointer, max about `3deg`; large previews max about `1deg`. |

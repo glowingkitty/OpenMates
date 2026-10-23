@@ -3,6 +3,44 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 import type { Locator } from '@playwright/test';
 // playwright-account: not_required reason=isolated_component_preview
 
+for (const status of ['processing', 'finished']) for (const width of [390, 1100]) {
+  // contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
+  test(`news skill-call row has no result carousel arrows at ${width}px (${status})`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const variant = status === 'processing' ? 'skillCallsProcessing' : 'skillCallsFinished';
+    await page.goto(`/dev/preview/embeds/GroupedResultPreviewHarness?chrome=0&context=chat&theme=dark&width=${width}&variant=${variant}`);
+    await waitForComponentPreview(page);
+    const fixture = page.getByTestId('grouped-result-fixture');
+    await expect(fixture).toHaveAttribute('data-ready', 'true');
+    const group = fixture.getByTestId('app-skill-embed-group');
+    const cards = group.getByTestId('embed-preview');
+    await expect(cards).toHaveCount(3);
+    await expect(group.getByTestId('grouped-preview-navigation')).toHaveCount(0);
+    await expect(group.getByRole('button', { name: /^(Previous|Next)$/ })).toHaveCount(0);
+    for (const card of await cards.all()) {
+      await expect(card).toHaveAttribute('data-status', status);
+      await expect(card).toHaveCSS('width', '300px');
+      await expect(card).toHaveCSS('height', '200px');
+      await expect(card).toHaveCSS('border-radius', '30px');
+      await expect(card).toContainText('via Brave Search');
+    }
+    await expect(cards.first()).toContainText('artificial intelligence latest developments');
+    await expect(cards.first().getByRole('button', { name: 'Stop', exact: true })).toHaveCount(status === 'processing' ? 1 : 0);
+    const scroller = group.getByTestId('app-skill-embed-group-scroll');
+    await expect.poll(() => scroller.evaluate(element => element.scrollWidth - element.clientWidth)).toBeGreaterThan(0);
+    const segments = group.getByTestId('embed-group-scroll-indicator').getByRole('button');
+    await expect(segments).toHaveCount(3);
+    await segments.last().click();
+    await expect(cards.last()).toBeInViewport({ ratio: 1 });
+    const lastScroll = await scroller.evaluate(element => element.scrollLeft);
+    expect(lastScroll).toBeGreaterThan(0);
+    await segments.first().click();
+    await expect.poll(() => scroller.evaluate(element => element.scrollLeft)).toBeLessThan(lastScroll);
+    await expect(cards.first()).toBeInViewport({ ratio: 1 });
+    await testInfo.attach(`news-skills-${status}-${width}`, { body: await fixture.screenshot(), contentType: 'image/png' });
+  });
+}
+
 async function assertCardGeometry(card: Locator, previous: Locator, next: Locator) {
   await expect(card).toHaveAttribute('role', 'group');
   const bounds = (await card.boundingBox())!;

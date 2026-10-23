@@ -30,8 +30,11 @@ More and Expand actions while retaining their editor layout.
   Compact grouped and small reference wrappers establish their own named
   `embed-preview` container; they must never inherit a wide chat layout.
 - Keep a 48px left/right text safety gap on compact cards even when ungrouped.
-  Grouped previous/next buttons sit at the bottom corners. Titles are at most two
-  lines with ellipsis; one-line metadata truncates with ellipsis.
+  Previous/next buttons belong only to grouped individual results in assistant
+  responses, at the bottom corners. Never add them to horizontally scrolling
+  app-skill execution cards, including processing and finished search calls;
+  those rows retain native scrolling and their position indicator. Titles are at
+  most two lines with ellipsis; one-line metadata truncates with ellipsis.
 - Show the complete image with `contain`; never crop to fill. Large result cards
   give one third to information and two thirds to media. Letterboxing is dark,
   including in light mode. Existing image aspect ratio does not change card size.

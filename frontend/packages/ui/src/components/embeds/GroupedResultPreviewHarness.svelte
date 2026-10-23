@@ -9,7 +9,11 @@
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
-  let { app = 'home' }: { app?: 'home' | 'events' } = $props();
+  let { app = 'home', skillCalls = false, skillStatus = 'processing' }: {
+    app?: 'home' | 'events';
+    skillCalls?: boolean;
+    skillStatus?: 'processing' | 'finished';
+  } = $props();
   let compact: HTMLDivElement;
   let ready = $state(false);
   const ids = [1, 2, 3].map(index => `e4336790-2200-4000-8000-00000000000${index}`);
@@ -35,19 +39,26 @@
   onMount(() => {
     let disposed = false;
     const renderer = new GroupRenderer();
-    const type = app === 'home' ? 'home-listing' : 'events-event';
-    for (const row of rows) {
+    const type = skillCalls ? 'app-skill-use' : app === 'home' ? 'home-listing' : 'events-event';
+    const status = skillCalls ? skillStatus : 'finished';
+    const queries = ['artificial intelligence latest developments', 'Anthropic news Claude', 'OpenAI latest news'];
+    const records = skillCalls ? ids.map((embed_id, index) => ({
+      embed_id, app_id: 'news', skill_id: 'search', query: queries[index],
+      provider: 'Brave Search', status, embed_ids: [], result_count: 0,
+    })) : rows;
+    for (const row of records) {
       embedStore.setInMemoryOnly(`embed:${row.embed_id}`, {
-        embed_id: row.embed_id, type, app_id: app, skill_id: app === 'home' ? 'listing' : 'event',
-        status: 'finished', content: encode(row),
+        embed_id: row.embed_id, type, app_id: skillCalls ? 'news' : app,
+        skill_id: skillCalls ? 'search' : app === 'home' ? 'listing' : 'event',
+        status, content: encode(row),
       });
     }
-    const groupedItems = [...rows].reverse().map(row => ({
-      id: row.embed_id, type, status: 'finished',
+    const groupedItems = [...records].reverse().map(row => ({
+      id: row.embed_id, type, status,
       contentRef: `embed:${row.embed_id}`, ...row,
     } as EmbedNodeAttributes));
     void renderer.render({ attrs: { id: 'preview-real-result-group', type: `${type}-group`,
-      status: 'finished', groupedItems, groupCount: rows.length } as EmbedNodeAttributes,
+      status, groupedItems, groupCount: records.length } as EmbedNodeAttributes,
       content: compact, container: compact,
     }).then(() => { if (!disposed) ready = true; });
     return () => {
@@ -60,7 +71,7 @@
 
 <div class="fixture read-only-message ProseMirror" data-testid="grouped-result-fixture" data-ready={ready} data-context="chat">
   <section data-testid="compact-group"><div bind:this={compact} class="embed-group-container"></div></section>
-  {#if ready}
+  {#if ready && !skillCalls}
     <section data-testid="large-group">
       {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" />{/each}
     </section>

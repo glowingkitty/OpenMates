@@ -1168,7 +1168,9 @@ export class GroupRenderer implements EmbedRenderer {
     // Replace navigation with the same lifetime as the indicator observer on
     // streaming updates, rather than retaining callbacks to removed siblings.
     scrollIndicatorCleanups.get(scrollContainer)?.();
-    const navigation = items.map((item, index) => {
+    // Skill executions retain native row scrolling and the position indicator.
+    // Per-card arrows belong only to grouped individual results.
+    const navigation = groupWrapper.dataset.embedGroupBaseType === "app-skill-use" ? [] : items.map((item, index) => {
       const target = document.createElement("div");
       target.className = "group-preview-navigation-mount";
       item.appendChild(target);
