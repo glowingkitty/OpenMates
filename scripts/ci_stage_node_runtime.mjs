@@ -31,6 +31,46 @@ export function sourcePolicy(s, euid) {
   need((s.mode & 0o7002n) === 0n && (s.mode & 0o111n) !== 0n, 'source_mode');
   need(s.size > 0n && s.size <= BigInt(LIMIT), 'source_size');
 }
+export function sourceDiagnostic(s, { procIdentity, stable, version = process.version, arch = process.arch } = {}) {
+  const mode = s.mode & 0o7777n;
+  const rejections = [];
+  if ((mode & 0o7000n) !== 0n) rejections.push('special_bits');
+  if ((mode & 0o002n) !== 0n) rejections.push('world_write');
+  if ((mode & 0o111n) === 0n) rejections.push('no_execute');
+  return { schema_version: 1, node_version: /^v24\.\d+\.\d+$/.test(version) ? version : 'unsupported',
+    architecture: ['x64', 'arm64'].includes(arch) ? arch : 'unsupported',
+    permission_octal: '0' + mode.toString(8).padStart(4, '0'),
+    file_type: s.isFile() ? 'regular' : s.isDirectory() ? 'directory' : 'other',
+    execute_bit: (mode & 0o111n) !== 0n, world_write: (mode & 0o002n) !== 0n,
+    group_write: (mode & 0o020n) !== 0n, setuid: (mode & 0o4000n) !== 0n,
+    setgid: (mode & 0o2000n) !== 0n, sticky: (mode & 0o1000n) !== 0n,
+    mode_rejections: rejections,
+    owner_relation: s.uid === 0n ? 'root' : s.uid === BigInt(process.geteuid()) ? 'current' : 'other',
+    group_relation: s.gid === 0n ? 'root' : s.gid === BigInt(process.getegid()) ? 'current' : 'other',
+    link_count: s.nlink <= 1000000n ? Number(s.nlink) : null,
+    path_attestation: { canonical_setup_node_supplier: true,
+      supplier_layout: 'RUNNER_TOOL_CACHE/node/<version>/<arch>/bin/node',
+      proc_same_inode_and_canonical_path: procIdentity === true, stable_stat: stable === true } };
+}
+// Closed diagnostic schema only: no environment, path, inode or numeric owner IDs.
+export function exportStageDiagnostic(receipt) {
+  const root = path.resolve(path.dirname(SELF), '..');
+  need(fs.realpathSync(root) === root, 'diagnostic_root');
+  const directory = path.join(root, 'node-runtime-diagnostics');
+  try { fs.mkdirSync(directory, { mode: 0o700 }); }
+  catch (error) { if (error.code !== 'EEXIST') throw error; }
+  const ds = lstat(directory);
+  need(ds.isDirectory() && ds.uid === BigInt(process.geteuid()) && (ds.mode & 0o077n) === 0n, 'diagnostic_directory');
+  const directoryFd = openDirectory(directory);
+  try {
+    need(directorySame(ds, stat(directoryFd)), 'diagnostic_directory_swap');
+    const fd = fs.openSync(`/proc/self/fd/${directoryFd}/source-${process.pid}.json`, C.O_WRONLY | C.O_CREAT | C.O_EXCL | C.O_NOFOLLOW, 0o600);
+    try { fs.writeFileSync(fd, JSON.stringify(receipt) + '\n'); fs.fsyncSync(fd); }
+    finally { fs.closeSync(fd); }
+    fs.fsyncSync(directoryFd);
+    need(directorySame(ds, lstat(directory)), 'diagnostic_directory_swap');
+  } finally { fs.closeSync(directoryFd); }
+}
 export function supplierPath(execPath, cache, version, arch) {
   need(/^v24\.\d+\.\d+$/.test(version), 'source_version');
   need(['x64', 'arm64'].includes(arch), 'source_arch');
@@ -43,16 +83,30 @@ export function attestSource({ execPath = process.execPath, cache = process.env.
   version = process.version, arch = process.arch, procPath = '/proc/self/exe' } = {}) {
   need(typeof cache === 'string', 'toolcache_missing');
   supplierPath(execPath, cache, version, arch);
-  const fd = fs.openSync(procPath, C.O_RDONLY);
+  const fd = fs.openSync(procPath, C.O_RDONLY); let before; let procIdentity = false;
   try {
-    const before = stat(fd); sourcePolicy(before, process.geteuid());
-    need(fs.realpathSync(procPath) === execPath && same(before, lstat(execPath)), 'proc_identity');
+    before = stat(fd);
+    try { procIdentity = fs.realpathSync(procPath) === execPath && same(before, lstat(execPath)); }
+    catch { /* Let the original policy predicate retain precedence. */ }
+    sourcePolicy(before, process.geteuid());
+    need(procIdentity, 'proc_identity');
     const magic = Buffer.alloc(4); fs.readSync(fd, magic, 0, 4, 0);
     need(magic.equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])), 'source_elf');
     const hash = digest(fd);
     need(same(before, stat(fd)) && same(before, lstat(execPath)), 'source_mutation');
     return { fd, before, hash, execPath, version, arch };
-  } catch (error) { fs.closeSync(fd); throw error; }
+  } catch (error) {
+    // Diagnostics cannot replace the original admission failure, even if a path
+    // changes or the stat retry itself fails while collecting this evidence.
+    try {
+      if (before) {
+        let stable = false;
+        try { stable = same(before, stat(fd)) && same(before, lstat(execPath)); } catch { /* Evidence unavailable. */ }
+        error.sourceDiagnostic = sourceDiagnostic(before, { procIdentity, stable, version, arch });
+      }
+    } catch { /* Preserve original error and strict policy. */ }
+    fs.closeSync(fd); throw error;
+  }
 }
 function privateFile(s, euid) {
   need(s.isFile() && s.nlink === 1n && s.uid === BigInt(euid)
@@ -184,6 +238,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === SELF) {
     console.log(JSON.stringify(receipt));
   } catch (error) {
     const allowed = /^[a-z_]+$/.test(error.message) ? error.message : 'producer_io';
-    console.error(JSON.stringify({ schema_version: 1, status: 'refused', predicate: allowed, uncertain_stage_retained: true })); process.exitCode = 1;
+    const receipt = { schema_version: 1, status: 'refused', predicate: allowed, uncertain_stage_retained: true,
+      ...(error.sourceDiagnostic ? { source_diagnostic: error.sourceDiagnostic } : {}) };
+    let diagnosticExport = 'not_stage';
+    if (process.argv[2] === 'stage') {
+      try { exportStageDiagnostic(receipt); diagnosticExport = 'written'; }
+      catch { diagnosticExport = 'failed'; }
+    }
+    console.error(JSON.stringify({ ...receipt, diagnostic_export: diagnosticExport })); process.exitCode = 1;
   }
 }

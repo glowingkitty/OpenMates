@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { attestSource, sourcePolicy, supplierPath, copySource, parentCurrent, identity, same } from '../ci_stage_node_runtime.mjs';
+import { attestSource, sourcePolicy, supplierPath, copySource, parentCurrent, identity, same, sourceDiagnostic } from '../ci_stage_node_runtime.mjs';
 const script = fileURLToPath(new URL('../ci_stage_node_runtime.mjs', import.meta.url));
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'node-producer-unit-'));
@@ -140,4 +140,56 @@ test('cleanup refuses modified binary and directory swap, retaining uncertain fi
       assert(fs.existsSync(directory)); if (attack !== 'binary') assert.equal(fs.readFileSync(path.join(directory, 'unrelated'), 'utf8'), 'retain');
     }
   } finally { for (const directory of owned) fs.rmSync(directory, { recursive: true, force: true }); remove(f); }
+});
+
+test('strict mode predicate distinguishes every special bit, world write and missing execute without private identity', () => {
+  const f = fixture();
+  try {
+    const before = fs.statSync(f.execPath, { bigint: true });
+    for (const [mode, flag, expected] of [[0o4775n, 'setuid', 'special_bits'], [0o2775n, 'setgid', 'special_bits'],
+      [0o1775n, 'sticky', 'special_bits'], [0o777n, 'world_write', 'world_write'], [0o660n, 'execute_bit', 'no_execute']]) {
+      const fake = { ...before, mode: (before.mode & ~0o7777n) | mode, isFile: () => true, isDirectory: () => false };
+      assert.throws(() => sourcePolicy(fake, process.geteuid()), /source_mode/);
+      const diagnostic = sourceDiagnostic(fake, { procIdentity: true, stable: true });
+      assert.deepEqual(diagnostic.mode_rejections, [expected]);
+      assert.equal(diagnostic[flag], flag !== 'execute_bit');
+      assert.equal(diagnostic.permission_octal, '0' + mode.toString(8).padStart(4, '0'));
+      assert.equal(diagnostic.file_type, 'regular'); assert.equal(diagnostic.link_count, 1);
+      assert(['root', 'current', 'other'].includes(diagnostic.owner_relation));
+      assert(['root', 'current', 'other'].includes(diagnostic.group_relation));
+      const text = JSON.stringify(diagnostic);
+      assert(!text.includes(f.root));
+      for (const forbidden of ['uid', 'gid', 'ino', 'dev', 'execPath', 'environment']) assert(!Object.hasOwn(diagnostic, forbidden));
+    }
+  } finally { remove(f); }
+});
+test('source mode refusal exports before any candidate; export failure never replaces primary admission error', { timeout: 30000 }, () => {
+  const f = fixture();
+  try {
+    fs.copyFileSync(process.execPath, f.execPath); fs.chmodSync(f.execPath, 0o777);
+    const before = fs.statSync(f.execPath, { bigint: true });
+    const tooling = path.join(f.root, 'tooling'), scripts = path.join(tooling, 'scripts');
+    fs.mkdirSync(scripts, { recursive: true }); const isolatedScript = path.join(scripts, 'ci_stage_node_runtime.mjs');
+    fs.copyFileSync(script, isolatedScript);
+    const env = { ...process.env, RUNNER_TOOL_CACHE: f.root, NODE_OPTIONS: '', NODE_PATH: '',
+      GITHUB_WORKSPACE: path.join(f.root, 'absent-candidate') };
+    const invoke = () => spawnSync(f.execPath, [isolatedScript, 'stage'], { env, encoding: 'utf8', timeout: 10000, maxBuffer: 128 * 1024 });
+    const result = invoke(); assert.equal(result.status, 1);
+    const receipt = JSON.parse(result.stderr); assert.equal(receipt.predicate, 'source_mode');
+    assert.equal(receipt.diagnostic_export, 'written');
+    assert.deepEqual(receipt.source_diagnostic.mode_rejections, ['world_write']);
+    assert.equal(receipt.source_diagnostic.permission_octal, '00777');
+    assert.equal(receipt.source_diagnostic.path_attestation.proc_same_inode_and_canonical_path, true);
+    assert.equal(receipt.source_diagnostic.path_attestation.stable_stat, true);
+    assert(!result.stderr.includes(f.root)); assert(!fs.existsSync(env.GITHUB_WORKSPACE));
+    const directory = path.join(tooling, 'node-runtime-diagnostics'); const names = fs.readdirSync(directory);
+    assert.equal(names.length, 1); const saved = JSON.parse(fs.readFileSync(path.join(directory, names[0]), 'utf8'));
+    assert.equal(saved.predicate, 'source_mode'); assert.deepEqual(saved.source_diagnostic, receipt.source_diagnostic);
+    assert.equal(fs.statSync(path.join(directory, names[0])).mode & 0o777, 0o600);
+    assert(same(before, fs.statSync(f.execPath, { bigint: true })), 'supplier was not chmodded or rewritten by producer');
+    fs.chmodSync(directory, 0o755); const failed = invoke(); assert.equal(failed.status, 1);
+    const refused = JSON.parse(failed.stderr); assert.equal(refused.predicate, 'source_mode');
+    assert.equal(refused.diagnostic_export, 'failed'); assert.equal(refused.uncertain_stage_retained, true);
+    assert.deepEqual(fs.readdirSync(directory), names, 'export failure neither overwrites nor deletes diagnostics');
+  } finally { remove(f); }
 });
