@@ -1,7 +1,27 @@
 import { expect, test } from '../helpers/cookie-audit';
+import { focusComposer } from '../helpers/composer-focus';
+import { waitForComponentPreview } from '../helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
 test.setTimeout(120_000);
+
+// contract-test: direct surface=gui.web assertions=message-input.suggestions.contextual,message-input.actions.visibility
+test('existing-chat search cards receive a real click without losing the draft', async ({ page }) => {
+  await page.goto('/dev/preview/ChatSearchComposerFixture?chrome=0&theme=dark&width=390');
+  await waitForComponentPreview(page);
+  await focusComposer(page);
+  const editor = page.getByTestId('message-editor').getByRole('textbox', { includeHidden: true });
+  await editor.fill('OpenClaw Anonymous Berlin #9');
+  const card = page.getByTestId('recent-embed-search-result').filter({ hasText: 'OpenClaw Anonymous Berlin #9' }).first();
+  await expect(card).toBeVisible();
+  const selectedId = await card.getAttribute('data-embed-id');
+  expect(selectedId).toMatch(/^[0-9a-f-]{36}$/);
+  await card.click();
+  const fixture = page.getByTestId('composer-search-fixture');
+  await expect(fixture).toHaveAttribute('data-selected-embed', selectedId!);
+  await expect(fixture).toHaveAttribute('data-selected-owner', 'example-ai-workshops-meetups-berlin');
+  await expect(editor).toHaveText('OpenClaw Anonymous Berlin #9');
+});
 
 for (const component of ['ChatSearchSuggestions', 'NewChatSuggestions']) {
   const PREVIEW = `/dev/preview/${component}?theme=light&background=%23dbeafe&width=1100&chrome=0`;

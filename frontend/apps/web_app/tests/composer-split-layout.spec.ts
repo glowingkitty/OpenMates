@@ -3,6 +3,7 @@ import { expect, test } from './helpers/cookie-audit';
 import { createSignupLogger, getE2EDebugUrl } from './signup-flow-helpers';
 import { loginToTestAccount } from './helpers/chat-test-helpers';
 import { waitForComponentMotion } from './helpers/component-preview';
+import { dismissComposerFocus } from './helpers/composer-focus';
 
 const CHAT_ID = 'example-ai-workshops-meetups-berlin';
 const EMBED_ID = '7512b6cf-f568-4197-a008-1f0aea7431b6';
@@ -18,10 +19,9 @@ test('keeps the composer and search cards contained beside an open embed', async
 
   // Open the result in its owning chat. Composer search navigation is covered
   // separately by composer-embed-open.spec.ts.
-  await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}`), { waitUntil: 'domcontentloaded' });
+  await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}&embed-id=${EMBED_ID}`), { waitUntil: 'domcontentloaded' });
   const chat = page.getByTestId('active-chat-container');
   await expect(chat).toHaveAttribute('data-current-chat-id', CHAT_ID, { timeout: 30000 });
-  await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}&embed-id=${EMBED_ID}`), { waitUntil: 'domcontentloaded' });
   const fullscreen = page.getByTestId('embed-fullscreen-container');
   await expect(fullscreen).toBeVisible({ timeout: 30000 });
   await expect(fullscreen).toContainText(EVENT_TITLE);
@@ -67,7 +67,7 @@ test('keeps the composer and search cards contained beside an open embed', async
   await expect(chat).toHaveAttribute('data-current-chat-id', CHAT_ID);
 
   await editor.fill('');
-  await fullscreen.getByTestId('embed-header-title').click();
+  await dismissComposerFocus(page);
   await expect(field).toHaveAttribute('data-focused', 'false');
   await expect(expand).toHaveCount(0);
 });

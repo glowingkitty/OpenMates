@@ -3,9 +3,27 @@ import { createSignupLogger, getTestAccount } from './signup-flow-helpers';
 import { loginToTestAccount } from './helpers/chat-test-helpers';
 import { skipWithoutCredentials } from './helpers/env-guard';
 import { getE2EDebugUrl } from './signup-flow-helpers';
+import { focusComposer } from './helpers/composer-focus';
 
 const credentials = getTestAccount();
 const CHAT_ID = 'e2e-composer-embed-destination';
+const selectionDiagnostics = new WeakMap<object, string[]>();
+
+test.beforeEach(async ({ page }) => {
+  const lines: string[] = [];
+  selectionDiagnostics.set(page, lines);
+  page.on('console', message => {
+    if (message.text().startsWith('[ActiveChat] Composer embed') || message.text().startsWith('[composer-test]')) lines.push(message.text());
+  });
+  await page.addInitScript(() => document.addEventListener('click', event => {
+    const card = event.target instanceof Element ? event.target.closest('[data-testid="recent-embed-search-result"], [data-testid="saved-embed-search-result"]') : null;
+    if (card) console.debug('[composer-test] clicked', card.getAttribute('data-testid'));
+  }, true));
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  await testInfo.attach('composer-selection-diagnostics', { body: JSON.stringify(selectionDiagnostics.get(page) ?? [], null, 2), contentType: 'application/json' });
+});
 
 // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
 test('opens a public event from the new-chat composer while keeping the draft', async ({ page }) => {
@@ -18,7 +36,7 @@ test('opens a public event from the new-chat composer while keeping the draft', 
   const query = 'Spec-Driven Development in Practice';
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
   await expect(editor).toBeVisible({ timeout: 20_000 });
-  await editor.click();
+  await focusComposer(page);
   await editor.fill(query);
   const eventCard = page.getByTestId('recent-embed-search-result').filter({ hasText: query }).first();
   await expect(eventCard).toBeVisible({ timeout: 30_000 });
@@ -56,6 +74,7 @@ test('opens saved memory details when its embed is unavailable', async ({ page }
 
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
   await expect(editor).toBeVisible({ timeout: 20_000 });
+  await focusComposer(page);
   await editor.fill('E2E saved memory fallback');
   const saved = page.getByTestId('saved-embed-search-result').filter({ hasText: 'E2E saved memory fallback' }).first();
   await expect(saved).toBeVisible({ timeout: 30_000 });
@@ -103,6 +122,7 @@ test('opens an event from another example chat while keeping the message draft',
   const query = 'Spec-Driven Development in Practice';
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
   await expect(editor).toBeVisible({ timeout: 20_000 });
+  await focusComposer(page);
   await editor.fill(query);
   const eventCard = page.getByTestId('recent-embed-search-result').filter({ hasText: query }).first();
   await expect(eventCard).toBeVisible({ timeout: 30_000 });

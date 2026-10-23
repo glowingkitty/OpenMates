@@ -232,14 +232,14 @@
 </script>
 
 {#if chatSearchResults.length > 0 || fileSearchResults.length > 0 || savedEmbedResults.length > 0 || recentEmbedResults.length > 0}
-  <div class="chat-search-wrapper" data-testid="chat-search-suggestions">
+  <div class="chat-search-wrapper" data-testid="chat-search-suggestions" data-preserve-composer-focus="true">
     <div class="chat-search-header">
       {$text('chats.search.results_label')}
     </div>
     <div class="chat-search-scroll">
       {#each savedEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
+          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-embed-id={embed.embedId} data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
             <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>
@@ -248,7 +248,7 @@
 
       {#each recentEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, undefined, embed.chatId)}>
+          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-embed-id={embed.embedId} data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, undefined, embed.chatId)}>
             <span class="card-icon"><Icon name={embed.appId || 'search'} type={embed.appId ? 'app' : 'skill'} size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>

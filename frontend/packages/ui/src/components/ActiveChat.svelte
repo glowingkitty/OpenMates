@@ -135,7 +135,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext } from '../utils/chatDraftState';
+    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext, isComposerLookupChatCurrent } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed, resolveExampleFullscreenTarget } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
@@ -2602,13 +2602,28 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string, embedChatId?: string): Promise<void> {
+        console.debug('[ActiveChat] Composer embed selected', JSON.stringify({ embedId, savedMemory: !!settingsPath }));
         const openingChatId = currentChat?.chat_id ?? null;
+        const openingDraftChatId = get(draftEditorUIState).currentChatId ?? temporaryChatId;
+        const openingLoadGeneration = loadChatGeneration;
         const openingOwner = $userProfile.user_id;
         const openingAuthenticated = $authStore.isAuthenticated;
         const openingTeam = getActiveTeamContextSnapshot();
-        const stillSelected = () => (currentChat?.chat_id ?? null) === openingChatId
-            && $userProfile.user_id === openingOwner && $authStore.isAuthenticated === openingAuthenticated
-            && isActiveTeamContext(openingTeam.teamId, openingTeam.epoch);
+        const stillSelected = () => {
+            const sameChat = isComposerLookupChatCurrent({
+                openingChatId, openingDraftChatId, openingLoadGeneration,
+                currentChat, currentDraftChatId: get(draftEditorUIState).currentChatId ?? temporaryChatId,
+                currentLoadGeneration: loadChatGeneration,
+            });
+            const sameOwner = $userProfile.user_id === openingOwner;
+            const sameAuthentication = $authStore.isAuthenticated === openingAuthenticated;
+            const sameTeam = isActiveTeamContext(openingTeam.teamId, openingTeam.epoch);
+            if (!sameChat || !sameOwner || !sameAuthentication || !sameTeam) {
+                console.debug('[ActiveChat] Composer embed selection cancelled', JSON.stringify({ sameChat, sameOwner, sameAuthentication, sameTeam }));
+                return false;
+            }
+            return true;
+        };
         const exampleChatId = embedChatId && isExampleChat(embedChatId) ? embedChatId : null;
         // Old saved memories can retain valid structured metadata while their
         // referenced ciphertext can no longer decrypt. Show that saved entry.
@@ -2618,6 +2633,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 const cached = await embedStore.get(`embed:${embedId}`);
                 if (!stillSelected()) return;
                 if (cached && typeof cached === 'object' && '_decryptionFailed' in cached && cached._decryptionFailed) {
+                    console.debug('[ActiveChat] Composer embed opening saved memory');
                     await openUnavailableEmbedMemory(settingsPath);
                     return;
                 }
@@ -2654,6 +2670,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
         // The result can belong to any chat. Keep the current chat and draft in
         // place; the embed-only route avoids attributing it to the open chat.
+        console.debug('[ActiveChat] Composer embed opening fullscreen', JSON.stringify({ embedId: target.targetEmbedId }));
         dispatchEmbedFullscreen({
             embedId: target.targetEmbedId,
             focusChildEmbedId: target.focusChildEmbedId,
@@ -2661,7 +2678,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             embedData: null,
             decodedContent: null,
             hasChatContext: false,
-            sourceChatId: openingChatId,
+            sourceChatId: currentChat?.chat_id ?? null,
             exampleChatId,
         });
     }

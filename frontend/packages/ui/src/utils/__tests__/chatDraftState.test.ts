@@ -7,7 +7,40 @@
 import { describe, expect, it } from "vitest";
 
 import type { Chat } from "../../types/chat";
-import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, isFirstTurnComposerContext, classifyFirstTurnComposerContext, canBindUnclaimedFreshShell, reserveInitialFreshShellId } from "../chatDraftState";
+import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, isFirstTurnComposerContext, classifyFirstTurnComposerContext, canBindUnclaimedFreshShell, reserveInitialFreshShellId, isComposerLookupChatCurrent } from "../chatDraftState";
+
+describe('composer lookup ownership through draft persistence', () => {
+  const opening = { openingChatId: null, openingDraftChatId: 'reserved-draft', openingLoadGeneration: 7 };
+  const draft = { chat_id: 'reserved-draft', draft_v: 1, messages_v: 0 } as Chat;
+  const current = { currentChat: null as Chat | null, currentDraftChatId: 'reserved-draft', currentLoadGeneration: 7 };
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,drafts.draft-only.lifecycle
+  it('keeps the empty composer and its own first persisted draft eligible', () => {
+    expect(isComposerLookupChatCurrent({ ...opening, ...current })).toBe(true);
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentChat: draft })).toBe(true);
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentChat: draft, currentLoadGeneration: 8 })).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
+  it('cancels New chat even though both visible chat IDs are empty', () => {
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentLoadGeneration: 8 })).toBe(false);
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentDraftChatId: 'new-draft' })).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,drafts.draft-only.lifecycle
+  it('rejects another draft, an established chat and late adoption after navigation', () => {
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentChat: { ...draft, chat_id: 'other-draft' } })).toBe(false);
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentChat: { ...draft, messages_v: 1 } })).toBe(false);
+    expect(isComposerLookupChatCurrent({ ...opening, ...current, currentChat: draft, currentLoadGeneration: 9 })).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
+  it('keeps a selected established chat while rejecting a different destination', () => {
+    const selected = { ...opening, openingChatId: 'existing-chat' };
+    expect(isComposerLookupChatCurrent({ ...selected, ...current, currentChat: { ...draft, chat_id: 'existing-chat', messages_v: 2 } })).toBe(true);
+    expect(isComposerLookupChatCurrent({ ...selected, ...current, currentChat: draft })).toBe(false);
+  });
+});
 
 describe("persisted draft-only chat classification", () => {
   // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,chat-navigation.draft-only.addressable
