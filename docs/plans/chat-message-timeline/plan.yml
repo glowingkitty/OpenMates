@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: chat-message-timeline
 title: Chat Message Timeline
-status: implementing
+status: verified
 goal: Reproduce the chat-history overview in OpenMates with hover previews and touch-and-hold scrubbing, including very long chats and messages before compression.
 specifications:
 - feature.chat-message-timeline@1

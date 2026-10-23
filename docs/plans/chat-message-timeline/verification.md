@@ -11,7 +11,7 @@ assistant-only bookmarks using the existing delayed tooltip UI.
 | Svelte, TypeScript, design tokens, YAML and whitespace | Passed | Scoped session lint and `git diff --check` |
 | Short/dense/wide/phone layouts, header boundary, touch and fixed assistant actions | Passed | 11 isolated component cases, no retries; [run 39996744577](https://github.com/glowingkitty/OpenMates/actions/runs/39996744577), source `87fe11b02ce79502007f7fe2823e81cd26f41f7b`; wide/phone header and corrected report-icon frames reviewed |
 | Real encrypted 10,000-exchange history, compression, private persistence and retry | Passed | Real encrypted 10,000-exchange flow, no retries; [run 39998390045](https://github.com/glowingkitty/OpenMates/actions/runs/39998390045), same source; preview, old section and latest frames reviewed |
-| Scoped dev deployment and reviewed laptop/phone screenshots | Pending | Run after isolated verification |
+| Scoped dev deployment and reviewed laptop/phone screenshots | Passed | Product commit `483f210983cbe164cdc9e03502f7d9b5c066e972`; exact frontend build ready; reviewed laptop/phone capture `test-results/visual-smoke/b026-corrected-timeline-20261023/summary.json` |
 
 Retained baseline protection checks passed before this presentation correction:
 16 Python catalogue cases, 22 Directus cases, and 92 focused authentication
@@ -28,3 +28,11 @@ The reviewed component captures show the complete header inside the viewport,
 with the compact rail below it and beside the message lane. The report control
 retains its existing thumbs-down orientation. Desktop tooltip checks assert
 fixed control positions, while the phone checks retain 44-pixel touch controls.
+
+The deployed public example has nine evenly spaced marks in a 108-pixel stack.
+Both viewports preserve the full-width header and clamp the rail beneath it.
+The smoke reports zero horizontal overflow, broken images, console/page errors,
+failed requests or bad responses. Defects: none. Accepted differences: none.
+
+Selected component and full-flow recordings uploaded successfully; their
+immutable source/run inventories remain under the corresponding CI receipts.
