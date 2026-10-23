@@ -382,13 +382,13 @@ Use `UnifiedEmbedPreview.svelte`.
 
 | Property | Rule |
 |---|---|
-| Desktop size | `300px × 200px`. |
-| Mobile size | `150px × 290px`. |
-| Large container | Full width by `400px` via container query. |
+| Desktop size | `300px` wide, at most `200px` high. Media/result and execution cards use the full height; plain content can shrink. |
+| Mobile size | `150px` wide, at most `290px` high, with the same natural-height rule. |
+| Large container | Full width, at most `400px` high via container query. Short Code/Sheets and their outer hosts shrink to actual content height. |
 | Surface | `--color-grey-25`. |
 | Radius | `30px`. |
 | Shadow | Floating two-layer shadow. |
-| Layout | Result cards follow `docs/design-guide/result-embeds.md`; specialized previews retain `BasicInfosBar` and their existing content layout. |
+| Layout | Every result automatically uses the shared app corner; Code/Docs/Sheets retain their content beneath the compact identity header. The circular icon and original `BasicInfosBar` belong exclusively to app-skill execution previews. See `docs/design-guide/result-embeds.md`. |
 | Text selection | Assistant result content stays selectable; Expand opens fullscreen. Clickable result collections retain card activation. |
 | Skill source images | A compact horizontal “Image used” strip appears above skill details when `input_embed_ids` is present; each thumbnail opens the original image viewer. |
 | Finished state | Pointer cursor, keyboard activation, hover/tilt and active press only when the card itself opens fullscreen. |
@@ -422,7 +422,10 @@ ordinary map pins and travel routes retain their existing behavior.
 
 ### BasicInfosBar
 
-Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`.
+Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`. Its original circular
+app-icon bar is exclusively for app-skill execution previews. Result previews
+automatically use the shared corner tile; specialized result bodies reuse the
+bar's identity/status logic through its compact content presentation.
 
 Terminal embed previews keep details above a bottom app/skill info bar. Use the
 app's `APP_GRADIENTS` start color as a solid bar background, with contrasting text;

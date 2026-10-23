@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-  import { homeListingContent, homeNumber, homeImages, homeMatchesFilters, homeApproximate } from './homeListingData';
+  import { homeListingContent, homeNumber, homeImages, homeMatchesFilters, homeApproximate, homeObject } from './homeListingData';
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import HomeListingEmbedPreview from './HomeListingEmbedPreview.svelte';
   import HomeListingEmbedFullscreen from './HomeListingEmbedFullscreen.svelte';
@@ -262,6 +262,8 @@
       size_sqm={result.size_sqm}
       rooms={result.rooms}
       address={result.address}
+      city={typeof result.city === "string" ? result.city : undefined}
+      location_exact_address={homeObject(result.location).exact_address === true}
       image_url={result.image_url}
       provider={result.provider}
       listing_type={result.listing_type}
@@ -270,7 +272,7 @@
       location_approximate={homeApproximate(result)}
       lat={homeNumber(result.latitude ?? result.lat)}
       lon={homeNumber(result.longitude ?? result.lon)}
-      location_area={result.location_area}
+      location_area={result.location_area ?? homeObject(result.location).area}
       {onSelect}
     />
   {/snippet}

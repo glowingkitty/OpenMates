@@ -34,6 +34,7 @@
 -->
 
 <script lang="ts">
+  import EmbedPreviewCorner from '@repo/public-site/components/results/EmbedPreviewCorner.svelte';
   import { text } from '../../i18n/translations';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
@@ -42,11 +43,13 @@
   import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import InputEmbedThumbnails from './InputEmbedThumbnails.svelte';
-  import Icon from '../Icon.svelte';
+  import SavedEmbedPreviewAction from './SavedEmbedPreviewAction.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
+  import { EMBED_PREVIEW_PRESENTATION_CONTEXT, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
   import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+  import { findSavedEmbedMemoryReference } from '../../services/savedEmbedMemoryService';
   
   /**
    * Props interface for unified embed preview
@@ -57,7 +60,7 @@
     inputEmbedIds?: string[];
     /** Reuse card rendering for parent-owned content without an embed record or sync. */
     presentationOnly?: boolean;
-    /** Approved result-card layout; specialized editor previews keep their existing design. */
+    /** Details already provide their own result identity/layout. Shared result chrome is automatic. */
     resultPreview?: boolean;
     /** Selectable specialized preview with explicit tools, retaining its existing layout. */
     previewTools?: boolean;
@@ -169,16 +172,10 @@
   ));
 
   let shouldShowSkillIcon = $derived(showSkillIcon ?? !isDirectContentEmbed);
+  const previewPresentation = getContext<EmbedPreviewPresentationContext | undefined>(EMBED_PREVIEW_PRESENTATION_CONTEXT) ?? 'content';
+  let usesResultShell = $derived(resultPreview || (typeof previewPresentation === 'string' ? previewPresentation : previewPresentation.presentation) !== 'execution');
 
-  let isSavedEmbed = $derived.by(() => {
-    if (presentationOnly) return false;
-    for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
-      for (const entries of Object.values(appGroups)) {
-        if (entries.some((entry) => entry.item_value?.embed_id === id)) return true;
-      }
-    }
-    return false;
-  });
+  let savedEmbedMemory = $derived(findSavedEmbedMemoryReference($appSettingsMemoriesStore, id));
 
   // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a
   // request_embed to the server. Redis pub/sub is fire-and-forget — if the
@@ -479,7 +476,8 @@
   // and dev showcase (.large-container in the dev preview page) wrappers —
   // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
-  let isChatResult = $derived(previewTools || resultPreview && (resultContext === 'chat' || (resultContext === 'auto' && !!previewElement?.closest('.read-only-message, .embed-preview-large-container, .large-container'))));
+  const isResultGrid = $derived(resultContext === 'results' || !!previewElement?.closest('[data-embed-result-context="results"]'));
+  let isChatResult = $derived(!isResultGrid && (previewTools || usesResultShell && (resultContext === 'chat' || (resultContext === 'auto' && !!previewElement?.closest('.read-only-message, .embed-preview-large-container, .large-container')))));
   $effect(() => {
     if (previewElement) {
       isLargeContext = !!(
@@ -906,14 +904,14 @@
 {#snippet previewToolbar(inFlow: boolean)}
   <div class="result-tools" class:flow-tools={inFlow} data-testid="preview-tools">
         {#if resultPrimaryAction}{@render resultPrimaryAction()}{/if}
-        <button type="button" aria-label={$text('common.more_actions')} onclick={handleContextMenu} data-testid="result-preview-more"><span class="clickable-icon" style:mask-image="var(--icon-url-more)" aria-hidden="true"></span></button>
+        <SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} />
         <button type="button" aria-label={$text('common.details')} onclick={(event) => { event.stopPropagation(); onFullscreen(); }} data-testid="result-preview-expand"><span class="clickable-icon icon_fullscreen" aria-hidden="true"></span></button>
       </div>
 {/snippet}
 {#snippet specializedHeaderActions()}
   <div class="specialized-header-actions">
     {#if actionButton}{@render actionButton()}{/if}
-    {#if previewTools && isInteractive}{@render previewToolbar(true)}{/if}
+    {#if isChatResult && isInteractive}{@render previewToolbar(true)}{/if}
   </div>
 {/snippet}
 
@@ -922,8 +920,10 @@
 <div
   bind:this={previewElement}
   class="unified-embed-preview"
-  class:result-preview={resultPreview}
+  class:result-preview={usesResultShell}
+  class:intrinsic-preview={usesResultShell && !resultPreview}
   class:chat-result={isChatResult}
+  class:saved-grid-result={!isChatResult && !!savedEmbedMemory}
   class:tools-preview={previewTools}
   data-testid="embed-preview"
   class:mobile={useMobileLayout}
@@ -957,18 +957,27 @@
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
-  {#if isSavedEmbed}
-    <div class="saved-embed-badge" title="Saved to memories" aria-label="Saved to memories" data-testid="saved-embed-badge">
-      <Icon name="notes" size="16px" />
-    </div>
-  {/if}
+  {#if !isChatResult && savedEmbedMemory}<SavedEmbedPreviewAction memory={savedEmbedMemory} onMore={handleContextMenu} decorative />{/if}
   {#if resultPreview && isChatResult}{@render previewToolbar(false)}{/if}
-  {#if resultPreview}
-    <div class="result-corner" style:background={`var(--color-app-${appId})`} aria-hidden="true">
-      <span style:mask-image={`var(--icon-url-${resolveIconName(appIconName ?? appId)})`}></span>
-    </div>
+  {#if usesResultShell}
+    <EmbedPreviewCorner background={`var(--color-app-${appId}, var(--color-primary))`} iconUrl={`var(--icon-url-${resolveIconName(appIconName ?? appId)})`} />
 
-    <div class="result-preview-content">{#if details}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}</div>
+    {#if resultPreview}
+      <div class="result-preview-content">{#if details}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}</div>
+    {:else}
+      <div class="content-result-layout">
+        <BasicInfosBar {appId} {skillId} {skillIconName} {appIconName} {status} {skillName} {taskId}
+          isMobile={useMobileLayout} presentation="content" onStop={handleStop} {showStatus}
+          {faviconUrl} {faviconIsCircular} {customStatusText} {titleIcon} actionButton={specializedHeaderActions} />
+        <div class="details-section" class:full-width-image={hasFullWidthImage}>
+          {#if inputEmbedIds.length}<InputEmbedThumbnails {inputEmbedIds} />{/if}
+          {#if details}
+            {#if inputEmbedIds.length}<div class="input-skill-content">{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}</div>
+            {:else}{@render details({ isMobile: useMobileLayout, isLarge: isLargeContext })}{/if}
+          {:else}<div class="missing-details-fallback"><span class="fallback-text">{skillName || appId}</span></div>{/if}
+        </div>
+      </div>
+    {/if}
   {:else if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
     <div class="mobile-layout">
@@ -1082,23 +1091,6 @@
     will-change: transform;
   }
 
-  .saved-embed-badge {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    z-index: 3;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 999px;
-    color: white;
-    background: linear-gradient(135deg, #7c3aed, #2563eb);
-    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.28);
-    pointer-events: none;
-  }
-  
   /* Prevent image drag/callouts */
   .unified-embed-preview :global(img) {
     -webkit-user-drag: none;
@@ -1112,6 +1104,7 @@
   
   /* Desktop layout: 300x200px */
   .unified-embed-preview.desktop {
+    --preview-max-height: 200px;
     width: 300px;
     min-width: 300px;
     max-width: 300px;
@@ -1122,6 +1115,7 @@
   
   /* Mobile layout: 150x290px */
   .unified-embed-preview.mobile {
+    --preview-max-height: 290px;
     width: 150px;
     min-width: 150px;
     max-width: 150px;
@@ -1263,6 +1257,7 @@
 
   @container embed-preview (min-width: 401px) {
     .unified-embed-preview.desktop {
+      --preview-max-height: 400px;
       width: 100% !important;
       min-width: unset !important;
       max-width: unset !important;
@@ -1334,14 +1329,24 @@
   .unified-embed-preview.result-preview { position: relative; container-type: inline-size; container-name: result-card; padding: 0; background: var(--color-grey-0); overflow: hidden !important; margin-top: 0; }
   .unified-embed-preview.chat-result, .chat-result :global(*) { user-select: text; -webkit-user-select: text; }
   .result-preview-content { width: 100%; height: 100%; min-width: 0; }
-  .result-corner { position: absolute; z-index: 2; top: 0; left: 0; width: 44px; height: 44px; border-end-end-radius: 22px; display: grid; place-items: center; }
-  .result-corner > span { width: 21px; height: 21px; mask-size: contain; mask-position: center; mask-repeat: no-repeat; background: var(--color-font-button); }
+  .content-result-layout { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+  .content-result-layout .details-section { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+  /* Plain content uses its natural body height up to the shared size cap.
+     Execution cards and media/result-card layouts retain their fixed surface. */
+  .unified-embed-preview.intrinsic-preview { height: auto !important; min-height: 0 !important; max-height: var(--preview-max-height) !important; }
+  .intrinsic-preview .content-result-layout { height: auto; max-height: var(--preview-max-height); }
+  .intrinsic-preview .details-section { flex: 0 1 auto; }
   .result-tools { position: absolute; z-index: 3; top: var(--spacing-3); right: var(--spacing-3); display: flex; gap: var(--spacing-2); }
   .result-tools.flow-tools { position: static; flex-shrink: 0; }
-  .specialized-header-actions { display: flex; align-items: center; gap: var(--spacing-2); flex-shrink: 0; margin-inline-end: var(--spacing-3); }
-  .result-tools :global(button), .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-font-secondary); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; }
-  .result-tools :global(button:focus-visible) { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
-  .result-tools :global(.clickable-icon) { width: 22px; height: 22px; background-color: currentColor; }
+  .specialized-header-actions { display: flex; align-items: center; gap: var(--spacing-2); flex-shrink: 0; }
+  .saved-grid-result :global(.result-identity-header) { padding-inline-end: 34px; }
+  .result-tools :global(button), .result-tools :global(a) { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--color-grey-0); color: var(--color-primary-start); border: 0; box-shadow: var(--shadow-sm); cursor: pointer; scale: 1; transition: scale 0.15s ease, background-color 0.15s ease, color 0.15s ease; }
+  .result-tools :global(.saved-memory-action) { background: var(--color-app-health-start); color: var(--color-font-button); }
+  @media (hover: hover) { .result-tools :global(button:hover), .result-tools :global(a:hover) { scale: 1.02; } }
+  .result-tools :global(button:active), .result-tools :global(a:active) { scale: 0.98; }
+  .result-tools :global(button:focus-visible), .result-tools :global(a:focus-visible) { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+  .result-tools :global(.clickable-icon) { width: 22px; height: 22px; background: currentColor; }
+  .result-tools :global(svg) { stroke: currentColor; }
   .unified-embed-preview.chat-result { cursor: default; }
 
 </style>

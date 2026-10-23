@@ -10,12 +10,16 @@ test('a generated image child displays its actual media from a public preview UR
   const image = page.locator('.preview-image');
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
-  await expect(page.locator('.card-source')).toBeVisible();
-  await expect(page.locator('.card-source')).toContainText(/Gemini|gemini/);
-  await expect(page.locator('.card-source')).toContainText('Google');
-  await expect(page.getByTestId('result-card-title')).toContainText('A serene mountain landscape');
-  await expect(page.getByTestId('result-card-title')).toBeVisible();
-  await testInfo.attach('image-prompt-and-provider', { body: await page.screenshot(), contentType: 'image/png' });
+  await expect(image).toHaveCSS('object-fit', 'contain');
+  await expect(page.locator('.result-card')).toHaveClass(/media-only/);
+  await expect(page.locator('.card-copy')).toHaveCount(0);
+  const bounds = await image.evaluate(element => {
+    const media = element.closest('[data-testid="result-card-media"]')!.getBoundingClientRect();
+    const card = element.closest('[data-testid="embed-preview"]')!.getBoundingClientRect();
+    return { width: Math.abs(media.width - card.width), height: Math.abs(media.height - card.height) };
+  });
+  expect(bounds.width).toBeLessThan(1); expect(bounds.height).toBeLessThan(1);
+  await testInfo.attach('image-full-card-preview', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 // contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution

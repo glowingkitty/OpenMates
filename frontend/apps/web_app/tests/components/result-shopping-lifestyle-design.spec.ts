@@ -21,6 +21,49 @@ async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
 }
 for (const width of [390, 1100]) {
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test(`fitness search preview keeps only query, provider and count at ${width}px`, async ({ page }, testInfo) => {
+    await open(page, 'fitness', 'FitnessSearchEmbedPreview', width);
+    const body = page.getByTestId('fitness-search-preview');
+    await expect(body.locator(':scope > *')).toHaveCount(3);
+    await expect(body.locator('.fitness-search-query')).toHaveText('yoga near Sorauer Str. 12');
+    await expect(body.locator('.fitness-search-provider')).toHaveText('Urban Sports Club');
+    await expect(body.getByTestId('fitness-search-result-count')).toHaveText('2 classes');
+    await expect(body).not.toContainText('Morning Yoga Flow');
+    await expect(body).not.toContainText('Searched all Urban Sports plans');
+    await expect(body.locator('.fitness-search-chips')).toHaveCount(0);
+    const bounded = await body.evaluate(el => {
+      const bounds = el.getBoundingClientRect();
+      return [...el.children].every(child => {
+        const childBounds = child.getBoundingClientRect();
+        return childBounds.left >= bounds.left && childBounds.right <= bounds.right + 1 && childBounds.bottom <= bounds.bottom + 1;
+      });
+    });
+    expect(bounded).toBe(true);
+    await checkpoint(page, testInfo, `fitness-search-minimal-${width}px`);
+    await open(page, 'fitness', 'FitnessSearchEmbedPreview', width, 'processing');
+    await expect(body.getByTestId('fitness-search-result-count')).toHaveCount(0);
+    await expect(body.locator('.fitness-search-query')).toBeVisible();
+  });
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test(`fitness result uses supplied venue fallback and class image precedence at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const base = `/dev/preview/embeds/fitness/FitnessResultEmbedPreview?chrome=0&theme=light&width=${width}`;
+    for (const source of [
+      { venue_image_url: '/store-examples/home-2.webp', expected: '/store-examples/home-2.webp' },
+      { class_image_url: '/store-examples/generate-1.webp', venue_image_url: '/store-examples/home-2.webp', expected: '/store-examples/generate-1.webp' },
+    ]) {
+      const props = encodeURIComponent(JSON.stringify({ result: { name: 'Supplied class', time_range: '07:30 - 08:30', venue_name: 'Yoga Studio', ...source }, skillId: 'search_classes' }));
+      await page.goto(`${base}&props=${props}`);
+      await waitForComponentPreview(page);
+      const image = page.getByTestId('result-card-media').locator('img');
+      await expect(image).toHaveAttribute('src', source.expected);
+      await expect.poll(() => image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+      await expect(page.locator('.fitness-extra-facts')).toBeHidden();
+      await expect(page.getByTestId('fitness-class-time')).toHaveText('07:30');
+      await expect(page.getByTestId('fitness-class-venue')).toHaveText('Yoga Studio');
+    }
+  });
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   test(`fitness class calendar and time/venue stay visible without inventing dates at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const path = `/dev/preview/embeds/fitness/FitnessResultEmbedPreview?chrome=0&theme=light&width=${width}&context=chat`;
@@ -31,7 +74,8 @@ for (const width of [390, 1100]) {
     const time = page.getByTestId('fitness-class-time');
     const venue = page.getByTestId('fitness-class-venue');
     await expect(time).toBeVisible();
-    await expect(time).toHaveText('07:30 - 08:30');
+    await expect(time).toHaveText('07:30');
+    await expect(time).toHaveAttribute('title', '07:30 - 08:30');
     await expect(venue).toBeVisible();
     await expect(venue).toHaveText('Yoga Studio Kreuzberg');
     expect(await venue.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -69,7 +113,8 @@ for (const width of [390, 1100]) {
       await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
       if (result.app === 'fitness') {
         await expect(page.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-07-10T00:00:00.000Z');
-        await expect(page.getByTestId('fitness-class-time')).toHaveText('07:30 - 08:30');
+        await expect(page.getByTestId('fitness-class-time')).toHaveText('07:30');
+        await expect(page.getByTestId('fitness-class-time')).toHaveAttribute('title', '07:30 - 08:30');
         await expect(page.getByTestId('fitness-class-time')).toBeVisible();
         await expect(page.getByTestId('fitness-class-venue')).toHaveText('Yoga Studio Kreuzberg');
         await expect(page.getByTestId('fitness-class-venue')).toBeVisible();

@@ -3,6 +3,8 @@ import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.
 import { searchResultImageUrl } from '../utils/searchPreviewImages';
 import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
 import { generatedMediaChildIds, isGeneratedMediaParent } from '../components/embeds/generatedMediaGroup';
+import ResolvedEmbedPreview from '../components/embeds/ResolvedEmbedPreview.svelte';
+import { getEmbedPreviewPresentation } from '../types/embedPreviewPresentation';
 
 /**
  * embedPreviewRegistry.ts
@@ -1191,7 +1193,15 @@ async function resolve(
 
   try {
     const resolver = resolvers.get(key)!;
-    return await resolver(ctx);
+    const resolved = await resolver(ctx);
+    if (!resolved) return null;
+    const actualType = key.startsWith('app:')
+      ? String(ctx.decodedContent.type ?? ctx.embedData.type ?? '') : key;
+    return { component: ResolvedEmbedPreview, props: {
+      ...resolved.props,
+      __previewComponent: resolved.component,
+      __previewPresentation: getEmbedPreviewPresentation(actualType, key),
+    } };
   } catch (error) {
     console.error(
       "[embedPreviewRegistry] Error resolving preview for key:",

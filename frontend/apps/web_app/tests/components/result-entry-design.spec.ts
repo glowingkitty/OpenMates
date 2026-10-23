@@ -37,7 +37,15 @@ for (const width of [390, 1280]) {
 		}
 		const composer = page.getByTestId('apps-request-composer');
 		expect((await composer.boundingBox())!.height).toBeGreaterThanOrEqual(60);
-		await expect(composer).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+        const regularComposerBackground = await composer.evaluate(element => {
+            const probe = document.createElement('span');
+            probe.style.background = 'var(--color-grey-blue)';
+            element.appendChild(probe);
+            const color = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return color;
+        });
+        await expect(composer).toHaveCSS('background-color', regularComposerBackground);
 		const galleryBox = (await gallery.boundingBox())!;
 		const mapBox = (await map.boundingBox())!;
 		if (width > 600) {
@@ -147,15 +155,58 @@ for (const width of [390, 1280]) {
                 const map = card.getByTestId('result-map-preview');
                 await expect(map).toHaveAttribute('inert', '');
                 await expect(map).toHaveAttribute('aria-hidden', 'true');
+                const calendar = card.getByTestId('embed-calendar-date');
+                const time = card.getByTestId('embed-calendar-time');
+                await expect(calendar).toBeVisible();
+                await expect(time).toContainText('10:30');
+                await expect(time).toHaveCSS('font-size', '14px');
+                const rating = card.locator('.appointment-meta > span').filter({ hasText: '4.8' });
+                await expect(rating).toHaveAttribute('title', /reviews/);
+                await expect(rating.locator('svg')).toHaveCSS('fill', 'rgb(255, 213, 0)');
+                await expect(rating.locator('svg')).toHaveCSS('color', 'rgb(255, 213, 0)');
+                const badgeGeometry = await card.evaluate(root => {
+                    const calendar = root.querySelector('[data-testid="embed-calendar-date"]')!.getBoundingClientRect();
+                    const time = root.querySelector('[data-testid="embed-calendar-time"]')!.getBoundingClientRect();
+                    const corner = root.querySelector('.result-corner')!.getBoundingClientRect();
+                    const card = root.getBoundingClientRect();
+                    return { calendarTop: calendar.top - corner.top, timeTop: time.top - corner.top,
+                        visible: [calendar, time].every(rect => rect.left >= card.left && rect.right <= card.right && rect.top >= card.top && rect.bottom <= card.bottom) };
+                });
+                expect(badgeGeometry.visible).toBe(true);
+                if (width === 390) {
+                    expect(badgeGeometry.calendarTop).toBeGreaterThanOrEqual(0);
+                    expect(badgeGeometry.calendarTop).toBeLessThanOrEqual(2.5);
+                    expect(badgeGeometry.timeTop).toBeLessThanOrEqual(8.5);
+                }
+
             }
 			const title = card.locator('.listing-title, .doctor-name, [data-testid="result-card-title"], [data-testid="health-appointment-title"]');
 			await expect(title).toBeVisible();
 			await expect(title).toHaveCSS('user-select', 'text');
+			const tools = card.getByTestId('preview-tools');
+			const colors = await tools.evaluate(element => Array.from(element.querySelectorAll('button, a')).map(control => {
+				const icon = control.querySelector('svg, .clickable-icon')!;
+				const style = getComputedStyle(icon);
+				return icon.tagName.toLowerCase() === 'svg'
+					? getComputedStyle(icon.querySelector('path, rect, circle') || icon).stroke
+					: style.backgroundColor;
+			}));
+			expect(colors).toHaveLength(2);
+			expect(colors).toEqual([colors[0], colors[0]]);
+			for (const mask of await tools.locator('.clickable-icon').all()) await expect(mask).toHaveCSS('background-image', 'none');
+			for (const control of await tools.locator('button, a').all()) {
+				await control.hover();
+				await expect(control).toHaveCSS('scale', '1.02');
+			}
+			await page.mouse.move(0, 0);
+			for (const control of await tools.locator('button, a').all()) await expect(control).toHaveCSS('scale', '1');
 			await title.click();
 			expect(expansions).toHaveLength(0);
 			await card.getByTestId('result-preview-expand').click();
 			await expect.poll(() => expansions.length).toBe(1);
+			await page.mouse.move(0, 0);
 			for (const control of await card.locator('.result-tools button, .result-tools a').all()) {
+				await expect(control).toHaveCSS('scale', '1');
 				expect((await control.boundingBox())!.width).toBeLessThanOrEqual(36);
 			}
 			const box = (await card.boundingBox())!;
@@ -199,10 +250,23 @@ for (const width of [390, 1280]) {
       await expect(card.getByTestId('result-card-title')).toContainText('Kreuzberg');
       await testInfo.attach(`home-map-fallback-${variant}-${width}`, { body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png' });
     }
-    await page.goto(preview('home/HomeListingEmbedPreview', width, 'noLocation'));
+    const cityQueries: string[] = [];
+    await page.route('**/v1/geocode/search?**', route => {
+      cityQueries.push(new URL(route.request().url()).searchParams.get('q')!);
+      return route.fulfill({json: [{name: 'Berlin', addresstype: 'city', address: {city: 'Berlin'}, boundingbox: ['52.34', '52.68', '13.09', '13.76']}]});
+    });
+    await page.goto(`${preview('home/HomeListingEmbedPreview', width, 'noLocation')}${width > 600 ? '&context=chat' : ''}`);
     await waitForComponentPreview(page);
-    await expect(page.getByTestId('result-map-preview')).toHaveCount(0);
+    const cityArea = page.getByTestId('home-preview-location-area');
+    await expect(cityArea).toBeVisible();
+    await expect(cityArea).toHaveAttribute('data-area-basis', 'city');
+    expect(Number(await cityArea.getAttribute('data-radius-m'))).toBeGreaterThan(20000);
+    expect(Number(await cityArea.getAttribute('data-radius-m'))).toBeLessThan(40000);
+    await expect(page.getByTestId('home-preview-approximate')).toHaveText('Approximate location');
+    await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+    expect(cityQueries).toEqual(['Berlin']);
     await expect(page.getByTestId('home-listing-result-card')).toContainText('Kreuzberg');
+    await testInfo.attach(`home-city-fallback-${width}`, {body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png'});
   });
 }
 

@@ -9,10 +9,10 @@
 -->
 
 <script lang="ts">
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
+  import EmbedTimePill from '@repo/public-site/components/results/EmbedTimePill.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { formatCount, socialSourceLabel, type SocialMediaPostResult } from './socialMediaEmbedUtils';
@@ -29,7 +29,6 @@
 
   let {
     id = '',
-    url,
     body,
     platform,
     page,
@@ -56,6 +55,16 @@
   let displayAuthor = $derived(author_display_name || author || page || platform || 'Social post');
   let source = $derived(socialSourceLabel({ embed_id: id, platform, page }));
 
+  const publication = $derived.by(() => {
+    if (!published_at) return undefined;
+    const timestamp = new Date(published_at);
+    if (Number.isNaN(timestamp.getTime())) return undefined;
+    return {
+      iso: timestamp.toISOString(),
+      label: new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(timestamp),
+    };
+  });
+
   function handleStop() {
     // Child posts are already resolved server-side.
   }
@@ -79,11 +88,11 @@
   {onFullscreen}
   onStop={handleStop}
 >
-  {#snippet resultPrimaryAction()}{#if url}<a href={url} target="_blank" rel="noopener noreferrer" aria-label="Open post" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
+
   {#snippet details()}
     <div data-testid="social-post-preview" class="catalog-result-preview">
-      <ResultEmbedCard title={title || displayAuthor} description={body} sourceLabel={[displayAuthor, source].filter(Boolean).join(" · ")} faviconUrl={avatar} imageUrl={image} imageAlt={title || displayAuthor} mediaFit="cover">
-        {#snippet badge()}{#if published_at}<EmbedCalendarDate date={published_at} />{/if}{/snippet}
+      <ResultEmbedCard title={title || displayAuthor} description={body} sourceLabel={[displayAuthor, source].filter(Boolean).join(" · ")} faviconUrl={avatar} imageUrl={image} imageAlt={title || displayAuthor} mediaFit="contain">
+        {#snippet badge()}{#if publication}<EmbedTimePill label={publication.label} datetime={publication.iso} testId="social-post-publication-date" />{/if}{/snippet}
         {#snippet facts()}{#if like_count != null}<ResultEmbedInfo icon="Heart" label="Likes" value={formatCount(like_count)}>{#snippet children()}{formatCount(like_count)} likes{/snippet}</ResultEmbedInfo>{/if}
 {#if reply_count != null}<ResultEmbedInfo icon="MessageCircle" label="Replies" value={formatCount(reply_count)}>{#snippet children()}{formatCount(reply_count)} replies{/snippet}</ResultEmbedInfo>{/if}
 {#if repost_count != null}<ResultEmbedInfo icon="Repeat2" label="Reposts" value={formatCount(repost_count)}>{#snippet children()}{formatCount(repost_count)} reposts{/snippet}</ResultEmbedInfo>{/if}{/snippet}

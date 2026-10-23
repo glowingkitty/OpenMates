@@ -122,7 +122,7 @@ async function verifySavedMemoryEntry(
   const embedPreview = settingsMenu.getByTestId('memory-embed-preview').first();
   const hasEmbedPreview = await embedPreview.isVisible({ timeout: 5000 }).catch(() => false);
   if (hasEmbedPreview) {
-    await expect(embedPreview.getByTestId('saved-embed-badge').first()).toBeVisible({ timeout: 5000 });
+    await expect(embedPreview.locator('[data-testid="result-preview-saved-marker"], [data-testid="result-preview-forget"]').first()).toBeVisible({ timeout: 5000 });
     await embedPreview.click();
     await expect(page.getByTestId('embed-fullscreen-overlay')).toBeVisible({ timeout: 10000 });
   }

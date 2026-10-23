@@ -42,6 +42,8 @@ export interface FitnessResult {
   detail_url?: string;
   url?: string;
   image_url?: string | null;
+  class_image_url?: string | null;
+  venue_image_url?: string | null;
   [key: string]: unknown;
 }
 
@@ -97,6 +99,14 @@ export function getFitnessResultAddress(result: FitnessResult): string {
 
 export function getFitnessResultUrl(result: FitnessResult): string {
   return asText(result.detail_url || result.url || result.venue_url);
+}
+
+/** Preserve provider imagery without fabricating a fallback for missing media. */
+export function getFitnessResultImageUrl(result: FitnessResult): string {
+  for (const value of [result.class_image_url, result.image_url, result.venue_image_url]) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
 }
 
 export function normalizeFitnessSearchContent(

@@ -20,6 +20,7 @@
 	import { replaceState } from '$app/navigation';
 	import { mount, unmount } from 'svelte';
 	import { theme } from '@repo/ui';
+	import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getComponentPreviewPresentation } from '@repo/ui/types/embedPreviewPresentation';
 
 	const MAX_URL_PROPS_LENGTH = 10_000;
 	const MIN_VIEWPORT_WIDTH = 240;
@@ -92,6 +93,7 @@
 		'projects/ProjectsPage',
 		'plans/PlanDetailPage',
 		'tasks/TasksPage',
+		'videocall/VideoCallPanel',
 		'workspace/WorkspaceHomeShell',
 		'workflows/WorkflowHomePreviewHarness',
 		'workflows/WorkflowDetailPage'
@@ -525,7 +527,9 @@
 		let secondFrame = 0;
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic glob import yields unknown type
-			mountedInstance = mount(component as any, { target, props });
+			mountedInstance = mount(component as any, { target, props, context: new Map([
+				[EMBED_PREVIEW_PRESENTATION_CONTEXT, getComponentPreviewPresentation(componentPath)],
+			]) });
 			firstFrame = requestAnimationFrame(() => {
 				secondFrame = requestAnimationFrame(() => {
 					if (!errorCaught) previewReady = true;

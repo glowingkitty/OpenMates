@@ -44,6 +44,8 @@
     taskId?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Reuse identity/status logic without the execution-only circle and bar. */
+    presentation?: 'execution' | 'content';
     /** Click handler for stop button */
     onStop?: () => void;
     /** Whether to show the status text line (default: true) */
@@ -71,6 +73,7 @@
     skillName,
     taskId,
     isMobile = false,
+    presentation = 'execution',
     onStop,
     showStatus = true,
     faviconUrl,
@@ -117,6 +120,13 @@
   $effect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     let cancelled = false;
+
+    if (presentation === 'content') {
+      processingStartTime = null;
+      hintPhase = 'settled';
+      hintFadingIn = false;
+      return;
+    }
 
     if (status === 'processing') {
       if (processingStartTime === null) processingStartTime = Date.now();
@@ -211,7 +221,27 @@
   }
 </script>
 
-{#if isMobile}
+{#if presentation === 'content'}
+  <div class="result-identity-header" data-testid="embed-result-identity">
+    <div class="result-identity-text">
+      <span class="result-identity-title" title={skillName}>
+        {#if titleIcon}{@render titleIcon()}{:else if safeFaviconUrl}
+          <img src={safeFaviconUrl} alt="" class="title-favicon" class:circular={faviconIsCircular} onerror={(event) => handleImageError(event.currentTarget as HTMLImageElement)} />
+        {/if}
+        <span>{skillName}</span>
+      </span>
+      {#if showStatus && !statusValueCollapsed}
+        <span class="result-identity-status" data-testid="embed-status-value">{displayedStatusText()}</span>
+      {/if}
+    </div>
+    <div class="result-identity-actions">
+      {#if actionButton}{@render actionButton()}{/if}
+      {#if status === 'processing'}
+        <button class="stop-button" onclick={handleStopClick} aria-label={$text('common.stop')} title={$text('common.stop')}><span class="clickable-icon icon_stop_processing"></span></button>
+      {/if}
+    </div>
+  </div>
+{:else if isMobile}
   <!-- Mobile Layout: Vertical layout with app icon, skill icon, status text, and stop button -->
   <div class="basic-infos-bar mobile" data-testid="embed-basic-infos-bar">
     <!-- App icon container OR favicon (full width, 44px height, gradient background) -->
@@ -332,6 +362,17 @@
 {/if}
 
 <style>
+  .result-identity-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--spacing-2); box-sizing: border-box; min-height: 52px; padding: var(--spacing-3) var(--spacing-3) var(--spacing-3) 54px; flex-shrink: 0; }
+  .result-identity-text { min-width: 0; display: flex; flex-direction: column; gap: var(--spacing-1); }
+  .result-identity-title { min-width: 0; display: flex; align-items: center; gap: var(--spacing-2); font-size: var(--font-size-small); font-weight: 700; color: var(--color-font-primary); }
+  .result-identity-title > span, .result-identity-status { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .result-identity-status { font-size: var(--font-size-xs); color: var(--color-font-secondary); }
+  .result-identity-actions { display: flex; align-items: center; gap: var(--spacing-2); }
+  .result-identity-actions:empty { display: none; }
+  @container result-card (max-width: 220px) {
+    .result-identity-header { grid-template-columns: minmax(0, 1fr); }
+    .result-identity-actions { margin-inline-start: -46px; justify-self: end; }
+  }
   /* ===========================================
      Basic Infos Bar - Desktop Layout
      =========================================== */

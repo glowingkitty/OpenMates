@@ -4,11 +4,11 @@
  * These are recorded examples; no visitor data or inference is used. */
 export const featureAnimationCopy = {
   "en": {
-    "actionable_event_user_message": "Find tech events in Berlin",
+    "actionable_event_user_message": "Find music meetups in Amsterdam",
     "actionable_event_assistant_message": "Of course, here you go:",
-    "actionable_event_title": "DEPIN DAY BERLIN",
+    "actionable_event_title": "Amsterdam Music Meetup",
     "actionable_event_open_luma": "Open on Luma",
-    "actionable_event_venue": "Magazin in der Heeresbaeckerei",
+    "actionable_event_venue": "A gathering by the canal",
     "actionable_event_in_person": "In person",
     "actionable_event_rsvps": "RSVPs",
     "privacy_saved_data": "Only your devices can decrypt all your data.",
@@ -28,11 +28,11 @@ export const featureAnimationCopy = {
     "trips": "Trips"
   },
   "de": {
-    "actionable_event_user_message": "Finde Tech-Events in Berlin",
+    "actionable_event_user_message": "Finde Musik-Meetups in Amsterdam",
     "actionable_event_assistant_message": "Natürlich, hier bitte:",
-    "actionable_event_title": "DEPIN DAY BERLIN",
+    "actionable_event_title": "Amsterdam Musik-Meetup",
     "actionable_event_open_luma": "Auf Luma öffnen",
-    "actionable_event_venue": "Magazin in der Heeresbaeckerei",
+    "actionable_event_venue": "Ein Treffen am Kanal",
     "actionable_event_in_person": "Vor Ort",
     "actionable_event_rsvps": "Zusagen",
     "privacy_saved_data": "Nur deine Geräte können alle deine Daten entschlüsseln.",

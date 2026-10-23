@@ -34,7 +34,6 @@
     id,
     date,
     locationName = '',
-    provider = 'Weather',
     icon = '',
     condition = '',
     temperatureMinC,
@@ -49,10 +48,7 @@
   }: Props = $props();
 
   let dayTitle = $derived(formatDayTitle(date));
-  let statusText = $derived([
-    locationName,
-    provider ? `${$text('embeds.via')} ${provider}` : ''
-  ].filter(Boolean).join(' · '));
+  let statusText = $derived(locationName);
 
   function formatTemp(min?: number, max?: number): string {
     if (min === undefined && max === undefined) return '—';
@@ -91,11 +87,12 @@
 >
   {#snippet details()}
     <div class="weather-day-result" data-testid="weather-day-preview">
-      <ResultEmbedCard title={dayTitle} sourceLabel={statusText} description={formatCondition(condition)} media={icon || condition ? weatherMedia : undefined}>
+      <ResultEmbedCard title={dayTitle} sourceLabel={statusText} description={condition ? formatCondition(condition) : undefined} media={icon || condition ? weatherMedia : undefined}>
         {#snippet badge()}{#if date}<EmbedCalendarDate {date} />{/if}{/snippet}
         {#snippet facts()}
           <span data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</span>
-          <span data-testid="weather-day-metrics">{precipitationProbabilityMaxPct == null ? '—' : `${precipitationProbabilityMaxPct}%`} · {precipitationTotalMm == null ? '—' : `${precipitationTotalMm} mm`} · {rainHours == null ? '—' : `${rainHours}h`}</span>
+          <span data-testid="weather-day-metrics" aria-label={$text('result_embed.rain_chance')}>{precipitationProbabilityMaxPct == null ? '—' : `${precipitationProbabilityMaxPct}%`}</span>
+          <span class="weather-extra-metrics" data-testid="weather-day-extra-metrics">{precipitationTotalMm == null ? '—' : `${precipitationTotalMm} mm`} · {rainHours == null ? '—' : `${rainHours}h`}</span>
         {/snippet}
       </ResultEmbedCard>
     </div>
@@ -103,6 +100,8 @@
 </UnifiedEmbedPreview>
 {#snippet weatherMedia()}<div class="weather-art" data-testid="weather-day-icon"><WeatherConditionIcon {icon} {condition} size="hero" /></div>{/snippet}
 <style>
+  .weather-extra-metrics { display: none; }
+  @container result-card (min-width: 401px) { .weather-extra-metrics { display: inline; } }
   .weather-day-result { height:100%; width:100%; }
   .weather-art { display:grid; place-items:center; height:100%; width:100%; }
 </style>

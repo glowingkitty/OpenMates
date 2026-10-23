@@ -39,7 +39,8 @@ describe('embedPreviewRegistry parent preview metadata', () => {
       decodedContent: { app_id: 'web', skill_id: 'search', input: { requests: [{ query: 'Saved native request' }] }, result_count: 10, embed_ids: ['child'] },
       onFullscreen: () => {},
     });
-    expect(resolved?.component).toBe(previews.search);
+    expect(resolved?.props.__previewComponent).toBe(previews.search);
+    expect(resolved?.props.__previewPresentation).toBe('execution');
     expect(resolved?.props).toMatchObject({ query: 'Saved native request', resultCount: 10, childEmbedIds: ['child'] });
   });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
@@ -52,7 +53,8 @@ describe('embedPreviewRegistry parent preview metadata', () => {
         decodedContent: { app_id: 'web', skill_id: 'search', url: 'https://example.test', title: 'Saved website', snippet: 'Website snippet', meta_url: { favicon: 'https://example.test/icon.png' }, thumbnail: { original: 'https://example.test/photo.png' } },
         onFullscreen,
       });
-      expect(resolved?.component).toBe(previews.website);
+      expect(resolved?.props.__previewComponent).toBe(previews.website);
+      expect(resolved?.props.__previewPresentation).toBe('content');
       expect(resolved?.props).toMatchObject({ id: 'website-child', url: 'https://example.test', title: 'Saved website', description: 'Website snippet', favicon: 'https://example.test/icon.png', image: 'https://example.test/photo.png', status: 'finished', onFullscreen });
       expect(resolved?.props).not.toHaveProperty('childEmbedIds');
       expect(resolved?.props).not.toHaveProperty('resultCount');
@@ -67,7 +69,8 @@ describe('embedPreviewRegistry parent preview metadata', () => {
       decodedContent: { app_id: 'news', skill_id: 'search', parent_embed_id: 'news-root', url: 'https://example.test/article-2', title: 'Second article', snippet: 'Article details', thumbnail: { original: 'https://example.test/photo.png' } },
       onFullscreen,
     });
-    expect(resolved?.component).toBe(previews.news);
+    expect(resolved?.props.__previewComponent).toBe(previews.news);
+    expect(resolved?.props.__previewPresentation).toBe('content');
     expect(resolved?.props).toMatchObject({ id: 'news-child-2', url: 'https://example.test/article-2', title: 'Second article', description: 'Article details', image: 'https://example.test/photo.png' });
     (resolved?.props.onFullscreen as () => void)();
     expect(onFullscreen).toHaveBeenCalledOnce();
@@ -262,6 +265,7 @@ it('normalizes flattened event child data through the shared registry', async ()
   const resolved = await embedPreviewRegistry.resolve({ embedId: 'flat-event', embedData: { type: 'event', status: 'finished', app_id: 'events', skill_id: 'search' },
     decodedContent: { organizer_name: 'Berlin Lingua Hub', venue_name: 'Community space', fee_amount: '0', fee_currency: 'EUR', rsvp_count: '80', date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin' }, onFullscreen: () => {},
   });
-  expect(resolved?.component).toBe(previews.event);
+  expect(resolved?.props.__previewComponent).toBe(previews.event);
+  expect(resolved?.props.__previewPresentation).toBe('content');
   expect(resolved?.props.event).toMatchObject({ embed_id: 'flat-event', organizer: {name: 'Berlin Lingua Hub'}, venue: {name: 'Community space'}, fee: {amount: 0, currency: 'EUR'}, rsvp_count: 80, date_start: '2026-12-15T18:00:00Z', timezone: 'Europe/Berlin' });
 });

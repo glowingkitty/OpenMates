@@ -13,6 +13,7 @@ const defaultProps = {
 	size_sqm: 55,
 	rooms: 2,
 	address: 'Bergmannstr. 12, 10961 Berlin',
+  city: 'Berlin',
 	image_url: '/store-examples/home-1.webp',
 	url: 'https://www.immobilienscout24.de/expose/12345',
 	provider: 'ImmoScout24',
@@ -26,7 +27,10 @@ export default defaultProps;
 
 /** Named variants for different listing types */
 export const variants = {
-  noLocation: {...defaultProps, image_url: '', lat: undefined, lon: undefined, location_area: undefined},
+  precise: {...defaultProps, location_precision: 'building', location_approximate: false, location_exact_address: true, location_area: undefined},
+  noLocation: {...defaultProps, city: undefined, image_url: '', lat: undefined, lon: undefined, location_area: undefined},
+  cityOnly: {...defaultProps, city: 'Hamburg', address: 'Hamburg', title: 'Apartment in Hamburg', image_url: '', lat: undefined, lon: undefined, location_area: undefined},
+  unknownCity: {...defaultProps, city: undefined, address: 'Undisclosed street 12', image_url: '', lat: undefined, lon: undefined, location_area: undefined},
   brokenImage: {...defaultProps, image_url: 'data:image/png;base64,invalid-image'},
   noImage: {...defaultProps, image_url: ''},
   chat: {...defaultProps, resultContext: 'chat' as const},
@@ -68,6 +72,7 @@ export const variants = {
 		size_sqm: 75,
 		rooms: 3,
 		address: 'Leopoldstr., 80802 München',
+    city: 'München',
 		image_url: '',
 		url: 'https://www.immobilienscout24.de/expose/99999',
 		provider: 'ImmoScout24',

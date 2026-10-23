@@ -28,6 +28,7 @@
       "default": "./src/demo_chats/resolveI18nServer.ts"
     },
     "./components/*": "./src/components/*",
+    "./types/embedPreviewPresentation": "./src/types/embedPreviewPresentation.ts",
     "./services/voiceCall": {
       "types": "./src/services/voiceCall.ts",
       "default": "./src/services/voiceCall.ts"

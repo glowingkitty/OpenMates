@@ -7,6 +7,7 @@
 
 import { mount as svelteMount, unmount as svelteUnmount } from "svelte";
 import { EMBED_SOURCE_CHAT_CONTEXT } from "../../../../types/embedFullscreen";
+import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getEmbedPreviewPresentation } from "../../../../types/embedPreviewPresentation";
 
 type ComponentHandle = Parameters<typeof svelteUnmount>[0];
 const mounted = new WeakMap<Node, Set<ComponentHandle>>();
@@ -33,9 +34,17 @@ export const mount = ((component, options) => {
   const source = options.target instanceof Element
     ? options.target.closest<HTMLElement>("[data-embed-chat-id]")?.dataset.embedChatId
     : undefined;
-  const context = source
-    ? new Map([...(options.context ?? []), [EMBED_SOURCE_CHAT_CONTEXT, { chatId: source }]])
-    : options.context;
+  const marker = options.target instanceof Element
+    ? options.target.closest<HTMLElement>("[data-embed-preview-type], [data-embed-type]")
+    : null;
+  const context = new Map(options.context ?? []);
+  if (!context.has(EMBED_PREVIEW_PRESENTATION_CONTEXT)) {
+    context.set(EMBED_PREVIEW_PRESENTATION_CONTEXT, getEmbedPreviewPresentation(
+      marker?.dataset.embedPreviewType ?? marker?.dataset.embedType,
+      marker?.dataset.embedPreviewRegistryKey,
+    ));
+  }
+  if (source) context.set(EMBED_SOURCE_CHAT_CONTEXT, { chatId: source });
   const instance = svelteMount(component, { ...options, context });
   const instances = mounted.get(options.target) ?? new Set<ComponentHandle>();
   instances.add(instance);

@@ -57,6 +57,7 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  shortContent: { ...defaultProps, id: 'legacy-short-sheet-preview', title: 'Two rows', rowCount: 2, colCount: 2, tableContent: '| Name | Value |\n|---|---|\n| First | 1 |\n| Second | 2 |', onFullscreen: () => console.info('[Preview] specialized expanded') },
   tools: { ...defaultProps, onFullscreen: () => console.info('[Preview] specialized expanded') },
 	/** Citation targets remain in saved data; headings show their readable labels. */
 	citationHeaders: {

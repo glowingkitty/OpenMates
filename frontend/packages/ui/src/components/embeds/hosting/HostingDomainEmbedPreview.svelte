@@ -1,10 +1,10 @@
 <script lang="ts">
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { formatTierMoney, headlineTier, isFirstYearOffer, normalizeDomain, quote, safeGandiUrl, years, type DomainResult } from './hostingDomainData';
+  import { formatTierMoney, headlineTier, isFirstYearOffer, normalizeDomain, quote, years, type DomainResult } from './hostingDomainData';
 
   interface Props {
     id: string;
@@ -46,7 +46,7 @@
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet resultPrimaryAction()}{#if safeGandiUrl(result.provider_url)}<a href={safeGandiUrl(result.provider_url)} target="_blank" rel="noopener noreferrer" aria-label={$text('embeds.hosting.search_domains.open_on_gandi')} onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
+
   {#snippet details()}
     <div data-testid="hosting-domain-preview" class="domain-preview">
       <ResultEmbedCard title={displayDomain} sourceLabel={result.provider} description={statusLabel} textFirst={true}>

@@ -58,3 +58,37 @@ test('document preview downloads a real DOCX directly with owner PII masked', as
   expect(exportedContent).not.toContain('alex@example.test');
   expect(exportedContent).not.toContain('unsafe_document_marker');
 });
+
+for (const width of [700, 1280]) {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,chats.rendering.inline-entity-interaction
+  test(`document HTML and page screenshot stay horizontally centered at ${width}px`, async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width, height: 900 });
+    for (const variant of ['htmlContent', 'generatedDocxArtifact']) {
+      await page.goto(`/dev/preview/embeds/docs/DocsEmbedPreview?variant=${variant}&chrome=0&width=${width}&context=chat`);
+      await waitForComponentPreview(page);
+      const viewport = page.locator('.doc-page-viewport');
+      await expect.poll(() => viewport.evaluate(element => element.clientWidth)).toBeGreaterThan(400);
+      const content = page.locator(variant === 'htmlContent' ? '.doc-page' : '.doc-page-image');
+      await expect(content).toBeVisible();
+      if (variant === 'htmlContent') await expect(content.locator('h1')).toHaveText('Project Architecture Overview');
+      else await expect.poll(() => content.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(794);
+      await expect.poll(() => viewport.evaluate(element => {
+        const viewport = element.getBoundingClientRect();
+        const page = element.querySelector('.doc-page, .doc-page-image')!.getBoundingClientRect();
+        return Math.abs((page.left + page.right) / 2 - (viewport.left + viewport.right) / 2);
+      })).toBeLessThanOrEqual(1);
+      const geometry = await viewport.evaluate(element => {
+        const viewport = element.getBoundingClientRect();
+        const page = element.querySelector('.doc-page, .doc-page-image')!.getBoundingClientRect();
+        return { left: page.left - viewport.left, right: viewport.right - page.right, width: page.width, viewportWidth: viewport.width };
+      });
+      expect(geometry.width).toBeGreaterThan(0);
+      expect(geometry.width).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+      expect(geometry.left).toBeGreaterThanOrEqual(-1);
+      expect(geometry.right).toBeGreaterThanOrEqual(-1);
+      await expect(page.getByTestId('preview-download')).toBeVisible();
+      await testInfo.attach(`document-centered-${variant}-${width}`, { body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png' });
+    }
+  });
+}

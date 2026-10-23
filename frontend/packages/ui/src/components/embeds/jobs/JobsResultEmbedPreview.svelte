@@ -1,11 +1,11 @@
 <script lang="ts">
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
   import { text } from '@repo/ui';
-  import { jobProviderLabel, jobSalary, normalizeJob, safeExternalUrl, type JobResult } from './jobsEmbedData';
+  import { jobProviderLabel, jobSalary, normalizeJob, type JobResult } from './jobsEmbedData';
 
   interface Props {
     id: string;
@@ -36,7 +36,7 @@
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet resultPrimaryAction()}{#if safeExternalUrl(result.apply_url) || safeExternalUrl(result.url)}<a href={safeExternalUrl(result.apply_url) || safeExternalUrl(result.url)} target="_blank" rel="noopener noreferrer" aria-label="Open listing" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
+
   {#snippet details()}
     <div data-testid="jobs-result-card" class="catalog-result-preview">
       <ResultEmbedCard title={result.title || $text('embeds.jobs.search.result.title')} sourceLabel={[result.company, result.location].filter(Boolean).join(" · ")} description={result.description} textFirst={true}>

@@ -1,9 +1,12 @@
 <!-- Home result card: uncropped photo or factual location-map fallback in the shared result shell. -->
 
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { homePreviewCity, resolveHomePreviewCity } from "./homePreviewLocation";
+  import type { HomeMapGeometry } from "./homeListingData";
   import House from '@lucide/svelte/icons/house';
   import EmbedCalendarDate from "../EmbedCalendarDate.svelte";
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import { text } from "../../../i18n/translations";
   import ResultEmbedCard from "../ResultEmbedCard.svelte";
   import ResultEmbedMapPreview from "../ResultEmbedMapPreview.svelte";
@@ -27,6 +30,8 @@
     rooms?: number;
     /** Address (city + district/street) */
     address?: string;
+    city?: string;
+    location_exact_address?: boolean;
     location_precision?: string;
     location_approximate?: boolean;
     lat?: number;
@@ -56,7 +61,8 @@
     size_sqm,
     rooms,
     address,
-    url,
+    city,
+    location_exact_address,
     image_url,
     location_precision,
     location_approximate = true,
@@ -83,10 +89,33 @@
       : null,
   );
 
-  let geometry = $derived(homeMapGeometry({ latitude: lat, longitude: lon, location_precision, location_approximate, location: { area: homeObject(location_area) } }));
-  let mapCenter = $derived(geometry ? { lat: geometry.lat, lon: geometry.lon } : typeof lat === "number" && typeof lon === "number" && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : undefined);
-  // A center without a known extent is useful for the map, but is never an exact home pin.
-  let mapMarkers = $derived(geometry ? [{ ...geometry, homeLocation: true, testId: "home-preview-location-area", label: `${address || title || ""} · ${$text("home_listing.approximate")}` }] : []);
+  let host = $state<HTMLDivElement>();
+  let visible = $state(false);
+  let cityGeometry = $state<HomeMapGeometry>();
+  let cityLoading = $state(false);
+  const locality = $derived(homePreviewCity(city, address));
+  const suppliedGeometry = $derived(homeMapGeometry({ latitude: lat, longitude: lon, address, location_precision, location_approximate, location: { exact_address: location_exact_address, area: homeObject(location_area) } }));
+  onMount(() => {
+    if (!host) return;
+    if (typeof IntersectionObserver === 'undefined') { visible = true; return; }
+    const observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; });
+    observer.observe(host);
+    return () => observer.disconnect();
+  });
+  $effect(() => {
+    cityGeometry = undefined;
+    cityLoading = false;
+    if (suppliedGeometry || !locality || !visible) return;
+    let active = true;
+    cityLoading = true;
+    void resolveHomePreviewCity(locality).then(value => {
+      if (active) { cityGeometry = value; cityLoading = false; }
+    });
+    return () => { active = false; };
+  });
+  const geometry = $derived(suppliedGeometry || cityGeometry);
+  const mapCenter = $derived(geometry ? { lat: geometry.lat, lon: geometry.lon } : undefined);
+  const mapMarkers = $derived(geometry ? [{ ...geometry, homeLocation: true, testId: geometry.radiusM ? "home-preview-location-area" : "home-preview-location-pin", label: `${geometry.areaBasis === 'city' ? locality || '' : address || title || ''} · ${geometry.radiusM ? $text("home_listing.approximate") : $text("home_listing.building")}` }] : []);
   let sizeDisplay = $derived(size_sqm ? `${size_sqm} m\u00B2` : undefined);
 
   let roomsDisplay = $derived(
@@ -112,30 +141,25 @@
   resultPreview={true}
   {resultContext}
 >
-  {#snippet resultPrimaryAction()}
-    {#if url}<a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={$text("embeds.open_on_provider").replace(
-          "{provider}",
-          provider || "listing",
-        )}
-        onclick={(event) => event.stopPropagation()}
-        ><ExternalLink size={18} aria-hidden="true" /></a
-      >{/if}
-  {/snippet}
+
   {#snippet listingMedia()}
-    {#if proxiedImageUrl}<img class="home-preview-image" src={proxiedImageUrl} alt={title || $text("home_listing.listing")} loading="lazy" onerror={() => imageError = true} />
-    {:else if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={mapMarkers} zoom={location_precision === "city" ? 10 : 12} />{/if}
+    <div class="listing-media" class:paired={!!proxiedImageUrl} data-testid="home-preview-media">
+      {#if proxiedImageUrl}<img class="home-preview-image" src={proxiedImageUrl} alt={title || $text("home_listing.listing")} loading="lazy" onerror={() => imageError = true} />{/if}
+      <div class="listing-map" data-testid="home-preview-map">
+        {#if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={mapMarkers} zoom={geometry?.areaBasis === "city" ? 10 : 12} />
+        {#if geometry?.radiusM}<span class="map-approximate" data-testid="home-preview-approximate">{$text("home_listing.approximate")}</span>{/if}
+        {:else}<span class="map-status" data-testid="home-preview-map-status">{cityLoading ? $text("common.loading") : $text("home_listing.no_location")}</span>{/if}
+      </div>
+    </div>
   {/snippet}
   {#snippet details()}
-    <div class="listing-card" data-testid="home-listing-result-card">
-      <ResultEmbedCard title={title || $text("home_listing.listing")} sourceLabel={address ? `${address}${location_approximate || location_precision !== "building" ? ` · ${$text("home_listing.approximate")}` : ""}` : provider} media={proxiedImageUrl || mapCenter ? listingMedia : undefined} mediaFit="contain">
+    <div bind:this={host} class="listing-card" data-testid="home-listing-result-card">
+      <ResultEmbedCard title={title || $text("home_listing.listing")} media={listingMedia} mediaFit="contain">
         {#snippet badge()}{#if available_from}<EmbedCalendarDate date={available_from} />{/if}{/snippet}
         {#snippet facts()}
           {#if price_label}<span class="listing-price">{price_label}</span>{/if}
           <div class="listing-extra">
+            {#if address || provider}<span class="listing-location">{address || provider}{geometry?.radiusM ? ` · ${$text("home_listing.approximate")}` : ""}</span>{/if}
             {#if sizeDisplay}<span title={sizeDisplay}><House size={14} aria-hidden="true" />{sizeDisplay}</span>{/if}
             {#if roomsDisplay}<span class="sr-only">{roomsDisplay}</span>{/if}
           </div>
@@ -146,5 +170,7 @@
 </UnifiedEmbedPreview>
 
 <style>
-.listing-card {width:100%;height:100%;min-width:0;} .home-preview-image {display:block;width:100%;height:100%;object-fit:contain;background:var(--color-grey-25);} .listing-price {width:100%;font-size:var(--font-size-small);font-weight:600;color:var(--color-font-primary);} .listing-extra {display:flex;flex-wrap:wrap;gap:var(--spacing-4);font-size:var(--font-size-small);color:var(--color-font-secondary);} .listing-extra>span {display:inline-flex;align-items:center;gap:var(--spacing-2);} .sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.listing-card {width:100%;height:100%;min-width:0;} .home-preview-image {display:block;width:100%;height:100%;object-fit:contain;background:#262626;} .listing-price {width:100%;font-size:var(--font-size-small);font-weight:600;color:var(--color-font-primary);} .listing-extra {display:none;flex-wrap:wrap;gap:var(--spacing-4);font-size:var(--font-size-small);color:var(--color-font-secondary);} .listing-extra>span {display:inline-flex;align-items:center;gap:var(--spacing-2);} .sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.listing-media {display:grid;grid-template-columns:minmax(0,1fr);width:100%;height:100%;min-height:0;} .listing-media.paired {grid-template-columns:repeat(2,minmax(0,1fr));} .listing-map {position:relative;min-width:0;min-height:0;height:100%;overflow:hidden;background:var(--color-grey-20);} .map-approximate {position:absolute;bottom:5px;left:5px;right:5px;width:fit-content;padding:2px 5px;border-radius:var(--radius-3);background:var(--color-grey-0);color:var(--color-font-secondary);font-size:.625rem;} .map-status {display:flex;align-items:center;justify-content:center;height:100%;padding:8px;box-sizing:border-box;font-size:var(--font-size-xxs);color:var(--color-font-secondary);}
+@container result-card (min-width:401px) {.listing-extra {display:flex;} .listing-location {width:100%;}}
 </style>

@@ -687,7 +687,8 @@ function createAppSettingsMemoriesStore() {
         }
 
         // Delete from IndexedDB
-        await chatDB.deleteAppSettingsMemoriesEntry(entryId);
+        const deleted = await chatDB.deleteAppSettingsMemoriesEntry(entryId);
+        if (!deleted) throw new Error('Failed to delete saved memory from browser storage.');
         console.debug(
           `[AppSettingsMemoriesStore] Deleted entry ${entryId} from IndexedDB`,
         );

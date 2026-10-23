@@ -20,22 +20,61 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 for (const width of [390, 1100]) {
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   test(`weather result preview retains supplied values and unknown fallback at ${width}px`, async ({ page }, testInfo) => {
-    await open(page, 'weather', 'WeatherDayEmbedPreview', width);
-    await expect(page.getByTestId('weather-day-preview')).toBeVisible();
+    const openWeather = async (variant = '') => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/dev/preview/embeds/weather/WeatherDayEmbedPreview?chrome=0&theme=light&width=${width}${width > 400 ? '&context=chat' : ''}${variant ? `&variant=${variant}` : ''}`);
+      await waitForComponentPreview(page);
+    };
+    await openWeather();
+    const card = page.getByTestId('weather-day-preview');
+    await expect(card).toBeVisible();
+    await expect(card.locator('.card-source')).toHaveText('Berlin');
     await expect(page.getByTestId('weather-day-temperature')).toHaveText('14° / 19°');
-    await expect(page.getByTestId('weather-day-metrics')).toContainText('67%');
-    await expect(page.getByTestId('result-card-title')).toBeVisible();
+    await expect(page.getByTestId('weather-day-metrics')).toHaveText('67%');
+    await expect(page.getByTestId('result-card-title')).toContainText('Wednesday');
+    await expect(page.getByTestId('result-card-title')).toContainText('Jun 3');
+    await expect(card).not.toContainText(/via|Deutscher Wetterdienst|DWD/);
+    const extra = page.getByTestId('weather-day-extra-metrics');
+    if (width > 400) {
+      await expect(extra).toBeVisible();
+      await expect(extra).toHaveText('5.8 mm · 13h');
+    } else {
+      await expect(extra).toBeHidden();
+      expect(await card.innerText()).not.toMatch(/mm|13h|rain/);
+    }
+    const valuesWithinCard = await card.evaluate(element => {
+      const card = element.getBoundingClientRect();
+      return Array.from(element.querySelectorAll('.card-source, h3, [data-testid="weather-day-temperature"], [data-testid="weather-day-metrics"]')).every(node => {
+        const box = node.getBoundingClientRect();
+        return box.left >= card.left && box.right <= card.right && box.top >= card.top && box.bottom <= card.bottom;
+      });
+    });
+    expect(valuesWithinCard).toBe(true);
     await capture(page, testInfo, `weather-preview-default-${width}px`);
-    await open(page, 'weather', 'WeatherDayEmbedPreview', width, 'missing');
+    await openWeather('providerHidden');
+    await expect(card).not.toContainText('Fixture Provider Must Stay Fullscreen');
+    await openWeather('longCity');
+    await expect(card.locator('.card-source span')).toHaveCSS('text-overflow', 'ellipsis');
+    expect(await card.evaluate(element => {
+      const card = element.getBoundingClientRect();
+      const source = element.querySelector('.card-source')!.getBoundingClientRect();
+      return source.left >= card.left && source.right <= card.right;
+    })).toBe(true);
+    await openWeather('missing');
     await expect(page.getByTestId('weather-day-temperature')).toHaveText('—');
-    await expect(page.getByTestId('weather-day-metrics')).toHaveText('— · — · —');
+    await expect(page.getByTestId('weather-day-metrics')).toHaveText('—');
     await expect(page.getByTestId('result-card-media')).toHaveCount(0);
     await capture(page, testInfo, `weather-preview-missing-${width}px`);
+    await openWeather('zero');
+    await expect(page.getByTestId('weather-day-temperature')).toHaveText('0° / 0°');
+    await expect(page.getByTestId('weather-day-metrics')).toHaveText('0%');
+
   });
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   test(`weather fullscreen keeps hourly detail and compact factual controls at ${width}px`, async ({ page }, testInfo) => {
     await open(page, 'weather', 'WeatherDayEmbedFullscreen', width);
     await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible();
+    await expect(page.getByTestId('embed-header-subtitle')).toContainText('Deutscher Wetterdienst (DWD)');
     await expect(page.getByTestId('result-facts')).toContainText('14° / 19°');
     await expect(page.getByTestId('result-facts')).toContainText('67%');
     await expect(page.getByTestId('weather-hourly-row')).toHaveCount(5);

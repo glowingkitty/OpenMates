@@ -281,3 +281,17 @@ async def test_class_optional_default_normalization_keeps_validation_bounds(inva
     with pytest.raises(ValidationError):
         await skill.execute(requests=[invalid])
     skill.client.search_classes.assert_not_called()
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skill_type,method", [(SearchClassesSkill, "search_classes"), (SearchLocationsSkill, "search_locations")])
+async def test_grouped_fitness_skill_preserves_provider_image_for_rendering(skill_type, method):
+    from unittest.mock import AsyncMock
+
+    skill = skill_type(None, "fitness", method, "Search", "Search")
+    supplied = {"id": "provider-result", "image_url": "https://images.example.test/provider-photo.jpg"}
+    setattr(skill.client, method, AsyncMock(return_value=[supplied]))
+    response = await skill.execute({"requests": [{"id": "photos"}]})
+    assert response["results"][0]["results"][0] == supplied
+    assert "image_url" in response["ignore_fields_for_inference"]

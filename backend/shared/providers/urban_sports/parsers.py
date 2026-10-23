@@ -14,7 +14,7 @@ import json
 import math
 import re
 from typing import Any, Iterable, Sequence
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 
 BASE_URL = "https://urbansportsclub.com"
@@ -106,7 +106,7 @@ def parse_venue_cards(html_text: str) -> list[UrbanSportsVenueCard]:
                 district=district,
                 street=street,
                 plans_required=all_text(chunk, r'class="smm-studio-snippet__studio-plan"[^>]*>(.*?)</span>'),
-                image_url=first_attr(chunk, r'data-src="([^"]+)"'),
+                image_url=_card_image_url(chunk),
             )
         )
     return dedupe_venues(venues)
@@ -141,7 +141,7 @@ def parse_activity_cards(html_text: str, date: str) -> list[UrbanSportsClassCard
                 spots_left=to_int(tracking.get("spots_left")),
                 spots_display=format_spots(to_int(tracking.get("spots_left"))),
                 detail_url=urljoin(BASE_URL, detail_href) if detail_href else None,
-                image_url=first_attr(chunk, r"background-image:\s*url\('([^']+)'\)"),
+                image_url=_card_image_url(chunk),
             )
         )
     return classes
@@ -162,10 +162,37 @@ def parse_venue_detail(html_text: str, *, url: str) -> UrbanSportsVenueDetail:
         country=clean_optional(address.get("addressCountry")),
         lat=to_float(geo.get("latitude")),
         lon=to_float(geo.get("longitude")),
-        image_url=clean_optional(data.get("image")),
+        image_url=_image_url(data.get("image"), base_url=url),
         rating=to_float(rating.get("ratingValue")),
         rating_count=to_int(clean_optional(rating.get("ratingCount"))),
     )
+
+
+def _image_url(value: Any, *, base_url: str = BASE_URL) -> str | None:
+    """Read schema.org image values without stringifying lists or ImageObjects."""
+    if isinstance(value, list):
+        return next((url for item in value if (url := _image_url(item, base_url=base_url))), None)
+    if isinstance(value, dict):
+        return _image_url(value.get("contentUrl"), base_url=base_url) or _image_url(value.get("url"), base_url=base_url)
+    if not isinstance(value, str) or not value.strip():
+        return None
+    candidate = urljoin(base_url, html.unescape(value).strip())
+    parsed = urlparse(candidate)
+    return candidate if parsed.scheme in {"http", "https"} and parsed.netloc else None
+
+
+def _card_image_url(chunk: str) -> str | None:
+    """Preserve provider photos from CSS backgrounds or eager/lazy image tags."""
+    decoded = html.unescape(chunk)
+    for match in re.finditer(r"background-image:\s*url\(\s*(['\"]?)(.*?)\1\s*\)", decoded, re.S | re.I):
+        if image_url := _image_url(match.group(2)):
+            return image_url
+    for tag in re.findall(r"<img\b[^>]*>", chunk, re.S | re.I):
+        for attr in ("data-src", "src"):
+            match = re.search(rf"(?<![\w-]){attr}\s*=\s*(['\"])(.*?)\1", tag, re.S | re.I)
+            if match and (image_url := _image_url(match.group(2))):
+                return image_url
+    return None
 
 
 def filter_by_plan[T](items: Sequence[T], plan: str | None) -> list[T]:

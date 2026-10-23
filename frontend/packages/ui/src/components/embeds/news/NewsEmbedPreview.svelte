@@ -375,9 +375,7 @@
   status={effectiveStatus} skillName={displayTitle} {taskId} {isMobile} {resultContext}
   resultPreview={true} onFullscreen={handleFullscreen} onStop={handleStop}
 >
-  {#snippet resultPrimaryAction()}
-    <a href={url} target="_blank" rel="noopener noreferrer" aria-label={hostname} title={hostname} onclick={(event) => event.stopPropagation()}>↗</a>
-  {/snippet}
+
   {#snippet details()}
     <ResultEmbedCard title={displayTitle} description={cleanedDescription} sourceLabel={hostname} faviconUrl={faviconUrl ?? undefined} imageUrl={imageUrl ?? undefined} imageAlt={displayTitle}>
       {#snippet badge()}{#if publicationDate}<span data-testid="news-publication-date"><EmbedCalendarDate date={publicationDate} /></span>{/if}{/snippet}

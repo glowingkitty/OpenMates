@@ -220,6 +220,21 @@ function buildComponentMaps(allEmbedTypes) {
   return { preview, fullscreen };
 }
 
+/** Classify direct component-preview mounts from the same registered routes.
+ * Components shared by execution and output routes prefer content presentation.
+ */
+function buildPreviewComponentPresentation(componentMaps, contentEmbedCatalog) {
+  const durableRoutes = new Set(contentEmbedCatalog
+    .filter((item) => item.source === "self")
+    .map((item) => item.registryKey));
+  const presentation = {};
+  for (const [key, path] of Object.entries(componentMaps.preview)) {
+    const kind = key.startsWith("app:") && !durableRoutes.has(key) ? "execution" : "content";
+    if (presentation[path] !== "content") presentation[path] = kind;
+  }
+  return presentation;
+}
+
 /**
  * Build the renderer type map for TipTap embed renderers (embed_renderers/index.ts).
  * Maps frontend_type → renderer class name.
@@ -540,6 +555,7 @@ function generateTypeScript(maps) {
     embedMetadataMap,
     groupableTypes,
     contentEmbedCatalog,
+    previewComponentPresentation,
     contentTypeInterfaces,
     totalCount,
   } = maps;
@@ -664,6 +680,11 @@ function generateTypeScript(maps) {
   lines.push(
     `export const EMBED_METADATA: Record<string, EmbedTypeMetadata> = ${JSON.stringify(embedMetadataMap, null, 2)};`,
   );
+  lines.push(``);
+
+  // App-store Content catalog
+  lines.push(`/** Default presentation for direct component-preview mounts; shared output components prefer content. */`);
+  lines.push(`export const EMBED_PREVIEW_COMPONENT_PRESENTATION: Record<string, 'content' | 'execution'> = ${JSON.stringify(previewComponentPresentation, null, 2)};`);
   lines.push(``);
 
   // App-store Content catalog
@@ -808,6 +829,7 @@ function main() {
   const embedMetadataMap = buildEmbedMetadataMap(allEmbedTypes);
   const groupableTypes = buildGroupableTypes(allEmbedTypes);
   const contentEmbedCatalog = buildContentEmbedCatalog(allEmbedTypes);
+  const previewComponentPresentation = buildPreviewComponentPresentation(componentMaps, contentEmbedCatalog);
   const contentTypeInterfaces = buildContentTypeInterfaces(allEmbedTypes);
 
   if (contentTypeInterfaces.interfaceCount > 0) {
@@ -825,6 +847,7 @@ function main() {
     embedMetadataMap,
     groupableTypes,
     contentEmbedCatalog,
+    previewComponentPresentation,
     contentTypeInterfaces,
     totalCount: allEmbedTypes.length,
   });

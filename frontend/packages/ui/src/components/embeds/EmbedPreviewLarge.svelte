@@ -7,6 +7,13 @@
 
   const carouselStateMap = new Map<string, ReturnType<typeof writable<number>>>();
   const shellHeightMap = new Map<string, ReturnType<typeof writable<number>>>();
+  type CardBounds = { left: number; top: number; width: number; height: number };
+  const cardBoundsMap = new Map<string, ReturnType<typeof writable<CardBounds | undefined>>>();
+
+  function getCardBoundsStore(key: string) {
+    if (!cardBoundsMap.has(key)) cardBoundsMap.set(key, writable<CardBounds | undefined>(undefined));
+    return cardBoundsMap.get(key)!;
+  }
 
   function getCarouselStore(key: string) {
     if (!carouselStateMap.has(key)) {
@@ -109,6 +116,7 @@
   );
   let carouselStore = $derived(getCarouselStore(runKey));
   let shellHeightStore = $derived(getShellHeightStore(runKey));
+  let cardBoundsStore = $derived(getCardBoundsStore(runKey));
 
   let currentIndex = $state(0);
   $effect(() => {
@@ -274,7 +282,10 @@
   // translateY matches the actual rendered shell precisely.
   let measuredShellHeight = $state(0);
 
-  let navigationBounds = $state<{ left: number; top: number; width: number; height: number }>();
+  let navigationBounds = $state<CardBounds>();
+  $effect(() => cardBoundsStore.subscribe(value => { navigationBounds = value; }));
+  let measureActiveSurface = $state<(() => void)>();
+  $effect(() => { if (isVisible) measureActiveSurface?.(); });
 
   // Renderer-owned wrappers can include line boxes below the card. Observe the
   // rendered card itself rather than treating the whole shell as its surface.
@@ -287,18 +298,20 @@
         card = next;
         if (card) resize.observe(card);
       }
-      if (!card) { navigationBounds = undefined; return; }
+      if (!isVisible) return;
+      if (!card) { cardBoundsStore.set(undefined); return; }
       const origin = stage.getBoundingClientRect();
       const bounds = card.getBoundingClientRect();
-      navigationBounds = { left: bounds.left - origin.left, top: bounds.top - origin.top,
-        width: bounds.width, height: bounds.height };
+      if (bounds.height > 0) cardBoundsStore.set({ left: bounds.left - origin.left, top: bounds.top - origin.top,
+        width: bounds.width, height: bounds.height });
     };
     const resize = new ResizeObserver(measure);
     resize.observe(stage);
     const mutations = new MutationObserver(measure);
     mutations.observe(stage, { childList: true, subtree: true });
+    measureActiveSurface = measure;
     measure();
-    return { destroy() { resize.disconnect(); mutations.disconnect(); } };
+    return { destroy() { resize.disconnect(); mutations.disconnect(); measureActiveSurface = undefined; } };
   }
 
   onMount(() => {
@@ -318,7 +331,10 @@
     return () => ro.disconnect();
   });
 
-  let shellMinHeight = $derived(isExpanded ? 365 : 215);
+  // Before hydration reserve a placeholder; afterwards the active card owns
+  // flow height, including when carousel siblings have different content sizes.
+  let shellMinHeight = $derived(navigationBounds ? 0 : isExpanded ? 365 : 215);
+  let cardSurfaceHeight = $derived(navigationBounds ? navigationBounds.top + navigationBounds.height : undefined);
 
   // First card publishes its actual rendered height so overlay cards can match
   // the translateY precisely. Falls back to shellMinHeight before measurement.
@@ -341,8 +357,9 @@
     class="embed-preview-large-wrapper"
     class:embed-preview-large-wrapper--has-dots={hasMultiple}
     style="min-height: {shellMinHeight}px;"
+    style:height={cardSurfaceHeight === undefined ? undefined : `${cardSurfaceHeight}px`}
   >
-    <div class="embed-preview-large-stage" use:trackNavigationSurface>
+    <div class="embed-preview-large-stage" class:has-navigation={hasMultiple} use:trackNavigationSurface>
     <div class="embed-preview-large-container">
       <div
         class="embed-preview-large-content"
@@ -406,10 +423,11 @@
     <div
       use:registerSwipeSurface
       class="embed-preview-large-overlay"
+      class:has-navigation={hasMultiple}
       class:embed-preview-large-overlay--hidden={!isVisible}
       style="transform: translateY(-{sharedShellHeight}px);"
     >
-      <div class="embed-preview-large-container">
+      <div class="embed-preview-large-container" use:trackNavigationSurface>
         {#if shouldHydrateSlide}
           <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
         {:else}
@@ -461,6 +479,12 @@
     max-width: none;
   }
 
+  /* Natural-height text/table cards keep their body between corner controls. */
+  .has-navigation :global(.intrinsic-preview .details-section) {
+    box-sizing: border-box;
+    padding-inline: 48px;
+  }
+
 
   .embed-preview-large-content {
     width: 100%;
@@ -508,7 +532,8 @@
   /* ── Pagination dots ─────────────────────────────────────────────────────── */
   .carousel-dots {
     position: absolute;
-    bottom: -8px;
+    top: 100%;
+    margin-top: var(--spacing-1);
     left: 50%;
     transform: translateX(-50%);
     display: flex;

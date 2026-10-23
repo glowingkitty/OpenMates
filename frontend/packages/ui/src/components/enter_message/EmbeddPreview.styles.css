@@ -531,6 +531,12 @@
   flex-shrink: 0;
 }
 
+/* Short text/table cards reserve the same side lanes as their corner arrows. */
+:global(.ProseMirror .embed-group-item:has(.group-preview-navigation) .intrinsic-preview .details-section) {
+  box-sizing: border-box;
+  padding-inline: 48px;
+}
+
 :global(.ProseMirror .embed-group-container .group-scroll-container) {
   display: flex;
   gap: 8px;

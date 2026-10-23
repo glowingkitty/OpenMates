@@ -383,7 +383,7 @@
   
   .sheet-preview {
     width: 100%;
-    height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -430,7 +430,7 @@
   
   .table-scroll {
     width: 100%;
-    flex: 1;
+    flex: 0 1 auto;
     overflow: hidden;
   }
   

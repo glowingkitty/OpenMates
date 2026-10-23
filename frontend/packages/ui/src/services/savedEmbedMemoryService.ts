@@ -39,6 +39,10 @@ export interface SavedEmbedConfig {
   reminderPromptTitle?: string;
 }
 
+/** Existing saved-entry identity; forgetting needs no scheduling or save policy. */
+export type SavedEmbedMemoryReference = Pick<SavedEmbedConfig,
+  'appId' | 'itemType' | 'itemKey' | 'title' | 'itemValue'> & { entryId?: string };
+
 interface BuildSavedEmbedConfigOptions {
   appId: string | null;
   skillId: string | null;
@@ -315,24 +319,47 @@ function getTriggerDateTimes(dateTime: string | null | undefined, kind: SavedEmb
     .map((trigger) => trigger.toISOString());
 }
 
-export function getSavedEmbedId(config: SavedEmbedConfig): string {
+export function getSavedEmbedId(config: Pick<SavedEmbedConfig, 'itemValue'>): string {
   const embedId = config.itemValue.embed_id;
   return typeof embedId === 'string' ? embedId : '';
 }
 
 export function findSavedEmbedMemoryEntry(
   state: AppSettingsMemoriesStateLike,
-  config: SavedEmbedConfig,
+  config: SavedEmbedMemoryReference,
 ): SavedMemoryEntry | undefined {
   const appGroups = state.entriesByApp.get(config.appId);
   const entries = appGroups?.[config.itemType] || [];
   const embedId = getSavedEmbedId(config);
 
-  return entries.find((entry) => {
-    if (entry.item_key === config.itemKey) return true;
-    const entryEmbedId = entry.item_value?.embed_id;
-    return !!embedId && typeof entryEmbedId === 'string' && entryEmbedId === embedId;
-  });
+  if (config.entryId) {
+    return entries.find(entry => entry.id === config.entryId
+      && (!embedId || entry.item_value?.embed_id === embedId));
+  }
+  // Item keys are not unique: a known embed must never fall back to another
+  // result with the same URL/title key. Key-only lookup is for legacy callers
+  // that have no embed identity at all.
+  if (embedId) return entries.find(entry => entry.item_value?.embed_id === embedId);
+  return entries.find(entry => entry.item_key === config.itemKey);
+}
+
+/** Resolve the real saved entry by embed identity, independent of preview type. */
+export function findSavedEmbedMemoryReference(
+  state: AppSettingsMemoriesStateLike,
+  embedId: string,
+): SavedEmbedMemoryReference | undefined {
+  if (!embedId) return undefined;
+  for (const [appId, groups] of state.entriesByApp) {
+    for (const [itemType, entries] of Object.entries(groups)) {
+      const entry = entries.find(item => item.item_value?.embed_id === embedId);
+      if (!entry) continue;
+      return {
+        appId, itemType, itemKey: entry.item_key, itemValue: entry.item_value, entryId: entry.id,
+        title: asString(entry.item_value.title) || asString(entry.item_value.name) || 'Saved item',
+      };
+    }
+  }
+  return undefined;
 }
 
 export function isEmbedMemorySaved(config: SavedEmbedConfig): boolean {
@@ -397,7 +424,7 @@ async function scheduleDefaultReminders(config: SavedEmbedConfig): Promise<numbe
   return scheduledCount;
 }
 
-export async function forgetEmbedMemory(config: SavedEmbedConfig): Promise<void> {
+export async function forgetEmbedMemory(config: SavedEmbedMemoryReference): Promise<void> {
   const entry = findSavedEmbedMemoryEntry(get(appSettingsMemoriesStore), config);
   if (!entry) return;
 

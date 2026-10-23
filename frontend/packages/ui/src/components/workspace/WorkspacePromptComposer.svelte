@@ -179,17 +179,17 @@
     void submitComposer();
   }}
 >
-  {#if fileImport}
+  {#if fileImport && !(presentation === 'embed' && collapsed)}
     <button
       class="workspace-prompt-file"
       type="button"
       data-testid={fileImport.testId}
-      aria-label={presentation === 'embed' && collapsed ? placeholder : fileImport.label}
+      aria-label={fileImport.label}
       title={fileImport.label}
       disabled={disabled || submitting}
       onmousedown={(event) => { if (collapsible) event.preventDefault(); }}
-      onclick={() => { if (presentation === 'embed' && collapsed) { focusActive = true; textareaElement?.focus(); } else fileImport.onClick(); }}
-    ><span class="clickable-icon" class:icon_ai={presentation === 'embed' && collapsed} class:icon_files={presentation !== 'embed' || !collapsed} aria-hidden="true"></span></button>
+      onclick={fileImport.onClick}
+    ><span class="clickable-icon icon_files" aria-hidden="true"></span></button>
   {:else}
     <span class="workspace-prompt-ai-icon" aria-hidden="true"></span>
   {/if}
@@ -490,7 +490,7 @@
     left: 22px;
     width: 24px;
     height: 24px;
-    background: color-mix(in srgb, var(--color-font-primary) 72%, transparent);
+    background: var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent));
     transform: translateY(-50%);
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');

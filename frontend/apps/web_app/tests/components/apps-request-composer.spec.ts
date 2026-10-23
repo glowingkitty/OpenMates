@@ -21,6 +21,7 @@ test('embedded followup matches the regular composer background in both themes',
   }
 });
 
+
 // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
 test('embedded followup uses readable canonical composer geometry and expands without losing draft or attachments', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1000, height: 900 });
@@ -50,6 +51,46 @@ test('embedded followup uses readable canonical composer geometry and expands wi
   await expect(input).toHaveValue('Keep this followup draft');
 });
 
+for (const theme of ['light', 'dark']) {
+  // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
+  test(`embedded followup sparkle is decorative gray and its input surface expands in ${theme}`, async ({ page }) => {
+    await page.goto(`/dev/preview/apps/AppsRequestComposer?chrome=0&theme=${theme}&width=700&variant=embed`);
+    await waitForComponentPreview(page);
+    const composer = page.getByTestId('apps-request-composer');
+    const input = page.getByTestId('apps-request-textarea');
+    const sparkle = composer.locator('.workspace-prompt-ai-icon');
+    await expect(sparkle).toBeVisible();
+    await expect(sparkle).toHaveAttribute('aria-hidden', 'true');
+    await expect(sparkle).toHaveCSS('pointer-events', 'none');
+    expect(await sparkle.evaluate(element => ({
+      tag: element.tagName,
+      button: !!element.closest('button, a, [role="button"]'),
+      tabIndex: (element as HTMLElement).tabIndex,
+    }))).toEqual({ tag: 'SPAN', button: false, tabIndex: -1 });
+    const normalInputGray = await sparkle.evaluate(element => {
+      const probe = document.createElement('span');
+      // The actual normal message input uses this same placeholder color.
+      probe.style.background = 'var(--empty-input-placeholder-color, color-mix(in srgb, var(--color-font-primary) 72%, transparent))';
+      element.parentElement!.appendChild(probe);
+      const color = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return color;
+    });
+    await expect(sparkle).toHaveCSS('background-color', normalInputGray);
+    await expect(page.getByTestId('apps-request-add-files')).toHaveCount(0);
+    const iconBounds = (await sparkle.boundingBox())!;
+    // Pointer input on the decorative icon reaches the same clickable field.
+    await page.mouse.click(iconBounds.x + iconBounds.width / 2, iconBounds.y + iconBounds.height / 2);
+    await expect(input).toBeFocused();
+    await expect(composer).toHaveClass(/focused/);
+    await expect.poll(async () => (await composer.boundingBox())!.height).toBeGreaterThanOrEqual(180);
+    await expect(sparkle).toHaveCount(0);
+    await expect(page.getByTestId('apps-request-add-files')).toBeVisible();
+    await input.press('Escape');
+    await expect(sparkle).toBeVisible();
+  });
+}
+
 // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
 test('natural request composer submits text with compatible files and preserves the draft on empty submit', async ({ page }) => {
   await page.goto('/dev/preview/apps/AppsRequestComposer?chrome=0&theme=light&width=390');
@@ -72,6 +113,7 @@ test('saved result fullscreen keeps typed cards, toggleable filters and a follow
   await waitForComponentPreview(page);
   const grid = page.getByTestId('search-template-grid');
   await expect(grid.getByTestId('embed-preview')).toHaveCount(12);
+  await expect(grid.getByTestId('preview-tools')).toHaveCount(0);
   // The grid can be ready while its fullscreen ancestor is still sliding in.
   await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
   const composer = page.getByTestId('apps-request-composer');

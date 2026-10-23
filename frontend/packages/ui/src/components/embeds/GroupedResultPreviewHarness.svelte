@@ -10,7 +10,7 @@
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
   let { app = 'home', skillCalls = false, skillStatus = 'processing' }: {
-    app?: 'home' | 'events';
+    app?: 'home' | 'events' | 'code';
     skillCalls?: boolean;
     skillStatus?: 'processing' | 'finished';
   } = $props();
@@ -33,23 +33,29 @@
       organizer_name: `Berlin Event Community ${index + 1}`, organizer_id: `organizer-${index + 1}`,
       venue_name: 'Berlin community space', venue_city: 'Berlin', venue_address: 'Example Street 1',
       venue_lat: 52.52, venue_lon: 13.405, fee_amount: 0, fee_currency: 'EUR', is_paid: false, rsvp_count: 80 + index,
-    } : { venue: { name: 'Berlin community space', city: 'Berlin' } }),
+    } : { city: 'Berlin', latitude: 52.49, longitude: 13.42,
+      location_precision: 'district', location_approximate: true,
+      location_area: { latitude: 52.49, longitude: 13.42, radius_m: 1200, basis: 'district' },
+      venue: { name: 'Berlin community space', city: 'Berlin' } }),
   }));
 
   onMount(() => {
     let disposed = false;
     const renderer = new GroupRenderer();
-    const type = skillCalls ? 'app-skill-use' : app === 'home' ? 'home-listing' : 'events-event';
+    const type = skillCalls ? 'app-skill-use' : app === 'code' ? 'code-code' : app === 'home' ? 'home-listing' : 'events-event';
     const status = skillCalls ? skillStatus : 'finished';
     const queries = ['artificial intelligence latest developments', 'Anthropic news Claude', 'OpenAI latest news'];
     const records = skillCalls ? ids.map((embed_id, index) => ({
       embed_id, app_id: 'news', skill_id: 'search', query: queries[index],
       provider: 'Brave Search', status, embed_ids: [], result_count: 0,
+    })) : app === 'code' ? ids.map((embed_id, index) => ({ embed_id,
+      filename: ['one.py', 'two.py', 'three.py'][index], language: 'python',
+      lineCount: index + 1, code: Array.from({ length: index + 1 }, (_, line) => `print("line ${line + 1}")`).join('\n'),
     })) : rows;
     for (const row of records) {
       embedStore.setInMemoryOnly(`embed:${row.embed_id}`, {
         embed_id: row.embed_id, type, app_id: skillCalls ? 'news' : app,
-        skill_id: skillCalls ? 'search' : app === 'home' ? 'listing' : 'event',
+        skill_id: skillCalls ? 'search' : app === 'code' ? 'code' : app === 'home' ? 'listing' : 'event',
         status, content: encode(row),
       });
     }

@@ -17,7 +17,7 @@
   import ResultEmbedCard from "../ResultEmbedCard.svelte";
   import EmbedCalendarDate from "../EmbedCalendarDate.svelte";
   import ResultEmbedMapPreview from "../ResultEmbedMapPreview.svelte";
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import Star from '@lucide/svelte/icons/star';
   import Shield from '@lucide/svelte/icons/shield-question';
   import Video from '@lucide/svelte/icons/video';
@@ -81,7 +81,6 @@
     isMobile = false,
     onFullscreen,
     gpsCoordinates,
-    bookingUrl,
     resultContext = "auto",
   }: Props = $props();
 
@@ -126,28 +125,16 @@
   resultPreview={true}
   {resultContext}
 >
-  {#snippet resultPrimaryAction()}
-    {#if bookingUrl}<a
-        href={bookingUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={$text("embeds.open_on_provider").replace(
-          "{provider}",
-          providerName,
-        )}
-        onclick={(event) => event.stopPropagation()}
-        ><ExternalLink size={18} aria-hidden="true" /></a
-      >{/if}
-  {/snippet}
+
   {#snippet details()}
     <ResultEmbedCard title={displayTitle} titleTestId="health-appointment-title" sourceLabel={speciality}>
       {#snippet media()}{#if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={[{ ...mapCenter, label: displayTitle }]} />{/if}{/snippet}
-      {#snippet badge()}{#if validDate}<EmbedCalendarDate date={validDate} timeLabel={validDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} />{/if}{/snippet}
+      {#snippet badge()}{#if validDate}<div class="appointment-calendar" data-testid="health-appointment-calendar"><EmbedCalendarDate date={validDate} timeLabel={validDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} /></div>{/if}{/snippet}
       {#snippet facts()}
         <div class="appointment-meta">
           {#if rating != null}<span
               title={`${ratingCount ?? 0} ${$text("embeds.health.reviews")}`}
-              ><Star size={12} aria-hidden="true" />{rating.toFixed(1)}</span
+              ><Star size={12} style="color: var(--color-highlight-yellow-solid)" fill="currentColor" aria-hidden="true" />{rating.toFixed(1)}</span
             >{/if}
           {#if price != null}<span>{price} EUR</span>{/if}
           {#if insurance === "unknown"}<span
@@ -185,6 +172,7 @@
 </UnifiedEmbedPreview>
 
 <style>
+  .appointment-calendar { --embed-calendar-time-font-size: var(--font-size-small); }
   .appointment-meta { display: flex; flex-wrap: wrap; gap: var(--spacing-2); font-size: var(--font-size-xs); line-height: 1.3; color: var(--color-font-secondary); min-width: 0; }
   .appointment-meta > span { display: inline-flex; align-items: center; gap: var(--spacing-1); }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

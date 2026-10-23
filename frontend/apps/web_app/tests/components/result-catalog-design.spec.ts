@@ -17,6 +17,20 @@ async function openPreview(page: import('@playwright/test').Page, component: str
   if (component.endsWith('Fullscreen')) await waitForComponentMotion(page.locator('.unified-embed-fullscreen-overlay').first());
 }
 
+for (const width of [390, 1000]) {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test(`social image remains uncropped with a plain publication date at ${width}px`, async ({ page }, testInfo) => {
+    await openPreview(page, 'social_media/SocialMediaPostEmbedPreview', width, undefined, { media_url: '/store-examples/events-1.webp' });
+    const card = page.getByTestId('embed-preview');
+    const image = card.locator('.card-media > img');
+    await expect(image).toHaveCSS('object-fit', 'contain');
+    await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+    await expect(card.getByTestId('social-post-publication-date')).toHaveText('May 24, 2026');
+    await expect(card.getByTestId('embed-calendar-date')).toHaveCount(0);
+    await testInfo.attach(`social-image-${width}`, { body: await card.screenshot(), contentType: 'image/png' });
+  });
+}
+
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 for (const width of [390, 1000]) {
   test(`catalog results share concise cards and truthful missing states at ${width}px`, async ({ page }, testInfo) => {
@@ -30,18 +44,34 @@ for (const width of [390, 1000]) {
       const card = page.getByTestId('embed-preview');
       await expect(card).toHaveClass(/result-preview/);
       await expect(page.locator('[data-testid="result-card-title"], [data-testid="code-repo-title"]')).toHaveText(title);
-      if (width > 400 && !component.startsWith('business/')) {
-        const action = page.locator('.result-tools a');
-        await expect(action).toHaveCount(1);
-        await expect(action).toHaveAttribute('aria-label', /\S/);
-        await expect(action).toHaveText('');
-        await expect(action.locator('svg')).toBeVisible();
-        await expect(action).toHaveCSS('width', '36px');
-        await expect(action).toHaveCSS('height', '36px');
+      if (width > 400) {
+        await expect(card.locator('.result-tools a')).toHaveCount(0);
+        await expect(card.getByTestId('preview-tools').getByRole('button')).toHaveCount(2);
       }
       const suppliedDate = component.startsWith('jobs/') ? '2026-10-01T00:00:00.000Z'
-        : component.startsWith('social_media/') ? '2026-05-24T10:30:00.000Z'
+
         : component.startsWith('business/') ? '2025-07-18T00:00:00.000Z' : undefined;
+      if (component.startsWith('social_media/')) {
+        await expect(card.getByTestId('embed-calendar-date')).toHaveCount(0);
+        const publication = card.getByTestId('social-post-publication-date');
+        await expect(publication).toHaveText('May 24, 2026');
+        await expect(publication).toHaveAttribute('datetime', '2026-05-24T10:30:00.000Z');
+        const pill = await publication.evaluate(element => {
+          const style = getComputedStyle(element);
+          return { radius: Number.parseFloat(style.borderTopLeftRadius), height: element.getBoundingClientRect().height, shadow: style.boxShadow };
+        });
+        expect(pill.radius).toBeGreaterThanOrEqual(pill.height / 2);
+        expect(pill.shadow).not.toBe('none');
+        await expect(publication.locator('strong')).toHaveCount(0);
+        const bounds = await card.evaluate(element => {
+          const card = element.getBoundingClientRect();
+          return Array.from(element.querySelectorAll('[data-testid="social-post-publication-date"], [data-testid="result-card-title"], .card-source')).map(node => {
+            const box = node.getBoundingClientRect();
+            return box.left >= card.left && box.right <= card.right && box.top >= card.top && box.bottom <= card.bottom;
+          });
+        });
+        expect(bounds).toEqual([true, true, true]);
+      }
       if (suppliedDate) {
         const calendar = card.getByTestId('embed-calendar-date');
         await expect(calendar).toHaveCount(1);
@@ -113,7 +143,12 @@ for (const width of [390, 1000]) {
         await expect(page.getByRole('button', { name: 'Remote work', exact: true })).toHaveAttribute('data-state', 'unknown');
         await expect(page.getByTestId('jobs-salary')).toHaveCount(0);
       } else if (component.startsWith('social_media/')) {
+        await expect(page.getByTestId('social-post-publication-date')).toHaveCount(0);
+        await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Likes', exact: true })).toHaveCount(0);
+        await openPreview(page, `${component}Preview`, width, 'invalidDate');
+        await expect(page.getByTestId('social-post-publication-date')).toHaveCount(0);
+        await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
       }
       await openPreview(page, `${component}Fullscreen`, width);
       const fullscreen = page.getByTestId('result-embed-content');
@@ -281,11 +316,8 @@ for (const width of [390, 1000]) {
         await expect(page.getByTestId('result-card-title')).toContainText(variant ? (component.startsWith('hosting') ? 'cedarcomet.et' : title) : title);
         if (component.startsWith('hosting')) {
           if (width > 400) {
-            const action = page.locator('.result-tools a');
-            await expect(action).toHaveAttribute('aria-label', 'Open on Gandi');
-            await expect(action).toHaveText('');
-            await expect(action.locator('svg')).toBeVisible();
-            await expect(action).toHaveCSS('height', '36px');
+            await expect(page.locator('.result-tools a')).toHaveCount(0);
+            await expect(page.getByTestId('preview-tools').getByRole('button')).toHaveCount(2);
           }
           const registration = page.getByTestId('hosting-domain-registration');
           await registration.click();

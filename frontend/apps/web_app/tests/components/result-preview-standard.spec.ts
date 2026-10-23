@@ -65,7 +65,12 @@ async function assertShell(page: Page, card: Locator, mode: Mode, path: string) 
   expect(box.x, `${path}: card starts inside its wrapper`).toBeGreaterThanOrEqual(wrapper.x - 1);
   expect(box.x + box.width, `${path}: card ends inside its wrapper`).toBeLessThanOrEqual(wrapper.x + wrapper.width + 1);
   expect(box.width, `${path}: standard width`).toBeCloseTo(mode === 'chat' ? wrapper.width : mode === 'mobile' ? 150 : 300, 0);
-  expect(box.height, `${path}: standard height`).toBeCloseTo(mode === 'chat' ? 400 : mode === 'mobile' ? 290 : 200, 0);
+  const cap = mode === 'chat' ? 400 : mode === 'mobile' ? 290 : 200;
+  if (await card.evaluate(element => element.classList.contains('intrinsic-preview'))) {
+    expect(box.height, `${path}: content stays within its size cap`).toBeLessThanOrEqual(cap);
+    expect(box.height, `${path}: content remains visible`).toBeGreaterThan(0);
+    await expect(card).toHaveCSS('min-height', '0px');
+  } else expect(box.height, `${path}: fixed media/execution height`).toBeCloseTo(cap, 0);
   if (mode === 'chat') {
     await expect(card).toHaveAttribute('role', 'group');
     await card.hover({ position: { x: box.width - 12, y: box.height - 12 } });
@@ -76,52 +81,56 @@ async function assertShell(page: Page, card: Locator, mode: Mode, path: string) 
 async function assertSharedCard(card: Locator, mode: Mode, path: string) {
   const shared = card.getByTestId('result-card-content');
   if (await shared.count() === 0) return;
-  if (path.startsWith('images/')) {
-    const image = shared.getByTestId('result-card-media').locator('img').first();
-    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+  const mediaOnly = await shared.evaluate(element => element.classList.contains('media-only'));
+  if (mediaOnly) {
     await expect(shared.locator('.card-copy')).toHaveCount(0);
-    await expect(image).toHaveCSS('object-fit', 'contain');
-    const frame = (await shared.boundingBox())!;
-    const media = (await shared.getByTestId('result-card-media').boundingBox())!;
-    expect(media.x).toBeCloseTo(frame.x, 0);
-    expect(media.width).toBeCloseTo(frame.width, 0);
-    expect(media.height).toBeCloseTo(frame.height, 0);
-    return;
-  }
-  const title = shared.locator('h3');
-  await expect(title, `${path}: title is limited to two lines`).toHaveCSS('-webkit-line-clamp', '2');
-  const primaryText = await title.evaluate(element => {
-    const probe = document.createElement('span');
-    probe.style.color = 'var(--color-font-primary)';
-    element.appendChild(probe);
-    const color = getComputedStyle(probe).color;
-    probe.remove();
-    return color;
-  });
-  await expect(title, `${path}: title uses primary text contrast`).toHaveCSS('color', primaryText);
-  if (mode === 'compact') {
-    const copy = shared.locator('.card-copy');
-    await expect(copy).toHaveCSS('padding-left', '48px');
-    await expect(copy).toHaveCSS('padding-right', '48px');
-    const titleBounds = (await title.boundingBox())!;
-    const bounds = (await shared.boundingBox())!;
-    expect(titleBounds.x - bounds.x, `${path}: title clears the carousel side controls`).toBeGreaterThanOrEqual(47);
-    expect(bounds.x + bounds.width - titleBounds.x - titleBounds.width).toBeGreaterThanOrEqual(47);
+    await expect(shared.locator('h3')).toHaveCount(0);
+  } else {
+    const title = shared.locator('h3');
+    await expect(title, `${path}: title is limited to two lines`).toHaveCSS('-webkit-line-clamp', '2');
+    const primaryText = await title.evaluate(element => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--color-font-primary)';
+      element.appendChild(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
+    await expect(title, `${path}: title uses primary text contrast`).toHaveCSS('color', primaryText);
+    if (mode === 'compact') {
+      const copy = shared.locator('.card-copy');
+      await expect(copy).toHaveCSS('padding-left', '48px');
+      await expect(copy).toHaveCSS('padding-right', '48px');
+      const titleBounds = (await title.boundingBox())!;
+      const bounds = (await shared.boundingBox())!;
+      expect(titleBounds.x - bounds.x, `${path}: title clears the carousel side controls`).toBeGreaterThanOrEqual(47);
+      expect(bounds.x + bounds.width - titleBounds.x - titleBounds.width).toBeGreaterThanOrEqual(47);
+    }
   }
   const media = shared.getByTestId('result-card-media');
-  if (await media.count() === 0 || !(await media.isVisible())) return;
-  if (mode === 'compact') {
+  if (mediaOnly) await expect(media).toBeVisible();
+  else if (await media.count() === 0 || !(await media.isVisible())) return;
+  if (mediaOnly) {
+    const frame = (await shared.boundingBox())!;
+    const mediaBox = (await media.boundingBox())!;
+    expect(mediaBox.x, `${path}: full-frame image starts at card left`).toBeCloseTo(frame.x, 0);
+    expect(mediaBox.y, `${path}: full-frame image starts at card top`).toBeCloseTo(frame.y, 0);
+    expect(mediaBox.width, `${path}: image uses full card width`).toBeCloseTo(frame.width, 0);
+    expect(mediaBox.height, `${path}: image uses full card height`).toBeCloseTo(frame.height, 0);
+    expect(await media.evaluate(element => getComputedStyle(element, '::after').display), `${path}: image has no copy fade`).toBe('none');
+    await expect(media.locator('img').first()).toBeVisible();
+  } else if (mode === 'compact') {
     const mediaBounds = (await media.boundingBox())!;
     const copyBounds = (await shared.locator('.card-copy').boundingBox())!;
     const cardBounds = (await shared.boundingBox())!;
     expect(copyBounds.y, `${path}: image does not sit behind the card's text`).toBeGreaterThanOrEqual(mediaBounds.y + mediaBounds.height - 1);
     expect(copyBounds.y + copyBounds.height, `${path}: text is inside the card`).toBeLessThanOrEqual(cardBounds.y + cardBounds.height + 1);
   }
-  for (const image of await media.locator(':scope > img').all()) {
+  for (const image of await media.locator(mediaOnly ? 'img' : ':scope > img').all()) {
     await expect(image, `${path}: preserve the complete media aspect`).toHaveCSS('object-fit', 'contain');
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   }
-  if (mode === 'chat') {
+  if (mode === 'chat' && !mediaOnly) {
     const frame = (await shared.boundingBox())!;
     const mediaBox = (await media.boundingBox())!;
     expect(mediaBox.x - frame.x, `${path}: text occupies one third`).toBeCloseTo(frame.width / 3, 0);

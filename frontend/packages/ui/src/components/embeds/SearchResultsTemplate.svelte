@@ -646,6 +646,7 @@
       <div
         class="search-template-grid"
         data-testid={gridTestId}
+        data-embed-result-context="results"
         inert={filtersOpen && Boolean(filters)}
         data-selected-index={selectedIndex}
         style="--min-card-width: {minCardWidth}; --max-grid-width: {maxGridWidth};"

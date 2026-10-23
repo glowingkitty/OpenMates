@@ -126,17 +126,31 @@ for (const width of [390, 1440]) {
     await expect(actionable).toHaveAttribute('data-story-state', 'playing');
     await expect(actionable.getByTestId('landing-skip-actionable')).toBeVisible();
     await expect(actionable.getByTestId('landing-feature-media-actionable')).toHaveCount(0);
-    // Current EventEmbedPreview parity: BasicInfosBar is above details, never below.
+    // Shared EventResultCard content must stay current with real app previews.
     const event = actionable.getByTestId('landing-actionable-event-preview');
     await expect(event).toBeVisible({ timeout: 7_000 });
+    await expect(event.getByTestId('result-card-title')).toHaveText('Amsterdam Music Meetup');
+    const image = event.getByTestId('result-card-media').locator('img');
+    await expect(image).toHaveAttribute('src', /meetup.*\.webp/);
+    await expect(image).toHaveCSS('object-fit', 'contain');
+    await expect.poll(() => image.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    await expect(event.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-08-29T16:30:00.000Z');
+    await expect(event.getByTestId('embed-calendar-date').locator('strong')).toHaveText('29');
+    await expect(event.getByTestId('event-preview-rsvps')).toContainText('460 RSVPs');
+    await expect(event.locator('.result-corner')).toBeVisible();
+    await expect(event.locator('.result-corner span')).toHaveCSS('mask-image', /^url\(/);
+    await expect(event.getByTestId('result-card-title')).toHaveCSS('text-align', 'start');
     const card = await event.evaluate(element => {
-      const frame = element.getBoundingClientRect(), bar = element.querySelector('.event-title')!.getBoundingClientRect(), content = element.querySelector('.event-content')!.getBoundingClientRect();
-      const scale = frame.width / 300;
-      return { width: element.clientWidth, height: element.clientHeight, top: Math.abs(bar.top - frame.top), barHeight: bar.height / scale, contentTop: content.top, barBottom: bar.bottom };
+      const frame = element.getBoundingClientRect();
+      const title = element.querySelector('[data-testid="result-card-title"]')!.getBoundingClientRect();
+      const date = element.querySelector('[data-testid="embed-calendar-date"]')!.getBoundingClientRect();
+      const media = element.querySelector('[data-testid="result-card-media"]')!.getBoundingClientRect();
+      return { width: element.clientWidth, height: element.clientHeight,
+        titleBelowMedia: title.top >= media.bottom - 1,
+        dateInside: date.left >= frame.left && date.right <= frame.right && date.top >= frame.top && date.bottom <= frame.bottom };
     });
     expect(card.width).toBe(300); expect(card.height).toBe(200);
-    expect(card.top).toBeLessThan(1); expect(card.barHeight).toBeCloseTo(61, 0);
-    expect(card.contentTop).toBeGreaterThanOrEqual(card.barBottom - 1);
+    expect(card.titleBelowMedia).toBe(true); expect(card.dateInside).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`landing-current-embed-${width}.png`) });
     await actionable.getByTestId('landing-skip-actionable').click();
     await expect(actionable).toHaveAttribute('data-story-state', 'complete');

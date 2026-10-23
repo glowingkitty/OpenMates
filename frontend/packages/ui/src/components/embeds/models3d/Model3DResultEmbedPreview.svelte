@@ -7,7 +7,7 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
@@ -36,7 +36,6 @@
     title = '',
     provider = '',
     creatorName = '',
-    sourcePageUrl = '',
     previewImageUrl = '',
     thumbnailUrl = '',
     license = '',
@@ -73,7 +72,7 @@
   showStatus={false}
   showSkillIcon={false}
 >
-  {#snippet resultPrimaryAction()}{#if sourcePageUrl}<a href={sourcePageUrl} target="_blank" rel="noopener noreferrer" aria-label="Open provider" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
+
   {#snippet details()}
     <div data-testid="models3d-result-card" class="catalog-result-preview">
       <ResultEmbedCard title={cardTitle} sourceLabel={[creatorName, provider].filter(Boolean).join(" · ")} imageUrl={displayImage} imageAlt={cardTitle} mediaFit="contain">

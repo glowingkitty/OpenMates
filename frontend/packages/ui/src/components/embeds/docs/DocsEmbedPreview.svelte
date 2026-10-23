@@ -211,6 +211,7 @@
   // Dynamic scale for large preview — measure viewport width and compute scale from A4 width
   const DOC_FULL_WIDTH = 794;
   let viewportWidth = $state(0);
+  let pageHeight = $state(0);
   let dynamicScale = $derived(
     viewportWidth > 0 ? Math.min(viewportWidth / DOC_FULL_WIDTH, 0.85) : 0
   );
@@ -372,10 +373,10 @@
     {/if}
   {/snippet}
   {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
-    <div class="doc-details" class:mobile={isMobileLayout}>
+    <div class="doc-details" class:mobile={isMobileLayout} style={isLargeLayout && dynamicScale > 0 ? `--doc-preview-scale: ${dynamicScale}` : ''}>
       {#if displayedFirstPageUrl}
-        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
-          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth} style:height={pageHeight > 0 ? `calc(${pageHeight}px * var(--doc-preview-scale, 0.348))` : undefined}>
+          <div class="doc-page-scaler" bind:clientHeight={pageHeight}>
             <img class="doc-page-image" src={displayedFirstPageUrl} alt={displayTitle} />
           </div>
         </div>
@@ -386,8 +387,8 @@
           inside a container, then scale it down to fit the preview card.
           This creates an exact miniature of the fullscreen document view.
         -->
-        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
-          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth} style:height={pageHeight > 0 ? `calc(${pageHeight}px * var(--doc-preview-scale, 0.348))` : undefined}>
+          <div class="doc-page-scaler" bind:clientHeight={pageHeight}>
             <div class="doc-page">
               <div class="doc-page-content" bind:this={contentEl}>
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is sanitized via DOMPurify in sanitizeDocumentHtml() -->
@@ -398,8 +399,8 @@
         </div>
       {:else if status === 'processing'}
         <!-- Processing state - skeleton A4 page -->
-        <div class="doc-page-viewport" bind:clientWidth={viewportWidth}>
-          <div class="doc-page-scaler" style={isLargeLayout && dynamicScale > 0 ? `transform: scale(${dynamicScale})` : ''}>
+        <div class="doc-page-viewport" bind:clientWidth={viewportWidth} style:height={pageHeight > 0 ? `calc(${pageHeight}px * var(--doc-preview-scale, 0.348))` : undefined}>
+          <div class="doc-page-scaler" bind:clientHeight={pageHeight}>
             <div class="doc-page processing-page">
               <div class="processing-lines">
                 <div class="line-placeholder" style="width: 60%"></div>
@@ -458,13 +459,15 @@
   /* Desktop preview is ~276px wide (300 - padding), so scale = 276/794 ≈ 0.348 */
   .doc-page-scaler {
     width: 794px; /* A4 at 96 DPI */
-    transform: scale(0.348);
-    transform-origin: top left;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%) scale(var(--doc-preview-scale, 0.348));
+    transform-origin: top center;
   }
   
-  .doc-details.mobile .doc-page-scaler {
+  .doc-details.mobile {
     /* Mobile preview is ~126px wide (150 - padding), scale = 126/794 ≈ 0.159 */
-    transform: scale(0.159);
+    --doc-preview-scale: 0.159;
   }
 
   .doc-page-image {
@@ -477,6 +480,7 @@
   
   /* White A4 page - same styling as fullscreen for exact match */
   .doc-page {
+    box-sizing: border-box;
     width: 100%;
     background: white;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);

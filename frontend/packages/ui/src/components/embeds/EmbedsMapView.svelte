@@ -1510,7 +1510,7 @@
 
   {#if visualTabs.length === 0}
     <div class="map-view-list" data-testid="embeds-map-view-list">
-      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
+      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
         {#each carouselEntries as entry}
           <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
             {#if entry.preview}
@@ -1525,7 +1525,7 @@
   <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'} aria-hidden={filtersOpen}>
     {#if selectedVisualTab === 'map'}
       <div class="map-view-list" data-testid="embeds-map-view-list">
-      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
+      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
         {#if isLoading && carouselEntries.length === 0}
           <div class="empty-state">Loading referenced embeds...</div>
         {:else if carouselEntries.length === 0}

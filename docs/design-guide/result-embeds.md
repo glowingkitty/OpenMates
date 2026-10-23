@@ -7,7 +7,7 @@ Use existing OpenMates tokens for theme-aware colors, spacing and typography.
 
 ## Shared implementation
 
-Use `UnifiedEmbedPreview` with `resultPreview` for result cards and
+Use `UnifiedEmbedPreview` for every preview and
 `ResultEmbedFullscreen` for individual results. The latter composes the existing
 fullscreen shell/header, `EmbedLeafletMap` and private request composer. Use
 `ResultEmbedCard` for image/title/fallback and wide information/media placement;
@@ -16,17 +16,36 @@ use its `contain` media mode when the whole image must remain visible. Use
 `SearchResultsTemplate` and the same child cards as chat and Apps. Do not recreate
 these structures or a local tooltip/composer implementation for each embed type.
 
-Code editors, Docs and Sheets retain their specialized designs. Result extensions
-must be opt-in so these surfaces are not restyled by a shared-component change.
-Their previews may opt into `previewTools` to expose existing Copy/Download,
-More and Expand actions while retaining their editor layout.
+Every result automatically inherits the app-colored corner tile, including Code,
+Docs and Sheets. `resultPreview` selects the rich result body; it is not an opt-in
+for the shared chrome. Specialized editors keep their content and existing
+Copy/Download actions through the shared compact identity header. Only app-skill
+execution previews retain the large circular icon and original `BasicInfosBar`.
+The renderer supplies execution/content context from the actual embed type;
+new content types default to the result shell. Direct component previews use the
+registry-generated presentation map. The shared registry wraps resolved previews
+with the same reactive presentation context for Apps, Projects, saved items and
+maps, while preserving their existing props. Never classify results by app/skill IDs
+alone, since child results can share their parent's IDs.
+
+The pure card, calendar, app-corner and event-content presentation lives in
+`frontend/packages/public-site/src/components/results/`. Both the web app adapters
+and animated landing demo import it; never copy the layout into marketing code.
+Keep stores, authentication, image proxying and offline handling at the app
+boundary. Public demos use first-party images and remain free of private runtime
+imports.
 
 ## Previews
 
-- All previews inherit the standard `UnifiedEmbedPreview` geometry: 300×200px
-  compact desktop, 150×290px when the existing mobile mode is selected, and full
-  container width×400px in large mode. Every card keeps the established 30px
-  corners. Result types must not override these dimensions or radius.
+- All previews inherit the standard `UnifiedEmbedPreview` widths and height caps:
+  300px wide / 200px high in compact desktop, 150px wide / 290px high when the
+  existing mobile mode is selected, and full container width / 400px high in large
+  mode. Media/result cards and execution cards use the full standard height.
+  Plain content previews grow only as far as their content requires, up to the
+  cap; short Code and Sheets must not acquire an empty minimum-height area. Their
+  outer large/grouped host must follow the active card's actual height as well.
+  Every card keeps the established 30px corners. Result types must not override
+  the shared widths, maximum heights or radius.
   Compact grouped and small reference wrappers establish their own named
   `embed-preview` container; they must never inherit a wide chat layout.
 - Keep a 48px left/right text safety gap on compact cards even when ungrouped.
@@ -43,6 +62,26 @@ More and Expand actions while retaining their editor layout.
   Appointment time uses its theme-reactive rounded time pill.
 - Event previews contain title, start time, organizer attribution and RSVP count;
   omit description, provider/type/price/location repetitions.
+- Compact Home copy contains only title and monthly price. Large previews retain
+  location and area. Every Home preview includes a map, paired with a photo when
+  available; city-only fallback uses actual municipality bounds through the
+  first-party geocoder. Never invent a city, pin, center or radius. Unavailable or
+  ambiguous public geometry remains explicitly unavailable.
+- Appointment date/time sit beside the app tile near the top edge. Rating stars
+  use the existing filled yellow icon. Social publication dates use ordinary
+  month/day/year text in the shared `EmbedTimePill`, with the same rounded theme
+  surface and shadow as appointment times, instead of the upcoming-date calendar
+  badge.
+- Docs and PDF page/screenshot previews are centered horizontally in the
+  available card width. Keep page aspect ratio and contain wide PDF page images.
+  Do not add generic readiness labels to content results; only useful file or
+  content metadata belongs under their identity.
+- Fitness search summaries prioritize query, provider and result count. Class
+  and venue photos use supplied provider images, with class-to-venue fallback;
+  compact result metadata stays on one bounded line below the title.
+- Weather previews omit provider attribution. Compact copy contains city,
+  weekday/date, temperature and rain probability; extended metrics belong only
+  in large previews. Fullscreen retains provider attribution.
 
 - App-gradient corner tile with the app icon.
 - Image-led compact cards: image above the bottom title, fading into the card
@@ -56,7 +95,7 @@ More and Expand actions while retaining their editor layout.
   existing fullscreen actions, with one useful core action directly visible.
   Result collections and Apps still open fullscreen on card click. Card-wide
   hover/tilt/press effects apply only when that card itself opens fullscreen.
-  More and Expand use existing icons in 36px controls.
+  Assistant previews show More and Expand in shared 36px controls with one solid icon color and the standard slight hover scale. External provider actions stay in fullscreen/More. Preserve direct Copy/Download for specialized file previews. A saved assistant preview replaces More with a pink button and white heart; clicking it uses the existing unsave action and notification, then restores More. Search-result grids have no action buttons: saved cards show only a decorative pink heart in the top right, and card clicks still open fullscreen.
 - No broken media, repeated title/status blocks or unbounded descriptions.
 
 ## Fullscreens
@@ -91,7 +130,7 @@ The mandatory order is:
 6. Shared floating follow-up composer with canonical MessageInput geometry and
    focus expansion, with enough bottom padding to scroll all
    information above it. Reuse the current privacy and chat-handoff boundaries.
-   Use the same theme-aware background as the regular MessageInput composer. Reserve separate
+   Use the same theme-aware background as the regular MessageInput composer. Its collapsed AI icon is gray and decorative, like the regular message input; it is never a separate button. Reserve separate
    playback actions as well as the media itself when the composer expands.
 
 Media-first results use the shared `immersive` layout. Fit the complete image or

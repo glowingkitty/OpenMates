@@ -23,6 +23,9 @@ for (const status of ['processing', 'finished']) for (const width of [390, 1100]
       await expect(card).toHaveCSS('height', '200px');
       await expect(card).toHaveCSS('border-radius', '30px');
       await expect(card).toContainText('via Brave Search');
+      await expect(card.getByTestId('embed-basic-infos-bar')).toBeVisible();
+      await expect(card.getByTestId('embed-result-identity')).toHaveCount(0);
+      await expect(card.locator('.result-corner')).toHaveCount(0);
     }
     await expect(cards.first()).toContainText('artificial intelligence latest developments');
     await expect(cards.first().getByRole('button', { name: 'Stop', exact: true })).toHaveCount(status === 'processing' ? 1 : 0);

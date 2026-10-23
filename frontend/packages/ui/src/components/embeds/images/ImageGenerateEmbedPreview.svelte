@@ -335,7 +335,7 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaFit="contain">
+    <ResultEmbedCard title={prompt || skillName} sourceLabel={modelDisplayName} faviconUrl={modelIconUrl} mediaOnly={status === 'finished' && !!imageUrl && !error} mediaFit="contain">
       {#snippet media()}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
       {#if status === 'finished' && !error && imageUrl}

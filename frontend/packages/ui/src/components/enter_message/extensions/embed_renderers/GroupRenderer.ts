@@ -669,6 +669,7 @@ export class GroupRenderer implements EmbedRenderer {
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
+    content.dataset.embedPreviewType = attrs.type;
 
     console.debug("[GroupRenderer] RENDER CALLED with attrs:", attrs);
     console.debug(
@@ -1730,6 +1731,7 @@ export class GroupRenderer implements EmbedRenderer {
     const skillId =
       decodedContent?.skill_id || embedData?.skill_id || itemSkillId;
     const indicatorAppId = normalizeAppIdForCss(appId);
+    target.dataset.embedPreviewRegistryKey = `app:${appId}:${skillId}`;
     if (indicatorAppId) {
       target.dataset.embedAppId = indicatorAppId;
     }
@@ -6616,6 +6618,8 @@ export class GroupRenderer implements EmbedRenderer {
             ? decodedContent.rooms
             : undefined,
           address: decodedContent?.address as string | undefined,
+          city: decodedContent?.city as string | undefined,
+          location_exact_address: decodedContent?.location_exact_address === true || (decodedContent?.location as Record<string, unknown> | undefined)?.exact_address === true,
           image_url: decodedContent?.image_url as string | undefined,
           url: decodedContent?.url as string | undefined,
           provider: decodedContent?.provider as string | undefined,
@@ -6625,7 +6629,7 @@ export class GroupRenderer implements EmbedRenderer {
             : typeof decodedContent?.lat === "number" ? decodedContent.lat : undefined,
           lon: typeof decodedContent?.longitude === "number" ? decodedContent.longitude
             : typeof decodedContent?.lon === "number" ? decodedContent.lon : undefined,
-          location_area: decodedContent?.location_area,
+          location_area: decodedContent?.location_area ?? (decodedContent?.location as Record<string, unknown> | undefined)?.area,
           location_precision: decodedContent?.location_precision as string | undefined,
           location_approximate: decodedContent?.location_approximate !== false,
           onSelect: () =>

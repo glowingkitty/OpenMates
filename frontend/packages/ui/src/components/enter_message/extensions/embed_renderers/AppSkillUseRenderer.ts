@@ -151,6 +151,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
+    content.dataset.embedPreviewType = attrs.type;
 
     // CRITICAL: Extract app_id and skill_id from attrs FIRST
     // These are parsed from the JSON embed reference in embedParsing.ts
@@ -392,6 +393,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         skillId = "icon_result";
       }
     }
+
+    content.dataset.embedPreviewType = CHILD_TYPE_OVERRIDES[skillId] ? skillId : attrs.type;
+    content.dataset.embedPreviewRegistryKey = `app:${appId}:${skillId}`;
 
     // Decrypted terminal status is authoritative; a failed execution remains a
     // visible card. Resolver errors still provide a fallback for unavailable data.

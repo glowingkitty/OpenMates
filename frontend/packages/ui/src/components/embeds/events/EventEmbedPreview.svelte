@@ -19,8 +19,8 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import ResultEmbedCard from '../ResultEmbedCard.svelte';
-  import EmbedCalendarDate from '../EmbedCalendarDate.svelte';
+  import EventResultCard from '@repo/public-site/components/results/EventResultCard.svelte';
+  import { handleImageError } from '../../../utils/offlineImageHandler';
   import { text } from '../../../i18n/translations';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
 
@@ -131,22 +131,6 @@
   hasFullWidthImage={!!eventImageUrl && !event.title}
 >
   {#snippet details()}
-    <ResultEmbedCard title={event.title || 'Event'} imageUrl={eventImageUrl || undefined} imageAlt={event.title || 'Event'} mediaFit="contain">
-      {#snippet badge()}{#if event.date_start}<EmbedCalendarDate date={event.date_start} timezone={event.timezone} />{/if}{/snippet}
-      {#snippet facts()}
-        <div class="event-preview-facts">
-          {#if attribution}<span class="event-preview-attribution" data-testid="event-preview-attribution" title={attribution}>{attribution}</span>{/if}
-          {#if event.rsvp_count != null}<span class="event-preview-rsvps" data-testid="event-preview-rsvps"><span class="clickable-icon rsvp-icon" style:mask-image="var(--icon-url-team)" aria-hidden="true"></span><span>{event.rsvp_count.toLocaleString()} {rsvpLabel}</span></span>{/if}
-        </div>
-      {/snippet}
-    </ResultEmbedCard>
+    <EventResultCard title={event.title || 'Event'} imageUrl={eventImageUrl || undefined} date={event.date_start} timezone={event.timezone} {attribution} rsvpCount={event.rsvp_count} {rsvpLabel} onImageError={handleImageError} />
   {/snippet}
 </UnifiedEmbedPreview>
-
-<style>
-  .rsvp-icon { width: 16px; height: 16px; background: currentColor; cursor: inherit; }
-  .event-preview-facts { display: flex; align-items: center; gap: var(--spacing-2); min-width: 0; width: 100%; color: var(--color-font-secondary); }
-  .event-preview-attribution { display: block; flex: 1; min-width: 0; font-size: var(--font-size-xxs); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .event-preview-rsvps { display: inline-flex; flex-shrink: 0; align-items: center; gap: var(--spacing-1); font-size: var(--font-size-xxs); line-height: 1.2; }
-  @container result-card (min-width: 401px) { .event-preview-facts { flex-direction: column; align-items: flex-start; gap: var(--spacing-4); } .event-preview-attribution { flex: none; max-width: 100%; } }
-</style>

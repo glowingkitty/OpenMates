@@ -353,3 +353,82 @@ async def test_search_cancellation_drains_date_and_shared_venue_work(monkeypatch
         await search
     assert active == 0
     assert not client._venue_loads
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.parametrize("markup", [
+    "<div style=\"background-image: url('https://images.example.test/class.jpg')\"></div>",
+    '<div style="background-image: url(&quot;https://images.example.test/class.jpg&quot;)"></div>',
+    '<div style="background-image: url(https://images.example.test/class.jpg)"></div>',
+    '<img src="https://images.example.test/class.jpg">',
+    "<img src='data:image/gif;base64,placeholder' data-src='https://images.example.test/class.jpg'>",
+])
+def test_activity_card_preserves_provider_photo_markup(markup):
+    page = _fixture("activities.html").replace(
+        '<button data-href="/en/class-details/appt-beat81"></button>', markup,
+    )
+    assert parse_activity_cards(page, date="2026-10-23")[0].image_url == "https://images.example.test/class.jpg"
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.parametrize("image,expected", [
+    ("https://images.example.test/detail.jpg", "https://images.example.test/detail.jpg"),
+    ([None, {"@type": "ImageObject", "contentUrl": "https://images.example.test/detail.jpg"}], "https://images.example.test/detail.jpg"),
+    ({"@type": "ImageObject", "url": "/photos/detail.jpg"}, "https://urbansportsclub.com/photos/detail.jpg"),
+    ([], None),
+    ({"@type": "ImageObject"}, None),
+    ("javascript:invalid", None),
+])
+def test_venue_detail_extracts_image_url_without_stringifying_json_ld(image, expected):
+    import json
+
+    page = '<script type="application/ld+json">' + json.dumps({
+        "@type": "LocalBusiness", "image": image,
+    }) + '</script>'
+    assert parse_venue_detail(page, url="https://urbansportsclub.com/en/venues/test").image_url == expected
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_class_photo,has_venue_photo", [(True, True), (False, True), (False, False)])
+async def test_class_search_uses_class_photo_then_venue_photo_without_extra_requests(monkeypatch, has_class_photo, has_venue_photo):
+    client = UrbanSportsClient()
+    calls = []
+    page = _fixture("activities.html")
+    if has_class_photo:
+        page = page.replace('<button data-href="/en/class-details/appt-beat81"></button>',
+                            '<img src="https://images.example.test/class.jpg">')
+    detail = _fixture("venue_detail_beat81.html")
+    if not has_venue_photo:
+        detail = detail.replace('"image": "https://images.example.test/beat81-detail.jpg",', '')
+
+    async def fetch(url):
+        calls.append(url)
+        return page if "/activities?" in url else detail
+
+    monkeypatch.setattr(client, "_fetch_url", fetch)
+    result = await client.search_classes(query="HIIT", start_date="2026-10-23")
+    expected = ("https://images.example.test/class.jpg" if has_class_photo else
+                "https://images.example.test/beat81-detail.jpg" if has_venue_photo else None)
+    assert result[0]["image_url"] == expected
+    assert len(calls) == 2  # Existing list and organizing venue requests only.
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("detail_photo", [True, False])
+async def test_location_search_uses_detail_photo_then_listing_photo(monkeypatch, detail_photo):
+    client = UrbanSportsClient()
+    page = _fixture("venues.html").replace('data-src="https://images.example.test/beat81.jpg"',
+                                           'src="https://images.example.test/beat81.jpg"')
+    detail = _fixture("venue_detail_beat81.html")
+    if not detail_photo:
+        detail = detail.replace('"image": "https://images.example.test/beat81-detail.jpg",', '')
+
+    async def fetch(url):
+        return page if "/venues?" in url else detail
+
+    monkeypatch.setattr(client, "_fetch_url", fetch)
+    result = await client.search_locations(query="BEAT81")
+    assert result[0]["image_url"] == ("https://images.example.test/beat81-detail.jpg" if detail_photo else
+                                      "https://images.example.test/beat81.jpg")

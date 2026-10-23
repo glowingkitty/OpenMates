@@ -7,7 +7,7 @@
 -->
 
 <script lang="ts">
-  import ExternalLink from '@lucide/svelte/icons/external-link';
+
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
   import ResultEmbedInfo from '../ResultEmbedInfo.svelte';
@@ -99,7 +99,7 @@
   customStatusText={statusText}
   showSkillIcon={true}
 >
-  {#snippet resultPrimaryAction()}{#if url}<a href={url} target="_blank" rel="noopener noreferrer" aria-label="Open on GitHub" onclick={event => event.stopPropagation()}><ExternalLink size={18} aria-hidden="true" /></a>{/if}{/snippet}
+
   {#snippet details()}
     <div data-testid="code-repo-preview-details" class="catalog-result-preview">
       <ResultEmbedCard titleTestId="code-repo-title" title={displayName} sourceLabel={owner} description={description} faviconUrl={avatar} textFirst={true}>

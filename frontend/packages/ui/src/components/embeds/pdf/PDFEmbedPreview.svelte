@@ -459,6 +459,20 @@
     pointer-events: none;
   }
 
+  /* Wide cards keep the native page centered instead of cropping it into a banner. */
+  @container embed-preview (min-width: 401px) {
+    .preview-image,
+    .public-pdf-page-image {
+      /* A percentage height can remain intrinsic in the nested flex layout.
+         Stretch the auto cross-size to the actual bounded page viewport. */
+      height: auto;
+      min-height: 0;
+      align-self: stretch;
+      object-fit: contain;
+      object-position: top center;
+    }
+  }
+
   /* Fallback: single centered PDF icon when no screenshot */
   .pdf-icon-center {
     display: flex;
