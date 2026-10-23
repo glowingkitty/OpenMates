@@ -74,6 +74,45 @@ def test_exact_chain_survives_only_as_safe_metadata(evidence):
         assert forbidden not in serialized
 
 
+def test_normal_composer_prefixed_message_id_is_correlated_without_normalization(evidence):
+    message = CHAT[-10:] + "-" + MESSAGE
+    for item in evidence.browser["events"]:
+        item["message_id"] = message
+    evidence.attachment.write_text(json.dumps(evidence.browser))
+    evidence.capture.reducer = diagnostic.Reducer()
+    for raw in (
+        line("api", diagnostic.API_LOGGER, f"Applied dev E2E test mock marker for message {message}", 10),
+        line("api", diagnostic.API_LOGGER, f"[PERF] In-process ai.ask dispatch took 0.001s, Task ID: {TASK} for user_id={SECRET}, chat_id={CHAT}, message_id={message}"),
+        line("ai-worker", diagnostic.ASK_LOGGER, f"[Task ID: {TASK}] LIVE MOCK: group='{diagnostic.CASES[TITLE]}' — full pipeline with cached API responses", 12),
+    ):
+        evidence.capture.reducer.feed(raw)
+    attempt = evidence.capture.summarize(evidence.report, evidence.root)["attempts"][0]
+    assert attempt["status"] == "complete"
+    assert attempt["message_id"] == message
+    assert attempt["task_id"] == TASK and SECRET not in json.dumps(attempt)
+
+
+@pytest.mark.parametrize("field", ["message_id", "turn_id", "task_id"])
+def test_prefixed_ids_require_the_matching_chat_and_are_not_valid_turn_or_task_ids(evidence, field):
+    prefixed = (OTHER if field == "message_id" else CHAT)[-10:] + "-" + MESSAGE
+    item = evidence.browser["events"][1 if field == "task_id" else 0]
+    item[field] = prefixed
+    evidence.attachment.write_text(json.dumps(evidence.browser))
+    output = evidence.capture.summarize(evidence.report, evidence.root)
+    assert output["status"] == "incomplete" and not output["attempts"][0].get("events")
+    invalid_dispatch = line("api", diagnostic.API_LOGGER, f"[PERF] In-process ai.ask dispatch took 0.001s, Task ID: {TASK} for user_id={SECRET}, chat_id={CHAT}, message_id={OTHER[-10:]}-{MESSAGE}")
+    assert diagnostic.parse_line(invalid_dispatch.rstrip()) is None
+
+
+def test_inline_reporter_body_is_not_misrepresented_as_a_file_backed_attachment(evidence):
+    import base64
+    attachment = evidence.result["attachments"][0]
+    attachment["body"] = base64.b64encode(evidence.attachment.read_bytes()).decode()
+    del attachment["path"]
+    output = evidence.capture.summarize(evidence.report, evidence.root)
+    assert output["status"] == "incomplete" and not output["attempts"][0].get("events")
+
+
 @pytest.mark.parametrize("fault", ["duplicate", "escape", "symlink", "parent_symlink", "fifo", "oversize", "wrong_group", "wrong_retry", "extra_private", "wrong_message", "wrong_chat", "window", "incoming_private"])
 def test_untrusted_attachments_fail_closed(evidence, fault, tmp_path):
     result, browser, path = evidence.result, evidence.browser, evidence.attachment

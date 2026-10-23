@@ -32,6 +32,7 @@ MAX_SECONDS = 1210
 MAX_BROWSER = 16 * 1024
 UUID = r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"
 UUID_RE = re.compile(UUID + r"\Z")
+MESSAGE_ID = rf"(?:[0-9a-f]{{10}}-)?{UUID}"
 API_LOGGER = "backend.core.api.app.routes.handlers.websocket_handlers.message_received_handler"
 ASK_LOGGER = "backend.apps.ai.tasks.ask_skill_task"
 CELERY_LOGGER = "backend.core.api.app.tasks.celery_config"
@@ -43,6 +44,13 @@ STAGES = {
     "Starting post-processing step": "postprocessing",
     "AI skill ask task processing finished": "finished",
 }
+
+
+def message_id_matches_chat(value: object, chat_id: str) -> bool:
+    return isinstance(value, str) and (
+        UUID_RE.fullmatch(value) is not None
+        or (value.startswith(chat_id[-10:] + "-") and UUID_RE.fullmatch(value[11:]) is not None)
+    )
 
 
 def utc(value: str) -> datetime:
@@ -119,15 +127,17 @@ def parse_line(raw: bytes) -> dict | None:
         return None
     event = {"utc": timestamp, "service": match[1].decode()}
     if logger == API_LOGGER and event["service"] == "api":
-        applied = re.fullmatch(rf"Applied dev E2E test mock marker for message ({UUID})", message)
+        applied = re.fullmatch(rf"Applied dev E2E test mock marker for message ({MESSAGE_ID})", message)
         dispatch = re.fullmatch(
             rf"\[PERF\] In-process ai\.ask dispatch took [0-9.]{{1,12}}s, "
             rf"Task ID: ({UUID}|None) for user_id=[^,\r\n]{{1,128}}, "
-            rf"chat_id=({UUID}), message_id=({UUID})", message,
+            rf"chat_id=({UUID}), message_id=({MESSAGE_ID})", message,
         )
         if applied:
             return {**event, "event": "api_marker_applied", "message_id": applied[1]}
         if dispatch:
+            if not message_id_matches_chat(dispatch[3], dispatch[2]):
+                return None
             result = {**event, "event": "api_dispatch", "chat_id": dispatch[2], "message_id": dispatch[3]}
             if dispatch[1] != "None":
                 result["task_id"] = dispatch[1]
@@ -281,7 +291,9 @@ def attempt_summary(result: dict, title: str, root: Path, capture) -> dict:
         if (not isinstance(item, dict) or set(item) - {"utc", "direction", "event", "chat_id", "message_id", "turn_id", "task_id", "marker_present", "expected_group_match"}
                 or item.get("chat_id") != browser["chat_id"] or not start <= utc(item["utc"]) <= end):
             raise ValueError("browser_event_invalid")
-        if any(not isinstance(value, str) or not UUID_RE.fullmatch(value) for key, value in item.items() if key.endswith("_id")):
+        if any(not (message_id_matches_chat(value, browser["chat_id"]) if key == "message_id"
+                    else isinstance(value, str) and UUID_RE.fullmatch(value))
+               for key, value in item.items() if key.endswith("_id")):
             raise ValueError("browser_event_invalid")
         if item.get("event") in OUTGOING and item.get("direction") == "sent":
             if (type(item.get("marker_present")) is not bool or type(item.get("expected_group_match")) is not bool or not item.get("message_id")
