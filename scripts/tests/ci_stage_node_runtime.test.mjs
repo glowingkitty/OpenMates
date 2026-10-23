@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { attestSource, sourcePolicy, supplierPath, copySource, parentCurrent, identity, same, sourceDiagnostic } from '../ci_stage_node_runtime.mjs';
+import { attestSource, sourcePolicy, supplierPath, copySource, parentCurrent, identity, same, sourceDiagnostic, startupFailureEnvelope } from '../ci_stage_node_runtime.mjs';
 const script = fileURLToPath(new URL('../ci_stage_node_runtime.mjs', import.meta.url));
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'node-producer-unit-'));
@@ -172,7 +172,8 @@ test('source mode refusal exports before any candidate; export failure never rep
     fs.mkdirSync(scripts, { recursive: true }); const isolatedScript = path.join(scripts, 'ci_stage_node_runtime.mjs');
     fs.copyFileSync(script, isolatedScript);
     const env = { ...process.env, RUNNER_TOOL_CACHE: f.root, NODE_OPTIONS: '', NODE_PATH: '',
-      GITHUB_WORKSPACE: path.join(f.root, 'absent-candidate') };
+      GITHUB_WORKSPACE: path.join(f.root, 'absent-candidate'), OPENMATES_CI_EXPECTED_SOURCE: 'a'.repeat(40),
+      CI_HARNESS_COMMIT: 'b'.repeat(40), GITHUB_RUN_ID: '7', CI_TEST_MODE: 'e2e', PLAYWRIGHT_PROOF_VIDEO_PROFILE: 'web-laptop' };
     const invoke = () => spawnSync(f.execPath, [isolatedScript, 'stage'], { env, encoding: 'utf8', timeout: 10000, maxBuffer: 128 * 1024 });
     const result = invoke(); assert.equal(result.status, 1);
     const receipt = JSON.parse(result.stderr); assert.equal(receipt.predicate, 'source_mode');
@@ -183,13 +184,31 @@ test('source mode refusal exports before any candidate; export failure never rep
     assert.equal(receipt.source_diagnostic.path_attestation.stable_stat, true);
     assert(!result.stderr.includes(f.root)); assert(!fs.existsSync(env.GITHUB_WORKSPACE));
     const directory = path.join(tooling, 'node-runtime-diagnostics'); const names = fs.readdirSync(directory);
-    assert.equal(names.length, 1); const saved = JSON.parse(fs.readFileSync(path.join(directory, names[0]), 'utf8'));
+    assert.equal(names.length, 2); const sourceName = names.find(name => name.startsWith('source-'));
+    const saved = JSON.parse(fs.readFileSync(path.join(directory, sourceName), 'utf8'));
+    const report = JSON.parse(fs.readFileSync(path.join(directory, 'ci-results.json'), 'utf8'));
+    assert.equal(report.source_commit, env.OPENMATES_CI_EXPECTED_SOURCE); assert.equal(report.run_id, '7');
+    assert.equal(report.harness_commit, env.CI_HARNESS_COMMIT); assert.equal(report.proof_profile, 'web-laptop');
+    assert.equal(report.success, false); assert.deepEqual(report.results, []); assert.equal(report.source_verified, false);
+    assert.equal(report.product_executed, false); assert.equal(report.cleanup, 'not_started');
     assert.equal(saved.predicate, 'source_mode'); assert.deepEqual(saved.source_diagnostic, receipt.source_diagnostic);
-    assert.equal(fs.statSync(path.join(directory, names[0])).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.join(directory, sourceName)).mode & 0o777, 0o600);
     assert(same(before, fs.statSync(f.execPath, { bigint: true })), 'supplier was not chmodded or rewritten by producer');
     fs.chmodSync(directory, 0o755); const failed = invoke(); assert.equal(failed.status, 1);
     const refused = JSON.parse(failed.stderr); assert.equal(refused.predicate, 'source_mode');
     assert.equal(refused.diagnostic_export, 'failed'); assert.equal(refused.uncertain_stage_retained, true);
     assert.deepEqual(fs.readdirSync(directory), names, 'export failure neither overwrites nor deletes diagnostics');
   } finally { remove(f); }
+});
+
+test('startup failure envelope refuses missing or contradictory request identity without claiming execution', () => {
+  const env = { OPENMATES_CI_EXPECTED_SOURCE: 'a'.repeat(40), CI_HARNESS_COMMIT: 'b'.repeat(40),
+    GITHUB_RUN_ID: '7', CI_TEST_MODE: 'e2e', PLAYWRIGHT_PROOF_VIDEO_PROFILE: '' };
+  const valid = startupFailureEnvelope('source_mode', env);
+  assert.equal(valid.source_verified, false); assert.equal(valid.success, false);
+  for (const [key, value] of [['OPENMATES_CI_EXPECTED_SOURCE', 'bad'], ['CI_HARNESS_COMMIT', ''], ['GITHUB_RUN_ID', '0'],
+    ['CI_TEST_MODE', 'unknown'], ['PLAYWRIGHT_PROOF_VIDEO_PROFILE', 'private/path']]) {
+    assert.throws(() => startupFailureEnvelope('source_mode', { ...env, [key]: value }), /failure_report_/);
+  }
+  assert.throws(() => startupFailureEnvelope('raw private error', env), /failure_report_profile/);
 });

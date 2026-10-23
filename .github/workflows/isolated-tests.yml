@@ -140,6 +140,8 @@ jobs:
         run: python3 ../tooling/scripts/ci_download_node_supplier.py
       - name: Stage attested runner Node before candidate code or dependencies
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
+        env:
+          OPENMATES_CI_EXPECTED_SOURCE: ${{ inputs.source_commit }}
         # RUNNER_* step env is overwritten by runner context injection. Set the
         # attested cache inside the shell, after injection, for this process only.
         run: >-

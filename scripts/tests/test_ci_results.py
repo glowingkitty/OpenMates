@@ -373,3 +373,56 @@ def test_team_node_fetch_preserves_cleanup_gate_after_strict_runtime_validation(
         with pytest.raises(RuntimeError, match="run-bound account/container/volume cleanup"):
             ci_results.fetch(Remote(), job, tmp_path)
         assert not (tmp_path / "test-results/ci-runs/team/receipt.json").exists()
+
+
+@pytest.mark.parametrize("fault", ["", "source", "run", "harness", "profile", "green"])
+def test_node_startup_failure_envelope_is_retrievable_without_execution_claims(tmp_path, monkeypatch, fault):
+    import json
+    from pathlib import Path
+    import subprocess
+
+    helper = Path(__file__).parents[1] / "ci_stage_node_runtime.mjs"
+    program = """
+      const {startupFailureEnvelope} = await import(process.argv[2]);
+      console.log(JSON.stringify(startupFailureEnvelope('source_mode', {
+        OPENMATES_CI_EXPECTED_SOURCE:'a'.repeat(40),CI_HARNESS_COMMIT:'b'.repeat(40),
+        GITHUB_RUN_ID:'7',CI_TEST_MODE:'e2e',PLAYWRIGHT_PROOF_VIDEO_PROFILE:'web-laptop'})));
+    """
+    report = json.loads(subprocess.check_output(["node", "--input-type=module", "-e", program, "fixture-import", str(helper)], text=True, timeout=5))
+    assert report["success"] is False and report["results"] == []
+    assert report["source_verified"] is False and report["product_executed"] is False
+    assert report["cleanup"] == "not_started"
+    if fault in {"source", "harness"}:
+        report["source_commit" if fault == "source" else "harness_commit"] = "c" * 40
+    elif fault == "run":
+        report["run_id"] = "8"
+    elif fault == "profile":
+        report["proof_profile"] = "web-phone"
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("tooling/node-runtime-diagnostics/ci-results.json", json.dumps(report))
+    monkeypatch.setattr(ci_results, "download", lambda command, root, output: output.write(archive.getvalue()))
+    monkeypatch.setattr(ci_results, "RESERVE", 0)
+    monkeypatch.setattr(ci_results.shutil, "disk_usage", lambda path: type("Usage", (), {"total": 100 * 1024**3, "used": 10 * 1024**3, "free": 90 * 1024**3})())
+    monkeypatch.setattr(ci_results, "attach_visual_evidence", lambda result, directory: result)
+
+    class Remote:
+        repo = "example/repo"
+
+        def request(self, endpoint):
+            if "/artifacts?" in endpoint:
+                return {"artifacts": [{"name": "isolated-test-results", "expired": False, "id": 8, "size_in_bytes": len(archive.getvalue())}]}
+            if "/jobs?" in endpoint:
+                return {"jobs": [{"id": 9, "labels": ["ubuntu-latest"], "runner_name": "GitHub Actions 9"}]}
+            return {"head_sha": "b" * 40}
+
+    job = {"id": "startup", "source": "a" * 40, "mode": "e2e", "run_id": 7,
+           "state": "success" if fault == "green" else "failure", "proof_profile": "web-laptop",
+           "url": "https://example.test/7", "specs": json.dumps(["cli-rust-tui-proof.spec.ts"])}
+    if fault:
+        with pytest.raises(RuntimeError):
+            ci_results.fetch(Remote(), job, tmp_path)
+    else:
+        result = ci_results.fetch(Remote(), job, tmp_path)
+        assert result["state"] == "failure" and result["report"]["success"] is False
+        assert result["report"]["results"] == [] and result["cleanup_verified"] is False

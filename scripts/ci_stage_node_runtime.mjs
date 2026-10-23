@@ -52,6 +52,20 @@ export function sourceDiagnostic(s, { procIdentity, stable, version = process.ve
       supplier_layout: 'RUNNER_TOOL_CACHE/node/<version>/<arch>/bin/node',
       proc_same_inode_and_canonical_path: procIdentity === true, stable_stat: stable === true } };
 }
+export function startupFailureEnvelope(predicate, env = process.env) {
+  need(/^[0-9a-f]{40}$/.test(env.OPENMATES_CI_EXPECTED_SOURCE || '')
+    && /^[0-9a-f]{40}$/.test(env.CI_HARNESS_COMMIT || '')
+    && /^[1-9][0-9]{0,19}$/.test(env.GITHUB_RUN_ID || ''), 'failure_report_identity');
+  need(['prepare', 'component', 'e2e', 'artifact', 'codex', 'vitest', 'selfhost', 'visual-smoke'].includes(env.CI_TEST_MODE), 'failure_report_mode');
+  const profile = env.PLAYWRIGHT_PROOF_VIDEO_PROFILE || '';
+  need(/^[A-Za-z0-9_-]{0,64}$/.test(profile) && /^[a-z_]+$/.test(predicate), 'failure_report_profile');
+  return { source_commit: env.OPENMATES_CI_EXPECTED_SOURCE, run_id: env.GITHUB_RUN_ID,
+    harness_commit: env.CI_HARNESS_COMMIT, proof_profile: profile,
+    environment: 'github-isolated', runtime_profile: env.CI_TEST_MODE,
+    results: [], success: false, error: `Node runtime acquisition refused: ${predicate}`,
+    stopped_phase: 'node-runtime-acquisition', source_verified: false,
+    product_executed: false, cleanup: 'not_started' };
+}
 // Closed diagnostic schema only: no environment, path, inode or numeric owner IDs.
 export function exportStageDiagnostic(receipt) {
   const root = path.resolve(path.dirname(SELF), '..');
@@ -67,6 +81,11 @@ export function exportStageDiagnostic(receipt) {
     const fd = fs.openSync(`/proc/self/fd/${directoryFd}/source-${process.pid}.json`, C.O_WRONLY | C.O_CREAT | C.O_EXCL | C.O_NOFOLLOW, 0o600);
     try { fs.writeFileSync(fd, JSON.stringify(receipt) + '\n'); fs.fsyncSync(fd); }
     finally { fs.closeSync(fd); }
+    if (receipt.failure_report) {
+      const reportFd = fs.openSync(`/proc/self/fd/${directoryFd}/ci-results.json`, C.O_WRONLY | C.O_CREAT | C.O_EXCL | C.O_NOFOLLOW, 0o600);
+      try { fs.writeFileSync(reportFd, JSON.stringify(receipt.failure_report) + '\n'); fs.fsyncSync(reportFd); }
+      finally { fs.closeSync(reportFd); }
+    }
     fs.fsyncSync(directoryFd);
     need(directorySame(ds, lstat(directory)), 'diagnostic_directory_swap');
   } finally { fs.closeSync(directoryFd); }
@@ -240,6 +259,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === SELF) {
     const allowed = /^[a-z_]+$/.test(error.message) ? error.message : 'producer_io';
     const receipt = { schema_version: 1, status: 'refused', predicate: allowed, uncertain_stage_retained: true,
       ...(error.sourceDiagnostic ? { source_diagnostic: error.sourceDiagnostic } : {}) };
+    if (process.argv[2] === 'stage') {
+      try { receipt.failure_report = startupFailureEnvelope(allowed); }
+      catch { /* Missing request identity is never fabricated. */ }
+    }
     let diagnosticExport = 'not_stage';
     if (process.argv[2] === 'stage') {
       try { exportStageDiagnostic(receipt); diagnosticExport = 'written'; }

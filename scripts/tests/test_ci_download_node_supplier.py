@@ -219,3 +219,97 @@ def test_transport_enforces_fixed_source_no_redirects_and_stream_limit(monkeypat
         supplier.NoRedirect().redirect_request(
             None, None, 302, "", {}, "http://nodejs.org/file"
         )
+
+
+def test_named_cache_swap_refuses_before_any_write_outside_opened_cache(tmp_path):
+    cache = private_cache(tmp_path)
+    original = tmp_path / "original-cache"
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    transport_fetch, _ = transport(archive())
+    calls = 0
+
+    def fetch(url, destination, limit):
+        nonlocal calls
+        transport_fetch(url, destination, limit)
+        calls += 1
+        if calls == 1:
+            cache.rename(original)
+            cache.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="supplier_cache_changed"):
+        supplier.download_supplier(cache, arch="x64", fetcher=fetch)
+    assert list(outside.iterdir()) == []
+    assert list(original.iterdir()) == []
+
+
+def test_child_directory_swap_cannot_redirect_descriptor_anchored_extraction(
+    tmp_path, monkeypatch
+):
+    import os
+
+    cache = private_cache(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir(mode=0o700)
+    original_mkdir = supplier.os.mkdir
+
+    def mkdir(name, mode=0o777, *, dir_fd=None):
+        original_mkdir(name, mode, dir_fd=dir_fd)
+        if name == "node" and dir_fd is not None:
+            os.rename("node", "owned-node", src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+            os.symlink(outside, "node", dir_fd=dir_fd, target_is_directory=True)
+
+    monkeypatch.setattr(supplier.os, "mkdir", mkdir)
+    fetch, _ = transport(archive())
+    with pytest.raises((OSError, ValueError)):
+        supplier.download_supplier(cache, arch="x64", fetcher=fetch)
+    assert list(outside.iterdir()) == []
+    assert list((cache / "owned-node").iterdir()) == []
+
+
+@pytest.mark.parametrize("kind", ["symlink", "hardlink"])
+def test_preexisting_final_link_never_changes_outside_inode(
+    tmp_path, monkeypatch, kind
+):
+    import os
+
+    cache = private_cache(tmp_path)
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"unchanged")
+    original_open = supplier.os.open
+
+    def open_file(name, flags, mode=0o777, *, dir_fd=None):
+        if name == "node" and flags & os.O_WRONLY and dir_fd is not None:
+            if kind == "symlink":
+                os.symlink(outside, "node", dir_fd=dir_fd)
+            else:
+                os.link(outside, "node", dst_dir_fd=dir_fd)
+        return original_open(name, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(supplier.os, "open", open_file)
+    fetch, _ = transport(archive())
+    with pytest.raises(OSError):
+        supplier.download_supplier(cache, arch="x64", fetcher=fetch)
+    assert outside.read_bytes() == b"unchanged"
+
+
+def test_cache_owner_mismatch_refuses_before_acquisition(tmp_path, monkeypatch):
+    import os
+
+    cache = private_cache(tmp_path)
+    original = Path.lstat
+
+    def lstat(path):
+        info = original(path)
+        if path == cache:
+            fields = list(info)
+            fields[4] = os.geteuid() + 1
+            return os.stat_result(fields)
+        return info
+
+    monkeypatch.setattr(Path, "lstat", lstat)
+    with pytest.raises(ValueError, match="supplier_cache_policy"):
+        supplier.download_supplier(
+            cache, arch="x64", fetcher=lambda *args: pytest.fail("no network")
+        )
+    assert list(cache.iterdir()) == []
