@@ -64,7 +64,8 @@ def test_native_exact_selector_uses_private_backend_without_unrelated_fixtures(g
     assert gateway["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
     assert gateway["command"] == ["python", "/ci_tcp_gateway.py"]
     assert gateway["environment"] == {"OPENMATES_CI_GATEWAY": "github-isolated"}
-    assert any(str(ROOT / "scripts/ci_tcp_gateway.py") in str(mount) for mount in gateway["volumes"])
+    trusted_gateway = Path(runtime.__file__).with_name("ci_tcp_gateway.py").resolve()
+    assert gateway["volumes"] == [f"{trusted_gateway}:/ci_tcp_gateway.py:ro"]
     for service in services.values():
         assert service["labels"]["org.openmates.source"] == SOURCE_HASH
         env = service.get("environment", {})
