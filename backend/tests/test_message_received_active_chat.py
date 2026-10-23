@@ -66,6 +66,7 @@ class FakeManager:
 class FakeWebSocket:
     def __init__(self):
         self.sent = []
+        self.scope = {}
 
     async def send_json(self, message):
         self.sent.append(message)
@@ -209,8 +210,27 @@ def test_exact_project_name_remains_a_routing_hint_without_access(message, expec
 @pytest.mark.parametrize("context_bound", [False, True])
 @pytest.mark.parametrize("related_discovery", [None, False, True])
 def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypatch, chat_metadata, context_bound, related_discovery):
+    _exercise_ordinary_dispatch(monkeypatch, chat_metadata, context_bound, related_discovery)
+
+
+def _exercise_ordinary_dispatch(monkeypatch, chat_metadata=None, context_bound=False, related_discovery=None, outcome="processing"):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
+    reconcile = AsyncMock()
+    alert = AsyncMock()
+    monkeypatch.setattr(message_received_handler, "_reconcile_existing_legacy_turn", reconcile)
+    monkeypatch.setattr(message_received_handler, "notify_chat_failure", alert)
+    dispatch = FakeSkillRegistry.dispatch_skill
+
+    async def dispatch_with_outcome(registry, *args):
+        response = await dispatch(registry, *args)
+        if outcome == "mismatch":
+            raise message_received_handler.ChatRecoveryProtocolError(409, "legacy_dispatch_mismatch")
+        if outcome == "broker_failure":
+            raise RuntimeError("broker unavailable")
+        return {**response, "status": outcome}
+
+    monkeypatch.setattr(FakeSkillRegistry, "dispatch_skill", dispatch_with_outcome)
     manager = FakeManager()
     cutover = SimpleNamespace(
         get_epoch=AsyncMock(return_value=0),
@@ -366,6 +386,137 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         "payload": {"chat_id": "chat-123", "draft_v": 4},
     } in manager.broadcasts
 
+    return SimpleNamespace(manager=manager, cache=cache_service, reconcile=reconcile, alert=alert)
+
+
+# contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent,operational-monitoring.chat-failures.email-trigger
+@pytest.mark.parametrize("outcome", ["already_dispatched", "mismatch", "broker_failure"])
+def test_legacy_dispatch_retry_reconciles_but_genuine_failures_still_alert(monkeypatch, outcome):
+    context = _exercise_ordinary_dispatch(monkeypatch, outcome=outcome)
+    if outcome == "already_dispatched":
+        context.reconcile.assert_awaited_once()
+        assert context.reconcile.await_args.kwargs["task_id"] == hashlib.sha256(b"user-123:chat-123:msg-123").hexdigest()
+        context.alert.assert_not_awaited()
+        assert not any(call[1] in ("ai_task_initiated", "error") for call in context.manager.calls)
+    else:
+        context.reconcile.assert_not_awaited()
+        context.alert.assert_awaited_once_with("chat-123:msg-123", stage="dispatch")
+        assert any(call[1] == "error" for call in context.manager.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("completed", ["canonical", "pending", "running"])
+# contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent,chats.completion.recovery-takeover
+async def test_existing_legacy_turn_replays_without_restarting_processing(monkeypatch, completed):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    canonical = {"role": "assistant", "chat_id": "chat", "message_id": "task",
+                 "hashed_user_id": hash_id("owner"), "encrypted_content": "ciphertext"}
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_message_for_chat_by_client_id=AsyncMock(return_value=canonical if completed == "canonical" else None),
+    ))
+    snapshot = {"user_id_uuid": "owner", "chat_id": "chat", "message_id": "task",
+                "full_content_so_far": "partial", "is_final_chunk": False}
+    cache = SimpleNamespace(get=AsyncMock(return_value=snapshot),
+                            clear_active_ai_task_if_matches=AsyncMock(return_value=True))
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    result = {"content": "completed answer", "fired_at": 1_700_000_000}
+    monkeypatch.setattr(handler, "_read_completed_legacy_response",
+                        lambda _: result if completed == "pending" else None)
+
+    await handler._reconcile_existing_legacy_turn(
+        cache_service=cache, directus_service=directus, manager=manager, user_id="owner", device_fingerprint_hash="device",
+        chat_id="chat", task_id="task",
+    )
+    frames = [call.args[0] for call in manager.send_personal_message.await_args_list]
+    assert all(call.args[1:] == ("owner", "device") for call in manager.send_personal_message.await_args_list)
+    assert not any(frame["type"] in ("ai_task_initiated", "error") for frame in frames)
+    if completed == "running":
+        assert frames == [{"type": "ai_message_update", "payload": snapshot}]
+        cache.clear_active_ai_task_if_matches.assert_not_awaited()
+    else:
+        cache.clear_active_ai_task_if_matches.assert_awaited_once_with("chat", "task")
+        assert [frame["type"] for frame in frames[-2:]] == ["ai_message_ready", "ai_typing_ended"]
+        if completed == "canonical":
+            assert frames[0]["type"] == "chat_content_batch_response"
+            # The exact row is replayed, independent of latest-window bounds.
+            rows = frames[0]["payload"]["messages_by_chat_id"]["chat"]
+            assert [json.loads(row) for row in rows] == [{**canonical, "status": "synced"}]
+        else:
+            assert frames[0] == {"type": "pending_ai_response", "payload": {
+                "type": "ai_response", "chat_id": "chat", "message_id": "task",
+                "user_id": "owner", **result,
+            }}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [{"user_id_uuid": "foreign"}, {"chat_id": "foreign"},
+                                    {"message_id": "newer-task"}, {"external_request": True},
+                                    {"is_final_chunk": True}])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.access.scoped,chats.message.identity-idempotent
+async def test_existing_legacy_retry_never_replays_another_stream(monkeypatch, changed):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    monkeypatch.setattr(handler, "_read_completed_legacy_response", lambda _: None)
+    snapshot = {"user_id_uuid": "owner", "chat_id": "chat", "message_id": "task", **changed}
+    cache = SimpleNamespace(get=AsyncMock(return_value=snapshot),
+                            clear_active_ai_task_if_matches=AsyncMock())
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    await handler._reconcile_existing_legacy_turn(
+        cache_service=cache, directus_service=SimpleNamespace(chat=SimpleNamespace(
+            get_message_for_chat_by_client_id=AsyncMock(return_value=None))),
+        manager=manager, user_id="owner",
+        device_fingerprint_hash="device", chat_id="chat", task_id="task",
+    )
+    manager.send_personal_message.assert_not_awaited()
+    cache.clear_active_ai_task_if_matches.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [{"hashed_user_id": "foreign"}, {"chat_id": "foreign"},
+                                    {"message_id": "other"}, {"role": "user"}])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.access.scoped
+async def test_existing_legacy_canonical_replay_requires_exact_owner_and_message(monkeypatch, changed):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    canonical = {"role": "assistant", "chat_id": "chat", "message_id": "task",
+                 "hashed_user_id": hash_id("owner"), **changed}
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    cache = SimpleNamespace(clear_active_ai_task_if_matches=AsyncMock())
+    with pytest.raises(RuntimeError, match="identity is inconsistent"):
+        await handler._reconcile_existing_legacy_turn(
+            cache_service=cache, directus_service=SimpleNamespace(chat=SimpleNamespace(
+                get_message_for_chat_by_client_id=AsyncMock(return_value=canonical))),
+            manager=manager, user_id="owner", device_fingerprint_hash="device",
+            chat_id="chat", task_id="task",
+        )
+    manager.send_personal_message.assert_not_awaited()
+    cache.clear_active_ai_task_if_matches.assert_not_awaited()
+
+
+@pytest.mark.parametrize("state,changed,expected", [
+    ("SUCCESS", {}, True), ("PENDING", {}, False),
+    ("SUCCESS", {"task_id": "foreign"}, False),
+    ("SUCCESS", {"interrupted_by_revocation": True}, False),
+    ("SUCCESS", {"main_processing_output": None}, False),
+])
+# contract-test: direct surface=rest_api assertions=chats.completion.recovery-takeover
+def test_existing_legacy_result_replay_requires_successful_matching_completion(monkeypatch, state, changed, expected):
+    from datetime import datetime, timezone
+    import celery.result
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler as handler
+
+    response = {"_celery_task_state": "SUCCESS", "task_id": "task",
+                "main_processing_output": "answer", **changed}
+    result = SimpleNamespace(state=state, result=response,
+                             date_done=datetime(2026, 10, 22, 17, 30, tzinfo=timezone.utc))
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=object()))
+    monkeypatch.setattr(celery.result, "AsyncResult", lambda task_id, app: result)
+    replay = handler._read_completed_legacy_response("task")
+    assert (replay is not None) is expected
+    if expected:
+        assert replay == {"content": "answer", "fired_at": int(result.date_done.timestamp())}
+
 
 def test_message_send_forwards_client_embed_ref_index(monkeypatch):
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
@@ -457,7 +608,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -494,7 +645,7 @@ def test_recovery_send_requires_preflight_even_while_another_task_is_active(monk
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=SimpleNamespace(),
@@ -547,7 +698,7 @@ def test_authoritative_epoch_and_chat_read_overlap_before_preflight_rejection(mo
 
     async def run():
         await asyncio.wait_for(message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(), manager=manager,
+            websocket=SimpleNamespace(scope={}), manager=manager,
             cache_service=SimpleNamespace(), directus_service=directus,
             encryption_service=SimpleNamespace(), user_id="user-123",
             device_fingerprint_hash="device-123",
@@ -575,7 +726,7 @@ def test_chat_row_never_authorizes_send_when_epoch_read_fails(monkeypatch):
     )
 
     asyncio.run(message_received_handler.handle_message_received(
-        websocket=SimpleNamespace(), manager=manager,
+        websocket=SimpleNamespace(scope={}), manager=manager,
         cache_service=SimpleNamespace(),
         directus_service=SimpleNamespace(chat=SimpleNamespace(
             get_chat_metadata=metadata, check_chat_ownership=ownership,
@@ -715,7 +866,7 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -876,7 +1027,7 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
 
     asyncio.run(
         asyncio.wait_for(message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -1043,7 +1194,7 @@ def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -1144,7 +1295,7 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,
@@ -1280,7 +1431,7 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
 
     asyncio.run(
         message_received_handler.handle_message_received(
-            websocket=SimpleNamespace(),
+            websocket=SimpleNamespace(scope={}),
             manager=manager,
             cache_service=cache_service,
             directus_service=directus_service,

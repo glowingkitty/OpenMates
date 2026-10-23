@@ -1100,6 +1100,54 @@ async def test_ordinary_exact_broker_retry_reuses_binding_and_changed_config_hol
     assert broker_ids == [task_id, task_id]
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("status,bound", [
+    ("CLAIMED", True), ("COMPLETED", True), ("CANONICAL_PRESENT", False),
+])
+# contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent,operational-monitoring.chat-failures.email-trigger
+async def test_ordinary_claimed_or_completed_retry_acknowledges_without_enqueue(monkeypatch, status, bound):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    import backend.core.api.app.services.chat_recovery_service as recovery_module
+    import backend.core.api.app.services.directus as directus_module
+    import backend.apps.ai.skills.ask_skill as ask_module
+
+    task_id = hashlib.sha256(b"owner:chat:first").hexdigest()
+    request = AskSkillRequest(**_member("first", "first"), legacy_cutover_task_id=task_id)
+    skill = AskSkill.__new__(AskSkill)
+    skill.parsed_default_config = None
+    skill.celery_producer = object()
+    skill.skill_name = "ask"
+    disposition = {"bound": bound, "idempotent": True, "enqueue_allowed": False,
+                   "task_identity": task_id, "status": status}
+    execute = AsyncMock(return_value=disposition)
+    close = AsyncMock()
+    publish = AsyncMock()
+    alert = AsyncMock()
+    monkeypatch.setattr(directus_module, "DirectusService", lambda: SimpleNamespace(close=close))
+    monkeypatch.setattr(recovery_module, "ChatRecoveryService", lambda _: SimpleNamespace(execute=execute))
+    monkeypatch.setattr(ask_skill_task.process_ai_skill_ask_task, "apply_async", publish)
+    monkeypatch.setattr(ask_module, "notify_chat_failure", alert)
+
+    response = await skill._handle_internal_request(request)
+    assert response.task_id == task_id
+    assert response.status == "already_dispatched"
+    publish.assert_not_called()
+    alert.assert_not_awaited()
+    close.assert_awaited_once()
+    assert execute.await_args.args[0] == "bind_ordinary_legacy_dispatch"
+
+    # Missing/changed identity, unknown states and non-idempotent rejections
+    # must remain failures even when no enqueue is permitted.
+    for changed in ({"task_identity": "other"}, {"status": "INVALIDATED"},
+                    {"status": "UNKNOWN"}, {"idempotent": False},
+                    {"enqueue_allowed": None}, {"bound": not bound}):
+        execute.return_value = {**disposition, **changed}
+        with pytest.raises(Exception) as rejected:
+            await skill._handle_internal_request(request)
+        assert rejected.value.status_code == 409
+    publish.assert_not_called()
+
+
 @pytest.mark.parametrize("transformed", ["signed-marker", "resolved-embed"])
 # contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
 def test_recovery_queue_accepts_server_transformed_history_bound_to_committed_raw_turn(monkeypatch, transformed):

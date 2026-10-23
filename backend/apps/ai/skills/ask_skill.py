@@ -520,6 +520,20 @@ class AskSkill(BaseSkill):
                     )
                 finally:
                     await ordinary_directus.close()
+                disposition = ordinary_bound.get("status")
+                if (ordinary_bound.get("idempotent") is True
+                        and ordinary_bound.get("enqueue_allowed") is False
+                        and ordinary_bound.get("task_identity") == request.legacy_cutover_task_id
+                        and ((ordinary_bound.get("bound") is True
+                              and disposition in {"CLAIMED", "COMPLETED"})
+                             or (ordinary_bound.get("bound") is False
+                                 and disposition == "CANONICAL_PRESENT"))):
+                    # Authority and the immutable broker binding were checked
+                    # before recognizing this exact retry. Do not enqueue again.
+                    return AskSkillResponse(
+                        task_id=dispatch_task_id, status="already_dispatched",
+                        message="Existing request acknowledged.",
+                    )
                 if (ordinary_bound.get("bound") is not True
                         or ordinary_bound.get("enqueue_allowed") is not True):
                     raise HTTPException(

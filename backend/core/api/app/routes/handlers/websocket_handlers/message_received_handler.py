@@ -568,6 +568,81 @@ def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
         )
 
 
+def _read_completed_legacy_response(task_id: str) -> Optional[dict[str, Any]]:
+    """Read a result only after durable owner/turn/broker binding verification."""
+    from celery.result import AsyncResult
+    from backend.core.api.app.tasks.celery_config import app
+    from backend.core.api.app.services.chat_recovery_cutover import legacy_completion_requires_persistence
+
+    result = AsyncResult(task_id, app=app)
+    if result.state != "SUCCESS":
+        return None
+    response = result.result
+    if (not legacy_completion_requires_persistence(response)
+            or response.get("task_id") != task_id
+            or not isinstance(response.get("main_processing_output"), str)
+            or not response["main_processing_output"]):
+        return None
+    completed_at = result.date_done
+    return {
+        "content": response["main_processing_output"],
+        "fired_at": int(completed_at.replace(tzinfo=timezone.utc).timestamp())
+        if completed_at else int(time.time()),
+    }
+
+
+async def _reconcile_existing_legacy_turn(
+    *, cache_service: Any, directus_service: Any, manager: Any,
+    user_id: str, device_fingerprint_hash: str, chat_id: str, task_id: str,
+) -> None:
+    """Replay an authorized exact retry without announcing a new AI task."""
+    canonical = await directus_service.chat.get_message_for_chat_by_client_id(chat_id, task_id)
+    if canonical is not None:
+        if (canonical.get("role") != "assistant"
+                or canonical.get("chat_id") != chat_id
+                or canonical.get("hashed_user_id") != hash_id(user_id)
+                or canonical.get("message_id") != task_id):
+            raise RuntimeError("Existing legacy response identity is inconsistent")
+        # Deliver the exact ciphertext, including an older or oversized answer
+        # that would be absent from the chat's latest bounded sync window.
+        await manager.send_personal_message(
+            {"type": "chat_content_batch_response", "payload": {
+                "messages_by_chat_id": {chat_id: [json.dumps({**canonical, "status": "synced"})]},
+            }}, user_id, device_fingerprint_hash,
+        )
+    else:
+        response = await asyncio.to_thread(_read_completed_legacy_response, task_id)
+        if response is None:
+            from backend.core.api.app.routes.handlers.websocket_handlers.active_chat_handler import ai_stream_snapshot_cache_key
+            snapshot = await cache_service.get(ai_stream_snapshot_cache_key(chat_id))
+            if (isinstance(snapshot, dict)
+                    and snapshot.get("user_id_uuid") == user_id
+                    and snapshot.get("chat_id") == chat_id
+                    and snapshot.get("message_id") == task_id
+                    and not snapshot.get("external_request")
+                    and not snapshot.get("is_final_chunk")):
+                await manager.send_personal_message(
+                    {"type": "ai_message_update", "payload": snapshot},
+                    user_id, device_fingerprint_hash,
+                )
+            return
+        await manager.send_personal_message(
+            {"type": "pending_ai_response", "payload": {
+                "type": "ai_response", "chat_id": chat_id, "message_id": task_id,
+                "user_id": user_id, **response,
+            }}, user_id, device_fingerprint_hash,
+        )
+
+    # A retry can recreate an expired Redis marker after completion. Never
+    # release a newer turn's claim while reconciling this completed identity.
+    await cache_service.clear_active_ai_task_if_matches(chat_id, task_id)
+    for event in ("ai_message_ready", "ai_typing_ended"):
+        await manager.send_personal_message(
+            {"type": event, "payload": {"chat_id": chat_id, "message_id": task_id}},
+            user_id, device_fingerprint_hash,
+        )
+
+
 async def _settle_failed_first_claim(
     *, cache_service, directus_service, manager, chat_id: str, task_id: str,
     device_fingerprint_hash: str, known_not_dispatched: bool,
@@ -3072,6 +3147,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if ai_task_id:
                 if fresh_task_claim_id and ai_task_id != fresh_task_claim_id:
                     raise RuntimeError("AI dispatcher returned a task ID that differs from the chat claim")
+                if response_data.get("status") == "already_dispatched":
+                    if (is_incognito or recovery_enqueue_result
+                            or ai_request_payload.legacy_cutover_task_id != ai_task_id):
+                        raise RuntimeError("Existing dispatch does not match the admitted legacy turn")
+                    await _reconcile_existing_legacy_turn(
+                        cache_service=cache_service, directus_service=directus_service,
+                        manager=manager, user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        chat_id=chat_id, task_id=ai_task_id,
+                    )
+                    return
                 if recovery_enqueue_result:
                     expected_task_id = recovery_enqueue_result["inference_task_id"]
                     if ai_task_id != expected_task_id:

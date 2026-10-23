@@ -12,7 +12,7 @@ const { email, password, otpKey } = getTestAccount();
 const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
 skipWithoutCredentials(test, email, password, otpKey);
 
-// contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+// contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent,operational-monitoring.chat-failures.email-trigger
 test('epoch-zero first chat survives reload and a follow-up with Projects disabled', async ({ page }: { page: any }, testInfo: any) => {
 	test.setTimeout(180_000);
 	const projectRequests: string[] = [];
@@ -20,6 +20,10 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 	const acknowledgements: Array<Record<string, any>> = [];
 	const errors: Array<Record<string, any>> = [];
 	const viewed: Array<Record<string, any>> = [];
+	const initiated: Array<Record<string, any>> = [];
+	const ready: Array<Record<string, any>> = [];
+	const wireByTurn = new Map<string, Array<string | Buffer>>();
+	let repeatTurn: ((turnId: string) => void) | undefined;
 	// Force a real recovery scan while the first ordinary send has returned
 	// from frame dispatch but is still awaiting its exact admission/context ACKs.
 	let releaseAdmission: (() => void) | undefined;
@@ -37,6 +41,8 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 				const frame = JSON.parse(String(message));
 				if (frame.type === 'chat_turn_preflight_ack') acknowledgements.push(frame.payload ?? {});
 				if (frame.type === 'error') errors.push(frame.payload ?? {});
+				if (frame.type === 'ai_task_initiated') initiated.push(frame.payload ?? {});
+				if (frame.type === 'ai_message_ready') ready.push(frame.payload ?? {});
 			} catch { /* Control frame. */ }
 			socket.send(message);
 		});
@@ -47,6 +53,15 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 			// Observe the real client frame here, including the held admission.
 			if (frame?.type === 'chat_turn_admit') admissionFrames.push(frame.payload ?? {});
 			if (frame?.type === 'chat_message_viewed') viewed.push(frame.payload ?? {});
+			if (frame?.type === 'chat_turn_admit') wireByTurn.set(frame.payload.turn_id, []);
+			if (frame?.payload?.turn_id && ['chat_turn_admit', 'chat_turn_context_ready'].includes(frame.type)) {
+				wireByTurn.get(frame.payload.turn_id)?.push(message);
+			}
+			repeatTurn = (turnId: string) => {
+				const wire = wireByTurn.get(turnId);
+				expect(wire?.length, 'Replay the original admission and context frames').toBeGreaterThan(0);
+				for (const original of wire!) server.send(original);
+			};
 			if (!injectedOverlap && frame?.type === 'chat_turn_admit') {
 				injectedOverlap = true;
 				releaseAdmission = () => server.send(message);
@@ -142,6 +157,22 @@ test('epoch-zero first chat survives reload and a follow-up with Projects disabl
 			&& users.filter((row) => row.message_id === firstMessageId).length === 1
 			&& users.every((row) => typeof row.encrypted_content === 'string' && row.encrypted_content.length > 0);
 	}, { timeout: 30_000, message: 'Follow-up must add one canonical encrypted user row' }).toBe(true);
+	// Replay the completed follow-up's real admission/context wire. Unlike an
+	// epoch-zero first turn, this includes the client's frozen prior history.
+	await expect.poll(async () => (await canonicalWindow()).messages.filter((row) => row.role === 'assistant').length,
+		{ timeout: 30_000, message: 'Both assistant responses must be canonical before the exact resend' }).toBe(2);
+	const second = admissionFrames[1];
+	const originalTask = initiated.find((frame) => frame.user_message_id === second.message_id)?.ai_task_id;
+	expect(originalTask).toBeTruthy();
+	expect(repeatTurn).toBeDefined();
+	const readyBeforeRetry = ready.length;
+	repeatTurn!(second.turn_id);
+	await expect.poll(() => ready.slice(readyBeforeRetry).some((frame) => frame.message_id === originalTask),
+		{ timeout: 30_000, message: 'Exact completed resend must reconcile the original response' }).toBe(true);
+	expect(initiated.filter((frame) => frame.user_message_id === second.message_id),
+		'A completed resend must not restart the processing indicator').toHaveLength(1);
+	expect((await canonicalWindow()).messages.filter((row) => row.role === 'assistant')).toHaveLength(2);
+	expect(errors.filter((frame) => frame.user_message_id === second.message_id || frame.message_id === second.message_id)).toHaveLength(0);
 	await testInfo.attach('admission-identities', { contentType: 'application/json', body: JSON.stringify({
 		admissions: admissionFrames.map(({ chat_id, turn_id, message_id, expected_messages_v }) =>
 			({ chat_id, turn_id, message_id, expected_messages_v })),
