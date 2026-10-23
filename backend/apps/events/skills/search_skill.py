@@ -164,9 +164,9 @@ _FINALIST_ENRICHMENT_DEADLINE_SECONDS = 2.0
 # search contracts do not require a city or coordinates.
 _LOCATION_FREE_ONLINE_PROVIDERS = {"eventbrite"}
 
-# Jev's events rubric assigns 1 to a weak but defensible relationship. Results
-# below that floor are omitted instead of padding the response with unrelated
-# events. Ranking failures still use the deterministic unfiltered fallback.
+# Jev's event rubrics assign 1 to a weak but defensible topic relationship.
+# Use the same floor for topic filtering and optional goal ranking; failures
+# retain the deterministic provider order.
 _MIN_EVENT_RELEVANCE_SCORE = 1.0
 
 _EVENT_TITLE_DEDUP_STOPWORDS = frozenset({
@@ -238,7 +238,8 @@ class SearchRequestItem(BaseModel):
             "Optional concise natural-language event-selection goal used to rank a larger "
             "candidate pool. Populate it when the user states a material purpose such as "
             "networking, promoting a product, or finding future speaking opportunities; "
-            "omit it for a plain event search and never invent preferences."
+            "omit it for a plain event search and never invent preferences. "
+            "The query topic is checked even when this optional goal is omitted."
         ),
     )
     provider: Optional[str] = Field(
@@ -1219,7 +1220,8 @@ class SearchSkill(BaseSkill):
         if not conference:
             conference = pretalx_provider.resolve_conference(str(provider_hint))
 
-        query = req.get("query") or req.get("q") or conference
+        explicit_query = req.get("query") or req.get("q")
+        query = explicit_query or conference
         if not query:
             return (request_id, [], "Missing 'query' parameter", 0, [])
         relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
@@ -1235,6 +1237,15 @@ class SearchSkill(BaseSkill):
                     query, sanitized,
                 )
             query = sanitized
+
+        # Provider keyword searches can return unrelated events. Validate the
+        # stated topic even without an additional user goal. A conference-only
+        # schedule (including a repeated conference ID) has no separate topic.
+        topic_criteria = None
+        if explicit_query and sanitized and (
+            not conference or sanitized.casefold() != conference.casefold()
+        ):
+            topic_criteria = f"Events about {sanitized}"[:MAX_RELEVANCE_CRITERIA_CHARS]
 
         # --- Provider selection ---
         # Support both new per-request 'providers' array and legacy 'provider' string.
@@ -1697,11 +1708,18 @@ class SearchSkill(BaseSkill):
                 quality_metadata.get("filtered_out_count", 0) + duplicate_count
             )
             quality_metadata.setdefault("applied_filters", []).append("semantic_deduplication")
-        if relevance_criteria:
+        if relevance_criteria or topic_criteria:
+            # Plain searches keep their existing provider fetch budget. Only
+            # inspect the bounded pool already retrieved, without inventing a
+            # purpose or expanding provider work for optional goal ranking.
+            selection_target = (
+                candidate_target if relevance_criteria else relevance_candidate_target(count)
+            )
             results = stable_deduplicate_candidates(
                 results,
                 key=self._relevance_deduplication_key,
-            )[:candidate_target]
+            )[:selection_target]
+            provider_order = list(results)
             projections = []
             for result in results:
                 projections.append({
@@ -1720,7 +1738,7 @@ class SearchSkill(BaseSkill):
             ranking = await rank_search_candidates(
                 candidates=results,
                 candidate_projections=projections,
-                relevance_criteria=relevance_criteria,
+                relevance_criteria=relevance_criteria or topic_criteria,
                 search_parameters={
                     "query": query,
                     "location": luma_city,
@@ -1731,7 +1749,7 @@ class SearchSkill(BaseSkill):
                     "conference": conference,
                     "providers": searched_provider_ids,
                 },
-                profile="events",
+                profile="events" if relevance_criteria else "events_topic",
                 secrets_manager=secrets_manager,
             )
             results = ranking.candidates
@@ -1742,6 +1760,11 @@ class SearchSkill(BaseSkill):
                     for result, score in scored_results
                     if score >= _MIN_EVENT_RELEVANCE_SCORE
                 ]
+                if not relevance_criteria:
+                    # Scores gate topic membership only. A neutral search does
+                    # not acquire preference-based ordering from this decision.
+                    retained = {id(result) for result in results}
+                    results = [result for result in provider_order if id(result) in retained]
                 omitted_count = len(scored_results) - len(results)
                 if omitted_count:
                     quality_metadata["filtered_out_count"] = (

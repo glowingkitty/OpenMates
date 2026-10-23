@@ -83,7 +83,8 @@ def test_events_profile_requires_query_topic_fit_and_defensible_relevance() -> N
 
     assert "search_parameters.query" in profile.instructions
     assert "weak but defensible" in profile.instructions
-    assert "neither relationship" in profile.instructions
+    assert "even if" in profile.instructions
+    assert "generic goal such as networking" in profile.instructions
     assert profile.criteria[0].startswith("No credible relationship")
 
 

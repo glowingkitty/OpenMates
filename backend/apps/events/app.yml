@@ -109,6 +109,8 @@ skills:
       "Berlin", and relevance_criteria "Events where I can promote my AI software, network with
       potential users, and potentially give a future talk." Omit relevance_criteria only for a
       neutral event search fully expressed by query and structured fields; never invent a goal.
+      The skill checks topic relevance even when relevance_criteria is omitted, preserving
+      provider order among retained events. relevance_criteria adds purpose-based ranking.
       Always limit results to 10 (default) unless the user explicitly requests more.
       Do NOT retry with broader or alternative queries if results are empty or if there is a provider error.
       Do NOT fall back to web.search after this skill returns an error — report the
@@ -295,6 +297,8 @@ skills:
                   candidates (or the larger requested count) are scored against both the event topic
                   and this goal. Results with no credible relationship are omitted, so fewer than
                   count can be returned rather than padding the response with irrelevant events.
+                  When omitted, the query topic is still checked without expanding provider
+                  retrieval or changing the order of retained events.
               provider:
                 x-ui:
                   basic: false

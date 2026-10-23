@@ -15,6 +15,8 @@
 #   /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_rest_api_events.py
 
 import time
+import os
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -27,6 +29,40 @@ _BERLIN_LAT = 52.52
 _BERLIN_LON = 13.405
 _QUERY = "tech"  # platform-neutral; both Meetup and Luma return ~25 results
 _COUNT = 10  # auto mode fetches 2x per provider; enough headroom for both to appear
+
+
+# contract-test: direct surface=rest_api assertions=events-search.relevance.activation,events-search.relevance.evidence-ranking,events-search.results.actionable
+@pytest.mark.integration
+@pytest.mark.skipif(bool(os.getenv("CI")), reason="Real event-topic/Jev quality check runs on dev only")
+def test_execute_skill_events_topic_without_optional_goal(api_client):
+    """Exercise the real REST/provider/topic-selection path without an invented goal.
+
+    Use an isolated dev test account API key. Deterministic rejection and ordering
+    cases live in test_events_topic_relevance.py; this check verifies real wiring
+    and explicit topical evidence, without calling an assistant or choosing a model.
+    """
+    payload = _build_payload(provider="auto", count=5)
+    request = payload["requests"][0]
+    request.update(id="events-topic-without-goal", query="AI")
+    assert "relevance_criteria" not in request
+
+    response = api_client.post("/v1/apps/events/skills/search", json=payload, timeout=60.0)
+    assert response.status_code == 200
+    envelope = response.json()
+    assert envelope["success"] is True
+    groups = envelope["data"]["results"]
+    assert len(groups) == 1
+    group = groups[0]
+    assert not group.get("error")
+    events = group["results"]
+    assert 0 < len(events) <= 5
+    for event in events:
+        assert event.get("title") and event.get("url") and event.get("date_start")
+        assert event["provider"] in {"meetup", "luma", "eventbrite"}
+    assert any(re.search(
+        r"\b(?:AI|artificial intelligence|machine learning|LLMs?|deep learning)\b",
+        f"{event.get('title', '')} {event.get('description', '')}", re.IGNORECASE,
+    ) for event in events), "Real retained events must contain explicit evidence for the AI topic"
 
 # ── Rate-limit guard ──────────────────────────────────────────────────────────
 
@@ -80,6 +116,7 @@ def _assert_event_shape(event: dict, provider_label: str) -> None:
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.auto-relevance,events-search.results.actionable,events-search.surface-parity
 @pytest.mark.integration
 def test_execute_skill_events_search_auto(api_client):
     """
@@ -144,6 +181,7 @@ def test_execute_skill_events_search_auto(api_client):
         )
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.results.actionable,events-search.surface-parity
 @pytest.mark.integration
 def test_execute_skill_events_search_meetup_only(api_client):
     """
@@ -189,6 +227,7 @@ def test_execute_skill_events_search_meetup_only(api_client):
         print(f"  [{i + 1}] {ev.get('title')} | {ev.get('date_start', '')[:10]}")
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.results.actionable,events-search.surface-parity
 @pytest.mark.integration
 def test_execute_skill_events_search_luma_only(api_client):
     """
