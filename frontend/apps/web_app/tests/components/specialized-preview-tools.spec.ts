@@ -174,6 +174,22 @@ for (const { width, isMobile } of [{ width: 390, isMobile: false }, { width: 128
       expect(geometry.bodyTop).toBeGreaterThanOrEqual(geometry.identityBottom - 1);
       expect(geometry.bodyBottom).toBeLessThanOrEqual(geometry.bottom + 1);
       expect(geometry.bottom - geometry.bodyBottom).toBeLessThanOrEqual(16);
+      if (entry.path.startsWith('code/')) {
+        const glyph = await card.locator('code').first().evaluate(element => {
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+          let text = walker.nextNode();
+          while (text && !text.textContent?.trim()) text = walker.nextNode();
+          if (!text) throw new Error('Code preview has no rendered text');
+          const range = document.createRange();
+          range.setStart(text, 0); range.setEnd(text, 1);
+          const bounds = range.getBoundingClientRect();
+          const hit = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+          const card = element.closest('[data-testid="embed-preview"]')!.getBoundingClientRect();
+          return { visible: !!hit && element.contains(hit), bottomGap: card.bottom - bounds.bottom };
+        });
+        expect(glyph.visible, 'The first code character must clear the rounded card clipping').toBe(true);
+        expect(glyph.bottomGap).toBeGreaterThanOrEqual(10);
+      }
       await expect(card.locator('.result-corner')).toBeVisible();
       await expect(card.getByTestId('result-preview-more')).toBeVisible();
       await expect(card.getByTestId('result-preview-expand')).toBeVisible();

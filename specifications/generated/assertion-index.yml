@@ -89257,7 +89257,7 @@ assertions:
       surface: gui.web
     - &id11448
       path: frontend/apps/web_app/tests/components/specialized-preview-tools.spec.ts
-      line: 187
+      line: 203
       name: real short code groups shrink active carousel flow and keep corner navigation
         clear at ${width}
       surface: gui.web
@@ -93018,7 +93018,7 @@ assertions:
       surface: gui.web
     - &id11946
       path: frontend/apps/web_app/tests/components/specialized-preview-tools.spec.ts
-      line: 187
+      line: 203
       name: real short code groups shrink active carousel flow and keep corner navigation
         clear at ${width}
       surface: gui.web

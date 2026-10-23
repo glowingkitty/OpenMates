@@ -488,8 +488,8 @@
   
   .code-preview {
     margin: 0;
-    /* Top padding gives first line breathing room from the card edge */
-    padding: 0.75rem 0 0 0;
+    /* Short snippets must clear the rounded bottom corners as well as the header. */
+    padding: 0.75rem 0;
     font-size: 0.75rem;
     line-height: 1.5;
     overflow: hidden;
@@ -746,7 +746,7 @@
     font-size: 0.8rem;
     line-height: 1.5;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    padding-top: 1rem;
+    padding-block: 1rem 0.75rem;
   }
 
   /* Each line: gutter number on left, code text on right */
