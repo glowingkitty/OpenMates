@@ -10,7 +10,7 @@ httpx==0.28.1
 aiohttp==3.14.3
 
 # Brotli decompression support (for Accept-Encoding: br)
-brotli==1.2.0
+brotli==1.2.1
 
 # HTML parsing for Open Graph metadata extraction
 beautifulsoup4==4.12.3
