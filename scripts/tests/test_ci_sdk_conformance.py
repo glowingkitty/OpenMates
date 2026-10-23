@@ -500,3 +500,96 @@ def test_driver_stream_metadata_survives_only_as_bounded_counts_and_digests(tmp_
             assert actual[key] == output[key]
     assert "never-export" not in json.dumps(actual)
     assert "stdout" not in actual and "stderr" not in actual
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (b"ERR_PNPM_OUTDATED_LOCKFILE frozen file contains never-export-token", {"pnpm": ["ERR_PNPM_OUTDATED_LOCKFILE"]}),
+    (b"npm error code ENOENT\nnpm error path /private/never-export-token", {"npm": ["ENOENT"]}),
+    (b"frontend/packages/ui prepare: npm error code ENOENT\nnever-export-token", {"npm": ["ENOENT"]}),
+    (b"frontend/packages/ui prepare: sh: 1: npm: not found\nnever-export-token", {"npmCommandMissing": True}),
+    (b"Internal Error: Cannot find matching keyid: never-export-signature", {"corepack": ["corepack_signature_key_missing"]}),
+    (b"sh: 1: npm: not found\nELIFECYCLE command failed", {"npmCommandMissing": True}),
+    (b"ERR_PNPM_NEVER_EXPORT_SECRET\nnpm error code NEVER_EXPORT_SECRET\nnever-export-token", {"classification": "unclassified"}),
+])
+def test_package_setup_diagnostics_use_finite_identifiers_only(raw, expected):
+    actual = sdk.package_diagnostics(raw)
+    for key, value in expected.items():
+        assert actual[key] == value
+    assert "never-export" not in json.dumps(actual).lower()
+    assert "NEVER_EXPORT" not in json.dumps(actual)
+    assert "/private" not in json.dumps(actual)
+
+
+def test_command_fingerprint_exposes_no_private_argv_or_home(tmp_path):
+    executable = tmp_path / "pnpm"
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o700)
+    command = [str(executable), "install", "--frozen-lockfile", "never-export-synthetic-token"]
+    actual = sdk.command_identity("node-dependencies", command, {"PATH": os.defpath})
+    assert actual["tool"] == "pnpm" and actual["executableKind"] == "script"
+    assert actual["argvSha256"] == sdk.sha(json.dumps(command, separators=(",", ":")).encode())
+    assert actual["executableSha256"] == sdk.sha(executable.read_bytes())
+    assert str(tmp_path) not in json.dumps(actual) and "never-export" not in json.dumps(actual)
+
+
+def test_workspace_lifecycle_can_find_managed_npm_without_inheriting_user_state(tmp_path, monkeypatch):
+    managed = tmp_path / "managed-node-bin"
+    pinned = tmp_path / "attested-node-bin"
+    package_manager = tmp_path / "pnpm-action-bin"
+    empty = tmp_path / "empty-system-bin"
+    home = tmp_path / "private-home"
+    for directory in (managed, pinned, package_manager, empty, home):
+        directory.mkdir(mode=0o700)
+    scripts = {
+        managed / "npm": "#!/bin/sh\n[ \"$HOME\" = \"$INERT_PRIVATE_HOME\" ] || exit 99\nnode\nprintf 'managed-npm-used\\n'\n",
+        managed / "node": "#!/bin/sh\nprintf 'unattested-node-wrong\\n'\n",
+        pinned / "node": "#!/bin/sh\nprintf 'attested-node-used\\n'\n",
+        package_manager / "pnpm": "#!/bin/sh\nexec /bin/sh -c 'npm run synthetic-workspace-prepare'\n",
+    }
+    for path, content in scripts.items():
+        path.write_text(content)
+        path.chmod(0o700)
+    monkeypatch.setattr(sdk.os, "defpath", str(empty))
+    # This reproduces the former builder's directory choices without calling a
+    # real package manager, Node, network or any product program.
+    old_path = os.pathsep.join((str(pinned), str(package_manager), str(Path(sys.executable).parent), str(empty)))
+    env = {"PATH": old_path, "HOME": str(home), "INERT_PRIVATE_HOME": str(home)}
+    before = subprocess.run([str(package_manager / "pnpm"), "install", "--frozen-lockfile"],
+                            env=env, capture_output=True, timeout=2)
+    assert before.returncode == 127
+    assert sdk.package_diagnostics(before.stderr)["npmCommandMissing"] is True
+    env["PATH"] = sdk.tool_search_path(pinned / "node", package_manager / "rustup",
+                                        package_manager / "pnpm", managed / "npm", Path(sys.executable))
+    after = subprocess.run([str(package_manager / "pnpm"), "install", "--frozen-lockfile"],
+                           env=env, capture_output=True, timeout=2)
+    assert after.returncode == 0
+    assert after.stdout == b"attested-node-used\nmanaged-npm-used\n"
+    assert not after.stderr
+    assert env["HOME"] == str(home)
+
+
+def test_setup_failure_projection_keeps_only_closed_manager_codes(tmp_path):
+    private = tmp_path / "ci-private/sdk-synthetic"
+    private.mkdir(parents=True, mode=0o700)
+    (private / "node-dependencies.log").write_bytes(
+        b"ERR_PNPM_UNSUPPORTED_ENGINE https://private.invalid/?token=never-export-token\n"
+        b"npm error code EBADENGINE\n")
+    result = sdk.failure_diagnostics(private, tmp_path, "node-dependencies", {}, [])
+    assert result["packageManager"]["pnpm"] == ["ERR_PNPM_UNSUPPORTED_ENGINE"]
+    assert result["packageManager"]["npm"] == ["EBADENGINE"]
+    assert "https://" not in json.dumps(result) and "never-export" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("version,expected", [("10.23.0", {"name": "pnpm", "version": "10.23.0"}),
+                                               ("10.23.0-never-export-secret", None)])
+def test_command_entry_package_metadata_is_closed_and_not_a_runtime_version_claim(tmp_path, version, expected):
+    directory = tmp_path / "managed-pnpm"
+    (directory / "bin").mkdir(parents=True)
+    executable = directory / "bin/pnpm"
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o700)
+    (directory / "package.json").write_text(json.dumps({"name": "pnpm", "version": version,
+                                                       "private": "never-export-secret"}))
+    result = sdk.command_identity("node-dependencies", [str(executable), "install", "--frozen-lockfile"], {"PATH": os.defpath})
+    assert result["entryPackage"] == expected
+    assert "never-export" not in json.dumps(result)

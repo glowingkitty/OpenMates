@@ -31,7 +31,7 @@ INPUTS = ("packages/openmates-rust", "packages/openmates-session-bindings", "pac
           "frontend/packages/openmates-cli", "backend/apps", "tests/sdk-conformance", "config/sdk-capabilities.json",
           "config/sdk-capabilities.schema.json", "scripts/check_sdk_conformance.py", "scripts/build_sdk_native.py",
           "scripts/sdk_rust_inventory.py", "scripts/generate_sdk_app_skills.py", "scripts/generate_rust_sdk_apps.py",
-          "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json", ".cargo", "rust-toolchain.toml",
+          "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json", ".npmrc", ".pnpmfile.cjs", ".pnpmfile.mjs", ".cargo", "rust-toolchain.toml",
           "frontend/packages/pairing-crypto", "frontend/packages/upload-privacy", "shared/config", *LOCKS)
 
 
@@ -175,6 +175,92 @@ def artifact(path):
             "mtimeNs": info.st_mtime_ns, "ctimeNs": info.st_ctime_ns, "elf": "linux-x64"}
 
 
+
+# Finite source-owned identifiers only. Never export arbitrary matched ERR_* text.
+PACKAGE_ERROR_IDS = frozenset({
+    "ERR_PNPM_OUTDATED_LOCKFILE", "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH", "ERR_PNPM_NO_LOCKFILE",
+    "ERR_PNPM_BROKEN_LOCKFILE", "ERR_PNPM_LOCKFILE_MISSING_DEPENDENCY", "ERR_PNPM_UNSUPPORTED_ENGINE",
+    "ERR_PNPM_NO_MATCHING_VERSION", "ERR_PNPM_NO_MATCHING_VERSION_INSIDE_WORKSPACE",
+    "ERR_PNPM_FETCH_401", "ERR_PNPM_FETCH_403", "ERR_PNPM_FETCH_404", "ERR_PNPM_FETCH_429",
+    "ERR_PNPM_FETCH_500", "ERR_PNPM_FETCH_502", "ERR_PNPM_FETCH_503", "ERR_PNPM_META_FETCH_FAIL",
+    "ERR_PNPM_TARBALL_INTEGRITY", "ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL", "ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL",
+    "ERR_PNPM_RECURSIVE_INSTALL_FAIL", "ERR_PNPM_BAD_PM_VERSION", "ERR_PNPM_PACKAGE_MANAGER_STRICT",
+    "ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY", "ERR_PNPM_UNEXPECTED_STORE", "ERR_PNPM_UNEXPECTED_VIRTUAL_STORE",
+    "ERR_PNPM_INCLUDED_DEPS_CONFLICT", "ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND", "ERR_PNPM_WORKSPACE_PKG_NOT_FOUND",
+    "ERR_PNPM_PATCH_NOT_APPLIED", "ERR_PNPM_PEER_DEP_ISSUES", "ERR_PNPM_IGNORED_BUILDS", "ELIFECYCLE",
+})
+NPM_ERROR_IDS = frozenset({"ENOENT", "EACCES", "EPERM", "ENOTEMPTY", "ECONNRESET", "ETIMEDOUT",
+    "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENOSPC", "EBADENGINE", "EINTEGRITY", "ELOCKVERIFY",
+    "EUSAGE", "ERESOLVE", "E401", "E403", "E404", "E429", "E500", "E502", "E503", "ELIFECYCLE"})
+COREPACK_SIGNATURES = {
+    "Cannot find matching keyid": "corepack_signature_key_missing",
+    "Signature does not match": "corepack_signature_invalid",
+    "Invalid package manager specification": "corepack_package_manager_invalid",
+    "This project is configured to use": "corepack_package_manager_mismatch",
+}
+
+
+def package_diagnostics(data):
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", data[-65536:].decode("utf-8", errors="replace"))
+    observed = set(re.findall(r"(?<![A-Z0-9_])(ERR_PNPM_[A-Z0-9_]+|ELIFECYCLE)(?![A-Z0-9_])", text))
+    pnpm = sorted(observed.intersection(PACKAGE_ERROR_IDS))
+    npm = sorted(set(re.findall(r"(?im)(?:^|: )npm (?:ERR!|error) code ([A-Z0-9_]+)\s*$", text)).intersection(NPM_ERROR_IDS))
+    corepack = sorted(value for signature, value in COREPACK_SIGNATURES.items() if signature in text)
+    if "Error when performing the request" in text and "nodejs/corepack#troubleshooting" in text:
+        corepack.append("corepack_network_request_failed")
+    missing_npm = bool(re.search(r"(?m)(?:^|: )(?:/bin/sh|sh): (?:[0-9]+: )?npm: (?:not found|command not found)\s*$", text))
+    return {"pnpm": pnpm, "npm": npm, "corepack": corepack, "npmCommandMissing": missing_npm,
+            "classification": "recognized" if pnpm or npm or corepack or missing_npm else "unclassified"}
+
+
+def tool_search_path(node, rustup, pnpm, npm, python):
+    directories = [str(Path(value).parent) for value in (node, rustup, pnpm, npm, python)]
+    return os.pathsep.join(dict.fromkeys([*directories, *os.defpath.split(os.pathsep)]))
+
+
+def command_identity(stage, command, env):
+    """Exact argv/entry digests and closed tool label, without args or private paths."""
+    require(command and all(isinstance(value, str) for value in command), "command_identity")
+    selected = command[0] if Path(command[0]).is_absolute() else shutil.which(command[0], path=env["PATH"])
+    require(selected, "command_executable_missing")
+    executable = Path(selected).resolve()
+    digest = hashlib.sha256()
+    with os.fdopen(os.open(executable, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+        before = os.fstat(stream.fileno())
+        require(stat.S_ISREG(before.st_mode) and before.st_uid in (0, os.getuid())
+                and not before.st_mode & 0o002 and before.st_size <= 256 * 1024**2, "command_executable_identity")
+        prefix = stream.read(4)
+        digest.update(prefix)
+        size = len(prefix)
+        while chunk := stream.read(128 * 1024):
+            size += len(chunk)
+            require(size <= 256 * 1024**2, "command_executable_bound")
+            digest.update(chunk)
+        fields = ("st_dev", "st_ino", "st_size", "st_mode", "st_uid", "st_gid", "st_nlink", "st_mtime_ns", "st_ctime_ns")
+        def identity(value):
+            return tuple(getattr(value, key) for key in fields)
+        require(identity(before) == identity(os.fstat(stream.fileno())) == identity(executable.lstat()), "command_executable_changed")
+    tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
+             "binding-library-units": "cargo", "napi-load": "node"}
+    tool = tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
+                     "python-binding-build", "python-load", "real-conformance"} else "other")
+    result = {"tool": tool, "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
+              "executableSha256": digest.hexdigest(), "executableBytes": size,
+              "executableKind": "elf" if prefix == b"\x7fELF" else "script" if prefix.startswith(b"#!") else "regular",
+              "entryPackage": None}
+    for directory in list(executable.parents)[:3]:
+        package = directory / "package.json"
+        try:
+            info = json.loads(regular(package, 65536))
+        except (OSError, ValueError, Refused):
+            continue
+        if (isinstance(info, dict) and info.get("name") in {"pnpm", "npm", "corepack"}
+                and isinstance(info.get("version"), str) and re.fullmatch(r"[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}", info["version"])):
+            result["entryPackage"] = {"name": info["name"], "version": info["version"]}
+            break
+    return result
+
+
 def terminate(child):
     # Every stage owns a fresh process group; includes Cargo, gate and fixture peers.
     try:
@@ -207,7 +293,7 @@ class Commands:
     def run(self, stage, command, *, seconds=900):
         self.check()
         began = time.monotonic()
-        record = {"stage": stage, "status": "failed"}
+        record = {"stage": stage, "status": "failed", "command": command_identity(stage, command, self.env)}
         self.steps.append(record)
         with (self.private / (stage + ".log")).open("xb") as log:
             os.fchmod(log.fileno(), 0o600)
@@ -345,6 +431,8 @@ def failure_diagnostics(private, root, stage, inputs, plan):
         report["privateRetained"] = {"bytes": len(data), "sha256": sha(data),
                                      "truncated": info.st_size > len(data), "lifetime": "isolated-runner-only"}
         report["compiler"] = compiler_diagnostics(data, root, inputs)
+        if stage in {"node-dependencies", "sdk-facade-build"}:
+            report["packageManager"] = package_diagnostics(data)
         if stage in {"napi-load", "python-load"}:
             text = data[-65536:].decode("utf-8", errors="replace")
             names = {"ImportError": "import_error", "ModuleNotFoundError": "module_missing",
@@ -444,10 +532,10 @@ def run(root, results, node, *, verify_node, environ=None):
             home.mkdir(mode=0o700)
             temporary_files = private / "tmp"
             temporary_files.mkdir(mode=0o700)
-            rustup, pnpm = shutil.which("rustup"), shutil.which("pnpm")
+            rustup, pnpm, npm = shutil.which("rustup"), shutil.which("pnpm"), shutil.which("npm")
             require(rustup and pnpm, "setup_tools_missing")
-            search_path = os.pathsep.join((str(Path(node).parent), str(Path(rustup).parent),
-                                           str(Path(pnpm).parent), str(Path(sys.executable).parent), os.defpath))
+            require(npm, "npm_setup_missing")
+            search_path = tool_search_path(node, rustup, pnpm, npm, sys.executable)
             env = {"PATH": search_path, "TMPDIR": str(temporary_files),
                    "OPENMATES_STATE_DIR": str(home / "state"),
                    "HOME": str(home), "LANG": "C.UTF-8", "CI": "true", "GITHUB_ACTIONS": "true",
