@@ -538,7 +538,8 @@ def test_workspace_lifecycle_can_find_managed_npm_without_inheriting_user_state(
     package_manager = tmp_path / "pnpm-action-bin"
     empty = tmp_path / "empty-system-bin"
     home = tmp_path / "private-home"
-    for directory in (managed, pinned, package_manager, empty, home):
+    python_bin = tmp_path / "empty-python-bin"
+    for directory in (managed, pinned, package_manager, empty, home, python_bin):
         directory.mkdir(mode=0o700)
     scripts = {
         managed / "npm": "#!/bin/sh\n[ \"$HOME\" = \"$INERT_PRIVATE_HOME\" ] || exit 99\nnode\nprintf 'managed-npm-used\\n'\n",
@@ -552,14 +553,14 @@ def test_workspace_lifecycle_can_find_managed_npm_without_inheriting_user_state(
     monkeypatch.setattr(sdk.os, "defpath", str(empty))
     # This reproduces the former builder's directory choices without calling a
     # real package manager, Node, network or any product program.
-    old_path = os.pathsep.join((str(pinned), str(package_manager), str(Path(sys.executable).parent), str(empty)))
+    old_path = os.pathsep.join((str(pinned), str(package_manager), str(python_bin), str(empty)))
     env = {"PATH": old_path, "HOME": str(home), "INERT_PRIVATE_HOME": str(home)}
     before = subprocess.run([str(package_manager / "pnpm"), "install", "--frozen-lockfile"],
                             env=env, capture_output=True, timeout=2)
     assert before.returncode == 127
     assert sdk.package_diagnostics(before.stderr)["npmCommandMissing"] is True
     env["PATH"] = sdk.tool_search_path(pinned / "node", package_manager / "rustup",
-                                        package_manager / "pnpm", managed / "npm", Path(sys.executable))
+                                        package_manager / "pnpm", managed / "npm", python_bin / "python")
     after = subprocess.run([str(package_manager / "pnpm"), "install", "--frozen-lockfile"],
                            env=env, capture_output=True, timeout=2)
     assert after.returncode == 0
@@ -593,3 +594,106 @@ def test_command_entry_package_metadata_is_closed_and_not_a_runtime_version_clai
     result = sdk.command_identity("node-dependencies", [str(executable), "install", "--frozen-lockfile"], {"PATH": os.defpath})
     assert result["entryPackage"] == expected
     assert "never-export" not in json.dumps(result)
+
+
+def test_readonly_running_python_and_venv_alias_identities_match_kernel():
+    # Metadata/hash reads only; no SDK/product/package-manager call.
+    aliases = [Path(sys.executable)]
+    if Path("/tmp/rust-tui-sdk-python-venv/bin/python").exists():
+        aliases.append(Path("/tmp/rust-tui-sdk-python-venv/bin/python"))
+    receipts = [sdk.command_identity("python-environment", [str(alias), "-m", "venv", "synthetic"], {"PATH": os.defpath})
+                for alias in aliases]
+    assert all(value["admission"] == "current-python-kernel-fd" and value["tool"] == "python" for value in receipts)
+    assert len({value["executableSha256"] for value in receipts}) == 1
+
+
+def test_managed_alias_fd_launch_preserves_private_venv_identity(tmp_path):
+    alias = tmp_path / "managed-python"
+    alias.symlink_to(sys.executable)
+    commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath, "HOME": str(tmp_path), "PYTHONNOUSERSITE": "1"}, time.monotonic() + 5)
+    script = "import sys,json;print(json.dumps({'same_alias':sys.executable==sys.argv[1],'version':list(sys.version_info[:2])}))"
+    log = commands.run("python-environment", [str(alias), "-c", script, str(alias)], seconds=3)
+    assert json.loads(log.read_text()) == {"same_alias": True, "version": list(sys.version_info[:2])}
+    assert commands.steps[0]["started"] is True
+    assert commands.steps[0]["command"]["admission"] == "current-python-kernel-fd"
+
+
+def test_fd_launch_does_not_execute_replaced_alias_and_records_held_failure(tmp_path):
+    alias = tmp_path / "managed-python"
+    alias.symlink_to(sys.executable)
+    marker = tmp_path / "wrong-executable-ran"
+    wrong = tmp_path / "wrong-shell"
+    wrong.write_text("#!/bin/sh\n: > " + str(marker) + "\n")
+    wrong.chmod(0o700)
+    command = [str(alias), "-c", "print('verified-python-image')"]
+    with sdk.admitted_command("python-load", command, {"PATH": os.defpath}) as entry:
+        alias.unlink()
+        alias.symlink_to(wrong)
+        result = subprocess.run(command, **entry.execution(), capture_output=True, text=True, timeout=2,
+                                env={"PATH": os.defpath, "HOME": str(tmp_path), "PYTHONNOUSERSITE": "1"})
+        assert result.returncode == 0 and result.stdout == "verified-python-image\n"
+        assert not marker.exists()
+        with pytest.raises(sdk.Refused, match="^command_executable_alias_changed$"):
+            entry.held()
+
+
+def test_arbitrary_shell_is_not_admitted_as_managed_python(tmp_path):
+    executable = tmp_path / "python"
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o700)
+    commands = sdk.Commands(tmp_path, tmp_path, {"PATH": os.defpath}, time.monotonic() + 3)
+    with pytest.raises(sdk.Refused, match="^command_python_kernel_mismatch$"):
+        commands.run("python-environment", [str(executable), "-m", "venv", "synthetic"])
+    record = commands.steps[0]
+    assert record["started"] is False and record["returncode"] is None
+    assert record["identityFacet"] == "command_python_kernel_mismatch"
+    assert not (tmp_path / "python-environment.log").exists()
+
+
+def test_vendor_metadata_only_allowed_for_proven_current_python():
+    from types import SimpleNamespace
+    import stat
+    info = SimpleNamespace(st_mode=stat.S_IFREG | 0o777, st_uid=os.getuid() + 10000, st_size=1234)
+    sdk.command_policy(info, python=True, kernel_match=True)
+    with pytest.raises(sdk.Refused, match="^command_python_kernel_mismatch$"):
+        sdk.command_policy(info, python=True, kernel_match=False)
+    with pytest.raises(sdk.Refused, match="^command_executable_owner$"):
+        sdk.command_policy(info, python=False, kernel_match=True)
+    info.st_uid = os.getuid()
+    with pytest.raises(sdk.Refused, match="^command_executable_world_writable$"):
+        sdk.command_policy(info, python=False, kernel_match=True)
+
+
+def test_world_writable_node_still_refused_without_any_python_exception(tmp_path):
+    executable = tmp_path / "node"
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o777)
+    with pytest.raises(sdk.Refused, match="^command_executable_world_writable$"):
+        sdk.command_identity("napi-load", [str(executable)], {"PATH": os.defpath})
+
+
+
+def test_fd_launch_preserves_minimal_private_venv_prefix(tmp_path):
+    environment = tmp_path / "private-venv"
+    (environment / "bin").mkdir(parents=True, mode=0o700)
+    alias = environment / "bin/python"
+    alias.symlink_to(sys.executable)
+    base = Path(getattr(sys, "_base_executable", sys.executable)).resolve().parent
+    (environment / "pyvenv.cfg").write_text("home = " + str(base) + "\ninclude-system-site-packages = false\nversion = " + str(sys.version_info.major) + "." + str(sys.version_info.minor) + "\n")
+    command = [str(alias), "-c", "import sys,json;print(json.dumps({'alias':sys.executable==sys.argv[1],'prefix':sys.prefix==sys.argv[2],'isolated':sys.prefix!=sys.base_prefix}))", str(alias), str(environment)]
+    with sdk.admitted_command("python-load", command, {"PATH": os.defpath}) as entry:
+        child = subprocess.run(command, **entry.execution(), capture_output=True, text=True, timeout=3,
+                               env={"PATH": os.defpath, "HOME": str(tmp_path), "PYTHONNOUSERSITE": "1"})
+        assert child.returncode == 0
+        assert json.loads(child.stdout) == {"alias": True, "prefix": True, "isolated": True}
+        entry.held()
+
+
+def test_readonly_local_node_identity_keeps_strict_policy():
+    import shutil
+    executable = shutil.which("node")
+    if executable is None:
+        pytest.skip("No local Node for read-only identity check")
+    receipt = sdk.command_identity("napi-load", [executable, "--version"], {"PATH": os.defpath})
+    assert receipt["tool"] == "node" and receipt["admission"] == "strict-owner-mode"
+    assert receipt["executableKind"] == "elf"

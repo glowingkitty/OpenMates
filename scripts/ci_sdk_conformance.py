@@ -6,6 +6,7 @@ Raw build/gate diagnostics remain private; public evidence has closed stage code
 from __future__ import annotations
 
 import hashlib
+from contextlib import contextmanager
 import json
 import math
 import os
@@ -218,47 +219,112 @@ def tool_search_path(node, rustup, pnpm, npm, python):
     return os.pathsep.join(dict.fromkeys([*directories, *os.defpath.split(os.pathsep)]))
 
 
-def command_identity(stage, command, env):
-    """Exact argv/entry digests and closed tool label, without args or private paths."""
+def command_tool(stage):
+    tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
+             "binding-library-units": "cargo", "napi-load": "node"}
+    return tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
+                     "python-binding-build", "python-load", "real-conformance"} else "other")
+
+
+def file_identity(value):
+    return tuple(getattr(value, key) for key in ("st_dev", "st_ino", "st_size", "st_mode", "st_uid", "st_gid",
+                                               "st_nlink", "st_mtime_ns", "st_ctime_ns"))
+
+
+def running_python_image(info):
+    # Literal kernel observer, never an arbitrary proc path or caller-supplied PID.
+    try:
+        descriptor = os.open("/proc/self/exe", os.O_RDONLY | os.O_NONBLOCK)
+    except OSError:
+        raise Refused("command_python_kernel_unavailable") from None
+    try:
+        kernel = os.fstat(descriptor)
+        return stat.S_ISREG(kernel.st_mode) and (kernel.st_dev, kernel.st_ino) == (info.st_dev, info.st_ino)
+    finally:
+        os.close(descriptor)
+
+
+def command_policy(info, *, python, kernel_match):
+    require(stat.S_ISREG(info.st_mode), "command_executable_not_regular")
+    require(0 <= info.st_size <= 256 * 1024**2, "command_executable_size")
+    require(info.st_mode & 0o111, "command_executable_not_executable")
+    if python:
+        require(kernel_match, "command_python_kernel_mismatch")
+    else:
+        require(info.st_uid in (0, os.getuid()), "command_executable_owner")
+        require(not info.st_mode & 0o002, "command_executable_world_writable")
+
+
+class CommandEntry:
+    def __init__(self, selected, executable, descriptor, before, metadata, python):
+        self.selected, self.executable, self.descriptor = selected, executable, descriptor
+        self.before, self.metadata, self.python = before, metadata, python
+
+    def held(self):
+        require(file_identity(self.before) == file_identity(os.fstat(self.descriptor)), "command_executable_fd_changed")
+        try:
+            alias = Path(self.selected).stat()
+            leaf = self.executable.lstat()
+        except OSError:
+            raise Refused("command_executable_alias_changed") from None
+        require(file_identity(self.before) == file_identity(alias) == file_identity(leaf), "command_executable_alias_changed")
+
+    def execution(self):
+        # Preserve argv[0] (including a venv alias), while the kernel executes the
+        # exact already-approved Python inode. This closes alias replacement after
+        # admission without chmod/copy/relocation of the managed interpreter.
+        return {"executable": f"/proc/self/fd/{self.descriptor}", "pass_fds": (self.descriptor,)} if self.python else {}
+
+
+@contextmanager
+def admitted_command(stage, command, env):
     require(command and all(isinstance(value, str) for value in command), "command_identity")
     selected = command[0] if Path(command[0]).is_absolute() else shutil.which(command[0], path=env["PATH"])
     require(selected, "command_executable_missing")
-    executable = Path(selected).resolve()
-    digest = hashlib.sha256()
-    with os.fdopen(os.open(executable, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
-        before = os.fstat(stream.fileno())
-        require(stat.S_ISREG(before.st_mode) and before.st_uid in (0, os.getuid())
-                and not before.st_mode & 0o002 and before.st_size <= 256 * 1024**2, "command_executable_identity")
-        prefix = stream.read(4)
-        digest.update(prefix)
-        size = len(prefix)
-        while chunk := stream.read(128 * 1024):
+    try:
+        executable = Path(selected).resolve(strict=True)
+        descriptor = os.open(executable, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except (OSError, RuntimeError):
+        raise Refused("command_executable_open") from None
+    try:
+        before = os.fstat(descriptor)
+        python = command_tool(stage) == "python"
+        kernel_match = running_python_image(before) if python and stat.S_ISREG(before.st_mode) else False
+        command_policy(before, python=python, kernel_match=kernel_match)
+        digest, size, prefix = hashlib.sha256(), 0, b""
+        while chunk := os.read(descriptor, 128 * 1024):
+            if not prefix:
+                prefix = chunk[:4]
             size += len(chunk)
             require(size <= 256 * 1024**2, "command_executable_bound")
             digest.update(chunk)
-        fields = ("st_dev", "st_ino", "st_size", "st_mode", "st_uid", "st_gid", "st_nlink", "st_mtime_ns", "st_ctime_ns")
-        def identity(value):
-            return tuple(getattr(value, key) for key in fields)
-        require(identity(before) == identity(os.fstat(stream.fileno())) == identity(executable.lstat()), "command_executable_changed")
-    tools = {"rust-toolchain": "rustup", "node-dependencies": "pnpm", "sdk-facade-build": "pnpm",
-             "binding-library-units": "cargo", "napi-load": "node"}
-    tool = tools.get(stage, "python" if stage in {"python-environment", "python-dependencies", "napi-build",
-                     "python-binding-build", "python-load", "real-conformance"} else "other")
-    result = {"tool": tool, "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
-              "executableSha256": digest.hexdigest(), "executableBytes": size,
-              "executableKind": "elf" if prefix == b"\x7fELF" else "script" if prefix.startswith(b"#!") else "regular",
-              "entryPackage": None}
-    for directory in list(executable.parents)[:3]:
-        package = directory / "package.json"
-        try:
-            info = json.loads(regular(package, 65536))
-        except (OSError, ValueError, Refused):
-            continue
-        if (isinstance(info, dict) and info.get("name") in {"pnpm", "npm", "corepack"}
-                and isinstance(info.get("version"), str) and re.fullmatch(r"[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}", info["version"])):
-            result["entryPackage"] = {"name": info["name"], "version": info["version"]}
-            break
-    return result
+        require(not python or prefix == b"\x7fELF", "command_python_not_elf")
+        result = {"tool": command_tool(stage), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode()),
+                  "executableSha256": digest.hexdigest(), "executableBytes": size,
+                  "executableKind": "elf" if prefix == b"\x7fELF" else "script" if prefix.startswith(b"#!") else "regular",
+                  "admission": "current-python-kernel-fd" if python else "strict-owner-mode",
+                  "entryPackage": None}
+        for directory in list(executable.parents)[:3]:
+            package = directory / "package.json"
+            try:
+                info = json.loads(regular(package, 65536))
+            except (OSError, ValueError, Refused):
+                continue
+            if (isinstance(info, dict) and info.get("name") in {"pnpm", "npm", "corepack"}
+                    and isinstance(info.get("version"), str) and re.fullmatch(r"[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}", info["version"])):
+                result["entryPackage"] = {"name": info["name"], "version": info["version"]}
+                break
+        entry = CommandEntry(selected, executable, descriptor, before, result, python)
+        entry.held()
+        yield entry
+    finally:
+        os.close(descriptor)
+
+
+def command_identity(stage, command, env):
+    """Read-only identity probe; actual launches retain the descriptor context."""
+    with admitted_command(stage, command, env) as entry:
+        return entry.metadata
 
 
 def terminate(child):
@@ -293,33 +359,46 @@ class Commands:
     def run(self, stage, command, *, seconds=900):
         self.check()
         began = time.monotonic()
-        record = {"stage": stage, "status": "failed", "command": command_identity(stage, command, self.env)}
+        record = {"stage": stage, "status": "failed", "started": False,
+                  "command": {"tool": command_tool(stage), "argvSha256": sha(json.dumps(command, separators=(",", ":")).encode())}}
         self.steps.append(record)
-        with (self.private / (stage + ".log")).open("xb") as log:
-            os.fchmod(log.fileno(), 0o600)
-            child = subprocess.Popen(command, cwd=self.root, env=self.env, stdin=subprocess.DEVNULL,
-                                     stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-            try:
-                while child.poll() is None:
-                    self.check()
-                    require(time.monotonic() - began < seconds, "stage_deadline")
+        child = None
+        try:
+            with admitted_command(stage, command, self.env) as entry:
+                record["command"] = entry.metadata
+                with (self.private / (stage + ".log")).open("xb") as log:
+                    os.fchmod(log.fileno(), 0o600)
+                    child = subprocess.Popen(command, cwd=self.root, env=self.env, stdin=subprocess.DEVNULL,
+                                             stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
+                                             **entry.execution())
+                    record["started"] = True
+                    while child.poll() is None:
+                        self.check()
+                        require(time.monotonic() - began < seconds, "stage_deadline")
+                        require(log.tell() <= MAX_LOG, "diagnostic_bound")
+                        time.sleep(0.5)
+                    require(child.returncode == 0, "child_failed")
                     require(log.tell() <= MAX_LOG, "diagnostic_bound")
-                    time.sleep(0.5)
-                require(child.returncode == 0, "child_failed")
-                require(log.tell() <= MAX_LOG, "diagnostic_bound")
-                self.check()
-                if stage == "binding-library-units":
-                    log.flush()
-                    text = regular(self.private / (stage + ".log"), MAX_LOG).decode("utf-8", errors="replace")
-                    counts = re.findall(r"(?m)^test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", text)
-                    require(len(counts) == 1 and int(counts[0][0]) > 0 and int(counts[0][1]) == 0, "unit_test_evidence")
-                    record["unitTests"] = dict(zip(("passed", "failed", "ignored"), map(int, counts[0])))
-                record["status"] = "passed"
-            finally:
-                record["returncode"] = child.poll()
+                    self.check()
+                    if entry.python:
+                        entry.held()
+                    if stage == "binding-library-units":
+                        log.flush()
+                        text = regular(self.private / (stage + ".log"), MAX_LOG).decode("utf-8", errors="replace")
+                        counts = re.findall(r"(?m)^test result: ok\. ([0-9]+) passed; ([0-9]+) failed; ([0-9]+) ignored;", text)
+                        require(len(counts) == 1 and int(counts[0][0]) > 0 and int(counts[0][1]) == 0, "unit_test_evidence")
+                        record["unitTests"] = dict(zip(("passed", "failed", "ignored"), map(int, counts[0])))
+                    record["status"] = "passed"
+        except Refused as error:
+            if str(error).startswith("command_"):
+                record["identityFacet"] = str(error)
+            raise
+        finally:
+            record["returncode"] = child.poll() if child is not None else None
+            if child is not None:
                 terminate(child)
                 record["terminatedReturncode"] = child.returncode
-                record["elapsedSeconds"] = round(time.monotonic() - began, 3)
+            record["elapsedSeconds"] = round(time.monotonic() - began, 3)
         return self.private / (stage + ".log")
 
 
