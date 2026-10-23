@@ -33,4 +33,4 @@ pyclamd==0.4.0
 python-magic==0.4.27
 # PDF processing: page count extraction (no rendering required at upload time)
 # Full rendering (screenshots) happens in the pdf app worker after upload
-pymupdf==1.27.1
+pymupdf==1.28.2
