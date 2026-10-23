@@ -50,6 +50,10 @@ def cli(words: list[str], output: Path, label: str) -> dict:
     private_json(output / f"{label}.json", {"stdout": result.stdout, "stderr": result.stderr})
     if result.returncode:
         raise RuntimeError(f"CLI {label} failed with exit {result.returncode}; private diagnostic retained")
+    if words[:2] == ["chats", "delete"]:
+        # This CLI command uses an ordinary acknowledgement even with --json.
+        assert "1/1 chat(s) deleted." in result.stdout, "Disposable chat cleanup was not acknowledged"
+        return {"deleted": True}
     return json.loads(result.stdout)
 
 
@@ -73,13 +77,23 @@ def check_results(parents: list[dict], places: list[dict], cutoff: datetime) -> 
     for place in places:
         assert place.get("open_now") is True, "Returned place is not currently open"
         close = place.get("next_close_time")
-        assert isinstance(close, str) and close, "Returned place lacks a known next closing time"
+        hours = place.get("opening_hours") or []
+        hours = hours.split("|") if isinstance(hours, str) else hours
+        day = cutoff.strftime("%A").lower() + ":"
+        always_open = any(isinstance(line, str) and line.lower().startswith(day)
+                          and re.search(r"open\s*24\s*hours", line, re.I) for line in hours)
+        if not close and always_open:
+            checked.append({"place_id": place.get("place_id"), "name": place.get("name"),
+                            "closing_time_local": None, "confirmed_24_hours": True, "opening_hours": hours})
+            continue
+        assert isinstance(close, str) and close, "Returned place lacks known closing or 24-hour evidence"
         closing = datetime.fromisoformat(close.replace("Z", "+00:00"))
         assert closing.tzinfo is not None, "Provider closing timestamp lacks a timezone"
         assert closing >= cutoff, "A returned place closes before the requested local cutoff"
         checked.append({"place_id": place.get("place_id"), "name": place.get("name"),
                         "closing_time_local": closing.astimezone(ZONE).isoformat(),
                         "opening_hours": place.get("opening_hours")})
+    assert any(row["closing_time_local"] for row in checked), "Require a finite known close as well as nonempty results"
     return checked
 
 
@@ -103,6 +117,9 @@ def test_maps_closing_time_live() -> None:
     ancestry = subprocess.run(["git", "merge-base", "--is-ancestor", args.revision, args.runtime_commit],
                               cwd=ROOT, capture_output=True)
     assert ancestry.returncode == 0, "Runtime source does not include the published fix"
+    driver_path = Path(__file__).resolve().relative_to(ROOT).as_posix()
+    driver_revision = subprocess.check_output(["git", "log", "-1", "--format=%H", "--", driver_path], cwd=ROOT, text=True).strip()
+    assert driver_revision and subprocess.check_output(["git", "show", f"{driver_revision}:{driver_path}"], cwd=ROOT) == Path(__file__).read_bytes(), "Run the published proof driver"
     health = args.runtime_health_receipt.read_bytes()
     assert args.runtime_commit.encode() in health and b"healthy" in health.lower(), "Source/health receipt is missing"
     # Credentials are read only in this process, solely to validate identity ownership
@@ -139,7 +156,8 @@ def test_maps_closing_time_live() -> None:
     prompt = (f"Find up to 3 currently open cafes or cafe-bars in Berlin Kreuzberg or Friedrichshain "
               f"that stay open until at least {cutoff:%H:%M} Berlin local time on {cutoff:%Y-%m-%d}. "
               "Only return places with confirmed opening hours covering that cutoff, and include their closing times.")
-    receipt = {"revision": args.revision, "runtime_commit": args.runtime_commit,
+    receipt = {"fix_revision": args.revision, "runtime_commit": args.runtime_commit,
+               "driver_revision": driver_revision, "driver_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                "runtime_health_sha256": hashlib.sha256(health).hexdigest(), "environment": "dev",
                "surface": "cli", "routing": "automatic", "model_or_provider_override": False,
                "prompt": prompt, "started_local": now.isoformat(), "cutoff_local": cutoff.isoformat(),
@@ -197,9 +215,10 @@ def test_maps_closing_time_live() -> None:
                                "every_known_close_at_or_after_cutoff": True, "currently_open": True}, status="passed")
         print(f"PASS: maps.search propagated {cutoff:%H:%M}; {len(checked)} nonempty, known-closing results meet the local cutoff.")
         for row in checked:
-            print(f"  {row['name']}: closes {row['closing_time_local']}")
+            print(f"  {row['name']}: {row['closing_time_local'] or 'confirmed open 24 hours'}")
         cli(["chats", "delete", chat_id, "--yes"], args.output, "cleanup-chat")
-        cli(["projects", "delete", project_id, "--confirm", project_id, "--personal"], args.output, "cleanup-project")
+        deleted = cli(["projects", "delete", project_id, "--confirm", project_id, "--personal"], args.output, "cleanup-project")
+        assert deleted.get("deleted") is True and deleted.get("project_id") == project_id, "Project cleanup not acknowledged"
         receipt["cleanup"] = True
     except Exception as exc:
         receipt.update(status="failed", failure_type=type(exc).__name__, failure=str(exc)[:300])

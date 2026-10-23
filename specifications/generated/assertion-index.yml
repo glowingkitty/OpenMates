@@ -38606,7 +38606,7 @@ assertions:
       surface: gui.web
     - &id4868
       path: scripts/maps_closing_time_real_test.py
-      line: 88
+      line: 102
       name: test_maps_closing_time_live
       surface: cli
     supporting_tests:
