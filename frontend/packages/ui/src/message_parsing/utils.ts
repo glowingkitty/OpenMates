@@ -78,11 +78,6 @@ export function createContentId(hash: string): string {
   return `cid:sha256:${hash}`;
 }
 
-// Create stream key from UUID
-function createStreamKey(uuid: string): string {
-  return `stream:${uuid}`;
-}
-
 /**
  * Normalize a URL by adding https:// protocol if missing
  * This ensures URLs detected without protocol are properly formatted
@@ -392,8 +387,8 @@ export class CodeBlockStateMachine {
     // ========================================
     // Handle regular code fences
     // ========================================
-    if (classification.type === "opening" && !this.inCodeFence) {
-      // Opening a regular code block
+    if ((classification.type === "opening" || classification.type === "closing") && !this.inCodeFence) {
+      // Outside a block, a bare fence opens an unlabelled code block.
       this.inCodeFence = true;
       this.currentLanguage = classification.language;
       this.currentFilename = classification.filename;

@@ -661,6 +661,11 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
 
       }
     case "image":
+      // Inline SVG images retain their editable source when sending/restoring a draft.
+      if (attrs.code && !attrs.contentRef?.startsWith("embed:")) {
+        const pathSuffix = attrs.filename ? `:${attrs.filename}` : "";
+        return `\`\`\`${attrs.language || "svg"}${pathSuffix}\n${attrs.code}\n\`\`\``;
+      }
       // User-uploaded images: serialized as embed references when contentRef is set
       // (contentRef is set by handleSend after storing TOON content in EmbedStore)
       if (attrs.contentRef?.startsWith("embed:")) {

@@ -1,6 +1,7 @@
 /** Focused parsed-message states for the read-only renderer. */
 import { encode } from '@toon-format/toon';
 import { embedStore } from '../services/embedStore';
+import { chatSyncService } from '../services/chatSyncService';
 const defaultProps = {
   role: 'user' as const,
   content: 'A saved message.',
@@ -42,9 +43,39 @@ const skillExecution = (id: string, status: 'error' | 'finished') => {
 const failedFitness = skillExecution('failed-fitness', 'error');
 const successfulFitness = skillExecution('successful-fitness', 'finished');
 
+const svgSource = '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" fill="steelblue"/><text x="20" y="65" fill="white">SVG image</text></svg>';
+function seedSvgCode(code: string) {
+  embedStore.registerStaticEmbed({ embedId: 'saved-svg-code', type: 'code-code',
+    content: encode({ code, language: 'xml', filename: 'drawing.svg' }),
+  });
+  if (typeof document !== 'undefined') chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+    detail: { embed_id: 'saved-svg-code', status: 'finished' },
+  }));
+}
+seedSvgCode(svgSource);
+if (typeof document !== 'undefined') {
+  document.addEventListener('preview:update-svg-code', () => seedSvgCode(svgSource.replace(/240/g, '320')));
+  document.addEventListener('preview:svg-to-html', () => seedSvgCode(`<html><body>${svgSource}</body></html>`));
+}
+
 export default defaultProps;
 
 export const variants = {
+  svgFenced: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: `Here is the modified SVG.\n\n\`\`\`xml:drawing.svg\n${svgSource.replace(' xmlns="http://www.w3.org/2000/svg"', '')}\n\`\`\`\n\nThe source is preserved.`,
+  },
+  svgSavedCode: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: '```json\n{"type":"code","embed_id":"saved-svg-code"}\n```',
+  },
+  svgUnlabelled: {
+    ...defaultProps,
+    role: 'assistant' as const,
+    content: `\`\`\`\n${svgSource}\n\`\`\``,
+  },
   failedSkillExecution: {
     ...defaultProps,
     role: 'assistant' as const,

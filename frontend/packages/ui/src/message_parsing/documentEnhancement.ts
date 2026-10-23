@@ -567,6 +567,12 @@ function findMatchingEmbedForCodeBlock(
     );
   }
 
+  // SVG-only fences are image embeds, matched by their preserved source.
+  const svgIndex = embedNodes.findIndex((embed) =>
+    embed.type === "image" && !!embed.code && embed.code.trim() === codeText.trim(),
+  );
+  if (svgIndex !== -1) return embedNodes.splice(svgIndex, 1)[0];
+
   // Check if this is a code-code embed (code snippet with language)
   // Match by checking if there's a code-code embed with similar content
   const codeEmbeds = embedNodes.filter((node) => node.type === "code-code");

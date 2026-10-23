@@ -36,6 +36,13 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  svg: {
+    ...defaultProps,
+    presentationOnly: true,
+    filename: 'drawing.svg',
+    language: 'xml',
+    codeContent: '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" fill="steelblue"/><text x="20" y="65" fill="white">SVG image</text></svg>',
+  },
   tools: { ...defaultProps, onFullscreen: () => console.info('[Preview] specialized expanded') },
 	/** Editor-only fenced code uses inline content while its embed record is pending. */
 	localFencedCode: {

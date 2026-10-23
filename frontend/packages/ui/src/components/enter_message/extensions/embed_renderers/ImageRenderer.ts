@@ -28,6 +28,7 @@ import type { AIDetectionMetadata } from "../../../embeds/images/imageAuthentici
 import { authStore } from "../../../../stores/authStore";
 import { resolveEmbed } from "../../../../services/embedResolver";
 import { chatSyncService } from "../../../../services/chatSyncService";
+import { svgImageSource } from "../../../../utils/svgImage";
 
 // Track mounted Svelte components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -84,6 +85,7 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   fileType?: string;
   /** Local-only anonymous preview that cannot upload until signup. */
   needsSignup?: boolean;
+  presentationOnly?: boolean;
 }
 
 /**
@@ -96,6 +98,18 @@ export class ImageRenderer implements EmbedRenderer {
   render(context: EmbedRenderContext): void | Promise<void> {
     const { content } = context;
     const attrs = context.attrs as ImageEmbedAttrs;
+
+    const svgSrc = attrs.code ? svgImageSource(attrs.code) : null;
+    if (svgSrc) {
+      this._renderImageComponent(content, {
+        ...attrs,
+        src: svgSrc,
+        fileType: "image/svg+xml",
+        fileSize: new TextEncoder().encode(attrs.code).length,
+        presentationOnly: true,
+      });
+      return;
+    }
 
     // -----------------------------------------------------------------------
     // Cases 1 & 2: User-uploaded image — editor context (has src blob URL)
@@ -438,6 +452,7 @@ export class ImageRenderer implements EmbedRenderer {
         props: {
           id: persistedEmbedId || attrs.id || "",
           localOnly: Boolean(attrs.src || attrs.needsSignup),
+          presentationOnly: attrs.presentationOnly,
           filename: attrs.filename,
           status: (attrs.status || "finished") as
             | "uploading"
@@ -476,6 +491,10 @@ export class ImageRenderer implements EmbedRenderer {
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {
+    if (attrs.code) {
+      const filename = attrs.filename ? `:${attrs.filename}` : "";
+      return `\`\`\`${attrs.language || "svg"}${filename}\n${attrs.code}\n\`\`\``;
+    }
     const extended = attrs as ImageEmbedAttrs;
     const url = attrs.url || extended.src || "";
     const alt = attrs.filename || attrs.title || "";

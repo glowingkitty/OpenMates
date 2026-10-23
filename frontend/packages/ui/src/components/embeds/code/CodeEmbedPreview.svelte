@@ -24,6 +24,8 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { notificationStore } from '../../../stores/notificationStore';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ImageEmbedPreview from '../images/ImageEmbedPreview.svelte';
+  import { svgImageSource } from '../../../utils/svgImage';
   import { text } from '@repo/ui';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
@@ -237,6 +239,8 @@
   let renderCodeContent = $derived(parsedContent.code);
   let renderLanguage = $derived(parsedContent.language || '');
   let renderFilename = $derived(parsedContent.filename);
+  let svgSrc = $derived(svgImageSource(renderCodeContent));
+  let svgFileSize = $derived(svgSrc ? new TextEncoder().encode(renderCodeContent).length : 0);
   let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
   
   let previewLines = $derived.by(() => {
@@ -384,8 +388,30 @@
       notificationStore.error($text('embeds.copy_failed'));
     }
   }
+  function openSvgImage() {
+    document.dispatchEvent(new CustomEvent('imagefullscreen', {
+      detail: { src: svgSrc, filename: renderFilename || 'image.svg',
+        fileType: 'image/svg+xml', fileSize: svgFileSize, isAuthenticated: true },
+    }));
+  }
 </script>
 
+{#if svgSrc}
+  <ImageEmbedPreview
+    {id}
+    {presentationOnly}
+    sourceKind="code"
+    onEmbedDataUpdated={handleEmbedDataUpdated}
+    filename={renderFilename || 'image.svg'}
+    {status}
+    src={svgSrc}
+    fileType="image/svg+xml"
+    fileSize={svgFileSize}
+    {isMobile}
+    {needsSignup}
+    onFullscreen={openSvgImage}
+  />
+{:else}
 <UnifiedEmbedPreview
   previewTools={true}
   {id}
@@ -449,6 +475,7 @@
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
+{/if}
 
 <style>
   /* ===========================================

@@ -58,11 +58,13 @@
     encryption?: string;
   }
 
-  interface Props {
+  interface ImageProps {
     /** Unique embed ID */
     id: string;
     /** The editor still owns this image; its server embed may not be persisted yet. */
     localOnly?: boolean;
+    /** Inline source has no separately persisted image record. */
+    presentationOnly?: boolean;
     /** Original filename of the uploaded image */
     filename?: string;
     /** Upload/embed status */
@@ -108,9 +110,17 @@
     aiDetection?: AIDetectionMetadata | null;
   }
 
+  // Saved SVG code keeps receiving source updates through the shared embed lifecycle.
+  type Props = ImageProps & (
+    | { sourceKind: 'code'; onEmbedDataUpdated: (data: { status: string; decodedContent: Record<string, unknown> }) => void }
+    | { sourceKind?: 'image'; onEmbedDataUpdated?: never }
+  );
+
   let {
     id,
     localOnly = false,
+    presentationOnly = false,
+    onEmbedDataUpdated,
     filename,
     status: statusProp,
     src,
@@ -414,6 +424,8 @@
   resultPreview={true}
   {id}
   {localOnly}
+  {presentationOnly}
+  {onEmbedDataUpdated}
   appId="images"
   skillId="view"
   skillIconName="image"

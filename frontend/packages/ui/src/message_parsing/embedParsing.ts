@@ -9,6 +9,7 @@ import {
   CodeBlockStateMachine,
 } from "./utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
+import { svgImageSource } from "../utils/svgImage";
 
 const EMBEDS_MAP_VIEW_LANGUAGE = "embeds_map_view";
 const EMBEDS_RESULTS_VIEW_LANGUAGE = "embeds_results_view";
@@ -529,6 +530,23 @@ export function parseEmbedNodes(
           );
           const language = event.language || pendingCodeLanguage;
           const filename = event.filename || pendingCodeFilename;
+
+          if (svgImageSource(content)) {
+            const id = deterministicId(`svg:${content}`, "image");
+            embedNodes.push({
+              id,
+              type: "image",
+              status: "finished",
+              contentRef: mode === "write" ? `preview:image:${id}` : `stream:${id}`,
+              code: content,
+              language,
+              filename: filename || "image.svg",
+            });
+            pendingCodeContent = "";
+            pendingCodeLanguage = undefined;
+            pendingCodeFilename = undefined;
+            break;
+          }
 
           if (isResultsViewLanguage(language || "")) {
             const embed = parseEmbedsMapViewBlock(content);

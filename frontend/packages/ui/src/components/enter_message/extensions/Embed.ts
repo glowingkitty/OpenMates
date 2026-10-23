@@ -1684,6 +1684,12 @@ export const Embed = Node.create<EmbedOptions>({
               }
               break;
             case "image":
+              if (attrs.code) {
+                // An inline SVG is editable source, with no upload to delete.
+                const filename = attrs.filename ? `:${attrs.filename}` : "";
+                markdown = `\`\`\`${attrs.language || "svg"}${filename}\n${attrs.code}`;
+                break;
+              }
               // Image embeds are not converted to markdown on Backspace.
               // Instead we delete the node entirely and cancel any in-flight upload.
               // The embed ID is in attrs.id (set by insertImage).
