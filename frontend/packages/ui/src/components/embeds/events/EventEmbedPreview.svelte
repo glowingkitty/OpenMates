@@ -9,7 +9,8 @@
   with text content (title, date, location, badges) on the left.
 
   Unlike EventsSearchEmbedPreview (the parent search result), this component:
-  - Receives structured EventResult data directly from the parent (no embed store lookup)
+  - Receives structured EventResult data from the parent and hydrates deferred references
+    through UnifiedEmbedPreview's existing store recovery callback
   - Is NOT mounted by AppSkillUseRenderer — it's instantiated inline by the parent fullscreen
   - Has no cancellation logic (child event embeds are finished by the time they render)
   - Uses showStatus=false and showSkillIcon=false so cards are compact with no bottom bar
@@ -23,6 +24,7 @@
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { text } from '../../../i18n/translations';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { normalizeEventResult } from './eventResult';
 
   /**
    * A single event result from the events/search skill backend.
@@ -92,6 +94,14 @@
     onFullscreen,
   }: Props = $props();
 
+  // A persisted reply can mount before its encrypted event is readable. The
+  // shared shell refetches on mount/updates; consume that data instead of
+  // retaining the empty EventResult that the imperative renderer first supplied.
+  function handleEmbedDataUpdated({ decodedContent }: { status: string; decodedContent: Record<string, unknown> }) {
+    if (typeof decodedContent.title !== 'string' || !decodedContent.title.trim()) return;
+    event = normalizeEventResult(decodedContent, id);
+  }
+
   let startTime = $derived.by(() => {
     if (!event.date_start) return '';
     const date = new Date(event.date_start);
@@ -121,13 +131,14 @@
   appId="events"
   skillId="event"
   skillIconName="event"
-  status="finished"
+  status={event.title ? 'finished' : 'processing'}
   skillName={event.title || ''}
   {isMobile}
   onFullscreen={onFullscreen}
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
   hasFullWidthImage={!!eventImageUrl && !event.title}
 >
   {#snippet details()}

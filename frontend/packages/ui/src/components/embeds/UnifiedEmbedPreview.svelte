@@ -338,6 +338,11 @@
     embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
     chatSyncService.addEventListener('embedUpdated', embedUpdateListener);
 
+    // An initial resolver miss (including a pending chat key) returns null.
+    // Keep the existing bounded content retries armed until a consumer receives
+    // decoded content, even when no finished row was readable on the first read.
+    needsContentRecovery = !!onEmbedDataUpdated;
+
     // Do an initial fetch to ensure we have the latest data
     // (in case the embed was updated between render and mount)
     refetchFromStore();

@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, '../../../..');
 const QUERY = 'deterministic historical image';
 type Seed = { chatId: string; embedId: string; childId: string; ownerId: string; cachedChildIds: string[] };
 
-function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' = 'image', cachedChildCount = 0): Seed {
+function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' = 'image', cachedChildCount = 0, replyReference = false): Seed {
 	const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
 	const source = String.raw`
 		const {pathToFileURL}=require('node:url');
@@ -42,6 +42,10 @@ function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' 
 				?'[Freelance Barcamp Berlin](embed:freelance-barcamp-berlin-M9b)'
 				:'[!](embed:historical-image-result)')
 				+(eventFixture?'':newline+newline+'[!](embed:unrelated-ref-must-not-fetch)');
+			const request=eventFixture&&${replyReference}?'Can I bring my existing project?'+newline+newline
+				+String.fromCharCode(96).repeat(3)+'json'+newline+JSON.stringify({type:'events-event',
+					embed_id:childId,reference_only:true,app_id:'events',skill_id:'event'})+newline+String.fromCharCode(96).repeat(3)
+				:'Find the historical image fixture';
 			const {ws}=await client.openWsClient({taskUpdateJobs:false});
 			const send=async(type,reply,payload)=>{
 				const requestId=randomUUID();
@@ -53,7 +57,7 @@ function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' 
 				const metadataReceipt=ws.waitForMessage('encrypted_metadata_stored',p=>p.chat_id===chatId,30000);
 				await ws.sendAsync('encrypted_chat_metadata',{
 					chat_id:chatId,message_id:userId,team_id:null,created_at:now-1,
-					encrypted_content:await encrypt('Find the historical image fixture',chatKey),
+					encrypted_content:await encrypt(request,chatKey),
 					encrypted_sender_name:await encrypt('You',chatKey),
 					encrypted_category:await encrypt('general_knowledge',chatKey),
 					encrypted_title:await encrypt('Historical image recovery '+chatId.slice(0,6),chatKey),
@@ -87,7 +91,8 @@ function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' 
 				const child=eventFixture?{type:'event_result',app_id:'events',skill_id:'search',
 					embed_ref:'freelance-barcamp-berlin-M9b',title:'Freelance Barcamp Berlin',provider:'luma',
 					url:'https://example.com/events/barcamp',date_start:'2026-11-14T09:00:00+01:00',is_paid:false,
-					organizer:{name:'Historical event fixture'},description:'Recovered encrypted event details'}
+					organizer_name:'Historical event fixture',image_url:'/favicon.png',
+					timezone:'Europe/Berlin',description:'Recovered encrypted event details'}
 					:{type:'image_result',app_id:'images',skill_id:'search',embed_ref:'historical-image-result',title:'Historical image fixture',
                     image_url:'/favicon.png',thumbnail_url:'/favicon.png',
                     source_page_url:'https://app.dev.openmates.org',source:'openmates.org',description:'Deterministic encrypted historical image'};
@@ -328,7 +333,7 @@ test(missingParent ? 'historical event link discovers its absent encrypted paren
   try {
     await loginWorkflowCliViaPair(page, apiUrl, home, 'HISTORICAL_EVENT_CHILD');
     await page.getByTestId('icon-button-close').click();
-    seed = seedViaPairedCli(apiUrl, home, 'event', 55);
+    seed = seedViaPairedCli(apiUrl, home, 'event', 55, !missingParent);
     await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/#chat-id=${seed.chatId}`, { waitUntil: 'domcontentloaded' });
     await seedPartialEncryptedEmbedCache(page, { apiUrl, ...seed, omitParent: missingParent });
     windows.length = 0;
@@ -353,13 +358,31 @@ test(missingParent ? 'historical event link discovers its absent encrypted paren
           target: present.has(childId) };
       } finally { db.close(); }
     }, seed), { timeout: 60_000 }).toEqual({ parent: !missingParent, cached: seed.cachedChildIds.length, target: false });
+    const replyCard = page.getByTestId('message-user').getByTestId('embed-preview');
     const link = page.getByRole('link', { name: 'Freelance Barcamp Berlin', exact: true });
     await expect(link).toBeVisible();
-    await link.click();
-    releaseRecovery();
+    if (!missingParent) {
+      await expect(replyCard).toBeVisible();
+      await expect(replyCard).toHaveAttribute('data-status', 'processing');
+      releaseRecovery();
+      await expect(replyCard).toContainText('Freelance Barcamp Berlin', { timeout: 30_000 });
+      await expect(replyCard.getByTestId('event-preview-attribution')).toContainText('Historical event fixture');
+      await expect(replyCard.getByTestId('event-preview-attribution')).toContainText('9:00 AM');
+      await expect(replyCard.locator('img')).toBeVisible();
+      await expect.poll(() => replyCard.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+      await replyCard.getByTestId('result-preview-expand').click();
+    } else {
+      await link.click();
+      releaseRecovery();
+    }
     await expect(page.getByTestId('event-description')).toHaveText('Recovered encrypted event details', { timeout: 60_000 });
     await expect(page.getByTestId('event-organizer-card')).toContainText('Historical event fixture');
     await expect(page.getByTestId('external-provider-cta')).toHaveText('Register on Luma');
+    if (!missingParent) {
+      await page.getByTestId('embed-minimize').click();
+      await link.click();
+      await expect(page.getByTestId('event-description')).toHaveText('Recovered encrypted event details');
+    }
     if (missingParent) {
       await expect.poll(() => windows.some(row => row.status === 200 && row.parent)
         && windows.some(row => row.status === 200 && row.child)).toBe(true);
@@ -369,6 +392,10 @@ test(missingParent ? 'historical event link discovers its absent encrypted paren
     // Reload the persisted encrypted child and open the same inline result again.
     await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/#chat-id=${seed.chatId}`, { waitUntil: 'domcontentloaded' });
     await page.reload({ waitUntil: 'domcontentloaded' });
+    if (!missingParent) {
+      await expect(replyCard).toContainText('Freelance Barcamp Berlin', { timeout: 30_000 });
+      await expect(replyCard.getByTestId('event-preview-attribution')).toContainText('Historical event fixture');
+    }
     await expect(link).toBeVisible({ timeout: 30_000 });
     await link.click();
     await expect(page.getByTestId('event-description')).toHaveText('Recovered encrypted event details', { timeout: 30_000 });

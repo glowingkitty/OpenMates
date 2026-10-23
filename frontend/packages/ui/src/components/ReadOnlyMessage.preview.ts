@@ -53,7 +53,19 @@ function seedSvgCode(code: string) {
   }));
 }
 seedSvgCode(svgSource);
+const deferredEventId = 'preview-deferred-reply-event';
+function seedDeferredEvent() {
+  embedStore.registerStaticEmbed({ embedId: deferredEventId, type: 'event', appId: 'events', skillId: 'event',
+    content: encode({ type: 'event_result', title: 'Community AI Hack',
+      date_start: '2026-11-14T09:00:00Z', timezone: 'UTC', organizer_name: 'Community Builders',
+      rsvp_count: 42, image_url: '/favicon.png' }),
+  });
+  chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+    detail: { embed_id: deferredEventId, status: 'finished' },
+  }));
+}
 if (typeof document !== 'undefined') {
+  document.addEventListener('preview:hydrate-reply-event', seedDeferredEvent);
   document.addEventListener('preview:update-svg-code', () => seedSvgCode(svgSource.replace(/240/g, '320')));
   document.addEventListener('preview:svg-to-html', () => seedSvgCode(`<html><body>${svgSource}</body></html>`));
 }
@@ -61,6 +73,12 @@ if (typeof document !== 'undefined') {
 export default defaultProps;
 
 export const variants = {
+  deferredEventReply: {
+    ...defaultProps,
+    content: 'Can I bring my existing project?\n\n```json\n' + JSON.stringify({
+      type: 'events-event', embed_id: deferredEventId, reference_only: true, app_id: 'events', skill_id: 'event',
+    }) + '\n```',
+  },
   svgFenced: {
     ...defaultProps,
     role: 'assistant' as const,
