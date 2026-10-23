@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 8
+version: 9
 status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -300,7 +300,8 @@ assertions:
   must: Composer embed inputs from paste, drag/drop, picker, camera, sketch, maps or code follow-up preserve their
     embed metadata, defer send while upload is in flight, and mark anonymous private-file attachments as signup-required
     before suggestions or sends proceed. New web microphone recordings follow the editable-transcript contract instead
-    of creating an embed, and Send remains gated while their correction is in flight.
+    of creating an embed. An explicit recording Send request waits for successful correction before the normal
+    composer send gates admit submission; choosing Finish alone leaves the corrected text unsent.
   depends_on:
   - models.EmbedInputState
   - examples.gated_attachments
@@ -372,9 +373,13 @@ assertions:
   type: behavior
   must: In the shared web composer, microphone recordings are transient input for transcription and correction.
     On success, insert the corrected transcript as ordinary editable text at the originating selection while preserving
-    existing notes and other content; do not auto-send, create a recording embed or permanently upload/store the
-    audio. Cancellation, error, context switches and stale completions cannot overwrite another chat or newer submitted
-    draft; release temporary recording resources. Historical recording embeds remain readable. If transcription
+    existing notes and other content. Finish or Enter leaves the corrected text unsent for review. During recording
+    and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
+    Send name. Choosing Send finishes capture if needed and requests exactly one submission of the complete draft
+    after correction succeeds, through the normal composer send gates, without another button press. Repeated activation
+    cannot duplicate submission. Do not create a recording embed or permanently upload/store the audio. Cancellation,
+    error, context switches and stale completions clear any pending recording Send request and cannot send or overwrite
+    another chat or newer submitted draft; release temporary recording resources. Historical recording embeds remain readable. If transcription
     requires authentication, use the existing login/signup gate before recording instead of a simulated result.
   depends_on:
   - models.RecordingState

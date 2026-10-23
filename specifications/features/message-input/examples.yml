@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@8
+specification: feature.message-input@9
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -265,14 +265,15 @@ immediate_submission:
     restores the labeled Send button, and focus adds no gray translucent backdrop.
 editable_transcript:
 - id: transcript-among-existing-notes
+  assertion_ids: [message-input.audio.editable-transcript]
   given: Alice has typed meeting notes and places the caret where she wants her recording’s words.
-  when: She finishes recording and receives the corrected transcript.
-  then: The transcript appears as editable normal text at that position, preserving her notes, without a recording
-    embed, permanent audio upload or automatic Send.
+  when: She chooses Finish or presses Enter, or chooses the same small round orange up-arrow Send button used by the minimized composer while recording.
+  then: Both paths preserve her notes and insert the corrected transcript at her caret without an audio embed or permanent audio upload. Finish or Enter leaves an editable unsent draft; Send stops capture and submits the complete corrected draft once without a second press, subject to the normal send gates.
 - id: stale-recording-result
-  given: Alice starts a recording in chat A, then cancels or switches to chat B and starts another draft.
-  when: The old correction result arrives.
-  then: It does not alter chat B or the newer draft; temporary recording resources are released.
+  assertion_ids: [message-input.audio.editable-transcript]
+  given: Alice chooses the round Send button for a recording in chat A, and correction is still pending.
+  when: She cancels, correction fails, or she switches to chat B and starts another draft before the old result arrives.
+  then: The pending recording send is discarded, no message is sent, chat B and newer drafts stay unchanged, and temporary recording resources are released.
 gated_attachments:
 - id: pending-file-keeps-send-gated
   given: Alice attaches a private file and its upload is still pending.
@@ -282,9 +283,8 @@ gated_attachments:
   assertion_ids:
   - message-input.embeds.gated-send
   given: Alice finishes a web microphone recording and correction is still in progress.
-  when: She attempts Send.
-  then: Send waits for correction without creating an audio attachment; she can review the corrected normal text
-    before sending.
+  when: She chooses the small round Send button during correction, including if she activates it repeatedly.
+  then: The composer waits for successful correction and then submits the complete corrected draft once through the normal send gates without another press or an audio attachment. If she never chooses Send, Finish leaves the corrected text available for review.
 composer_ghost:
 - id: accept-contextual-next-message
   assertion_ids:

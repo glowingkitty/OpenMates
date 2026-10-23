@@ -64,6 +64,7 @@
     // Components
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
+    import CompactSendButton from './CompactSendButton.svelte';
     import MapsView from './MapsView.svelte';
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
@@ -388,6 +389,7 @@
         from: number;
         to: number;
         realtime: AudioRealtimeTranscriptionHandle | null;
+        sendRequested: boolean;
         overlayRemoved: Promise<void>;
         resolveOverlayRemoved: () => void;
         releaseEmptyDraftProtection: () => void;
@@ -4909,6 +4911,7 @@
             from: selection.from,
             to: selection.to,
             realtime: null as AudioRealtimeTranscriptionHandle | null,
+            sendRequested: false,
             overlayRemoved,
             resolveOverlayRemoved,
             releaseEmptyDraftProtection: () => {},
@@ -4959,6 +4962,11 @@
         return current;
     }
 
+    function handleRecordingSendRequested() {
+        const context = recordingContext;
+        if (context && isCurrentRecordingContext(context)) context.sendRequested = true;
+    }
+
     // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
     async function handleAudioRecorded(event: CustomEvent<{ realtime?: AudioRealtimeTranscriptionHandle }>) {
         const context = recordingContext;
@@ -5007,11 +5015,19 @@
             await context.overlayRemoved;
             recordRecordingDiagnostic('post-frame', context);
             if (!isCurrentRecordingContext(context)) return;
-            context.editor.view.focus();
-            recordRecordingDiagnostic('focus-restored', context);
             hasContent = editorHasSendableText(context.editor);
             refreshDraftPreviewState(context.editor);
             lastEditorUpdateText = context.editor.getText();
+            if (context.sendRequested) {
+                // Release the correction gate before using the normal send path.
+                // The same-context check above also rejects cancelled/stale sends.
+                context.realtime = null;
+                invalidateRecordingContext('correction-ready-to-send');
+                await handleSendMessage();
+                return;
+            }
+            context.editor.view.focus();
+            recordRecordingDiagnostic('focus-restored', context);
             if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
         } catch (error) {
             if (isCurrentRecordingContext(context)) {
@@ -7293,20 +7309,12 @@
         {/if}
 
         {#if hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
-            <button
-                type="button"
-                class="minimized-send-button"
-                data-testid="composer-send-button"
-                data-preserve-composer-focus="true"
-                aria-label={$text('enter_message.send')}
+            <CompactSendButton
+                floating={true}
                 disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
-                aria-busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 onclick={handleSendMessage}
-            >
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-            </button>
+            />
         {/if}
 
         <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->
@@ -7342,7 +7350,9 @@
                 initialPosition={$recordingState.recordStartPosition}
                 enableRealtime={$authStore.isAuthenticated}
                 retainUntilCorrection={true}
+                allowSend={true}
                 recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
+                on:sendrequested={handleRecordingSendRequested}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:overlayremoved={handleRecordingOverlayRemoved}

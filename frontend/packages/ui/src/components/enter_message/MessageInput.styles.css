@@ -169,31 +169,6 @@
   min-height: var(--composer-focused-height, 180px);
 }
 
-.minimized-send-button {
-  position: absolute;
-  z-index: 12;
-  right: var(--spacing-6);
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  min-width: 0; /* Reset the global button minimum so this icon control stays circular. */
-  height: 40px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  color: var(--color-font-button);
-  background: var(--color-button-primary);
-  cursor: pointer;
-}
-
-.minimized-send-button svg { width: 20px; height: 20px; }
-.minimized-send-button:hover { background: var(--color-button-primary-hover); }
-.minimized-send-button:active { background: var(--color-button-primary-pressed); }
-.minimized-send-button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
-
 @media (prefers-reduced-motion: reduce) {
   .message-field, .scrollable-content { transition: none; }
 }

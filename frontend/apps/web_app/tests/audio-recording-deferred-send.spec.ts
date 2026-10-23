@@ -1,5 +1,6 @@
 /**
- * Corrected dictation stays editable until the user explicitly sends it.
+ * Finish leaves corrected dictation editable; recording Send submits it once
+ * after correction, through the same message pipeline as ordinary text.
  * The paid realtime provider is mocked; chat sends use the existing isolated
  * inference fixture. Audio upload, batch transcription and embed-reference
  * requests are rejected so a regression cannot permanently store the recording.
@@ -98,11 +99,72 @@ async function addNotesAndSend(page: Page): Promise<void> {
 	await expect(page.getByText(/Something went wrong while processing the embeds/i)).not.toBeVisible();
 }
 
+async function expectDirectTranscriptSent(page: Page): Promise<void> {
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible({ timeout: 20000 });
+	const message = page.getByTestId('message-user');
+	await expect(message).toHaveCount(1);
+	await expect(message).toContainText('Please respond to this voice note.');
+	await expect(message).toContainText(CORRECTED_TRANSCRIPT);
+	await expect(message).not.toContainText(RAW_TRANSCRIPT);
+	const messageId = await message.getAttribute('data-message-id');
+	expect(messageId).toBeTruthy();
+	await expect(message).toHaveAttribute('data-status', 'synced', { timeout: 60000 });
+	await expect(message).toHaveAttribute('data-message-id', messageId!);
+	await expect(message).toHaveCount(1);
+	await expect(message.getByTestId('recording-preview')).toHaveCount(0);
+	await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText('');
+}
+
 test.use({
 	launchOptions: {
 		args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
 	},
 	permissions: ['microphone']
+});
+
+for (const phase of ['recording', 'correction']) {
+	// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.embeds.gated-send,chats.message.identity-idempotent
+	test(`round Send during ${phase} waits for corrected text and submits once`, async ({ page }) => {
+		test.setTimeout(180000);
+		const storageRequests = await rejectPermanentRecordingStorage(page);
+		let releaseCorrection!: () => void;
+		const correctionRelease = new Promise<void>((resolve) => { releaseCorrection = resolve; });
+		await mockRealtimeRecording(page, { correctionRelease });
+		await openAuthenticatedRecording(page);
+		const overlay = page.getByTestId('record-overlay');
+		if (phase === 'correction') {
+			await overlay.getByTestId('record-finish-button').click();
+			await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
+		}
+		const send = overlay.getByTestId('record-send-button');
+		await expect(send).toHaveAccessibleName('Send');
+		await expect(send).toBeEnabled();
+		await send.click();
+		await expect(send).toBeDisabled();
+		await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
+		await expect(page.getByTestId('message-user')).toHaveCount(0);
+		await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);
+		releaseCorrection();
+		await expectDirectTranscriptSent(page);
+		expect(storageRequests).toEqual([]);
+	});
+}
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('cancelling a pending recording Send preserves notes without submitting', async ({ page }) => {
+	test.setTimeout(120000);
+	const storageRequests = await rejectPermanentRecordingStorage(page);
+	await mockRealtimeRecording(page, { correctionRelease: new Promise(() => {}) });
+	await openAuthenticatedRecording(page);
+	const overlay = page.getByTestId('record-overlay');
+	await overlay.getByTestId('record-send-button').click();
+	await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
+	await expect(overlay.getByTestId('record-send-button')).toBeDisabled();
+	await overlay.getByTestId('record-cancel-button').click();
+	await expect(overlay).not.toBeVisible();
+	await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);
+	await expect(page.getByTestId('message-user')).toHaveCount(0);
+	expect(storageRequests).toEqual([]);
 });
 
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle,chats.local-state.precedence,chats.message.identity-idempotent
@@ -174,7 +236,7 @@ test('realtime correction failure preserves notes without upload or batch fallba
 	const storageRequests = await rejectPermanentRecordingStorage(page);
 	await mockRealtimeRecording(page, { failCorrection: true });
 	await openAuthenticatedRecording(page);
-	await page.getByTestId('record-overlay').getByTestId('record-finish-button').click();
+	await page.getByTestId('record-overlay').getByTestId('record-send-button').click();
 	await expect(page.getByTestId('record-overlay')).not.toBeVisible({ timeout: 20000 });
 	const editor = page.getByTestId('message-editor').locator('.ProseMirror');
 	await expect(editor).toHaveText(AUDIO_SEND_PROMPT);

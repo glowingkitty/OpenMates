@@ -91,9 +91,9 @@ Key extensions:
 - Wiki learning questions use a separate editor and the normal encrypted send path with `preserveDraft`; top-level boolean `preserve_draft: true` also retains the server draft. Rejected questions retain the article and composer for retry.
 
 **Web microphone recordings:**
-- Recording uses ephemeral realtime transcription and correction. Corrected text is inserted as literal TipTap text and hard breaks at the originating, transaction-mapped selection, preserving surrounding notes. It is editable and is not sent automatically.
+- Recording uses ephemeral realtime transcription and correction. Corrected text is inserted as literal TipTap text and hard breaks at the originating, transaction-mapped selection, preserving surrounding notes. Finish or Enter leaves the result editable for review. The recording overlay also reuses the minimized composer's `CompactSendButton`: choosing Send during recording or correction requests one normal composer submission after correction succeeds.
 - The shared web composer creates no new recording embed and uploads no permanent recording file. Existing audio embeds, uploaded audio files and assistant speech output retain their separate paths. Native Apple recording is a separate implementation.
-- Send remains unavailable while correction is pending. Cancel, an error, a new recording, editor destruction, chat/route changes, a sent draft or a queued edit invalidate the old insertion context. Recording-owned audio resources close on completion/cancel; focus is restored after the recording overlay closes and only while the context still matches.
+- Submission waits while correction is pending; a requested recording Send stays disabled to prevent duplicate requests. Cancel, an error, a new recording, editor destruction, chat/route changes, a sent draft or a queued edit invalidate the old insertion context and its Send request. Recording-owned audio resources close on completion/cancel; the normal Finish path restores focus after the overlay closes and only while the context still matches.
 
 ### Layout Behavior
 

@@ -3,6 +3,7 @@ const defaultProps = {
     initialPosition: { x: 0, y: 0 },
     enableRealtime: true,
     retainUntilCorrection: true,
+    allowSend: true,
     previewTranscript: 'Please schedule the project review for Thursday afternoon.',
 };
 

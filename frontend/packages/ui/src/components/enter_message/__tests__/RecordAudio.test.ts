@@ -65,10 +65,11 @@ async function flushMount() {
     await tick();
 }
 
-function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; retainUntilCorrection?: boolean } = {}) {
+function mountRecorder(options: { externalStream?: MediaStream; realtime?: boolean; retainUntilCorrection?: boolean; allowSend?: boolean } = {}) {
     const close = vi.fn();
     const cancel = vi.fn();
     const audioRecorded = vi.fn();
+    const sendRequested = vi.fn();
     const target = document.createElement('div');
     document.body.appendChild(target);
     const component = mount(RecordAudio, {
@@ -79,14 +80,16 @@ function mountRecorder(options: { externalStream?: MediaStream; realtime?: boole
             enableRealtime: options.realtime ?? false,
             retainUntilCorrection: options.retainUntilCorrection ?? true,
             previewTranscript: null,
+            allowSend: options.allowSend ?? false,
         },
         events: {
             close,
             cancel,
             audiorecorded: audioRecorded,
+            sendrequested: sendRequested,
         },
     });
-    return { component, target, close, cancel, audioRecorded };
+    return { component, target, close, cancel, audioRecorded, sendRequested };
 }
 
 describe('RecordAudio finalization', () => {
@@ -227,6 +230,39 @@ describe('RecordAudio finalization', () => {
         expect(mounted.cancel).not.toHaveBeenCalled();
         expect(mounted.close).toHaveBeenCalledTimes(1);
     });
+
+    for (const sendDuringCorrection of [false, true]) {
+        // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.embeds.gated-send
+        it(`requests Send once ${sendDuringCorrection ? 'during correction' : 'while recording'} and waits for correction`, async () => {
+            let resolveCorrection!: (value: unknown) => void;
+            realtimeMocks.correction = new Promise((resolve) => { resolveCorrection = resolve; });
+            const mounted = mountRecorder({ realtime: true, allowSend: true });
+            await flushMount();
+            const recorder = FakeMediaRecorder.instances[0];
+            recorder.emitData('recorded-audio');
+            if (sendDuringCorrection) {
+                mounted.component.stop();
+                recorder.emitStop();
+                await tick();
+                expect(mounted.sendRequested).not.toHaveBeenCalled();
+            }
+            const send = mounted.target.querySelector<HTMLButtonElement>('[data-testid="record-send-button"]')!;
+            expect(send.disabled).toBe(false);
+            send.click();
+            send.click();
+            await tick();
+            expect(mounted.sendRequested).toHaveBeenCalledTimes(1);
+            expect(realtimeMocks.finish).toHaveBeenCalledTimes(1);
+            expect(send.disabled).toBe(true);
+            expect(mounted.close).not.toHaveBeenCalled();
+            if (!sendDuringCorrection) recorder.emitStop();
+            expect(mounted.audioRecorded).toHaveBeenCalledTimes(1);
+            resolveCorrection({ transcript: 'Corrected text' });
+            await flushMount();
+            expect(mounted.close).toHaveBeenCalledTimes(1);
+            await unmount(mounted.component, { outro: false });
+        });
+    }
 
     // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
     it('keeps processing visible until correction and cycles labels every three seconds', async () => {

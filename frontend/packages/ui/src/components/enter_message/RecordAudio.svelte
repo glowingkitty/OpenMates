@@ -30,6 +30,7 @@
     import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import CompactSendButton from './CompactSendButton.svelte';
     import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
     import {
         startAudioRealtimeTranscription,
@@ -50,6 +51,7 @@
         overlayremoved: { recordingGeneration: number };
         recordingStateChange: { active: boolean };
         prepareassistantplayback: void;
+        sendrequested: void;
     }>();
 
     // --- Props ---
@@ -63,6 +65,8 @@
         retainUntilCorrection?: boolean;
         correctionContext?: 'workflow';
         recordingGeneration?: number;
+        /** Only composers that handle sendrequested offer direct submission. */
+        allowSend?: boolean;
     }
     let {
         initialPosition,
@@ -73,6 +77,7 @@
         retainUntilCorrection = false,
         correctionContext,
         recordingGeneration = 0,
+        allowSend = false,
     }: Props = $props();
     let overlayGeneration = 0;
 
@@ -84,6 +89,7 @@
     let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
     let isCancelled = false;
+    let sendRequested = $state(false);
     // A stop request and final cleanup are deliberately separate. Some browsers
     // can accept MediaRecorder.stop() without ever delivering `stop`; cancel must
     // still be able to escalate a pending finish and release the microphone.
@@ -636,6 +642,8 @@
     // --- Keyboard shortcuts ---
     function handleKeyDown(event: KeyboardEvent) {
         if (event.key === 'Enter') {
+            // Let focused controls perform their native keyboard activation.
+            if (event.target instanceof Element && event.target.closest('button')) return;
             event.preventDefault();
             stop();
         }
@@ -646,6 +654,13 @@
     }
 
     // --- Exported Methods (called by parent as fallback via bind:this) ---
+
+    function requestSend() {
+        if (!allowSend || sendRequested || stopIntent === 'cancel' || overlayCloseRequested) return;
+        sendRequested = true;
+        dispatch('sendrequested');
+        stop();
+    }
 
     /** Complete the recording (produces audiorecorded event). */
     export function stop() {
@@ -759,6 +774,14 @@
             <button type="button" class="record-action-button finish" data-testid="record-finish-button" disabled={isProcessing || finalized} onclick={stop}>
                 {$text('enter_message.record_audio.finish')}
             </button>
+            {#if allowSend}
+                <CompactSendButton
+                    testId="record-send-button"
+                    disabled={sendRequested || overlayCloseRequested}
+                    busy={sendRequested && isProcessing}
+                    onclick={requestSend}
+                />
+            {/if}
         </div>
     </div>
 </div>
@@ -900,12 +923,14 @@
     .record-controls {
         width: 100%;
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: var(--spacing-4);
     }
 
     .timer-pill {
+        align-self: center;
         background-color: #ff4444;
         color: white;
         padding: 6px 14px;
@@ -927,6 +952,9 @@
     }
 
     .record-action-button {
+        /* The control row owns spacing and sizing, including narrow composers. */
+        min-width: 0;
+        margin: 0;
         border: 0;
         border-radius: var(--radius-8);
         padding: var(--spacing-4) var(--spacing-8);
