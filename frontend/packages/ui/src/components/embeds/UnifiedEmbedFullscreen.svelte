@@ -33,7 +33,7 @@
   const appsSave = getContext<AppsResultsSaveContext | undefined>(APPS_RESULTS_SAVE_CONTEXT);
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, tick, getContext } from 'svelte';
   import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';

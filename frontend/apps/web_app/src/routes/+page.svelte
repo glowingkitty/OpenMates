@@ -883,12 +883,14 @@
 		if (!isCurrentChatNavigationTarget(chat.chat_id) ||
 			getHashParam(window.location.hash, 'chat-id') !== chat.chat_id) return;
 		// Example chats are static; their embed refs are registered during page startup.
-		chatSurface.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
+		await chatSurface.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
+		if (!isCurrentChatNavigationTarget(chat.chat_id) ||
+			getHashParam(window.location.hash, 'chat-id') !== chat.chat_id) return;
 		lastLoadedChatId = chat.chat_id;
 		window.dispatchEvent(new CustomEvent('globalChatSelected', {
 			detail: { chat }, bubbles: true, composed: true
 		}));
-		if (embedId) await handleEmbedDeepLink(embedId, true);
+		if (embedId) await handleEmbedDeepLink(embedId, true, chat.chat_id);
 	}
 
 	async function handleChatDeepLink(
@@ -1523,21 +1525,25 @@
 	 * Handle embed deep linking from URL
 	 * Opens the embed in fullscreen mode when #embed-id={embedId} is in the URL
 	 */
-	async function handleEmbedDeepLink(embedId: string, hasChatContext = false) {
+	async function handleEmbedDeepLink(embedId: string, hasChatContext = false, owningChatId?: string) {
 		console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
+		const sourceChatId = hasChatContext ? (owningChatId ?? $activeChatStore) : null;
+		const exampleChatId = sourceChatId && isExampleChat(sourceChatId) ? sourceChatId : null;
 
 		let targetEmbedId = embedId;
 		let focusChildEmbedId: string | undefined;
 		try {
 			const { resolveEmbedFullscreenTarget, resolveExampleFullscreenTarget } = await import('@repo/ui');
 			const resolvedTarget = await resolveEmbedFullscreenTarget(embedId, {
-				exampleResolver: resolveExampleFullscreenTarget
+				exampleResolver: exampleChatId ? (id) => resolveExampleFullscreenTarget(id, exampleChatId) : undefined,
+				exampleOnly: !!exampleChatId,
 			});
 			targetEmbedId = resolvedTarget.targetEmbedId;
 			focusChildEmbedId = resolvedTarget.focusChildEmbedId;
 		} catch (error) {
 			console.debug('[+page.svelte] Fullscreen target resolution skipped:', error);
 		}
+		if (sourceChatId && $activeChatStore !== sourceChatId) return;
 
 		// Mark that a deep link was processed
 		deepLinkProcessed = true;
@@ -1545,13 +1551,14 @@
 		// Update the canonical fullscreen route so the URL hash is set
 		// NOTE: This is a programmatic change; hashchange handler must ignore embed hash updates.
 		setCanonicalFullscreenRoute(targetEmbedId, {
-			chatId: hasChatContext ? $activeChatStore : null,
+			chatId: sourceChatId,
 			origin: 'hash'
 		});
 
 		// Wait a bit for ActiveChat component to be ready and register event listeners
 		// This ensures the embedfullscreen event listener is registered
 		await new Promise((resolve) => setTimeout(resolve, 300));
+		if (sourceChatId && $activeChatStore !== sourceChatId) return;
 
 		const openMatesEvent = getOpenMatesEventBySlug(embedId);
 		if (openMatesEvent) {
@@ -1559,6 +1566,7 @@
 				embedId: openMatesEvent.embed_id,
 				embedType: 'events-event',
 				hasChatContext,
+				sourceChatId,
 				embedData: {
 					embed_id: openMatesEvent.embed_id,
 					type: 'events-event',
@@ -1577,6 +1585,7 @@
 		dispatchEmbedFullscreen({
 			embedId: targetEmbedId,
 			hasChatContext,
+			sourceChatId,
 			focusChildEmbedId,
 			// Let handleEmbedFullscreen load and decode the embed content
 			embedData: null,

@@ -22,6 +22,7 @@ test('opens a public event from the new-chat composer while keeping the draft', 
   await editor.fill(query);
   const eventCard = page.getByTestId('recent-embed-search-result').filter({ hasText: query }).first();
   await expect(eventCard).toBeVisible({ timeout: 30_000 });
+  await expect(eventCard.locator('..').locator('.card-date')).toHaveCount(0);
   await eventCard.click();
 
   const fullscreen = page.getByTestId('embed-fullscreen-container');
@@ -29,6 +30,9 @@ test('opens a public event from the new-chat composer while keeping the draft', 
   await expect(fullscreen).toContainText(query);
   await expect(editor).toHaveText(query);
   await expect(page).toHaveURL(/embed-id=/);
+  await fullscreen.getByTestId('embed-minimize').click();
+  await expect(fullscreen).toHaveCount(0);
+  await expect(editor).toHaveText(query);
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
@@ -109,4 +113,9 @@ test('opens an event from another example chat while keeping the message draft',
   await expect(fullscreen).toContainText(query);
   await expect(editor).toHaveText(query);
   await expect(page).toHaveURL(/embed-id=/);
+  await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', CHAT_ID);
+  await fullscreen.getByTestId('embed-minimize').click();
+  await expect(fullscreen).toHaveCount(0);
+  await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', CHAT_ID);
+  await expect(editor).toHaveText(query);
 });

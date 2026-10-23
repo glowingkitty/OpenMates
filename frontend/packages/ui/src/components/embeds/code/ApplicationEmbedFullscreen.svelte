@@ -11,7 +11,7 @@
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   import { isPublicChat } from '../../../demo_chats';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const capturedSourceChatId = sourceChatContext?.chatId ?? null;
+  const capturedSourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.chatId ?? null;
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { authStore } from '../../../stores/authStore';

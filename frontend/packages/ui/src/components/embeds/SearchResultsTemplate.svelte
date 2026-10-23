@@ -198,7 +198,8 @@
     let cancelled = false;
     parentContent = {};
     parentLoading = Boolean(currentEmbedId);
-    if (currentEmbedId) void resolveEmbed(currentEmbedId).then(async embed => {
+    const lookupChatId = sourceChat?.exampleChatId ?? sourceChat?.chatId ?? null;
+    if (currentEmbedId) void resolveEmbed(currentEmbedId, { chatId: lookupChatId }).then(async embed => {
       const content = embed ? await decodeToonContent(embed.content) : null;
       if (!cancelled && content) parentContent = content;
     }).catch(() => {}).finally(() => { if (!cancelled) parentLoading = false; });

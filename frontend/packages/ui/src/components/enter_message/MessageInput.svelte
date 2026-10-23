@@ -4686,7 +4686,12 @@
             dispatch('heightchange', { height: currentHeight });
         }
     }
-    function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
+    function checkScrollable() {
+        // The compact empty editor can overflow its minimum-height wrapper.
+        // Only real draft content, beyond rounding noise, warrants expansion.
+        isScrollable = hasSendableDraft && !!scrollableContent
+            && scrollableContent.scrollHeight > scrollableContent.clientHeight + 1;
+    }
 
     async function toggleFullscreen() {
         // Serialize toggles so a second click cannot measure an intermediate frame.
@@ -7044,6 +7049,7 @@
         class="message-field canonical-composer {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
         data-focused={isMessageFieldFocused}
+        data-editor-ready={!isInitialMount}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={isInlineCompact}
@@ -7190,7 +7196,7 @@
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || isScrollable) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || (hasSendableDraft && isScrollable)) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
                 data-testid="message-expand-button"
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"

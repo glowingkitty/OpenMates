@@ -81,7 +81,7 @@
     onSuggestionClick: (suggestion: string) => void;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
-    onEmbedSelect: (embedId: string, settingsPath?: string) => void;
+    onEmbedSelect: (embedId: string, settingsPath?: string, embedChatId?: string) => void;
     messageInputContent?: string;
     selectedInterestTagIds?: InterestTagId[];
   } = $props();
@@ -720,16 +720,14 @@
             <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>
-          <span class="card-date">{embed.subtitle || embed.appId}</span>
         </div>
       {/each}
       {#each recentEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId)}>
+          <button class="suggestion-card embed-result-card" data-testid="recent-embed-search-result" data-app-id={embed.appId || ''} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, undefined, embed.chatId)}>
             <span class="card-icon"><Icon name={embed.appId || 'search'} type={embed.appId ? 'app' : 'skill'} size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>
-          <span class="card-date">{embed.subtitle}</span>
         </div>
       {/each}
       {#if (savedEmbedResults.length > 0 || recentEmbedResults.length > 0) && (chatSearchResults.length > 0 || visibleSuggestions.length > 0 || fileSearchResults.length > 0)}
@@ -817,6 +815,8 @@
 
 <style>
   .suggestions-wrapper {
+    container: composer-search / inline-size;
+    --search-fade-width: clamp(16px, 4%, 28px);
     animation: fadeIn 200ms ease-out;
     animation-delay: 200ms;
     animation-fill-mode: backwards;
@@ -830,8 +830,8 @@
 
     /* Fade edges to transparent so the gap between scroll content and
        the parent container's padding is not visible as a hard cut-off. */
-    -webkit-mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to right, transparent, black 28px, black calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black var(--search-fade-width), black calc(100% - var(--search-fade-width)), transparent);
+    mask-image: linear-gradient(to right, transparent, black var(--search-fade-width), black calc(100% - var(--search-fade-width)), transparent);
   }
 
   .suggestions-wrapper.fade-out {
@@ -1005,6 +1005,8 @@
 
   /* Wrapper for chat result card + date label below it */
   .chat-result-wrapper {
+    width: 300px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1014,6 +1016,9 @@
 
   /* Small date label below the chat result card */
   .card-date {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: var(--color-grey-50);
     font-size: var(--font-size-tiny);
     font-weight: 400;
@@ -1023,13 +1028,7 @@
     opacity: 0.8;
   }
 
-  @media (max-width: 730px) {
-    .suggestions-wrapper {
-      /* Tighter fade on mobile to preserve more visible card area */
-      -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
-      mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
-    }
-
+  @container composer-search (max-width: 730px) {
     .suggestions-header {
       /* Cards are 210px on mobile → left edge at 50% - 105px */
       padding: 0 0 0 calc(50% - 105px);
@@ -1047,6 +1046,8 @@
       padding: var(--spacing-5) var(--spacing-6);
       gap: var(--spacing-4);
     }
+
+    .chat-result-wrapper { width: 210px; }
 
     .card-text {
       font-size: var(--font-size-xs);

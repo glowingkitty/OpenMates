@@ -46,6 +46,8 @@ export interface EmbedFullscreenDispatchDetail {
   focusSheetRange?: string | null;
   hasChatContext?: boolean;
   sourceChatId?: string | null;
+  /** Public fixture lookup owner, independent of the current chat/draft. */
+  exampleChatId?: string | null;
 }
 
 export type ExampleFullscreenResolver = (

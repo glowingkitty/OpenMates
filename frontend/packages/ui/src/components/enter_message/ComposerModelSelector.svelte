@@ -305,5 +305,5 @@
     .model-menu-row :global(.toggle .slider:before) { width: 1.5625rem; height: 1.5625rem; left: 0.125rem; bottom: 0.125rem; }
     .model-menu-row :global(.toggle input:checked + .slider:before) { transform: translateX(1.25rem); }
     .show-more { width: 100%; padding: var(--spacing-3) var(--spacing-4); border: 0; color: var(--color-font-secondary); text-align: center; background: transparent; cursor: pointer; }
-    @media (max-width: 34rem) { .model-selector-label { display: none; } }
+    @container composer-actions (max-width: 34rem) { .model-selector-label { display: none; } }
 </style>

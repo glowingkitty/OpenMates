@@ -91,7 +91,7 @@ The mandatory order is:
 6. Shared floating follow-up composer with canonical MessageInput geometry and
    focus expansion, with enough bottom padding to scroll all
    information above it. Reuse the current privacy and chat-handoff boundaries.
-   The embed context uses the theme's plain surface color. Reserve separate
+   Use the same theme-aware background as the regular MessageInput composer. Reserve separate
    playback actions as well as the media itself when the composer expands.
 
 Media-first results use the shared `immersive` layout. Fit the complete image or

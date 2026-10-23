@@ -42,7 +42,11 @@ export interface EmbedFullscreenCommonProps {
 export const EMBED_CHAT_CONTEXT = Symbol('embed-chat-context');
 /** Captured source chat for embed views, including imperative TipTap roots. */
 export const EMBED_SOURCE_CHAT_CONTEXT = Symbol('embed-source-chat-context');
-export interface EmbedSourceChatContext { readonly chatId: string | null; }
+export interface EmbedSourceChatContext {
+	readonly chatId: string | null;
+	/** Read-only public lookup scope; never a follow-up destination. */
+	readonly exampleChatId?: string | null;
+}
 export interface EmbedChatContext {
 	readonly showChatButton: boolean;
 	/** Split movement belongs to the workspace, including nested result panes. */

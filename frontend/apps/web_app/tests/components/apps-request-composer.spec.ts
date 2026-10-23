@@ -3,6 +3,24 @@ import { waitForComponentMotion, waitForComponentPreview } from '../helpers/comp
 
 // playwright-account: not_required reason=isolated_component_preview
 test.setTimeout(120_000);
+
+// contract-test: direct surface=gui.web assertions=message-input.layout.responsive-parity,apps.results.shared-fullscreen
+test('embedded followup matches the regular composer background in both themes', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  for (const theme of ['light', 'dark']) {
+    await page.goto(`/dev/preview/enter_message/MessageInput?chrome=0&theme=${theme}&width=390`);
+    await waitForComponentPreview(page);
+    const background = await page.getByTestId('message-field').evaluate(element => getComputedStyle(element).backgroundColor);
+    await page.goto(`/dev/preview/apps/AppsRequestComposer?chrome=0&theme=${theme}&width=390&variant=embed`);
+    await waitForComponentPreview(page);
+    const composer = page.getByTestId('apps-request-composer');
+    await expect(composer).toHaveCSS('background-color', background);
+    await page.getByTestId('apps-request-textarea').fill('Ask about this result');
+    await expect(composer).toHaveClass(/focused/);
+    await expect(composer).toHaveCSS('background-color', background);
+  }
+});
+
 // contract-test: direct surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
 test('embedded followup uses readable canonical composer geometry and expands without losing draft or attachments', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1000, height: 900 });

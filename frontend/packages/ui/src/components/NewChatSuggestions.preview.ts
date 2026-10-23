@@ -1,12 +1,16 @@
 /** New-chat composer suggestions over public examples, without account state. */
 const defaultProps = {
-  messageInputContent: 'Berlin',
+  messageInputContent: 'OpenClaw Anonymous Berlin #9',
   onSuggestionClick: () => {},
   onChatNavigate: () => {},
   onFileSelect: () => {},
-  onEmbedSelect: (embedId: string) => {
-    window.dispatchEvent(new CustomEvent('preview-embed-selected', { detail: embedId }));
+  onEmbedSelect: (embedId: string, _settingsPath?: string, chatId?: string) => {
+    window.dispatchEvent(new CustomEvent('preview-embed-selected', { detail: { embedId, chatId } }));
   },
 };
 
 export default defaultProps;
+
+export const variants = {
+  codeResult: { ...defaultProps, messageInputContent: 'src/main.js' },
+};

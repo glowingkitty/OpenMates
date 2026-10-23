@@ -629,7 +629,6 @@
     }
   }
   .workspace-prompt-composer.embed-presentation {
-    --composer-background: var(--color-grey-0);
     min-height: var(--composer-compact-height);
     border-radius: var(--composer-radius);
     background: var(--composer-background);

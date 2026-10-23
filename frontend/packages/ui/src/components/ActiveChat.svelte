@@ -137,7 +137,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { updateHashParams } from '../utils/settingsHashUtils';
     import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
-    import { DEMO_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
+    import { DEMO_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed, resolveExampleFullscreenTarget } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
@@ -404,8 +404,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             ...(fullscreenData.decodedContent ?? {})
         } as EmbedDecodedContent;
 
-        if (fullscreenData.hasChatContext && (!content.app_id || !content.skill_id) && fullscreenData.embedId) {
-            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId, currentChat?.chat_id);
+        const lookupChatId = fullscreenData.exampleChatId ?? (fullscreenData.hasChatContext ? currentChat?.chat_id : null);
+        if (lookupChatId && (!content.app_id || !content.skill_id) && fullscreenData.embedId) {
+            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId, lookupChatId);
             const rawContent = typeof content.content === 'string'
                 ? content.content
                 : exampleEmbed?.content;
@@ -671,6 +672,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     };
 
     type EmbedFullscreenState = {
+        /** Public lookup owner; does not change the active chat or follow-up destination. */
+        exampleChatId?: string | null;
         /** A visible, cancellable shell while the parent embed resolves. */
         isResolving?: boolean;
         loadError?: boolean;
@@ -706,6 +709,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     type EmbedFullscreenEventDetail = {
         sourceChatId?: string | null;
+        exampleChatId?: string | null;
         embedId?: string | null;
         embedData?: EmbedDataRecord | null;
         decodedContent?: EmbedDecodedContent | null;
@@ -1823,10 +1827,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (detail.sourceChatId && detail.sourceChatId !== currentChat?.chat_id) return;
         const hasChatContext = detail.hasChatContext ?? (detail.sourceChatId !== undefined
             ? !!detail.sourceChatId : (!showWelcome && !!currentChat?.chat_id));
+        const exampleChatId = detail.exampleChatId && isExampleChat(detail.exampleChatId)
+            ? detail.exampleChatId : null;
 
         // Ignore route echoes before starting another resolver or replacing the
         // shell. Updates to the open embed arrive through its store subscription.
         if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId &&
+            (embedFullscreenData.exampleChatId ?? null) === exampleChatId &&
+            embedFullscreenData.hasChatContext === hasChatContext &&
             (embedFullscreenData?.focusChildEmbedId ?? null) === (focusChildEmbedId ?? null) &&
             (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
             JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null)) return;
@@ -1843,11 +1851,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         embedFullscreenData = {
             embedId, embedData, decodedContent, embedType, attrs,
             focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange,
-            hasChatContext, isResolving: true
+            hasChatContext, exampleChatId, isResolving: true
         };
         const openingData = embedFullscreenData;
         const openingChatId = currentChat?.chat_id;
-        const sourceChatId = hasChatContext ? (detail.sourceChatId ?? openingChatId) : null;
+        const lookupChatId = exampleChatId ?? (hasChatContext ? (detail.sourceChatId ?? openingChatId) : null);
         const stillOpening = () => showEmbedFullscreen && embedFullscreenData === openingData && currentChat?.chat_id === openingChatId;
         fullscreenHasChatContext = hasChatContext;
         showEmbedFullscreen = true;
@@ -1901,7 +1909,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (embedId && embedType !== 'workflow-run') {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-                const freshEmbedData = await resolveEmbed(embedId, { chatId: sourceChatId }) as EmbedResolverData | null;
+                const freshEmbedData = await resolveEmbed(embedId, { chatId: lookupChatId }) as EmbedResolverData | null;
                 if (!stillOpening()) return;
                 
                 if (freshEmbedData) {
@@ -1946,7 +1954,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData && !finalDecodedContent) {
-                    const exampleEmbedData = getExampleChatEmbed(embedId, sourceChatId);
+                    const exampleEmbedData = getExampleChatEmbed(embedId, lookupChatId);
                     if (exampleEmbedData) {
                         finalEmbedData = {
                             embed_id: exampleEmbedData.embed_id,
@@ -2127,7 +2135,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // CodeEmbedFullscreen uses this to highlight + auto-scroll to the target lines.
             focusLineRange: focusLineRange ?? null,
             focusSheetRange: focusSheetRange ?? null,
-            hasChatContext
+            hasChatContext,
+            exampleChatId
         };
         fullscreenHasChatContext = hasChatContext;
         showEmbedFullscreen = true;
@@ -2592,34 +2601,52 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         notificationStore.error(get(text)('chat.suggestions.embed_unavailable'));
     }
 
-    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string): Promise<void> {
+    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string, embedChatId?: string): Promise<void> {
+        const openingChatId = currentChat?.chat_id ?? null;
+        const openingOwner = $userProfile.user_id;
+        const openingAuthenticated = $authStore.isAuthenticated;
+        const openingTeam = getActiveTeamContextSnapshot();
+        const stillSelected = () => (currentChat?.chat_id ?? null) === openingChatId
+            && $userProfile.user_id === openingOwner && $authStore.isAuthenticated === openingAuthenticated
+            && isActiveTeamContext(openingTeam.teamId, openingTeam.epoch);
+        const exampleChatId = embedChatId && isExampleChat(embedChatId) ? embedChatId : null;
         // Old saved memories can retain valid structured metadata while their
         // referenced ciphertext can no longer decrypt. Show that saved entry.
         if (settingsPath) {
             try {
                 const { embedStore } = await import('../services/embedStore');
                 const cached = await embedStore.get(`embed:${embedId}`);
+                if (!stillSelected()) return;
                 if (cached && typeof cached === 'object' && '_decryptionFailed' in cached && cached._decryptionFailed) {
                     await openUnavailableEmbedMemory(settingsPath);
                     return;
                 }
             } catch {
+                if (!stillSelected()) return;
                 await openUnavailableEmbedMemory(settingsPath);
                 return;
             }
         }
-        const { loadEmbedsWithRetry } = await import('../services/embedResolver');
+        const { loadEmbedsWithRetry, resolveEmbed } = await import('../services/embedResolver');
         const { resolveEmbedFullscreenTarget } = await import('../services/embedFullscreenController');
-        const [embed] = await loadEmbedsWithRetry([embedId]);
+        const readEmbed = async (id: string) => exampleChatId
+            ? resolveEmbed(id, { chatId: exampleChatId })
+            : (await loadEmbedsWithRetry([id]))[0];
+        const embed = await readEmbed(embedId);
+        if (!stillSelected()) return;
         if (!embed) {
             await openUnavailableEmbedMemory(settingsPath);
             return;
         }
         const target = await resolveEmbedFullscreenTarget(embedId, {
             embedType: embed.type,
+            exampleResolver: exampleChatId ? (id) => resolveExampleFullscreenTarget(id, exampleChatId) : undefined,
+            exampleOnly: !!exampleChatId,
         });
+        if (!stillSelected()) return;
         if (target.targetEmbedId !== embedId) {
-            const [parent] = await loadEmbedsWithRetry([target.targetEmbedId]);
+            const parent = await readEmbed(target.targetEmbedId);
+            if (!stillSelected()) return;
             if (!parent) {
                 await openUnavailableEmbedMemory(settingsPath);
                 return;
@@ -2634,6 +2661,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             embedData: null,
             decodedContent: null,
             hasChatContext: false,
+            sourceChatId: openingChatId,
+            exampleChatId,
         });
     }
 
@@ -5429,6 +5458,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // their app-specific adapters do not forward the optional toolbar props.
     setContext<EmbedSourceChatContext>(EMBED_SOURCE_CHAT_CONTEXT, {
         get chatId() { return showEmbedFullscreen && !fullscreenHasChatContext ? null : currentChat?.chat_id ?? null; },
+        get exampleChatId() { return embedFullscreenData?.exampleChatId ?? null; },
     });
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
@@ -15500,7 +15530,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
                 <!-- Also key on focusChildEmbedId: clicking a different inline badge of the same parent embed
                      (same embedId, same type) must still re-mount the fullscreen so it opens the correct child. -->
-                {#key `${fullscreenData.embedId}:${fullscreenData.focusChildEmbedId ?? ''}:${fullscreenData.focusSheetRange ?? ''}:${fullscreenData.focusLineRange?.start ?? ''}-${fullscreenData.focusLineRange?.end ?? ''}`}
+                {#key `${fullscreenData.embedId}:${fullscreenData.exampleChatId ?? ''}:${fullscreenData.focusChildEmbedId ?? ''}:${fullscreenData.focusSheetRange ?? ''}:${fullscreenData.focusLineRange?.start ?? ''}-${fullscreenData.focusLineRange?.end ?? ''}`}
                 <!-- Data-driven embed fullscreen routing via embedFullscreenResolver.
                      Each component receives a standardized `data` prop and extracts its own fields.
                      Architecture: docs/architecture/frontend/data-driven-embed-fullscreen-routing.md -->

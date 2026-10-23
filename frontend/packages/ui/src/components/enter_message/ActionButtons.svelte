@@ -275,6 +275,7 @@
 
 <style>
     .action-buttons {
+        container: composer-actions / inline-size;
         position: absolute;
         inset-inline: 1rem;
         bottom: 1rem;
@@ -396,7 +397,7 @@
         cursor: pointer;
     }
 
-    @media (max-width: 34rem) {
+    @container composer-actions (max-width: 34rem) {
         .left-buttons, .right-buttons { gap: var(--spacing-4); }
         .assistant-speech-status { font-size: var(--font-size-xs); }
     }
