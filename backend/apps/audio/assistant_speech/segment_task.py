@@ -33,9 +33,17 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.providers.mistral_speech import MistralSpeechClient
-from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.storage_availability import (
+    initialize_task_storage,
+    is_storage_unavailable_error,
+    require_storage_available,
+)
 
 logger = logging.getLogger(__name__)
+STORAGE_PREFLIGHT_MAX_ATTEMPTS = 2
+STORAGE_PREFLIGHT_RETRY_SECONDS = 0.25
+
+
 class SpeechExecutionInProgress(Exception):
     """A concurrent delivery owns the provider call for this segment."""
 
@@ -84,14 +92,6 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         claimed = await claim_speech_segment_execution(task._directus_service, segment_id, lease_id=lease_id)
         if claimed is None:
             raise SpeechExecutionInProgress
-        storage = await initialize_task_storage(task)
-        await require_storage_available(storage)
-        profile = resolve_assistant_voice_profile(
-            str(arguments.get("voice_profile_key") or ""),
-            version=int(arguments.get("voice_profile_version") or 0),
-        )
-        live_mock_audio = assistant_speech_live_mock_audio(arguments)
-
         async def ensure_active() -> None:
             current = await get_speech_segment(task._directus_service, segment_id)
             if current is None or current.get("status") != "generating" or current.get("lease_id") != lease_id:
@@ -110,6 +110,26 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 except (ValueError, RuntimeError):
                     await invalidate_speech_segment(task._directus_service, segment_id)
                     raise SpeechExecutionInProgress from None
+
+        storage = await initialize_task_storage(task)
+        # Only the read-only preflight can retry: provider submission and upload
+        # may have succeeded despite a timeout and must never be replayed here.
+        for attempt in range(STORAGE_PREFLIGHT_MAX_ATTEMPTS):
+            await ensure_active()
+            try:
+                await require_storage_available(storage)
+                break
+            except Exception as exc:
+                if not is_storage_unavailable_error(exc) or attempt + 1 == STORAGE_PREFLIGHT_MAX_ATTEMPTS:
+                    raise
+                logger.warning("%s Storage preflight unavailable; retrying before speech submission", log_prefix)
+                await asyncio.sleep(STORAGE_PREFLIGHT_RETRY_SECONDS)
+
+        profile = resolve_assistant_voice_profile(
+            str(arguments.get("voice_profile_key") or ""),
+            version=int(arguments.get("voice_profile_version") or 0),
+        )
+        live_mock_audio = assistant_speech_live_mock_audio(arguments)
 
         async def safety_check(*, text: str) -> dict[str, object]:
             await ensure_active()

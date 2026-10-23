@@ -116,6 +116,7 @@ async def test_retry_survives_an_indexed_failed_upload_and_redelivery_reuses_rea
         "backend.shared.providers.elevenlabs": {"ElevenLabsClient": provider},
         "backend.shared.python_utils.storage_availability": {
             "initialize_task_storage": AsyncMock(), "require_storage_available": AsyncMock(),
+            "is_storage_unavailable_error": lambda _error: False,
         },
         "backend.core.api.app.services.embed_service": {
             "EmbedService": lambda **_kwargs: SimpleNamespace(send_embed_data_to_client=publish),

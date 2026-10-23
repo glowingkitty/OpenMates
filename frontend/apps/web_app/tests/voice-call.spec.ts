@@ -1258,6 +1258,19 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect.poll(async()=>(await nativeVoiceInput(page)).samples).toBeGreaterThan(sampleCount+24_000);
       expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(idleCount);
       await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
+      // Keep the real browser/server call idle beyond the provider's 30-second
+      // application-audio timeout. Provider unit/live checks prove the silent
+      // transport keepalive; this checks that the client stays idle and resumes
+      // the same authenticated call without charging synthetic microphone time.
+      const idleStarted=Date.now();
+      await expect.poll(()=>Date.now()-idleStarted,{timeout:41_000,intervals:[1_000]}).toBeGreaterThan(35_000);
+      const afterLongIdle=await evidence(page);
+      expect(voiceFrames(afterLongIdle,'mic_audio')).toHaveLength(idleCount);
+      expect(voiceFrames(afterLongIdle,'start')).toHaveLength(1);
+      expect(afterLongIdle.received.filter(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')).toHaveLength(1);
+      expect(afterLongIdle.received.filter(frame=>frame.path==='/v1/voice-call'&&(frame.type==='error'||frame.type==='ended'))).toHaveLength(0);
+      await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Speak to resume call.');
       await playNativeVoiceFixture(page);
       await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(idleCount);
       const resumed=await evidence(page);const frames=voiceFrames(resumed,'mic_audio').slice(idleCount);
