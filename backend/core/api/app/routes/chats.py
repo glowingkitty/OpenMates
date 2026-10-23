@@ -37,6 +37,8 @@ from backend.core.api.app.services.bounded_message_window import (
 )
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.chat_timeline import timeline_page
 
 
 router = APIRouter(prefix="/v1", tags=["Chats"])
@@ -376,6 +378,28 @@ async def list_chat_messages(
         return [_watch_message_payload(record) for record in records if record is not None]
     except ArchiveIntegrityError as exc:
         raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+
+
+@router.get("/chats/{chat_id}/timeline")
+@limiter.limit("600/minute")
+async def get_chat_timeline(request: Request, chat_id: str, response: Response,
+                            before_timestamp: int | None = None, before_message_id: str | None = None,
+                            team_id: str | None = None,
+                            current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+    """First-party session-only metadata; no inference/credits or public API-key access.
+
+    Reuse owner/direct-chat/Team read checks before every catalogue page. This
+    route is outside the developer API allowlist and never returns bodies.
+    """
+    chat = await _require_chat_read_access(request, chat_id, team_id, current_user.id)
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        return await timeline_page(directus=request.app.state.directus_service,
+            s3=getattr(request.app.state, "s3_service", None), chat_id=chat_id,
+            archived=bool(int(chat.get("archived_message_count") or 0)),
+            before_timestamp=before_timestamp, before_message_id=before_message_id)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="TIMELINE_UNAVAILABLE") from exc
 
 
 @router.get("/chats/{chat_id}/messages/window")

@@ -20,8 +20,9 @@ type AuthenticatedMessageWindowPayload = {
     oversized_message_cursor?: { created_at: number; message_id: string } | null;
 };
 
-function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: string): ChatMessageModel | null {
+export function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: string): ChatMessageModel | null {
     const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
+    if (messageObj.chat_id && messageObj.chat_id !== chatId) return null;
     const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
     if (typeof messageId !== 'string') return null;
     return {
@@ -58,6 +59,7 @@ export async function fetchAuthenticatedChatMessageWindow(chatId: string, option
     beforeMessageId?: string;
     anchorMessageId?: string;
     compressedUpToTimestamp?: number;
+    respectCompressionBoundary?: boolean;
 }, fallbackChat?: Chat | null) {
     const teamScope = get(activeTeamId);
     const scopeEpoch = getWorkspaceCacheEpoch();
@@ -76,6 +78,7 @@ export async function fetchAuthenticatedChatMessageWindow(chatId: string, option
     if (typeof options.beforeTimestamp === 'number') params.set('before_timestamp', String(options.beforeTimestamp));
     if (options.beforeMessageId) params.set('before_message_id', options.beforeMessageId);
     if (options.anchorMessageId) params.set('anchor_message_id', options.anchorMessageId);
+    if (options.respectCompressionBoundary === false) params.set('respect_compression_boundary', 'false');
 
     const response = await storageArchiveFetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
         credentials: 'include',

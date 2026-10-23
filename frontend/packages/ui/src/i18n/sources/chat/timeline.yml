@@ -1,0 +1,85 @@
+navigation:
+  context: Accessible name of the vertical message timeline in an active chat
+  en: Conversation timeline
+  de: Gesprächsverlauf
+  verified_by_human: []
+exchange:
+  context: Label before the number of a user-message and assistant-response exchange
+  en: Exchange
+  de: Austausch
+  verified_by_human: []
+before_compression:
+  context: Timeline preview label for original messages no longer included in the AI message context
+  en: Before compression
+  de: Vor der Komprimierung
+  verified_by_human: []
+you:
+  context: Label above the user message in a timeline preview
+  en: You
+  de: Du
+  verified_by_human: []
+response:
+  context: Label above an assistant answer in a timeline preview
+  en: Response
+  de: Antwort
+  verified_by_human: []
+loading:
+  context: Timeline catalogue, preview or selected historical section is loading
+  en: Loading history…
+  de: Verlauf wird geladen…
+  verified_by_human: []
+unavailable:
+  context: A selected timeline exchange could not be loaded; the currently readable transcript is preserved
+  en: This section couldn’t be loaded.
+  de: Dieser Abschnitt konnte nicht geladen werden.
+  verified_by_human: []
+retry:
+  context: Retry loading the selected historical exchange
+  en: Try again
+  de: Erneut versuchen
+  verified_by_human: []
+pending:
+  context: A timeline preview has a user message whose assistant response is still pending
+  en: Response pending
+  de: Antwort steht noch aus
+  verified_by_human: []
+no_response:
+  context: A timeline exchange has no associated assistant response
+  en: No response
+  de: Keine Antwort
+  verified_by_human: []
+attachment:
+  context: Readable fallback when a timeline message consists only of attachments or app results
+  en: Attachment or app result
+  de: Anhang oder App-Ergebnis
+  verified_by_human: []
+load_earlier:
+  context: Continue or retry loading earlier entries into the conversation timeline
+  en: Load earlier timeline entries
+  de: Frühere Einträge laden
+  verified_by_human: []
+latest:
+  context: Return from a historical timeline section to the newest chat messages
+  en: Back to latest
+  de: Zur neuesten Nachricht
+  verified_by_human: []
+bookmark:
+  context: Save a private bookmark for this chat message
+  en: Bookmark message
+  de: Nachricht markieren
+  verified_by_human: []
+bookmark_question:
+  context: Save a private bookmark for the question in a timeline preview
+  en: Bookmark question
+  de: Frage markieren
+  verified_by_human: []
+remove_bookmark:
+  context: Remove this message's private bookmark
+  en: Remove bookmark
+  de: Markierung entfernen
+  verified_by_human: []
+bookmark_failed:
+  context: A bookmark write failed, preserving its previous saved state; the same control retries
+  en: Couldn’t save bookmark. Try again.
+  de: Markierung konnte nicht gespeichert werden. Erneut versuchen.
+  verified_by_human: []

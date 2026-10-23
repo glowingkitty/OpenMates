@@ -1,7 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { readHotMessageWindow } from '../src/hot-message-window.js';
+import { readHotMessageWindow, readHotMessageTimeline } from '../src/hot-message-window.js';
+
+// contract-test: supporting surface=gui.web assertions=chat-message-timeline.full-history-loading,chat-message-timeline.access-and-lifecycle
+test('timeline projection keeps tied-ID keyset reads content-free and bounded', async () => {
+  const source = { id: 'legacy-row', client_message_id: null, chat_id: 'chat-1', created_at: 42,
+    role: 'assistant', user_message_id: 'question-1', encrypted_content: 'must-not-read',
+    hashed_user_id: 'private-owner', encrypted_sender_name: 'private-name' };
+  const trx = { raw: async (sql, bindings) => {
+    assert.deepEqual(bindings, ['chat-1', 42, 'question-2', 201]);
+    assert.match(sql, /COALESCE\(NULLIF\(client_message_id, ''\), id::text\) COLLATE "C"\) < \(\?, \?::text COLLATE "C"\)/);
+    const fields = sql.match(/^SELECT ([\s\S]+?) FROM messages/)[1].split(', ');
+    return { rows: [Object.fromEntries(fields.map(field => [field, source[field]]))] };
+  } };
+  const result = await readHotMessageTimeline(trx, { chat_id: 'chat-1', direction: 'before',
+    cursor_timestamp: 42, cursor_message_id: 'question-2', limit: 201 });
+  assert.deepEqual(result.messages, [{ id: source.id, client_message_id: null, chat_id: 'chat-1',
+    created_at: 42, role: 'assistant', user_message_id: 'question-1' }]);
+  await assert.rejects(readHotMessageTimeline(trx, { chat_id: 'chat-1', direction: 'latest', limit: 202 }),
+    /invalid_hot_message_window/);
+  await assert.rejects(readHotMessageWindow(trx, { chat_id: 'chat-1', direction: 'latest', limit: 102 }),
+    /invalid_hot_message_window/);
+});
 
 // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.lifecycle.recovery-and-billing,chats.persistence.client-encrypted
 test('hot message query retains zero and confirmed revisions for monotonic history hydration', async () => {

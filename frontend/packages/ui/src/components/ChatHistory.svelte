@@ -9,6 +9,12 @@ import { storageArchiveFetch } from "../config/api";
   import { flip } from 'svelte/animate';
   import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
+  import ChatMessageTimeline from './ChatMessageTimeline.svelte';
+  import MessageBookmarkButton from './MessageBookmarkButton.svelte';
+  import { messageBookmarksStore, getMessageBookmarkIds, loadMessageBookmarks, toggleMessageBookmark, clearTransientMessageBookmarks, type BookmarkMode } from '../services/messageBookmarks';
+  import { fetchTimelinePage, fetchTimelineSection, type TimelineCursor } from '../services/chatTimeline';
+  import { mergeTimelineEntries, pairTimelineExchange, timelineResponseId, bookmarkedTimelineExchanges, type TimelineEntry, type TimelinePreview } from '../utils/chatTimeline';
+  import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
   import AgentContextMessage from './AgentContextMessage.svelte';
   import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
   import { associateLoadedMemories } from '../utils/associateLoadedMemories';
@@ -801,6 +807,116 @@ import { storageArchiveFetch } from "../config/api";
    * Response system messages are displayed as part of the user's message (included/rejected badge).
    */
   // --- Compression / forgotten messages ---
+  let timelineCatalogue = $state<TimelineEntry[]>([]);
+  let timelineSection = $state<GlobalMessage[] | null>(null);
+  let timelineCatalogueLoading = $state(false);
+  let timelineCatalogueIncomplete = $state(false);
+  let timelineVisibleMessageId = $state<string | null>(null);
+  let timelineCursor: TimelineCursor | null = null;
+  let timelineGeneration = 0;
+  let timelineController: AbortController | null = null;
+  const timelineSections = new Map<string, Promise<GlobalMessage[]>>();
+  $effect(() => {
+    const scope = timelineScopeKey;
+    const remote = timelineRemoteEnabled;
+    timelineController?.abort();
+    timelineController = new AbortController();
+    timelineGeneration++;
+    timelineCatalogue = [];
+    timelineCursor = null;
+    timelineSection = null;
+    timelineVisibleMessageId = null;
+    timelineCatalogueIncomplete = remote;
+    timelineCatalogueLoading = false;
+    timelineSections.clear();
+    if (remote) untrack(() => void readTimelineCatalogue());
+    return () => { void scope; timelineController?.abort(); };
+  });
+
+  async function readTimelineCatalogue(): Promise<void> {
+    if (!currentChatId || timelineCatalogueLoading || !timelineController) return;
+    const generation = timelineGeneration;
+    const chatId = currentChatId;
+    const shared = isSharedChat;
+    const signal = timelineController.signal;
+    timelineCatalogueLoading = true;
+    try {
+      do {
+        const page = await fetchTimelinePage(chatId, shared, timelineCursor, signal);
+        if (generation !== timelineGeneration || signal.aborted) return;
+        timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
+        timelineCursor = page.before;
+        timelineCatalogueIncomplete = page.has_more;
+      } while (timelineCatalogueIncomplete);
+    } catch (error) {
+      if (generation === timelineGeneration && !signal.aborted) {
+        // Diagnostics contain only fixed read/validation errors, never message bodies.
+        console.warn('[ChatHistory] Timeline catalogue unavailable', error instanceof Error ? error.message : 'Unknown read error');
+        timelineCatalogueIncomplete = true;
+      }
+    } finally {
+      if (generation === timelineGeneration) timelineCatalogueLoading = false;
+    }
+  }
+
+  async function readTimelineSection(entry: TimelineEntry): Promise<GlobalMessage[]> {
+    if (!currentChatId) throw new Error('No active timeline');
+    const responseId = timelineResponseId(timelineAllEntries, entry.message_id);
+    for (const rows of [sourceMessages, oldCompressedMessages]) {
+      if (rows.some(message => message.message_id === entry.message_id)) {
+        const pair = pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
+        if (pair.assistant || (!responseId && entry.message_id === timelineUserEntries[timelineUserEntries.length - 1]?.message_id)) return rows;
+      }
+    }
+    const cached = timelineSections.get(entry.message_id);
+    if (cached) return cached;
+    const chatId = currentChatId;
+    const scope = timelineScopeKey;
+    const epoch = getWorkspaceCacheEpoch();
+    const generation = timelineGeneration;
+    const operation = fetchTimelineSection(chatId, entry.message_id, isSharedChat, responseId).then(rows => {
+      if (scope !== timelineScopeKey || epoch !== getWorkspaceCacheEpoch() || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+      pairTimelineExchange(rows, entry.message_id);
+      return rows;
+    });
+    timelineSections.set(entry.message_id, operation);
+    while (timelineSections.size > 6) timelineSections.delete(timelineSections.keys().next().value!);
+    try { return await operation; }
+    catch (error) { if (timelineSections.get(entry.message_id) === operation) timelineSections.delete(entry.message_id); throw error; }
+  }
+
+  async function previewTimelineExchange(entry: TimelineEntry): Promise<TimelinePreview> {
+    return pairTimelineExchange(await readTimelineSection(entry), entry.message_id, pendingAssistantResponse?.userMessageId);
+  }
+
+  async function activateTimelineExchange(entry: TimelineEntry): Promise<void> {
+    const scope = timelineScopeKey;
+    const generation = timelineGeneration;
+    const rows = await readTimelineSection(entry);
+    if (scope !== timelineScopeKey || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+    cancelPendingNewUserMessageScroll();
+    shouldScrollToNewUserMessage = false;
+    isSpacerActive = false;
+    spacerHeight = 0;
+    userHasScrolledAway = true;
+    timelineSection = rows;
+    timelineVisibleMessageId = entry.message_id;
+    await tick();
+    if (scope !== timelineScopeKey || generation !== timelineGeneration || !container) throw new Error('Timeline scope changed');
+    restoreHistoryPosition(entry.message_id);
+  }
+
+  async function leaveTimelineSection(): Promise<void> {
+    timelineSection = null;
+    await tick();
+    const latest = displayMessages[displayMessages.length - 1];
+    if (latest) {
+      timelineVisibleMessageId = latest.id;
+      restoreHistoryPosition(latest.id);
+    }
+    else scrollToBottom();
+  }
+
   // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
   let showForgottenMessages = $state(false);
   let oldCompressedMessages = $state<GlobalMessage[]>([]);
@@ -880,6 +996,10 @@ import { storageArchiveFetch } from "../config/api";
   });
 
   let candidateDisplayMessages = $derived.by(() => {
+    if (timelineSection) {
+      const mappings = buildCumulativePIIMappings(timelineSection);
+      return timelineSection.map(message => G_mapToInternalMessage(message, mappings));
+    }
     if (latestCompressionCheckpoint) {
       const summaryMessage = makeCompressionSummaryMessage(latestCompressionCheckpoint);
       const recentMessages = messages.filter(
@@ -1081,6 +1201,7 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   function requestOlderMessages(): void {
+    if (timelineSection) return;
     const cursorMessage = getOlderMessagesCursor();
     if (!hasOlderMessages || olderMessagesLoading || !cursorMessage?.original_message) return;
     dispatch('loadOlderMessages', {
@@ -1416,7 +1537,41 @@ import { storageArchiveFetch } from "../config/api";
     olderMessagesLoading?: boolean;
   } = $props();
 
-  const showPendingAssistantResponse = $derived(!!pendingAssistantResponse
+  let timelineScopeKey = $derived(`${currentChatId ?? ''}:${$activeTeamId ?? ''}:${$userProfile.user_id ?? ''}`);
+  let timelineRemoteEnabled = $derived(!!currentChatId && !isExampleChat && !isIncognito && (isSharedChat || $authStore.isAuthenticated));
+  let timelineAllEntries = $derived(mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
+  const bookmarkMode = $derived<BookmarkMode>(isIncognito ? 'transient' : $authStore.isAuthenticated ? 'account' : 'device');
+  const bookmarkedIds = $derived.by(() => {
+    void $messageBookmarksStore; void $userProfile.encrypted_settings;
+    return currentChatId ? getMessageBookmarkIds(currentChatId, bookmarkMode) : new Set<string>();
+  });
+  const bookmarkedExchanges = $derived(bookmarkedTimelineExchanges(timelineAllEntries, bookmarkedIds));
+  let timelineUserEntries = $derived(timelineAllEntries.filter(entry => entry.role === 'user')
+    .map(entry => ({ ...entry, bookmarked: bookmarkedExchanges.has(entry.message_id) })));
+  $effect(() => {
+    const chatId = currentChatId, mode = bookmarkMode;
+    void timelineScopeKey; void $userProfile.encrypted_settings; void $messageBookmarksStore.localRevision;
+    if (chatId) void loadMessageBookmarks(chatId, mode).catch(() => { /* A toggle exposes a retryable save failure. */ });
+  });
+  $effect(() => {
+    const chatId = currentChatId, mode = bookmarkMode;
+    return () => { if (chatId && mode === 'transient') clearTransientMessageBookmarks(chatId); };
+  });
+  function toggleBookmark(messageId: string): Promise<void> {
+    if (!currentChatId) return Promise.reject(new Error('Bookmark chat unavailable'));
+    return toggleMessageBookmark(currentChatId, messageId, bookmarkMode);
+  }
+  let timelineCurrentId = $derived.by(() => {
+    const index = timelineAllEntries.findIndex(entry => entry.message_id === timelineVisibleMessageId);
+    if (index < 0) return timelineUserEntries[timelineUserEntries.length - 1]?.message_id ?? null;
+    const current = timelineAllEntries[index];
+    if (current.role === 'user') return current.message_id;
+    if (current.user_message_id) return current.user_message_id;
+    for (let i = index; i >= 0; i--) if (timelineAllEntries[i].role === 'user') return timelineAllEntries[i].message_id;
+    return null;
+  });
+
+  const showPendingAssistantResponse = $derived(!timelineSection && !!pendingAssistantResponse
     && !displayMessages.some((message) => message.role === 'assistant'
       && (message.id === pendingAssistantResponse.taskId
         || message.original_message?.user_message_id === pendingAssistantResponse.userMessageId)));
@@ -1717,6 +1872,9 @@ import { storageArchiveFetch } from "../config/api";
   });
 
   onDestroy(() => {
+    timelineGeneration++;
+    timelineController?.abort();
+    timelineSections.clear();
     clearAssistantFeedbackThanksTimers();
   });
 
@@ -2286,7 +2444,7 @@ import { storageArchiveFetch } from "../config/api";
   // Make room for the response once its first content and the generated header
   // are rendered. Later chunks never restart this one-time scroll.
   $effect(() => {
-    if (isNewChatGeneratingTitle) return;
+    if (isNewChatGeneratingTitle || timelineSection) return;
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
       const userIndex = messages.findIndex(message => message.id === lastUserMessageId);
       const responseStarted = userIndex >= 0 && messages.slice(userIndex + 1).some(message =>
@@ -2685,6 +2843,7 @@ import { storageArchiveFetch } from "../config/api";
     });
     
     if (lastVisibleMessageId) {
+      timelineVisibleMessageId = lastVisibleMessageId;
       dispatch('scrollPositionChanged', {
         message_id: lastVisibleMessageId
       });
@@ -2718,6 +2877,13 @@ import { storageArchiveFetch } from "../config/api";
 
   // Restore scroll position to a specific message with 70px offset
   export function restoreScrollPosition(messageId: string) {
+    // Background repair/restoration of the live window must not move a reader
+    // who deliberately opened a historical timeline section.
+    if (timelineSection) return;
+    restoreHistoryPosition(messageId);
+  }
+
+  function restoreHistoryPosition(messageId: string) {
     if (!container) {
       console.warn('[ChatHistory] Cannot restore scroll: container not ready');
       return;
@@ -2882,8 +3048,17 @@ import { storageArchiveFetch } from "../config/api";
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
 <div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
+{#if !disablePointerEvents && (timelineUserEntries.length > 0 || timelineCatalogueIncomplete)}
+  <ChatMessageTimeline entries={timelineUserEntries} contextKey={timelineScopeKey}
+    {bookmarkedIds} onToggleBookmark={toggleBookmark}
+    compressionBoundary={latestCompressionCheckpoint?.compressed_up_to_timestamp ?? null}
+    currentId={timelineCurrentId} catalogueLoading={timelineCatalogueLoading} catalogueIncomplete={timelineCatalogueIncomplete}
+    historical={timelineSection !== null} onPreview={previewTimelineExchange} onActivate={activateTimelineExchange}
+    onLoadEarlier={() => void readTimelineCatalogue()} onLatest={() => void leaveTimelineSection()} />
+{/if}
 <div 
     class="chat-history-container"
+    class:has-timeline={timelineUserEntries.length > 0}
     class:has-call-strip={!!voiceCallBridge}
     data-testid="chat-history-container"
     data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage ? 'busy' : 'ready'}
@@ -2979,7 +3154,7 @@ import { storageArchiveFetch } from "../config/api";
 
             <!-- "Show earlier messages" toggle: appears when compression summary exists.
                  When collapsed, messages before the summary are hidden. -->
-            {#if hasCompressionSummary}
+            {#if hasCompressionSummary && !timelineSection}
               <div class="forgotten-messages-toggle">
                 <button
                   class="forgotten-messages-btn"
@@ -3011,6 +3186,10 @@ import { storageArchiveFetch } from "../config/api";
               </div>
             {/if}
 
+            {#if timelineSection && timelineSection.some(message => latestCompressionCheckpoint && message.created_at <= latestCompressionCheckpoint.compressed_up_to_timestamp)}
+              <p class="forgotten-messages-note" id="forgotten-messages-note">{$text('chat.compression.forgotten_note')}</p>
+            {/if}
+
             {#if virtualTopSpacerHeight > 0}
               <div class="virtual-message-spacer" style="height: {virtualTopSpacerHeight}px;" aria-hidden="true"></div>
             {/if}
@@ -3024,6 +3203,7 @@ import { storageArchiveFetch } from "../config/api";
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
+                      class:bookmarkable={msg.role === 'user' || msg.role === 'assistant'}
                       class:target-message={$messageHighlightStore === msg.id}
                       class:forgotten-message={isForgottenMessage(msg)}
                       class:compression-boundary-wrapper={showForgottenMessages && isCompressionSummaryMessage(msg)}
@@ -3106,6 +3286,11 @@ import { storageArchiveFetch } from "../config/api";
                             }
                           : undefined}
                     />
+                    {#if msg.role === 'user' || msg.role === 'assistant'}
+                      <div class="message-bookmark-action" class:saved={bookmarkedIds.has(msg.id)}>
+                        <MessageBookmarkButton active={bookmarkedIds.has(msg.id)} onToggle={() => toggleBookmark(msg.id)} />
+                      </div>
+                    {/if}
                     {/if}
 
                 </div>
@@ -3191,7 +3376,7 @@ import { storageArchiveFetch } from "../config/api";
             
             <!-- Follow-up suggestions shown after the last assistant message.
                  Visible without requiring the user to focus the message input first. -->
-            {#if showQuickTipsInHistory}
+            {#if showQuickTipsInHistory && !timelineSection}
                 <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
                     <QuickTipsCard
                         slugs={effectiveQuickTipSlugs}
@@ -3201,7 +3386,7 @@ import { storageArchiveFetch } from "../config/api";
                 </div>
             {/if}
 
-            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
+            {#if showFollowUpSuggestionsInHistory && onSuggestionClick && !timelineSection}
                 <div class="follow-up-suggestions-wrapper" transition:fade={{ duration: 120 }}>
                     <FollowUpSuggestions
                         suggestions={followUpSuggestions}
@@ -3314,6 +3499,13 @@ import { storageArchiveFetch } from "../config/api";
         rgba(0, 0, 0, 0) 100%
     );
   }
+
+  .chat-history-container.has-timeline { padding-left: 48px; }
+  .message-bookmark-action { display: flex; justify-content: flex-end; opacity: 0; }
+  .message-wrapper.bookmarkable { flex-direction: column; align-items: stretch; }
+  .message-bookmark-action.saved, .message-wrapper:hover .message-bookmark-action,
+  .message-wrapper:focus-within .message-bookmark-action { opacity: 1; }
+  @media (pointer: coarse) { .message-bookmark-action { opacity: 1; } }
 
   .debug-history-header-row {
     display: flex;

@@ -660,6 +660,7 @@ async def get_session(
                 ui_font=user_data.get("ui_font", "lexend"),
                 invoice_counter=user_data.get("invoice_counter", 0),
                 credential_version=user_data.get("credential_version"),
+                encrypted_settings=user_data.get("encrypted_settings"),
                 # Low balance auto top-up fields
                 # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
                     auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),

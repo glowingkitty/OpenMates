@@ -1,0 +1,65 @@
+schema_version: 1
+specification: feature.chat-message-timeline@1
+preview_and_activate:
+- id: hover-an-earlier-exchange
+  given: Alice is reading the latest answer in a saved trip-planning chat with several earlier questions and answers.
+  when: She hovers the mark for her question about train tickets, then clicks it.
+  then: Hover widens that mark and shows her question as one highlighted, ellipsis-truncated line above at most three muted answer lines, without speaker or exchange-count labels and without moving the transcript. Clicking scrolls to the train-ticket question.
+- id: pending-answer-and-empty-chat
+  given: Alice's newest question is still waiting for an answer, and she can also open a new empty chat.
+  when: She previews the newest question, then opens the empty chat.
+  then: The preview identifies the pending answer rather than showing the previous answer. The empty chat has no timeline or leftover preview.
+touch_scrubbing:
+- id: hold-slide-and-release-on-phone
+  given: Alice opens a long conversation on a phone and holds a finger on its left-hand timeline.
+  when: She slides upward through older exchanges and releases on the question about the project budget.
+  then: The preview follows the selected exchange beside and clear of her finger. Release loads and scrolls to the budget question once.
+- id: cancel-and-scroll-normally
+  given: Alice is previewing an exchange with a held finger and the operating system cancels that pointer gesture.
+  when: She returns to the chat and swipes in the ordinary transcript area.
+  then: Cancellation dismissed the preview without jumping. Her later swipe scrolls the transcript normally and does not activate the timeline.
+full_history_loading:
+- id: target-outside-cache-and-dom
+  given: A conversation contains ten thousand exchanges, while Alice's browser has loaded only its newest message window and renders only part of that window.
+  when: Alice finds an exchange near the start through the timeline and activates it.
+  then: The earlier exchange remains addressable; the browser loads only the needed bounded section, displays the matching question and available answer and scrolls to that question. Alice can subsequently return to the latest messages.
+- id: unavailable-history-can-retry
+  given: Alice is reading a cached recent section while an older exchange is not cached and the network is unavailable.
+  when: She selects that older exchange, then retries after reconnecting.
+  then: The first attempt clearly reports that the content is unavailable and preserves her readable section. Retry loads and opens the exact selected exchange rather than an adjacent question.
+compression_history:
+- id: browse-original-pre-compression-messages
+  given: Alice's conversation has been compressed twice and the oldest original messages are retained outside the current AI message context.
+  when: She previews and selects a question from before the first compression.
+  then: Its original chronological mark is dimmer, its readable preview says Before compression and selection loads the original question and answer. No checkpoint or AI context changes and no inference starts.
+- id: distinguish-current-exchanges-from-summaries
+  given: Alice's chat contains a compression summary, internal system events and user questions after the most recent compression boundary.
+  when: She browses the timeline around that boundary.
+  then: Current original-message exchanges use normal marks, earlier exchanges use the compression treatment and neither the summary nor system events appears as an invented user question.
+access_and_lifecycle:
+- id: switch-workspaces-during-a-preview-read
+  given: Alice requests an uncached preview in her personal workspace while PII originals are hidden.
+  when: She switches to a Team workspace before the old request completes, then previews a permitted Team exchange.
+  then: The delayed personal result cannot populate the Team preview or cause a jump. The Team preview follows its reading permission and PII visibility setting, and an unauthorized history request reveals no transcript.
+- id: shared-access-and-new-answer
+  given: Alice is reading an earlier exchange in a permitted shared transcript or browsing her own chat while a newer answer streams.
+  when: The shared history loads or the newer answer updates.
+  then: The shared timeline exposes only the permitted shared transcript; newer content does not change the selected earlier exchange or pull the transcript away. Preview text is never sent for AI inference or added to plaintext server storage or content logs.
+accessible_layout:
+- id: keyboard-with-sidebar-closed
+  given: Alice uses a desktop keyboard with the sidebar closed and reduced motion enabled.
+  when: She focuses the timeline, moves with arrow keys and Home or End, dismisses a preview with Escape and activates another exchange with Enter or Space.
+  then: The rail stays at the far-left edge of the active chat rather than following its centered message column. Focus and exchange labels identify each selection; preview dismissal does not navigate, activation reaches the selected question and selection remains clear without animated widening or scrolling.
+- id: narrow-touch-preview-in-both-themes
+  given: Alice opens a chat on a narrow phone and also uses the chat beside another panel on a laptop, in light or dark theme.
+  when: She holds near the bottom of the timeline and previews a long question and answer.
+  then: The bounded preview stays inside the chat and clear of her finger, its text remains readable and the composer and chat controls remain reachable without horizontal page overflow.
+bookmarks:
+- id: save-an-old-question-and-find-it-again
+  given: Alice is previewing her project-budget question near the start of a ten-thousand-exchange chat, before two compression points.
+  when: She activates the bookmark beside the question, then reopens the conversation on another signed-in device.
+  then: Bookmarking leaves the transcript in place. Her bookmark icon glows yellow and its timeline mark is yellow, making the retained exchange findable again. The saved bookmark is private to Alice, and the assistant's memory has not changed.
+- id: bookmark-a-response-and-remove-the-last-bookmark
+  given: Alice has bookmarked an assistant response in a Team chat and no other message in that exchange is bookmarked.
+  when: She removes the bookmark using that response's bookmark control, or retries after a failed save.
+  then: A failed save keeps the previous yellow saved state until retry succeeds. Successful removal clears the control's yellow glow and the exchange's yellow timeline mark. Other Team members' bookmark choices and the shared transcript remain unchanged.

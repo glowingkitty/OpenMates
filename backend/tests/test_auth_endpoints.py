@@ -743,6 +743,7 @@ class TestLookupUserCacheWarmup:
 
     @pytest.mark.anyio
     # contract-test: direct surface=rest_api assertions=auth.login.method-convergence
+    # contract-test: supporting surface=gui.web assertions=chat-message-timeline.bookmarks
     async def test_login_refetches_incomplete_user_cache_before_finalizing(self, monkeypatch):
         from backend.core.api.app.routes.auth_routes import auth_login
         from backend.core.api.app.schemas.auth import LoginRequest
@@ -768,6 +769,7 @@ class TestLookupUserCacheWarmup:
                 "user_id": user_id,
                 "account_id": "account-login-cache-fallback",
                 "username": "testuser",
+                "encrypted_settings": "opaque-owner-account-settings",
                 "vault_key_id": "vault-key",
                 "tfa_enabled": False,
                 "last_opened": "/chat/new",
@@ -830,6 +832,7 @@ class TestLookupUserCacheWarmup:
         assert response.success is True
         assert response.user is not None
         assert response.user.user_email_salt == "real-email-salt"
+        assert response.user.encrypted_settings == "opaque-owner-account-settings"
         directus_service.get_user_fields_direct.assert_awaited_once_with(user_id, ["user_email_salt"])
         cache_service.set_user.assert_awaited_once()
         cached_payload = cache_service.set_user.await_args.args[0]

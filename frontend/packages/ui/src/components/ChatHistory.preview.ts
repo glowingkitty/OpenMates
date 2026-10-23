@@ -51,6 +51,15 @@ const cachedCompressedRows = Array.from({ length: 4 }, (_, index) => ({
 }));
 export default props;
 export const variants = {
+  timelineHistory: { ...props, currentChatId: 'preview-timeline-history', chatTitle: 'Timeline history',
+    sourceMessages: Array.from({ length: 2000 }, (_, index) => ({
+      message_id: `timeline-history-${index}`, chat_id: 'preview-timeline-history', role: index % 2 ? 'assistant' : 'user',
+      created_at: timestamp + index, status: 'synced',
+      user_message_id: index % 2 ? `timeline-history-${index - 1}` : undefined,
+      content: `${index % 2 ? 'Response' : 'Question'} ${Math.floor(index / 2)}: project budget and train tickets.`,
+    })), compressionCheckpoints: [{ id: 'timeline-history-checkpoint', chat_id: 'preview-timeline-history',
+      summary: 'Earlier planning turns were summarized.', compressed_up_to_timestamp: timestamp + 1499,
+      compressed_up_to_message_id: 'timeline-history-1499', compressed_message_count: 1500, created_at: timestamp + 1500 }] },
   partialCompressedHistory: { ...props, currentChatId: compressedChatId, isExampleChat: false, isSharedChat: true,
     chatTitle: 'Compressed fictional history', sourceMessages: cachedCompressedRows,
     compressionCheckpoints: [{ id: 'preview-compressed-checkpoint', chat_id: compressedChatId,

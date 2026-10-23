@@ -913,6 +913,14 @@
         "components/result-preview-standard.spec.ts",
         "components/grouped-result-preview.spec.ts"
       ]
+    },
+    "chat_message_timeline": {
+      "execution": "e2e",
+      "enabling_work": "Account-free timeline fixtures use the Vite-only component profile. The product flow uses a fresh isolated account, paired candidate CLI for client encryption, and disposable API/CMS/cache/Vault to seed ten thousand encrypted exchanges and two checkpoints. Successful reads use the real backend. No inference or provider credentials.",
+      "specs": [
+        "components/chat-message-timeline.spec.ts",
+        "chat-message-timeline.spec.ts"
+      ]
     }
   },
   "holds": {

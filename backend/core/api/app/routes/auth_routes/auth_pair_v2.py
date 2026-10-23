@@ -489,6 +489,7 @@ async def complete(request: Request, response: Response, token: str, body: Compl
             tfa_app_name=user.get("tfa_app_name"), tfa_enabled=bool(user.get("tfa_enabled")),
             language=user.get("language", "en"), darkmode=bool(user.get("darkmode")),
             user_email_salt=user.get("user_email_salt"),
+            encrypted_settings=user.get("encrypted_settings"),
         )
         result = LoginResponse(success=True, message="Login successful", user=result_user,
             ws_token=create_ws_token(issued_token) if issued_token else None, pair_expires_at=deadline)

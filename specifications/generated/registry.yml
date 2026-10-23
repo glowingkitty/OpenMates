@@ -448,6 +448,13 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.chat-message-timeline:
+    version: 1
+    status: draft
+    path: features/chat-message-timeline
+    fingerprint: 3128cb74c78927919831b54aeb6fa86f22c4319f1e3a5849eb7fc64c9c1031a7
+    required_applies_to:
+    - gui.web
   feature.chat-navigation:
     version: 3
     status: draft
@@ -6216,6 +6223,55 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  chat-message-timeline.preview-and-activate:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: 3a7616c241e2514f18a360c1a582cda443264884405173c508470b8267e47148
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.touch-scrubbing:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: 452f206ec88667acab0da2567aefac7d4f7f1af9c16eb32ab51bc87b626df8ac
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.full-history-loading:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: ab8ea026fc7e501311abb0674758bdc0a446a706896d29d04f5903d73d09cd45
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.compression-history:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: 7797c1ed8a508e390fbde6b416464c088e18f86cddc63a9f9b7d7f2e91234737
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.access-and-lifecycle:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: privacy
+    fingerprint: 61b2f566a56c5fdadbc4fdf9bb8eb34f2e10c78a6db4fe7f95f42185c8f64098
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.accessible-layout:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: 748990bdc7ed9687933ba5262efc5131ca2053957d79b47db356727500667624
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.bookmarks:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: 93eb74c938172f2aa548d29bb996f77d555be94c2229f5ea3453bf9e3c6c3147
+    required_applies_to:
+    - gui.web
   chat-navigation.order.sidebar-header-match:
     specification: feature.chat-navigation@3
     specification_id: feature.chat-navigation

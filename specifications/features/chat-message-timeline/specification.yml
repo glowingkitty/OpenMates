@@ -1,0 +1,77 @@
+schema_version: 1
+id: feature.chat-message-timeline
+version: 1
+status: draft
+title: Chat Message Timeline
+summary: A compact web-chat timeline previews and opens exchanges throughout the retained conversation, including unloaded and pre-compression history, using mouse, keyboard or touch.
+scope:
+  includes:
+  - A timeline along the left edge of the active web chat on desktop, tablet and phone.
+  - Chronological user-message and assistant-response exchange previews and navigation.
+  - Retained history outside the current message window or rendered DOM, including messages before compression.
+  - Existing authorized personal, Team, shared, example and device-local web-chat reading contexts.
+  - Bounded history discovery and selected-section loading under the existing reading and encryption boundaries.
+  - Private message bookmarks with yellow bookmark controls and associated timeline marks.
+  excludes:
+  - Changes to AI context selection, compression, inference, message retention or deletion.
+  - Native Apple or terminal timeline controls and new developer API or SDK capabilities.
+  - Restoring unavailable or deleted messages or revealing content outside the viewer's existing access.
+  related_contracts:
+  - feature.chats owns encrypted persistence, stable message identity and transcript rendering; it does not define a within-conversation timeline and excludes several existing web reading contexts.
+  - feature.chat-navigation owns navigation between persisted chats and Project folders, rather than exchange navigation inside one conversation.
+  - This separate web presentation contract defines the timeline without changing either existing contract's cross-client semantics or access rules.
+assertions:
+- id: chat-message-timeline.preview-and-activate
+  type: behavior
+  must: The active web chat offers a compact chronological rail of horizontal marks for user-started exchanges, oldest first. Hovering or keyboard-focusing an exchange widens and emphasizes its mark and shows a compact nearby preview with one visually highlighted, single-line user-message heading, truncated with an ellipsis when needed, followed by up to three lines of its associated assistant response in a more muted color. Speaker labels and exchange-count headings do not take space in the preview. Previewing alone preserves transcript scroll position. Clicking or explicitly activating the exchange opens its user-message section. Missing or pending responses are represented truthfully; an unrelated response is never paired with the user message. An empty conversation has no timeline.
+  depends_on: [examples.preview_and_activate]
+- id: chat-message-timeline.touch-scrubbing
+  type: behavior
+  must: A touch-and-hold on the timeline starts preview scrubbing. Moving the held finger vertically updates the selected exchange and preview; releasing commits one jump to that exchange, loading its section if needed. A direct tap activates its exchange. Touch previews sit beside and clear of the finger, adjust vertically when needed, and remain inside the available chat viewport. Cancellation dismisses scrubbing without navigation. Gestures outside the timeline retain ordinary transcript scrolling, text selection and existing controls.
+  depends_on: [examples.touch_scrubbing]
+- id: chat-message-timeline.full-history-loading
+  type: behavior
+  must: The timeline covers the complete retained conversation available to the viewer independently of the loaded message window and DOM. Discovery, previews and navigation use bounded operations and do not require fetching, decrypting or rendering the full transcript. Dense histories keep individual exchanges addressable rather than silently discarding older entries. Selecting an unloaded exchange loads a bounded section containing the selected user message and its available response, then renders and scrolls to the stable selected message identity. Loading and unavailable states are visible; a failure preserves the current readable section and offers retry rather than jumping to a different exchange. Ordinary navigation onward and back to the latest messages remains available.
+  depends_on: [examples.full_history_loading]
+- id: chat-message-timeline.compression-history
+  type: behavior
+  must: Retained exchanges before compression remain discoverable, previewable and selectable in their original chronological positions, including across multiple compression events. Exchanges outside the current original-message context have dimmer timeline marks and a visible Before compression label in the preview; the preview text remains readable. Opening one exposes that historical transcript section without restoring the original messages to the AI's current context, changing a checkpoint or initiating inference. Compression summaries and internal system events are not presented as user-authored exchanges.
+  depends_on: [examples.compression_history]
+- id: chat-message-timeline.access-and-lifecycle
+  type: privacy
+  must: Timeline data and preview text obey the existing chat, account, workspace, Team and sharing access boundaries and PII visibility settings. Private content is decrypted on the authorized client; the timeline adds no plaintext server storage, content-bearing logs, analytics payload or AI request. Any new authenticated history-discovery operation is first-party-client-only and enforces the existing owner or Team reading permission. Shared and example contexts expose only their already-authorized transcript. Changing chat, account or workspace cancels or disregards stale discovery, preview and jump results and clears the previous preview. Cached previews may work offline; uncached content remains explicitly unavailable. Streaming and history updates preserve stable selections and do not hijack transcript scroll while the reader browses an earlier exchange.
+  depends_on: [examples.access_and_lifecycle]
+- id: chat-message-timeline.accessible-layout
+  type: behavior
+  must: The timeline sits at the far-left edge of the active chat area, independently of the centered message column, with its preview opening to the right. The timeline and previews remain operable with the sidebar closed, at narrow phone and regular desktop widths, in light and dark themes and with reduced motion. Marks have accessible exchange labels and visible focus; keyboard users can move among exchanges with arrow keys and Home or End, activate with Enter or Space and dismiss a preview with Escape without navigating. Touch hit areas remain usable while the marks stay visually compact. Preview placement preserves text readability and access to the composer and chat controls, stays within the active chat area and avoids horizontal page overflow. Reduced motion preserves all selection feedback without animated widening or scrolling.
+  depends_on: [examples.accessible_layout]
+- id: chat-message-timeline.bookmarks
+  type: behavior
+  must: A viewer can bookmark or unbookmark an individual user or assistant message from the chat, and can bookmark the initial user message from its timeline preview. An active bookmark control is yellow with a visible yellow glow. An exchange's timeline mark is yellow whenever its user message or an associated response is bookmarked, including retained pre-compression and currently unloaded history; dense histories keep bookmarked exchanges findable without rendering the transcript. Removing the last bookmark in an exchange removes that yellow mark. Bookmarking does not navigate, change message content or AI memory, or start inference. Saved-chat bookmarks are private to the viewer's account, stored with the existing client-encrypted account settings and available when reopening the chat on another signed-in device. Device-local bookmarks follow the chat's existing device and retention boundaries. A failed save preserves the previous saved state and offers a retry. Bookmarks do not become shared chat annotations or plaintext server metadata, and changing account or workspace cannot show another viewer's bookmark state.
+  depends_on: [examples.bookmarks]
+applies_to:
+  rest_api:
+    required: false
+    role: First-party history discovery and existing authorized message-window reads support the web timeline; developer API access to private history is outside this contract.
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+examples:
+  file: examples.yml
+  required_groups:
+  - preview_and_activate
+  - touch_scrubbing
+  - full_history_loading
+  - compression_history
+  - access_and_lifecycle
+  - accessible_layout
+  - bookmarks

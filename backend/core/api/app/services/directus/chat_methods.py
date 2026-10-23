@@ -1720,6 +1720,7 @@ class ChatMethods:
         cursor_timestamp: Optional[int] = None,
         cursor_message_id: Optional[str] = None,
         lower_bound_timestamp: Optional[int] = None,
+        metadata_only: bool = False,
     ) -> List[Dict[str, Any]]:
         """Read a fixed, bounded projection through the internal SQL endpoint.
 
@@ -1732,7 +1733,7 @@ class ChatMethods:
         response = await self.directus_service._make_api_request(
             'POST', f"{self.directus_service.base_url.rstrip('/')}/chat-archive-transaction",
             headers={'X-Internal-Service-Token': token},
-            json={'operation': 'hot_message_window', 'data': {
+            json={'operation': 'hot_message_timeline' if metadata_only else 'hot_message_window', 'data': {
                 'chat_id': chat_id, 'direction': direction, 'limit': limit,
                 'cursor_timestamp': cursor_timestamp, 'cursor_message_id': cursor_message_id,
                 'lower_bound_timestamp': lower_bound_timestamp or None,
@@ -1745,6 +1746,22 @@ class ChatMethods:
                 or any(not isinstance(row, dict) or row.get('chat_id') != chat_id for row in rows)):
             raise RuntimeError('Canonical message window unavailable')
         return self._normalize_message_window_rows(rows)
+
+    async def get_message_timeline_metadata(
+        self, chat_id: str, *, before_timestamp: Optional[int] = None,
+        before_message_id: Optional[str] = None, limit: int = 201,
+    ) -> List[Dict[str, Any]]:
+        """Read only identity/turn metadata, including tied and legacy IDs.
+
+        The internal reader fixes its SQL projection and limit; clients cannot
+        select ciphertext fields. The API authorizes the chat before calling.
+        """
+        return await self._fetch_message_window_rows(
+            chat_id, direction='latest' if before_timestamp is None else 'before',
+            limit=max(1, min(int(limit), 201)), cursor_timestamp=before_timestamp,
+            cursor_message_id=before_message_id if before_timestamp is not None else None,
+            metadata_only=True,
+        )
 
     async def get_message_window_for_chat(
         self,

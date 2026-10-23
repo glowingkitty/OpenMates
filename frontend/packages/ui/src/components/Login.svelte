@@ -1084,6 +1084,7 @@
                     if (passkeyLoginWasCancelled()) return;
                     const userProfileData = {
                         user_id: userData.id || null,
+                        encrypted_settings: userData.encrypted_settings ?? null,
                         username: userData.username || '',
                         profile_image_url: userData.profile_image_url || null,
                         credits: userData.credits || 0,
@@ -1677,6 +1678,7 @@
                     const { updateProfile } = await import('../stores/userProfile');
                     const userProfileData = {
                         user_id: userData.id || null,
+                        encrypted_settings: userData.encrypted_settings ?? null,
                         username: userData.username || '',
                         profile_image_url: userData.profile_image_url || null,
                         credits: userData.credits || 0,

@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     ui_font: Optional[str] = 'lexend' # User's preferred web UI font
     invoice_counter: Optional[int] = None # Counter for invoice generation
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
+    encrypted_settings: Optional[str] = None # Opaque client-encrypted account preferences, including private bookmarks
     key_iv: Optional[str] = None # IV used for master key encryption (Web Crypto API)
     salt: Optional[str] = None # Salt used for password-based key derivation
     credential_version: Optional[int] = None # Password wrapper derivation version

@@ -615,18 +615,30 @@ def test_session_personal_batch_rejects_supported_snapshot_errors_without_fallba
 
 
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle
+# contract-test: supporting surface=gui.web assertions=chat-message-timeline.bookmarks
 @pytest.mark.parametrize("flag", [None, False, "true", 1])
 def test_session_legacy_request_does_not_read_or_serialize_personal_batch(durable_session, flag):
     state = durable_session
+    state.user["encrypted_settings"] = "opaque-owner-account-settings"
     state.directus._make_api_request = AsyncMock()
 
     result = asyncio.run(state.call("sibling-token", include_personal_memories=flag))
 
     assert result.success is True
+    assert result.model_dump()["user"]["encrypted_settings"] == "opaque-owner-account-settings"
     assert "personal_memories" not in result.model_dump()
     state.directus._make_api_request.assert_not_awaited()
     assert all(call.args[0] != "user_app_settings_and_memories"
                for call in state.directus.get_items.await_args_list)
+
+
+# contract-test: supporting surface=gui.web assertions=chat-message-timeline.bookmarks,chat-message-timeline.access-and-lifecycle
+def test_pending_verification_does_not_expose_encrypted_bookmark_settings(durable_session):
+    durable_session.user["encrypted_settings"] = "opaque-owner-account-settings"
+    result = asyncio.run(durable_session.call("pending-token"))
+    assert result.success is False
+    assert result.user is None or result.user.encrypted_settings is None
+    assert "opaque-owner-account-settings" not in result.model_dump_json()
 
 
 # contract-test: direct surface=rest_api assertions=auth.session.lifecycle,auth.session.authoritative-enforcement

@@ -779,6 +779,61 @@ async def get_shared_checkpoint_by_id(request: Request, chat_id: str, checkpoint
     return await checkpoint_by_id(directus_service, chat_id=chat_id, checkpoint_id=checkpoint_id)
 
 
+@router.get("/chat/{chat_id}/timeline")
+@limiter.limit("120/minute")
+async def get_shared_chat_timeline(request: Request, chat_id: str, response: Response,
+                                   before_timestamp: int | None = None, before_message_id: str | None = None,
+                                   directus_service: DirectusService = Depends(get_directus_service)) -> Dict[str, Any]:
+    """Public share-reader metadata only, under existing live sharing permission.
+
+    Missing/private/revoked shares retain the existing indistinguishable dummy
+    response. No private ownership, content, keys, credits or inference change.
+    """
+    from backend.core.api.app.services.chat_timeline import timeline_page
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    response.headers["Cache-Control"] = "private, no-store"
+    if dummy is not None or chat is None:
+        return {"chat_id": chat_id, "entries": [], "has_more": False, "before": None}
+    try:
+        return await timeline_page(directus=directus_service, s3=getattr(request.app.state, "s3_service", None),
+            chat_id=chat_id, archived=bool(int(chat.get("archived_message_count") or 0)),
+            before_timestamp=before_timestamp, before_message_id=before_message_id)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="TIMELINE_UNAVAILABLE") from exc
+
+
+@router.get("/chat/{chat_id}/section/{message_id}")
+@limiter.limit("60/minute")
+async def get_shared_chat_section(request: Request, chat_id: str, message_id: str, response: Response,
+                                  directus_service: DirectusService = Depends(get_directus_service)) -> Dict[str, Any]:
+    """Public shared-reader section, with the same live share and PII checks."""
+    from backend.core.api.app.services.bounded_message_window import MESSAGE_WINDOW_LIMIT, bound_encrypted_message_window
+    chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+    response.headers["Cache-Control"] = "private, no-store"
+    if dummy is not None or chat is None:
+        return {"chat_id": chat_id, "messages": [], "anchor_found": False}
+    try:
+        window = await directus_service.chat.get_message_window_for_chat(
+            chat_id=chat_id, direction="around", limit=MESSAGE_WINDOW_LIMIT, anchor_message_id=message_id)
+        if int(chat.get("archived_message_count") or 0):
+            from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+            window = await ChatMessageArchiveService(directus_service=directus_service, s3_service=request.app.state.s3_service).merge_window(
+                chat_id=chat_id, hot=window, direction="around", limit=MESSAGE_WINDOW_LIMIT, anchor_message_id=message_id)
+        rows = sanitize_shared_pii(window.get("messages", []), bool(chat.get("share_pii", False)))
+        messages = []
+        for raw in rows:
+            row = json.loads(raw) if isinstance(raw, str) else dict(raw)
+            row.pop("content", None)
+            row.pop("text", None)
+            row["message_id"] = row.get("message_id") or row.get("client_message_id") or row.get("id")
+            messages.append(row)
+        bounded = bound_encrypted_message_window({**window, "messages": messages}, direction="around", anchor_message_id=message_id)
+        return {"chat_id": chat_id, "messages": bounded["messages"], "anchor_found": bool(window.get("anchor_found")),
+                "oversized_message_cursor": bounded.get("oversized_message_cursor")}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="SHARED_MESSAGE_WINDOW_UNAVAILABLE") from exc
+
+
 @router.get("/chat/{chat_id}/messages")
 @limiter.limit("60/minute")
 async def get_shared_chat_message_window(
