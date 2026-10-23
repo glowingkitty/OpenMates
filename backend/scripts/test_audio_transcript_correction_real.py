@@ -116,6 +116,65 @@ SAMPLES: list[dict[str, Any]] = [
         "required": [r"\b(?:don['\u2019]t|do not) cancel\b", r"\breschedule\b", r"\bideally\b",
                      r"\bthursday\b", r"\bfriday\b", r"\broom booking\b"],
     },
+    {
+        "id": "en_same_batch_height_context",
+        "language": "en",
+        "raw": (
+            "Additionally, while we do have a maximum height for embed preview containers, "
+            "we shouldn't actually remove the minimum height. So the idea is that if a sheet, "
+            "for example, has only two rows or something, it doesn't make sense to render the "
+            "container much larger, and therefore wasting space. We want to limit the maximum "
+            "height to the current height, but the minimum should be flexible. So that also "
+            "would help if, for example, a code embed is rendered and it has only one line, "
+            "then we only render that one line and don't waste any further space. Also, I see, "
+            "like, some code embed previews from the screenshots you were sending that it "
+            "says Ready, which doesn't make sense to show. I'm not sure where that's coming "
+            "from. Yeah."
+        ),
+        "required": [r"\bmaximum height\b", r"\bminimum\b", r"\bflexible\b",
+                     r"\b(?:two|2) rows\b", r"\b(?:one|1) line\b", r"\bReady\b"],
+    },
+    {
+        "id": "en_contextual_alignment_error",
+        "language": "en",
+        "raw": (
+            "The screenshot should be left-aligned. Put it exactly in the horizontal center "
+            "of the card, with equal empty space on the left and right, not against the left edge."
+        ),
+        "required": [r"\bcenter(?:ed)?\b", r"\bequal\b", r"\bspac\w*\b", r"\bleft\b", r"\bright\b"],
+        "forbidden": [r"\bscreenshot should be left.aligned\b"],
+    },
+    {
+        "id": "en_contextual_technical_spelling",
+        "language": "en",
+        "raw": "Please commit the fix to get hub and check the type script errors in the pull request.",
+        "required": [r"\bGitHub\b", r"\bTypeScript\b", r"\bpull request\b"],
+    },
+    {
+        "id": "en_preserve_ambiguous_minimum",
+        "language": "en",
+        "raw": "Keep the minimum height, or remove it. I haven't decided yet.",
+        "required": [r"\bkeep\b", r"\bminimum height\b", r"\bremove\b",
+                     r"\b(?:haven['\u2019]t decided|have not decided|not decided|undecided)\b"],
+    },
+    {
+        "id": "en_preserve_ambiguous_number",
+        "language": "en",
+        "raw": "Use 15 or 50 pixels for the minimum height; I'm not sure which number I said.",
+        "required": [r"\b(?:15|fifteen)\b", r"\b(?:50|fifty)\b", r"\bminimum height\b",
+                     r"\b(?:not sure|unsure|uncertain)\b"],
+    },
+    {
+        "id": "en_preserve_deliberate_minimum",
+        "language": "en",
+        "raw": (
+            "Keep the preview at a minimum height of 300 pixels and a maximum height of "
+            "500 pixels, even when it has only two rows. The extra space is deliberately "
+            "reserved for controls."
+        ),
+        "required": [r"\bminimum\b", r"\b(?:300|three hundred)\b", r"\bmaximum\b",
+                     r"\b(?:500|five hundred)\b", r"\b(?:two|2) rows\b", r"\bcontrols\b"],
+    },
 ]
 
 
