@@ -101,15 +101,15 @@ test('parent directory replacement is refused while descriptor stays anchored', 
     assert.equal(identity(fs.fstatSync(fd, { bigint: true })).ino, String(before.ino));
   } finally { if (fd !== undefined) fs.closeSync(fd); remove(f); }
 });
-test('real attested supplier stages unchanged bytes; pinned child and grandchild execPath match; safe cleanup', { timeout: 30000 }, () => {
+for (const supplierMode of [0o755, 0o775]) test(`real attested supplier mode ${supplierMode.toString(8)} stages unchanged bytes; pinned child and grandchild execPath match; safe cleanup`, { timeout: 30000 }, () => {
   const f = fixture(); let staged;
   try {
-    fs.copyFileSync(process.execPath, f.execPath); fs.chmodSync(f.execPath, 0o775);
+    fs.copyFileSync(process.execPath, f.execPath); fs.chmodSync(f.execPath, supplierMode);
     const original = fs.statSync(f.execPath, { bigint: true });
     const githubEnv = path.join(f.root, 'github-env'), githubPath = path.join(f.root, 'github-path');
     const result = run(f.execPath, 'stage', { RUNNER_TOOL_CACHE: f.root, GITHUB_ENV: githubEnv, GITHUB_PATH: githubPath });
     assert.equal(result.status, 0, result.stderr); const receipt = JSON.parse(result.stdout);
-    assert.equal(receipt.source.group_write_supplier_exception, true); assert.equal(receipt.destination.mode_0700, true);
+    assert.equal(receipt.source.group_write_supplier_exception, (supplierMode & 0o020) !== 0); assert.equal(receipt.destination.mode_0700, true);
     assert(!result.stdout.includes(f.root)); assert(!Object.hasOwn(receipt, 'uid')); assert(!Object.hasOwn(receipt, 'path'));
     const env = Object.fromEntries(fs.readFileSync(githubEnv, 'utf8').trim().split('\n').map(line => line.split('=')));
     staged = path.dirname(env.OPENMATES_CI_NODE); const verified = run(env.OPENMATES_CI_NODE, 'verify', env);

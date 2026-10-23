@@ -4,11 +4,14 @@
 import importlib.util
 import json
 import os
+import stat
+import subprocess
 from pathlib import Path
 import sys
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 
 @pytest.fixture
@@ -172,3 +175,60 @@ def test_workflow_trust_order_cache_repin_and_always_cleanup():
     assert 'env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE"' in text
     assert "if: always() && env.OPENMATES_CI_NODE_STATE != ''" in text
     assert "subject/test-results/ci-node-runtime.json" in text
+
+
+def test_workflow_downloads_supplier_into_fresh_private_cache(tmp_path):
+    workflow = yaml.safe_load(
+        (Path(__file__).parents[2] / ".github/workflows/isolated-tests.yml").read_text()
+    )
+    steps = workflow["jobs"]["test"]["steps"]
+    create = next(
+        s for s in steps if s.get("name") == "Create private Node supplier toolcache"
+    )
+    setup = [s for s in steps if s.get("uses") == "actions/setup-node@v4"]
+    stage = next(
+        s for s in steps if s.get("name", "").startswith("Stage attested runner Node")
+    )
+    reconstruct = next(
+        s for s in steps
+        if s.get("name") == "Reconstruct and verify exact detached source"
+    )
+    assert (
+        steps.index(create) < steps.index(setup[0])
+        < steps.index(stage) < steps.index(reconstruct)
+    )
+    assert create["if"] == setup[0]["if"] == stage["if"]
+    expected = "${{ env.OPENMATES_CI_NODE_SUPPLIER_CACHE }}"
+    assert (
+        setup[0]["env"]["RUNNER_TOOL_CACHE"]
+        == stage["env"]["RUNNER_TOOL_CACHE"] == expected
+    )
+    assert "RUNNER_TOOL_CACHE" not in setup[1].get("env", {})
+    assert "RUNNER_TOOL_CACHE" not in workflow["jobs"]["test"]["env"]
+
+    # Run the actual bootstrap twice: neither run may reuse or chmod the image's
+    # permissive cache, even when the runner's umask permits world writes.
+    image_cache = tmp_path / "hostedtoolcache"
+    image_cache.mkdir(mode=0o777)
+    image_node = image_cache / "node"
+    image_node.write_text("synthetic image binary")
+    image_node.chmod(0o777)
+    before = image_node.stat()
+    outputs = tmp_path / "github-env"
+    env = {
+        **os.environ, "RUNNER_TEMP": str(tmp_path), "GITHUB_ENV": str(outputs),
+        "RUNNER_TOOL_CACHE": str(image_cache),
+    }
+    for _ in range(2):
+        subprocess.run(
+            ["bash", "-e", "-c", "umask 000\n" + create["run"]], env=env, check=True
+        )
+    caches = [Path(line.split("=", 1)[1]) for line in outputs.read_text().splitlines()]
+    assert len(caches) == 2 and caches[0] != caches[1]
+    for cache in caches:
+        assert cache.parent == tmp_path and cache.is_dir() and not cache.is_symlink()
+        assert stat.S_IMODE(cache.stat().st_mode) == 0o700
+        assert cache.stat().st_uid == os.geteuid()
+        assert list(cache.iterdir()) == []
+    assert image_node.stat() == before
+    assert stat.S_IMODE(image_node.stat().st_mode) == 0o777
