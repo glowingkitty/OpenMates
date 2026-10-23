@@ -3826,7 +3826,7 @@ export class EmbedStore {
     resolved: Record<string, unknown> | string | undefined,
     chatId: string,
     hashedChatId: string,
-    remaining: Set<string>,
+    requestedChildren: Set<string>,
   ): Promise<string[]> {
     const [
       { authStore },
@@ -3879,20 +3879,12 @@ export class EmbedStore {
       decoded = await decodeRefRepairContent(resolved.content);
     }
     if (!decoded || typeof decoded !== "object") return [];
-    const ids: string[] = [];
-    for (const childId of this.normalizeEmbedIds(
+    // Local children must remain discoverable even after the network allowance
+    // is spent. Reserve that allowance only immediately before a missing read;
+    // otherwise cached results in early parents starve later search groups.
+    const ids = [...new Set(this.normalizeEmbedIds(
       (decoded as Record<string, unknown>).embed_ids,
-    )) {
-      if (
-        !canonical.test(childId) ||
-        childId === parentId ||
-        remaining.has(childId)
-      )
-        continue;
-      if (remaining.size >= MAX_CHILD_EMBEDS_TO_INDEX) break;
-      remaining.add(childId);
-      ids.push(childId);
-    }
+    ))].filter((childId) => canonical.test(childId) && childId !== parentId);
     const { isEmbedKnownError } = await import("./embedResolver");
     const {
       capturePersonalEmbedReadScope,
@@ -3953,7 +3945,6 @@ export class EmbedStore {
         const oldest = this.childRepairAttempts.keys().next().value;
         if (oldest !== undefined) this.childRepairAttempts.delete(oldest);
       }
-      this.childRepairAttempts.set(scopeKey, Date.now());
       const request = runPersonalEmbedReadOperation(
         scope,
         async (assertPending, signal) => {
@@ -3965,6 +3956,13 @@ export class EmbedStore {
           // A competing Personal resolver may have persisted the row during scope capture.
           if (await this.getRawEntry(`embed:${childId}`)) return;
           guard();
+          if (
+            requestedChildren.has(childId) ||
+            requestedChildren.size >= MAX_CHILD_EMBEDS_TO_INDEX
+          ) return;
+          requestedChildren.add(childId);
+          // A skipped read must not cool down a later lookup with fresh budget.
+          this.childRepairAttempts.set(scopeKey, Date.now());
           const response = await fetch(
             getApiEndpoint(
               `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(childId)}`,
@@ -4063,7 +4061,7 @@ export class EmbedStore {
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
     const checkedCandidates = new Set<string>();
 
-    const childIdsChecked = new Set<string>();
+    const requestedChildIds = new Set<string>();
     const tryCandidates = async (candidateEmbedIds: string[], sourceHash?: string): Promise<string | null> => {
       for (const candidateEmbedId of candidateEmbedIds) {
         if (checkedCandidates.has(candidateEmbedId)) continue;
@@ -4072,7 +4070,7 @@ export class EmbedStore {
         const resolvedEmbed = await this.get(`embed:${candidateEmbedId}`);
         if (sourceHash && chatId) {
           const children = await this.recoverMissingSourceChildren(
-            candidateEmbedId, resolvedEmbed, chatId, sourceHash, childIdsChecked,
+            candidateEmbedId, resolvedEmbed, chatId, sourceHash, requestedChildIds,
           );
           const childResult = await tryCandidates(children);
           if (childResult) return childResult;

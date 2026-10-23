@@ -74,6 +74,59 @@ describe('historical source child recovery', () => {
     await recover(store, ['not-a-uuid', parent, ...ids, child]);
     expect(fetched).toHaveBeenCalledTimes(50);
   });
+
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
+  it('recovers an exact event ref after more than 50 cached children in earlier parents', async () => {
+    store.clearEmbedRefIndex();
+    const earlierParent = '44444444-4444-4444-4444-444444444444';
+    const cachedIds = Array.from({ length: 55 }, (_, i) => `${String(i).padStart(8, '0')}-aaaa-bbbb-cccc-dddddddddddd`);
+    const parentRow = (id: string) => ({ embed_id: id, contentRef: `embed:${id}`,
+      hashed_chat_id: `hash-${chat}`, hashed_user_id: 'hash-owner', status: 'finished' });
+    const cached = new Map(cachedIds.map(id => [id, { ...parentRow(id), parent_embed_id: earlierParent,
+      encrypted_content: 'cached ciphertext' }]));
+    vi.mocked(store.getRawEntry).mockImplementation(async ref => {
+      const id = ref.slice('embed:'.length);
+      return id === parent || id === earlierParent ? parentRow(id)
+        : id === child ? localChild ?? null : cached.get(id) ?? null;
+    });
+    vi.mocked(store.getEmbedKeyEntries).mockImplementation(async hash => [{ hashed_embed_id: hash,
+      hashed_user_id: 'hash-owner', key_type: 'master', hashed_chat_id: null, encrypted_embed_key: 'wrapped', created_at: 1 }]);
+    vi.spyOn(store, 'getEmbedsByHashedChatId').mockResolvedValue([parentRow(earlierParent), parentRow(parent)] as any);
+    vi.spyOn(store as any, 'collectAllRefRepairCandidatesFromCache').mockReturnValue([]);
+    vi.spyOn(store as any, 'collectAllRefRepairCandidatesFromIndexedDb').mockResolvedValue([]);
+    vi.spyOn(store, 'get').mockImplementation(async ref => {
+      if (ref === `embed:${earlierParent}`) return { content: JSON.stringify({ embed_ids: cachedIds }) };
+      if (ref === `embed:${parent}`) return { content: JSON.stringify({ embed_ids: [child] }) };
+      if (ref === `embed:${child}` && localChild) return {
+        content: JSON.stringify({ embed_ref: 'freelance-barcamp-berlin-M9b', app_id: 'events' }),
+      };
+      return undefined;
+    });
+
+    await expect(store.resolveByRefDeep('freelance-barcamp-berlin-M9b', chat)).resolves.toBe(child);
+    expect(fetched).toHaveBeenCalledTimes(1);
+    expect(fetched.mock.calls[0][0]).toContain(`/chats/${chat}/embeds/${child}`);
+    expect(store.resolveAppIdByRef('freelance-barcamp-berlin-M9b')).toBe('events');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
+  it('still validates cached children when the missing-read allowance is exhausted', async () => {
+    localChild = { embed_id: child, parent_embed_id: parent, hashed_chat_id: `hash-${chat}`,
+      hashed_user_id: 'hash-owner', status: 'finished', encrypted_content: 'ciphertext' };
+    const spent = new Set(Array.from({ length: 50 }, (_, i) => `${String(i).padStart(8, '0')}-aaaa-bbbb-cccc-dddddddddddd`));
+    await expect(recover(store, [child], spent)).resolves.toEqual([child]);
+    expect(fetched).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
+  it('does not charge a fresh read allowance for a child still in cooldown', async () => {
+    fetched.mockResolvedValue({ status: 404 });
+    await recover(store, [child]);
+    const fresh = new Set<string>();
+    await recover(store, [child], fresh);
+    expect(fetched).toHaveBeenCalledTimes(1);
+    expect(fresh.size).toBe(0);
+  });
   // contract-test: supporting surface=gui.web assertions=chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence
   it('does not fetch for Teams, missing parents, or a mismatched parent source', async () => {
     vi.mocked(chatDB.getChat).mockResolvedValue({ team_id: 'team' } as any);
