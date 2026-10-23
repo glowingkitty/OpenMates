@@ -91,7 +91,11 @@ test('expanded and full-image previews keep one visible info bar above content',
   await waitForComponentPreview(page);
   const imageCard = page.getByTestId('embed-preview');
   await expect(imageCard.getByTestId('embed-basic-infos-bar')).toHaveCount(0);
-  await expect(imageCard.getByTestId('result-card-title')).toBeVisible();
+  await expect(imageCard.locator('.card-copy')).toHaveCount(0);
+  const imageFrame = (await imageCard.getByTestId('result-card-media').boundingBox())!;
+  const imageShell = (await imageCard.boundingBox())!;
+  expect(imageFrame.width).toBeCloseTo(imageShell.width, 0);
+  expect(imageFrame.height).toBeCloseTo(imageShell.height, 0);
   await expect(imageCard.getByTestId('image-result-preview-image')).toHaveCSS('object-fit', 'contain');
   const imageBounds = await imageCard.evaluate((element) => {
     const card = element.getBoundingClientRect();

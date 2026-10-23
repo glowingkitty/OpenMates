@@ -1,6 +1,14 @@
 {
   "source_commit": "703e3f9494bb21d2c94d387acfd32a692f7168a9",
   "groups": {
+    "image_embed_file_actions": {
+      "execution": "e2e",
+      "enabling_work": "Vite-only bare component previews using local image bytes, the production ChatMessage renderer and real browser clipboard/download APIs. Storage transport uses fixture ciphertext and AES-GCM readers; no account, backend, external provider credentials or AI inference.",
+      "specs": [
+        "components/image-embed-preview-layout.spec.ts",
+        "components/image-embed-message-actions.spec.ts"
+      ]
+    },
     "reminder_notification_setup": {
       "execution": "e2e",
       "enabling_work": "Uses fresh runner-private accounts and the core API/CMS/cache/Vault to persist email settings, create and cancel future notification-only reminders, and follow their real WebSocket activation toast. No reminder firing, scheduler, email provider, or AI inference is required.",

@@ -5,8 +5,8 @@
   Always wraps in UnifiedEmbedPreview for consistent styling across all contexts:
   grid cards inside search fullscreens, standalone inline previews, etc.
 
-  Displays a thumbnail image covering the full preview container with a gradient
-  overlay showing the source domain and title at the bottom.
+  Displays the complete image across the full preview container. Source and
+  title remain available in the fullscreen view and image alternative text.
 
   External images pass through the privacy proxy here. Callers may also supply
   already-proxied URLs; proxyImage avoids wrapping those again.
@@ -16,7 +16,7 @@
 
 <script lang="ts">
   import { handleImageError } from '../../../utils/offlineImageHandler';
-  import { proxyFavicon, proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ResultEmbedCard from '../ResultEmbedCard.svelte';
 
@@ -98,7 +98,7 @@
   onStop={handleStop}
 >
   {#snippet details()}
-    <ResultEmbedCard title={title || "Image"} sourceLabel={sourceDomain} faviconUrl={proxyFavicon(faviconUrl)} mediaFit="contain">
+    <ResultEmbedCard title={title || "Image"} mediaOnly={true} mediaFit="contain">
       {#snippet media()}
     <div class="image-result-content">
       {#if displayImage && !imageFailed && status === 'finished'}
@@ -132,8 +132,6 @@
     height: 100%;
     position: relative;
     overflow: hidden;
-    /* The shared card clips the image to its lower corners below the info bar. */
-    border-radius: 0 0 30px 30px;
   }
 
   .result-image {

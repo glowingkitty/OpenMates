@@ -12,19 +12,21 @@
     imageAlt?: string;
     imageTestId?: string;
     mediaFit?: 'cover' | 'contain';
+    /** Image previews use the entire card, without title/source copy or a fade. */
+    mediaOnly?: boolean;
     textFirst?: boolean;
     badge?: Snippet;
     facts?: Snippet;
     media?: Snippet;
     children?: Snippet;
   }
-  let { title, titleTestId = 'result-card-title', description, sourceLabel, faviconUrl, imageUrl, imageAlt = '', imageTestId, mediaFit = 'contain', textFirst = false, badge, facts, media, children }: Props = $props();
+  let { title, titleTestId = 'result-card-title', description, sourceLabel, faviconUrl, imageUrl, imageAlt = '', imageTestId, mediaFit = 'contain', mediaOnly = false, textFirst = false, badge, facts, media, children }: Props = $props();
   let failedImage = $state<string>();
   let failedFavicon = $state<string>();
   const hasImage = $derived(!!imageUrl && failedImage !== imageUrl);
 </script>
 
-<div class="result-card" class:has-media={hasImage || !!media} class:text-first={textFirst} class:contain-media={mediaFit === 'contain'} data-testid="result-card-content">
+<div class="result-card" class:has-media={hasImage || !!media} class:media-only={mediaOnly} class:text-first={textFirst} class:contain-media={mediaFit === 'contain'} data-testid="result-card-content">
   {#if hasImage || media}
     <div class="card-media" data-testid="result-card-media">
       {#if media}{@render media()}{:else if imageUrl}
@@ -32,6 +34,7 @@
       {/if}
     </div>
   {/if}
+  {#if !mediaOnly}
   <div class="card-copy">
     {#if badge}<div class="card-badge">{@render badge()}</div>{/if}
     {#if sourceLabel || (faviconUrl && failedFavicon !== faviconUrl)}
@@ -45,6 +48,7 @@
     {#if facts}<div class="card-facts">{@render facts()}</div>{/if}
     {#if children}{@render children()}{/if}
   </div>
+  {/if}
 </div>
 
 <style>
@@ -77,4 +81,6 @@
     .card-badge { position: static; align-self: flex-start; margin-bottom: var(--spacing-4); }
     .card-facts { max-height: none; }
   }
+  .media-only .card-media { position: absolute; display: block; inset: 0; }
+  .media-only .card-media::after { display: none; }
 </style>

@@ -338,9 +338,36 @@ function _buildEmbedHtml(json: string, plainText: string): string {
 export async function writeEmbedToClipboard(
   attrs: EmbedNodeAttributes,
   plainTextPromise: string | Promise<string>,
+  imagePngPromise?: Promise<Blob>,
 ): Promise<void> {
   const clipboardData = createEmbedClipboardData(attrs);
   const json = JSON.stringify(clipboardData);
+
+  if (imagePngPromise) {
+    // Use only browser-supported MIME types so Safari can start writing within
+    // the click gesture. HTML retains the reference for in-app paste and actual
+    // image data for other rich-text editors, without copying encryption keys.
+    const html = imagePngPromise.then(blob => new Promise<Blob>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Unable to prepare image clipboard'));
+      reader.onload = () => resolve(new Blob([
+        _buildEmbedHtml(json, '').replace('<pre></pre>', `<img src="${reader.result}" alt="">`),
+      ], { type: 'text/html' }));
+      reader.readAsDataURL(blob);
+    }));
+    // Mark both preparations as handled even when a browser rejects writing
+    // before consuming ClipboardItem's promises.
+    void html.catch(() => {});
+    void imagePngPromise.catch(() => {});
+    if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
+      throw new Error('Image clipboard is unavailable');
+    }
+    await navigator.clipboard.write([new ClipboardItem({
+      'image/png': imagePngPromise,
+      'text/html': html,
+    })]);
+    return;
+  }
 
   // Normalise: wrap plain strings in a resolved promise so all paths below
   // can treat the value uniformly.

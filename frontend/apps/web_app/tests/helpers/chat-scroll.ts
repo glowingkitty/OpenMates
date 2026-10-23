@@ -2,6 +2,37 @@
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { waitForComponentMotion } from './component-preview';
 
+/** Finish native scrolling before opening a surface that dismisses on scroll. */
+export async function clickSettledScrollTarget(target: Locator, testInfo: TestInfo): Promise<void> {
+  await expect(target).toBeVisible();
+  await expect(target).toBeEnabled();
+  await target.scrollIntoViewIfNeeded();
+  try {
+    await expect.poll(() => target.evaluate(async element => {
+      const sample = () => {
+        const bounds = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        const offsets = [[window.scrollX, window.scrollY]];
+        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+          offsets.push([parent.scrollLeft, parent.scrollTop]);
+        }
+        return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, offsets,
+          hit: hit === element || !!hit && element.contains(hit) };
+      };
+      const first = await new Promise<ReturnType<typeof sample>>(resolve => requestAnimationFrame(() => resolve(sample())));
+      const second = await new Promise<ReturnType<typeof sample>>(resolve => requestAnimationFrame(() => resolve(sample())));
+      return { stable: JSON.stringify(first) === JSON.stringify(second), hit: first.hit && second.hit };
+    }), { message: 'scroll target should settle and receive pointer input before opening its menu' })
+      .toEqual({ stable: true, hit: true });
+    await target.click();
+  } catch (error) {
+    const state = await target.evaluate(element => ({ testId: element.getAttribute('data-testid'),
+      bounds: element.getBoundingClientRect().toJSON(), connected: element.isConnected })).catch(() => null);
+    await testInfo.attach('scroll-target-state', { body: JSON.stringify(state), contentType: 'application/json' });
+    throw error;
+  }
+}
+
 /** Scroll a chat action into the usable area below any sticky call media. */
 export async function clickChatTarget(target: Locator, testInfo: TestInfo): Promise<void> {
   try {

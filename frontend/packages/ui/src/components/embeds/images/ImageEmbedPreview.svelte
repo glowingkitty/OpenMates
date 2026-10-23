@@ -440,7 +440,7 @@
   hasFullWidthImage={!!displayUrl && !imageError && status !== 'error'}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <ResultEmbedCard title={filename || skillName} sourceLabel={statusText} mediaFit="contain">
+    <ResultEmbedCard title={filename || skillName} sourceLabel={statusText} mediaOnly={status === 'finished' && !!displayUrl && !imageError} mediaFit="contain">
       {#snippet media()}
     <div class="image-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
 

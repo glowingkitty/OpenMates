@@ -49,6 +49,9 @@ More and Expand actions while retaining their editor layout.
   surface. Without an image: favicon/avatar, title and a short description.
 - Wide assistant cards: concise information left, media right. Use container
   width so side panels and narrow chat columns behave correctly.
+- Image previews use the whole card for the uncropped image, including compact,
+  mobile and wide cards. Preserve aspect ratio with letterboxing; omit the
+  title/source panel and text fade. Source details remain in fullscreen.
 - Assistant content stays selectable; only Expand opens fullscreen. More exposes
   existing fullscreen actions, with one useful core action directly visible.
   Result collections and Apps still open fullscreen on card click. Card-wide

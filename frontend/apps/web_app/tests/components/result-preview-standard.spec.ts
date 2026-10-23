@@ -76,6 +76,18 @@ async function assertShell(page: Page, card: Locator, mode: Mode, path: string) 
 async function assertSharedCard(card: Locator, mode: Mode, path: string) {
   const shared = card.getByTestId('result-card-content');
   if (await shared.count() === 0) return;
+  if (path.startsWith('images/')) {
+    const image = shared.getByTestId('result-card-media').locator('img').first();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+    await expect(shared.locator('.card-copy')).toHaveCount(0);
+    await expect(image).toHaveCSS('object-fit', 'contain');
+    const frame = (await shared.boundingBox())!;
+    const media = (await shared.getByTestId('result-card-media').boundingBox())!;
+    expect(media.x).toBeCloseTo(frame.x, 0);
+    expect(media.width).toBeCloseTo(frame.width, 0);
+    expect(media.height).toBeCloseTo(frame.height, 0);
+    return;
+  }
   const title = shared.locator('h3');
   await expect(title, `${path}: title is limited to two lines`).toHaveCSS('-webkit-line-clamp', '2');
   const primaryText = await title.evaluate(element => {

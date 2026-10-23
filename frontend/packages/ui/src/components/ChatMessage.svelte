@@ -53,6 +53,7 @@
   import { appSkillsStore } from '../stores/appSkillsStore';
   import { buildSavedEmbedConfigFromDecodedContent, findSavedEmbedMemoryEntry, forgetEmbedMemory, saveEmbedMemory } from '../services/savedEmbedMemoryService';
   import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
+  import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
   import type { TipTapDoc, TipTapNode } from '../message_parsing/types';
   import { copyToClipboard } from '../utils/clipboardUtils';
   import { chatDebugStore } from '../stores/chatDebugStore';
@@ -2228,6 +2229,35 @@
     const snapshotAttrs = selectedNode.attrs as unknown as import('../message_parsing/types').EmbedNodeAttributes;
     // Snapshot DOM embed ID too — selectedDomEmbedId is nulled by onClose alongside selectedNode.
     const snapshotDomEmbedId = selectedDomEmbedId;
+
+    // Image-file actions apply to direct, grouped, small-reference and highlighted
+    // nodes alike. Resolve the clicked child before the menu clears selection.
+    if (selectedAppId === 'images' && selectedSkillId !== 'search' && (action === 'copy' || action === 'download')) {
+      const embedId = (snapshotDomEmbedId || getEmbedIdFromNode(selectedNode))?.replace(/^embed:/, '');
+      if (!embedId) return;
+      const imageAttrs = {
+        ...snapshotAttrs, id: embedId, contentRef: `embed:${embedId}`,
+        type: selectedSkillId === 'image_result' ? 'images-image-result'
+          : selectedSkillId === 'view' || selectedSkillId === 'upload' ? 'image' : 'app-skill-use',
+        app_id: 'images', skill_id: selectedSkillId || undefined,
+      };
+      try {
+        // No await precedes copyImageEmbed: Safari needs the active click gesture.
+        if (action === 'copy') await copyImageEmbed(embedId, imageAttrs);
+        else await downloadImageEmbed(embedId);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.success(action === 'copy' ? $text('embeds.copied_to_clipboard') : 'Image downloaded');
+      } catch (error) {
+        console.error('[ChatMessage] Image action failed:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error($text(action === 'copy' ? 'embeds.copy_failed' : 'embeds.action_failed'));
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+        selectedDomEmbedId = null;
+      }
+      return;
+    }
 
     // Legacy node handlers removed - now using unified embed system
     // Actions are handled directly below

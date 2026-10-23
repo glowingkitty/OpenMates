@@ -31,7 +31,6 @@ for (const width of [390, 1100]) {
       await waitForComponentPreview(page);
       const card = page.getByTestId('embed-preview');
       await expect(card).toHaveClass(/result-preview/);
-      await expect(card.getByTestId('result-card-title')).toBeVisible();
       await expect(card.getByTestId('embed-basic-infos-bar')).toHaveCount(0);
       const media = card.getByTestId('result-card-media').locator('img:not(.provider-icon):not(.model-icon), video').first();
       await expect(media).toBeVisible();
@@ -39,6 +38,16 @@ for (const width of [390, 1100]) {
         ? element.complete && element.naturalWidth > 0
         : (element as HTMLVideoElement).readyState >= 2)).toBe(true);
       await expect(media).toHaveCSS('object-fit', 'contain');
+      if (component.startsWith('images/')) {
+        await expect(card.locator('.card-copy')).toHaveCount(0);
+        const frame = (await card.getByTestId('result-card-media').boundingBox())!;
+        const shell = (await card.boundingBox())!;
+        expect(frame.x).toBeCloseTo(shell.x, 0);
+        expect(frame.width).toBeCloseTo(shell.width, 0);
+        expect(frame.height).toBeCloseTo(shell.height, 0);
+      } else {
+        await expect(card.getByTestId('result-card-title')).toBeVisible();
+      }
       const bounds = await card.boundingBox();
       expect(bounds!.x).toBeGreaterThanOrEqual(-1);
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
