@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: node2shell-security-update
+title: Patch Brotli decoders and verify production exposure
+status: implementing
+goal: >-
+  Implement the security update, summarize the actual risk for our server and
+  production server, and advise whether to update the production backend today.
+scope:
+  - Patch Python preview Brotli, Directus Node 22, and worker/frontend/build Node 24 runtimes.
+  - Update active dev-host Node and Bun commands using verified upstream downloads.
+  - Inspect production runtimes and exposure through the user-opened SSH connection.
+constraints:
+  - Preserve Directus application version and Node 22 native-module ABI.
+  - Preserve user data, encryption, inference routing, and provider settings.
+  - Production mutations require the user's production rollout decision.
+required_checks:
+  - Native preview decoder accepts valid responses and rejects the upstream invalid-block-switch regression.
+  - Isolated self-host smoke verifies the built CMS decoder and existing signup behavior.
+  - Worker image builds with patched Node and its existing glTF CLI.
+  - Managed dev deployment and scoped runtime restart with a coordinator lease.
+evidence:
+  task: 893cbb2c-52f5-4fcd-8f79-3b75dca91bde
+  production_before:
+    cms_node: 22.14.0
+    cms_brotli: 1.1.0
+    cms_public_port: false
+    cms_caddy_route: false
+    api_python_brotli_installed: false
+    sampled_worker_node_installed: false
+  host_after:
+    active_node: 24.22.1
+    node_block_switch_error: -17
+    bun: 1.4.4

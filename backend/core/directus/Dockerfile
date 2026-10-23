@@ -4,9 +4,14 @@
 # Startup fails unless Directus loads the endpoint and internal auth fails closed.
 # Container health additionally requires the recovery collections and indexes.
 
+# Keep the Node 22 ABI used by Directus's native modules, with the Brotli fix.
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS patched-node
 FROM directus/directus:11.5@sha256:23f2f526599bff1746121fd7e4e1101744661c7ce35d90370a738bc5c48bea3e
 
 USER root
+COPY --from=patched-node /usr/local/bin/node /usr/local/bin/node
+# Fail the build if a future runtime replacement loses the security backport.
+RUN node -e "require('node:assert/strict').equal(require('node:zlib').constants.BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH, -17)"
 RUN apk add --no-cache curl postgresql-client su-exec
 
 COPY --chown=node:node extensions /directus/extensions

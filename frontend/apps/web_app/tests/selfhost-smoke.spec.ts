@@ -220,6 +220,18 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
   );
 
  assertCliDefaultsToInstalledSelfHost();
+ // Assert the running CMS carries the CVE-2026-111497 backport before exercising it.
+ const decoder = JSON.parse(execFileSync('docker', ['exec', 'cms', 'node', '-e', `
+  const assert = require('node:assert/strict'), zlib = require('node:zlib');
+  assert.equal(zlib.constants.BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH, -17);
+  assert.throws(() => zlib.brotliDecompressSync(Buffer.from(
+   '200010414141fcffff07002228f00b60f7f41f000000', 'hex'
+  )), { code: 'ERR__ERROR_FORMAT_BLOCK_SWITCH', errno: -17 });
+  const body = Buffer.from('OpenMates Brotli security smoke');
+  assert.deepEqual(zlib.brotliDecompressSync(zlib.brotliCompressSync(body)), body);
+  console.log(JSON.stringify({ node: process.version, patched: true }));
+ `], { encoding: 'utf-8' }));
+ expect(decoder.patched, 'installed CMS must reject invalid Brotli block switches').toBe(true);
  // Verify the running image-mode CMS, not merely the source Compose file.
  const cacheSettings = execFileSync('docker', ['exec', 'cms', 'printenv',
   'CACHE_SKIP_ALLOWED', 'CACHE_AUTO_PURGE'], { encoding: 'utf-8' }).trim().split('\n');

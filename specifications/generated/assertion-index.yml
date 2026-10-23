@@ -57100,13 +57100,13 @@ assertions:
       surface: gui.web
     - &id7169
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 501
+      line: 513
       name: self-hosted passkey signup and fresh local passkey login unwrap the same
         account key
       surface: gui.web
     - &id7170
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 716
+      line: 728
       name: self-hosted account recovery schedules and cancels a reset while the old
         password still unlocks data
       surface: gui.web
@@ -58250,13 +58250,13 @@ assertions:
       surface: rest_api
     - &id7306
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 501
+      line: 513
       name: self-hosted passkey signup and fresh local passkey login unwrap the same
         account key
       surface: gui.web
     - &id7307
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 716
+      line: 728
       name: self-hosted account recovery schedules and cancels a reset while the old
         password still unlocks data
       surface: gui.web
@@ -58997,7 +58997,7 @@ assertions:
       surface: rest_api
     - &id7400
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 501
+      line: 513
       name: self-hosted passkey signup and fresh local passkey login unwrap the same
         account key
       surface: gui.web
@@ -59070,7 +59070,7 @@ assertions:
       surface: gui.web
     - &id7409
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 716
+      line: 728
       name: self-hosted account recovery schedules and cancels a reset while the old
         password still unlocks data
       surface: gui.web
@@ -59152,7 +59152,7 @@ assertions:
       surface: rest_api
     - &id7417
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 501
+      line: 513
       name: self-hosted passkey signup and fresh local passkey login unwrap the same
         account key
       surface: gui.web
@@ -60152,7 +60152,7 @@ assertions:
       surface: gui.web
     - &id7626
       path: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
-      line: 716
+      line: 728
       name: self-hosted account recovery schedules and cancels a reset while the old
         password still unlocks data
       surface: gui.web
