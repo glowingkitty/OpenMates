@@ -1,9 +1,8 @@
 # Reminder email redesign
 
-Updated 2026-10-23. Task: TASK-4084; session: faf0. Status: implemented in the
-scoped working tree. Isolated email delivery and responsive rendering passed;
-all3 reminder/navigation and all4 shared-guest cases pass isolated CI with
-verified cleanup. Dev deployment and both live test emails remain pending.
+Updated 2026-10-23. Task: TASK-4084; session: faf0. Status: deployed to dev. Isolated email delivery and responsive rendering passed;
+all 3 reminder/navigation and all 4 shared-guest cases pass isolated CI with
+verified cleanup. Dev commit `bc279722` is active and both test emails have provider-confirmed delivery. The supplied root command remains necessary to persist the working Caddy route across restarts.
 The user approved the rendered-card design,
 requested embed descriptions, and authorized implementation, testing, both test
 emails and the related specification updates. The executable record is
@@ -124,7 +123,7 @@ open/in-flight embed, source chat and message target; it permits a different or
 missing embed in an already-open chat. Public/shared guest regression coverage
 is included in the current isolated CI verification.
 
-## Verification and remaining evidence
+## Verification and operational handoff
 
 The focused reminder backend suite passed **81 cases** and the frontend unit
 suite passed **48 cases** locally on 2026-10-23. They exercise real MJML output
@@ -155,21 +154,36 @@ produced no application-test recordings or result artifact and do not prove or
 disprove the reminder changes. The user subsequently authorized resolving the CI
 blocker. The harness owner published a verified official Node download into a
 private supplier cache in `1edab52b66`, preserving strict executable guards.
-The reminder candidate passed the complete3-case suite in isolated run
+The reminder candidate passed the complete 3-case suite in isolated run
 `39990431096`, including full targets, reload/cold login, reminder creation and
-same-chat missing targets. Shared-guest run `39993579945` passes all4 cases
+same-chat missing targets. Shared-guest run `39993579945` passes all 4 cases
 after correcting ambiguous test assertions. Both report complete coverage, no
 skips/retries and verified cleanup. The shared regression source differs only
 in assertions/docs/generated records; product files are identical. No guard was bypassed.
 
-Required completion evidence remains:
+Dev activation completed at `bc279722ec031cd9f24bf58e04550e0c49be9b1e`.
+Frontend readiness passed. Managed setup-gated operation `docker-aa13d7d2`
+finished additive schema setup and all 18 service checks: API/CMS are healthy
+and all 17 backend consumers run. The exact source and full health receipt are
+retained in `/tmp/faf0-runtime-health-receipt.json`. The requested completion
+was delivered once to the coordinating parent chat.
 
-- Scoped dev deployment followed by the two already authorized test deliveries,
-  one chat and one event/embed, to the user's verified configured notification
-  address. Delivery success and selected recordings belong in the final receipt.
-- Persist the reviewed gateway route in root-owned `/etc/caddy/Caddyfile`;
-  this session can update live Caddy configuration but lacks root file access.
+Exactly two authorized owner emails were sent: one chat and one event. Brevo
+reports delivery for each exact accepted provider message ID. Both private
+public-HTTPS previews returned valid 600x400 PNGs before sending; the live bell
+matches the deployed static asset. The private receipt is retained at
+`/tmp/faf0-reminder-send-receipt.json`. Destination records remain in the
+clearly named verification folder so the emails' links and images keep working.
+
+The working preview gateway is active. Persisting it in root-owned
+`/etc/caddy/Caddyfile` needs this operator command on the dev host:
+
+```bash
+sudo bash /home/superdev/projects/OpenMates/deployment/apply-caddy-config.sh /home/superdev/projects/OpenMates/deployment/dev_server/Caddyfile
+```
+
+The non-root adaptation check passed. Startup-file verification remains pending
+until the operator runs that command; this is the remaining operational handoff.
 
 The related approved behavior is recorded under
-`specifications/features/notifications`. CI, deployment and actual receipt of the
-two emails must be recorded when they occur; this report does not claim them.
+`specifications/features/notifications`. CI, deployment and both provider-confirmed deliveries are recorded above. Production activation remains outside this task.

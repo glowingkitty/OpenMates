@@ -21,7 +21,7 @@ scope:
     - Browser rendering infrastructure, arbitrary remote-image fetching and full-chat server decryption.
 implementation_state:
   subject_commit: 256e41626964d2537f3883f8886b1d47a765d9ce
-  note: Email delivery/rendering, all3 navigation cases and all4 shared-guest cases passed isolated CI with verified cleanup. Final regression source513231e4 differs from the primary tested application source256e4162 only in test assertions, documentation and generated records; product inputs are byte-identical. Dev deployment and both live emails remain pending.
+  note: Email delivery/rendering, all 3 navigation cases and all 4 shared-guest cases passed isolated CI with verified cleanup. Final regression source 513231e4 differs from the primary tested application source 256e4162 only in test assertions, documentation and generated records; product inputs are byte-identical. Dev commit bc279722 is active; frontend readiness and setup-gated health passed, and both authorized live emails have provider-confirmed delivery. The root-owned Caddy startup file still needs the supplied operator command.
 approvals:
   specification:
     status: approved
@@ -104,7 +104,7 @@ acceptance_criteria:
     scenario: S-4
     text: Scoped dev deployment completes and both authorized chat and event/embed test emails are delivered to the user's verified configured notification address.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-LIVE]
@@ -171,24 +171,36 @@ tests:
           - /home/superdev/projects/OpenMates/test-results/ci-runs/ca4a79702ac250e20036e17aa5725579aff9d94982d75c940e8f66f288f464f4/receipt.json
           - /home/superdev/projects/OpenMates/test-results/ci-runs/2ad0a270ed3d4b6d64901b1891fc096a8b21603463887febaca8cd5043d78442/receipt.json
           - /home/superdev/projects/OpenMates/test-results/ci-runs/f78739c850c9f12b078600b004091d869526cc7bf7e335946021d0067b7a15c9/receipt.json
-        result: All3 reminder/navigation and all4 shared-guest cases passed without skips or retries; cleanup verified. SMTP/cache/preview/responsive capture passed run39968453003. Shared regression run39993579945 uses test-only corrected source513231e4; exact product-input equivalence is retained in /tmp/faf0-final-source-equivalence.json. Email inputs are unchanged from its proved source6edecaf3.
+        result: All 3 reminder/navigation and all 4 shared-guest cases passed without skips or retries; cleanup verified. SMTP/cache/preview/responsive capture passed run 39968453003. Shared regression run 39993579945 uses test-only corrected source 513231e4; exact product-input equivalence is retained in /tmp/faf0-final-source-equivalence.json. Email inputs are unchanged from its proved source 6edecaf3.
   - id: T-LIVE
     type: manual
     assertions: [Scoped dev deployment is healthy; the authorized chat and event/embed emails arrive at the user's verified configured address with useful text and exact actions.]
     covers: [AC-4]
     red_phase: {required: false, expected: No pre-change live send required., evidence: {status: not_applicable}}
-    green_phase: {required: true, expected: Both deliveries confirmed after scoped dev deployment., evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: Both deliveries confirmed after scoped dev deployment.
+      evidence:
+        status: passed
+        timestamp: '2026-10-23T18:07:50Z'
+        subject_commit: bc279722ec031cd9f24bf58e04550e0c49be9b1e
+        reason: Exactly one chat and one event email sent to the verified configured owner address; Brevo reports delivered for each exact accepted message ID. Both recipient-held public HTTPS previews returned PNG 600x400 before sending. Persistent destination/key recovery was validated with the owner's isolated CLI state; no account preferences or model defaults changed.
+        artifacts:
+          - /tmp/faf0-reminder-send-receipt.json
+          - /tmp/faf0-runtime-health-receipt.json
+          - /tmp/faf0-frontend-deploy-ready.json
+          - /tmp/faf0-parent-runtime-message.json
 # The single existing OpenMates Task remains the execution/status authority.
 tasks:
   - id: TASK-4084
     title: Implement and verify the approved reminder email redesign
-    status: in_progress
-    phase: running_checks
+    status: blocked
+    phase: blocked
     covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]}
     expected_files: [backend/apps/reminder, backend/core/api, frontend/packages/ui, frontend/apps/web_app, specifications/features/notifications]
     verification_ids: [T-RENDER, T-CONTEXT, T-ISOLATED, T-LIVE]
     dependencies: []
-    blockers: []
+    blockers: [Root operator must persist the working Caddy configuration with the supplied command.]
     follow_up_tasks: []
     ownership: {files: [Scoped session faf0 candidate], shared_files: []}
 attempts:
@@ -206,8 +218,10 @@ attempts:
     evidence: First isolated runs retained in coordinator receipts bd10580f and 8cda116f. SMTP acceptance occurred, but the probe closed injected services through an unbound Celery cleanup; fixture cleanup is corrected. Browser failures are being resolved before final verification.
 handoff:
   current_task_id: TASK-4084
-  next_action: Deploy the scoped72-file change to dev, apply additive schema/runtime updates, then send/verify the two already authorized emails and persist the gateway configuration through the root operator.
-  command: python3 scripts/plan_validate.py docs/plans/reminder-email-redesign/plan.yml
-  expected_outcome: Valid plan; completion remains pending until required CI, exact-target evidence and both live deliveries pass.
-  blocker: null
+  next_action: Verify the root operator installed the supplied Caddy startup configuration, then close the Task. All application checks, dev activation and both delivered emails are complete.
+  command: sudo bash /home/superdev/projects/OpenMates/deployment/apply-caddy-config.sh /home/superdev/projects/OpenMates/deployment/dev_server/Caddyfile
+  expected_outcome: All four acceptance criteria have passing evidence; verify the remaining root-owned startup configuration before closing the operational handoff.
+  blocker:
+    reason: The working recipient-held image route is active, while /etc/caddy/Caddyfile remains root-owned and has not yet been verified against the deployed source.
+    next_action: Operator runs the exact supplied sudo apply-caddy-config.sh command on dev; then compare the startup file with deployment/dev_server/Caddyfile.
   last_verified_commit: 256e41626964d2537f3883f8886b1d47a765d9ce
