@@ -48,6 +48,7 @@ export type NotificationType =
 export interface Notification {
   id: string;
   type: NotificationType;
+  count?: number; // Total triggers represented by this active card; omitted means one.
   title?: string; // Header title text
   message: string; // Primary message (displayed in primary color)
   messageSecondary?: string; // Secondary message (displayed in bold)
@@ -118,11 +119,33 @@ let notificationIdCounter = 0;
 const autoDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const exitRemovalTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-function getExistingDedupeId(state: NotificationState, dedupeKey?: string): string | undefined {
-  if (!dedupeKey) return undefined;
-  return state.notifications.find(
-    (notification) => notification.dedupeKey === dedupeKey && !notification.isExiting,
-  )?.id;
+function isDuplicateNotification(existing: Notification, incoming: Notification): boolean {
+  if (existing.isExiting) return false;
+  // Explicit keys retain their source-owned grouping, including across text updates.
+  if (existing.dedupeKey || incoming.dedupeKey) {
+    return existing.dedupeKey === incoming.dedupeKey;
+  }
+
+  // Callback identity matters: matching labels must never hide a different action.
+  return existing.type === incoming.type
+    && existing.title === incoming.title
+    && existing.message === incoming.message
+    && existing.messageSecondary === incoming.messageSecondary
+    && existing.messageLink?.href === incoming.messageLink?.href
+    && existing.messageLink?.label === incoming.messageLink?.label
+    && existing.chatId === incoming.chatId
+    && existing.chatTitle === incoming.chatTitle
+    && existing.avatarUrl === incoming.avatarUrl
+    && existing.category === incoming.category
+    && existing.onAction === incoming.onAction
+    && existing.actionLabel === incoming.actionLabel
+    && existing.onSecondaryAction === incoming.onSecondaryAction
+    && existing.secondaryActionLabel === incoming.secondaryActionLabel
+    && existing.duration === incoming.duration
+    && existing.dismissible === incoming.dismissible
+    && Boolean(existing.keepOnAction) === Boolean(incoming.keepOnAction)
+    && Boolean(existing.actionsDisabled) === Boolean(incoming.actionsDisabled)
+    && Boolean(existing.isProcessing) === Boolean(incoming.isProcessing);
 }
 
 function getNotificationOutroDuration(): number {
@@ -143,30 +166,11 @@ export const notificationStore = {
     message: string,
     duration: number = 5000,
     dismissible: boolean = true,
-  ) => {
-    const id = `notification-${notificationIdCounter++}`;
-    const newNotification: Notification = {
-      id,
-      type,
+  ): string => notificationStore.addNotificationWithOptions(type, {
       message,
       duration,
       dismissible,
-    };
-
-    update((state) => {
-      return {
-        notifications: [...state.notifications, newNotification],
-      };
-    });
-
-    if (duration) {
-      const timer = setTimeout(() => {
-        notificationStore.removeNotification(id);
-      }, duration);
-      autoDismissTimers.set(id, timer);
-    }
-    return id;
-  },
+    }),
 
   /**
    * Add a notification with extended options (new design support)
@@ -174,20 +178,32 @@ export const notificationStore = {
   addNotificationWithOptions: (
     type: NotificationType,
     options: NotificationOptions,
-  ) => {
+  ): string => {
     const id = `notification-${notificationIdCounter++}`;
     const newNotification: Notification = {
       id,
       type,
       ...options,
+      count: 1,
       duration: options.duration ?? 5000,
       dismissible: options.dismissible ?? true,
     };
 
     let existingId: string | undefined;
     update((state) => {
-      existingId = getExistingDedupeId(state, options.dedupeKey);
-      if (existingId) return state;
+      const existing = state.notifications.find((notification) =>
+        isDuplicateNotification(notification, newNotification),
+      );
+      if (existing) {
+        existingId = existing.id;
+        return {
+          notifications: state.notifications.map((notification) =>
+            notification.id === existing.id
+              ? { ...notification, count: (notification.count ?? 1) + 1 }
+              : notification,
+          ),
+        };
+      }
 
       return {
         notifications: [...state.notifications, newNotification],

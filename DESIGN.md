@@ -534,6 +534,12 @@ Required accessibility:
 
 ## Accessibility
 
+In-app notification headers show repeated triggers in a compact `×N` pill before
+the dismiss button, starting at two occurrences. Standard and chat cards share
+`NotificationRepeatCount.svelte`: theme grey-30 background, primary font color,
+0.75rem semibold tabular numerals, and a translated accessible occurrence count.
+Long titles truncate to leave the count and dismiss control visible.
+
 Accessibility is part of the design language.
 
 | Area | Rule |

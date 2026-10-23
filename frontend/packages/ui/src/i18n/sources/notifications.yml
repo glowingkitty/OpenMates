@@ -3,6 +3,12 @@
 # Note: Chat settings translations are in settings/chat.yml (settings.chat.* keys)
 # All keys must be at root level with flat dot-notation, only language codes (en, de, etc.) are nested
 
+occurrence_count:
+  context: Accessible label for the total number of triggers grouped into one in-app notification card, shown when the count is at least two
+  en: "Triggered {count} times"
+  de: "{count}-mal ausgelöst"
+  verified_by_human: []
+
 team_direct_chat.title:
   context: Content-free in-app notification title for a new private Team chat
   en: Private Team message

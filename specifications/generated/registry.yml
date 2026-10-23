@@ -604,7 +604,7 @@ specifications:
     version: 2
     status: draft
     path: features/notifications
-    fingerprint: 61a24f334ec28598cad3e000d02f5997cf5cdb5b3981093e1b485c6efdf67c8b
+    fingerprint: f48438de6d1c581fd1a6328b9d654976dee3f7d3bff9129172f110ebf74349da
     required_applies_to:
     - rest_api
     - cli
@@ -7829,7 +7829,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: parity
-    fingerprint: f41076a7f5cf8b73b97cd96d641a10f65d41051c2a2e25bbcbd56e8ed188aef3
+    fingerprint: 8052334885895091c685c38030a9d3d5fa53c6a255f3e20f3a25555ec33920f6
     required_applies_to:
     - rest_api
     - cli
@@ -7866,6 +7866,30 @@ assertions:
     specification_id: feature.notifications
     type: behavior
     fingerprint: b02269205ac5e42c3af4cca4515f09c3b16635533ad00b37d72c4976e4d3363f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.web.duplicate-grouping:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: 87ff74efe70208229c6deeefb67b2ca4cf788702b23b5b18ec151b5416a7fd4b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.web.duplicate-lifecycle:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: a5c72d29773691988767fa6b9bce8a793f963ae72af2e5ddf025f0e47ed53bd7
     required_applies_to:
     - rest_api
     - cli

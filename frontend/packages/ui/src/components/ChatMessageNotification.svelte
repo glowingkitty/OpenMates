@@ -18,6 +18,7 @@
     import { slide, fade } from 'svelte/transition';
     import { onDestroy, tick } from 'svelte';
     import { notificationStore, type Notification } from '../stores/notificationStore';
+    import NotificationRepeatCount from './NotificationRepeatCount.svelte';
     import { text } from '@repo/ui';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
@@ -396,8 +397,10 @@
     <div class="notification-header">
         <span class="clickable-icon icon_announcement notification-bell-icon"></span>
         <span class="notification-title">{notification.chatTitle || notification.title || ''}</span>
+        <NotificationRepeatCount count={notification.count} />
         <button
             class="notification-dismiss"
+            data-testid="notification-dismiss"
             onclick={handleDismiss}
             aria-label="Dismiss notification"
         >
@@ -594,6 +597,7 @@
     
     .notification-title {
         flex: 1;
+        min-width: 0;
         font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-50);

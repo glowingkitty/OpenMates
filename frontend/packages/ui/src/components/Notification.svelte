@@ -1,5 +1,6 @@
 <script lang="ts">
     import { notificationStore, type Notification } from '../stores/notificationStore';
+    import NotificationRepeatCount from './NotificationRepeatCount.svelte';
     
     // Props using Svelte 5 runes
     let { notification }: { notification: Notification } = $props();
@@ -172,6 +173,7 @@
     <div class="notification-header">
         <span class="notification-bell-icon"></span>
         <span class="notification-title">{notification.title || ''}</span>
+        <NotificationRepeatCount count={notification.count} />
         <button
             class="notification-dismiss"
             data-testid="notification-dismiss"
@@ -304,6 +306,10 @@
     
     .notification-title {
         flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: var(--font-size-xxs);
         font-weight: 500;
         color: var(--color-grey-50);

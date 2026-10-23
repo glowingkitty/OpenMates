@@ -16,6 +16,7 @@ scope:
     - Reminder, chat, workflow, security, billing, and system notification events eligible for user delivery.
     - Retained notification history listing for REST, CLI, npm SDK, pip SDK, web, and Apple clients.
     - Delivery idempotency, preference gating, and privacy-safe notification payloads.
+    - Active in-app web notification grouping, visible occurrence counts, and single dismissal.
   excludes:
     - Marketing newsletters, broadcast campaigns, and product-update emails.
     - External provider inbox behavior after OpenMates dispatches an accepted email or push request.
@@ -192,6 +193,31 @@ assertions:
     type: behavior
     must: When multiple in-app web notifications are active, the front notification remains fully visible and interactive while the next two are visually stacked behind it with reduced opacity and scale, hidden from accessibility, and stack-state changes such as dismissal promote the next notification to the front with smooth transform and opacity transitions.
     depends_on: [applies_to.gui, examples.web_stacked_deck]
+  - id: notifications.web.duplicate-grouping
+    type: behavior
+    must: >
+      Repeated triggers of the same active in-app web notification share one card
+      with a total occurrence count, starting at one and displayed visibly and
+      accessibly from the second trigger onward on desktop and mobile. This applies
+      across basic, extended, and convenience notification entrypoints, including
+      alerts without an explicit grouping key and chat notification cards. Automatic
+      grouping requires identical notification type, visible content, destination,
+      actions, and dismissal configuration. Existing explicit grouping keys remain
+      authoritative for their group; different explicit keys and keyed versus
+      unkeyed alerts remain separate. Updating an existing card does not count as
+      another trigger.
+    depends_on: [applies_to.gui, examples.web_duplicate_grouping]
+  - id: notifications.web.duplicate-lifecycle
+    type: behavior
+    must: >
+      A duplicate increments its active card's count in place, preserving its
+      identity, stack position, action state, and existing auto-dismiss deadline or
+      paused timer. Dismissing the card once dismisses the whole group. Exiting,
+      expired, or removed cards no longer receive duplicates: a subsequent trigger
+      creates a fresh card with a count of one. Clearing notifications also clears
+      their counts, and ordinary timed-dismissal and action behavior continue to
+      apply to the group.
+    depends_on: [applies_to.gui, examples.web_duplicate_lifecycle]
 
   - id: notifications.project-authoring.result-route
     type: behavior
@@ -237,4 +263,6 @@ examples:
   - privacy_boundaries
   - delivery_idempotency
   - web_stacked_deck
+  - web_duplicate_grouping
+  - web_duplicate_lifecycle
   - focus_authoring_route

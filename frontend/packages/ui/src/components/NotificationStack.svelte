@@ -35,6 +35,8 @@
         dedupeKey?: string;
         actionLabel?: string;
         actionEventName?: string;
+        chatId?: string;
+        chatTitle?: string;
     };
 
     let visibleNotifications = $derived(
@@ -61,7 +63,7 @@
                 return;
             }
 
-            notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS).forEach((notification, index) => {
+            notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS).forEach((notification) => {
                 if (!notification.message) return;
                 const actionEventName = notification.actionEventName;
                 notificationStore.addNotificationWithOptions(notification.type ?? 'info', {
@@ -70,7 +72,9 @@
                     duration: notification.duration ?? 0,
                     dismissible: notification.dismissible ?? true,
                     isProcessing: notification.isProcessing ?? false,
-                    dedupeKey: notification.dedupeKey ?? `e2e-notification-stack-${index}`,
+                    dedupeKey: notification.dedupeKey,
+                    chatId: notification.chatId,
+                    chatTitle: notification.chatTitle,
                     actionLabel: actionEventName ? notification.actionLabel : undefined,
                     onAction: actionEventName ? () => window.dispatchEvent(new CustomEvent(actionEventName)) : undefined,
                 });

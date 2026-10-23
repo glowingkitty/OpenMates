@@ -8,6 +8,13 @@
         "reminder-notification-setup.spec.ts"
       ]
     },
+    "notification_grouping_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free notification-store events and bare standard, chat, count, and stack previews. The component marker selects the Vite-only runner; no backend, account, external provider, or AI inference is required.",
+      "specs": [
+        "components/notification-grouping.spec.ts"
+      ]
+    },
     "native_push_registration": {
       "execution": "e2e",
       "enabling_work": "Use two fresh runner-private authenticated accounts and the isolated core API/CMS. Native tokens and X25519 keys are synthetic; inspect only allowlisted synthetic owners' persisted target JSON. No APNs delivery, external provider, or real AI inference.",

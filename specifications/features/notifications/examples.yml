@@ -142,3 +142,27 @@ foreground_chat_delivery:
     given: Alice's web tab is in the background and her TUI is closed; only a headless CLI or another user's session is connected.
     when: Her chat response completes, or a previously queued notification reaches delivery after her presence lease expires.
     then: Her enabled chat email and push can deliver according to existing preferences and access checks. Other notification categories keep their existing rules.
+
+web_duplicate_grouping:
+  - id: repeated-error-shows-one-card-with-total-count
+    assertion_ids: [notifications.web.duplicate-grouping]
+    given: Alice is using OpenMates on desktop or mobile with no active notifications.
+    when: The same Failed to save changes error is triggered five times without an explicit grouping key, through the basic and extended notification entrypoints with the same options.
+    then: Alice sees one error card showing a total count of five, also readable by assistive technology. The first occurrence had no repeat badge; each later trigger increased the same card's count. Updating its display text alone does not increase the count.
+  - id: similar-alerts-keep-distinct-targets-and-groups
+    assertion_ids: [notifications.web.duplicate-grouping]
+    given: Alice has two chat notification cards with the same preview text but different destination chats, and two error alerts with the same message but different explicit grouping keys.
+    when: Each notification is triggered again for its original chat or grouping key; an unkeyed alert with the same error text is also triggered twice.
+    then: Each chat and explicitly keyed alert keeps its own card and count of two, and the unkeyed alert forms a separate card with a count of two. Different notification types, content, actions, or dismissal options likewise remain separate during automatic grouping.
+
+web_duplicate_lifecycle:
+  - id: one-dismissal-clears-all-repeats-and-recurrence-starts-fresh
+    assertion_ids: [notifications.web.duplicate-lifecycle]
+    given: Alice's persistent connection error card has accumulated five occurrences behind a different notification in the deck.
+    when: The same error triggers again, Alice dismisses the newer card to reveal the error, and then dismisses the error once. Another identical error triggers while that dismissal is animating.
+    then: The sixth occurrence increases the original error's count without moving it ahead of the other card. One dismissal removes that whole group, and the new error gets a fresh card starting at one while the old card finishes exiting. Clearing all notifications removes every remaining group and count.
+  - id: duplicates-preserve-the-existing-dismissal-timer
+    assertion_ids: [notifications.web.duplicate-lifecycle]
+    given: Alice has a notification configured to dismiss after ten seconds.
+    when: The same notification triggers again four seconds after its first occurrence.
+    then: Its count becomes two without restarting the progress indicator, and the single card still expires ten seconds after its first occurrence. If interaction had already paused dismissal, a duplicate leaves that timer paused; the card's existing actions retain their normal behavior.

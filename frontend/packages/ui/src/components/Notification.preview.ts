@@ -22,6 +22,15 @@ export default defaultProps;
 
 /** Named variants for different notification types */
 export const variants = {
+  repeated: {
+    notification: {
+      ...defaultProps.notification,
+      type: "error" as const,
+      title: "Failed to save changes to the shared Project configuration after reconnecting",
+      message: "Please try again.",
+      count: 5,
+    },
+  },
   /** Info notification */
   info: {
     notification: {
