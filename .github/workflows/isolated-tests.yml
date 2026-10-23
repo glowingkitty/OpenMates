@@ -131,21 +131,21 @@ jobs:
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         run: |
           # Hosted images chmod /opt recursively to 0777, including cached Node.
-          # Download through setup-node into a fresh private cache; keep the
-          # producer's world-write refusal and the image's cache untouched.
+          # Use a fresh private supplier; keep the producer's world-write
+          # refusal and the image's cache untouched.
           supplier_cache=$(mktemp -d "$RUNNER_TEMP/openmates-node-supplier.XXXXXXXX")
           echo "OPENMATES_CI_NODE_SUPPLIER_CACHE=$supplier_cache" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v4
+      - name: Download verified official Node supplier
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
-        env:
-          RUNNER_TOOL_CACHE: ${{ env.OPENMATES_CI_NODE_SUPPLIER_CACHE }}
-        with:
-          node-version: '24'
+        run: python3 ../tooling/scripts/ci_download_node_supplier.py
       - name: Stage attested runner Node before candidate code or dependencies
         if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
-        env:
-          RUNNER_TOOL_CACHE: ${{ env.OPENMATES_CI_NODE_SUPPLIER_CACHE }}
-        run: env -u NODE_OPTIONS -u NODE_PATH node ../tooling/scripts/ci_stage_node_runtime.mjs stage
+        # RUNNER_* step env is overwritten by runner context injection. Set the
+        # attested cache inside the shell, after injection, for this process only.
+        run: >-
+          env -u NODE_OPTIONS -u NODE_PATH
+          RUNNER_TOOL_CACHE="$OPENMATES_CI_NODE_SUPPLIER_CACHE"
+          "$OPENMATES_CI_NODE_SUPPLIER" ../tooling/scripts/ci_stage_node_runtime.mjs stage
       - name: Reconstruct and verify exact detached source
         env:
           EXPECTED_SOURCE: ${{ inputs.source_commit }}

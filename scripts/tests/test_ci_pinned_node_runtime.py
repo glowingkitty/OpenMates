@@ -162,7 +162,7 @@ def test_workflow_trust_order_cache_repin_and_always_cleanup():
     ).read_text()
     stage = text.index("Stage attested runner Node")
     assert (
-        text.index("actions/setup-node@v4")
+        text.index("Download verified official Node supplier")
         < stage
         < text.index("Reconstruct and verify exact detached source")
     )
@@ -185,25 +185,27 @@ def test_workflow_downloads_supplier_into_fresh_private_cache(tmp_path):
     create = next(
         s for s in steps if s.get("name") == "Create private Node supplier toolcache"
     )
-    setup = [s for s in steps if s.get("uses") == "actions/setup-node@v4"]
+    download = next(
+        s for s in steps if s.get("name") == "Download verified official Node supplier"
+    )
+    setup = next(s for s in steps if s.get("uses") == "actions/setup-node@v4")
     stage = next(
         s for s in steps if s.get("name", "").startswith("Stage attested runner Node")
     )
     reconstruct = next(
-        s for s in steps
+        s
+        for s in steps
         if s.get("name") == "Reconstruct and verify exact detached source"
     )
     assert (
-        steps.index(create) < steps.index(setup[0])
-        < steps.index(stage) < steps.index(reconstruct)
+        steps.index(create)
+        < steps.index(download)
+        < steps.index(stage)
+        < steps.index(reconstruct)
     )
-    assert create["if"] == setup[0]["if"] == stage["if"]
-    expected = "${{ env.OPENMATES_CI_NODE_SUPPLIER_CACHE }}"
-    assert (
-        setup[0]["env"]["RUNNER_TOOL_CACHE"]
-        == stage["env"]["RUNNER_TOOL_CACHE"] == expected
-    )
-    assert "RUNNER_TOOL_CACHE" not in setup[1].get("env", {})
+    assert create["if"] == download["if"] == stage["if"]
+    assert "RUNNER_TOOL_CACHE" not in stage.get("env", {})
+    assert "RUNNER_TOOL_CACHE" not in setup.get("env", {})
     assert "RUNNER_TOOL_CACHE" not in workflow["jobs"]["test"]["env"]
 
     # Run the actual bootstrap twice: neither run may reuse or chmod the image's
@@ -216,7 +218,9 @@ def test_workflow_downloads_supplier_into_fresh_private_cache(tmp_path):
     before = image_node.stat()
     outputs = tmp_path / "github-env"
     env = {
-        **os.environ, "RUNNER_TEMP": str(tmp_path), "GITHUB_ENV": str(outputs),
+        **os.environ,
+        "RUNNER_TEMP": str(tmp_path),
+        "GITHUB_ENV": str(outputs),
         "RUNNER_TOOL_CACHE": str(image_cache),
     }
     for _ in range(2):
@@ -232,3 +236,47 @@ def test_workflow_downloads_supplier_into_fresh_private_cache(tmp_path):
         assert list(cache.iterdir()) == []
     assert image_node.stat() == before
     assert stat.S_IMODE(image_node.stat().st_mode) == 0o777
+
+
+def test_stage_shell_overrides_runner_injected_cache_without_path_lookup(tmp_path):
+    workflow = yaml.safe_load(
+        (Path(__file__).parents[2] / ".github/workflows/isolated-tests.yml").read_text()
+    )
+    stage = next(
+        s
+        for s in workflow["jobs"]["test"]["steps"]
+        if s.get("name", "").startswith("Stage attested runner Node")
+    )
+    supplier = tmp_path / "explicit-supplier"
+    supplier.write_text(
+        '#!/bin/sh\nprintf \'%s\\n\' "$RUNNER_TOOL_CACHE" "$AGENT_TOOLSDIRECTORY" "${NODE_OPTIONS-unset}" "${NODE_PATH-unset}" "$@"\n'
+    )
+    supplier.chmod(0o700)
+    shadow = tmp_path / "node"
+    shadow.write_text("#!/bin/sh\nexit 99\n")
+    shadow.chmod(0o700)
+    env = {
+        **os.environ,
+        "RUNNER_TOOL_CACHE": "/image-cache",
+        "AGENT_TOOLSDIRECTORY": "/image-cache",
+        "OPENMATES_CI_NODE_SUPPLIER_CACHE": "/private-cache",
+        "OPENMATES_CI_NODE_SUPPLIER": str(supplier),
+        "NODE_OPTIONS": "untrusted-preload",
+        "NODE_PATH": "/candidate",
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+    }
+    result = subprocess.run(
+        ["bash", "-e", "-c", stage["run"]],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    assert result.stdout.splitlines() == [
+        "/private-cache",
+        "/image-cache",
+        "unset",
+        "unset",
+        "../tooling/scripts/ci_stage_node_runtime.mjs",
+        "stage",
+    ]
