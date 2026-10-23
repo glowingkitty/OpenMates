@@ -85,9 +85,10 @@ export async function installE2ETestHooks() {
     __openmatesE2EDraftState?: () => Record<string, unknown>;
     __openmatesE2ESeedCanonicalEmbedReplay?: (input?: { legacyWeb?: boolean }) => Promise<Record<string, unknown>>;
     __openmatesE2EInitialCanonicalEmbedWrite?: (input: { chatId: string; head: Record<string, unknown> }) => Promise<Record<string, unknown>>;
-    __openmatesE2ECanonicalLifecycle?: (input: { action: 'inspect' | 'reconnect' | 'preview'; chatId: string; embedId?: string; operationIds?: string[] }) => Promise<unknown>;
+    __openmatesE2ECanonicalLifecycle?: (input: { action: 'inspect' | 'reconnect' | 'preview' | 'context'; chatId: string; embedId?: string; operationIds?: string[] }) => Promise<unknown>;
     __openmatesE2EReplayCanonicalEmbedWrite?: (input: {
-      chatId: string; embedId: string; changeContent?: boolean; queueOnly?: boolean;
+      chatId: string; embedId: string; changeContent?: boolean; queueOnly?: boolean; taskId?: string;
+      retainedFailure?: "canonical_precondition_mismatch" | "embed_identity_or_version_conflict";
     }) => Promise<Record<string, unknown>>;
     __openmatesE2EExampleEmbedCollision?: (input: {
       exampleChatId: string; seedPrivate?: boolean;
@@ -387,7 +388,7 @@ export async function installE2ETestHooks() {
 
   // Exercise the real sender against an owner-authorized recovered head. Return
   // only queue state; neither the plaintext nor encrypted material reaches E2E logs.
-  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false, queueOnly = false }) => {
+  testWindow.__openmatesE2EReplayCanonicalEmbedWrite = async ({ chatId, embedId, changeContent = false, queueOnly = false, taskId, retainedFailure }) => {
     const { getApiEndpoint, storageArchiveFetch } = await import('../config/api');
     const { embedStore } = await import('./embedStore');
     const { decryptWithEmbedKey, encryptWithEmbedKey } = await import('./encryption/MetadataEncryptor');
@@ -432,7 +433,8 @@ export async function installE2ETestHooks() {
       status: head.status as string,
       hashed_chat_id: head.hashed_chat_id,
       hashed_message_id: head.hashed_message_id as string,
-      hashed_task_id: head.hashed_task_id as string | undefined,
+      hashed_task_id: taskId ? await (await import("../message_parsing/utils")).computeSHA256(taskId)
+        : head.hashed_task_id as string | undefined,
       hashed_user_id: head.hashed_user_id as string,
       app_id: head.app_id as string | undefined,
       skill_id: head.skill_id as string | undefined,
@@ -447,7 +449,8 @@ export async function installE2ETestHooks() {
     if (queueOnly) {
       const operationId = crypto.randomUUID();
       await chatDB.addPendingEmbedOperation({ operation_id: operationId, embed_id: embedId,
-        store_embed_payload: payload, store_embed_keys_payload: { keys: page.embed_keys ?? [] }, created_at: Date.now() });
+        store_embed_payload: payload, store_embed_keys_payload: { keys: page.embed_keys ?? [] }, created_at: Date.now(),
+        ...(retainedFailure ? { state: "conflict" as const, failure_code: retainedFailure } : {}) });
       return { operationId };
     }
     const result = await sendStoreEmbedOperationImpl(chatSyncService, payload);
@@ -472,6 +475,7 @@ export async function installE2ETestHooks() {
 
   testWindow.__openmatesE2ECanonicalLifecycle = async ({ action, chatId, embedId, operationIds }) => {
     const { embedStore } = await import('./embedStore');
+    if (action === 'context') return { chatAvailable: !!await chatDB.getRawChat(chatId) };
     if (action === 'reconnect') {
       const { webSocketService } = await import('./websocketService');
       webSocketService.forceReconnect('E2E canonical lifecycle reconnect');

@@ -714,6 +714,8 @@ async function persistRecoveredEmbed(
     encrypted_text_preview: encryptedPreview || undefined,
     status: "finished", hashed_chat_id: await computeSHA256(output.target_chat_id),
     hashed_message_id: await computeSHA256(content.message_id), hashed_user_id: ownerHash,
+    ...(typeof content.task_id === "string" && content.task_id
+      ? { hashed_task_id: await computeSHA256(content.task_id) } : {}),
     version_number: output.output_version,
     parent_embed_id: parentEmbedId || undefined,
     embed_ids: Array.isArray(content.embed_ids) ? content.embed_ids as string[] : undefined,

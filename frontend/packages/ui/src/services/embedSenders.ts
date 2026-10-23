@@ -23,6 +23,9 @@ const MAX_ACTIVE_EMBED_RECEIPTS = 32;
 const activePendingEmbedOperations = new Map<string, Promise<EmbedPersistenceResult>>();
 const persistenceChatIds = new Map<string, string>();
 const MAX_PERSISTENCE_CHAT_IDS = 128;
+const RECONCILABLE_WRITE_REJECTIONS = new Set([
+  "canonical_precondition_mismatch", "acknowledged_embed_revision_immutable",
+]);
 let pendingEmbedFlush: Promise<void> | null = null;
 let lastPendingEmbedOperationTime = 0;
 let capacityDeferred = false;
@@ -163,7 +166,11 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical =
     || (!historical && !same(embed.status, head.status))
     || (head.app_id !== undefined && !same(embed.app_id, head.app_id))
     || (head.skill_id !== undefined && !same(embed.skill_id, head.skill_id))
-    || (!historical && head.hashed_task_id !== undefined && !same(embed.hashed_task_id, head.hashed_task_id))
+    // Older recovered heads omitted optional task indexing. Missing metadata is
+    // compatible only after all scope/key/content checks below; a different
+    // non-null task identity still conflicts.
+    || (!historical && head.hashed_task_id !== undefined && embed.hashed_task_id != null
+      && !same(embed.hashed_task_id, head.hashed_task_id))
     || (!historical && head.embed_ids !== undefined
       && JSON.stringify(embed.embed_ids ?? []) !== JSON.stringify(head.embed_ids ?? []))
     || (!historical && head.is_private !== undefined && !same(embed.is_private, head.is_private))
@@ -367,7 +374,13 @@ async function resolveEmbedPersistenceContext(payload: StoreEmbedPayload): Promi
   throw new Error("Embed chat context is not ready; operation remains queued for retry.");
 }
 
-async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation): Promise<"persisted" | "adopted"> {
+async function persistCanonicalEmbedOperation(
+  operation: PendingEmbedOperation, readOnly = false,
+): Promise<"persisted" | "adopted"> {
+  // Once another consumer wins a CAS, every retry/reload must remain read-only
+  // until equivalence is proved. Never turn temporary read unavailability into
+  // permission to overwrite the winner with a fresh precondition.
+  readOnly ||= RECONCILABLE_WRITE_REJECTIONS.has(operation.failure_code ?? "");
   const head = await resolveEmbedPersistenceContext(operation.store_embed_payload);
   const requestedVersion = head.version_number ?? 1;
   if (!Number.isSafeInteger(requestedVersion) || requestedVersion < 1) {
@@ -409,9 +422,9 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
   const revision = availabilityHead.canonical_revision;
   let canonical: Awaited<ReturnType<typeof readEquivalentCanonicalHead>> | null = null;
   let precondition: { version: number | null; ciphertext_sha256: string | null } | undefined;
-  let allowWrapperWrites = true;
+  let allowWrapperWrites = !readOnly;
   if (availabilityHead.state === "missing") {
-    if (requestedVersion > 1) throw new CanonicalEmbedRecoveryPending();
+    if (readOnly || requestedVersion > 1) throw new CanonicalEmbedRecoveryPending();
     precondition = { version: null, ciphertext_sha256: null };
   } else {
     // Missing/invalid proof is UNKNOWN. A missing recovery ACK never grants permission.
@@ -429,7 +442,7 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
         canonical = await readEquivalentHistoricalHead(head, revision);
       } else if (revision.version !== requestedVersion) {
         throw new CanonicalEmbedConflict("embed_version_conflict");
-      } else if (revision.write_state === "immutable") {
+      } else if (readOnly || revision.write_state === "immutable") {
         canonical = await readEquivalentCanonicalHead(head, false, revision);
       }
       precondition = { version: revision.version, ciphertext_sha256: revision.ciphertext_sha256 };
@@ -437,10 +450,24 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
   }
   if (!canonical) {
     if (!precondition) throw new CanonicalEmbedRecoveryPending();
-    const headReceipt = await sendWithReceipt("store_embed", "store_embed_confirmed", {
-      ...head, version_number: requestedVersion, canonical_precondition: precondition,
-      operation_id: operation.operation_id,
-    });
+    let headReceipt: Record<string, unknown>;
+    try {
+      headReceipt = await sendWithReceipt("store_embed", "store_embed_confirmed", {
+        ...head, version_number: requestedVersion, canonical_precondition: precondition,
+        operation_id: operation.operation_id,
+      });
+    } catch (error) {
+      if (error instanceof CanonicalEmbedWriteRejected
+        && error.code === "embed_revision_conflict" && RECONCILABLE_WRITE_REJECTIONS.has(error.reason ?? "")) {
+        // Another browser/recovery consumer may have saved the same result with
+        // another AES nonce. Refresh authority and prove equivalence without
+        // retrying a write or replacing the original queued ciphertext.
+        const reconciliation = { ...operation, failure_code: error.reason };
+        await chatDB.addPendingEmbedOperation(reconciliation);
+        return persistCanonicalEmbedOperation(reconciliation, true);
+      }
+      throw error;
+    }
     const expectedDigest = await computeSHA256(head.encrypted_content);
     if (headReceipt.embed_id !== head.embed_id || headReceipt.canonical_digest !== expectedDigest) {
       throw new Error("Canonical embed receipt did not match its ciphertext.");
@@ -491,14 +518,27 @@ function terminalResult(operation: PendingEmbedOperation): EmbedPersistenceResul
     : null;
 }
 
+/** Recheck only failures caused by the old CAS/task-metadata comparisons. */
+function canReconcileRetainedConflict(operation: PendingEmbedOperation): boolean {
+  return operation.state === "conflict" && (RECONCILABLE_WRITE_REJECTIONS.has(operation.failure_code ?? "")
+    || operation.failure_code === "embed_identity_or_version_conflict");
+}
+
 async function settleOperation(operation: PendingEmbedOperation): Promise<EmbedPersistenceResult> {
   const terminal = terminalResult(operation);
-  if (terminal) return terminal;
+  if (terminal && !canReconcileRetainedConflict(operation)) return terminal;
   try {
-    const status = await persistCanonicalEmbedOperation(operation);
+    const status = await persistCanonicalEmbedOperation(operation, terminal !== null);
     await chatDB.removePendingEmbedOperation(operation.operation_id);
+    if (terminal && !(await chatDB.getPendingEmbedOperations()).some((other) =>
+      other.embed_id === operation.embed_id && terminalResult(other))) {
+      notificationStore.removeNotificationsByDedupeKey(`embed-write-conflict:${operation.embed_id}`);
+    }
     return { status, operation_id: operation.operation_id };
   } catch (error) {
+    // Retained conflicts are read-only recovery probes. Keep their evidence and
+    // original classification until equivalence is fully proved.
+    if (terminal) return terminal;
     const denied = error instanceof CanonicalEmbedWriteRejected && error.code === "embed_write_denied";
     const conflict = error instanceof CanonicalEmbedConflict
       || (error instanceof CanonicalEmbedWriteRejected && error.code === "embed_revision_conflict");
@@ -507,6 +547,10 @@ async function settleOperation(operation: PendingEmbedOperation): Promise<EmbedP
     const failure_code = error instanceof CanonicalEmbedWriteRejected ? error.reason ?? error.code : error.code;
     // Replace only queue control fields. Ciphertext and wrappers remain the original evidence.
     await chatDB.addPendingEmbedOperation({ ...operation, state, failure_code });
+    console.warn("[EmbedSenders] Canonical embed operation requires review", {
+      failure_code, origin: operation.origin ?? "legacy",
+      version: operation.store_embed_payload.version_number ?? 1,
+    });
     notificationStore.addNotificationWithOptions("warning", {
       message: get(text)(denied ? "chats.embed_sync.denied" : "chats.embed_sync.conflict"),
       duration: 0, dedupeKey: `embed-write-conflict:${operation.embed_id}`,
@@ -528,7 +572,7 @@ async function persistQueuedEmbedOperation(
   operation: PendingEmbedOperation, lease?: CanonicalEmbedWriteLease,
 ): Promise<EmbedPersistenceResult> {
   const terminal = terminalResult(operation);
-  if (terminal) return terminal;
+  if (terminal && !canReconcileRetainedConflict(operation)) return terminal;
   const active = activePendingEmbedOperations.get(operation.operation_id);
   if (active) return active;
   if (activePendingEmbedOperations.size >= MAX_ACTIVE_EMBED_RECEIPTS) {
@@ -536,6 +580,7 @@ async function persistQueuedEmbedOperation(
     return { status: "waiting", operation_id: operation.operation_id };
   }
   const persist = async (): Promise<EmbedPersistenceResult> => {
+    if (terminal) return settleOperation(operation);
     const queued = (await chatDB.getPendingEmbedOperations())
       .filter((candidate) => candidate.embed_id === operation.embed_id && !terminalResult(candidate))
       .sort((a, b) => a.created_at - b.created_at || a.operation_id.localeCompare(b.operation_id));
@@ -545,7 +590,9 @@ async function persistQueuedEmbedOperation(
       const result = await settleOperation(earlier);
       if (result.status === "waiting") return { status: "waiting", operation_id: operation.operation_id };
     }
-    return settleOperation(operation);
+    // Use the freshly read queue controls: another browser may have marked
+    // this operation read-only since the caller took its flush snapshot.
+    return settleOperation(queued[position]);
   };
   if (lease) assertCanonicalEmbedWriteLease(lease, operation.embed_id);
   const run = lease ? persist() : withCanonicalEmbedWrite(operation.embed_id, persist);
@@ -644,7 +691,7 @@ export async function sendStoreEmbedDiffImpl(
 export async function flushPendingEmbedOperations(): Promise<void> {
   if (pendingEmbedFlush) return pendingEmbedFlush;
   pendingEmbedFlush = (async () => {
-    const operations = (await chatDB.getPendingEmbedOperations()).filter((op) => !terminalResult(op));
+    const operations = (await chatDB.getPendingEmbedOperations()).filter((op) => !terminalResult(op) || canReconcileRetainedConflict(op));
     if (operations.length === 0) return;
 
     console.info(

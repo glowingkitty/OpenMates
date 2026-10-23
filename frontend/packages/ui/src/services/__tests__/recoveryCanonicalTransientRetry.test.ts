@@ -96,6 +96,10 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
  it.each([false,true])('publishes an initial root and its wrappers in one write (failure=%s)',async(failure)=>{
   const {sent,service,emit,errors}=setup();
+  m.openOutput.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed',output_version:1,
+   content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',task_id:'task-1',content:'{}',type:'code',version_number:1},
+  })));
   let persisted=false;
   m.fetch.mockImplementation(async()=>persisted
    ?{status:200,ok:true,json:async()=>({...canonical,embed:{...canonical.embed,encrypted_content:'encrypted'}})}
@@ -105,6 +109,7 @@ describe('offline diagnostic: typed output readiness and terminal job ordering',
    await originalSend(type,payload);
    if(type==='store_embed'){
     expect(payload.recovery_message_id).toBe('assistant');
+    expect(payload.hashed_task_id).toBe('hash:task-1');
     expect(payload.recovery_key_wrappers).toHaveLength(2);
     expect(payload.recovery_record_id).toBe('record');
     if(failure)emit('error',{request_id:payload.request_id,code:'embed_write_denied'});

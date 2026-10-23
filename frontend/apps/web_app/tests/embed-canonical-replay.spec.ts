@@ -3,7 +3,7 @@
 export {};
 const { test, expect } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { observeRecoveryFrames, focusRecoveryPage } = require('./storage-recovery-fixtures');
 const { execFileSync } = require('node:child_process');
@@ -198,6 +198,7 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 	skipWithoutCredentials(test, email, password, otpKey);
 	const log = createSignupLogger('embed-canonical-lifecycle');
 	const frames = observeRecoveryFrames(page, true);
+	let connectionFrames = frames;
 	// Retain transient error toasts across navigations, including auto-dismissed ones.
 	const errorToasts: string[] = [];
 	const conflictWarnings: string[] = [];
@@ -226,6 +227,7 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 	await observeToasts(page);
 	await loginToTestAccount(page, log, createStepScreenshotter(log));
 	await focusRecoveryPage(page);
+	await waitForChatReady(page, log, 60_000);
 	await expect.poll(() => page.evaluate(() => typeof (window as any).__openmatesE2ESeedCanonicalEmbedReplay)).toBe('function');
 	const fixture = await page.evaluate(() => (window as any).__openmatesE2ESeedCanonicalEmbedReplay({ legacyWeb: true }));
 	seedCanonicalFixture(fixture, 'ownership');
@@ -252,11 +254,21 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 	const replay = (embedId: string, changeContent = false, queueOnly = false) => page.evaluate((input: any) =>
 		(window as any).__openmatesE2EReplayCanonicalEmbedWrite(input), { chatId: fixture.chatId, embedId, changeContent, queueOnly });
 	const reconnect = async () => {
-		const offset = frames.length;
+		const offset = connectionFrames.length;
 		await lifecycle('reconnect');
 		await focusRecoveryPage(page);
-		await expect.poll(() => frames.slice(offset).some((frame: any) => frame.type === 'native_client_lifecycle_ack'
+		await expect.poll(() => connectionFrames.slice(offset).some((frame: any) => frame.type === 'native_client_lifecycle_ack'
 			&& frame.payload.is_foreground === true), { timeout: 60_000 }).toBe(true);
+	};
+
+	const requireInitialPersistence = async (result: any) => {
+		if (result.status === 'waiting') {
+			// A transport/readiness transition can queue the durable operation.
+			// Reconnect and settle that same identity; never create another write.
+			await reconnect();
+			await expect.poll(() => lifecycle('inspect', { operationIds: [result.operation_id] }),
+				{ timeout: 30_000, message: 'The original queued producer write must become durable' }).toEqual([]);
+		} else expect(result.status).toBe('persisted');
 	};
 
 	// Initial ordinary producer writes against missing heads; the root intentionally
@@ -266,7 +278,7 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 	for (const [index, head] of [fixture.parent, fixture.child].entries()) {
 		const result = await page.evaluate(({ chatId, head }: any) =>
 			(window as any).__openmatesE2EInitialCanonicalEmbedWrite({ chatId, head }), { chatId: fixture.chatId, head });
-		expect(result.status).toBe('persisted');
+		await requireInitialPersistence(result);
 		// Storage requires an existing parent before wrappers. A readable parent
 		// (including its wrappers) is then required for the ordinary child write.
 		if (index === 0) seedCanonicalFixture(fixture, 'wrappers');
@@ -320,6 +332,20 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 		expect(await read(embedId)).toEqual(before.get(embedId));
 	}
 
+	// Recovery from older clients omitted task indexing. An equivalent ordinary
+	// completion must adopt those canonical bytes without inventing a revision.
+	expect(await page.evaluate(({ chatId, embedId }: any) =>
+		(window as any).__openmatesE2EReplayCanonicalEmbedWrite({ chatId, embedId, taskId: 'legacy-task-index' }),
+		{ chatId: fixture.chatId, embedId: fixture.parentId })).toMatchObject({ status: 'adopted' });
+	const retained = await page.evaluate(({ chatId, embedId }: any) =>
+		(window as any).__openmatesE2EReplayCanonicalEmbedWrite({ chatId, embedId, queueOnly: true,
+			taskId: 'legacy-task-index', retainedFailure: 'embed_identity_or_version_conflict' }),
+		{ chatId: fixture.chatId, embedId: fixture.parentId });
+	await reconnect();
+	await expect.poll(() => lifecycle('inspect', { operationIds: [retained.operationId] })).toEqual([]);
+	expect(await read(fixture.parentId)).toEqual(before.get(fixture.parentId));
+	expect(conflictWarnings).toEqual([]);
+
 	// These rows model ciphertext retained by old browser builds: no state/origin,
 	// one equivalent fresh encryption and one conflicting body for the same head.
 	const equivalent = await replay(fixture.parentId, false, true);
@@ -360,6 +386,7 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 	const coldFrames = observeRecoveryFrames(coldPage, true);
 	try {
 		page = coldPage;
+		connectionFrames = coldFrames;
 		await observeToasts(page);
 		await loginToTestAccount(page, log, createStepScreenshotter(log));
 		await page.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(fixture.chatId)}`));
@@ -383,9 +410,60 @@ test('nullable web root survives producer, sealed ACK, preview, legacy queue rec
 		seedCanonicalFixture(fresh, 'ownership');
 		const newCreate = await page.evaluate(({ chatId, head }: any) =>
 			(window as any).__openmatesE2EInitialCanonicalEmbedWrite({ chatId, head }), { chatId: fresh.chatId, head: fresh.parent });
-		expect(newCreate.status).toBe('persisted');
+		await requireInitialPersistence(newCreate);
 		seedCanonicalFixture(fresh, 'wrappers');
 		expect((await read(fresh.parentId, true, fresh.chatId)).embed.encrypted_content).toBe(fresh.parent.encrypted_content);
+		// Two independent browser realms observe a mutable fresh result. Hold A's
+		// real availability response while B saves equivalent bytes with another
+		// nonce, then release A's stale CAS. A must reread/adopt, never overwrite B.
+		// Reuse the original authenticated context as B. A fresh page would
+		// lack the sessionStorage credentials needed for its own WebSocket.
+		const racePage = retainedClient;
+		try {
+			await racePage.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(fresh.chatId)}`));
+			// Ownership seeding updates the server inventory without broadcasting
+			// to B. Hash navigation alone keeps its completed initial sync alive.
+			await racePage.reload();
+			await focusRecoveryPage(racePage);
+			await waitForChatReady(racePage, log, 60_000);
+			await expect.poll(() => racePage.evaluate((chatId: string) =>
+				(window as any).__openmatesE2ECanonicalLifecycle({ action: 'context', chatId }), fresh.chatId),
+			{ timeout: 30_000, message: 'Racing client must hydrate the exact newly seeded chat' })
+				.toEqual({ chatAvailable: true });
+			await expect(racePage.locator(`[data-message-id="${fresh.message.id}"]`)).toBeVisible();
+			let releaseObservation!: () => void;
+			let observed!: () => void;
+			const observation = new Promise<void>((resolve) => { observed = resolve; });
+			const release = new Promise<void>((resolve) => { releaseObservation = resolve; });
+			await page.route(`**/v1/embeds/chats/${fresh.chatId}/references/availability`, async (route: any) => {
+				const response = await route.fetch();
+				observed();
+				await release;
+				await route.fulfill({ response });
+			}, { times: 1 });
+			const raceOffset = coldFrames.length;
+			const delayed = page.evaluate(({ chatId, embedId }: any) =>
+				(window as any).__openmatesE2EReplayCanonicalEmbedWrite({ chatId, embedId }),
+				{ chatId: fresh.chatId, embedId: fresh.parentId });
+			void delayed.catch(() => {});
+			await observation;
+			let winner: any;
+			try {
+				expect(await racePage.evaluate(({ chatId, embedId }: any) =>
+					(window as any).__openmatesE2EReplayCanonicalEmbedWrite({ chatId, embedId }),
+					{ chatId: fresh.chatId, embedId: fresh.parentId })).toMatchObject({ status: 'persisted' });
+				winner = await read(fresh.parentId, true, fresh.chatId);
+			} finally { releaseObservation(); }
+			expect(await delayed).toMatchObject({ status: 'adopted', pending: false });
+			expect(await read(fresh.parentId, true, fresh.chatId)).toEqual(winner);
+			expect(coldFrames.slice(raceOffset).filter((frame: any) => frame.direction === 'sent'
+				&& frame.type === 'store_embed' && frame.payload.embed_id === fresh.parentId)).toHaveLength(1);
+			expect(coldFrames.slice(raceOffset).some((frame: any) => frame.type === 'error'
+				&& frame.payload.code === 'embed_revision_conflict'
+				&& frame.payload.reason === 'canonical_precondition_mismatch')).toBe(true);
+		} finally {
+			await focusRecoveryPage(page);
+		}
 		// Authentication and source-chat authority remain mandatory for scoped reads.
 		expect([401, 403]).toContain((await read(fixture.childId, false)).status);
 		expect([403, 404]).toContain((await read(fixture.childId, true, fresh.chatId)).status);

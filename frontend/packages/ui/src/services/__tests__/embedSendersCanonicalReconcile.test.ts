@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
   canonicalWrappers: null as Array<Record<string, unknown>> | null,
   canonicalVersion: 1,
   canonicalOwner: "hash:user-1",
+  canonicalTask: null as string | null,
   availabilityState: "ready",
   parentAvailabilityState: "ready",
   acknowledged: true,
@@ -87,7 +88,7 @@ vi.mock("../../config/api", () => ({
       json: async () => ({
         embed: {
           embed_id: "embed-1", hashed_chat_id: "hash:chat-1", hashed_user_id: state.canonicalOwner,
-          hashed_message_id: "hash:message-1", parent_embed_id: state.canonicalParent,
+          hashed_message_id: "hash:message-1", hashed_task_id: state.canonicalTask, parent_embed_id: state.canonicalParent,
           version_number: state.canonicalVersion, status: state.canonicalStatus, app_id: "web", skill_id: "search",
           encrypted_content: state.canonicalContent, encrypted_type: state.canonicalType,
           encrypted_text_preview: state.canonicalPreview,
@@ -162,7 +163,7 @@ beforeEach(() => {
   state.canonicalStatus = "finished"; state.canonicalParent = null;
   state.canonicalWrappers = null;
   state.canonicalWrapper = "wrapper"; state.readStatus = 200; state.reads = 0;
-  state.canonicalVersion = 1; state.canonicalOwner = "hash:user-1";
+  state.canonicalVersion = 1; state.canonicalOwner = "hash:user-1"; state.canonicalTask = null;
   state.availabilityState = "ready";
   state.parentAvailabilityState = "ready";
   state.acknowledged = true;
@@ -618,10 +619,77 @@ describe("guarded initial completion", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
-  it("retains a safe server conflict reason for later revision resolution", async () => {
+  it.each(["canonical_precondition_mismatch", "acknowledged_embed_revision_immutable"])("adopts an equivalent completion after another consumer wins (%s)", async (reason) => {
+    state.writeState = "mutable"; state.writeError = "embed_revision_conflict";
+    state.writeReason = reason;
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "adopted" });
+    expect(state.sent.filter(row => row.type === "store_embed")).toHaveLength(1);
+    expect(state.reads).toBe(1);
+    expect(state.queued.size).toBe(0);
+    expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each(["different-content", "unavailable", "missing-wrapper"])("preserves evidence after a raced %s canonical read", async (mode) => {
     state.writeState = "mutable"; state.writeError = "embed_revision_conflict";
     state.writeReason = "canonical_precondition_mismatch";
-    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "conflict", failure_code: "canonical_precondition_mismatch" });
-    expect(Array.from(state.queued.values())[0].failure_code).toBe("canonical_precondition_mismatch");
+    if (mode === "different-content") state.canonicalContent = "cipher:other:old";
+    if (mode === "unavailable") state.readStatus = 404;
+    if (mode === "missing-wrapper") state.canonicalWrappers = [];
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({
+      status: mode === "different-content" ? "conflict" : "waiting",
+    });
+    expect(state.sent).toHaveLength(1);
+    expect(state.localWrites).toEqual([]);
+    expect(Array.from(state.queued.values())[0].store_embed_payload).toEqual(payload);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([
+    ["canonical_precondition_mismatch", false], ["canonical_precondition_mismatch", true],
+    ["acknowledged_embed_revision_immutable", false], ["acknowledged_embed_revision_immutable", true],
+  ] as const)("keeps %s read-only across unavailable proof and reconnect (different=%s)", async (reason, different) => {
+    state.writeState = "mutable"; state.writeError = "embed_revision_conflict";
+    state.writeReason = reason; state.readStatus = 404;
+    expect(await sendStoreEmbedOperationImpl(service, payload, keys)).toMatchObject({ status: "waiting" });
+    expect(Array.from(state.queued.values())[0].failure_code).toBe(reason);
+    state.readStatus = 200;
+    if (different) state.canonicalContent = "cipher:other:old";
+    // A second realm can begin flushing with a snapshot taken before the first
+    // realm persisted the read-only marker. Honor the fresh queue row instead.
+    const { chatDB } = await import("../db");
+    vi.mocked(chatDB.getPendingEmbedOperations).mockResolvedValueOnce(
+      Array.from(state.queued.values()).map(op => ({ ...op, failure_code: undefined })) as never,
+    );
+    await flushPendingEmbedOperations();
+    expect(state.sent).toHaveLength(1);
+    expect(state.queued.size).toBe(different ? 1 : 0);
+    if (different) expect(Array.from(state.queued.values())[0]).toMatchObject({
+      state: "conflict", failure_code: "embed_content_or_type_conflict",
+    });
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each([null, "hash:task-1", "hash:other-task"])("reconciles optional legacy task metadata (%s)", async (canonicalTask) => {
+    state.canonicalTask = canonicalTask;
+    expect(await sendStoreEmbedOperationImpl(service, { ...payload, hashed_task_id: "hash:task-1" }, keys))
+      .toMatchObject({ status: canonicalTask === "hash:other-task" ? "conflict" : "adopted" });
+    expect(state.sent).toHaveLength(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it.each(["canonical_precondition_mismatch", "acknowledged_embed_revision_immutable", "embed_identity_or_version_conflict"])("rechecks retained %s conflicts without server writes", async (failure_code) => {
+    const retained = { operation_id: "retained", embed_id: payload.embed_id,
+      store_embed_payload: { ...payload, hashed_task_id: "hash:task-1" }, store_embed_keys_payload: keys,
+      created_at: 1, state: "conflict", failure_code };
+    state.queued.set("retained", retained);
+    state.readStatus = 404;
+    await flushPendingEmbedOperations();
+    expect(state.queued.get("retained")).toEqual(retained);
+    state.readStatus = 200;
+    await flushPendingEmbedOperations();
+    expect(state.queued.size).toBe(0);
+    expect(state.sent).toHaveLength(0);
+    expect(state.localWrites[0].encrypted_content).toBe("cipher:body:old");
   });
 });
