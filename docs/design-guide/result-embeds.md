@@ -41,9 +41,12 @@ imports.
   300px wide / 200px high in compact desktop, 150px wide / 290px high when the
   existing mobile mode is selected, and full container width / 400px high in large
   mode. Media/result cards and execution cards use the full standard height.
-  Plain content previews grow only as far as their content requires, up to the
-  cap; short Code and Sheets must not acquire an empty minimum-height area. Their
-  outer large/grouped host must follow the active card's actual height as well.
+  Only plain content results in assistant responses (including assistant groups)
+  grow to their natural height within the cap. Their outer large/grouped host
+  follows the active card. Search-result grids retain equal fixed-height cards,
+  and app-skill executions always retain the original circle/info-bar design and
+  fixed standard size, even inside a wide host. The grouped component showcase
+  must use the same generated execution/result classification as the renderer.
   Every card keeps the established 30px corners. Result types must not override
   the shared widths, maximum heights or radius.
   Compact grouped and small reference wrappers establish their own named
@@ -60,11 +63,14 @@ imports.
 - Dated cards reuse `EmbedCalendarDate`: red weekday over a large day number,
   beside the app tile in compact mode and above the title in large mode.
   Appointment time uses its theme-reactive rounded time pill.
-- Event previews contain title, start time, organizer attribution and RSVP count;
-  omit description, provider/type/price/location repetitions.
+- Event compact previews contain title and one line of start time/organizer
+  attribution, using 1rem (16px at the standard root size). RSVP counts appear
+  only in large previews. Omit description, provider/type/price/location repetitions.
 - Compact Home copy contains only title and monthly price. Large previews retain
-  location and area. Every Home preview includes a map, paired with a photo when
-  available; city-only fallback uses actual municipality bounds through the
+  location and area. Both sizes show the first listing photo alone, falling back
+  to a map alone when no working photo is available. Never pair photo and map in
+  a preview. Preview maps omit approximation/attribution overlays; fullscreen
+  maps retain them. City-only fallback uses actual municipality bounds through the
   first-party geocoder. Never invent a city, pin, center or radius. Unavailable or
   ambiguous public geometry remains explicitly unavailable.
 - Appointment date/time sit beside the app tile near the top edge. Rating stars
@@ -76,6 +82,18 @@ imports.
   available card width. Keep page aspect ratio and contain wide PDF page images.
   Do not add generic readiness labels to content results; only useful file or
   content metadata belongs under their identity.
+- Plain text and Code content keep at least 20px of inner left and bottom
+  spacing. Compact text previews fade at the bottom instead of ending in a hard
+  cutoff. Preserve document/page-specific presentation and sheet layout.
+- The shared preview-map wrapper omits map footer overlays by default. Direct
+  fullscreen maps retain their attribution and location-detail presentation.
+- Travel flight connections follow the supplied Group 645 itinerary design:
+  compact cards center outbound/return columns without a map; large cards center
+  the same columns in the left panel beside the route map. Show dates, departure
+  day/night time pills, endpoint flags/airport codes and duration; add arrival
+  time pills below arrival airports only in large cards. One-way cards keep the
+  journey column width and center one column without a divider. Show the
+  no-luggage icon only when exclusion is explicitly known.
 - Fitness search summaries prioritize query, provider and result count. Class
   and venue photos use supplied provider images, with class-to-venue fallback;
   compact result metadata stays on one bounded line below the title.

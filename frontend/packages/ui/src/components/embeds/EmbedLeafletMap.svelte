@@ -61,6 +61,8 @@
     scrollWheelZoom?: boolean;
     /** Leaflet corner used for the zoom control (default: top-right) */
     zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
+    /** Keep attribution visible unless a compact preview explicitly omits it. */
+    showAttribution?: boolean;
     controlStyle?: 'default' | 'compact' | 'hidden';
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
@@ -89,6 +91,7 @@
     scrollWheelZoom = true,
     zoomControlPosition = 'topright',
     controlStyle = 'default',
+    showAttribution = true,
     onMapReady,
     onMarkerSelect,
     onRouteSelect,
@@ -409,7 +412,7 @@
         center: [center.lat, center.lon],
         zoom,
         zoomControl: false,
-        attributionControl: true,
+        attributionControl: showAttribution,
         scrollWheelZoom,
       });
       leafletMap.on('moveend zoomend', emitBoundsChange);

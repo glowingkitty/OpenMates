@@ -173,7 +173,7 @@ for (const { width, isMobile } of [{ width: 390, isMobile: false }, { width: 128
       expect(geometry.bodyHeight).toBeGreaterThan(0);
       expect(geometry.bodyTop).toBeGreaterThanOrEqual(geometry.identityBottom - 1);
       expect(geometry.bodyBottom).toBeLessThanOrEqual(geometry.bottom + 1);
-      expect(geometry.bottom - geometry.bodyBottom).toBeLessThanOrEqual(16);
+      expect(geometry.bottom - geometry.bodyBottom).toBeLessThanOrEqual(entry.path.startsWith('code/') ? 24 : 16);
       if (entry.path.startsWith('code/')) {
         const glyph = await card.locator('code').first().evaluate(element => {
           const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -189,6 +189,19 @@ for (const { width, isMobile } of [{ width: 390, isMobile: false }, { width: 128
         });
         expect(glyph.visible, 'The first code character must clear the rounded card clipping').toBe(true);
         expect(glyph.bottomGap).toBeGreaterThanOrEqual(10);
+        const bodySpacing = await card.locator('.details-section').evaluate(element => {
+          const style = getComputedStyle(element);
+          const fade = getComputedStyle(element, '::after');
+          return { left: parseFloat(style.paddingLeft), bottom: parseFloat(style.paddingBottom),
+            fade: fade.backgroundImage, fadeDisplay: fade.display, fadeHeight: parseFloat(fade.height) };
+        });
+        expect(bodySpacing.left).toBeGreaterThanOrEqual(20);
+        expect(bodySpacing.bottom).toBeGreaterThanOrEqual(20);
+        if (width <= 400 || isMobile) {
+          expect(bodySpacing.fade).toContain('linear-gradient');
+          expect(bodySpacing.fadeDisplay).not.toBe('none');
+          expect(bodySpacing.fadeHeight).toBeGreaterThanOrEqual(24);
+        }
       }
       await expect(card.locator('.result-corner')).toBeVisible();
       await expect(card.getByTestId('result-preview-more')).toBeVisible();
@@ -261,6 +274,43 @@ for (const width of [390, 1280]) {
     await large.getByRole('tab', { name: 'Go to slide 1 of 3' }).click();
     await assertActiveFlow(firstCard);
     await expect(page.getByTestId('embed-fullscreen-overlay')).toHaveCount(0);
-    await testInfo.attach(`short-code-carousel-${width}`, { body: await large.screenshot(), contentType: 'image/png' });
+    await testInfo.attach(`short-code-carousel-${width}`, { body: await large.screenshot({ animations: 'disabled' }), contentType: 'image/png' });
+  });
+}
+
+for (const width of [390, 1100]) for (const theme of ['light', 'dark']) {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction,chats.layout.responsive-history
+  test(`execution previews retain old chrome and fixed height; grid results do not shrink at ${width} in ${theme}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const path of ['web/WebSearchEmbedPreview', 'fitness/FitnessSearchEmbedPreview', 'travel/TravelSearchEmbedPreview']) {
+      await page.goto(`/dev/preview/embeds/${path.split("/")[0]}?chrome=0&context=chat&size=large&theme=${theme}`);
+      await expect(page.getByTestId('showcase-bare-preview')).toBeVisible();
+      const card = page.getByTestId('embed-preview');
+      await expect(card.getByTestId('embed-basic-infos-bar')).toBeVisible();
+      await expect(card.locator('.status-label .title-text')).not.toBeEmpty();
+      await expect(card.locator('.result-corner')).toHaveCount(0);
+      await expect(card.getByTestId('embed-result-identity')).toHaveCount(0);
+      await expect(card).not.toHaveClass(/intrinsic-preview/);
+      await expect(card).toHaveCSS('width', '300px');
+      await expect(card).toHaveCSS('height', '200px');
+      await expect(card.getByTestId('app-icon-circle')).toHaveCSS('border-radius', '50%');
+      await expect(card.getByTestId('preview-tools')).toHaveCount(0);
+      await testInfo.attach(`execution-${path.split('/')[0]}-${width}-${theme}`, { body: await card.screenshot(), contentType: 'image/png' });
+    }
+    const props = encodeURIComponent(JSON.stringify({ family: 'code', mode: 'grid' }));
+    await page.goto(`/dev/preview/embeds/SavedResultPreviewFixture?chrome=0&width=${width}&theme=${theme}&props=${props}`);
+    await waitForComponentPreview(page);
+    const cards = page.getByTestId('embed-preview');
+    await expect(cards).toHaveCount(2);
+    for (const card of await cards.all()) {
+      await expect(card.locator('.code-preview-container')).toContainText('print("preview")');
+      await expect(card).not.toHaveClass(/intrinsic-preview/);
+      await expect(card).toHaveCSS('width', '300px');
+      await expect(card).toHaveCSS('height', '200px');
+      await expect(card.getByTestId('preview-tools')).toHaveCount(0);
+      await expect(card.getByTestId('embed-basic-infos-bar')).toHaveCount(0);
+      await expect(card.locator('.result-corner')).toBeVisible();
+    }
+    await testInfo.attach(`fixed-grid-code-${width}-${theme}`, { body: await page.getByTestId('saved-result-fixture').screenshot(), contentType: 'image/png' });
   });
 }

@@ -84,7 +84,11 @@ async function assertEventAttribution(card: Locator) {
   await expect(card.getByTestId('event-preview-attribution')).toContainText(`by Berlin Event Community ${index + 1}`);
   await expect(card.getByTestId('event-preview-attribution')).toContainText('7:00 PM');
   await expect(card.getByTestId('event-preview-rsvps')).toContainText(`${80 + index} RSVPs`);
-  for (const row of [card.getByTestId('event-preview-attribution'), card.getByTestId('event-preview-rsvps')]) {
+  await expect(card.getByTestId('event-preview-attribution')).toHaveCSS('font-size', '16px');
+  const isLarge = (await card.boundingBox())!.width > 400;
+  if (isLarge) await expect(card.getByTestId('event-preview-rsvps')).toBeVisible();
+  else await expect(card.getByTestId('event-preview-rsvps')).toBeHidden();
+  for (const row of [card.getByTestId('event-preview-attribution'), ...(isLarge ? [card.getByTestId('event-preview-rsvps')] : [])]) {
     await expect(row).toBeVisible();
     await expect(row).toBeInViewport({ ratio: 1 });
     const clipping = await row.evaluate(element => {

@@ -32,6 +32,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { downloadCalendarFile, sanitizeCalendarFilename } from '../../../utils/calendarDownload';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO_FULLSCREEN } from '../../../utils/imageProxy';
+  import TravelTimeBadge from './TravelTimeBadge.svelte';
   import { countryCodeToFlag } from '../../../utils/countryFlag';
   import { appSettingsMemoriesStore } from '../../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryEntry, forgetEmbedMemory, getEmbedIdFromContentRef, promptToSaveEmbedMemory, saveEmbedMemory } from '../../../services/savedEmbedMemoryService';
@@ -1653,10 +1654,7 @@
             {@const fareCoverageLabel = formatFareCoverage(segment.fare_coverage)}
             <div class="segment-card" data-testid="segment-card">
               <div class="segment-left">
-                <div class="time-badge" class:daytime={segment.departure_is_daytime === true} class:nighttime={segment.departure_is_daytime !== true}>
-                  <span class="time-icon">{segment.departure_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text" class:changed={depChanged}>{displayTime(segment.departure_time, segment.actual_departure_time)}</span>
-                </div>
+                <TravelTimeBadge time={displayTime(segment.departure_time, segment.actual_departure_time)} isDaytime={segment.departure_is_daytime} changed={depChanged} />
                 {#if depChanged}
                   <div class="scheduled-time">was {formatTime(segment.departure_time)}</div>
                 {/if}
@@ -1666,10 +1664,7 @@
                   </div>
                 {/if}
                 <div class="segment-duration-text">{segment.duration}</div>
-                <div class="time-badge" class:daytime={segment.arrival_is_daytime === true} class:nighttime={segment.arrival_is_daytime !== true}>
-                  <span class="time-icon">{segment.arrival_is_daytime ? '☀' : '🌙'}</span>
-                  <span class="time-text" class:changed={arrChanged}>{displayTime(segment.arrival_time, segment.actual_arrival_time)}</span>
-                </div>
+                <TravelTimeBadge time={displayTime(segment.arrival_time, segment.actual_arrival_time)} isDaytime={segment.arrival_is_daytime} changed={arrChanged} />
                 {#if arrChanged}
                   <div class="scheduled-time">was {formatTime(segment.arrival_time)}</div>
                 {/if}
@@ -1820,12 +1815,6 @@
 
   .segment-card { display: flex; gap: 12px; background: var(--color-grey-10); border-radius: 15px; padding: 14px; }
   .segment-left { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-3); flex-shrink: 0; min-width: 96px; }
-  .time-badge { display: inline-flex; align-items: center; gap: var(--spacing-2); padding: 4px 10px; border-radius: 58px; font-size: 0.875rem; font-weight: 700; color: white; white-space: nowrap; }
-  .time-badge.nighttime { background: linear-gradient(to right, #365dad, #1745a1); }
-  .time-badge.daytime { background: linear-gradient(to right, #f5bb12, #e79600); }
-  .time-icon { font-size: 0.75rem; line-height: 1; }
-  .time-text { line-height: 1; }
-  .time-text.changed { color: #fff; }
   .scheduled-time { margin-top: -8px; margin-left: 10px; font-size: 0.688rem; font-weight: 700; color: var(--color-grey-50); text-decoration: line-through; }
   .delay-badge { margin-top: -8px; padding: 2px 8px; border-radius: 999px; font-size: 0.688rem; font-weight: 800; color: var(--color-grey-60); background: var(--color-grey-20); white-space: nowrap; }
   .delay-badge.late { color: #991b1b; background: #fee2e2; }

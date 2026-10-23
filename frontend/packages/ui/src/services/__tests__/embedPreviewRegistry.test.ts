@@ -16,6 +16,7 @@ vi.mock('../../components/embeds/travel/TravelConnectionEmbedPreview.svelte', ()
 vi.mock('../../components/embeds/maps/MapLocationEmbedPreview.svelte', () => ({ default: previews.place }));
 vi.mock('../../components/embeds/events/EventEmbedPreview.svelte', () => ({ default: previews.event }));
 import { embedPreviewRegistry, parentPreviewProps, pdfPreviewProps } from '../embedPreviewRegistry';
+import connectionFixture, { variants as connectionVariants } from '../../components/embeds/travel/TravelConnectionEmbedPreview.preview';
 
 function metadataFor(decodedContent: Record<string, unknown>) {
   return parentPreviewProps(
@@ -32,6 +33,17 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
+  it('keeps flat and nested one-way preview journeys consistent across flight and rail examples', () => {
+    for (const fixture of [connectionFixture, connectionVariants.multiStop, connectionVariants.deutscheBahn,
+      connectionVariants.flixTrain, connectionVariants.trainRealtime]) {
+      const legs = fixture.connection?.legs;
+      if (!legs?.length) continue; // Legacy flat payloads must not inherit another journey's nested data.
+      expect(legs).toHaveLength(1);
+      expect(legs[0]).toMatchObject({ origin: fixture.origin, destination: fixture.destination,
+        departure: fixture.departure, arrival: fixture.arrival });
+    }
+  });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.library.embeds-account-paginated
   it('shows the request query for an older saved parent using the CLI requests envelope', async () => {
     const resolved = await embedPreviewRegistry.resolve({
@@ -171,6 +183,18 @@ describe('embedPreviewRegistry parent preview metadata', () => {
     });
     expect(resolved?.props).not.toHaveProperty('resultCount');
     expect(resolved?.props).not.toHaveProperty('childEmbedIds');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity,travel-search.realtime.source-faithful
+  it('retains nested travel route and realtime metadata in Apps result previews', async () => {
+    const connection = { app_id: 'travel', skill_id: 'search_connections', legs: [{
+      origin: 'Berlin', destination: 'Hamburg', departure: '2026-12-15T08:00:00Z', arrival: '2026-12-15T10:00:00Z',
+      segments: [{ arrival_delay_minutes: 12, cancelled: true }],
+    }] };
+    const resolved = await embedPreviewRegistry.resolve({ embedId: 'nested-rail', embedData: { type: 'connection', status: 'finished' }, decodedContent: connection, onFullscreen: () => {} });
+    expect(resolved?.props.__previewComponent).toBe(previews.connection);
+    expect(resolved?.props.__previewPresentation).toBe('content');
+    expect(resolved?.props).toMatchObject({ connection, origin: 'Berlin', destination: 'Hamburg', departure: '2026-12-15T08:00:00Z', arrival: '2026-12-15T10:00:00Z', arrivalDelayMinutes: 12, hasCancellation: true });
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity

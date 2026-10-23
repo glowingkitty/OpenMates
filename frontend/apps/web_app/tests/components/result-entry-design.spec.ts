@@ -181,6 +181,11 @@ for (const width of [390, 1280]) {
 
             }
 			const title = card.locator('.listing-title, .doctor-name, [data-testid="result-card-title"], [data-testid="health-appointment-title"]');
+			if (path.startsWith('health/')) {
+				await expect(card.getByTestId('result-map-preview')).toBeVisible();
+				await expect(card.locator('.leaflet-container')).toBeVisible();
+				await expect(card.locator('.leaflet-control-attribution')).toHaveCount(0);
+			}
 			await expect(title).toBeVisible();
 			await expect(title).toHaveCSS('user-select', 'text');
 			const tools = card.getByTestId('preview-tools');
@@ -247,6 +252,9 @@ for (const width of [390, 1280]) {
       await expect(map).toHaveAttribute('inert', '');
       await expect(card.getByTestId('home-preview-location-area')).toHaveAttribute('data-radius-m', '1200');
       await expect(card.locator('.leaflet-marker-icon')).toHaveCount(0);
+      await expect(card.locator('.home-preview-image')).toHaveCount(0);
+      await expect(card.locator('.leaflet-control-attribution')).toHaveCount(0);
+      await expect(card).not.toContainText('Approximate location');
       await expect(card.getByTestId('result-card-title')).toContainText('Kreuzberg');
       await testInfo.attach(`home-map-fallback-${variant}-${width}`, { body: await page.getByTestId('component-preview-canvas').screenshot(), contentType: 'image/png' });
     }
@@ -262,7 +270,8 @@ for (const width of [390, 1280]) {
     await expect(cityArea).toHaveAttribute('data-area-basis', 'city');
     expect(Number(await cityArea.getAttribute('data-radius-m'))).toBeGreaterThan(20000);
     expect(Number(await cityArea.getAttribute('data-radius-m'))).toBeLessThan(40000);
-    await expect(page.getByTestId('home-preview-approximate')).toHaveText('Approximate location');
+    await expect(page.getByTestId('home-listing-result-card')).not.toContainText('Approximate location');
+    await expect(page.locator('.leaflet-control-attribution')).toHaveCount(0);
     await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
     expect(cityQueries).toEqual(['Berlin']);
     await expect(page.getByTestId('home-listing-result-card')).toContainText('Kreuzberg');

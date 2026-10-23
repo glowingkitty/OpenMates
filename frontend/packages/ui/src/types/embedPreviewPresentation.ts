@@ -1,5 +1,6 @@
 import {
   CONTENT_EMBED_CATALOG,
+  EMBED_PREVIEW_COMPONENTS,
   EMBED_PREVIEW_COMPONENT_PRESENTATION,
   normalizeEmbedType,
 } from '../data/embedRegistry.generated';
@@ -30,4 +31,12 @@ export function getComponentPreviewPresentation(componentPath: string): EmbedPre
   let path = componentPath.replace(/^\/?dev\/preview\//, '').replace(/^\//, '').replace(/^embeds\//, '');
   if (!path.endsWith('.svelte')) path += '.svelte';
   return EMBED_PREVIEW_COMPONENT_PRESENTATION[path] ?? 'content';
+}
+
+/** Direct callers do not always have a renderer context (e.g. the app showcase).
+ * Use the generated component classification for known skill routes, retaining
+ * the content default for unknown output types and shared content adapters. */
+export function getStandalonePreviewPresentation(appId: string, skillId: string): EmbedPreviewPresentation {
+  const component = EMBED_PREVIEW_COMPONENTS[`app:${appId}:${skillId}`];
+  return component ? getComponentPreviewPresentation(component) : 'content';
 }

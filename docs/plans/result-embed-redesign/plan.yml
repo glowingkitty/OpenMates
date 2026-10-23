@@ -26,10 +26,12 @@ decisions:
   - All result previews automatically use the app corner; only app-skill executions retain the circular icon bar.
   - The animated landing event imports the same pure result card/calendar/corner/event presentation as the app and uses a first-party event cover.
   - The landing demo uses a non-OpenMates meetup illustration without a printed date; dates appear only in the shared UI badge.
-  - Text/table previews use natural heights within the existing caps; Docs/PDF pages center in the available width, and Social dates reuse the shared rounded time pill.
+  - Text/table results use natural heights only in assistant responses and assistant groups; result grids and app-skill executions keep fixed standard sizes. Docs/PDF pages center in the available width, and Social dates reuse the shared rounded time pill.
   - Preview primary/More/Expand controls share one icon color and standard hover scaling; the collapsed follow-up AI icon is gray and decorative while the input keeps its existing expansion.
   - Saved assistant previews replace More with a clickable pink heart; unsaving shows the existing notification and restores More. Search-result grids show only a decorative pink heart for saved cards and retain card-click opening. External provider preview buttons are removed; specialized file Copy/Download remains.
-  - Compact Home copy is title/price, every Home preview has known or city-bounds map geometry when available, and unavailable geometry is never fabricated.
+  - Home previews show the first working photo alone or a factual/city-bounds map alone, never both. Preview maps omit distracting overlays; fullscreens retain them. Compact copy is title/price and unavailable geography is never fabricated.
+  - Compact Event previews show only time and organizer below the title at 1rem; RSVP counts are exclusive to large previews.
+  - Travel uses the supplied Group 645 itinerary layout, with outbound/return journey columns, shared day/night pills, large-only arrival times and a no-luggage icon only for explicitly excluded luggage.
   - Social publication dates are plain text; compact Weather omits provider and extended metrics; compact Fitness prioritizes query/provider/count and supplied class or venue photos.
 verification:
   required:

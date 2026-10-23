@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import html
+from html.parser import HTMLParser
 import json
 import math
 import re
@@ -162,7 +163,7 @@ def parse_venue_detail(html_text: str, *, url: str) -> UrbanSportsVenueDetail:
         country=clean_optional(address.get("addressCountry")),
         lat=to_float(geo.get("latitude")),
         lon=to_float(geo.get("longitude")),
-        image_url=_image_url(data.get("image"), base_url=url),
+        image_url=_image_url(data.get("image"), base_url=url) or _venue_meta_image_url(html_text, base_url=url),
         rating=to_float(rating.get("ratingValue")),
         rating_count=to_int(clean_optional(rating.get("ratingCount"))),
     )
@@ -179,6 +180,28 @@ def _image_url(value: Any, *, base_url: str = BASE_URL) -> str | None:
     candidate = urljoin(base_url, html.unescape(value).strip())
     parsed = urlparse(candidate)
     return candidate if parsed.scheme in {"http", "https"} and parsed.netloc else None
+
+
+class _VenueImageMetaParser(HTMLParser):
+    """Read the venue's declared sharing image without guessing from gallery markup."""
+
+    def __init__(self, *, base_url: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.base_url = base_url
+        self.image_url: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "meta" or self.image_url:
+            return
+        metadata = dict(attrs)
+        if (metadata.get("property") or "").strip().lower() == "og:image":
+            self.image_url = _image_url(metadata.get("content"), base_url=self.base_url)
+
+
+def _venue_meta_image_url(html_text: str, *, base_url: str) -> str | None:
+    parser = _VenueImageMetaParser(base_url=base_url)
+    parser.feed(html_text)
+    return parser.image_url
 
 
 def _card_image_url(chunk: str) -> str | None:

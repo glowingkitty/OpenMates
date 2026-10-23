@@ -3,7 +3,7 @@ import { waitForComponentMotion, waitForComponentPreview } from '../helpers/comp
 // playwright-account: not_required reason=isolated_component_preview
 
 const preview = (path: string, width: number, variant = '') =>
-  `/dev/preview/embeds/${path}?chrome=0&width=${width}${variant ? `&variant=${variant}` : ''}${variant === 'chat' ? '&context=chat' : ''}`;
+  `/dev/preview/embeds/${path}?chrome=0&width=${width}${variant ? `&variant=${variant}` : ''}${variant === 'chat' || path === 'travel/TravelConnectionEmbedPreview' ? '&context=chat' : ''}`;
 
 for (const width of [390, 1280]) {
   // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
@@ -159,17 +159,10 @@ for (const width of [390, 1280]) {
       if (path.includes('Connection')) {
         await expect(page.getByTestId('connection-preview-details')).toBeVisible();
         await expect(page.getByTestId('connection-price')).toContainText('189');
-        await expect(page.getByTestId('connection-route')).toContainText('Munich');
-        await expect(page.getByTestId('connection-time')).toContainText('MUC');
-        const badge = page.getByTestId('embed-calendar-date');
-        await expect(badge.locator('strong')).toHaveText('15');
-        await expect(badge.locator('span')).toHaveText('Sun');
-        const badgeBounds = (await badge.boundingBox())!;
-        const cardBounds = (await card.boundingBox())!;
-        expect(badgeBounds.x).toBeGreaterThanOrEqual(cardBounds.x + 48);
-        expect(badgeBounds.y).toBeGreaterThanOrEqual(cardBounds.y);
-        expect(badgeBounds.y + badgeBounds.height).toBeLessThanOrEqual((await page.getByTestId('connection-route').boundingBox())!.y);
-        expect(badgeBounds.x + badgeBounds.width).toBeLessThanOrEqual(cardBounds.x + cardBounds.width - 48);
+        await expect(page.locator('.journey-airport')).toHaveText(['🇩🇪 MUC', '🇬🇧 LHR']);
+        await expect(page.getByTestId('connection-time')).toContainText(/\d{1,2}:\d{2}/);
+        await expect(page.locator('.journey-date')).toContainText('Mar 15');
+        await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
         if (width > 600) await expect(card.locator('.connection-map')).toBeVisible();
         else await expect(card.locator('.connection-map')).toBeHidden();
       } else await expect(page.getByTestId('result-card-title')).toBeVisible();
@@ -179,7 +172,8 @@ for (const width of [390, 1280]) {
         await expect(page.getByTestId('embed-calendar-date').locator('strong')).toHaveText('15');
         await expect(page.getByTestId('embed-calendar-date').locator('span')).toHaveText('Sun');
         await expect(page.getByTestId('event-preview-attribution')).toHaveText('7:00 PM, by AI Berlin Community');
-        await expect(page.getByTestId('event-preview-rsvps')).toContainText('142 RSVPs');
+        if (width > 600) await expect(page.getByTestId('event-preview-rsvps')).toContainText('142 RSVPs');
+        else await expect(page.getByTestId('event-preview-rsvps')).toBeHidden();
         await expect(page.getByTestId('result-card-content')).not.toContainText('Join us for an evening');
         await expect(page.getByTestId('result-card-content')).not.toContainText('In Person');
         await expect(page.getByTestId('result-card-content')).not.toContainText('Free');
@@ -214,19 +208,69 @@ test('online event and coordinate-free map remain readable without invented loca
 
 // contract-test: supporting surface=gui.web assertions=travel-search.realtime.source-faithful,travel-search.optimization.additive-provenance,travel-search.surface-parity
 test('connection previews retain both journey legs and rail realtime provenance', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
   await page.goto(preview('travel/TravelConnectionEmbedPreview', 900, 'roundTripItinerary'));
   await waitForComponentPreview(page);
   await expect(page.locator('.itinerary-leg')).toHaveCount(2);
-  await expect(page.locator('.itinerary-leg').first()).toContainText('MUC');
-  await expect(page.locator('.itinerary-leg').last()).toContainText('LHR');
+  await expect(page.locator('.itinerary-leg').first()).toContainText('🇩🇪 MUC');
+  await expect(page.locator('.itinerary-leg').last()).toContainText('🇬🇧 LHR');
   await expect(page.locator('.journey-date')).toHaveText([/Mar 15/, /Mar 22/]);
-  await expect(page.getByTestId('embed-calendar-date').locator('strong')).toHaveText('15');
+  await expect(page.locator('.journey-arrival')).toHaveCount(2);
+  await expect(page.locator('.journey-arrival').first()).toBeVisible();
+  await expect(page.locator('.journey-departure .time-badge.daytime')).toHaveCount(1);
+  await expect(page.locator('.journey-departure .time-badge.nighttime')).toHaveCount(1);
+  await expect(page.getByTestId('result-map-preview')).toBeVisible();
+  await expect(page.getByTestId('result-map-preview')).not.toHaveAttribute('inert');
   await page.goto(preview('travel/TravelConnectionEmbedPreview', 390, 'trainRealtime'));
   await waitForComponentPreview(page);
   await expect(page.getByTestId('connection-realtime-status')).toHaveText('+12 min arrival');
   await expect(page.getByTestId('connection-optimization-badge')).toHaveText('Optimized by OpenMates');
   await expect(page.getByTestId('airline-logos').locator('img')).toHaveAttribute('alt', 'Deutsche Bahn');
+  await expect(page.locator('.journey-arrival')).toBeHidden();
+  await expect(page.getByTestId('result-map-preview')).toBeHidden();
 });
+
+for (const width of [390, 900]) {
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
+  test(`travel itinerary matches the PDF journey and explicit baggage states at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(preview('travel/TravelConnectionEmbedPreview', width, 'roundTripItinerary'));
+    await waitForComponentPreview(page);
+    const roundTripWidth = await page.locator('.itinerary-leg').first().evaluate(node => node.getBoundingClientRect().width);
+    if (width === 390) {
+      await expect(page.locator('.journey-arrival').first()).toBeHidden();
+      await expect(page.locator('.connection-map')).toBeHidden();
+    }
+    else {
+      await expect(page.locator('.journey-arrival').first()).toBeVisible();
+      await expect(page.locator('.connection-map')).toBeVisible();
+    }
+    await testInfo.attach(`travel-roundtrip-${width}`, { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
+    await page.goto(preview('travel/TravelConnectionEmbedPreview', width));
+    await waitForComponentPreview(page);
+    await expect(page.locator('.itinerary-leg')).toHaveCount(1);
+    await expect(page.locator('.itinerary-leg')).toContainText('🇩🇪 MUC');
+    await expect(page.locator('.itinerary-leg')).toContainText('🇬🇧 LHR');
+    const oneWay = await page.locator('.itinerary-columns').boundingBox();
+    const pane = await page.locator('.connection-information').boundingBox();
+    expect(oneWay && pane).toBeTruthy();
+    expect(Math.abs(oneWay!.x + oneWay!.width / 2 - pane!.x - pane!.width / 2)).toBeLessThanOrEqual(1);
+    const oneWayWidth = await page.locator('.itinerary-leg').evaluate(node => node.getBoundingClientRect().width);
+    expect(Math.abs(oneWayWidth - roundTripWidth)).toBeLessThanOrEqual(1);
+    await expect(page.locator('.itinerary-leg')).toHaveCSS('border-left-width', '0px');
+    await testInfo.attach(`travel-oneway-${width}`, { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
+    for (const variant of ['baggageExcluded', 'baggageIncluded', 'baggageUnknown', 'baggageConflicting']) {
+      await page.goto(preview('travel/TravelConnectionEmbedPreview', width, variant));
+      await waitForComponentPreview(page);
+      await expect(page.getByTestId('connection-no-luggage')).toHaveCount(variant === 'baggageExcluded' ? 1 : 0);
+      if (variant === 'baggageExcluded') await testInfo.attach(`travel-no-luggage-${width}`, { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
+    }
+    await page.goto(preview('travel/TravelConnectionEmbedPreview', width, 'noRouteGeometry'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('result-map-preview')).toHaveCount(0);
+    await expect(page.getByTestId('connection-price')).toBeVisible();
+  });
+}
 
 for (const width of [390, 1280]) {
   // contract-test: supporting surface=gui.web assertions=maps-search.discovery.bounded-provider-routing
@@ -334,7 +378,7 @@ for (const width of [390, 1280]) {
       expect(factBounds.y + factBounds.height).toBeLessThanOrEqual(bounds.y + bounds.height - 5);
     }
     await expect(page.getByTestId('connection-meta')).not.toContainText('Mar 15');
-    await expect(page.getByTestId('connection-time')).toContainText('→');
+    await expect(page.getByTestId('connection-time')).toContainText(/\d{1,2}:\d{2}/);
     await testInfo.attach(`connection-carrier-fallback-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
   });
 }
@@ -378,4 +422,29 @@ test('undated travel previews do not invent calendar dates', async ({ page }) =>
     await expect(page.getByTestId('embed-preview')).toBeVisible();
     await expect(page.getByTestId('embed-calendar-date')).toHaveCount(0);
   }
+});
+
+// contract-test: supporting surface=gui.web assertions=travel-search.surface-parity,chats.layout.responsive-history
+test('narrow mobile connection keeps both journey pills and carrier clear of the shared actions', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const props = encodeURIComponent(JSON.stringify({ isMobile: true }));
+  await page.goto(`${preview('travel/TravelConnectionEmbedPreview', 390, 'roundTripItinerary')}&context=chat&props=${props}`);
+  await waitForComponentPreview(page);
+  const card = page.getByTestId('embed-preview');
+  await expect(card).toHaveCSS('width', '150px');
+  await expect(card).toHaveCSS('height', '290px');
+  await expect(page.locator('.itinerary-leg')).toHaveCount(2);
+  const bounds = (await card.boundingBox())!;
+  const more = (await card.getByTestId('result-preview-more').boundingBox())!;
+  const carrier = (await card.getByTestId('airline-logos').boundingBox())!;
+  expect(carrier.y).toBeGreaterThanOrEqual(more.y + more.height);
+  for (const pill of await card.locator('.journey-departure .time-badge').all()) {
+    await expect(pill).toBeVisible();
+    const box = (await pill.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+    expect(box.y + box.height).toBeLessThanOrEqual(bounds.y + bounds.height);
+  }
+  await expect(card.locator('.journey-arrival').first()).toBeHidden();
+  await testInfo.attach('travel-mobile-itinerary', { body: await card.screenshot(), contentType: 'image/png' });
 });

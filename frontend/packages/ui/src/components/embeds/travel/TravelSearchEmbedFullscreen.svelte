@@ -564,7 +564,7 @@
     const fare = extractTravelFare(content);
 
     return {
-      ...Object.fromEntries(['route_points', 'route', 'path', 'polyline_points', 'flight_track', 'origin_latitude', 'origin_longitude', 'destination_latitude', 'destination_longitude', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon'].filter(key => content[key] !== undefined).map(key => [key, content[key]])),
+      ...Object.fromEntries(['baggage_included', 'luggage_included', 'checked_baggage_included', 'route_points', 'route', 'path', 'polyline_points', 'flight_track', 'origin_latitude', 'origin_longitude', 'destination_latitude', 'destination_longitude', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon'].filter(key => content[key] !== undefined).map(key => [key, content[key]])),
       embed_id: embedId,
       type: (content.type as string) || 'connection',
       transport_method: (content.transport_method as string) || 'airplane',

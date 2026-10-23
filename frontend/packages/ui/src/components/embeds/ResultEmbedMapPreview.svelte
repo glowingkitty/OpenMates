@@ -7,6 +7,8 @@
     markers = [],
     zoom = 13,
     paused = false,
+    interactive = false,
+    showAttribution = false,
     path = [],
     paths = [],
   }: {
@@ -14,6 +16,8 @@
     markers?: MapMarker[];
     zoom?: number;
     paused?: boolean;
+    interactive?: boolean;
+    showAttribution?: boolean;
     path?: MapPathPoint[];
     paths?: MapRoutePath[];
   } = $props();
@@ -38,11 +42,12 @@
   });
 </script>
 
-<div bind:this={host} class="map-preview" data-testid="result-map-preview" aria-hidden="true" inert>
+<div bind:this={host} class="map-preview" data-testid="result-map-preview" aria-hidden={!interactive} inert={!interactive}>
   {#if visible && center && !paused && Map}<Map
       {center}
       {markers}
       {zoom}
+      {showAttribution}
       {path}
       {paths}
       fitBounds={true}

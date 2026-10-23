@@ -1,9 +1,17 @@
 // contract-test-file: infrastructure
 import { describe, expect, it } from 'vitest';
 import { EMBED_PREVIEW_COMPONENTS, EMBED_PREVIEW_COMPONENT_PRESENTATION, CONTENT_EMBED_CATALOG } from '../data/embedRegistry.generated';
-import { getComponentPreviewPresentation, getEmbedPreviewPresentation } from './embedPreviewPresentation';
+import { getComponentPreviewPresentation, getEmbedPreviewPresentation, getStandalonePreviewPresentation } from './embedPreviewPresentation';
 
 describe('embed preview presentation', () => {
+  it('keeps directly mounted registered skill executions in their original shell', () => {
+    expect(getStandalonePreviewPresentation('web', 'search')).toBe('execution');
+    expect(getStandalonePreviewPresentation('fitness', 'search_classes')).toBe('execution');
+    expect(getStandalonePreviewPresentation('fitness', 'search_locations')).toBe('execution');
+    expect(getStandalonePreviewPresentation('code', 'code')).toBe('content');
+    expect(getStandalonePreviewPresentation('events', 'event')).toBe('content');
+    expect(getStandalonePreviewPresentation('future', 'output')).toBe('content');
+  });
   it('defaults unknown, synthetic and direct content to corner presentation', () => {
     for (const type of [undefined, '', 'document', 'code', 'sheet', 'listing', 'event', 'unknown']) {
       expect(getEmbedPreviewPresentation(type)).toBe('content');

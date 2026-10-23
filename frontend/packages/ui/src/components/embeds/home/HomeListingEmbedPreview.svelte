@@ -105,7 +105,7 @@
   $effect(() => {
     cityGeometry = undefined;
     cityLoading = false;
-    if (suppliedGeometry || !locality || !visible) return;
+    if (proxiedImageUrl || suppliedGeometry || !locality || !visible) return;
     let active = true;
     cityLoading = true;
     void resolveHomePreviewCity(locality).then(value => {
@@ -143,13 +143,18 @@
 >
 
   {#snippet listingMedia()}
-    <div class="listing-media" class:paired={!!proxiedImageUrl} data-testid="home-preview-media">
-      {#if proxiedImageUrl}<img class="home-preview-image" src={proxiedImageUrl} alt={title || $text("home_listing.listing")} loading="lazy" onerror={() => imageError = true} />{/if}
-      <div class="listing-map" data-testid="home-preview-map">
-        {#if mapCenter}<ResultEmbedMapPreview center={mapCenter} markers={mapMarkers} zoom={geometry?.areaBasis === "city" ? 10 : 12} />
-        {#if geometry?.radiusM}<span class="map-approximate" data-testid="home-preview-approximate">{$text("home_listing.approximate")}</span>{/if}
-        {:else}<span class="map-status" data-testid="home-preview-map-status">{cityLoading ? $text("common.loading") : $text("home_listing.no_location")}</span>{/if}
-      </div>
+    <div class="listing-media" data-testid="home-preview-media">
+      {#if proxiedImageUrl}
+        <img class="home-preview-image" src={proxiedImageUrl} alt={title || $text("home_listing.listing")} loading="lazy" onerror={() => imageError = true} />
+      {:else}
+        <div class="listing-map" data-testid="home-preview-map">
+          {#if mapCenter}
+            <ResultEmbedMapPreview center={mapCenter} markers={mapMarkers} zoom={geometry?.areaBasis === "city" ? 10 : 12} showAttribution={false} />
+          {:else}
+            <span class="map-status" data-testid="home-preview-map-status">{cityLoading ? $text("common.loading") : $text("home_listing.no_location")}</span>
+          {/if}
+        </div>
+      {/if}
     </div>
   {/snippet}
   {#snippet details()}
@@ -159,7 +164,7 @@
         {#snippet facts()}
           {#if price_label}<span class="listing-price">{price_label}</span>{/if}
           <div class="listing-extra">
-            {#if address || provider}<span class="listing-location">{address || provider}{geometry?.radiusM ? ` · ${$text("home_listing.approximate")}` : ""}</span>{/if}
+            {#if address || provider}<span class="listing-location">{address || provider}</span>{/if}
             {#if sizeDisplay}<span title={sizeDisplay}><House size={14} aria-hidden="true" />{sizeDisplay}</span>{/if}
             {#if roomsDisplay}<span class="sr-only">{roomsDisplay}</span>{/if}
           </div>
@@ -171,6 +176,6 @@
 
 <style>
 .listing-card {width:100%;height:100%;min-width:0;} .home-preview-image {display:block;width:100%;height:100%;object-fit:contain;background:#262626;} .listing-price {width:100%;font-size:var(--font-size-small);font-weight:600;color:var(--color-font-primary);} .listing-extra {display:none;flex-wrap:wrap;gap:var(--spacing-4);font-size:var(--font-size-small);color:var(--color-font-secondary);} .listing-extra>span {display:inline-flex;align-items:center;gap:var(--spacing-2);} .sr-only {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
-.listing-media {display:grid;grid-template-columns:minmax(0,1fr);width:100%;height:100%;min-height:0;} .listing-media.paired {grid-template-columns:repeat(2,minmax(0,1fr));} .listing-map {position:relative;min-width:0;min-height:0;height:100%;overflow:hidden;background:var(--color-grey-20);} .map-approximate {position:absolute;bottom:5px;left:5px;right:5px;width:fit-content;padding:2px 5px;border-radius:var(--radius-3);background:var(--color-grey-0);color:var(--color-font-secondary);font-size:.625rem;} .map-status {display:flex;align-items:center;justify-content:center;height:100%;padding:8px;box-sizing:border-box;font-size:var(--font-size-xxs);color:var(--color-font-secondary);}
+.listing-media {display:grid;grid-template-columns:minmax(0,1fr);width:100%;height:100%;min-height:0;} .listing-map {position:relative;min-width:0;min-height:0;height:100%;overflow:hidden;background:var(--color-grey-20);} .map-status {display:flex;align-items:center;justify-content:center;height:100%;padding:8px;box-sizing:border-box;font-size:var(--font-size-xxs);color:var(--color-font-secondary);}
 @container result-card (min-width:401px) {.listing-extra {display:flex;} .listing-location {width:100%;}}
 </style>

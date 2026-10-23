@@ -432,3 +432,65 @@ async def test_location_search_uses_detail_photo_then_listing_photo(monkeypatch,
     result = await client.search_locations(query="BEAT81")
     assert result[0]["image_url"] == ("https://images.example.test/beat81-detail.jpg" if detail_photo else
                                       "https://images.example.test/beat81.jpg")
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.parametrize("metadata,expected", [
+    ('<meta property="og:image" content="https://images.example.test/studio.jpg">', 'https://images.example.test/studio.jpg'),
+    ("<META content='/photos/studio.jpg?width=900&amp;fit=cover' PROPERTY='og:image' />", 'https://urbansportsclub.com/photos/studio.jpg?width=900&fit=cover'),
+    ('<meta property="og:image" content="javascript:invalid">', None),
+    ('<meta property="og:image" content="data:image/png;base64,invalid">', None),
+    ('<meta property="og:image" content="">', None),
+    ('<meta property="og:image">', None),
+    ('<meta property="og:title" content="Studio"><img src="https://images.example.test/logo.jpg">', None),
+    ('<meta property="og:image" content="javascript:invalid"><meta property="og:image" content="https://images.example.test/studio.jpg">', 'https://images.example.test/studio.jpg'),
+])
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+def test_venue_detail_uses_valid_declared_og_image_without_json_ld_image(metadata, expected):
+    page = '<html><head>' + metadata + '</head><body></body></html>'
+    assert parse_venue_detail(page, url="https://urbansportsclub.com/en/venues/studio").image_url == expected
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.parametrize("structured_image,expected", [
+    ('https://images.example.test/structured.jpg', 'https://images.example.test/structured.jpg'),
+    (None, 'https://images.example.test/sharing.jpg'),
+    ('javascript:invalid', 'https://images.example.test/sharing.jpg'),
+])
+def test_venue_detail_keeps_valid_json_ld_image_ahead_of_og_fallback(structured_image, expected):
+    import json
+
+    page = '<script type="application/ld+json">' + json.dumps({
+        "@type": "LocalBusiness", "image": structured_image,
+    }) + '</script><meta property="og:image" content="https://images.example.test/sharing.jpg">'
+    assert parse_venue_detail(page, url="https://urbansportsclub.com/en/venues/studio").image_url == expected
+
+
+# contract-test: supporting surface=cli assertions=app-skills.surface.semantic-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind,has_class_photo", [("classes", False), ("classes", True), ("locations", False)])
+async def test_search_preserves_og_only_venue_photo_without_additional_requests(monkeypatch, kind, has_class_photo):
+    client = UrbanSportsClient()
+    calls = []
+    listing = _fixture("activities.html" if kind == "classes" else "venues.html")
+    if has_class_photo:
+        listing = listing.replace('<button data-href="/en/class-details/appt-beat81"></button>',
+                                  '<img src="https://images.example.test/class.jpg">')
+    # Keep venue identity/coordinates but replace only its structured photo.
+    detail = _fixture("venue_detail_beat81.html").replace(
+        '"image": "https://images.example.test/beat81-detail.jpg",', '',
+    ).replace('</head>', '<meta content="https://images.example.test/venue-sharing.jpg" property="og:image"></head>')
+
+    async def fetch(url):
+        calls.append(url)
+        return listing if ("/activities?" in url or "/venues?" in url) else detail
+
+    monkeypatch.setattr(client, "_fetch_url", fetch)
+    if kind == "classes":
+        results = await client.search_classes(query="HIIT", start_date="2026-10-23")
+    else:
+        results = await client.search_locations(query="BEAT81")
+    assert results[0]["image_url"] == (
+        "https://images.example.test/class.jpg" if has_class_photo else "https://images.example.test/venue-sharing.jpg"
+    )
+    assert len(calls) == 2  # Existing list + venue detail; no photo-specific request.

@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EmbedNodeAttributes } from '../../../../../message_parsing/types';
 import GenericAppSkillEmbedPreview from '../../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+import TravelConnectionEmbedPreview from '../../../../embeds/travel/TravelConnectionEmbedPreview.svelte';
 import EventEmbedPreview from '../../../../embeds/events/EventEmbedPreview.svelte';
 import WebsiteEmbedPreview from "../../../../embeds/web/WebsiteEmbedPreview.svelte";
 import HomeSearchEmbedPreview from '../../../../embeds/home/HomeSearchEmbedPreview.svelte';
@@ -64,6 +65,31 @@ vi.mock('../../../../../services/embedFullscreenResolver', () => ({
 }));
 
 describe('GroupRenderer', () => {
+  // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity,travel-search.realtime.source-faithful
+  it('preserves connection route, fare and realtime data in actual assistant result cards', async () => {
+    const renderer = new GroupRenderer();
+    const container = document.createElement('div');
+    const content = document.createElement('div');
+    container.append(content);
+    document.body.append(container);
+    const connection = {
+      type: 'connection', app_id: 'travel', skill_id: 'search_connections',
+      total_price: '49', currency: 'EUR', fare_is_partial: true,
+      fare: { status: 'available', amount: '49', currency: 'EUR' },
+      legs: [{ origin: 'Berlin', destination: 'Hamburg', departure: '2026-12-15T08:00:00Z', arrival: '2026-12-15T10:00:00Z', arrival_delay_minutes: 12,
+        segments: [{ departure_latitude: 52.52, departure_longitude: 13.4, arrival_latitude: 53.55, arrival_longitude: 10.0 }] }],
+      optimization: { optimized_by: 'openmates', badge: 'Optimized by OpenMates' },
+    };
+    try {
+      await renderer.render({ attrs: { id: 'rail-child', type: 'travel-connection', contentRef: 'embed:rail-child', status: 'finished' },
+        container, content, embedData: { embed_id: 'rail-child', type: 'connection', status: 'finished' }, decodedContent: connection });
+      expect(svelteMountMocks.mount).toHaveBeenCalledWith(TravelConnectionEmbedPreview, expect.objectContaining({ props: expect.objectContaining({
+        id: 'rail-child', connection, fare: connection.fare, fareIsPartial: true, arrivalDelayMinutes: 12,
+        origin: 'Berlin', destination: 'Hamburg', optimization: connection.optimization,
+      }) }));
+    } finally { disposeEmbedTree(container); container.remove(); }
+  });
+
   // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
   it('normalizes flattened persisted event children before mounting their group/reference preview', async () => {
     const renderer = new GroupRenderer();

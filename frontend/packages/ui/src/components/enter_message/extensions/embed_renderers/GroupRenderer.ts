@@ -5544,6 +5544,12 @@ export class GroupRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: embedId,
+          connection: decodedContent ?? undefined,
+          fare: decodedContent?.fare,
+          fareIsPartial: decodedContent?.fare_is_partial,
+          arrivalDelayMinutes: decodedContent?.arrival_delay_minutes ?? lastLeg?.arrival_delay_minutes ?? lastSegment?.arrival_delay_minutes,
+          hasCancellation: decodedContent?.has_cancellation ?? legs.some((leg: Record<string, unknown>) => Array.isArray(leg.segments) && leg.segments.some((segment: Record<string, unknown>) => segment.cancelled === true)),
+          optimization: decodedContent?.optimization,
           price,
           currency,
           transportMethod,

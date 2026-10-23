@@ -11,6 +11,9 @@ const classResults = [
     provider: "Urban Sports Club",
     appointment_id: "appointment-1",
     name: "Morning Yoga Flow",
+    // Synthetic studio illustrations exercise real provider image fields locally.
+    class_image_url: "/preview-fixtures/fitness-yoga-studio.svg",
+    venue_image_url: "/preview-fixtures/fitness-hiit-studio.svg",
     category: "Yoga",
     attendance_mode: "onsite",
     date: "2026-07-10",
@@ -27,6 +30,8 @@ const classResults = [
     provider: "Urban Sports Club",
     appointment_id: "appointment-2",
     name: "HIIT Strength",
+    // A class without its own photo uses the organizing venue image.
+    venue_image_url: "/preview-fixtures/fitness-hiit-studio.svg",
     category: "HIIT",
     attendance_mode: "onsite",
     date: "2026-07-10",
@@ -79,6 +84,17 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  noImage: {
+    data: {
+      ...defaultProps.data,
+      decodedContent: {
+        ...decodedContent,
+        results: [{ ...decodedContent.results[0], results: classResults.map(result => ({
+          ...result, class_image_url: null, venue_image_url: null,
+        })) }],
+      },
+    },
+  },
   empty: {
     data: {
       decodedContent: {

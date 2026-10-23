@@ -382,9 +382,9 @@ Use `UnifiedEmbedPreview.svelte`.
 
 | Property | Rule |
 |---|---|
-| Desktop size | `300px` wide, at most `200px` high. Media/result and execution cards use the full height; plain content can shrink. |
-| Mobile size | `150px` wide, at most `290px` high, with the same natural-height rule. |
-| Large container | Full width, at most `400px` high via container query. Short Code/Sheets and their outer hosts shrink to actual content height. |
+| Desktop size | `300px` wide, at most `200px` high. Media/results and executions use the full height; plain assistant content can shrink. |
+| Mobile size | `150px` wide, at most `290px` high, with the same assistant-only natural-height rule. |
+| Large container | Full width, at most `400px` high via container query. Short assistant Code/Sheets and their outer hosts shrink; grids remain fixed. Execution previews always retain standard compact/mobile sizes. |
 | Surface | `--color-grey-25`. |
 | Radius | `30px`. |
 | Shadow | Floating two-layer shadow. |

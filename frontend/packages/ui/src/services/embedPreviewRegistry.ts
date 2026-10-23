@@ -810,6 +810,11 @@ const travelConnectionResolver: PreviewResolver = async ({
 }) => {
   const { default: component } =
     await import("../components/embeds/travel/TravelConnectionEmbedPreview.svelte");
+  const legs = Array.isArray(decodedContent.legs) ? decodedContent.legs as Record<string, unknown>[] : [];
+  const firstLeg = legs[0];
+  const lastLeg = legs.at(-1);
+  const firstSegment = (Array.isArray(firstLeg?.segments) ? firstLeg.segments[0] : undefined) as Record<string, unknown> | undefined;
+  const lastSegment = (Array.isArray(lastLeg?.segments) ? lastLeg.segments.at(-1) : undefined) as Record<string, unknown> | undefined;
   return {
     component,
     props: {
@@ -821,14 +826,14 @@ const travelConnectionResolver: PreviewResolver = async ({
       fareIsPartial: firstBoolean(decodedContent.fare_is_partial, decodedContent.fareIsPartial),
       transportMethod: firstText(decodedContent.transport_method, decodedContent.transportMethod, decodedContent.mode) || "airplane",
       tripType: firstText(decodedContent.trip_type, decodedContent.tripType) || "one_way",
-      origin: firstText(decodedContent.origin, decodedContent.origin_name, decodedContent.from),
-      destination: firstText(decodedContent.destination, decodedContent.destination_name, decodedContent.to),
-      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure),
-      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival),
-      duration: firstText(decodedContent.duration, decodedContent.duration_minutes),
+      origin: firstText(decodedContent.origin, decodedContent.origin_name, decodedContent.from, firstLeg?.origin),
+      destination: firstText(decodedContent.destination, decodedContent.destination_name, decodedContent.to, lastLeg?.destination),
+      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure, firstLeg?.departure, firstSegment?.departure_time),
+      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival, lastLeg?.arrival, lastSegment?.arrival_time),
+      duration: firstText(decodedContent.duration, decodedContent.duration_minutes, firstLeg?.duration),
       stops: firstNumber(decodedContent.stops, decodedContent.transfers, decodedContent.transfer_count),
-      arrivalDelayMinutes: firstNumber(decodedContent.arrival_delay_minutes, decodedContent.arrivalDelayMinutes),
-      hasCancellation: firstBoolean(decodedContent.has_cancellation, decodedContent.hasCancellation),
+      arrivalDelayMinutes: firstNumber(decodedContent.arrival_delay_minutes, decodedContent.arrivalDelayMinutes, lastLeg?.arrival_delay_minutes, lastSegment?.arrival_delay_minutes),
+      hasCancellation: firstBoolean(decodedContent.has_cancellation, decodedContent.hasCancellation) ?? legs.some(leg => Array.isArray(leg.segments) && leg.segments.some((segment: Record<string, unknown>) => segment.cancelled === true)),
       carriers: stringList(decodedContent.carriers ?? decodedContent.carrier),
       bookingProvider: firstText(decodedContent.booking_provider, decodedContent.provider, decodedContent.source_provider),
       airlineLogo: firstText(decodedContent.airline_logo, decodedContent.logo_url, decodedContent.provider_logo),

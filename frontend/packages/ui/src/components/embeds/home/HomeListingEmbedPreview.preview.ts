@@ -28,6 +28,8 @@ export default defaultProps;
 /** Named variants for different listing types */
 export const variants = {
   precise: {...defaultProps, location_precision: 'building', location_approximate: false, location_exact_address: true, location_area: undefined},
+  preciseNoImage: {...defaultProps, image_url: '', location_precision: 'building', location_approximate: false, location_exact_address: true, location_area: undefined},
+  photoWithoutGeometry: {...defaultProps, lat: undefined, lon: undefined, location_area: undefined},
   noLocation: {...defaultProps, city: undefined, image_url: '', lat: undefined, lon: undefined, location_area: undefined},
   cityOnly: {...defaultProps, city: 'Hamburg', address: 'Hamburg', title: 'Apartment in Hamburg', image_url: '', lat: undefined, lon: undefined, location_area: undefined},
   unknownCity: {...defaultProps, city: undefined, address: 'Undisclosed street 12', image_url: '', lat: undefined, lon: undefined, location_area: undefined},

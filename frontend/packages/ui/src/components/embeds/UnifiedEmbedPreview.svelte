@@ -47,7 +47,7 @@
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
-  import { EMBED_PREVIEW_PRESENTATION_CONTEXT, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
+  import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getStandalonePreviewPresentation, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
   import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
   import { findSavedEmbedMemoryReference } from '../../services/savedEmbedMemoryService';
   
@@ -172,8 +172,10 @@
   ));
 
   let shouldShowSkillIcon = $derived(showSkillIcon ?? !isDirectContentEmbed);
-  const previewPresentation = getContext<EmbedPreviewPresentationContext | undefined>(EMBED_PREVIEW_PRESENTATION_CONTEXT) ?? 'content';
-  let usesResultShell = $derived(resultPreview || (typeof previewPresentation === 'string' ? previewPresentation : previewPresentation.presentation) !== 'execution');
+  const previewPresentation = getContext<EmbedPreviewPresentationContext | undefined>(EMBED_PREVIEW_PRESENTATION_CONTEXT);
+  let usesResultShell = $derived(resultPreview || (previewPresentation === undefined
+    ? getStandalonePreviewPresentation(appId, skillId)
+    : typeof previewPresentation === 'string' ? previewPresentation : previewPresentation.presentation) !== 'execution');
 
   let savedEmbedMemory = $derived(findSavedEmbedMemoryReference($appSettingsMemoriesStore, id));
 
@@ -482,7 +484,11 @@
   // both set container-name: embed-preview and trigger the @container CSS query.
   let isLargeContext = $state(false);
   const isResultGrid = $derived(resultContext === 'results' || !!previewElement?.closest('[data-embed-result-context="results"]'));
-  let isChatResult = $derived(!isResultGrid && (previewTools || usesResultShell && (resultContext === 'chat' || (resultContext === 'auto' && !!previewElement?.closest('.read-only-message, .embed-preview-large-container, .large-container')))));
+  const isAssistantResult = $derived(usesResultShell && !isResultGrid && (resultContext === 'chat' ||
+    (resultContext === 'auto' && !!previewElement?.closest('[data-embed-result-context="chat"], .read-only-message, .embed-preview-large-container, .large-container'))));
+  let isChatResult = $derived(usesResultShell && !isResultGrid && (previewTools || isAssistantResult));
+  // Document/page and sheet surfaces retain their specialized spacing and fades.
+  const isPlainTextResult = $derived(usesResultShell && !resultPreview && !['docs', 'pdf', 'sheets'].includes(appId));
   $effect(() => {
     if (previewElement) {
       isLargeContext = !!(
@@ -926,7 +932,8 @@
   bind:this={previewElement}
   class="unified-embed-preview"
   class:result-preview={usesResultShell}
-  class:intrinsic-preview={usesResultShell && !resultPreview}
+  class:intrinsic-preview={isAssistantResult && !resultPreview}
+  class:plain-content-preview={isPlainTextResult}
   class:chat-result={isChatResult}
   class:saved-grid-result={!isChatResult && !!savedEmbedMemory}
   class:tools-preview={previewTools}
@@ -1261,7 +1268,9 @@
      =========================================== */
 
   @container embed-preview (min-width: 401px) {
-    .unified-embed-preview.desktop {
+    /* Exclude executions without increasing specificity above the intrinsic
+       assistant-result and shared clipping rules below. */
+    .unified-embed-preview.desktop:where(.result-preview) {
       --preview-max-height: 400px;
       width: 100% !important;
       min-width: unset !important;
@@ -1273,12 +1282,12 @@
       overflow: visible !important;
     }
 
-    .desktop-layout {
+    .result-preview .desktop-layout {
       overflow: visible !important;
     }
 
     /* BasicInfosBar stays at ~300px width, centered at the top of the card. */
-    .desktop-layout :global(.basic-infos-bar.desktop) {
+    .result-preview .desktop-layout :global(.basic-infos-bar.desktop) {
       width: 300px;
       max-width: 300px;
       min-width: unset;
@@ -1296,7 +1305,7 @@
        pages the appId may not resolve, so the fallback path renders directly
        and still needs correct expanded styling. */
 
-    .desktop-layout :global(.website-description) {
+    .result-preview .desktop-layout :global(.website-description) {
       max-width: 30% !important;
       width: 30% !important;
       flex: 0 1 30% !important;
@@ -1307,12 +1316,12 @@
       margin-left: 20px !important;
     }
 
-    .desktop-layout :global(.website-content-row) {
+    .result-preview .desktop-layout :global(.website-content-row) {
       align-items: stretch;
       height: 100%;
     }
 
-    .desktop-layout :global(.website-preview-image:not(.full-width)) {
+    .result-preview .desktop-layout :global(.website-preview-image:not(.full-width)) {
       flex: 1 1 0 !important;
       min-width: 0 !important;
       height: 100% !important;
@@ -1322,7 +1331,7 @@
       border-radius: 0 0 30px 0 !important;
     }
 
-    .desktop-layout :global(.website-preview-image:not(.full-width) img) {
+    .result-preview .desktop-layout :global(.website-preview-image:not(.full-width) img) {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -1341,6 +1350,9 @@
   .unified-embed-preview.intrinsic-preview { height: auto !important; min-height: 0 !important; max-height: var(--preview-max-height) !important; }
   .intrinsic-preview .content-result-layout { height: auto; max-height: var(--preview-max-height); }
   .intrinsic-preview .details-section { flex: 0 1 auto; }
+  .plain-content-preview .details-section { position: relative; box-sizing: border-box; padding: 0 20px 20px; }
+  .plain-content-preview .details-section::after { content: ''; position: absolute; z-index: 1; pointer-events: none; inset: auto 0 0; height: 24px; background: linear-gradient(transparent, var(--color-grey-0)); }
+  @container result-card (min-width: 401px) { .plain-content-preview .details-section::after { display: none; } }
   .result-tools { position: absolute; z-index: 3; top: var(--spacing-3); right: var(--spacing-3); display: flex; gap: var(--spacing-2); }
   .result-tools.flow-tools { position: static; flex-shrink: 0; }
   .specialized-header-actions { display: flex; align-items: center; gap: var(--spacing-2); flex-shrink: 0; }

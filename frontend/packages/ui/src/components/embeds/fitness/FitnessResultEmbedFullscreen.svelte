@@ -19,6 +19,7 @@
     asText,
     getFitnessResultAddress,
     getFitnessResultTitle,
+    getFitnessResultImageUrl,
     getFitnessResultUrl,
     normalizeFitnessSkillId,
     normalizePipedList,
@@ -55,7 +56,7 @@
   let plans = $derived(normalizePipedList(result.plans_required));
   let disciplines = $derived(normalizePipedList(result.disciplines));
   let detailUrl = $derived(getFitnessResultUrl(result));
-  let imageUrl = $derived(result.image_url ? proxyImage(asText(result.image_url), MAX_WIDTH_HEADER_IMAGE) : '');
+  let imageUrl = $derived(proxyImage(getFitnessResultImageUrl(result), MAX_WIDTH_HEADER_IMAGE));
   let mapCenter = $derived(lat !== undefined && lon !== undefined ? { lat, lon } : undefined);
   let markers = $derived(mapCenter ? [{ lat: mapCenter.lat, lon: mapCenter.lon, title }] : []);
   let subtitle = $derived.by(() => {

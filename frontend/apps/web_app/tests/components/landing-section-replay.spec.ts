@@ -136,7 +136,8 @@ for (const width of [390, 1440]) {
     await expect.poll(() => image.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
     await expect(event.getByTestId('embed-calendar-date')).toHaveAttribute('datetime', '2026-08-29T16:30:00.000Z');
     await expect(event.getByTestId('embed-calendar-date').locator('strong')).toHaveText('29');
-    await expect(event.getByTestId('event-preview-rsvps')).toContainText('460 RSVPs');
+    await expect(event.getByTestId('event-preview-rsvps')).toBeHidden();
+    await expect(event.getByTestId('event-preview-attribution')).toHaveCSS('font-size', '16px');
     await expect(event.locator('.result-corner')).toBeVisible();
     await expect(event.locator('.result-corner span')).toHaveCSS('mask-image', /^url\(/);
     await expect(event.getByTestId('result-card-title')).toHaveCSS('text-align', 'start');

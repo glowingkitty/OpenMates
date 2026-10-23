@@ -6,7 +6,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 const previews = [
   { app: 'shopping', name: 'ShoppingResultEmbed', title: 'Bio Vollmilch-Joghurt Naturell', image: '/store-examples/generate-1.webp' },
   { app: 'nutrition', name: 'NutritionRecipeEmbed', title: 'Spaghetti Aglio e Olio', image: '/store-examples/generate-1.webp' },
-  { app: 'fitness', name: 'FitnessResultEmbed', title: 'Morning Yoga Flow', image: '/store-examples/home-2.webp' },
+  { app: 'fitness', name: 'FitnessResultEmbed', title: 'Morning Yoga Flow', image: '/preview-fixtures/fitness-yoga-studio.svg' },
 ];
 async function open(page: Page, app: string, name: string, width: number, variant?: string) {
   await page.setViewportSize({ width, height: 900 });
@@ -231,3 +231,50 @@ test('missing result metadata stays absent and unavailable product state stays u
   await expect(page.locator('.fitness-detail-image')).toHaveCount(0);
   await expect(page.getByTestId('fitness-open-urban-sports')).toHaveCount(0);
 });
+
+for (const width of [390, 1100]) {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test(`fitness actual search grid preserves class and venue imagery through drilldown at ${width}px`, async ({ page }, testInfo) => {
+    await open(page, 'fitness', 'FitnessSearchEmbedFullscreen', width);
+    const cards = page.getByTestId('fitness-result-preview');
+    await expect(cards).toHaveCount(2);
+    const expectedImages = ['/preview-fixtures/fitness-yoga-studio.svg', '/preview-fixtures/fitness-hiit-studio.svg'];
+    for (const [index, source] of expectedImages.entries()) {
+      const image = cards.nth(index).getByTestId('result-card-media').locator('img');
+      await expect(image).toHaveAttribute('src', source);
+      await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    }
+    await checkpoint(page, testInfo, `fitness-search-images-${width}px`);
+    await page.getByTestId('embed-preview').first().click();
+    const detailImage = page.locator('.fitness-detail-image');
+    await expect(detailImage).toHaveAttribute('src', expectedImages[0]);
+    await expect.poll(() => detailImage.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    await checkpoint(page, testInfo, `fitness-class-image-detail-${width}px`);
+    await open(page, 'fitness', 'FitnessSearchEmbedFullscreen', width, 'noImage');
+    await expect(cards).toHaveCount(2);
+    await expect(cards.getByTestId('result-card-media')).toHaveCount(0);
+    await expect(cards.nth(0)).toContainText('Morning Yoga Flow');
+    await expect(cards.nth(1)).toContainText('HIIT Strength');
+  });
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test(`fitness persisted detail accepts class and venue image fields through the privacy proxy at ${width}px`, async ({ page }) => {
+    const providerPhoto = 'https://fitness-images.example.test/venue.jpg';
+    await page.route(url => url.pathname.endsWith('/api/v1/image') && url.searchParams.get('url') === providerPhoto,
+      route => route.fulfill({ path: 'static/preview-fixtures/fitness-hiit-studio.svg', contentType: 'image/svg+xml' }));
+    for (const [variant, expected] of [['classImage', '/preview-fixtures/fitness-yoga-studio.svg'], ['venueImage', '/preview-fixtures/fitness-hiit-studio.svg']]) {
+      await open(page, 'fitness', 'FitnessResultEmbedFullscreen', width, variant);
+      await expect(page.locator('.fitness-detail-image')).toHaveAttribute('src', expected);
+    }
+    const props = encodeURIComponent(JSON.stringify({ data: { decodedContent: {
+      name: 'Provider venue', skill_id: 'search_locations', venue_image_url: providerPhoto,
+    } } }));
+    await page.goto(`/dev/preview/embeds/fitness/FitnessResultEmbedFullscreen?chrome=0&width=${width}&props=${props}`);
+    await waitForComponentPreview(page);
+    const image = page.locator('.fitness-detail-image');
+    await expect(image).toHaveAttribute('src', /\/api\/v1\/image\?/);
+    const source = new URL((await image.getAttribute('src'))!);
+    expect(source.pathname).toBe('/api/v1/image');
+    expect(source.searchParams.get('url')).toBe(providerPhoto);
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  });
+}

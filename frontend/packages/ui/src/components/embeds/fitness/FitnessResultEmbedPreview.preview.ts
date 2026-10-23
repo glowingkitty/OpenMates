@@ -10,7 +10,7 @@ const defaultProps = {
   result: {
     id: "appointment-1",
     name: "Morning Yoga Flow",
-    image_url: "/store-examples/home-2.webp",
+    image_url: "/preview-fixtures/fitness-yoga-studio.svg",
     date: "2026-07-10",
     time_range: "07:30 - 08:30",
     venue_name: "Yoga Studio Kreuzberg",

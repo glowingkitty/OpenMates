@@ -696,3 +696,78 @@ event_at:
   sv: Plats
   he: מיקום
   verified_by_human: []
+
+luggage_not_included:
+  context: Accessible label and tooltip for travel connection journey details
+  en: "Luggage not included"
+  de: "Gepäck nicht inbegriffen"
+  zh: "不含行李"
+  es: "Equipaje no incluido"
+  fr: "Bagages non inclus"
+  pt: "Bagagem não incluída"
+  ru: "Багаж не включён"
+  ja: "手荷物は含まれていません"
+  ko: "수하물 미포함"
+  it: "Bagaglio non incluso"
+  tr: "Bagaj dahil değil"
+  vi: "Không bao gồm hành lý"
+  id: "Bagasi tidak termasuk"
+  pl: "Bagaż nie jest wliczony"
+  nl: "Bagage niet inbegrepen"
+  ar: "الأمتعة غير مشمولة"
+  hi: "सामान शामिल नहीं है"
+  th: "ไม่รวมสัมภาระ"
+  cs: "Zavazadla nejsou zahrnuta"
+  sv: "Bagage ingår inte"
+  he: "כבודה אינה כלולה"
+  verified_by_human: []
+
+daytime:
+  context: Accessible label and tooltip for travel connection journey details
+  en: "Daytime"
+  de: "Tagsüber"
+  zh: "白天"
+  es: "De día"
+  fr: "En journée"
+  pt: "Durante o dia"
+  ru: "Днём"
+  ja: "昼間"
+  ko: "낮"
+  it: "Di giorno"
+  tr: "Gündüz"
+  vi: "Ban ngày"
+  id: "Siang hari"
+  pl: "W dzień"
+  nl: "Overdag"
+  ar: "نهارًا"
+  hi: "दिन का समय"
+  th: "กลางวัน"
+  cs: "Ve dne"
+  sv: "Dagtid"
+  he: "בשעות היום"
+  verified_by_human: []
+
+nighttime:
+  context: Accessible label and tooltip for travel connection journey details
+  en: "Nighttime"
+  de: "Nachts"
+  zh: "夜间"
+  es: "De noche"
+  fr: "La nuit"
+  pt: "À noite"
+  ru: "Ночью"
+  ja: "夜間"
+  ko: "밤"
+  it: "Di notte"
+  tr: "Gece"
+  vi: "Ban đêm"
+  id: "Malam hari"
+  pl: "W nocy"
+  nl: "'s Nachts"
+  ar: "ليلًا"
+  hi: "रात का समय"
+  th: "กลางคืน"
+  cs: "V noci"
+  sv: "Nattetid"
+  he: "בשעות הלילה"
+  verified_by_human: []
