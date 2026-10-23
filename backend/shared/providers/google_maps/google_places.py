@@ -74,6 +74,7 @@ DEFAULT_FIELD_MASK = [
     # Opening hours (Enterprise tier)
     "places.currentOpeningHours",  # Current/today's hours
     "places.regularOpeningHours",  # Regular weekly schedule
+    "places.utcOffsetMinutes",  # Resolve today's calendar date in the place's timezone
     
     # Descriptions and summaries (Enterprise + Atmosphere tier)
     "places.editorialSummary",  # Description of the place

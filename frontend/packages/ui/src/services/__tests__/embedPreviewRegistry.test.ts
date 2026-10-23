@@ -33,6 +33,22 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=maps-search.gui.place-rendering,maps-search.output.source-and-identity
+  it.each([
+    [{ type: 'place_result', types: ['cafe', 'food', 'establishment'] }, 'Cafe'],
+    [{ type: 'place_result', types: 'coffee_shop|food|establishment' }, 'Coffee shop'],
+    [{ type: 'place_result', place_type: 'Ruins', types: ['establishment'] }, 'Ruins'],
+    [{ type: 'place_result', place_type: 'place_result', types: ['cafe'] }, 'Cafe'],
+    [{ type: 'place_result', types: ['point_of_interest', 'establishment'] }, undefined],
+  ])('uses place categories without exposing the embed discriminator: %j', async (content, label) => {
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId: 'place-label-regression', embedData: { type: 'maps-place', status: 'finished', app_id: 'maps', skill_id: 'search' },
+      decodedContent: { name: 'Evening Coffee', ...content }, onFullscreen: () => {},
+    });
+    expect(resolved?.props.__previewComponent).toBe(previews.place);
+    expect(resolved?.props.placeType).toBe(label);
+    expect(resolved?.props.displayName).toBe('Evening Coffee');
+  });
   // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
   it('keeps flat and nested one-way preview journeys consistent across flight and rail examples', () => {
     for (const fixture of [connectionFixture, connectionVariants.multiStop, connectionVariants.deutscheBahn,

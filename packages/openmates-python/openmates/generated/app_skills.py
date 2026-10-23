@@ -4594,7 +4594,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'ordering, put it in relevance_criteria even if related words could also be added '
                  'to query. Example: query "cafes in Berlin" with relevance_criteria "Places '
                  'suitable for working several hours on a laptop and taking a client call." Keep '
-                 'rating, open-now, price, and required a',
+                 'rating, open-now, closing time, price,',
   'description_key': 'maps.search.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -4892,6 +4892,61 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'false.',
                                                                               'type': 'boolean',
                                                                               'x-ui': {'basic': True}},
+                                                                  'openOn': {'description': 'Optional '
+                                                                                            'place-local '
+                                                                                            'YYYY-MM-DD '
+                                                                                            'date '
+                                                                                            'for '
+                                                                                            'openUntil. '
+                                                                                            'Requires '
+                                                                                            'openUntil; '
+                                                                                            'defaults '
+                                                                                            'to '
+                                                                                            'today '
+                                                                                            'at '
+                                                                                            'each '
+                                                                                            'place.',
+                                                                             'pattern': '^\\d{4}-\\d{2}-\\d{2}$',
+                                                                             'type': 'string'},
+                                                                  'openUntil': {'description': 'Hard '
+                                                                                               'closing-time '
+                                                                                               'filter: '
+                                                                                               'only '
+                                                                                               'places '
+                                                                                               'with '
+                                                                                               'confirmed '
+                                                                                               'hours '
+                                                                                               'through '
+                                                                                               'this '
+                                                                                               'place-local '
+                                                                                               'HH:MM '
+                                                                                               'time, '
+                                                                                               'inclusive. '
+                                                                                               'For '
+                                                                                               '"open '
+                                                                                               'until '
+                                                                                               'at '
+                                                                                               'least '
+                                                                                               '9pm", '
+                                                                                               'set '
+                                                                                               '"21:00". '
+                                                                                               'Uses '
+                                                                                               'today '
+                                                                                               'unless '
+                                                                                               'openOn '
+                                                                                               'is '
+                                                                                               'supplied. '
+                                                                                               'Unknown '
+                                                                                               'hours '
+                                                                                               'are '
+                                                                                               'excluded. '
+                                                                                               'Not '
+                                                                                               'supported '
+                                                                                               'with '
+                                                                                               'discovery '
+                                                                                               'categories.',
+                                                                                'pattern': '^(?:[01]\\d|2[0-3]):[0-5]\\d$',
+                                                                                'type': 'string'},
                                                                   'osmEnrichment': {'default': 'auto',
                                                                                     'description': 'Optional '
                                                                                                    'OSM/Geoapify '
@@ -9944,7 +9999,7 @@ class MapsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, price, and required a
+        """Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, closing time, price,
 
         Description key: maps.search.description
         Skill: maps/search

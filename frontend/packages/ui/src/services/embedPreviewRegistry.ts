@@ -766,6 +766,19 @@ resolvers.set("app:design:icon_result", designIconResultResolver);
 
 // ── Direct / child: maps place ───────────────────────────────────────────────
 
+function mapsPlaceCategory(content: Record<string, unknown>): string | undefined {
+  // `type` identifies the embed (e.g. place_result), never its business category.
+  const internalTypes = new Set(['place_result', 'place', 'maps-place', 'map-location', 'app:maps:place', 'app:maps:location']);
+  const genericTypes = new Set(['point_of_interest', 'establishment', 'food', 'store']);
+  const types = typeof content.types === 'string' ? content.types.split('|') : Array.isArray(content.types) ? content.types : [];
+  const candidates = [content.placeType, content.place_type, content.category, ...types];
+  const category = candidates.find((value): value is string => typeof value === 'string'
+    && Boolean(value.trim()) && !internalTypes.has(value.trim()) && !genericTypes.has(value.trim()));
+  if (!category) return undefined;
+  const label = category.trim().replace(/_/g, ' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 const mapsPlaceResolver: PreviewResolver = async ({
   embedId,
   decodedContent,
@@ -784,7 +797,7 @@ const mapsPlaceResolver: PreviewResolver = async ({
       formattedAddress: firstText(decodedContent.formattedAddress, decodedContent.formatted_address, decodedContent.address, location?.address, venue?.address),
       rating: firstNumber(decodedContent.rating, decodedContent.stars, decodedContent.review_score),
       userRatingCount: firstNumber(decodedContent.userRatingCount, decodedContent.user_rating_count, decodedContent.review_count, decodedContent.rating_count),
-      placeType: firstText(decodedContent.placeType, decodedContent.place_type, decodedContent.category, decodedContent.type),
+      placeType: mapsPlaceCategory(decodedContent),
       dataSource: firstText(decodedContent.data_source, decodedContent.dataSource),
       distanceMeters: firstNumber(decodedContent.distance_meters, decodedContent.distanceMeters),
       imageUrl: firstText(decodedContent.imageUrl, decodedContent.image_url, decodedContent.photo_url, decodedContent.thumbnail),

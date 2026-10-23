@@ -15,6 +15,9 @@ from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.maps.opening_hours import (
+    ClosingTimeConstraint, LOCAL_DATE_PATTERN, LOCAL_TIME_PATTERN, matches_closing_time,
+)
 from backend.apps.maps.skills.discovery import (
     CATEGORIES, DiscoveryArea, DiscoveryCategory, DiscoveryRequest,
     normalize_discovered_place, resolve_area,
@@ -87,6 +90,14 @@ class MapSearchRequestItem(BaseModel):
     openNow: Optional[bool] = Field(
         default=None,
         description="If true, only return places that are currently open.",
+    )
+    openUntil: Optional[str] = Field(
+        default=None, pattern=f"^{LOCAL_TIME_PATTERN}$",
+        description="Only return places with confirmed hours through this place-local HH:MM time (inclusive). Uses today unless openOn is supplied; unknown hours are excluded.",
+    )
+    openOn: Optional[str] = Field(
+        default=None, pattern=f"^{LOCAL_DATE_PATTERN}$",
+        description="Optional place-local YYYY-MM-DD date for openUntil. Requires openUntil; defaults to today at each place.",
     )
     includeReviews: Optional[bool] = Field(
         default=None,
@@ -606,7 +617,7 @@ class SearchSkill(BaseSkill):
         try:
             discovery = DiscoveryRequest.model_validate(req)
             unsupported = [key for key in ("includedType", "locationBias", "minRating", "priceLevels") if req.get(key) is not None]
-            unsupported += [key for key in ("openNow", "includeReviews") if req.get(key)]
+            unsupported += [key for key in ("openNow", "includeReviews", "openUntil", "openOn") if req.get(key)]
             if unsupported:
                 raise ValueError("Category discovery does not support: " + ", ".join(unsupported))
         except ValueError as exc:
@@ -710,11 +721,16 @@ class SearchSkill(BaseSkill):
             return await self._process_discovery_request(req, request_id, secrets_manager, cache_service)
         if req.get("area") is not None:
             return request_id, [], "area requires discovery categories", {"status": "invalid_request"}
+        try:
+            closing_time = ClosingTimeConstraint.from_request(req)
+        except ValueError as exc:
+            return request_id, [], str(exc), {"status": "invalid_request"}
         
         # Extract request-specific parameters (with defaults from schema)
         requested_page_size = max(1, min(20, int(req.get("pageSize") or 10)))
         relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         req_page_size = (
+            20 if closing_time else
             relevance_candidate_target(requested_page_size, profile="maps")
             if relevance_criteria
             else requested_page_size
@@ -765,7 +781,9 @@ class SearchSkill(BaseSkill):
                                 "locationBias": req_location_bias,
                                 "includedType": req_included_type,
                                 "minRating": req_min_rating,
-                                "openNow": req_open_now
+                                "openNow": req_open_now,
+                                "openUntil": req.get("openUntil"),
+                                "openOn": req.get("openOn"),
                             },
                             # Include chat context for followup message generation
                             "chat_id": self._current_chat_id,
@@ -806,6 +824,15 @@ class SearchSkill(BaseSkill):
             # Convert results to preview format
             # Google Places API data is trusted and does not require content sanitization
             places = search_result.get("results", [])
+            hours_warnings: List[str] = []
+            if closing_time:
+                checked = [(place, matches_closing_time(place, closing_time)) for place in places]
+                places = [place for place, matches in checked if matches is True]
+                unknown_count = sum(matches is None for _, matches in checked)
+                if unknown_count:
+                    hours_warnings.append(f"Excluded {unknown_count} places with unknown opening hours from the closing-time filter.")
+                if not places:
+                    hours_warnings.append("No places with confirmed opening hours met the requested closing time.")
             previews: List[Dict[str, Any]] = []
             
             for place in places:
@@ -862,6 +889,8 @@ class SearchSkill(BaseSkill):
                 secrets_manager=secrets_manager,
                 cache_service=cache_service,
             )
+            if hours_warnings:
+                metadata.setdefault("warnings", []).extend(hours_warnings)
 
             if relevance_criteria:
                 previews = stable_deduplicate_candidates(

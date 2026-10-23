@@ -5169,7 +5169,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "maps",
     "skill_method_py": "search",
     "description_key": "maps.search.description",
-    "description": "Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"cafes in Berlin\" with relevance_criteria \"Places suitable for working several hours on a laptop and taking a client call.\" Keep rating, open-now, price, and required a",
+    "description": "Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"cafes in Berlin\" with relevance_criteria \"Places suitable for working several hours on a laptop and taking a client call.\" Keep rating, open-now, closing time, price,",
     "schema": {
       "type": "object",
       "properties": {
@@ -5376,6 +5376,16 @@ export const APP_SKILL_METADATA = [
                 "type": "boolean",
                 "description": "If true, return only places that are currently open. Defaults to false.",
                 "default": false
+              },
+              "openUntil": {
+                "type": "string",
+                "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
+                "description": "Hard closing-time filter: only places with confirmed hours through this place-local HH:MM time, inclusive. For \"open until at least 9pm\", set \"21:00\". Uses today unless openOn is supplied. Unknown hours are excluded. Not supported with discovery categories."
+              },
+              "openOn": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Optional place-local YYYY-MM-DD date for openUntil. Requires openUntil; defaults to today at each place."
               },
               "includeReviews": {
                 "x-ui": {
@@ -9755,7 +9765,7 @@ export class MapsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, price, and required a
+   * Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, closing time, price,
    * Description key: maps.search.description
    * Skill: maps/search
    */
