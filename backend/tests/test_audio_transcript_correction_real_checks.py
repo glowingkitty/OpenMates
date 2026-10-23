@@ -33,3 +33,13 @@ def test_retracted_requests_or_missing_qualifications_fail(case_id, incorrect):
 def test_literal_landing_page_transcript_is_not_a_cleaned_result():
     sample = next(sample for sample in SAMPLES if sample["id"] == "en_landing_page_concise")
     assert "redundant_wording_not_condensed" in quality_failures(sample, sample["raw"])
+
+
+def test_landing_page_probe_accepts_equivalent_make_one_up_word_order():
+    sample = next(sample for sample in SAMPLES if sample["id"] == "en_landing_page_concise")
+    corrected = (
+        "Update the animated embed preview at the top of the landing page to the new layout. "
+        "Ideally, automatically sync its UI with the web app. Include an actual event image "
+        "from a real example chat, or make one up."
+    )
+    assert quality_failures(sample, corrected) == []

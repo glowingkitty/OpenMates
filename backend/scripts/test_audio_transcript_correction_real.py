@@ -81,7 +81,7 @@ SAMPLES: list[dict[str, Any]] = [
         "required": [r"\blanding page\b", r"\bembed preview\b", r"\banimat\w*\b",
                      r"\btop\b", r"\bnew layout\b", r"\bideally\b", r"\bautomatic\w*\b",
                      r"\bsync\w*\b", r"\bweb app\b", r"\bevent image\b",
-                     r"\breal\b", r"\bexample chat\b", r"\b(?:make up|made.up|invent\w*|fictional)\b"],
+                     r"\breal\b", r"\bexample chat\b", r"\b(?:make (?:one )?up|made.up|invent\w*|fictional)\b"],
         "forbidden": [r"\blong-term implementation\b", r"\byeah\b", r"\blike,"],
         "max_words": 90,
     },
@@ -94,7 +94,7 @@ SAMPLES: list[dict[str, Any]] = [
         ),
         "required": [r"\bthursday\b", r"\b(?:ten|10)\b", r"\bbob\b", r"\bonline\b",
                      r"\b(?:don['\u2019]t|do not|not|no)\b.*\bsend\w*\b.*\binvit\w*\b"],
-        "forbidden": [r"\btuesday\b", r"\b(?:nine|9)\b", r"\balice\b", r"\bactually\b", r"\bsorry\b"],
+        "forbidden": [r"\btuesday\b", r"\b(?:nine|9)\b", r"\balice\b", r"\bactually\b", r"\bsorry\b", r"\binstead\b"],
     },
     {
         "id": "en_final_action",
