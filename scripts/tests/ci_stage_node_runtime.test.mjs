@@ -13,6 +13,8 @@ function fixture() {
   const execPath = path.join(root, 'node', process.version.slice(1), process.arch, 'bin', 'node');
   fs.mkdirSync(path.dirname(execPath), { recursive: true });
   fs.writeFileSync(execPath, Buffer.from([0x7f, 0x45, 0x4c, 0x46, 1, 2, 3, 4]), { mode: 0o775 });
+  // Exercise the attested supplier exception independently of the test runner umask.
+  fs.chmodSync(execPath, 0o775);
   const procPath = path.join(root, 'proc-exe'); fs.symlinkSync(execPath, procPath);
   return { root, execPath, cache: root, procPath, version: process.version, arch: process.arch };
 }
