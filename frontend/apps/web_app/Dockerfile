@@ -68,7 +68,9 @@ RUN cp svelte.config.docker.js svelte.config.js
 
 # Build the webapp with the modified config
 # VITE_API_URL will be embedded into the JavaScript bundle during this step
-RUN pnpm build
+# serve compresses responses at runtime; avoid the static adapter's unbounded
+# parallel gzip/Brotli precompression after the memory-intensive Vite build.
+RUN OPENMATES_CI_PRECOMPRESS=0 pnpm build
 
 # Stage 2: Serve the built application with a simple HTTP server
 # Using serve package for lightweight static file serving
