@@ -14,6 +14,7 @@ import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
 import { userProfile } from '../stores/userProfile';
 import { authStore } from '../stores/authStore';
 import { activeTeamId } from '../stores/teamStore';
+import { buildReminderNotificationContext, captureReminderThumbnail, type ReminderNotificationContext } from '../utils/reminderNotificationContext';
 
 export type SavedEmbedKind =
   | 'event'
@@ -37,6 +38,9 @@ export interface SavedEmbedConfig {
   itemValue: Record<string, unknown>;
   reminderDateTime?: string | null;
   reminderPromptTitle?: string;
+  notificationContext?: ReminderNotificationContext;
+  sourceChatId?: string;
+  notificationThumbnailUrl?: string;
 }
 
 /** Existing saved-entry identity; forgetting needs no scheduling or save policy. */
@@ -138,6 +142,17 @@ export function buildSavedEmbedConfigFromDecodedContent({
   decodedContent,
 }: BuildSavedEmbedConfigOptions): SavedEmbedConfig | null {
   if (!embedId) return null;
+  // Keep email metadata separate from the encrypted saved-memory schema.
+  const contextKind = appId === 'events' ? 'event' : appId === 'health' ? 'appointment'
+    : appId === 'home' ? 'home_listing' : skillId === 'connection' ? 'travel_connection' : 'travel_stay';
+  const notificationFields = { ...decodedContent };
+  if (appId === 'events') notificationFields.location = parseEventVenue(decodedContent)
+    || (decodedContent.event_type === 'ONLINE' ? 'Online event' : '');
+  const emailMetadata = (title: string) => ({
+    notificationContext: buildReminderNotificationContext(contextKind, title, notificationFields, appId || undefined),
+    sourceChatId: asString(decodedContent.chat_id),
+    notificationThumbnailUrl: asString(decodedContent.image_url) || asString(decodedContent.cover_url) || asString(decodedContent.thumbnail_url),
+  });
 
   if (appId === 'events' && skillId === 'event') {
     const title = asString(decodedContent.title) || 'Event';
@@ -145,6 +160,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const eventType = asString(decodedContent.event_type);
     const venueAddress = parseEventVenue(decodedContent);
     return {
+      ...emailMetadata(title),
       kind: 'event',
       appId: 'events',
       itemType: 'saved_events',
@@ -176,6 +192,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
       asString(decodedContent.listing_type),
     ].filter(Boolean).join(' | ');
     return {
+      ...emailMetadata(title),
       kind: 'home_listing',
       appId: 'home',
       itemType: 'saved_listings',
@@ -205,6 +222,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const nearbyPlaces = Array.isArray(decodedContent.nearby_places) ? decodedContent.nearby_places : [];
     const amenities = Array.isArray(decodedContent.amenities) ? decodedContent.amenities : [];
     return {
+      ...emailMetadata(title),
       kind: 'travel_stay',
       appId: 'travel',
       itemType: 'saved_stays',
@@ -235,6 +253,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const lastLeg = legs.length > 0 ? legs[legs.length - 1] : {};
     const bookingUrl = asString(decodedContent.booking_url) || '';
     return {
+      ...emailMetadata(title),
       kind: 'travel_connection',
       appId: 'travel',
       itemType: 'saved_connections',
@@ -262,6 +281,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
     const title = asString(decodedContent.name) || asString(decodedContent.speciality) || 'Appointment';
     const bookingUrl = asString(decodedContent.booking_url) || asString(decodedContent.practice_url) || '';
     return {
+      ...emailMetadata(title),
       kind: 'health_appointment',
       appId: 'health',
       itemType: 'appointments',
@@ -366,6 +386,36 @@ export function isEmbedMemorySaved(config: SavedEmbedConfig): boolean {
   return !!findSavedEmbedMemoryEntry(get(appSettingsMemoriesStore), config);
 }
 
+async function enrichReminderContext(config: SavedEmbedConfig): Promise<SavedEmbedConfig> {
+  if (config.notificationContext) {
+    const image = await captureReminderThumbnail(config.notificationThumbnailUrl);
+    return { ...config, notificationContext: { ...config.notificationContext, ...(image ? { image_base64: image } : {}) } };
+  }
+  try {
+    // Fullscreen save configs predate email previews. Resolve their decrypted source
+    // once, without copying the source embed or using the currently active chat.
+    const [{ embedStore }, { decodeToonContent }] = await Promise.all([import('./embedStore'), import('./embedResolver')]);
+    const stored = await embedStore.get(`embed:${getSavedEmbedId(config)}`);
+    const embed = stored && typeof stored === 'object' ? stored : null;
+    const decoded = typeof embed?.content === 'string' ? await decodeToonContent(embed.content) : embed?.content;
+    if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+      const fields = decoded as Record<string, unknown>;
+      const location = config.kind === 'event' ? parseEventVenue(fields) : undefined;
+      const image = await captureReminderThumbnail(fields.image_url || fields.cover_url || fields.thumbnail_url);
+      return { ...config,
+        sourceChatId: asString(embed?.chat_id) || asString(fields.chat_id),
+        notificationContext: { ...buildReminderNotificationContext(config.kind, config.title,
+          { ...config.itemValue, ...fields, ...(location ? { location } : {}) }, config.appId),
+          ...(image ? { image_base64: image } : {}),
+        },
+      };
+    }
+  } catch {
+    // A saved item can still schedule when its local source is no longer available.
+  }
+  return { ...config, notificationContext: buildReminderNotificationContext(config.kind, config.title, config.itemValue, config.appId) };
+}
+
 async function scheduleReminder(config: SavedEmbedConfig, prompt: string, triggerDatetime: string): Promise<void> {
   const embedId = getSavedEmbedId(config);
   if (!embedId) {
@@ -385,6 +435,8 @@ async function scheduleReminder(config: SavedEmbedConfig, prompt: string, trigge
       target_embed_id: embedId,
       target_embed_app_id: config.appId,
       target_embed_title: config.title,
+      notification_context: config.notificationContext,
+      ...(config.sourceChatId ? { chat_id: config.sourceChatId } : {}),
       response_type: 'simple',
     }),
   });
@@ -403,6 +455,7 @@ async function scheduleReminder(config: SavedEmbedConfig, prompt: string, trigge
 async function scheduleDefaultReminders(config: SavedEmbedConfig): Promise<number> {
   if (!getSavedEmbedId(config)) return 0;
 
+  config = await enrichReminderContext(config);
   const triggerDateTimes = getTriggerDateTimes(config.reminderDateTime, config.kind);
   const reminderTitle = config.reminderPromptTitle || config.title;
   let scheduledCount = 0;

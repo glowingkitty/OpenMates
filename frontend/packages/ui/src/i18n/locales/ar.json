@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "مهمتك"
+      },
+      "header_chat": {
+        "text": "تذكير المحادثة"
+      },
+      "header_event": {
+        "text": "تذكير الفعالية"
+      },
+      "header_appointment": {
+        "text": "تذكير الموعد"
+      },
+      "open_event_button": {
+        "text": "فتح الفعالية"
+      },
+      "open_appointment_button": {
+        "text": "فتح الموعد"
+      },
+      "open_item_button": {
+        "text": "فتح العنصر"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "التوقعات لكل ساعة غير متاحة"
+    },
+    "event_organized_by": {
+      "text": "تنظيم"
+    },
+    "event_at": {
+      "text": "المكان"
     }
   },
   "rules": {},

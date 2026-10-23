@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "Nhiệm vụ của bạn"
+      },
+      "header_chat": {
+        "text": "Nhắc nhở trò chuyện của bạn"
+      },
+      "header_event": {
+        "text": "Nhắc nhở sự kiện của bạn"
+      },
+      "header_appointment": {
+        "text": "Nhắc nhở cuộc hẹn của bạn"
+      },
+      "open_event_button": {
+        "text": "Mở sự kiện"
+      },
+      "open_appointment_button": {
+        "text": "Mở cuộc hẹn"
+      },
+      "open_item_button": {
+        "text": "Mở mục"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "Chưa có dự báo theo giờ"
+    },
+    "event_organized_by": {
+      "text": "Đơn vị tổ chức"
+    },
+    "event_at": {
+      "text": "Tại"
     }
   },
   "rules": {},

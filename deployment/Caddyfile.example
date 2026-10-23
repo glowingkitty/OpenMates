@@ -172,7 +172,7 @@
 	}
 
 	# Recipient token URLs are bearer secrets and must not enter access logs.
-	@newsletter_token_url path /v1/newsletter/confirm/* /v1/newsletter/unsubscribe/*
+	@newsletter_token_url path /v1/newsletter/confirm/* /v1/newsletter/unsubscribe/* /v1/email/reminder-preview/*
 	log_skip @newsletter_token_url
 
 	# RFC 8058 mailbox-server requests carry only the recipient-held token.
@@ -184,6 +184,14 @@
 
 	# Route requests using explicit handlers
 	route {
+		# Email images prove possession of a bounded recipient capability in FastAPI.
+		@reminder_email_image {
+			path /v1/email/reminder-preview/*
+			method GET HEAD
+		}
+		handle @reminder_email_image {
+			reverse_proxy localhost:8000
+		}
 		handle @newsletter_one_click {
 			reverse_proxy localhost:8000 {
 				header_up Host {http.request.host}

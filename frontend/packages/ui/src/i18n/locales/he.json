@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "המשימה שלך"
+      },
+      "header_chat": {
+        "text": "תזכורת הצ׳אט שלך"
+      },
+      "header_event": {
+        "text": "תזכורת האירוע שלך"
+      },
+      "header_appointment": {
+        "text": "תזכורת הפגישה שלך"
+      },
+      "open_event_button": {
+        "text": "פתיחת האירוע"
+      },
+      "open_appointment_button": {
+        "text": "פתיחת הפגישה"
+      },
+      "open_item_button": {
+        "text": "פתיחת הפריט"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "תחזית לפי שעה אינה זמינה"
+    },
+    "event_organized_by": {
+      "text": "מאורגן על ידי"
+    },
+    "event_at": {
+      "text": "מיקום"
     }
   },
   "rules": {},

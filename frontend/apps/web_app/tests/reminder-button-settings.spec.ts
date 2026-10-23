@@ -89,7 +89,7 @@ function getOneMinuteFromNow(): { date: string; time: string } {
 // Test
 // ---------------------------------------------------------------------------
 
-// contract-test: infrastructure
+// contract-test: supporting surface=gui.web assertions=notifications.reminder-email.identifiable-default,notifications.reminder-email.durable-limited-context
 test('reminder — settings page: create reminder via top-bar button and verify it fires', async ({
 	page
 }: {
@@ -145,6 +145,8 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	const chatContext = page.getByTestId('chat-context');
 	await expect(chatContext).toBeVisible({ timeout: 5000 });
 	log('Chat context visible in reminder form.');
+	const displayedChatTitle = (await chatContext.textContent()).trim();
+	await expect(page.getByTestId('settings-info-box-info')).toContainText('Reminder emails include identifying details');
 
 	// ── Step 4: Select "Custom" to reveal the date/time pickers, then fill them ──
 	log('Selecting Custom preset to reveal date/time inputs...');
@@ -178,7 +180,14 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	const submitBtn2 = page.getByTestId('settings-button-primary');
 	await expect(submitBtn2).toBeVisible({ timeout: 5000 });
 	await expect(submitBtn2).toBeEnabled();
+	const reminderRequestPromise = page.waitForRequest((request: any) =>
+		request.url().includes('/v1/apps/reminder/skills/set-reminder') && request.method() === 'POST');
 	await submitBtn2.click();
+	const reminderRequest = (await reminderRequestPromise).postDataJSON();
+	expect(reminderRequest.notification_context).toMatchObject({ version: 1, kind: 'chat', title: displayedChatTitle });
+	expect(reminderRequest.notification_context).not.toHaveProperty('messages');
+	expect(reminderRequest.notification_context.icon).toBeTruthy();
+	expect(reminderRequest.notification_context.title.length).toBeLessThanOrEqual(200);
 	log('Form submitted.');
 	await page.waitForTimeout(2000);
 	await screenshot(page, 'form-submitted');

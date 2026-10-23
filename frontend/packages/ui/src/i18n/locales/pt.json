@@ -5750,6 +5750,24 @@
       },
       "task_label": {
         "text": "Sua tarefa"
+      },
+      "header_chat": {
+        "text": "Seu lembrete de chat"
+      },
+      "header_event": {
+        "text": "Seu lembrete de evento"
+      },
+      "header_appointment": {
+        "text": "Seu lembrete de compromisso"
+      },
+      "open_event_button": {
+        "text": "Abrir evento"
+      },
+      "open_appointment_button": {
+        "text": "Abrir compromisso"
+      },
+      "open_item_button": {
+        "text": "Abrir item"
       }
     },
     "test_failure_notification": {
@@ -14845,6 +14863,12 @@
     },
     "no_hourly_data": {
       "text": "Previsão por hora indisponível"
+    },
+    "event_organized_by": {
+      "text": "Organizado por"
+    },
+    "event_at": {
+      "text": "Local"
     }
   },
   "rules": {},

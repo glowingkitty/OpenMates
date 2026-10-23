@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "작업 내용"
+      },
+      "header_chat": {
+        "text": "채팅 알림"
+      },
+      "header_event": {
+        "text": "이벤트 알림"
+      },
+      "header_appointment": {
+        "text": "예약 알림"
+      },
+      "open_event_button": {
+        "text": "이벤트 열기"
+      },
+      "open_appointment_button": {
+        "text": "예약 열기"
+      },
+      "open_item_button": {
+        "text": "항목 열기"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "시간별 예보 없음"
+    },
+    "event_organized_by": {
+      "text": "주최"
+    },
+    "event_at": {
+      "text": "장소"
     }
   },
   "rules": {},

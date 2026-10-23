@@ -37,6 +37,16 @@ reminders:
     encrypted_new_chat_title:
       type: text
       note: "[Optional] Vault-encrypted chat title (for new_chat targets)"
+    encrypted_notification_context:
+      type: text
+      note: "[Optional] Vault-encrypted bounded reminder email facts and private preview bearer"
+    notification_preview_token_hash:
+      type: string
+      length: 64
+      note: "[Optional] SHA256 of the preview bearer; checked after primary-key lookup"
+    notification_preview_expires_at:
+      type: integer
+      note: "[Optional] Unix expiry of the private email preview capability"
 
     # --- Vault-encrypted reference fields ---
     encrypted_target_chat_id:

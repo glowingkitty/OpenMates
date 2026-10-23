@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "Váš úkol"
+      },
+      "header_chat": {
+        "text": "Vaše připomínka chatu"
+      },
+      "header_event": {
+        "text": "Vaše připomínka události"
+      },
+      "header_appointment": {
+        "text": "Vaše připomínka schůzky"
+      },
+      "open_event_button": {
+        "text": "Otevřít událost"
+      },
+      "open_appointment_button": {
+        "text": "Otevřít schůzku"
+      },
+      "open_item_button": {
+        "text": "Otevřít položku"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "Hodinová předpověď není k dispozici"
+    },
+    "event_organized_by": {
+      "text": "Pořadatel"
+    },
+    "event_at": {
+      "text": "Místo"
     }
   },
   "rules": {},

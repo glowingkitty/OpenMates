@@ -3889,6 +3889,9 @@
     "ideabucket_input_pill": {
       "text": "IdeaBucket for today"
     },
+    "link_unavailable": {
+      "text": "This chat link is unavailable. It may have been deleted or belong to another account."
+    },
     "request_feature": {
       "text": "Request feature"
     },
@@ -6854,6 +6857,24 @@
       },
       "task_label": {
         "text": "Your task"
+      },
+      "header_chat": {
+        "text": "Your chat reminder"
+      },
+      "header_event": {
+        "text": "Your event reminder"
+      },
+      "header_appointment": {
+        "text": "Your appointment reminder"
+      },
+      "open_event_button": {
+        "text": "Open event"
+      },
+      "open_appointment_button": {
+        "text": "Open appointment"
+      },
+      "open_item_button": {
+        "text": "Open item"
       }
     },
     "test_failure_notification": {
@@ -16725,6 +16746,9 @@
     }
   },
   "notifications": {
+    "occurrence_count": {
+      "text": "Triggered {count} times"
+    },
     "team_direct_chat": {
       "title": {
         "text": "Private Team message"
@@ -17637,6 +17661,9 @@
       },
       "repeat_heading": {
         "text": "Repeat?"
+      },
+      "email_context_disclosure": {
+        "text": "Reminder emails include identifying details such as the title, summary, description, dates, and location when available."
       }
     }
   },
@@ -17721,6 +17748,12 @@
     },
     "no_hourly_data": {
       "text": "Hourly forecast unavailable"
+    },
+    "event_organized_by": {
+      "text": "organized by"
+    },
+    "event_at": {
+      "text": "at"
     }
   },
   "rules": {

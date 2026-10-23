@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "あなたのタスク"
+      },
+      "header_chat": {
+        "text": "チャットのリマインダー"
+      },
+      "header_event": {
+        "text": "イベントのリマインダー"
+      },
+      "header_appointment": {
+        "text": "予定のリマインダー"
+      },
+      "open_event_button": {
+        "text": "イベントを開く"
+      },
+      "open_appointment_button": {
+        "text": "予定を開く"
+      },
+      "open_item_button": {
+        "text": "項目を開く"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "時間別予報はありません"
+    },
+    "event_organized_by": {
+      "text": "主催"
+    },
+    "event_at": {
+      "text": "場所"
     }
   },
   "rules": {},

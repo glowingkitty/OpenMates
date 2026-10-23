@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "Je taak"
+      },
+      "header_chat": {
+        "text": "Je chatherinnering"
+      },
+      "header_event": {
+        "text": "Je evenementherinnering"
+      },
+      "header_appointment": {
+        "text": "Je afspraakherinnering"
+      },
+      "open_event_button": {
+        "text": "Evenement openen"
+      },
+      "open_appointment_button": {
+        "text": "Afspraak openen"
+      },
+      "open_item_button": {
+        "text": "Item openen"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "Uurverwachting niet beschikbaar"
+    },
+    "event_organized_by": {
+      "text": "Georganiseerd door"
+    },
+    "event_at": {
+      "text": "Locatie"
     }
   },
   "rules": {},

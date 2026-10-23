@@ -5750,6 +5750,24 @@
       },
       "task_label": {
         "text": "Tu tarea"
+      },
+      "header_chat": {
+        "text": "Tu recordatorio del chat"
+      },
+      "header_event": {
+        "text": "Tu recordatorio del evento"
+      },
+      "header_appointment": {
+        "text": "Tu recordatorio de la cita"
+      },
+      "open_event_button": {
+        "text": "Abrir evento"
+      },
+      "open_appointment_button": {
+        "text": "Abrir cita"
+      },
+      "open_item_button": {
+        "text": "Abrir elemento"
       }
     },
     "test_failure_notification": {
@@ -14845,6 +14863,12 @@
     },
     "no_hourly_data": {
       "text": "Pronóstico por horas no disponible"
+    },
+    "event_organized_by": {
+      "text": "Organizado por"
+    },
+    "event_at": {
+      "text": "Lugar"
     }
   },
   "rules": {},

@@ -118,3 +118,32 @@ async def test_reminder_email_notification_respects_backup_reminder_preference(m
 
     assert sent is False
     send_task.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.reminder-email.identifiable-default,notifications.reminder-email.exact-web-target
+@pytest.mark.asyncio
+async def test_embed_email_keeps_source_target_description_and_respects_explicit_redaction(monkeypatch):
+    directus = _FreshNotificationDirectus()
+    send_task = MagicMock()
+    monkeypatch.setattr(reminder_tasks.app, "send_task", send_task)
+    context = {"version": 1, "kind": "event", "title": "Meetup", "description": "Bring questions."}
+    arguments = dict(user_id="user-12345678", reminder_prompt="Join the meetup", trigger_time="Friday",
+                     chat_id="source-chat", chat_title="Meetup", is_new_chat=False,
+                     directus_service=directus, encryption_service=_NotificationEncryption(),
+                     notification_context=context, target_embed_id="child-event", preview_url="https://example.test/private.png")
+    assert await reminder_tasks._send_reminder_email_notification(**arguments)
+    sent = send_task.call_args.kwargs["kwargs"]
+    assert sent["chat_id"] == "source-chat" and sent["target_embed_id"] == "child-event"
+    assert sent["notification_context"]["description"] == "Bring questions."
+    original = directus.get_user_fields_direct
+
+    async def opted_out(user_id, fields):
+        profile = await original(user_id, fields)
+        profile["email_notification_preference_choices"] = {"includeContent": {"source": "user", "value": False}}
+        return profile
+
+    directus.get_user_fields_direct = opted_out
+    assert await reminder_tasks._send_reminder_email_notification(**arguments)
+    sent = send_task.call_args.kwargs["kwargs"]
+    assert sent["notification_context"] is None and sent["chat_title"] is None
+    assert sent["preview_url"] is None and sent["reminder_prompt"] == ""

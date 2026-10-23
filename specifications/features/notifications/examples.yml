@@ -19,6 +19,66 @@ email_delivery:
     input: {email_enabled: false, server_ack_received: true, decrypted_email_available: true}
     expect: {email_delivery_dispatched: false, retained_history_item: true}
 
+reminder_email_identity:
+  - id: chat-title-and-note-with-default-email-settings
+    assertion_ids: [notifications.reminder-email.identifiable-default]
+    given: Alice enabled reminder emails and scheduled a reminder for her Plan the Berlin trip chat with the note Compare the train options. She has not chosen to hide email content.
+    when: The reminder fires while her browser is closed, using the inherited email settings.
+    then: The subject identifies Plan the Berlin trip and the body shows that title, her note, and Open chat. An older reminder without a captured title still shows its saved note. The scheduling flow explains that reminder details are emailed.
+  - id: event-facts-and-explicit-content-opt-out
+    assertion_ids: [notifications.reminder-email.identifiable-default]
+    given: Bob saved Berlin design meetup for 30 October 2026 at 18:30 Europe/Berlin at Factory Berlin and scheduled a reminder one week earlier.
+    when: The reminder fires with the default reminder content setting, or after Bob deliberately chose to hide email content.
+    then: By default the subject and body identify the meetup and show its available description, 30 October at 18:30 CET, Factory Berlin, and the note, with the reminder delivery time separately labeled. Bob's explicit hide-content choice instead keeps the subject and body generic while preserving the action.
+
+reminder_email_readability:
+  - id: event-email-with-images-blocked
+    assertion_ids: [notifications.reminder-email.readable-without-images]
+    given: Alice reads her event reminder in a narrow mobile inbox that blocks images and external styles.
+    when: She opens the email, including any optional preview image that cannot load.
+    then: The email uses the established newsletter layout, shared header and footer, and notification bell. Its rendered embed card has the event title as alt text and shares the Open event button's destination. The title, description, date, timezone, venue, note, and action remain readable email text without horizontal scrolling or dependence on the image.
+  - id: chat-reminder-in-plain-text-inbox
+    assertion_ids: [notifications.reminder-email.readable-without-images]
+    given: Bob's inbox displays only the plain-text alternative of his chat reminder.
+    when: He reads the message.
+    then: He can identify the saved chat title, reminder note, delivery time, and complete link to that chat without viewing the HTML version.
+
+reminder_email_durability:
+  - id: saved-event-reminder-after-server-cache-expiry
+    assertion_ids: [notifications.reminder-email.durable-limited-context]
+    given: Alice set an event reminder two months ago, its temporary embed cache has expired, and all of her clients are closed.
+    when: The scheduled reminder fires.
+    then: The email still identifies the saved event, time, timezone, venue, and note from its limited encrypted reminder context. The message describes saved details and does not claim the provider has reconfirmed the event.
+  - id: minimal-context-retains-encryption-boundary
+    assertion_ids: [notifications.reminder-email.durable-limited-context]
+    given: Bob sets a reminder on an appointment embed in a private chat containing other medical notes, then later deletes the reminder.
+    when: The reminder is stored, delivered if due, and deleted.
+    then: Only its selected identifying details are retained as encrypted reminder context, without the full embed or surrounding chat. Logs, public image URLs, and history summaries expose none of those details; deletion removes the retained reminder context.
+
+reminder_email_targets:
+  - id: chat-and-child-embed-survive-cold-start-login
+    assertion_ids: [notifications.reminder-email.exact-web-target]
+    given: Alice has a chat reminder and a separate reminder for one event inside a multi-result search; she opens each email in a browser with empty local storage and no active login.
+    when: She follows its action, signs in, and the application restores her encrypted data.
+    then: The chat email opens the referenced chat. The event email opens that exact event detail with its source chat context after sync, including on reload, without selecting another event or the last-opened chat.
+  - id: inaccessible-reminder-does-not-misdirect
+    assertion_ids: [notifications.reminder-email.exact-web-target]
+    given: Bob's reminder points to a deleted or inaccessible target, or the browser is signed into another account; public example and shared-chat links are also available.
+    when: He opens the reminder email action and then checks the existing guest links.
+    then: The reminder shows a visible target-unavailable state without private content or silent navigation to another chat. Public example and shared guest links retain their existing authorized behavior.
+
+reminder_email_preview_access:
+  - id: mail-client-fetches-only-recipient-card
+    assertion_ids: [notifications.reminder-email.preview-access]
+    given: Alice receives her reminder email and her mail client has no OpenMates login cookie or developer API key.
+    when: It loads the reminder card using that email's private image URL.
+    then: It receives only the bounded image for Alice's encrypted reminder, without a chat transcript or general embed access. The image URL exposes no title or description, image loading uses no inference, and logs do not retain its bearer token or private facts.
+  - id: reminder-image-capability-is-revocable-and-bounded
+    assertion_ids: [notifications.reminder-email.preview-access]
+    given: Bob has an old reminder email whose token was changed, whose reminder was cancelled or deleted, or whose image is more than 90 days past its last delivery.
+    when: The image is requested, including repeated or malicious image fetches.
+    then: Invalid and revoked requests return the same unavailable response without private data, and excessive requests are rate-limited. The existing email text and button still identify its purpose and destination, without rendering arbitrary HTML or fetching caller-supplied remote URLs.
+
 push_delivery:
   - id: web-push-chat-message
     notification_kind: chat_message_ready

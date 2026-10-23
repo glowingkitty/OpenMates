@@ -22,6 +22,7 @@
 		activeChatStore, // Import for deep linking
 		dispatchEmbedFullscreen,
 		setCanonicalFullscreenRoute, // Import for embed deep linking
+		embedFullscreenRouteStore,
 		getOpenMatesEventBySlug,
 		phasedSyncState, // Import phased sync state store
 		messageHighlightStore, // Import message highlight store for deep linking
@@ -47,6 +48,9 @@
 		mostUsedAppsStore, // Import most used apps store to fetch on app load
 		// deep link handler
 		processDeepLink,
+		parseDeepLink,
+		waitForDeepLinkedEmbed,
+		getSharedChatKey,
 		processSettingsDeepLink as processSettingsDeepLinkUnified,
 		installE2ETestHooks,
 		type DeepLinkHandlers
@@ -197,12 +201,27 @@
 	let anonymousHashRecoveryChatId = $state<string | null>(null);
 	let authenticatedHashRecoveryChatId = $state<string | null>(null);
 	let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
+	// Preserve the entire navigation intent: sync/reload must not discard the
+	// message, embed, scroll or Team context carried by reminder email links.
+	let originalChatDeepLinkHash = '';
 	let pendingTeamDeepLink: { chatId: string; teamId: string } | null = null;
 	let authorizedTeamDeepLink: string | null = null;
 	let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
 	let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
 	let pendingAuthenticatedDeepLinkCleanup: (() => void) | null = null;
 	let isReplayingPendingDeepLink = false;
+	let pendingDeepLinkLoginRequested = $state(false);
+	let pendingBootstrapEmbedLink = $state<{ embedId: string; chatId: string; hash: string } | null>(null);
+	let embedDeepLinkGeneration = 0;
+	let fullscreenRouteChatId: string | null = null;
+	onMount(() => {
+		let initialSnapshot = true;
+		return embedFullscreenRouteStore.subscribe((route) => {
+			// Existing module state can outlive this page's fullscreen host.
+			if (initialSnapshot) { initialSnapshot = false; return; }
+			fullscreenRouteChatId = route.activeEmbedId ? getHashParam(window.location.hash, 'chat-id') : null;
+		});
+	});
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
@@ -752,6 +771,32 @@
 		return Boolean(chatId && (isPublicChat(chatId) || isExampleChat(chatId)));
 	}
 
+	async function chatRequiresAuthentication(chatId: string): Promise<boolean> {
+		if (isStaticPublicChatTarget(chatId) || isAnonymousChatId(chatId) ||
+			getAllDraftChatIdsWithDrafts().includes(chatId)) return false;
+		if (sessionStorage.getItem('openmates_shared_chat_redirect') === chatId) return false;
+		// Never reopen IndexedDB while forced logout is deleting it.
+		if (get(forcedLogoutInProgress)) return true;
+		return !(await getSharedChatKey(chatId).catch(() => null));
+	}
+
+	async function replayChatDeepLink(chatId: string): Promise<void> {
+		const intent = parseDeepLink(originalChatDeepLinkHash);
+		if (intent?.type === 'chat' && intent.data.chatId === chatId) {
+			const { messageId, scrollToLatestResponse, embedId, autoplayVideo, teamId } = intent.data;
+			await handleChatDeepLink(chatId, messageId, scrollToLatestResponse, embedId, autoplayVideo, teamId);
+		} else {
+			await handleChatDeepLink(chatId);
+		}
+	}
+
+	function showChatLinkUnavailable(chatId: string): void {
+		if (!isCurrentChatNavigationTarget(chatId)) return;
+		// Keep the requested hash/priority so sync cannot fall back to another chat.
+		activeChatStore.setWithoutHashUpdate(null);
+		notificationStore.error($text('chat.link_unavailable'));
+	}
+
 	async function resolveBrowserChatTitle(chatId: string | null): Promise<string | null> {
 		if (!browser || !chatId || chatId === NEW_CHAT_SENTINEL) return null;
 
@@ -868,9 +913,7 @@
 			pendingTeamDeepLink = null;
 			console.warn('[+page.svelte] Team chat link could not be opened:', error);
 			notificationStore.error('Team chat could not be opened');
-			originalHashChatId = null;
 			activeChatStore.setWithoutHashUpdate(null);
-			replaceState(window.location.pathname + window.location.search, {});
 			return false;
 		}
 	}
@@ -905,6 +948,14 @@
 		if (browser && legalSlug) {
 			const language = new URLSearchParams(window.location.search).get('lang');
 			window.location.replace(getPublicLegalUrl(`/legal/${legalSlug}${language ? `?lang=${encodeURIComponent(language)}` : ''}`));
+			return;
+		}
+		// Sync and reload also call this handler directly. Apply the same private
+		// auth handoff as the unified router, without attempting a guest DB lookup.
+		if (!$authStore.isAuthenticated && (teamId || await chatRequiresAuthentication(chatId))) {
+			sessionStorage.setItem('pendingDeepLink', originalChatDeepLinkHash || window.location.hash);
+			activeChatStore.setWithoutHashUpdate(null);
+			pendingDeepLinkLoginRequested = true;
 			return;
 		}
 		if (teamId && !(await prepareTeamChatDeepLink(chatId, teamId))) return;
@@ -942,7 +993,11 @@
 		}
 
 		// Update the activeChatStore so the Chats component highlights it when opened
-		activeChatStore.setActiveChat(chatId);
+		if (getHashParam(window.location.hash, 'chat-id') === chatId) {
+			activeChatStore.setWithoutHashUpdate(chatId);
+		} else {
+			activeChatStore.setActiveChat(chatId);
+		}
 		// Publish a validated recent window before the public-chat module lookup and
 		// IndexedDB metadata await. The normal route still loads the canonical chat.
 		const pendingDraftChat = $authStore.isAuthenticated ? chatListCache.getPendingOrCachedChat(chatId) : null;
@@ -995,7 +1050,7 @@
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
-					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
+					await activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
 					lastLoadedChatId = chat.chat_id;
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -1058,7 +1113,7 @@
 						);
 						const anonymousShellChat = createAnonymousReloadChat(chatId);
 						if (activeChat) {
-							activeChat.loadChat(anonymousShellChat, { scrollToLatestResponse, messageId });
+							await activeChat.loadChat(anonymousShellChat, { scrollToLatestResponse, messageId });
 							lastLoadedChatId = anonymousShellChat.chat_id;
 
 							const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -1080,7 +1135,7 @@
 
 					if (activeChat) {
 						console.debug(`[+page.svelte] Found anonymous chat for non-auth deep link:`, chatId);
-						activeChat.loadChat(anonymousChat, { scrollToLatestResponse, messageId });
+						await activeChat.loadChat(anonymousChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = anonymousChat.chat_id;
 
 						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -1133,7 +1188,7 @@
 
 				const loadSessionStorageChat = async (retries = 20): Promise<void> => {
 					if (activeChat) {
-						activeChat.loadChat(virtualChat, { scrollToLatestResponse, messageId });
+						await activeChat.loadChat(virtualChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = virtualChat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -1177,6 +1232,7 @@
 			if (skipStaleChatNavigationTarget(chatId, 'deep-linked chat load')) return;
 
 			try {
+				if ($authStore.isAuthenticated) await cryptoReady;
 				const cachedDraftChat = $authStore.isAuthenticated
 					? chatListCache.getPendingOrCachedChat(chatId)
 					: null;
@@ -1185,7 +1241,7 @@
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'cached draft deep-link load')) return;
 						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
-						activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
+						await activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = cachedDraftChat.chat_id;
 
 						window.dispatchEvent(
@@ -1226,7 +1282,7 @@
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB chat load')) return;
 						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
-						activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
+						await activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = chat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -1279,6 +1335,7 @@
 						console.warn(
 							`[+page.svelte] Chat ${chatId} not found in IndexedDB after retries (authenticated user)`
 						);
+						showChatLinkUnavailable(chatId);
 					} else {
 						// For non-auth users, retry a few times before giving up
 						// CRITICAL: Shared chats are stored in IndexedDB by the share page, but there
@@ -1296,14 +1353,13 @@
 							console.warn(
 								`[+page.svelte] Chat ${chatId} not found in IndexedDB after retries (non-auth user)`
 							);
-							activeChatStore.clearActiveChat();
+							showChatLinkUnavailable(chatId);
 						}
 					}
 				}
 			} catch (error) {
 				console.error(`[+page.svelte] Error loading deep-linked chat:`, error);
-				// Clear URL on error - chat doesn't exist or can't be loaded
-				activeChatStore.clearActiveChat();
+				showChatLinkUnavailable(chatId);
 			}
 		};
 
@@ -1421,7 +1477,8 @@
 								console.debug(
 									`[+page.svelte] Auth deep-link fallback found no local chat for: ${chatId}`
 								);
-								clearDeepLinkWaiters();
+								// Keep listening: a slow initial sync can still deliver the target.
+								showChatLinkUnavailable(chatId);
 								return;
 							}
 
@@ -1479,6 +1536,7 @@
 		if (
 			!activeChatComponent ||
 			!$authStore.isAuthenticated ||
+			$forcedLogoutInProgress ||
 			!activeChatId ||
 			teamChatLinkNeedsValidation(activeChatId) ||
 			isStaticPublicChatTarget(activeChatId) ||
@@ -1493,6 +1551,8 @@
 		authenticatedHashRecoveryChatId = activeChatId;
 		void (async () => {
 			try {
+				await cryptoReady;
+				if (get(forcedLogoutInProgress) || !$authStore.isAuthenticated) return;
 				await chatDB.init();
 				const rawChat = await chatDB.getRawChat(activeChatId).catch(() => null);
 				let chat = mergeCachedDraftFields(rawChat, activeChatId);
@@ -1511,8 +1571,7 @@
 				// pending. Its live editor is already authoritative for this ID.
 				if (!chat || lastLoadedChatId === activeChatId || activeChatComponent.getCurrentChatId() === activeChatId) return;
 				console.debug(`[+page.svelte] Recovering authenticated active chat from hash/store: ${activeChatId}`);
-				activeChatComponent.loadChat(chat);
-				lastLoadedChatId = activeChatId;
+				await replayChatDeepLink(activeChatId);
 			} catch (error) {
 				console.warn(`[+page.svelte] Authenticated hash/store chat recovery failed for ${activeChatId}:`, error);
 			} finally {
@@ -1529,11 +1588,26 @@
 		console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
 		const sourceChatId = hasChatContext ? (owningChatId ?? $activeChatStore) : null;
 		const exampleChatId = sourceChatId && isExampleChat(sourceChatId) ? sourceChatId : null;
+		const generation = ++embedDeepLinkGeneration;
+		let expectedHash = window.location.hash;
+		const isCurrent = () => generation === embedDeepLinkGeneration && window.location.hash === expectedHash &&
+			(!sourceChatId || (isCurrentChatNavigationTarget(sourceChatId) && $activeChatStore === sourceChatId));
+		if (sourceChatId && !isStaticPublicChatTarget(sourceChatId)) {
+			// Startup calls this before it validates auth. Let onMount finish its
+			// existing auth barrier before starting owner-scoped ciphertext reads.
+			if (!authSessionValidated) {
+				pendingBootstrapEmbedLink = { embedId, chatId: sourceChatId, hash: expectedHash };
+				return;
+			}
+			await waitForDeepLinkedEmbed(embedId, sourceChatId, isCurrent);
+			if (!isCurrent()) return;
+		}
 
 		let targetEmbedId = embedId;
 		let focusChildEmbedId: string | undefined;
 		try {
 			const { resolveEmbedFullscreenTarget, resolveExampleFullscreenTarget } = await import('@repo/ui');
+			if (!isCurrent()) return;
 			const resolvedTarget = await resolveEmbedFullscreenTarget(embedId, {
 				exampleResolver: exampleChatId ? (id) => resolveExampleFullscreenTarget(id, exampleChatId) : undefined,
 				exampleOnly: !!exampleChatId,
@@ -1543,7 +1617,7 @@
 		} catch (error) {
 			console.debug('[+page.svelte] Fullscreen target resolution skipped:', error);
 		}
-		if (sourceChatId && $activeChatStore !== sourceChatId) return;
+		if (!isCurrent()) return;
 
 		// Mark that a deep link was processed
 		deepLinkProcessed = true;
@@ -1554,11 +1628,14 @@
 			chatId: sourceChatId,
 			origin: 'hash'
 		});
+		// Accept this request's own child-to-parent rewrite; later navigation
+		// still invalidates it before the delayed fullscreen dispatch.
+		expectedHash = window.location.hash;
 
 		// Wait a bit for ActiveChat component to be ready and register event listeners
 		// This ensures the embedfullscreen event listener is registered
 		await new Promise((resolve) => setTimeout(resolve, 300));
-		if (sourceChatId && $activeChatStore !== sourceChatId) return;
+		if (!isCurrent()) return;
 
 		const openMatesEvent = getOpenMatesEventBySlug(embedId);
 		if (openMatesEvent) {
@@ -1609,6 +1686,9 @@
 	 */
 	async function handleSyncCompleteAndLoadChat() {
 		console.debug('[+page.svelte] Sync event received, checking what chat to load...');
+		// Interactive login publishes optimistic auth before its final UI cleanup.
+		// The existing post-login event owns replay of its saved destination.
+		if (pendingDeepLinkLoginRequested) return;
 
 		// CRITICAL: Check if we can auto-navigate
 		// If user has made an explicit choice (clicked on a chat or new chat), don't override
@@ -1658,7 +1738,7 @@
 				'[+page.svelte] URL hash contains chat ID, loading hash chat (priority 1):',
 				hashChatIdToLoad
 			);
-			await handleChatDeepLink(hashChatIdToLoad);
+			await replayChatDeepLink(hashChatIdToLoad);
 			return; // Don't load last opened chat or default
 		}
 
@@ -1878,29 +1958,24 @@
 	async function handlePendingDeepLink(event: CustomEvent<{ hash: string }>) {
 		const hash = event.detail.hash;
 
-		const handlers: DeepLinkHandlers = {
-			onChat: handleChatDeepLink,
-			onSettings: (path: string, fullHash: string) => processSettingsDeepLink(fullHash),
-			onSignup: handleSignupDeepLink,
-			onEmbed: handleEmbedDeepLink,
-			onPair: (token: string) => {
-				// User just logged in — now open the confirm-pair settings page.
-				pendingPairToken.set(token);
-				panelState.openSettings();
-				settingsDeepLink.set('account/security/sessions/confirm-pair');
-			},
-			requiresAuthentication,
-			isAuthenticated: () => $authStore.isAuthenticated,
-			openSettings: () => panelState.openSettings(),
-			openLogin: () => loginInterfaceOpen.set(true),
-			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
-		};
+		if (!$authStore.isAuthenticated || get(forcedLogoutInProgress)) {
+			sessionStorage.setItem('pendingDeepLink', hash);
+			pendingDeepLinkLoginRequested = true;
+			return;
+		}
+		pendingDeepLinkLoginRequested = false;
+		// Logout and login UI transitions may have replaced the fragment.
+		// Restore the exact target before stale-navigation checks run.
+		if (parseDeepLink(hash)?.type === 'chat') {
+			replaceState(window.location.pathname + window.location.search + hash, {});
+		}
+		const handlers = createDeepLinkHandlers();
 
 		await processDeepLink(hash, handlers);
 	}
 
 	async function replayPendingDeepLinkIfAuthenticated() {
-		if (!browser || isReplayingPendingDeepLink || !$authStore.isAuthenticated) return;
+		if (!browser || !authSessionValidated || get(forcedLogoutInProgress) || isReplayingPendingDeepLink || !$authStore.isAuthenticated) return;
 		const pendingDeepLink = sessionStorage.getItem('pendingDeepLink');
 		if (!pendingDeepLink) return;
 
@@ -1918,8 +1993,20 @@
 	}
 
 	$effect(() => {
+		if (!authSessionValidated || $forcedLogoutInProgress) return;
 		if ($authStore.isAuthenticated) {
-			void replayPendingDeepLinkIfAuthenticated();
+			if (!pendingDeepLinkLoginRequested) void replayPendingDeepLinkIfAuthenticated();
+		} else if (pendingDeepLinkLoginRequested) {
+			loginInterfaceOpen.set(true);
+		}
+	});
+
+	$effect(() => {
+		if (!authSessionValidated || $forcedLogoutInProgress || !pendingBootstrapEmbedLink) return;
+		const pending = pendingBootstrapEmbedLink;
+		pendingBootstrapEmbedLink = null;
+		if (window.location.hash === pending.hash && isCurrentChatNavigationTarget(pending.chatId) && $activeChatStore === pending.chatId) {
+			void handleEmbedDeepLink(pending.embedId, true);
 		}
 	});
 
@@ -2150,6 +2237,7 @@
 		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it
 		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
 		const originalHash = browser ? window.location.hash : '';
+		originalChatDeepLinkHash = parseDeepLink(originalHash)?.type === 'chat' ? originalHash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 		const originalWorkspaceHashRoute = readWorkspaceHashRoute(originalHash);
 		const originalLegacyAppsHash = isLegacyAppsWorkspaceHash(originalHash);
@@ -2420,7 +2508,9 @@
 						console.debug(
 							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and returning to new chat`
 						);
-						// Clear the hash to prevent deep link handler from trying to load it
+						// Keep the full intent for authentication after server logout and DB cleanup.
+						sessionStorage.setItem('pendingDeepLink', originalHash);
+						pendingDeepLinkLoginRequested = true;
 						window.location.hash = '';
 						activeChatStore.clearActiveChat();
 					}
@@ -2473,12 +2563,13 @@
 					console.debug(
 						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, returning to new chat`
 					);
-					originalHashChatId = null;
+					sessionStorage.setItem('pendingDeepLink', originalHash);
+					pendingDeepLinkLoginRequested = true;
 					shouldSuppressForcedLogoutHash = true;
 					activeChatStore.clearActiveChat();
 				} else if (!teamChatLinkNeedsValidation(originalHashChatId)) {
 					// Set active chat store immediately to prevent race conditions
-					activeChatStore.setActiveChat(originalHashChatId);
+					activeChatStore.setWithoutHashUpdate(originalHashChatId);
 				}
 			} else {
 				originalHashChatId = null;
@@ -2974,7 +3065,7 @@
 					// Load the hash chat instead of last opened chat
 					isProcessingInitialHash = true;
 					if (!teamChatLinkNeedsValidation(originalHashChatId)) {
-						await handleChatDeepLink(originalHashChatId);
+						await replayChatDeepLink(originalHashChatId);
 					}
 					isProcessingInitialHash = false;
 				} else {
@@ -3310,6 +3401,7 @@
 			) => {
 				// Update originalHashChatId to reflect the new hash (important for sync completion handler)
 				originalHashChatId = chatId;
+				originalChatDeepLinkHash = window.location.hash;
 
 				// Mark as processing initial hash load (for hashchange handler)
 				isProcessingInitialHash = true;
@@ -3333,6 +3425,8 @@
 			},
 			onEmbed: handleEmbedDeepLink,
 			onNoHash: async () => {
+				// Auth cleanup can clear the URL before the saved target is replayed.
+				if (parseDeepLink(sessionStorage.getItem('pendingDeepLink') ?? '')?.type === 'chat') return;
 				// A delayed chat startup callback must not reset a workspace detail.
 				if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return;
 				// Handle the case where no hash is present - load appropriate default chat
@@ -3408,9 +3502,15 @@
 				settingsDeepLink.set('account/security/sessions/confirm-pair');
 			},
 			requiresAuthentication,
+			chatRequiresAuthentication,
 			isAuthenticated: () => $authStore.isAuthenticated,
 			openSettings: () => panelState.openSettings(),
-			openLogin: () => loginInterfaceOpen.set(true),
+			openLogin: () => {
+				if (parseDeepLink(sessionStorage.getItem('pendingDeepLink') ?? '')?.type === 'chat') {
+					activeChatStore.setWithoutHashUpdate(null);
+				}
+				pendingDeepLinkLoginRequested = true;
+			},
 			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
 		};
 	}
@@ -3437,9 +3537,19 @@
 			return;
 		}
 		const hashChatId = getHashParam(newHash, 'chat-id');
+		const hashEmbedId = getHashParam(newHash, 'embed-id') ?? getHashParam(newHash, 'embed_id');
+		const hashMessageId = getHashParam(newHash, 'message-id') ?? getHashParam(newHash, 'message_id') ?? getHashParam(newHash, 'messageid');
+		// Canonical fullscreen writes publish their target before the host resolves.
+		// A matching loaded chat alone cannot identify an echo: email/PWA activation
+		// can request a different (including missing) embed in that same chat.
+		const isEmbedRouteEcho = !!hashChatId && !!hashEmbedId &&
+			$activeChatStore === hashChatId && activeChat?.getCurrentChatId() === hashChatId &&
+			!teamChatLinkNeedsValidation(hashChatId) && fullscreenRouteChatId === hashChatId &&
+			get(embedFullscreenRouteStore).activeEmbedId === hashEmbedId &&
+			(!hashMessageId || get(messageHighlightStore) === hashMessageId);
 
 		if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
-			if (!hashChatId || lastLoadedChatId === hashChatId) {
+			if (!hashChatId || (lastLoadedChatId === hashChatId && (!hashEmbedId || isEmbedRouteEcho))) {
 				console.debug('[+page.svelte] Ignoring programmatic hash update');
 				return;
 			}
@@ -3450,26 +3560,11 @@
 			);
 		}
 
-		// CRITICAL: Ignore hash changes that are purely the embed opening on an already-active chat.
-		// When the user clicks an embed, handleEmbedFullscreen() calls
-		// setCanonicalFullscreenRoute(embedId, { chatId }), which writes
-		// #chat-id=X&embed-id=Y.  The isProgrammaticEmbedHashUpdate() guard above relies on a
-		// 100ms timestamp window; if the async resolveEmbed / decodeToonContent work in
-		// handleEmbedFullscreen takes longer than that, the guard expires BEFORE the route write
-		// is called, so the window is already open when the hashchange fires.
-		// In that case we fall through to processDeepLink → onChat → handleChatDeepLink, which
-		// calls loadChat() (closing the embed) and then handleEmbedDeepLink() (reopening it) —
-		// the visible open→close→open glitch.
-		// Fix: if the new hash encodes a chat that is already active AND includes an embed-id,
-		// this is purely the embed opening — not a real navigation.  Skip it entirely.
-		if (hashChatId && (getHashParam(newHash, 'embed-id') || getHashParam(newHash, 'embed_id'))) {
-			if ($activeChatStore === hashChatId) {
-				console.debug(
-					'[+page.svelte] Ignoring embed-open hash change for already-active chat:',
-					hashChatId
-				);
-				return;
-			}
+		// Suppress only an already-open/in-flight target, preserving its host instead
+		// of loading the chat and reopening the same fullscreen a second time.
+		if (isEmbedRouteEcho) {
+			console.debug('[+page.svelte] Ignoring current fullscreen route echo:', hashEmbedId);
+			return;
 		}
 
 		if (hashChatId && $activeChatStore !== hashChatId && !teamChatLinkNeedsValidation(hashChatId)) {
@@ -3477,6 +3572,10 @@
 		}
 
 		console.debug('[+page.svelte] Hash changed:', newHash);
+		if (parseDeepLink(newHash)?.type === 'chat') {
+			originalHashChatId = hashChatId;
+			originalChatDeepLinkHash = newHash;
+		}
 
 		const handlers = createDeepLinkHandlers();
 		await processDeepLink(newHash, handlers);

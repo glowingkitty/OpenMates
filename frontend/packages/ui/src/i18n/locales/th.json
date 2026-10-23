@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "งานของคุณ"
+      },
+      "header_chat": {
+        "text": "การเตือนแชทของคุณ"
+      },
+      "header_event": {
+        "text": "การเตือนกิจกรรมของคุณ"
+      },
+      "header_appointment": {
+        "text": "การเตือนนัดหมายของคุณ"
+      },
+      "open_event_button": {
+        "text": "เปิดกิจกรรม"
+      },
+      "open_appointment_button": {
+        "text": "เปิดนัดหมาย"
+      },
+      "open_item_button": {
+        "text": "เปิดรายการ"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "ไม่มีพยากรณ์รายชั่วโมง"
+    },
+    "event_organized_by": {
+      "text": "จัดโดย"
+    },
+    "event_at": {
+      "text": "สถานที่"
     }
   },
   "rules": {},

@@ -17,6 +17,7 @@ scope:
     - Retained notification history listing for REST, CLI, npm SDK, pip SDK, web, and Apple clients.
     - Delivery idempotency, preference gating, and privacy-safe notification payloads.
     - Active in-app web notification grouping, visible occurrence counts, and single dismissal.
+    - Identifiable reminder emails for chats and saved embeds, including their exact web destinations.
   excludes:
     - Marketing newsletters, broadcast campaigns, and product-update emails.
     - External provider inbox behavior after OpenMates dispatches an accepted email or push request.
@@ -114,6 +115,73 @@ assertions:
     type: behavior
     must: When an authenticated user's acknowledged settings enable email for an eligible notification kind and a decrypted notification address is available, a due notification event dispatches at most one email delivery request for that logical event, including when the web or native client is offline.
     depends_on: [models.NotificationSettings, models.NotificationEvent, examples.email_delivery]
+  - id: notifications.reminder-email.identifiable-default
+    type: behavior
+    must: >
+      Eligible reminder emails identify their target in the subject and body by default.
+      Chat reminders show the saved chat title and reminder note. Event and other embed
+      reminders show the saved item title, available description, note, and available relevant facts such as
+      start or end date, timezone, venue, travel route, or appointment provider. Event
+      time is clearly distinguished from reminder delivery time. Inherited generic
+      email-content defaults do not suppress these reminder details; an explicit user
+      choice to hide email content remains effective. Scheduling explains that these
+      limited reminder details will be emailed. Missing legacy details use the saved
+      reminder text and known facts without inventing a title, date, or location.
+    depends_on: [models.NotificationSettings, examples.reminder_email_identity]
+  - id: notifications.reminder-email.readable-without-images
+    type: behavior
+    must: >
+      Reminder identity, essential facts, note, and target-specific action remain readable
+      and usable as email text when images or external resources cannot load. The HTML
+      layout follows the existing newsletter design language, reuses the shared email
+      header and footer, fits narrow mobile inboxes, and maintains readable contrast; a plain-text
+      alternative carries the same essential facts and destination. An optional image
+      thumbnail is included inside the rendered workspace-style chat or embed preview
+      image when available. Eligible non-redacted reminders show that rendered card
+      and a notification bell, with the target title as image alt text. Image and
+      separate Open chat, Open event, Open appointment, or Open item action select
+      the same destination. The image supplements essential email text rather than
+      becoming the only way to understand or open the reminder.
+    depends_on: [examples.reminder_email_readability]
+  - id: notifications.reminder-email.durable-limited-context
+    type: privacy
+    must: >
+      A reminder retains only the limited user-authorized context needed to identify
+      its target and explain what is upcoming, encrypted at rest and removable with
+      the reminder. Authorized delivery remains useful while all clients are closed
+      and after temporary inference or embed caches expire. Reminder email preparation
+      neither grants general server access to client-encrypted chats or embeds nor
+      copies their full content into the reminder. Private context is absent from
+      logs, public image URLs, and notification history summaries. Saved details are
+      presented as saved details rather than a claim of live provider availability.
+    depends_on: [examples.reminder_email_durability]
+  - id: notifications.reminder-email.exact-web-target
+    type: behavior
+    must: >
+      Opening a reminder email action selects the referenced chat or exact saved
+      embed on the web, preserving the complete destination through required login,
+      missing local storage, application startup, and synchronization. An embed target
+      retains the source context needed for authorized loading and opens its own detail
+      view rather than a different result or only its search-results parent. Target
+      authorization is rechecked; deleted, inaccessible, or wrong-account targets show
+      a visible unavailable state rather than silently opening the app home or an
+      unrelated last-opened chat. Existing public and shared guest links remain usable.
+    depends_on: [models.NotificationHistoryItem.target_ref, examples.reminder_email_targets]
+  - id: notifications.reminder-email.preview-access
+    type: privacy
+    must: >
+      A mail client may fetch only the bounded reminder-card image using an
+      unguessable recipient-held capability scoped to one encrypted reminder.
+      This unauthenticated image GET grants no general chat, embed, or developer
+      API access. A wrong token, expired capability, cancelled reminder, or deleted
+      reminder returns the same unavailable result without private content. Images
+      expire at most 90 days after the latest reminder email delivery; email text
+      and target actions remain useful afterward. Fetching is rate-limited and
+      does not execute HTML, fetch arbitrary remote URLs, or incur inference charges.
+      Raw capabilities, titles and descriptions stay out of logs and public object
+      listings; retained context stays encrypted at rest and is deleted with the
+      reminder.
+    depends_on: [examples.reminder_email_preview_access]
   - id: notifications.delivery.foreground-chat-suppression
     type: behavior
     must: >
@@ -258,6 +326,11 @@ examples:
   required_groups:
   - settings_ack
   - email_delivery
+  - reminder_email_identity
+  - reminder_email_readability
+  - reminder_email_durability
+  - reminder_email_targets
+  - reminder_email_preview_access
   - push_delivery
   - notification_history
   - privacy_boundaries

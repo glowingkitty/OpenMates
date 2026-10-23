@@ -5750,6 +5750,24 @@
       },
       "task_label": {
         "text": "Votre tâche"
+      },
+      "header_chat": {
+        "text": "Votre rappel de discussion"
+      },
+      "header_event": {
+        "text": "Votre rappel d’événement"
+      },
+      "header_appointment": {
+        "text": "Votre rappel de rendez-vous"
+      },
+      "open_event_button": {
+        "text": "Ouvrir l’événement"
+      },
+      "open_appointment_button": {
+        "text": "Ouvrir le rendez-vous"
+      },
+      "open_item_button": {
+        "text": "Ouvrir l’élément"
       }
     },
     "test_failure_notification": {
@@ -14845,6 +14863,12 @@
     },
     "no_hourly_data": {
       "text": "Prévisions horaires indisponibles"
+    },
+    "event_organized_by": {
+      "text": "Organisé par"
+    },
+    "event_at": {
+      "text": "Lieu"
     }
   },
   "rules": {},

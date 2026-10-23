@@ -184,12 +184,17 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	await expect(settingsMenu.getByText(/read-only/i)).toBeVisible({ timeout: 10000 });
 
 	await settingsMenu.getByTestId('chat-settings-tab-tasks').click();
-	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-tasks')).toBeVisible({ timeout: 10000 });
-	await expect(settingsMenu.getByText(/No shared tasks are available|Tasks/i)).toBeVisible({ timeout: 10000 });
+	const tasksPanel = settingsMenu.getByTestId('chat-settings-tabpanel-tasks');
+	await expect(tasksPanel).toBeVisible({ timeout: 10000 });
+	await expect(tasksPanel.getByRole('heading', { name: 'Tasks', exact: true })).toBeVisible({ timeout: 10000 });
+	await expect(tasksPanel.getByText('No shared tasks are available for this chat.', { exact: true })).toBeVisible({ timeout: 10000 });
+	await expect(tasksPanel.getByTestId('chat-settings-task-create-form')).toHaveCount(0);
 
 	await settingsMenu.getByTestId('chat-settings-tab-plan').click();
-	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-plan')).toBeVisible({ timeout: 10000 });
-	await expect(settingsMenu.getByText(/No shared plan is available|Untitled plan/i)).toBeVisible({ timeout: 10000 });
+	const planPanel = settingsMenu.getByTestId('chat-settings-tabpanel-plan');
+	await expect(planPanel).toBeVisible({ timeout: 10000 });
+	await expect(planPanel.getByText('No shared plan is available for this chat.', { exact: true })).toBeVisible({ timeout: 10000 });
+	await expect(planPanel.getByTestId('chat-settings-plan-row')).toHaveCount(0);
 
 	await settingsMenu.getByTestId('chat-settings-tab-usage').click();
 	await expect(settingsMenu.getByTestId('chat-settings-tabpanel-usage')).toBeVisible({ timeout: 10000 });

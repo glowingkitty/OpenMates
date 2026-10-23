@@ -34,6 +34,7 @@ from importlib import import_module  # noqa: E402
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import account_exports, account_imports, auth, chats, direct_chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
+from backend.core.api.app.routes import reminder_email_preview  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
 from backend.core.api.app.routes import internal_health  # noqa: E402
@@ -1376,6 +1377,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - web app only
     app.include_router(anonymous.router, include_in_schema=False)  # Anonymous free usage routes - official cloud only
     app.include_router(email.router, include_in_schema=False)  # Email endpoints - web app only
+    app.include_router(reminder_email_preview.router, include_in_schema=False)  # Recipient-scoped private email image capability
     
     # Conditionally register payment-related routers (only if payment is enabled)
     # Note: We call is_payment_enabled() directly here because app.state.payment_enabled

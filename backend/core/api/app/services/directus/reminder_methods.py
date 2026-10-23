@@ -124,7 +124,7 @@ class ReminderMethods:
             items = await self.ds.get_items(COLLECTION, {
                 "filter[id][_eq]": reminder_id,
                 "limit": 1,
-            })
+            }, no_cache=True)
 
             if items and len(items) > 0:
                 return items[0]

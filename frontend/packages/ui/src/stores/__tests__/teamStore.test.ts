@@ -16,6 +16,7 @@ import {
 } from "../teamStore";
 import type { TeamViewModel } from "../../services/teamService";
 import { userProfile } from "../userProfile";
+import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from "../../services/workspaceCacheLifecycle";
 
 function team(teamId: string): TeamViewModel {
   return {
@@ -40,6 +41,57 @@ describe("teamStore", () => {
     window.localStorage.clear();
   });
 
+  // contract-test: supporting surface=gui.web assertions=notifications.reminder-email.exact-web-target,teams.context.full-switch-local
+  it("fences initial owner hydration without publishing a false Personal workspace switch", () => {
+    const listener = vi.fn();
+    const clearCache = vi.fn();
+    const unregister = registerWorkspaceCacheClear(clearCache);
+    const initialContextEpoch = get(activeTeamContext).epoch;
+    const initialCacheEpoch = getWorkspaceCacheEpoch();
+    window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    try {
+      userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+      expect(get(activeTeamContext)).toMatchObject({ teamId: null, team: null, epoch: initialContextEpoch + 1 });
+      expect(getWorkspaceCacheEpoch()).toBe(initialCacheEpoch + 1);
+      expect(clearCache).toHaveBeenCalledOnce();
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      unregister();
+      window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+  it.each(['account-b', null])("still clears the prior owner boundary when changing an initialized account to %s", (userId) => {
+    userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+    const listener = vi.fn();
+    const initialContextEpoch = get(activeTeamContext).epoch;
+    const initialCacheEpoch = getWorkspaceCacheEpoch();
+    window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    try {
+      userProfile.update(profile => ({ ...profile, user_id: userId }));
+      expect(get(activeTeamContext)).toMatchObject({ teamId: null, team: null, epoch: initialContextEpoch + 1 });
+      expect(getWorkspaceCacheEpoch()).toBe(initialCacheEpoch + 1);
+      expect(listener).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+  it("still publishes a real scope switch when initial owner hydration restores a saved Team", () => {
+    window.localStorage.setItem('openmates:active-team-id:v2:account-a', 'saved-team');
+    const listener = vi.fn();
+    window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    try {
+      userProfile.update(profile => ({ ...profile, user_id: 'account-a' }));
+      expect(get(activeTeamContext)).toMatchObject({ teamId: 'saved-team', team: null });
+      expect(listener).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
+    }
+  });
+
   // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
   it("publishes one atomic snapshot for each logical context switch", () => {
     const listener = vi.fn();
@@ -58,6 +110,11 @@ describe("teamStore", () => {
       teamId: "team-a",
       epoch: startingEpoch + 1,
     });
+
+    setActiveTeamContext(null);
+    expect(get(activeTeamContext)).toMatchObject({ teamId: null, team: null, epoch: startingEpoch + 2 });
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect((listener.mock.calls[1][0] as CustomEvent).detail).toMatchObject({ teamId: null, epoch: startingEpoch + 2 });
 
     window.removeEventListener(TEAM_CONTEXT_CHANGED_EVENT, listener);
   });

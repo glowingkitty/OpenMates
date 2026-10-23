@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "Tugas Anda"
+      },
+      "header_chat": {
+        "text": "Pengingat obrolan Anda"
+      },
+      "header_event": {
+        "text": "Pengingat acara Anda"
+      },
+      "header_appointment": {
+        "text": "Pengingat janji temu Anda"
+      },
+      "open_event_button": {
+        "text": "Buka acara"
+      },
+      "open_appointment_button": {
+        "text": "Buka janji temu"
+      },
+      "open_item_button": {
+        "text": "Buka item"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "Prakiraan per jam tidak tersedia"
+    },
+    "event_organized_by": {
+      "text": "Diselenggarakan oleh"
+    },
+    "event_at": {
+      "text": "Lokasi"
     }
   },
   "rules": {},

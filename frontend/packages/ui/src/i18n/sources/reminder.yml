@@ -1397,3 +1397,9 @@ settings.repeat_heading:
   sv: Upprepa?
   he: חזרה?
   verified_by_human: [en, de]
+
+settings.email_context_disclosure:
+  context: Disclosure before scheduling that identifying reminder details are included in email notifications
+  en: Reminder emails include identifying details such as the title, summary, description, dates, and location when available.
+  de: Erinnerungs-E-Mails enthalten zur Zuordnung Angaben wie Titel, Zusammenfassung, Beschreibung, Datum und Ort, sofern verfügbar.
+  verified_by_human: []

@@ -611,7 +611,7 @@ specifications:
     version: 2
     status: draft
     path: features/notifications
-    fingerprint: f48438de6d1c581fd1a6328b9d654976dee3f7d3bff9129172f110ebf74349da
+    fingerprint: 41ff6ab61162e2ca0029fd8602f2cee3358b23e883e4a0f2f1cc1c6f649c2a20
     required_applies_to:
     - rest_api
     - cli
@@ -7795,6 +7795,66 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  notifications.reminder-email.identifiable-default:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: 56793ab80aea0c267817effd95b30c2e4b54a34afe9979c09c67d83a9ab73c68
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.reminder-email.readable-without-images:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: d55eeba395631f6930e0bd1ffc5b00af5b19324ea6021ee58676865ba9b58790
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.reminder-email.durable-limited-context:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: privacy
+    fingerprint: 91b0b3bfc5aae6d82b18c4acbd18d9671843b7e8493ad4606cb9b42a27b83ca7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.reminder-email.exact-web-target:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: behavior
+    fingerprint: d0612a63cb2989a298f7d6596179dd291ee9cba2210d1f924ac943d630fda33c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  notifications.reminder-email.preview-access:
+    specification: feature.notifications@2
+    specification_id: feature.notifications
+    type: privacy
+    fingerprint: 904bc22595ac6298c4b185f8d624cabc55e493b35c62f6ede4d4b5371ad2ca33
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   notifications.delivery.foreground-chat-suppression:
     specification: feature.notifications@2
     specification_id: feature.notifications
@@ -7895,7 +7955,7 @@ assertions:
     specification: feature.notifications@2
     specification_id: feature.notifications
     type: parity
-    fingerprint: 8052334885895091c685c38030a9d3d5fa53c6a255f3e20f3a25555ec33920f6
+    fingerprint: 5edc6171ec5e1b37725d8d102c45d1960e2cab387322767d7a43f8419d8cd77e
     required_applies_to:
     - rest_api
     - cli

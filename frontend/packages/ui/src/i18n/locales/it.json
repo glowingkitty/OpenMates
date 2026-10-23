@@ -5750,6 +5750,24 @@
       },
       "task_label": {
         "text": "La tua attività"
+      },
+      "header_chat": {
+        "text": "Il tuo promemoria della chat"
+      },
+      "header_event": {
+        "text": "Il tuo promemoria dell’evento"
+      },
+      "header_appointment": {
+        "text": "Il tuo promemoria dell’appuntamento"
+      },
+      "open_event_button": {
+        "text": "Apri evento"
+      },
+      "open_appointment_button": {
+        "text": "Apri appuntamento"
+      },
+      "open_item_button": {
+        "text": "Apri elemento"
       }
     },
     "test_failure_notification": {
@@ -14845,6 +14863,12 @@
     },
     "no_hourly_data": {
       "text": "Previsioni orarie non disponibili"
+    },
+    "event_organized_by": {
+      "text": "Organizzato da"
+    },
+    "event_at": {
+      "text": "Luogo"
     }
   },
   "rules": {},

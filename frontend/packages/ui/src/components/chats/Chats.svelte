@@ -2100,9 +2100,12 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 					// navigated to "new chat" mode AFTER the globalChatSelected event was dispatched
 					// (async race). Writing the old chat ID back here would trigger hashchange →
 					// handleChatDeepLink → loadChat, auto-reopening the previous chat.
-					if (activeChatStore.get() !== null) {
+					const activeChatId = activeChatStore.get();
+					// This event mirrors an already committed selection. Rewriting
+					// the same chat would erase its pending embed/message deep link.
+					if (activeChatId !== null && activeChatId !== newChatId) {
 						activeChatStore.setActiveChat(newChatId);
-					} else {
+					} else if (activeChatId === null) {
 						console.debug(`[Chats] Skipping activeChatStore.setActiveChat — user is in new-chat mode (store is null)`);
 					}
 				}

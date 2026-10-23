@@ -3868,6 +3868,9 @@
     "ideabucket_input_pill": {
       "text": "IdeaBucket für heute"
     },
+    "link_unavailable": {
+      "text": "Dieser Chat-Link ist nicht verfügbar. Der Chat wurde möglicherweise gelöscht oder gehört zu einem anderen Konto."
+    },
     "request_feature": {
       "text": "Funktion anfragen"
     },
@@ -6809,6 +6812,24 @@
       },
       "task_label": {
         "text": "Deine Aufgabe"
+      },
+      "header_chat": {
+        "text": "Deine Chat-Erinnerung"
+      },
+      "header_event": {
+        "text": "Deine Veranstaltungserinnerung"
+      },
+      "header_appointment": {
+        "text": "Deine Terminerinnerung"
+      },
+      "open_event_button": {
+        "text": "Veranstaltung öffnen"
+      },
+      "open_appointment_button": {
+        "text": "Termin öffnen"
+      },
+      "open_item_button": {
+        "text": "Eintrag öffnen"
       }
     },
     "test_failure_notification": {
@@ -16650,6 +16671,9 @@
     }
   },
   "notifications": {
+    "occurrence_count": {
+      "text": "{count}-mal ausgelöst"
+    },
     "team_direct_chat": {
       "title": {
         "text": "Private Team-Nachricht"
@@ -17019,6 +17043,9 @@
       },
       "repeat_heading": {
         "text": "Wiederholen?"
+      },
+      "email_context_disclosure": {
+        "text": "Erinnerungs-E-Mails enthalten zur Zuordnung Angaben wie Titel, Zusammenfassung, Beschreibung, Datum und Ort, sofern verfügbar."
       }
     }
   },
@@ -17103,6 +17130,12 @@
     },
     "no_hourly_data": {
       "text": "Stündliche Vorhersage nicht verfügbar"
+    },
+    "event_organized_by": {
+      "text": "Organisiert von"
+    },
+    "event_at": {
+      "text": "Ort"
     }
   },
   "rules": {

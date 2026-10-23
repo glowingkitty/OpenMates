@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "आपका कार्य"
+      },
+      "header_chat": {
+        "text": "आपकी चैट का अनुस्मारक"
+      },
+      "header_event": {
+        "text": "आपके कार्यक्रम का अनुस्मारक"
+      },
+      "header_appointment": {
+        "text": "आपकी अपॉइंटमेंट का अनुस्मारक"
+      },
+      "open_event_button": {
+        "text": "कार्यक्रम खोलें"
+      },
+      "open_appointment_button": {
+        "text": "अपॉइंटमेंट खोलें"
+      },
+      "open_item_button": {
+        "text": "आइटम खोलें"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "प्रति घंटे का पूर्वानुमान उपलब्ध नहीं"
+    },
+    "event_organized_by": {
+      "text": "आयोजक"
+    },
+    "event_at": {
+      "text": "स्थान"
     }
   },
   "rules": {},

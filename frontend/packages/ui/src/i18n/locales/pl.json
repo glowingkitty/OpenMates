@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "Twoje zadanie"
+      },
+      "header_chat": {
+        "text": "Twoje przypomnienie o czacie"
+      },
+      "header_event": {
+        "text": "Twoje przypomnienie o wydarzeniu"
+      },
+      "header_appointment": {
+        "text": "Twoje przypomnienie o spotkaniu"
+      },
+      "open_event_button": {
+        "text": "Otwórz wydarzenie"
+      },
+      "open_appointment_button": {
+        "text": "Otwórz spotkanie"
+      },
+      "open_item_button": {
+        "text": "Otwórz element"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "Prognoza godzinowa niedostępna"
+    },
+    "event_organized_by": {
+      "text": "Organizator"
+    },
+    "event_at": {
+      "text": "Miejsce"
     }
   },
   "rules": {},

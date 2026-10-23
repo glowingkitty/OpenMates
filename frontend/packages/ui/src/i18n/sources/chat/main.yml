@@ -118,6 +118,12 @@ ideabucket_input_pill:
   sv: Dagens IdeaBucket
   he: IdeaBucket להיום
   verified_by_human: []
+link_unavailable:
+  context: Error after an authenticated private chat link cannot resolve its exact target; never opens an unrelated chat
+  en: This chat link is unavailable. It may have been deleted or belong to another account.
+  de: Dieser Chat-Link ist nicht verfügbar. Der Chat wurde möglicherweise gelöscht oder gehört zu einem anderen Konto.
+  verified_by_human: []
+
 request_feature:
   context: Text link shown at the end of chat history to open the feature request form
   en: Request feature

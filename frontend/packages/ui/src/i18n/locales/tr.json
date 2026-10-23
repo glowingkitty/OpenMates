@@ -5723,6 +5723,24 @@
       },
       "task_label": {
         "text": "Göreviniz"
+      },
+      "header_chat": {
+        "text": "Sohbet hatırlatıcınız"
+      },
+      "header_event": {
+        "text": "Etkinlik hatırlatıcınız"
+      },
+      "header_appointment": {
+        "text": "Randevu hatırlatıcınız"
+      },
+      "open_event_button": {
+        "text": "Etkinliği aç"
+      },
+      "open_appointment_button": {
+        "text": "Randevuyu aç"
+      },
+      "open_item_button": {
+        "text": "Öğeyi aç"
       }
     },
     "test_failure_notification": {
@@ -14818,6 +14836,12 @@
     },
     "no_hourly_data": {
       "text": "Saatlik tahmin mevcut değil"
+    },
+    "event_organized_by": {
+      "text": "Düzenleyen"
+    },
+    "event_at": {
+      "text": "Yer"
     }
   },
   "rules": {},
