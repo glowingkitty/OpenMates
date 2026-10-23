@@ -14,7 +14,7 @@
 <script lang="ts">
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, tick, getContext} from 'svelte';
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';

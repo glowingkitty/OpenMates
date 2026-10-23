@@ -64,10 +64,18 @@ export async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
+    __openmatesE2EEvictEmbedCache?: (embedIds: string[]) => Promise<void>;
+    __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[] }) => Promise<{ decryptedCount: number; encryptedCount: number }>;
     __openmatesE2ESeedFollowupImage?: () => Promise<{ chatId: string; embedId: string }>;
     __openmatesE2ESeedSavedEmbedMemory?: (input: {
       embedId: string;
       title: string;
+      provider?: string;
+      url?: string;
+      date_start?: string;
+      date_end?: string;
+      location?: string;
+      notes?: string;
     }) => Promise<{ entryId: string }>;
     __openmatesE2ESetDraftPreview?: (chatId: string, preview: string, markdown?: string) => Promise<void>;
     __openmatesE2EChatConnectionState?: () => Promise<{
@@ -197,6 +205,54 @@ export async function installE2ETestHooks() {
     return { chatId, embedId };
   };
 
+  // Prepare actual owned ciphertext before a test creates its cache-only search index.
+  testWindow.__openmatesE2EPrepareEmbedCache = async ({ chatId, embedIds }) => {
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      throw new Error('Cache preparation requires the isolated localhost fixture');
+    }
+    const { waitForAuthBootstrapReadiness } = await import('../stores/authBootstrapReadiness');
+    // Cached messages can render under optimistic auth. Wait before capturing
+    // the authoritative auth object that the real Personal read will guard.
+    await waitForAuthBootstrapReadiness(AbortSignal.timeout(30_000));
+    const { authStore } = await import('../stores/authState');
+    const { userProfile } = await import('../stores/userProfile');
+    const { activeChatStore } = await import('../stores/activeChatStore');
+    if (!get(authStore).isAuthenticated || !get(userProfile).user_id || activeChatStore.get() !== chatId) {
+      throw new Error('Cache preparation requires the settled test owner and selected source chat');
+    }
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuid.test(chatId) || !embedIds.length || embedIds.length > 2 || embedIds.some(id => !uuid.test(id))) {
+      throw new Error('Cache preparation requires a source chat UUID and at most two fixture UUIDs');
+    }
+    const { resolveEmbedForOpen } = await import('./embedResolver');
+    const { embedStore } = await import('./embedStore');
+    for (const id of embedIds) {
+      const resolved = await resolveEmbedForOpen(id, { chatId });
+      const local = await embedStore.get(`embed:${id}`);
+      const persisted = await embedStore.getPersistencePayload(id);
+      if (!resolved?.content || !local || typeof local === 'string' || local._decryptionPending || local._decryptionFailed
+        || !persisted?.encrypted_content) {
+        throw new Error('Owned fixture embed must be decrypted and durably encrypted before indexing');
+      }
+    }
+    return { decryptedCount: embedIds.length, encryptedCount: embedIds.length };
+  };
+
+  // Remove only local fixture rows and keys; preserve search entries and all server data.
+  testWindow.__openmatesE2EEvictEmbedCache = async (embedIds) => {
+    if (!['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+      throw new Error('Cache eviction requires the isolated localhost fixture');
+    }
+    const { authStore } = await import('../stores/authState');
+    if (!get(authStore).isAuthenticated) throw new Error('Cache eviction requires the authenticated test owner');
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!embedIds.length || embedIds.length > 2 || embedIds.some(id => !uuid.test(id))) {
+      throw new Error('Cache eviction requires at most two fixture UUIDs');
+    }
+    const { embedStore } = await import('./embedStore');
+    for (const id of embedIds) await embedStore.deleteEmbed(id);
+  };
+
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
     const chatId = String(chat.chat_id || '');
     if (!chatId.startsWith('e2e-') && !['11111111-1111-4111-8111-11111111e2e1', '11111111-1111-4111-8111-11111111e2e2'].includes(chatId)) {
@@ -217,12 +273,12 @@ export async function installE2ETestHooks() {
     return { chatId, messageCount: messages.length };
   };
 
-  testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title }) => {
+  testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title, ...eventFields }) => {
     if (!embedId.startsWith('e2e-')) throw new Error('E2E embed IDs must start with e2e-');
     const { encryptWithMasterKey } = await import('./cryptoService');
     const { appSettingsMemoriesStore } = await import('../stores/appSettingsMemoriesStore');
     const encrypted = await encryptWithMasterKey(JSON.stringify({
-      embed_id: embedId, title, settings_group: 'saved_events', _original_item_key: title,
+      ...eventFields, embed_id: embedId, title, settings_group: 'saved_events', _original_item_key: title,
     }));
     if (!encrypted) throw new Error('Could not encrypt E2E saved memory fixture');
     const entryId = crypto.randomUUID();

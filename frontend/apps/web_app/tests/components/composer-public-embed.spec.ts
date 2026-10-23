@@ -8,6 +8,10 @@ test.setTimeout(120_000);
 for (const fixture of [
   { embedId: '7512b6cf-f568-4197-a008-1f0aea7431b6', chatId: 'example-ai-workshops-meetups-berlin', title: 'OpenClaw Anonymous Berlin #9', type: 'event' },
   { embedId: '0dd5bef4-2dd6-4374-96ed-e8130bc7270d', chatId: 'example-habit-garden-web-application', title: 'main.js', type: 'code' },
+  { embedId: 'e2e-legacy-saved-event', chatId: null, title: 'Freelance Barcamp Berlin', type: 'events-event',
+    decodedContent: { title: 'Freelance Barcamp Berlin', app_id: 'events', skill_id: 'event',
+      date_start: '2026-11-14T09:00:00+01:00', venue_address: 'Fixture coworking Berlin',
+      url: 'https://example.com/barcamp', description: 'My saved event notes' } },
 ]) {
   // contract-test: direct surface=gui.web assertions=message-input.suggestions.contextual,public-example-chats.transcript.safe-rendering
   test(`opens public ${fixture.type} content without replacing the draft`, async ({ page }) => {
@@ -27,22 +31,26 @@ for (const fixture of [
     await expect(editor).toHaveText('Keep my draft while I inspect this public result');
     const currentChatId = await chat.getAttribute('data-current-chat-id');
 
-    await page.evaluate(({ embedId, chatId, type }) => {
+    await page.evaluate(({ embedId, chatId, type, decodedContent }) => {
       document.dispatchEvent(new CustomEvent('embedfullscreen', { detail: {
-        embedId, embedType: type, exampleChatId: chatId,
+        embedId, embedType: type, exampleChatId: chatId, decodedContent,
         hasChatContext: false, sourceChatId: null,
       } }));
-    }, fixture);
+    }, { ...fixture, decodedContent: 'decodedContent' in fixture ? fixture.decodedContent : undefined });
     const fullscreen = page.getByTestId('embed-fullscreen-container');
     await expect(fullscreen).toBeVisible({ timeout: 30000 });
     await expect(fullscreen).toContainText(fixture.title, { timeout: 30000 });
     if (fixture.type === 'code') await expect(fullscreen.getByTestId('code-fullscreen-code')).toContainText("import { mount } from 'svelte';");
-    await expect(chat).not.toHaveAttribute('data-current-chat-id', fixture.chatId);
+    if (fixture.type === 'events-event') {
+      await expect(fullscreen.getByTestId('event-venue-card')).toContainText('Fixture coworking Berlin');
+      await expect(fullscreen.getByTestId('event-description')).toContainText('My saved event notes');
+    }
+    if (fixture.chatId) await expect(chat).not.toHaveAttribute('data-current-chat-id', fixture.chatId);
     if (currentChatId) await expect(chat).toHaveAttribute('data-current-chat-id', currentChatId);
     await fullscreen.getByTestId('embed-minimize').click();
     await expect(fullscreen).toHaveCount(0);
     await expect(editor).toHaveText('Keep my draft while I inspect this public result');
-    await expect(chat).not.toHaveAttribute('data-current-chat-id', fixture.chatId);
+    if (fixture.chatId) await expect(chat).not.toHaveAttribute('data-current-chat-id', fixture.chatId);
     if (currentChatId) await expect(chat).toHaveAttribute('data-current-chat-id', currentChatId);
   });
 }

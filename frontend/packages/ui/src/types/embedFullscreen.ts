@@ -44,6 +44,8 @@ export const EMBED_CHAT_CONTEXT = Symbol('embed-chat-context');
 export const EMBED_SOURCE_CHAT_CONTEXT = Symbol('embed-source-chat-context');
 export interface EmbedSourceChatContext {
 	readonly chatId: string | null;
+	/** Read-only owner of a cross-chat search result; never a follow-up destination. */
+	readonly lookupChatId?: string | null;
 	/** Read-only public lookup scope; never a follow-up destination. */
 	readonly exampleChatId?: string | null;
 }

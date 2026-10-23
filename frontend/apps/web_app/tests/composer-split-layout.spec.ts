@@ -3,7 +3,7 @@ import { expect, test } from './helpers/cookie-audit';
 import { createSignupLogger, getE2EDebugUrl } from './signup-flow-helpers';
 import { loginToTestAccount } from './helpers/chat-test-helpers';
 import { waitForComponentMotion } from './helpers/component-preview';
-import { dismissComposerFocus } from './helpers/composer-focus';
+import { dismissComposerFocus, focusComposer } from './helpers/composer-focus';
 
 const CHAT_ID = 'example-ai-workshops-meetups-berlin';
 const EMBED_ID = '7512b6cf-f568-4197-a008-1f0aea7431b6';
@@ -66,6 +66,20 @@ test('keeps the composer and search cards contained beside an open embed', async
   })).toBe(true);
   await expect(chat).toHaveAttribute('data-current-chat-id', CHAT_ID);
 
+  // A result must replace the visible viewer even while composing beside it.
+  const nextTitle = 'Spec-Driven Development in Practice';
+  await editor.fill(nextTitle);
+  const nextCard = suggestions.getByTestId('recent-embed-search-result').filter({ hasText: nextTitle }).first();
+  await expect(nextCard).toBeVisible({ timeout: 30000 });
+  await nextCard.click();
+  await expect(fullscreen).toContainText(nextTitle, { timeout: 30000 });
+  await expect(editor).toHaveText(nextTitle);
+  await expect(chat).toHaveAttribute('data-current-chat-id', CHAT_ID);
+  await fullscreen.getByTestId('embed-minimize').click();
+  await expect(fullscreen).toHaveCount(0);
+  await expect(editor).toHaveText(nextTitle);
+
+  await focusComposer(page);
   await editor.fill('');
   await dismissComposerFocus(page);
   await expect(field).toHaveAttribute('data-focused', 'false');

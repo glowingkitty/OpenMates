@@ -32,7 +32,7 @@ vi.mock("../../demo_chats/exampleChatStore", () => ({
 import { authStore } from "../../stores/authState";
 import { userProfile } from "../../stores/userProfile";
 import { activeTeamId } from "../../stores/teamStore";
-import { requestEmbedFromServerOnce, resolveEmbed, isEmbedKnownError, markEmbedAsError, clearEmbedError } from "../embedResolver";
+import { requestEmbedFromServerOnce, resolveEmbed, resolveEmbedForOpen, isEmbedKnownError, markEmbedAsError, clearEmbedError } from "../embedResolver";
 
 let nextId = 0;
 const embedId = () => `source-context-${++nextId}`;
@@ -62,6 +62,41 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("embed reads use caller source context", () => {
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted
+  it('awaits the selected result recovery in its source chat', async () => {
+    vi.useRealTimers();
+    const id = embedId();
+    let release!: () => void;
+    const responseGate = new Promise<void>(resolve => { release = resolve; });
+    state.fetch.mockImplementation(async (path: string) => path.includes('/search-source/')
+      ? (await responseGate, ready(id)) : new Response('{}', { status: 404 }));
+    let settled = false;
+    const opening = resolveEmbedForOpen(id, { chatId: 'search-source' }).then(value => { settled = true; return value; });
+    await vi.waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+    expect(settled).toBe(false);
+    release();
+    expect(await opening).toMatchObject({ embed_id: id, content: 'decoded' });
+    expect(state.fetch.mock.calls.map(([path]) => path)).toEqual([
+      `/v1/embeds/chats/search-source/embeds/${id}`,
+    ]);
+    expect(state.activeChat).toBe('unrelated-active-chat');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted
+  it('lets a saved-item viewer use its metadata when in-flight recovery rejects', async () => {
+    vi.useRealTimers();
+    const id = embedId();
+    let release!: () => void;
+    const responseGate = new Promise<void>(resolve => { release = resolve; });
+    state.fetch.mockImplementation(async () => { await responseGate; throw new Error('recovery transport unavailable'); });
+    state.send.mockRejectedValue(new Error('WebSocket unavailable'));
+    const opening = resolveEmbedForOpen(id, { chatId: 'saved-source' });
+    await vi.waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+    release();
+    expect(await opening).toBeNull();
+    expect(state.activeChat).toBe('unrelated-active-chat');
+  });
+
   // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence
   it('loads a persisted failed execution from a fresh encrypted read and then uses local storage', async () => {
     const id = embedId();

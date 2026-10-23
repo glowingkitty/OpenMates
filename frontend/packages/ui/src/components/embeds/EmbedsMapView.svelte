@@ -10,7 +10,7 @@
 <script lang="ts">
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onDestroy, onMount, getContext} from 'svelte';
   import Toggle from '../Toggle.svelte';
   import ProviderIcon from '../settings/ProviderIcon.svelte';

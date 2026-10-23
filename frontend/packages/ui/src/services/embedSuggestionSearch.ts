@@ -79,3 +79,40 @@ export function searchSavedEmbedMemories(
   });
   return matches.slice(0, limit).map(({ searchText: _searchText, ...result }) => result);
 }
+
+/** Legacy saves retain useful item fields even when the original embed is unavailable. */
+export function getSavedEmbedFullscreenFallback(
+  state: SavedMemoriesLike,
+  embedId: string,
+  settingsPath?: string,
+): { embedType: string; decodedContent: Record<string, unknown> } | null {
+  const kinds: Record<string, { embedType: string; skillId: string }> = {
+    'events/saved_events': { embedType: 'events-event', skillId: 'event' },
+    'home/saved_listings': { embedType: 'home-listing', skillId: 'listing' },
+    'travel/saved_stays': { embedType: 'travel-stay', skillId: 'stay' },
+    'travel/saved_connections': { embedType: 'travel-connection', skillId: 'connection' },
+    'health/appointments': { embedType: 'health-appointment', skillId: 'appointment' },
+  };
+  for (const [appId, groups] of state.entriesByApp) {
+    for (const [groupName, entries] of Object.entries(groups)) {
+      const kind = kinds[`${appId}/${groupName}`];
+      if (!kind) continue;
+      const entry = entries.find(item => item.item_value.embed_id === embedId && (!settingsPath ||
+        settingsPath === `apps/${appId}/settings_memories/${groupName}/entry/${item.id}`));
+      if (!entry) continue;
+      const value = entry.item_value;
+      const decodedContent: Record<string, unknown> = {
+        ...value, app_id: appId, skill_id: kind.skillId,
+      };
+      if (kind.embedType === 'events-event') {
+        decodedContent.venue_address = stringValue(value.location);
+        decodedContent.description = stringValue(value.notes);
+      } else if (kind.embedType === 'health-appointment') {
+        decodedContent.name = stringValue(value.where);
+        decodedContent.slot_datetime = stringValue(value.appointment_time);
+      }
+      return { embedType: kind.embedType, decodedContent };
+    }
+  }
+  return null;
+}

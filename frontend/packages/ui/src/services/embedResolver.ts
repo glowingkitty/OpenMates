@@ -676,6 +676,30 @@ export async function resolveEmbed(
   }
 }
 
+/** Await the scoped recovery already started by a cache miss before opening a viewer. */
+export async function resolveEmbedForOpen(
+  embedId: string,
+  options: EmbedReadOptions = {},
+): Promise<EmbedData | null> {
+  const local = await resolveEmbed(embedId, options);
+  if (local || (options.chatId && isExampleChat(options.chatId))) return local;
+
+  // resolveEmbed starts recovery without blocking rendering. A user selection
+  // must await that operation, including when it outlasts a short render retry.
+  await requestEmbedFromServerOnce(embedId, 'fullscreen-open', options);
+  const context = await captureEmbedReadContext(normalizeEmbedId(embedId), options);
+  const pending = requestedEmbeds.get(context.requestKey)?.promise;
+  try {
+    if (pending) await pending;
+  } catch (error) {
+    context.assertCurrent();
+    console.warn('[embedResolver] Fullscreen recovery unavailable:', error);
+    return null;
+  }
+  context.assertCurrent();
+  return resolveEmbed(embedId, options);
+}
+
 /**
  * Decode TOON content to JavaScript object
  * @param toonContent - TOON-encoded string

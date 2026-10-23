@@ -1,9 +1,13 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { expect, test } from './helpers/cookie-audit';
 import { createSignupLogger, getTestAccount } from './signup-flow-helpers';
 import { loginToTestAccount } from './helpers/chat-test-helpers';
 import { skipWithoutCredentials } from './helpers/env-guard';
 import { getE2EDebugUrl } from './signup-flow-helpers';
 import { focusComposer } from './helpers/composer-focus';
+import { seedViaPairedCli, type Seed } from './helpers/owned-encrypted-embed-fixture';
+const { createWorkflowCliHome, removeWorkflowCliHome, loginWorkflowCliViaPair,
+  runWorkflowCli, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
 
 const credentials = getTestAccount();
 const CHAT_ID = 'e2e-composer-embed-destination';
@@ -54,7 +58,7 @@ test('opens a public event from the new-chat composer while keeping the draft', 
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
-test('opens saved memory details when its embed is unavailable', async ({ page }) => {
+test('opens saved Freelance Barcamp metadata in event fullscreen when its original embed is unavailable', async ({ page }) => {
   test.setTimeout(180_000);
   skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
   await loginToTestAccount(page, createSignupLogger('COMPOSER_SAVED_EMBED_FALLBACK'));
@@ -64,24 +68,59 @@ test('opens saved memory details when its embed is unavailable', async ({ page }
     }).__openmatesE2EChatConnectionState?.();
     return state?.cachePrimed === true;
   }), { timeout: 30_000 }).toBe(true);
-  const { entryId } = await page.evaluate(async () => {
+  const query = 'Freelance Barcamp Berlin';
+  const savedUrl = 'https://example.com/events/saved-freelance-barcamp';
+  await page.evaluate(async ({ title, url }) => {
     const seed = (window as Window & {
-      __openmatesE2ESeedSavedEmbedMemory?: (input: { embedId: string; title: string }) => Promise<{ entryId: string }>;
+      __openmatesE2ESeedSavedEmbedMemory?: (input: { embedId: string; title: string; provider: string;
+        location: string; date_start: string; url: string; notes: string }) => Promise<{ entryId: string }>;
     }).__openmatesE2ESeedSavedEmbedMemory;
     if (!seed) throw new Error('E2E saved memory seed helper is unavailable');
-    return seed({ embedId: 'e2e-missing-composer-saved-embed', title: 'E2E saved memory fallback' });
-  });
+    // Legacy saved metadata only: there is deliberately no original embed or source-chat cache row.
+    await seed({ embedId: 'e2e-missing-composer-saved-embed', title, provider: 'luma',
+      location: 'Fixture coworking Berlin', date_start: '2026-11-14T09:00:00+01:00',
+      url, notes: 'Saved Freelance Barcamp fixture notes' });
+  }, { title: query, url: savedUrl });
+
+  // Match the reported surface: compose beside an existing public example,
+  // while the selected saved event belongs to a separate memory entry.
+  const composerChatId = 'example-ai-workshops-meetups-berlin';
+  await page.goto(getE2EDebugUrl(`/#chat-id=${composerChatId}`), { waitUntil: 'domcontentloaded' });
+  const activeChat = page.getByTestId('active-chat-container');
+  await expect(activeChat).toHaveAttribute('data-current-chat-id', composerChatId, { timeout: 30_000 });
 
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
   await expect(editor).toBeVisible({ timeout: 20_000 });
   await focusComposer(page);
-  await editor.fill('E2E saved memory fallback');
-  const saved = page.getByTestId('saved-embed-search-result').filter({ hasText: 'E2E saved memory fallback' }).first();
+  await editor.fill(query);
+  const saved = page.getByTestId('saved-embed-search-result').filter({ hasText: query }).first();
   await expect(saved).toBeVisible({ timeout: 30_000 });
   await saved.click();
-  await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 20_000 });
-  await expect(page).toHaveURL(new RegExp(`settings=apps/events/settings_memories/saved_events/entry/${entryId}`));
-  await expect(editor).toHaveText('E2E saved memory fallback');
+  const fullscreen = page.getByTestId('embed-fullscreen-container');
+  await expect(fullscreen).toBeVisible({ timeout: 30_000 });
+  await expect(fullscreen).toContainText(query);
+  await expect(fullscreen.getByTestId('event-venue-card')).toContainText('Fixture coworking Berlin');
+  await expect(fullscreen.getByTestId('event-date-label')).toContainText('14');
+  await expect(fullscreen.getByTestId('event-date-label')).toContainText('2026');
+  await expect(fullscreen.getByTestId('event-description')).toHaveText('Saved Freelance Barcamp fixture notes');
+  await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0);
+  await expect(page).not.toHaveURL(/settings=/);
+  await expect(activeChat).toHaveAttribute('data-current-chat-id', composerChatId);
+  await expect(editor).toHaveText(query);
+  // The event renderer exposes its saved URL through its provider CTA.
+  await page.evaluate(() => {
+    window.open = (url) => {
+      (window as Window & { __savedEventOpenedUrl?: string }).__savedEventOpenedUrl = String(url);
+      return null;
+    };
+  });
+  await fullscreen.getByTestId('external-provider-cta').click();
+  expect(await page.evaluate(() => (window as Window & { __savedEventOpenedUrl?: string }).__savedEventOpenedUrl)).toBe(savedUrl);
+  await fullscreen.getByTestId('embed-minimize').click();
+  await expect(fullscreen).toHaveCount(0);
+  await expect(editor).toHaveText(query);
+  await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0);
+  await expect(activeChat).toHaveAttribute('data-current-chat-id', composerChatId);
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
@@ -138,4 +177,137 @@ test('opens an event from another example chat while keeping the message draft',
   await expect(fullscreen).toHaveCount(0);
   await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', CHAT_ID);
   await expect(editor).toHaveText(query);
+});
+
+// contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual,chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+test('recovers an owned event from its source chat while composing in another chat', async ({ page }, testInfo) => {
+  test.slow();
+  test.setTimeout(300_000);
+  test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.CI_TEST_MODE !== 'e2e',
+    'Requires disposable isolated paired browser and CLI backend');
+  skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
+  const apiUrl = workflowApiUrl();
+  const home = createWorkflowCliHome('composer-owned-event');
+  const destinationId = '11111111-1111-4111-8111-11111111e2e1';
+  const query = 'Freelance Barcamp Berlin';
+  let source: Seed | undefined;
+  let observeRecovery = false;
+  const reads: { path: string; status: number; encrypted: boolean }[] = [];
+  let delayedRecoveryReads = 0;
+  await page.route('**/v1/embeds/chats/*/embeds/*', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (!observeRecovery || !source || !path.startsWith(`/v1/embeds/chats/${source.chatId}/embeds/`)) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    const body = await response.body();
+    // Preserve real server ciphertext/status; only delivery latency is controlled.
+    await new Promise(resolve => setTimeout(resolve, 2_000));
+    delayedRecoveryReads++;
+    await route.fulfill({ response, body });
+  });
+  page.on('response', async response => {
+    const path = new URL(response.url()).pathname;
+    if (!observeRecovery || !/^\/v1\/embeds\/chats\/[^/]+\/(?:embeds\/|window)/.test(path)) return;
+    const body = await response.json().catch(() => null);
+    reads.push({ path, status: response.status(), encrypted: typeof body?.embed?.encrypted_content === 'string'
+      || body?.embeds?.some((row: { encrypted_content?: string }) => typeof row.encrypted_content === 'string') === true });
+  });
+  try {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await loginWorkflowCliViaPair(page, apiUrl, home, 'COMPOSER_OWNED_EVENT');
+    await page.getByTestId('icon-button-close').click();
+    source = seedViaPairedCli(apiUrl, home, 'event', 0, true);
+    await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/#chat-id=${source.chatId}`, { waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('link', { name: query, exact: true })).toBeVisible({ timeout: 60_000 });
+    // Transcript readiness alone does not populate the cache-only composer search index.
+    // Resolve both genuine ciphertext rows first, then discard any earlier empty RAM index.
+    await focusComposer(page);
+    expect(await page.evaluate(async ({ chatId, embedIds }) => {
+      const prepare = (window as Window & {
+        __openmatesE2EPrepareEmbedCache?: (input: { chatId: string; embedIds: string[] }) => Promise<{
+          decryptedCount: number; encryptedCount: number;
+        }>;
+      }).__openmatesE2EPrepareEmbedCache;
+      if (!prepare) throw new Error('E2E owned embed cache preparation hook is unavailable');
+      return prepare({ chatId, embedIds });
+    }, { chatId: source.chatId, embedIds: [source.embedId, source.childId] })).toEqual({ decryptedCount: 2, encryptedCount: 2 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('link', { name: query, exact: true })).toBeVisible({ timeout: 60_000 });
+    await page.evaluate(async chatId => {
+      const seed = (window as Window & {
+        __openmatesE2ESeedChat?: (input: { chat: Record<string, unknown>; messages: Record<string, unknown>[] }) => Promise<unknown>;
+      }).__openmatesE2ESeedChat;
+      if (!seed) throw new Error('E2E chat seed helper is unavailable');
+      const now = Math.floor(Date.now() / 1000);
+      await seed({ chat: { chat_id: chatId, title: 'Owned event composer destination', messages_v: 1, title_v: 1,
+        last_edited_overall_timestamp: now, created_at: now, updated_at: now },
+      messages: [{ message_id: '11111111-1111-4111-8111-11111111e2e2', chat_id: chatId,
+        role: 'user', created_at: now, status: 'synced', content: 'Keep this destination active.' }] });
+    }, destinationId);
+    const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+    const card = page.locator(`[data-testid="recent-embed-search-result"][data-embed-id="${source.childId}"]`);
+    // Build the real owned search entry before switching chats; the index must outlive local cache eviction.
+    await focusComposer(page);
+    await editor.fill(query);
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await editor.fill('');
+    const sidebarToggle = page.getByTestId('sidebar-toggle');
+    if (await sidebarToggle.isVisible().catch(() => false)) await sidebarToggle.click();
+    await page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${destinationId}"]`).click();
+    const activeChat = page.getByTestId('active-chat-container');
+    await expect(activeChat).toHaveAttribute('data-current-chat-id', destinationId);
+    // Exercise the normal closed-sidebar composer view.
+    const closeSidebar = page.getByTestId('activity-history-wrapper').locator('button.icon_close.top-button');
+    if (await closeSidebar.isVisible().catch(() => false)) await closeSidebar.click();
+    await focusComposer(page);
+    await editor.fill(query);
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await page.evaluate(async ids => {
+      const evict = (window as Window & {
+        __openmatesE2EEvictEmbedCache?: (embedIds: string[]) => Promise<void>;
+      }).__openmatesE2EEvictEmbedCache;
+      if (!evict) throw new Error('E2E local embed eviction hook is unavailable');
+      await evict(ids);
+    }, [source.embedId, source.childId]);
+    // Confirm ciphertext really is absent locally, while the independently built result card remains.
+    expect(await page.evaluate(async ids => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('chats_db');
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      try {
+        return await Promise.all(ids.map(id => new Promise<boolean>((resolve, reject) => {
+          const request = db.transaction('embeds').objectStore('embeds').get(`embed:${id}`);
+          request.onsuccess = () => resolve(!request.result); request.onerror = () => reject(request.error);
+        })));
+      } finally { db.close(); }
+    }, [source.embedId, source.childId])).toEqual([true, true]);
+    await expect(card).toBeVisible();
+    observeRecovery = true;
+    await card.click();
+    const fullscreen = page.getByTestId('embed-fullscreen-container');
+    await expect(fullscreen).toBeVisible({ timeout: 30_000 });
+    await expect(fullscreen.getByTestId('event-description')).toHaveText('Recovered encrypted event details', { timeout: 60_000 });
+    await expect.poll(() => reads.some(row => row.path.startsWith(`/v1/embeds/chats/${source!.chatId}/`)
+      && row.status === 200 && row.encrypted), { timeout: 30_000 }).toBe(true);
+    expect(delayedRecoveryReads).toBeGreaterThan(0);
+    expect(reads.filter(row => row.path.startsWith(`/v1/embeds/chats/${destinationId}/`))).toEqual([]);
+    await expect(activeChat).toHaveAttribute('data-current-chat-id', destinationId);
+    await expect(editor).toHaveText(query);
+    await fullscreen.getByTestId('embed-minimize').click();
+    await expect(fullscreen).toHaveCount(0);
+    await expect(activeChat).toHaveAttribute('data-current-chat-id', destinationId);
+    await expect(editor).toHaveText(query);
+  } finally {
+    await testInfo.attach('composer-owned-event-recovery', { body: JSON.stringify(reads, null, 2), contentType: 'application/json' });
+    try {
+      if (source) {
+        const deletion = await runWorkflowCli(apiUrl, home, ['chats', 'delete', source.chatId, '--yes'], 15_000);
+        expect(deletion.code, deletion.stderr).toBe(0);
+      }
+    } finally { removeWorkflowCliHome(home); }
+  }
 });

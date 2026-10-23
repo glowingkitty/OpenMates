@@ -39,7 +39,7 @@
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
-  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.chatId ?? null;
+  const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import InputEmbedThumbnails from './InputEmbedThumbnails.svelte';
