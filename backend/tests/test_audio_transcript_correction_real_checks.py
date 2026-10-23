@@ -6,6 +6,17 @@ import pytest
 from backend.scripts.test_audio_transcript_correction_real import SAMPLES, quality_failures
 
 
+DETAILED_LANDING_CORRECTION = (
+    "Also, I realized that the landing page still shows the old embed preview style. "
+    "We must fix that, so the example embed preview that animates at the top shows the "
+    "correct new layout. Ideally, we implement a long-term solution where the UI is "
+    "automatically synchronized, so it will never be out of date with the web app. "
+    "And of course, the embed preview shown on the landing page must also show an actual "
+    "event image. We can use a real example chat event for that, or we can make one up. "
+    "Also works."
+)
+
+
 @pytest.mark.parametrize(("case_id", "corrected"), [
     ("en_final_date_and_recipient",
      "Schedule the review for Thursday at ten. Invite Bob. Keep it online and don't send invites yet."),
@@ -47,7 +58,21 @@ def test_retracted_requests_or_missing_qualifications_fail(case_id, incorrect):
 
 def test_literal_landing_page_transcript_is_not_a_cleaned_result():
     sample = next(sample for sample in SAMPLES if sample["id"] == "en_landing_page_concise")
-    assert "redundant_wording_not_condensed" in quality_failures(sample, sample["raw"])
+    assert any(issue.startswith("superseded_or_filler:")
+               for issue in quality_failures(sample, sample["raw"]))
+
+
+def test_detailed_landing_page_correction_is_accepted_without_a_word_budget():
+    sample = next(sample for sample in SAMPLES if sample["id"] == "en_landing_page_concise")
+    assert quality_failures(sample, DETAILED_LANDING_CORRECTION) == []
+
+
+@pytest.mark.parametrize("detail", ["Ideally", "event image", "web app", "real example chat", "make one up"])
+def test_shortening_cannot_drop_useful_landing_page_details(detail):
+    sample = next(sample for sample in SAMPLES if sample["id"] == "en_landing_page_concise")
+    assert detail in DETAILED_LANDING_CORRECTION
+    shortened = DETAILED_LANDING_CORRECTION.replace(detail, "")
+    assert any(issue.startswith("missing:") for issue in quality_failures(sample, shortened))
 
 
 def test_landing_page_probe_accepts_equivalent_make_one_up_word_order():

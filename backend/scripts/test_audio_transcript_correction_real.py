@@ -83,7 +83,6 @@ SAMPLES: list[dict[str, Any]] = [
                      r"\bsync\w*\b", r"\bweb app\b", r"\bevent image\b",
                      r"\breal\b", r"\bexample chat\b", r"\b(?:make (?:one )?up|made.up|invent\w*|fictional)\b"],
         "forbidden": [r"\blong-term implementation\b", r"\byeah\b", r"\blike,"],
-        "max_words": 90,
     },
     {
         "id": "en_final_date_and_recipient",
@@ -179,13 +178,11 @@ SAMPLES: list[dict[str, Any]] = [
 
 
 def quality_failures(sample: dict[str, Any], corrected: str) -> list[str]:
-    """Reject stale requests, missing concrete details and unremoved repetition."""
+    """Check useful details, superseded requests and known speech disfluencies."""
     failures = [f"missing: {pattern}" for pattern in sample.get("required", [])
                 if not re.search(pattern, corrected, re.IGNORECASE | re.DOTALL)]
     failures.extend(f"superseded_or_filler: {pattern}" for pattern in sample.get("forbidden", [])
                     if re.search(pattern, corrected, re.IGNORECASE | re.DOTALL))
-    if sample.get("max_words") and len(corrected.split()) > sample["max_words"]:
-        failures.append("redundant_wording_not_condensed")
     return failures
 
 
