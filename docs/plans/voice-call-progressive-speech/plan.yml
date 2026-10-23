@@ -1,6 +1,6 @@
 schema_version: 2
 profile: concise
-status: implementing
+status: verified
 id: voice-call-progressive-speech
 title: Ephemeral progressive voice playback
 goal: "While Mistral is streaming back the audio, we must directly play it. What we store is text only."
@@ -12,6 +12,10 @@ specification_refs:
     version: 11
   - id: feature.assistant-response-speech
     version: 9
+  - id: feature.ai-model-routing
+    version: 9
+  - id: feature.chats
+    version: 7
 scope:
   - Register or confirm an encrypted personal draft atomically before call transport starts, preserving its Project context and server deletion fences.
   - Keep the realtime transcription connection alive through genuine microphone silence without billing synthetic audio as user input.
@@ -26,6 +30,7 @@ decisions:
   - Send bounded transient audio on a separate authenticated event scoped to the exact active call connection. Never persist or log plaintext chunks.
   - Fence source version, execution attempt and chunk order. Only provider completion and drained buffers allow normal end-of-stream.
   - Preserve the shared audio element, actual playback position and existing fully heard clause boundaries.
+  - Treat a completion CAS retry as recovered only after its correlated authoritative refresh and terminal receipt; unresolved conflicts and error toasts remain failures.
   - Live completion is content-free accounting only. No call audio object, upload, generated audio embed or replay cache is created; partial failure preserves only heard-text progress.
   - Settle exact submitted characters once after completed live synthesis. Keep failure charging and explicit manual generation separate.
   - Keep revision reconciliation with its existing Task owner and integrate its published repair for live verification.
@@ -33,7 +38,7 @@ required_checks:
   - Focused transaction, metadata-handler and client bootstrap tests; isolated Project-created unsent-draft call startup with registration acknowledged before transport.
   - Focused provider, worker, routing, playback-controller and queue unit tests plus relevant lint.
   - Isolated GitHub backend and voice-call browser regression checks against immutable source.
-  - Deployed real-inference call with actual native audio progress, two canonical turns, a 45-second quiet gap, no unintended end and no revision conflict.
+  - Deployed real-inference call with actual native audio progress, two canonical turns, a 45-second quiet gap, no unintended end and no unhandled revision conflict or error toast.
   - Actual progressive playback begins before the same segment and attempt's provider-end event, with zero call audio assets or uploads.
   - Record actual final-transcript-to-playback latency with automatic routing; do not equate provider readiness with audible playback.
   - python3 scripts/plan_validate.py docs/plans/voice-call-progressive-speech/plan.yml
