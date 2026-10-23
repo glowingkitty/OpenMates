@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: voxtral-3-migration
 title: Voxtral 3 transcription, playback and shared-pipeline voice calling
-status: implementing
+status: verified
 goal: Check the new Voxtral models and let's plan out how we should implement them. We should upgrade speech-to-text
   transcription and switch web assistant-message listening from ElevenLabs to Voxtral. Plan a custom voice calling setup
   using Voxtral speech-to-text and text-to-speech with Jev, Mercury 3 for simpler tasks, and other models for complex
@@ -96,8 +96,9 @@ voice_mode_followup:
   user_goal: Ideally we would just basically use the existing typical chat-based processing architecture with the pre-processing,
     the main processing and the post-processing, and only make the minimal additional changes required to make it work
     seamlessly with voice calling.
-  current_stage: Implementation and Gemini Live removal are complete. Finish isolated browser verification and the scoped
-    dev deployment; Apple source compilation remains unavailable while the configured Mac is unreachable.
+  current_stage: Shared-pipeline voice mode and Gemini Live removal are deployed and verified on dev. Full phone and desktop
+    suites passed, matching frontend/backend source is healthy, and the deployed real Voxtral probe passed. Apple source
+    compilation remains unverified because the configured Mac is unreachable; no Apple build was published.
   requirements_from_user:
   - Preserve automatic model and thinking-level selection, including Google models.
   - Preserve app skills, inline links, rich embed previews and image groups in the ordinary response.
