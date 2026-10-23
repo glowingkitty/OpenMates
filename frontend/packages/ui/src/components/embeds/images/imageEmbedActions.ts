@@ -6,6 +6,7 @@ import { proxyImage } from '../../../utils/imageProxy';
 import { writeEmbedToClipboard } from '../../../message_parsing/serializers';
 import type { EmbedNodeAttributes } from '../../../message_parsing/types';
 import { generateImageFilename, embedPngMetadata } from './imageDownloadUtils';
+import { imageGenerationFilename } from './imageGenerationMetadata';
 
 interface ImageFile {
   blob: Blob;
@@ -41,7 +42,7 @@ export async function resolveImageEmbedFile(embedId: string): Promise<ImageFile>
     // WebP for non-PNG keys, including uploaded JPEGs.
     if (original.format) {
       const format = original.format.toLowerCase().replace(/^image\//, '');
-      blob = new Blob([blob], { type: `image/${format === 'jpg' ? 'jpeg' : format}` });
+      blob = new Blob([blob], { type: `image/${format === 'jpg' ? 'jpeg' : format === 'svg' ? 'svg+xml' : format}` });
     }
   } else {
     const source = (data.image_url || data.previewImageUrl || data.preview_image_url || data.thumbnail_url) as string | undefined;
@@ -62,9 +63,12 @@ export async function resolveImageEmbedFile(embedId: string): Promise<ImageFile>
     blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' });
   }
   if (getWorkspaceCacheEpoch() !== epoch) throw new DOMException('Image context changed', 'AbortError');
+  const generatedFilename = original?.s3_key && data.app_id === 'images'
+    && ['generate', 'generate_draft'].includes(String(data.skill_id))
+    ? imageGenerationFilename(data, embedId) : undefined;
   const filename = typeof data.filename === 'string' && data.filename.trim()
     ? data.filename.split(/[\\/]/).pop()!
-    : generateImageFilename(prompt || data.title as string | undefined, extension);
+    : generatedFilename || generateImageFilename(prompt || data.title as string | undefined, extension);
   return { blob, filename };
 }
 

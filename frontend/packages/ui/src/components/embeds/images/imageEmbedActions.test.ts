@@ -40,6 +40,20 @@ describe('assistant image-file resolution', () => {
     expect(file.blob.size).toBe(8);
   });
 
+  // contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution,app-skills.media.visible-assistant-results
+  it.each([
+    ['minimalist_icon.svg', 'minimalist_icon.svg'],
+    [undefined, 'openmates_generated_image_22222222.svg'],
+  ])('keeps the fullscreen filename when downloading a generated SVG (%s)', async (filename, expected) => {
+    seed({ app_id: 'images', skill_id: 'generate', prompt: 'A minimalist icon', filename,
+      files: { original: { s3_key: 'private/original.svg', format: 'svg', aes_nonce: 'variant-nonce' } },
+      aes_key: 'private-key', s3_base_url: 'https://storage.example.org' });
+    vi.mocked(fetchAndDecryptImage).mockResolvedValue(new Blob(['<svg/>'], { type: 'image/svg+xml' }));
+    const file = await resolveImageEmbedFile('22222222-2222-4222-8222-222222222222');
+    expect(file.filename).toBe(expected);
+    expect(file.blob.type).toBe('image/svg+xml');
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it('fails closed when the original has no encryption metadata', async () => {
     seed({ files: { original: { s3_key: 'private/original.bin' } }, aes_key: 'private-key', image_url: 'https://images.example.org/fallback.jpg' });

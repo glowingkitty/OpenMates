@@ -10,9 +10,11 @@ test('a generated image child displays its actual media from a public preview UR
   const image = page.locator('.preview-image');
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator('.card-source')).toBeVisible();
   await expect(page.locator('.card-source')).toContainText(/Gemini|gemini/);
   await expect(page.locator('.card-source')).toContainText('Google');
   await expect(page.getByTestId('result-card-title')).toContainText('A serene mountain landscape');
+  await expect(page.getByTestId('result-card-title')).toBeVisible();
   await testInfo.attach('image-prompt-and-provider', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
