@@ -88,6 +88,50 @@ BILLING_STORAGE_PROFILES = {
 }
 
 
+def pinned_node() -> str:
+    """The early trusted producer is mandatory; package managers cannot select Node."""
+    node = os.environ.get("OPENMATES_CI_NODE", "")
+    if not re.fullmatch(r"/tmp/openmates-ci-node-[A-Za-z0-9]+/node", node):
+        raise RuntimeError("Trusted Node runtime was not staged")
+    return node
+
+
+def verify_pinned_node_runtime() -> None:
+    """Attest actual process.execPath before any disposable account is created."""
+    node = pinned_node()
+    env = {k: v for k, v in os.environ.items() if k not in {"NODE_OPTIONS", "NODE_PATH"}}
+    result = subprocess.run(
+        [node, str(Path(__file__).with_name("ci_stage_node_runtime.mjs")), "verify"],
+        env=env, capture_output=True, text=True, timeout=15,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Trusted Node runtime attestation failed")
+    receipt = json.loads(result.stdout)
+    if (receipt.get("schema_version") != 1
+            or receipt.get("producer") != "trusted-node-runtime-v1"
+            or not re.fullmatch(r"v24\.\d+\.\d+", receipt.get("node_version", ""))
+            or not re.fullmatch(r"[0-9a-f]{64}", receipt.get("sha256", ""))
+            or not re.fullmatch(r"[0-9a-f]{64}", receipt.get("producer_sha256", ""))
+            or receipt.get("architecture") not in {"x64", "arm64"}
+            or not all(receipt.get("source", {}).get(key) is True for key in
+                       ("proc_identity", "toolcache_supplier", "stable", "regular_elf", "single_link", "owner_admitted"))
+            or not all(receipt.get("destination", {}).get(key) is True for key in
+                       ("fresh_inode", "private_directory", "owner_current", "mode_0700", "single_link", "fsynced", "hash_matches"))):
+        raise RuntimeError("Trusted Node runtime provenance is incomplete")
+    (RESULTS / "ci-node-runtime.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    os.environ["PATH"] = str(Path(node).parent) + os.pathsep + os.environ.get("PATH", "")
+    os.environ["npm_node_execpath"] = node
+    os.environ["NODE"] = node
+
+
+def playwright_command() -> list[str]:
+    # Invoke the JS entry directly: pnpm exec can inject package-scoped Node.
+    cli = WEB / "node_modules/@playwright/test/cli.js"
+    if not cli.is_file() or not cli.resolve().is_relative_to(ROOT.resolve()):
+        raise RuntimeError("Workspace Playwright CLI is unavailable")
+    return [pinned_node(), str(cli)]
+
+
 def capacity_selector_environment(name: str) -> dict[str, str]:
     if name not in CAPACITY_EPOCH_SPECS:
         return {}
@@ -159,7 +203,7 @@ def run_selected_vitest(selection: dict[str, list[str]]) -> list[dict]:
         subprocess.run(["pnpm", "run", "build"], cwd=cli, check=True, timeout=300)
         with (RESULTS / "ci-unit-cli-selected.log").open("w") as output:
             result = subprocess.run(
-                ["node", "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",
+                [pinned_node(), "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",
                  *relative], cwd=cli, stdout=output, stderr=subprocess.STDOUT, timeout=300,
             )
         results.append({"suite": "cli-selected", "exit_code": result.returncode,
@@ -286,7 +330,7 @@ await api.chats.list({limit: 1});
 process.stdout.write(JSON.stringify({api_key: result.api_key}));
 """
     result = subprocess.run(
-        ["node", "--input-type=module", "-e", program, sdk, API],
+        [pinned_node(), "--input-type=module", "-e", program, sdk, API],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_SENSITIVE_TOTP_CODE": totp_code},
         capture_output=True, text=True, timeout=60,
@@ -337,7 +381,7 @@ if (result.success !== true || result.current_credits !== Number(process.argv[3]
 process.stdout.write(JSON.stringify({credits: result.current_credits}));
 """
     result = subprocess.run(
-        ["node", "--input-type=module", "-e", program, sdk, API, str(FIXTURE_CREDITS)],
+        [pinned_node(), "--input-type=module", "-e", program, sdk, API, str(FIXTURE_CREDITS)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
         capture_output=True, text=True, timeout=30,
     )
@@ -353,7 +397,7 @@ def provision_shared_archive(account: dict) -> str:
     """Seed synthetic encrypted archive rows, then share via the genuine client."""
     require_runner()
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(Path(__file__).with_name("ci_shared_chat_fixture.mjs")), str(ROOT)],
+        [pinned_node(), "--experimental-strip-types", str(Path(__file__).with_name("ci_shared_chat_fixture.mjs")), str(ROOT)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
         capture_output=True, text=True, timeout=120,
@@ -370,7 +414,7 @@ def provision_startup_sync_chats(account: dict) -> None:
     """Seed disposable encrypted history before a startup browser sync begins."""
     require_runner()
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(ROOT / "scripts" / "ci_startup_sync_fixture.mjs"), str(ROOT)],
+        [pinned_node(), "--experimental-strip-types", str(ROOT / "scripts" / "ci_startup_sync_fixture.mjs"), str(ROOT)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
         capture_output=True, text=True, timeout=180,
@@ -715,7 +759,7 @@ def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = 
         "OPENMATES_STATE_DIR": str(private / f"state-{slot}-{secrets.token_hex(8)}"),
     }
     command = [
-        "node",
+        pinned_node(),
         str(ROOT / "frontend/packages/openmates-cli/dist/cli.js"),
         "--api-url",
         API,
@@ -1463,9 +1507,7 @@ def run_e2e(
                 try:
                     result = subprocess.run(
                         [
-                            "pnpm",
-                            "exec",
-                            "playwright",
+                            *playwright_command(),
                             "test",
                             "tests/" + name,
                             "--workers=1",
@@ -1987,7 +2029,7 @@ def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool =
                "OPENMATES_CAPACITY_NO_PROVIDER_CREDENTIALS": "confirmed"}
     run_cmd = [sys.executable, "scripts/storage_capacity.py", "run", "--plan", str(plan_path),
                "--results", str(results_path), "--receipts", str(private / "capacity-receipts"),
-               "--client-command", "node", "scripts/storage_capacity_client.mjs"]
+               "--client-command", pinned_node(), "scripts/storage_capacity_client.mjs"]
     result = subprocess.run(run_cmd, cwd=ROOT, env=run_env, capture_output=True, text=True)
     (private / "capacity-run.stderr.log").write_text(result.stderr[-200_000:], encoding="utf-8")
     private_failure_rows = retain_capacity_failure_rows(results_path, private)
@@ -2232,6 +2274,8 @@ def main():
     try:
         if case_title and mode != "e2e":
             raise ValueError("Case filter requires E2E mode")
+        if mode not in ("pytest", "backend-probe"):
+            verify_pinned_node_runtime()
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
             reject_inherited_accounts()
@@ -2251,7 +2295,7 @@ def main():
             from ci_selfhost import run
             run(ROOT, results)
         elif mode == "codex":
-            result = subprocess.run(["node", str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
+            result = subprocess.run([pinned_node(), str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
             receipt = json.loads((RESULTS / "ci-codex.json").read_text())
             if receipt.get("inference_requested") is not False or receipt.get("status") != "ready":
                 raise RuntimeError("Codex metadata fixture lacks no-inference evidence")
@@ -2368,7 +2412,7 @@ def main():
             with (RESULTS / "ci-unit-cli.log").open("w") as output:
                 result = subprocess.run(
                     [
-                        "node",
+                        pinned_node(),
                         "--test",
                         "--experimental-strip-types",
                         "--loader",
@@ -2385,7 +2429,7 @@ def main():
             with (RESULTS / "ci-unit-cli-plans.log").open("w") as output:
                 plan_result = subprocess.run(
                     [
-                        "node",
+                        pinned_node(),
                         "--test",
                         "--experimental-strip-types",
                         "--loader",

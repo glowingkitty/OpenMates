@@ -127,6 +127,13 @@ jobs:
           ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
            inputs.preparation_key != '')
         run: python3 ../tooling/scripts/ci_preparation_transport.py validate
+      - uses: actions/setup-node@v4
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
+        with:
+          node-version: '24'
+      - name: Stage attested runner Node before candidate code or dependencies
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
+        run: env -u NODE_OPTIONS -u NODE_PATH node ../tooling/scripts/ci_stage_node_runtime.mjs stage
       - name: Reconstruct and verify exact detached source
         env:
           EXPECTED_SOURCE: ${{ inputs.source_commit }}
@@ -200,6 +207,11 @@ jobs:
           node-version: '24'
           cache: pnpm
           cache-dependency-path: subject/pnpm-lock.yaml
+      - name: Restore pinned Node after package-manager cache setup
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
+        run: |
+          env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs verify
+          dirname "$OPENMATES_CI_NODE" >> "$GITHUB_PATH"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -500,6 +512,9 @@ jobs:
       - name: Remove disposable containers and databases
         if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py stop
+      - name: Remove attested runner Node only when identities still match
+        if: always() && env.OPENMATES_CI_NODE_STATE != ''
+        run: env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs cleanup
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -511,6 +526,7 @@ jobs:
             subject/test-results/ci-artifacts.json
             subject/test-results/ci-runtime-images.json
             subject/test-results/ci-results.json
+            subject/test-results/ci-node-runtime.json
             subject/test-results/ci-storage-archive-probe.json
             subject/test-results/ci-capacity-startup.json
             subject/test-results/ci-stack.log
