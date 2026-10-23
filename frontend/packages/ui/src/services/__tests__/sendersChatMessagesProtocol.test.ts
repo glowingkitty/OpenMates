@@ -63,6 +63,7 @@ import {
   shouldIncludePreflightChatMetadata,
 	shouldSkipClientCodeBlockExtraction,
 	isSendContextCurrent,
+	sendNewMessageImpl,
 } from "../sendersChatMessages";
 import { shouldUpdateMessage } from "../db/messageOperations";
 import { modelRoutingRestrictionsForTurn } from "../modelRoutingRestrictions";
@@ -72,6 +73,41 @@ beforeAll(async () => {
   // still owns its async imports. Assertions keep the real encryption helpers.
   await cryptoReady;
   await vi.dynamicImportSettled();
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.privacy,chats.persistence.client-encrypted
+it('identifies a blocked and failed canonical predecessor before any voice preflight without leaking its error', async () => {
+  const barrier = await import('../personalChatTurnBarrier');
+  const events: Array<Record<string, unknown>> = [];
+  const observe = (event: Event) => events.push((event as CustomEvent).detail);
+  window.addEventListener('voiceCallTurnDelivery', observe);
+  const getChat = vi.spyOn(chatDB, 'getChat').mockResolvedValue({ chat_id: 'voice-diagnostics' } as Awaited<ReturnType<typeof chatDB.getChat>>);
+  const updateStatus = vi.spyOn(chatDB, 'updateMessageStatus').mockResolvedValue(undefined);
+  const dispatchEvent = vi.fn();
+  const prior = barrier.reservePersonalChatTurn('voice-diagnostics', 'prior');
+  const next = barrier.reservePersonalChatTurn('voice-diagnostics', 'next');
+  const send = vi.mocked(webSocketService.sendMessage);
+  send.mockClear();
+  try {
+    const pending = sendNewMessageImpl({ webSocketConnected_FOR_SENDERS_ONLY: true, dispatchEvent } as unknown as
+      import('../chatSyncService').ChatSynchronizationService, {
+      chat_id: 'voice-diagnostics', message_id: 'next', role: 'user', content: 'PRIVATE transcript', created_at: 200,
+      voice_mode: true, voice_call_id: 'call', voice_turn_id: 'next',
+    }, undefined, undefined, undefined, undefined, next);
+    const rejection = expect(pending).rejects.toThrow('previous encrypted reply');
+    await vi.waitFor(() => expect(events.at(-1)?.reason).toBe('predecessor'));
+    expect(events.at(-1)?.phase).toBe('canonical_prerequisite');
+    expect(send).not.toHaveBeenCalled();
+    barrier.failPersonalChatTurn(prior, new Error('PRIVATE key and server error'));
+    await rejection;
+    expect(events.at(-1)).toEqual({ callId: 'call', chatId: 'voice-diagnostics', turnId: 'next',
+      phase: 'canonical_prerequisite_failed', reason: 'predecessor' });
+    expect(send).not.toHaveBeenCalled();
+    expect(JSON.stringify(events)).not.toMatch(/PRIVATE|transcript|stack/);
+  } finally {
+    window.removeEventListener('voiceCallTurnDelivery', observe);
+    getChat.mockRestore(); updateStatus.mockRestore(); barrier.clearPersonalChatTurnBarriers();
+  }
 });
 
 const TEAM_MESSAGE = {

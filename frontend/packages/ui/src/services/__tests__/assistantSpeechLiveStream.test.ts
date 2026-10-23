@@ -79,6 +79,35 @@ it("completes monotonically when a durable seal arrives after native playback an
   await controller.close();
 });
 
+// contract-test: direct surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.intentional-interruption,video-call.privacy
+it("keeps a buffering live source held through provider end, seal and late status without another play", async () => {
+  const controller = await controllerForCall();
+  const clause = { segment_id: "a".repeat(64), sequence: 0 };
+  await status(clause);
+  const media = await beginAudio(clause);
+  const player = TestSpeechAudio.instances[0];
+  player.currentTime = 0.4;
+  player.emit("waiting");
+  player.pause(); // A native hold must survive automatic status processing.
+  audio({ ...clause, phase: "end", chunk_index: 1 });
+  media.buffer.flush();
+  await seal([sealedMember(clause.segment_id, 0)]);
+  await status({ ...clause, status: "ready" });
+  await status({ ...clause, status: "queued" });
+  expect(player.play).toHaveBeenCalledOnce();
+  expect(player.src).toBe("blob:live-1");
+  expect(player.currentTime).toBe(0.4);
+  expect(controller.playbackBoundary).toMatchObject({ completed_sequences: [], active_sequence: 0, active_offset_ms: 400 });
+  await controller.play();
+  expect(player.play).toHaveBeenCalledTimes(2);
+  player.emit("ended");
+  expect(get(controller.player).status).toBe("completed");
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0]);
+  expect(mocks.resolve).not.toHaveBeenCalled();
+  expect(mocks.send).not.toHaveBeenCalled();
+  await controller.close();
+});
+
 // contract-test: direct surface=gui.web assertions=assistant-speech.playback.live-call-streaming,assistant-speech.failure.nonblocking-visible-resumable,video-call.audio.intentional-interruption,video-call.privacy
 it.each(["before-audio", "mid-stream", "after-end"])("keeps a failed handoff seal terminal %s while preserving only actual heard progress", async (timing) => {
   const controller = await controllerForCall();

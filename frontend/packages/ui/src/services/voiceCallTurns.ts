@@ -28,10 +28,32 @@ const deliveryErrorClasses = new Set(['Error', 'TypeError', 'RangeError', 'Synta
   'DOMException', 'AbortError', 'OperationError', 'InvalidStateError', 'InvalidAccessError', 'DataError',
   'QuotaExceededError', 'ConstraintError', 'TransactionInactiveError', 'NotFoundError', 'DataCloneError',
   'NetworkError', 'PreflightRejectionError', 'PendingAdmissionCompatibilityError']);
+// Match complete static guard messages only. Never emit arbitrary exception text.
+const privacyFailureCodes = new Map([
+  ['Personal privacy snapshot is invalid', 'privacy_snapshot_invalid'],
+  ['Personal privacy decryption failed', 'privacy_decryption_failed'],
+  ['Personal privacy entry is invalid', 'privacy_entry_invalid'],
+  ['Personal privacy snapshot is missing encrypted row content', 'privacy_entry_missing'],
+  ['Personal privacy freshness check failed', 'privacy_snapshot_rejected'],
+  ['Personal privacy connection changed', 'privacy_connection_changed'],
+  ['Personal privacy freshness check timed out', 'privacy_snapshot_timeout'],
+  ['Personal privacy freshness request could not be sent', 'privacy_snapshot_unsent'],
+  ['Personal privacy full snapshot owner changed', 'privacy_full_owner_changed'],
+  ['Personal privacy session expired before send', 'privacy_session_expired'],
+  ['Personal privacy full snapshot unavailable', 'privacy_full_unavailable'],
+  ['Personal privacy full snapshot owner unavailable', 'privacy_full_owner_unavailable'],
+  ['Personal privacy owner unavailable', 'privacy_owner_unavailable'],
+  ['Personal privacy owner changed while saving preferences', 'privacy_owner_changed'],
+  ['Personal privacy receipt does not match this turn', 'privacy_receipt_mismatch'],
+  ['Personal privacy unchanged response has no matching prepared snapshot', 'privacy_cache_mismatch'],
+  ['Personal privacy changes are not yet confirmed by the server; retry after saving them', 'privacy_policy_unconfirmed'],
+  ['Personal privacy scope changed during freshness check', 'privacy_freshness_changed'],
+  ['Personal privacy owner or preferences changed before filtering', 'privacy_filter_changed'],
+]);
 const deliveryErrorCodes = new Set(['immutable_chat_key_mismatch', 'message_identity_mismatch', 'preflight_mismatch',
   'recovery_key_mismatch', 'version_conflict', 'inference_commitment_mismatch', 'client_update_required',
   'durable_preflight_failed', 'preflight_expired', 'preflight_required', 'team_chat_scope_mismatch',
-  'existing_chat_metadata_forbidden', 'websocket_receipt_connection_changed']);
+  'existing_chat_metadata_forbidden', 'websocket_receipt_connection_changed', ...privacyFailureCodes.values()]);
 const deliveryHttpStatuses = new Set([400, 401, 403, 404, 408, 409, 413, 422, 429, 500, 502, 503, 504]);
 const deliveryErrorModules = new Set(['services/voiceCallTurns.ts', 'services/chatSyncService.ts',
   'services/sendersChatMessages.ts', 'services/preparedPrivacyForSend.ts', 'services/preflightAcknowledgement.ts',
@@ -52,6 +74,10 @@ function deliveryFailureMetadata(error: unknown): VoiceCallDeliveryFailure {
     if (typeof name === 'string' && deliveryErrorClasses.has(name)) { failure.errorClass = name; break; }
   }
   if (typeof value.code === 'string' && deliveryErrorCodes.has(value.code)) failure.errorCode = value.code;
+  if (!failure.errorCode && error instanceof Error) {
+    const privacyCode = privacyFailureCodes.get(error.message);
+    if (privacyCode) failure.errorCode = privacyCode;
+  }
   const status = value.status ?? value.statusCode;
   if (typeof status === 'number' && deliveryHttpStatuses.has(status)) failure.httpStatus = status;
   if (typeof value.stack === 'string') {
@@ -80,8 +106,40 @@ export function reportVoiceCallTurnDelivery(
   } }));
 }
 
+const canonicalPrerequisites = new Set([
+  'sender', 'predecessor', 'optimistic_timestamp', 'model_admission', 'personal_privacy',
+  'fast_admission', 'connected_accounts', 'embed_preparation', 'saved_history', 'metadata_and_keys',
+  'private_context', 'history_projection', 'embed_storage', 'preflight_key', 'preflight_ciphertext',
+  'preflight_journal', 'preflight_serialization', 'preflight_receipt', 'preflight_dispatch',
+  'preflight_ack', 'canonical_dispatch',
+] as const);
+type CanonicalPrerequisite = typeof canonicalPrerequisites extends Set<infer Stage> ? Stage : never;
+
+/** Fixed, content-free checkpoints survive bundled stacks without recording
+ * error messages, chat content, key material or private context. */
+export function createVoiceCallSendDiagnostics(message: Pick<Message,
+  'chat_id' | 'message_id' | 'voice_mode' | 'voice_call_id' | 'voice_turn_id'>) {
+  const ids = [message.chat_id, message.message_id, message.voice_call_id, message.voice_turn_id];
+  const valid = message.voice_mode === true && message.voice_turn_id === message.message_id
+    && ids.every(value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value));
+  const turn = valid ? { callId: message.voice_call_id!, chatId: message.chat_id, turnId: message.voice_turn_id! } : null;
+  let stage: CanonicalPrerequisite = 'sender';
+  return {
+    enter(next: CanonicalPrerequisite) {
+      if (!turn || !canonicalPrerequisites.has(next)) return;
+      stage = next;
+      reportVoiceCallTurnDelivery(turn, 'canonical_prerequisite', stage);
+    },
+    failed() {
+      if (turn) reportVoiceCallTurnDelivery(turn, 'canonical_prerequisite_failed', stage);
+    },
+  };
+}
+
 function deliveryFailureCode(error: unknown): string {
   if (error instanceof Error) {
+    const privacyCode = privacyFailureCodes.get(error.message);
+    if (privacyCode) return privacyCode;
     if (error.message === 'The previous encrypted reply has not been saved. Retry this message after recovery.') return 'predecessor_not_saved';
     if (error.message === 'An active message send cannot change its immutable content.') return 'message_identity_conflict';
     if (error.message === 'Cannot bind a settled encrypted chat turn.') return 'turn_already_settled';

@@ -85,6 +85,42 @@ async def allocate_chat_metadata_versions(
     }
 
 
+async def handle_voice_call_chat_prepare(
+    *, manager: ConnectionManager, directus_service: DirectusService,
+    user_id: str, user_id_hash: str, device_fingerprint_hash: str, payload: Dict[str, Any],
+) -> None:
+    """Register the immutable personal key shell through the atomic RPC only.
+
+    A distinct action fails closed on older servers during mixed-version rollout.
+    It must never enter generic metadata storage, even for malformed requests.
+    """
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+    try:
+        allowed = {"chat_id", "encrypted_chat_key", "created_at", "voice_call_bootstrap"}
+        if not isinstance(payload, dict) or set(payload) != allowed or payload["voice_call_bootstrap"] is not True:
+            raise ValueError("Invalid voice call bootstrap")
+        result = await ChatRecoveryService(directus_service).register_personal_chat_draft(
+            hashed_user_id=user_id_hash, chat_id=payload["chat_id"],
+            encrypted_chat_key=payload["encrypted_chat_key"], created_at=payload["created_at"],
+        )
+    except Exception:
+        chat_id = payload.get("chat_id") if isinstance(payload, dict) else None
+        await manager.send_personal_message({
+            "type": "error", "payload": {
+                "code": "voice_call_bootstrap_failed", "voice_call_bootstrap": True,
+                "chat_id": chat_id if isinstance(chat_id, str) else None,
+                "message": "The chat could not be prepared for a call.",
+            },
+        }, user_id, device_fingerprint_hash)
+        return
+    await manager.send_personal_message({
+        "type": "encrypted_metadata_stored",
+        "payload": {"chat_id": result["chat_id"], "message_id": None,
+                    "status": "stored", "voice_call_bootstrap": True},
+    }, user_id, device_fingerprint_hash)
+
+
 async def handle_encrypted_chat_metadata(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -126,6 +162,9 @@ async def handle_encrypted_chat_metadata(
         pass
     try:
         try:
+            if "voice_call_bootstrap" in payload:
+                raise ValueError("Voice preparation requires its dedicated action")
+
             chat_id = payload.get("chat_id")
             team_id = payload.get("team_id")
             hashed_team_id = hash_id(team_id) if isinstance(team_id, str) and team_id else None

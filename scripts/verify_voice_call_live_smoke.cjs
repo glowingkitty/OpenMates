@@ -184,9 +184,17 @@ function installObservation({ inputs }) {
   } });
 
   const media = new Set(); const observations = new WeakMap(); let nextMedia = 0;
+  // Exact public cue from AssistantSpeechQueue.primeForAutoplay(). This silent
+  // gesture-unlock clip precedes any response and has no segment identity.
+  // Do not exempt arbitrary data URLs, blob URLs or uncorrelated real audio.
+  const silentAutoplayPrime = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
   const play = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function (...args) {
     if (!(this instanceof HTMLAudioElement)) return play.apply(this, args);
+    if (this.src === silentAutoplayPrime) {
+      state.ignoredSilentAutoplayPrimes = (state.ignoredSilentAutoplayPrimes ?? 0) + 1;
+      return play.apply(this, args);
+    }
     const audio = this;
     let observation = observations.get(audio);
     if (!observation) {

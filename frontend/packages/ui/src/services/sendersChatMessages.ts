@@ -1,6 +1,7 @@
 import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
 import { initialChatHistoryGate } from './initialChatHistoryGate';
 import { freshPersonalPrivacyForSend, filterWithFreshPersonalPrivacy, attachFreshPrivacyReceipt, personalPrivacyMetadataKeys, type PrivacySendReceipt } from "./preparedPrivacyForSend";
+import { createVoiceCallSendDiagnostics } from "./voiceCallTurns";
 /**
  * sendersChatMessages.ts — Message sending and encrypted storage operations
  *
@@ -1589,6 +1590,8 @@ export async function sendNewMessageImpl(
 	holdAdmissionUntil?: (completion: Promise<void>) => void,
 ): Promise<void> {
 	const personalTurn = reservedTurn ?? reservePersonalChatTurn(message.chat_id, message.message_id);
+	const voiceDiagnostics = createVoiceCallSendDiagnostics(message);
+	voiceDiagnostics.enter('sender');
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	// Check WebSocket connection status using public getter
 	const isConnected = serviceInstance.webSocketConnected_FOR_SENDERS_ONLY;
@@ -1700,6 +1703,7 @@ export async function sendNewMessageImpl(
 	let retainedJournal = false;
 	if (usesPersonalRecovery) {
 		try {
+			voiceDiagnostics.enter('predecessor');
 			predecessorVersion = await awaitPersonalChatPredecessor(personalTurn);
 			retainedJournal = !!(await readPendingMessageJournal(
 				message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD,
@@ -1707,6 +1711,7 @@ export async function sendNewMessageImpl(
 			// A retained frame binds created_at in its encrypted intent MAC. A retry
 			// after a long disconnect must preserve that exact timestamp and identity.
 			if (!retainedJournal) {
+				voiceDiagnostics.enter('optimistic_timestamp');
 				const committedMessages = await chatDB.getMessagesForChat(message.chat_id);
 				const createdAt = nextPersonalUserCreatedAt(
 					Math.floor(Date.now() / 1000), message.created_at, committedMessages, message.message_id,
@@ -1723,6 +1728,7 @@ export async function sendNewMessageImpl(
 	}
 
 	// Personal and incognito turns always invoke AI; preserve their early gate.
+	voiceDiagnostics.enter('model_admission');
 	if ((!chat?.team_id || isIncognitoChat) && await blockSendWithoutConfiguredAiModels(serviceInstance, message)) {
 		failPersonalChatTurn(personalTurn, new Error('AI model admission blocked this chat turn.'));
 		return;
@@ -1733,6 +1739,7 @@ export async function sendNewMessageImpl(
 	let privacyReceipt: PrivacySendReceipt | null = null;
 	let privacyContentChanged = false;
 	if (!chat?.team_id && !isIncognitoChat && get(authStore).isAuthenticated) {
+		voiceDiagnostics.enter('personal_privacy');
 		[privacyReceipt] = await Promise.all([
 			freshPersonalPrivacyForSend(generateUUID()),
 			chatKeyManager.getKey(message.chat_id),
@@ -1777,6 +1784,7 @@ export async function sendNewMessageImpl(
 		&& !message.content.includes("@memory")
 		&& !message.content.includes("| ");
 	if (fastPersonalText && chat) {
+		voiceDiagnostics.enter('fast_admission');
 		await dispatchFastPersonalTurn({
 			serviceInstance, message, chat, personalTurn, predecessorVersion,
 			includePreflightChatMetadata, workspaceIdentity: sendWorkspaceIdentity,
@@ -1792,6 +1800,7 @@ export async function sendNewMessageImpl(
 	// If a local draft changed classification while connected-account discovery
 	// ran, retain the complete legacy payload and its token references.
 	if (postAdmissionConnectedAccounts) {
+		voiceDiagnostics.enter('connected_accounts');
 		connectedAccountContext = await postAdmissionConnectedAccounts;
 	}
 
@@ -1806,6 +1815,7 @@ export async function sendNewMessageImpl(
 	// Client creates embeds locally, encrypts them, and sends everything in one request.
 	// ========================================================================
 	let processedContent = message.content;
+	voiceDiagnostics.enter('embed_preparation');
 	// Saved-message embed IDs are keyed by the chat secret. This keeps retries
 	// stable without exposing a public plaintext guessing oracle in embed IDs.
 	const extractionChatKey = isIncognitoChat ? null :
@@ -2280,6 +2290,7 @@ export async function sendNewMessageImpl(
 	// turns skip this potentially expensive IDB decryption entirely; explicit
 	// Team invocations hydrate the authoritative transcript below.
 	let messageHistory: Message[] = [];
+	voiceDiagnostics.enter('saved_history');
 	if (isIncognitoChat) {
 		try {
 			messageHistory = await incognitoChatService.getMessagesForChat(message.chat_id);
@@ -2314,6 +2325,7 @@ export async function sendNewMessageImpl(
 	// This tells the server what app settings/memories exist on this device WITHOUT sending content
 	// The server's preprocessor uses this to decide which settings/memories to request
 	let appSettingsMemoriesMetadataKeys: string[] = [];
+	voiceDiagnostics.enter('metadata_and_keys');
 	if (!isIncognitoChat) {
 		try {
 			appSettingsMemoriesMetadataKeys = [...new Set([
@@ -2565,6 +2577,7 @@ export async function sendNewMessageImpl(
 			payload.accepted_plan_context = acceptedPlan.value as import('./acceptedPlanContext').AcceptedPlanContext;
 		}
 	})() : Promise.resolve();
+	voiceDiagnostics.enter('private_context');
 	await Promise.all([routingMetadata, privateContext]);
 	// When user mentioned @memory or @memory-entry in the message, send cleartext so the backend
 	// can use it and not request that category again during this request
@@ -2672,6 +2685,7 @@ export async function sendNewMessageImpl(
 	}
 
 	// For incognito chats, include full message history (no server-side caching)
+	voiceDiagnostics.enter('history_projection');
 	if (isIncognitoChat && messageHistory.length > 0) {
 		payload.message_history = await Promise.all(
 			messageHistory.map(async (msg) =>
@@ -2734,6 +2748,7 @@ export async function sendNewMessageImpl(
 	}
 
 	let pendingBundleConfirmationIdentity: MessageEmbedBundleIdentity | null = null;
+	voiceDiagnostics.enter('embed_storage');
 	// Include embeds if any were found in the message
 	if (embeds.length > 0) {
 		payload.embeds = embeds; // Send embeds as cleartext (server will encrypt for cache)
@@ -3065,6 +3080,7 @@ export async function sendNewMessageImpl(
 	}
 
 	if (!isIncognitoChat) {
+		voiceDiagnostics.enter('preflight_key');
 		if (!encryptedChatKey) {
 			throw new Error(`Saved chat ${message.chat_id} has no encrypted chat key for durable preflight.`);
 		}
@@ -3075,6 +3091,7 @@ export async function sendNewMessageImpl(
 			throw new Error(`Saved chat ${message.chat_id} has no safe chat key for durable preflight.`);
 		}
 		let turnId = privacyReceipt?.turnId ?? generateUUID();
+		voiceDiagnostics.enter('preflight_ciphertext');
 		const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
 			encodeBase64Url(chatKey),
 			message.chat_id,
@@ -3208,6 +3225,7 @@ export async function sendNewMessageImpl(
 		}
 		if (!chat?.team_id || shouldInvokeTeamAI) {
 			try {
+				voiceDiagnostics.enter('preflight_journal');
 				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const { userDB } = await import("./userDB");
 				const accountId = (await userDB.getUserProfile())?.user_id;
@@ -3262,6 +3280,7 @@ export async function sendNewMessageImpl(
 			);
 		}
 		try {
+			voiceDiagnostics.enter('preflight_serialization');
 			const { preflight_id } = await runSerializedPreflight(async () => {
 				if (shouldInvokeTeamAI) assertTeamSendScope();
 				const acknowledgement = waitForPreflightAcknowledgement(
@@ -3272,10 +3291,13 @@ export async function sendNewMessageImpl(
 					turnId,
 					webSocketConnected: serviceInstance.webSocketConnected_FOR_SENDERS_ONLY
 				});
+				voiceDiagnostics.enter('preflight_receipt');
 				const privacyTransport = privacyReceipt ? await attachFreshPrivacyReceipt(preflightPayload, privacyReceipt, message) : undefined;
+				voiceDiagnostics.enter('preflight_dispatch');
 				if (privacyTransport) await webSocketService.sendMessage("chat_turn_preflight", preflightPayload, privacyTransport);
 				else await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
 				recordPreflightDebugStep("preflight_dispatch_complete", { turnId });
+				voiceDiagnostics.enter('preflight_ack');
 				return acknowledgement;
 			});
 			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, turnId, sendWorkspaceIdentity);
@@ -3334,9 +3356,11 @@ export async function sendNewMessageImpl(
 	try {
 		if (shouldInvokeTeamAI) assertTeamSendScope();
 		attemptedTransport = true;
+		voiceDiagnostics.enter('canonical_dispatch');
 		await webSocketService.sendMessage("chat_message_added", payload);
 		onUserFrameDispatched?.();
 	} catch (error) {
+		voiceDiagnostics.failed();
 		console.error(
 			`[ChatSyncService:Senders] Error sending 'chat_message_added' for message_id: ${message.message_id}:`,
 			error
@@ -3353,6 +3377,9 @@ export async function sendNewMessageImpl(
 	} finally {
 		wsDispatchSpan.end();
 	}
+	} catch (error) {
+		voiceDiagnostics.failed();
+		throw error;
 	} finally {
 		implSpan.end();
 	}

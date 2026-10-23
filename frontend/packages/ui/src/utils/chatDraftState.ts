@@ -137,3 +137,17 @@ export function isFirstTurnComposerContext(input: Parameters<typeof classifyFirs
   const reason = classifyFirstTurnComposerContext(input);
   return reason === 'eligible_shell' || reason === 'eligible_draft';
 }
+
+/** A late draft save may activate only the composer that still owns that ID. */
+export function canActivatePersistedComposerDraft(input: {
+  persistedChatId: string;
+  selectedChatId: string | null;
+  currentChatId: string | null;
+  temporaryChatId: string | null;
+  draftChatId: string | null;
+}): boolean {
+  const owner = input.currentChatId ?? input.temporaryChatId;
+  return input.draftChatId === input.persistedChatId &&
+    owner === input.persistedChatId &&
+    (!input.selectedChatId || input.selectedChatId === input.persistedChatId);
+}

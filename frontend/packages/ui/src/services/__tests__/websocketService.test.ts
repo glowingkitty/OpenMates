@@ -149,6 +149,39 @@ describe("webSocketService recovery protocol errors", () => {
 });
 
 describe("webSocketService message dispatch", () => {
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("sends the strict four-field call bootstrap unchanged under active tracing and without logging its wrapped key", async () => {
+    const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    const span = vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => { payload._traceparent = "active-trace"; });
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const payload = { chat_id: "chat", encrypted_chat_key: "private-wrapped-key", created_at: 1_700_000_000, voice_call_bootstrap: true };
+    await webSocketService.sendMessage("voice_call_chat_prepare", payload, { expectedConnection: webSocketService.getConnectionForSend() });
+    expect(span).toHaveBeenCalledOnce();
+    expect(inject).not.toHaveBeenCalled();
+    expect(JSON.parse(socket.send.mock.calls[0][0])).toEqual({ type: "voice_call_chat_prepare", payload });
+    expect(Object.keys(payload).sort()).toEqual(["chat_id", "created_at", "encrypted_chat_key", "voice_call_bootstrap"]);
+    expect(debug).toHaveBeenCalledWith("[WebSocketService] Sending message:", { type: "voice_call_chat_prepare" });
+    expect(JSON.stringify(debug.mock.calls)).not.toContain("private-wrapped-key");
+    service.ws = null;
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.privacy,chats.persistence.client-encrypted
+  it.each([undefined, false, "true", true])("retains ordinary metadata tracing regardless of a bootstrap-like flag (%s)", async (flag) => {
+    const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => callback());
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => { payload._traceparent = "ordinary-metadata-trace"; });
+    const payload = { chat_id: "chat", ...(flag !== undefined ? { voice_call_bootstrap: flag } : {}) };
+    await webSocketService.sendMessage("encrypted_chat_metadata", payload);
+    expect(inject).toHaveBeenCalledOnce();
+    expect(JSON.parse(socket.send.mock.calls[0][0]).payload._traceparent).toBe("ordinary-metadata-trace");
+    service.ws = null;
+  });
+
   // contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.privacy
   it("sends only ciphertext and bounded trace metadata for call completion", async () => {
     const service = webSocketService as unknown as {
@@ -281,6 +314,45 @@ describe("webSocketService message dispatch", () => {
 });
 
 describe("webSocketService socket-bound privacy receipts", () => {
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy,auth.session.isolation
+  it("rejects a call bootstrap when another authenticated socket replaces its captured connection during tracing", async () => {
+    const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };
+    const original = { readyState: WebSocket.OPEN, send: vi.fn() };
+    const replacement = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = original;
+    const expectedConnection = webSocketService.getConnectionForSend();
+    let resume!: () => void;
+    const traceGate = new Promise<void>((resolve) => { resume = resolve; });
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => { await traceGate; return callback(); });
+    const inject = vi.spyOn(wsTracing, "injectTraceparent").mockImplementation((payload) => { payload._traceparent = "trace"; });
+    const connect = vi.spyOn(webSocketService, "connect").mockResolvedValue();
+    const payload = { chat_id: "old-owner-chat", encrypted_chat_key: "old-owner-wrapped-key", created_at: 1_700_000_000, voice_call_bootstrap: true };
+    const sending = webSocketService.sendMessage("voice_call_chat_prepare", payload, { expectedConnection });
+    const rejection = expect(sending).rejects.toMatchObject({ code: "websocket_receipt_connection_changed" });
+    await vi.waitFor(() => expect(wsTracing.withActiveWsSpan).toHaveBeenCalledOnce());
+    service.ws = replacement;
+    resume();
+    await rejection;
+    expect(original.send).not.toHaveBeenCalled();
+    expect(replacement.send).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+    expect(inject).not.toHaveBeenCalled();
+    service.ws = null;
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("does not auto-connect a receipt-bound bootstrap when no authenticated connection is ready", async () => {
+    const service = webSocketService as unknown as { ws: object | null };
+    service.ws = null;
+    const expectedConnection = webSocketService.getConnectionForSend();
+    expect(expectedConnection).toBeNull();
+    const connect = vi.spyOn(webSocketService, "connect").mockResolvedValue();
+    await expect(webSocketService.sendMessage("voice_call_chat_prepare", {
+      chat_id: "chat", encrypted_chat_key: "wrapped-key", created_at: 1_700_000_000, voice_call_bootstrap: true,
+    }, { expectedConnection })).rejects.toMatchObject({ code: "websocket_receipt_connection_changed" });
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy,chats.message.identity-idempotent
   it("rejects a detached receipt before auto-connect or plaintext transmission", async () => {
     const service = webSocketService as unknown as { ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null };

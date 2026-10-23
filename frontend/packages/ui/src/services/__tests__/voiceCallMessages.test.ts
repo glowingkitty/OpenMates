@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { websocketStatus } from "../../stores/websocketStatusStore";
 
 const mocks = vi.hoisted(() => {
@@ -8,12 +8,18 @@ const mocks = vi.hoisted(() => {
   let rejectSends = 0;
   let dropReceipts = 0;
   let rejectCode: string | null = null;
-  const chat = {
+  const initialChat = {
     chat_id: "chat-uuid-1234", team_id: null, encrypted_title: null,
     encrypted_chat_key: "wrapped-key", messages_v: 0, title_v: 0,
     created_at: 1_700_000_000, updated_at: 1_700_000_000,
     last_edited_overall_timestamp: 1_700_000_000, unread_count: 0,
   };
+  const chat = { ...initialChat };
+  const chats = new Map<string, Record<string, unknown>>();
+  const scope = { identity: "owner-scope" as string | null };
+  const pendingDeletes = new Set<string>();
+  const bootstrap = { autoReceipt: true, rejectCode: null as string | null };
+  const connection = { current: {} as object | null };
   const emit = (type: string, payload: Record<string, unknown>) => {
     for (const handler of handlers.get(type) ?? []) handler(payload);
   };
@@ -43,7 +49,8 @@ const mocks = vi.hoisted(() => {
     return tx;
   };
   const db = {
-    getChat: vi.fn(async () => chat),
+    getChat: vi.fn(async (id?: string) => id && chats.get(id) || chat),
+    getEncryptedChatKey: vi.fn(async (id: string) => (chats.get(id) ?? chat).encrypted_chat_key as string | null),
     getChatCompressionCheckpoints: vi.fn(async () => [] as Array<Record<string, unknown>>),
     getAppSettingsMemoriesMetadataKeys: vi.fn(async () => [] as string[]),
     getMessage: vi.fn(async (id: string) => {
@@ -72,9 +79,10 @@ const mocks = vi.hoisted(() => {
       const row = rows.get(id);
       if (row) row.status = status;
     }),
-    addChat: vi.fn(async () => {}),
+    addChat: vi.fn(async (row: Record<string, unknown>) => { chats.set(String(row.chat_id), row); }),
   };
   const socket = {
+    getConnectionForSend: vi.fn(() => connection.current),
     on: vi.fn((type: string, handler: (value: Record<string, unknown>) => void) => {
       if (!handlers.has(type)) handlers.set(type, new Set());
       handlers.get(type)!.add(handler);
@@ -94,11 +102,16 @@ const mocks = vi.hoisted(() => {
         if (type === "chat_system_message_added") emit("system_message_confirmed", {
           chat_id: payload.chat_id, message_id: (payload.message as Record<string, unknown>).message_id,
         });
-        if (type === "encrypted_chat_metadata") emit("encrypted_metadata_stored", { chat_id: payload.chat_id });
+        if (type === "voice_call_chat_prepare") {
+          if (bootstrap.rejectCode) emit("error", { chat_id: payload.chat_id, voice_call_bootstrap: true, code: bootstrap.rejectCode });
+          else if (bootstrap.autoReceipt) emit("encrypted_metadata_stored", {
+            chat_id: payload.chat_id, ...(payload.voice_call_bootstrap === true ? { voice_call_bootstrap: true } : {}),
+          });
+        }
       });
     }),
   };
-  return { rows, handlers, sent, chat, db, socket, emit, dispatchEvent: vi.fn(),
+  return { rows, handlers, sent, chat, initialChat, chats, scope, pendingDeletes, bootstrap, connection, db, socket, emit, dispatchEvent: vi.fn(),
     rejectNextSends: (count: number) => { rejectSends = count; },
     dropNextReceipts: (count: number) => { dropReceipts = count; },
     rejectCallWith: (code: string | null) => { rejectCode = code; } };
@@ -115,7 +128,12 @@ vi.mock("../embedStore", () => ({ embedStore: { get: vi.fn(async (ref: string) =
 })) } }));
 vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: {
   getKey: vi.fn(async () => new Uint8Array(32)),
-  createAndPersistKeyLocked: vi.fn(async () => ({ chatKey: new Uint8Array(32), encryptedChatKey: "wrapped-key" })),
+  getEncryptedChatKey: vi.fn(async () => { throw new Error("Existing keys must not be rewrapped"); }),
+  createAndPersistKeyLocked: vi.fn(async (id: string) => {
+    const chat = mocks.chats.get(id);
+    if (chat) chat.encrypted_chat_key = "wrapped-key";
+    return { chatKey: new Uint8Array(32), encryptedChatKey: "wrapped-key" };
+  }),
 } }));
 vi.mock("../encryption/MessageEncryptor", () => ({ decryptWithChatKey: vi.fn(async (value: string) => {
   if (value === "invalid") throw new Error("Invalid ciphertext");
@@ -125,7 +143,8 @@ vi.mock("../chatKeyWriteGuard", () => ({ ensureChatKeySafeForWrite: vi.fn(async 
 vi.mock("../websocketService", () => ({ webSocketService: mocks.socket }));
 vi.mock("../chatSyncService", () => ({ chatSyncService: { dispatchEvent: mocks.dispatchEvent } }));
 vi.mock("../userDB", () => ({ userDB: { getUserProfile: vi.fn(async () => ({ user_id: "owner-uuid" })) } }));
-vi.mock("../workspaceQueryCache", () => ({ getWorkspaceCacheIdentity: () => "owner-scope" }));
+vi.mock("../workspaceQueryCache", () => ({ getWorkspaceCacheIdentity: () => mocks.scope.identity }));
+vi.mock("../pendingChatDeletions", () => ({ getPendingChatDeletionsSet: () => mocks.pendingDeletes }));
 vi.mock("../../i18n/translations", () => ({ text: { subscribe: (run: (value: (key: string) => string) => void) => {
   run((key: string) => key === "voicecall.interrupted" ? "Interrupted" : key);
   return () => {};
@@ -133,7 +152,9 @@ vi.mock("../../i18n/translations", () => ({ text: { subscribe: (run: (value: (ke
 
 import { fetchAuthenticatedChatMessageWindow } from "../authenticatedChatMessageWindow";
 import { applyCallMessageChanged, loadCallContext, markTypedCallMessageFailed,
-  persistTypedCallMessage, retryPendingCallMessages, upsertCallTranscript, upsertCallArtifact, upsertCallUserArtifact, recordCallLifecycle } from "../voiceCallMessages";
+  persistTypedCallMessage, prepareVoiceCallChat, retryPendingCallMessages, upsertCallTranscript, upsertCallArtifact, upsertCallUserArtifact, recordCallLifecycle } from "../voiceCallMessages";
+import { chatKeyManager } from "../encryption/ChatKeyManager";
+import { ensureChatKeySafeForWrite } from "../chatKeyWriteGuard";
 
 const artifactReferenceText = (id: string) => '```json\n' + JSON.stringify({ embed_id: id,
   type: "app_skill_use", app_id: "web", skill_id: "search" }) + '\n```';
@@ -146,6 +167,23 @@ it("persists only spoken text when the assistant is interrupted", async () => {
 });
 
 beforeEach(() => {
+  for (const key of Object.keys(mocks.chat)) delete (mocks.chat as Record<string, unknown>)[key];
+  Object.assign(mocks.chat, mocks.initialChat);
+  mocks.chats.clear();
+  mocks.scope.identity = "owner-scope";
+  mocks.pendingDeletes.clear();
+  mocks.bootstrap.autoReceipt = true;
+  mocks.bootstrap.rejectCode = null;
+  mocks.connection.current = {};
+  mocks.socket.getConnectionForSend.mockReset().mockImplementation(() => mocks.connection.current);
+  mocks.db.getChat.mockReset().mockImplementation(async (id?: string) => id && mocks.chats.get(id) || mocks.chat);
+  mocks.db.getEncryptedChatKey.mockReset().mockImplementation(async (id: string) => (mocks.chats.get(id) ?? mocks.chat).encrypted_chat_key as string | null);
+  mocks.db.addChat.mockClear();
+  mocks.socket.sendMessage.mockClear();
+  vi.mocked(chatKeyManager.getKey).mockReset().mockResolvedValue(new Uint8Array(32));
+  vi.mocked(chatKeyManager.getEncryptedChatKey).mockClear();
+  vi.mocked(chatKeyManager.createAndPersistKeyLocked).mockClear();
+  vi.mocked(ensureChatKeySafeForWrite).mockReset().mockResolvedValue(true);
   vi.mocked(fetchAuthenticatedChatMessageWindow).mockReset().mockImplementation((chatId, { includeCanonicalMessages: _canonical, ...options }) => mocks.db.getMessageWindowForChat(chatId, options) as never);
   mocks.rows.clear();
   mocks.sent.length = 0;
@@ -160,6 +198,112 @@ beforeEach(() => {
   delete (mocks.chat as Record<string, unknown>).encrypted_category;
   delete (mocks.chat as Record<string, unknown>).encrypted_active_focus_id;
   delete (mocks.chat as Record<string, unknown>).encrypted_focus_phase_state;
+});
+afterEach(() => { vi.useRealTimers(); });
+
+describe("atomic voice call chat bootstrap", () => {
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("requires an already connected socket before selecting or creating any chat key", async () => {
+    mocks.connection.current = null;
+    await expect(prepareVoiceCallChat(mocks.chat.chat_id, true)).rejects.toThrow("connected authenticated socket");
+    expect(mocks.sent).toHaveLength(0);
+    expect(chatKeyManager.getKey).not.toHaveBeenCalled();
+    expect(chatKeyManager.createAndPersistKeyLocked).not.toHaveBeenCalled();
+    expect(mocks.db.addChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("keeps the existing Project draft and ID intact, sends only the existing key, and waits for the tagged durable receipt", async () => {
+    Object.assign(mocks.chat, { encrypted_draft_md: "cipher:structured-project-folder-mention", encrypted_draft_preview: "cipher:Project", draft_v: 4 });
+    const before = { ...mocks.chat };
+    mocks.bootstrap.autoReceipt = false;
+    let settled = false;
+    const prepared = prepareVoiceCallChat(mocks.chat.chat_id, true).then((value) => { settled = true; return value; });
+    await vi.waitFor(() => expect(mocks.sent).toHaveLength(1));
+    expect(mocks.sent[0]).toEqual({ type: "voice_call_chat_prepare", payload: {
+      chat_id: mocks.chat.chat_id, encrypted_chat_key: "wrapped-key", created_at: before.created_at, voice_call_bootstrap: true,
+    } });
+    expect(mocks.socket.sendMessage).toHaveBeenCalledWith("voice_call_chat_prepare", mocks.sent[0].payload, {
+      expectedConnection: mocks.connection.current,
+    });
+    mocks.emit("encrypted_metadata_stored", { chat_id: mocks.chat.chat_id });
+    mocks.emit("encrypted_metadata_stored", { chat_id: "other-chat", voice_call_bootstrap: true });
+    await Promise.resolve(); await Promise.resolve();
+    expect(settled).toBe(false);
+    mocks.emit("encrypted_metadata_stored", { chat_id: mocks.chat.chat_id, voice_call_bootstrap: true });
+    expect(await prepared).toEqual({ chatId: mocks.chat.chat_id, history: [] });
+    expect(mocks.chat).toEqual(before);
+    expect(mocks.db.addChat).not.toHaveBeenCalled();
+    expect(chatKeyManager.createAndPersistKeyLocked).not.toHaveBeenCalled();
+    expect(chatKeyManager.getEncryptedChatKey).not.toHaveBeenCalled();
+    expect(mocks.handlers.get("encrypted_metadata_stored")?.size).toBe(0);
+    expect(mocks.handlers.get("error")?.size).toBe(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("confirms a saved chat without transmitting or changing its title, draft, or versions", async () => {
+    Object.assign(mocks.chat, { encrypted_title: "cipher:saved-title", messages_v: 72, title_v: 8, metadata_v: 13,
+      encrypted_draft_md: "cipher:unsent", draft_v: 7 });
+    const before = { ...mocks.chat };
+    await prepareVoiceCallChat(mocks.chat.chat_id, true);
+    expect(mocks.sent[0].payload).toEqual({ chat_id: mocks.chat.chat_id, encrypted_chat_key: before.encrypted_chat_key,
+      created_at: before.created_at, voice_call_bootstrap: true });
+    expect(mocks.chat).toEqual(before);
+    expect(mocks.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
+  it("uses the same safe key-only handshake for a newly created empty call chat", async () => {
+    const result = await prepareVoiceCallChat(undefined, true);
+    expect(result.chatId).not.toBe(mocks.chat.chat_id);
+    expect(mocks.db.addChat).toHaveBeenCalledOnce();
+    expect(chatKeyManager.createAndPersistKeyLocked).toHaveBeenCalledOnce();
+    expect(mocks.sent[0]).toEqual({ type: "voice_call_chat_prepare", payload: {
+      chat_id: result.chatId, encrypted_chat_key: "wrapped-key", created_at: expect.any(Number), voice_call_bootstrap: true,
+    } });
+    expect(mocks.chats.get(result.chatId)).toMatchObject({ messages_v: 0, title_v: 0, metadata_v: 0, draft_v: 0 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.lifecycle.recovery-and-billing
+  it.each(["raw-key", "wrapped-key", "key-guard"])("refuses unsafe %s before sending registration", async (failure) => {
+    if (failure === "raw-key") vi.mocked(chatKeyManager.getKey).mockResolvedValueOnce(null);
+    if (failure === "wrapped-key") {
+      Object.assign(mocks.chat, { encrypted_chat_key: null });
+      mocks.db.getEncryptedChatKey.mockResolvedValue(null);
+    }
+    if (failure === "key-guard") vi.mocked(ensureChatKeySafeForWrite).mockResolvedValueOnce(false);
+    await expect(prepareVoiceCallChat(mocks.chat.chat_id, true)).rejects.toThrow();
+    expect(mocks.sent).toHaveLength(0);
+    expect(chatKeyManager.createAndPersistKeyLocked).not.toHaveBeenCalled();
+    expect(chatKeyManager.getEncryptedChatKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.lifecycle.recovery-and-billing
+  it("does not retry or allocate another ID when the authoritative deletion fence rejects bootstrap", async () => {
+    mocks.bootstrap.rejectCode = "chat_deleted";
+    await expect(prepareVoiceCallChat(mocks.chat.chat_id, true)).rejects.toMatchObject({ code: "chat_deleted" });
+    expect(mocks.sent).toHaveLength(1);
+    expect(mocks.db.addChat).not.toHaveBeenCalled();
+    expect(mocks.handlers.get("error")?.size).toBe(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.lifecycle.recovery-and-billing
+  it.each(["account", "local-deletion", "disconnect", "timeout"])("fails closed if %s changes before its durable receipt", async (change) => {
+    if (change === "timeout") vi.useFakeTimers();
+    mocks.bootstrap.autoReceipt = false;
+    const prepared = prepareVoiceCallChat(mocks.chat.chat_id, true);
+    const rejection = expect(prepared).rejects.toThrow();
+    await vi.waitFor(() => expect(mocks.sent).toHaveLength(1));
+    if (change === "account") mocks.scope.identity = "another-owner";
+    if (change === "local-deletion") mocks.pendingDeletes.add(mocks.chat.chat_id);
+    if (change === "disconnect") websocketStatus.setStatus("disconnected");
+    else if (change === "timeout") await vi.advanceTimersByTimeAsync(15_001);
+    else mocks.emit("encrypted_metadata_stored", { chat_id: mocks.chat.chat_id, voice_call_bootstrap: true });
+    await rejection;
+    expect(mocks.sent).toHaveLength(1);
+    expect(mocks.handlers.get("encrypted_metadata_stored")?.size).toBe(0);
+    expect(mocks.handlers.get("error")?.size).toBe(0);
+  });
 });
 
 describe("voice call transcript persistence", () => {

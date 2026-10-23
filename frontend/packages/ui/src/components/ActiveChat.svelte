@@ -113,6 +113,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { reserveInitialComposerChatId } from '../services/preparedChatForSend';
     import { shouldKeepComposerDuringNoDraftRestore } from '../services/drafts/draftRestoreGuard';
     import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../services/e2eTestHooks';
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
@@ -135,7 +136,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext, isComposerLookupChatCurrent } from '../utils/chatDraftState';
+    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext, isComposerLookupChatCurrent, canActivatePersistedComposerDraft } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed, resolveExampleFullscreenTarget } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
@@ -342,6 +343,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         dismissFocus: () => void;
         revealDraftActions?: () => void;
         flushCurrentDraft?: () => Promise<void> | void;
+        prepareVoiceCallDraft?: (chatId: string) => Promise<boolean>;
         sendCurrentMessage: () => Promise<void> | void;
         getTextContent: () => string;
         hasLiveUserEditForChat: (chatId: string) => boolean;
@@ -2691,9 +2693,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     async function handleChatNavigate(chatId: string, canNavigate?: () => boolean) {
         console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
         try {
+            if (canNavigate && !canNavigate()) return;
             // Clean up the current draft before navigating — prevents garbage draft chats
             // from accumulating when the user searches and clicks an existing chat instead of sending.
-            await clearCurrentDraft();
+            // The call bootstrap can navigate to this exact newly committed draft.
+            // It is the destination, so deleting it here would remove the live call surface.
+            if (get(draftEditorUIState).currentChatId !== chatId) await clearCurrentDraft();
             if (canNavigate && !canNavigate()) return;
 
             if (isPublicChat(chatId)) {
@@ -5599,7 +5604,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          // The bound chat can render its header, composer, and incoming call
          // transcripts before its history window finishes loading. It can host
          // the inline controls as soon as that surface is visible.
-         onVisibleChatReady?.(!showWelcome && chatLoadState !== 'error' ? currentChat?.chat_id ?? null : null);
+         onVisibleChatReady?.(boundWelcomeDraftCall ? $voiceCallController.chatId
+             : !showWelcome && chatLoadState !== 'error' ? currentChat?.chat_id ?? null : null);
      });
      onDestroy(() => onVisibleChatReady?.(null));
      // A warm history/header can render before the editor's encrypted draft and
@@ -6543,7 +6549,20 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     
     // Generate a temporary chat ID for draft saving when no chat is loaded
     // This ensures the draft service always has a chat ID to work with
-    let temporaryChatId = $state<string | null>(null);
+    function reserveComposerChatId(temporaryChatId: string | null): string | null {
+        return reserveInitialComposerChatId({
+            chat: currentChat, temporaryChatId, selectedChatId: activeChatStore.get(),
+            showWelcome, hasMessages: currentMessages.length > 0, hasLiveDraftContent: messageInputHasContent,
+        });
+    }
+    let temporaryChatId = $state<string | null>(typeof window === 'undefined' ? null : reserveComposerChatId(null));
+
+    function persistedDraftStillOwnsComposer(persistedChatId: string): boolean {
+        return canActivatePersistedComposerDraft({ persistedChatId,
+            selectedChatId: activeChatStore.get(), currentChatId: currentChat?.chat_id ?? null,
+            temporaryChatId, draftChatId: get(draftEditorUIState).currentChatId,
+        });
+    }
 
     // Subscribe to AI typing store
     const unsubscribeAiTyping = aiTypingStore.subscribe(value => { // Store unsubscribe function
@@ -6558,7 +6577,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${persistedChatId}`);
             draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
             const selectedChatId = activeChatStore.get();
-            if (selectedChatId && selectedChatId !== persistedChatId) {
+            if (!persistedDraftStillOwnsComposer(persistedChatId)) {
                 recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'skipped' });
                 console.debug('[ActiveChat] Skipping stale persisted draft activation because another chat is selected:', {
                     persistedChatId,
@@ -6579,7 +6598,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (newChat) {
                 await waitForE2EDraftSelectionCommit(persistedChatId, 'active_chat');
                 const latestSelectedChatId = activeChatStore.get();
-                if (latestSelectedChatId !== selectedChatId) {
+                if (latestSelectedChatId !== selectedChatId || !persistedDraftStillOwnsComposer(persistedChatId)) {
                     recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'skipped' });
                     console.debug('[ActiveChat] Skipping persisted draft activation because selection changed while loading:', {
                         persistedChatId,
@@ -8105,10 +8124,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         $voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' ||
         $voiceCallController.status === 'error'
     );
+    const boundWelcomeDraftCall = $derived(
+        showWelcome && ($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') &&
+        !!$voiceCallController.chatId && $voiceCallController.chatId === (currentChat?.chat_id || temporaryChatId)
+    );
     const showVoiceCallBarHere = $derived(
         voiceCallHasVisibleControls && !globalVoiceCallControlsVisible &&
-        ((($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') && !$voiceCallController.chatId) ||
+        (boundWelcomeDraftCall ||
+            (($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') && !$voiceCallController.chatId) ||
             (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
+    );
+    const callControlsReplaceToolbar = $derived(
+        voiceCallStripStuck || (showVoiceCallBarHere && isActiveDraftOnlyChat)
     );
     $effect(() => { if (!showVoiceCallBarHere) voiceCallStripStuck = false; });
     const voiceCallLaunchEligible = $derived(
@@ -8126,8 +8153,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
         void assistantSpeechController.stop();
-        const chatId = showWelcome ? undefined : currentChat?.chat_id;
-        void voiceCallController.start(chatId, (boundChatId) => { void handleChatNavigate(boundChatId); });
+        // A Project draft can own the composer while the welcome is visible.
+        // Keep its saved context bound to the call; an empty welcome gets a new shell.
+        const hasLiveDraft = messageInputHasContent || !!messageInputFieldRef?.getTextContent().trim();
+        const chatId = showWelcome && !hasLiveDraft ? undefined : currentChat?.chat_id || temporaryChatId || undefined;
+        const draftInput = messageInputFieldRef;
+        // Start synchronously to retain audio activation while saving the local draft.
+        const draftReady = chatId && (showWelcome || isActiveDraftOnlyChat)
+            ? Promise.resolve().then(() => draftInput?.prepareVoiceCallDraft?.(chatId) ?? false).catch(() => false)
+            : undefined;
+        void voiceCallController.start(chatId, (boundChatId) => { void handleChatNavigate(boundChatId); }, draftReady);
     }
 
     export function handleReturnToVoiceCallChat(chatId: string): void {
@@ -11934,6 +11969,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     });
 
     onMount(() => {
+        temporaryChatId = reserveComposerChatId(temporaryChatId);
         if (initialAnonymousChatId) {
             void restoreAnonymousHashChatOnMount();
         }
@@ -11973,7 +12009,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Generate a temporary chat ID for draft saving if no chat is loaded
             // This ensures the draft service always has a chat ID to work with
             if (!currentChat?.chat_id && !temporaryChatId) {
-                temporaryChatId = crypto.randomUUID();
+                temporaryChatId = reserveComposerChatId(temporaryChatId);
                 console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
             }
 
@@ -14069,7 +14105,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     bind:this={chatSideEl}
                     bind:clientWidth={chatSideWidth}
                     bind:clientHeight={chatSideHeight}
-                    class:voice-call-strip-stuck={voiceCallStripStuck}
+                    class:voice-call-strip-stuck={callControlsReplaceToolbar}
                     style:--welcome-banner-height={`${welcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
                 >
@@ -14254,8 +14290,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
-                        class:call-strip-stuck={voiceCallStripStuck}
-                        inert={(showWelcome && hideWelcomeForKeyboard) || voiceCallStripStuck}
+                        class:call-strip-stuck={callControlsReplaceToolbar}
+                        inert={(showWelcome && hideWelcomeForKeyboard) || callControlsReplaceToolbar}
                     >
                         <HeaderActionMenu
                             resetKey={currentChat?.chat_id}
@@ -14983,7 +15019,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
 
                     {#snippet boundCallControls(fixed: boolean)}
-                        <VoiceCallBar {fixed} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
+                        <VoiceCallBar fixed={fixed || isActiveDraftOnlyChat} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
                             {#snippet moreActions()}
                                 <VoiceCallMoreMenu
                                     {report} {share} {priorityAction} {actions}
@@ -17330,7 +17366,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         display: flex;
         flex-direction: column;
         position: absolute;
-        inset-block-start: 0;
+        /* Keep pending/error controls below the welcome chat toolbar. */
+        inset-block-start: var(--spacing-32);
         inset-inline-start: 0;
         width: 100%;
         box-sizing: border-box;

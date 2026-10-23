@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Chat } from "../../types/chat";
-import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, isFirstTurnComposerContext, classifyFirstTurnComposerContext, canBindUnclaimedFreshShell, reserveInitialFreshShellId, isComposerLookupChatCurrent } from "../chatDraftState";
+import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, isFirstTurnComposerContext, classifyFirstTurnComposerContext, canBindUnclaimedFreshShell, reserveInitialFreshShellId, isComposerLookupChatCurrent, canActivatePersistedComposerDraft } from "../chatDraftState";
 
 describe('composer lookup ownership through draft persistence', () => {
   const opening = { openingChatId: null, openingDraftChatId: 'reserved-draft', openingLoadGeneration: 7 };
@@ -171,5 +171,26 @@ describe("initial fresh shell identity", () => {
       selectedChatId: null, preparedDraftChatId: 'prepared-id', showWelcome: false,
       hasMessages: false }, createId)).toBe('new-2');
     expect(allocations).toBe(2);
+  });
+});
+
+describe("persisted draft activation ownership", () => {
+  const owned = { persistedChatId: 'draft-a', selectedChatId: null,
+    currentChatId: null, temporaryChatId: 'draft-a', draftChatId: 'draft-a' };
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,video-call.chat.project-context
+  it("activates only the saved draft that still owns the visible composer", () => {
+    expect(canActivatePersistedComposerDraft(owned)).toBe(true);
+    expect(canActivatePersistedComposerDraft({ ...owned, temporaryChatId: 'draft-b' })).toBe(false);
+    expect(canActivatePersistedComposerDraft({ ...owned, temporaryChatId: null })).toBe(false);
+    expect(canActivatePersistedComposerDraft({ ...owned, draftChatId: 'draft-b' })).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,video-call.audio.single-owner
+  it("rejects an old save after the user opens another chat or creates a new draft during the read", () => {
+    expect(canActivatePersistedComposerDraft(owned)).toBe(true);
+    expect(canActivatePersistedComposerDraft({ ...owned, currentChatId: 'saved-b', selectedChatId: 'saved-b' })).toBe(false);
+    expect(canActivatePersistedComposerDraft({ ...owned, temporaryChatId: 'new-c', draftChatId: 'new-c' })).toBe(false);
+    expect(canActivatePersistedComposerDraft({ ...owned, selectedChatId: 'saved-b' })).toBe(false);
   });
 });

@@ -28,6 +28,8 @@ const mocks = vi.hoisted(() => {
   };
   let draftState = { ...initialDraftEditorState };
   const draftSubscribers = new Set<(value: typeof initialDraftEditorState) => void>();
+  let accountId = "draft-test-user";
+  const profileSubscribers = new Set<(value: { user_id: string }) => void>();
 
   const draftEditorUIState = {
     subscribe: vi.fn((fn: (value: typeof initialDraftEditorState) => void) => {
@@ -46,6 +48,15 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
+    profileSubscribe: vi.fn((fn: (value: { user_id: string }) => void) => {
+      profileSubscribers.add(fn);
+      fn({ user_id: accountId });
+      return () => { profileSubscribers.delete(fn); };
+    }),
+    setAccountId(next: string) {
+      accountId = next;
+      profileSubscribers.forEach(fn => fn({ user_id: accountId }));
+    },
     initialDraftEditorState,
     get draftState() {
       return draftState;
@@ -134,10 +145,7 @@ vi.mock("../../../stores/authStore", () => ({
 
 vi.mock("../../../stores/userProfile", () => ({
   userProfile: {
-    subscribe: vi.fn((fn: (value: unknown) => void) => {
-      fn({ user_id: "draft-test-user" });
-      return () => {};
-    }),
+    subscribe: mocks.profileSubscribe,
   },
 }));
 
@@ -290,6 +298,7 @@ function createEditor(isEmpty: boolean) {
 describe("draftSave", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.setAccountId("draft-test-user");
     mocks.deferDebounce = false;
     activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.resetDraftState();
@@ -1020,6 +1029,80 @@ describe("draftSave", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.privacy,drafts.draft-only.lifecycle
+    it("waits for a concurrently edited call draft's local commit without waiting for receipts or suppressing autosave", async () => {
+      const chatId = "voice-draft";
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: chatId, hasUnsavedChanges: true });
+      mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: chatId, draft_v: 1, encrypted_draft_md: "previous" });
+      mocks.tipTapToCanonicalMarkdown.mockImplementation((json: { content?: Array<{ content?: Array<{ text?: string }> }> }) =>
+        json.content?.[0]?.content?.[0]?.text ?? "");
+      let releaseEncryption!: () => void;
+      mocks.encryptWithMasterKey.mockImplementation(async (text: string) => `encrypted:${text}`);
+      mocks.encryptWithMasterKey.mockImplementationOnce(() => new Promise<string>(resolve => {
+        releaseEncryption = () => resolve("encrypted:draft");
+      }));
+      let releaseTransport!: () => void;
+      mocks.chatSyncService.sendUpdateDraft.mockImplementationOnce(() => new Promise<void>(resolve => {
+        releaseTransport = resolve;
+      }));
+      let commitLatest!: () => void;
+      mocks.chatDB.saveChatDraftFields.mockImplementationOnce(async (id, fields) => ({ chat_id: id, ...fields }))
+        .mockImplementationOnce((id, fields) => new Promise(resolve => {
+          commitLatest = () => resolve({ chat_id: id, ...fields });
+        }));
+      const activeSave = flushSaveDraft(editor as never, chatId);
+      await vi.waitFor(() => expect(mocks.draftState.isSaveInProgress).toBe(true));
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "captured Project mention" }] }] });
+      await flushSaveDraft(editor as never, chatId); // An ordinary resave is pending behind encryption.
+      let settled = false;
+      const ready = flushSaveDraftAndWaitForIdle(editor as never, chatId, { suppressQueuedEditResaves: false })
+        .then(result => { settled = true; return result; });
+      releaseEncryption();
+      await vi.waitFor(() => expect(commitLatest).toBeTypeOf("function"));
+      expect(settled).toBe(false);
+      expect(mocks.chatDB.saveChatDraftFields).toHaveBeenLastCalledWith(chatId, expect.objectContaining({ encrypted_draft_md: "encrypted:captured Project mention" }));
+      vi.useFakeTimers();
+      try {
+        commitLatest();
+        expect(await ready).toBe(true);
+        expect(mocks.draftState.lastSavedContentMarkdown).toBe("captured Project mention");
+        // The first receipt is still pending. Keeping ordinary resaves enabled
+        // must persist later edits when that active sender finally completes.
+        editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "later ordinary edit" }] }] });
+        releaseTransport();
+        await activeSave;
+        await vi.advanceTimersByTimeAsync(1_500);
+        expect(mocks.chatDB.saveChatDraftFields).toHaveBeenLastCalledWith(chatId, expect.objectContaining({ encrypted_draft_md: "encrypted:later ordinary edit" }));
+      } finally { vi.useRealTimers(); }
+    });
+
+    // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.chat.typed-input,drafts.draft-only.lifecycle
+    it.each(["editor", "account"])("rejects call draft readiness when its %s changes during an active save", async (change) => {
+      const chatId = `voice-draft-${change}`;
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: chatId, hasUnsavedChanges: true });
+      mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: chatId, draft_v: 1, encrypted_draft_md: "previous" });
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("draft");
+      let releaseEncryption!: () => void;
+      mocks.encryptWithMasterKey.mockImplementationOnce(() => new Promise<string>(resolve => {
+        releaseEncryption = () => resolve("encrypted:draft");
+      }));
+      const activeSave = flushSaveDraft(editor as never, chatId);
+      await vi.waitFor(() => expect(mocks.draftState.isSaveInProgress).toBe(true));
+      const ready = flushSaveDraftAndWaitForIdle(editor as never, chatId, { suppressQueuedEditResaves: false });
+      if (change === "account") mocks.setAccountId("replacement-account");
+      else {
+        mocks.getEditorInstance.mockReturnValue(createEditor(false));
+        mocks.resetDraftState({ currentChatId: chatId, isSaveInProgress: true });
+      }
+      expect(await ready).toBe(false);
+      releaseEncryption();
+      await activeSave;
     });
 
     // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.cancel,teams.context.full-switch-local

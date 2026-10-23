@@ -1522,9 +1522,11 @@ class WebSocketService extends EventTarget {
     // Receipt-bound frames never follow auto-connect onto a replacement socket.
     assertExpectedConnection();
     const message: WebSocketMessage = { type, payload };
+    const voiceCallBootstrap = type === "voice_call_chat_prepare" && payload !== null && typeof payload === "object"
+      && (payload as Record<string, unknown>).voice_call_bootstrap === true;
     // Optional metadata contains the call transcript before client encryption.
     // Admin/debug console forwarding must never retain that payload.
-    const logMessage = type.startsWith("voice_metadata_")
+    const logMessage = voiceCallBootstrap ? { type } : type.startsWith("voice_metadata_")
       ? summarizeIncomingMessageForLogging(message) : message;
     if (!this.isConnected()) {
       if (type !== "ping") {
@@ -1568,7 +1570,7 @@ class WebSocketService extends EventTarget {
               // These sealed turn, voice metadata and personal snapshot requests have a
               // strict payload schema. Keep the local span without decorating
               // their data with an unbound _traceparent field.
-              if (!["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
+              if (!voiceCallBootstrap && !["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
                 "chat_turn_context_failed", "personal_send_context_snapshot",
                 "voice_metadata_request", "voice_metadata_commit"].includes(type)) {
                 tracing.injectTraceparent(message.payload as Record<string, unknown>);

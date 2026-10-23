@@ -106,6 +106,7 @@ export class AssistantSpeechQueue {
   // the acknowledgement and every generated chapter, changing only its source.
   private playbackAudio: SpeechAudio | null = null;
   private playbackAudioUrl: string | null = null;
+  private silentPrimeState: "idle" | "pending" | "ready" = "idle";
   private currentAudio: SpeechAudio | null = null;
   private pendingSegmentId: string | null = null;
   private readonly completedSegmentIds = new Set<string>();
@@ -385,14 +386,30 @@ export class AssistantSpeechQueue {
 
   /** Preserve iOS Safari's user-activation grant while generated audio is pending. */
   primeForAutoplay(): void {
-    if (this.playbackAudio) return;
-    const audio = this.audioFactory(SILENT_AUDIO_DATA_URL);
-    this.playbackAudio = audio;
+    // Priming must never resume or replace the queue's active/paused prose.
+    if (this.currentAudio) return;
+    let audio = this.playbackAudio;
+    if (audio && this.playbackAudioUrl === SILENT_AUDIO_DATA_URL && this.silentPrimeState !== "idle") return;
+    if (!audio) {
+      audio = this.audioFactory(SILENT_AUDIO_DATA_URL);
+      this.playbackAudio = audio;
+    } else if (this.playbackAudioUrl !== SILENT_AUDIO_DATA_URL) {
+      // A completed/stopped source can still be attached to the shared element.
+      // Replace it with silence before granting playback in this gesture.
+      audio.src = SILENT_AUDIO_DATA_URL;
+      audio.load?.();
+    }
     this.playbackAudioUrl = SILENT_AUDIO_DATA_URL;
     this.bindPlaybackAudioEvents(audio);
-    // Retain the element even when this attempt is rejected. The visible
-    // autoplay-recovery control can retry the same element after a gesture.
-    void audio.play().catch(() => undefined);
+    this.silentPrimeState = "pending";
+    const sourceGeneration = this.audioSourceGeneration;
+    const settled = (state: "idle" | "ready") => {
+      if (sourceGeneration === this.audioSourceGeneration) this.silentPrimeState = state;
+    };
+    // A rejected silent play must be retried on this same element by the next
+    // actual gesture. A pending/successful prime needs no duplicate play call.
+    try { void audio.play().then(() => settled("ready"), () => settled("idle")); }
+    catch { settled("idle"); }
   }
 
   pause(): void {
@@ -430,7 +447,7 @@ export class AssistantSpeechQueue {
       this.activateFirstSegment();
       return;
     }
-    await this.playActiveSegment();
+    await this.playActiveSegment(true);
   }
 
   markComplete(): void {
@@ -546,7 +563,7 @@ export class AssistantSpeechQueue {
 
   async continueAfterUserGesture(): Promise<void> {
     if (this.state.status === "blocked_by_autoplay") {
-      await this.playActiveSegment();
+      await this.playActiveSegment(true);
     }
   }
 
@@ -606,7 +623,7 @@ export class AssistantSpeechQueue {
     await this.selectSegment(targetSegment.id);
   }
 
-  private async playActiveSegment(): Promise<void> {
+  private async playActiveSegment(explicitResume = false): Promise<void> {
     const segment = this.activeSegment;
     if (segment?.status === "failed") {
       this.setState({ ...this.state, status: "failed" });
@@ -620,6 +637,11 @@ export class AssistantSpeechQueue {
       }
       return;
     }
+    // Native buffering leaves the same source playing (or its play promise
+    // pending). Status/seal updates must not start it again, including when the
+    // element was paused directly. Only an explicit Play resumes that source.
+    if (!explicitResume && this.currentAudio === this.playbackAudio
+      && this.playbackAudioUrl === segment.audioUrl) return;
     this.stopPendingCue();
     this.explicitSelectionPending = false;
     const audio = this.getAudio(segment);

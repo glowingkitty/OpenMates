@@ -101,6 +101,32 @@ describe("AssistantSpeechQueue", () => {
     expect(audioByUrl.get("blob:segment-0")).toMatchObject({ playbackRate: ASSISTANT_SPEECH_PLAYBACK_RATE, preservesPitch: true, webkitPreservesPitch: true });
   });
 
+  // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
+  it("does not reenter a pending or buffering source when segment updates arrive", async () => {
+    const audio = new FakeAudio("blob:segment-0");
+    let resolvePlay!: () => void;
+    audio.play.mockImplementationOnce(() => new Promise<void>((resolve) => { resolvePlay = resolve; }));
+    audioFactory.mockImplementationOnce(() => audio);
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.start("response-1", [segment(0, "ready")]);
+    audio.emit("waiting");
+    queue.upsertSegment(segment(0, "ready"));
+    queue.upsertSegment(segment(1, "ready"));
+    expect(audio.play).toHaveBeenCalledOnce();
+    resolvePlay();
+    await vi.waitFor(() => expect(queue.state.status).toBe("playing"));
+    audio.currentTime = 0.4;
+    audio.emit("waiting");
+    queue.upsertSegment(segment(0, "ready"));
+    expect(audio.play).toHaveBeenCalledOnce();
+    expect(audio.currentTime).toBe(0.4);
+    queue.pause();
+    await queue.resume();
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    expect(audio.currentTime).toBe(0.4);
+    queue.stop();
+  });
+
   // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.execution.web-paragraph-demand
   it("replays a cached ready paragraph at the same faster pace without requesting generation", async () => {
     const needed: string[] = [];
@@ -217,6 +243,60 @@ describe("AssistantSpeechQueue", () => {
     expect(audioByUrl.get("blob:acknowledgement")).toBe(reusableAudio);
     expect(audioByUrl.get("blob:segment-0")).toBe(reusableAudio);
     expect(queue.state.status).toBe("playing");
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.playback.autoplay-recovery-visible,video-call.audio.single-owner
+  it("retries a rejected silent prime on the same element and retains it through call setup", async () => {
+    audioFactory.mockImplementationOnce((url) => {
+      const audio = new FakeAudio(url);
+      audio.onSrcChange = (nextUrl) => audioByUrl.set(nextUrl, audio);
+      audio.play.mockRejectedValueOnce(new DOMException("Blocked", "NotAllowedError"));
+      audioByUrl.set(url, audio);
+      return audio;
+    });
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.primeForAutoplay();
+    const audio = [...audioByUrl.values()][0];
+    expect(audio.play).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    queue.primeForAutoplay();
+    queue.primeForAutoplay(); // The second promise is still pending.
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    await Promise.resolve();
+    queue.primeForAutoplay();
+    expect(audio.play).toHaveBeenCalledTimes(2);
+    queue.stop(); // Asynchronous setup stops the old queue, retaining its element.
+    queue.start("call-response", [segment(0, "ready")]);
+    await vi.waitFor(() => expect(queue.state.status).toBe("playing"));
+    expect(audioByUrl.get("blob:segment-0")).toBe(audio);
+    expect(audioFactory).toHaveBeenCalledOnce();
+    queue.stop();
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.playback.autoplay-recovery-visible,video-call.audio.single-owner
+  it("never interrupts active prose or replays paused/stopped prose while priming", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.start("old-response", [segment(0, "ready")]);
+    await vi.waitFor(() => expect(queue.state.status).toBe("playing"));
+    const audio = audioByUrl.get("blob:segment-0")!;
+    audio.currentTime = 0.7;
+    queue.primeForAutoplay();
+    expect(audio.play).toHaveBeenCalledOnce();
+    expect(audio.pause).not.toHaveBeenCalled();
+    expect(audio.src).toBe("blob:segment-0");
+    queue.pause();
+    queue.primeForAutoplay();
+    expect(audio.play).toHaveBeenCalledOnce();
+    expect(audio.currentTime).toBe(0.7);
+    expect(queue.state.status).toBe("paused");
+    queue.stop();
+    const playedSources: string[] = [];
+    audio.play.mockImplementation(async () => { playedSources.push(audio.src); });
+    queue.primeForAutoplay();
+    expect(playedSources).toHaveLength(1);
+    expect(playedSources[0]).toMatch(/^data:audio\/wav;base64,/);
+    expect(audioFactory).toHaveBeenCalledOnce();
+    expect(queue.state.status).toBe("stopped");
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.pinned-full-response-waveform

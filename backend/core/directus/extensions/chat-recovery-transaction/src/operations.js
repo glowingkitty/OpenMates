@@ -133,6 +133,9 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
     'messages_v', 'timestamp',
   ]),
+  register_personal_chat_draft: new Set([
+    'protocol_version', 'hashed_user_id', 'chat_id', 'encrypted_chat_key', 'created_at',
+  ]),
   prepare_preflight: new Set([
     'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
     'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
@@ -2181,6 +2184,43 @@ function parsePreflightData(raw, operation = 'prepare_preflight') {
     wrappedKey, recoveryKey, commitment, commitmentVersion, expectedVersion,
     chatMetadata, message, values, queuedAfterTaskId,
   };
+}
+
+// Register only the immutable key shell needed before an unsent voice turn.
+// Share deletion's account/chat locks: a missing deleted UUID is never recreated.
+async function registerPersonalChatDraft(database, raw, now) {
+  const body = operationBody(raw, 'register_personal_chat_draft');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const encryptedKey = string(body.encrypted_chat_key, 'invalid_wrapped_chat_key', 16_384);
+  const createdAt = integer(body.created_at, 'invalid_chat_timestamp');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
+    if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) fail(404, 'chat_not_found');
+    const existing = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (existing) {
+      if (existing.hashed_user_id !== ownerHash || existing.hashed_team_id
+        || directChatMarked(existing) || existing.participant_user_hashes != null
+        || existing.participant_key_envelopes != null || existing.storage_state === 'deleting') {
+        fail(404, 'chat_not_found');
+      }
+      if (existing.encrypted_chat_key !== encryptedKey) fail(409, 'immutable_chat_key_mismatch');
+      return { chat_id: chatId, created: false };
+    }
+    const timestamp = Math.floor(now.getTime() / 1000);
+    await trx(CHATS).insert({
+      id: chatId, hashed_user_id: ownerHash, hashed_team_id: null,
+      encrypted_chat_key: encryptedKey, created_at: createdAt, updated_at: timestamp,
+      messages_v: 0, title_v: 0, metadata_v: 0,
+      last_message_timestamp: null, last_edited_overall_timestamp: timestamp,
+      unread_count: 0, pinned: false, is_private: true, is_shared: false,
+      chat_visibility: null, participant_user_hashes: null, participant_key_envelopes: null,
+      parent_id: null, is_sub_chat: false, budget_limit: null, budget_spent: 0,
+      share_with_community: false, share_pii: false, share_highlights: true,
+    });
+    return { chat_id: chatId, created: true };
+  });
 }
 
 async function preparePreflight(database, raw, now) {
@@ -5329,6 +5369,7 @@ export const operations = Object.freeze({
   ...metadataOperations({ fail, exactKeys, string, uuid, integer, validateEnvelope, digest, ownedChat,
     JOB_TTL_MS, TOMBSTONE_TTL_MS }),
   prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
+  register_personal_chat_draft: registerPersonalChatDraft,
   enqueue_inference: enqueueInference, admit_first_personal: admitFirstPersonal,
   verify_routing_admission: verifyRoutingAdmission,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,

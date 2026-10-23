@@ -243,7 +243,7 @@
 		($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' || $voiceCallController.status === 'error') &&
 		(workspaceHashRoute.workspace !== 'chats' || settingsOverlayOpen || voiceCallReturnLookupPending ||
 			($voiceCallController.chatId !== null &&
-				($activeChatStore !== $voiceCallController.chatId || visibleChatReadyId !== $voiceCallController.chatId)))
+				(($activeChatStore ?? visibleChatReadyId) !== $voiceCallController.chatId || visibleChatReadyId !== $voiceCallController.chatId)))
 	);
 	// Every workspace route mounts its own Header. Share the return action with
 	// those descendants while the call remains bound to a different chat.

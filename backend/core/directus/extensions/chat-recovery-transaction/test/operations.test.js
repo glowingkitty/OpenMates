@@ -4779,3 +4779,102 @@ test('genuine next-turn authoritative base permits replacing an existing AI summ
   assert.equal(database.rows.chats[1].encrypted_title, 'generated-title');
   assert.equal(result.applied_fields.length, 4);
 });
+
+const draftRegistration = (overrides = {}) => ({ protocol_version: 1, hashed_user_id: OWNER,
+  chat_id: CHAT_ID, encrypted_chat_key: 'immutable-wrapped-key', created_at: 100, ...overrides });
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('personal draft registration creates only a key shell and concurrent retries preserve established metadata', async () => {
+  const database = fakeDatabase({});
+  const results = await Promise.all([1, 2].map(() => executeOperation(database,
+    'register_personal_chat_draft', draftRegistration())));
+  assert.deepEqual(results.map((r) => r.created), [true, false]);
+  assert.equal(database.rows.chats.length, 1);
+  const chat = database.rows.chats[0];
+  assert.equal(chat.encrypted_chat_key, 'immutable-wrapped-key');
+  assert.equal(chat.hashed_user_id, OWNER);
+  assert.equal(chat.hashed_team_id, null);
+  assert.equal(chat.messages_v, 0);
+  assert.equal(chat.title_v, 0);
+  assert.equal(chat.metadata_v, 0);
+  assert.equal(chat.last_message_timestamp, null);
+  assert.deepEqual(Object.keys(database.rows), ['chats']);
+  assert.deepEqual(database.lockEvents.slice(0, 2), [
+    `advisory:account-recovery:${OWNER}`, `advisory:chat-recovery-delete:${CHAT_ID}`,
+  ]);
+  Object.assign(chat, { encrypted_title: 'established-title', messages_v: 4, title_v: 2, metadata_v: 3 });
+  const before = structuredClone(chat);
+  await executeOperation(database, 'register_personal_chat_draft', draftRegistration({ created_at: 200 }));
+  assert.deepEqual(database.rows.chats[0], before);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('personal draft registration rejects foreign scope, key substitution and malformed requests without mutation', async () => {
+  for (const fields of [{ hashed_user_id: 'b'.repeat(64) }, { hashed_team_id: TEAM_HASH },
+    { chat_visibility: 'direct' }, { participant_user_hashes: [] }, { participant_key_envelopes: {} },
+    { storage_state: 'deleting' }, { encrypted_chat_key: 'other-key' }, { encrypted_chat_key: null }]) {
+    const database = fakeDatabase({ chats: [{ id: CHAT_ID, hashed_user_id: OWNER,
+      encrypted_chat_key: 'immutable-wrapped-key', ...fields }] });
+    const before = structuredClone(database.rows);
+    await assert.rejects(executeOperation(database, 'register_personal_chat_draft', draftRegistration()), ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+  for (const fields of [{ versions: {} }, { encrypted_title: 'forbidden' }, { hashed_team_id: null },
+    { created_at: -1 }, { created_at: true }, { encrypted_chat_key: '' }, { chat_id: 'invalid' }]) {
+    const database = fakeDatabase({});
+    await assert.rejects(executeOperation(database, 'register_personal_chat_draft', draftRegistration(fields)), ProtocolError);
+    assert.deepEqual(database.rows, {});
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('personal draft registration respects durable account and chat deletion fences, including missing rows', async () => {
+  for (const seed of [{ chat_recovery_account_fences: [{ id: OWNER }] },
+    { chat_recovery_chat_deletion_fences: [{ id: CHAT_ID, hashed_user_id: OWNER }] }]) {
+    const database = fakeDatabase(seed);
+    const before = structuredClone(database.rows);
+    await assert.rejects(executeOperation(database, 'register_personal_chat_draft', draftRegistration()), ProtocolError);
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('personal draft registration insertion crash rolls back and retry succeeds', async () => {
+  const database = fakeDatabase({}, { operation: 'insert', table: 'chats' });
+  await assert.rejects(executeOperation(database, 'register_personal_chat_draft', draftRegistration()), /injected/);
+  assert.deepEqual(database.rows, {});
+  assert.equal((await executeOperation(database, 'register_personal_chat_draft', draftRegistration())).created, true);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('personal draft registration and deletion serialize without resurrecting the chat', async () => {
+  for (const deleteFirst of [true, false]) {
+    const database = fakeDatabase({ chats: [{ id: CHAT_ID, hashed_user_id: OWNER,
+      encrypted_chat_key: 'immutable-wrapped-key' }] });
+    const remove = () => executeOperation(database, 'invalidate_deletion', {
+      protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+    });
+    const register = () => executeOperation(database, 'register_personal_chat_draft', draftRegistration());
+    const results = await Promise.allSettled(deleteFirst ? [remove(), register()] : [register(), remove()]);
+    assert.equal(results[deleteFirst ? 0 : 1].status, 'fulfilled');
+    assert.equal(results[deleteFirst ? 1 : 0].status, deleteFirst ? 'rejected' : 'fulfilled');
+    assert.equal(database.rows.chat_recovery_chat_deletion_fences[0].chat_id, CHAT_ID);
+    await assert.rejects(register(), (error) => error.code === 'chat_not_found');
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+test('personal draft registration and account deletion serialize on the account fence', async () => {
+  for (const deleteFirst of [true, false]) {
+    const database = fakeDatabase({});
+    const remove = () => executeOperation(database, 'invalidate_deletion', {
+      protocol_version: 1, hashed_user_id: OWNER, scope: 'account',
+    });
+    const register = () => executeOperation(database, 'register_personal_chat_draft', draftRegistration());
+    const results = await Promise.allSettled(deleteFirst ? [remove(), register()] : [register(), remove()]);
+    assert.equal(results[deleteFirst ? 0 : 1].status, 'fulfilled');
+    assert.equal(results[deleteFirst ? 1 : 0].status, deleteFirst ? 'rejected' : 'fulfilled');
+    assert.equal(database.rows.chat_recovery_account_fences[0].id, OWNER);
+    await assert.rejects(register(), (error) => error.code === 'account_recovery_fenced');
+  }
+});

@@ -4415,6 +4415,19 @@
         return flushSaveDraft(editor, chatId);
     }
 
+    export async function prepareVoiceCallDraft(capturedChatId: string): Promise<boolean> {
+        const capturedEditor = editor;
+        const currentDraftId = () => currentChatId ?? get(draftEditorUIState).currentChatId;
+        if (!capturedEditor || capturedEditor.isDestroyed || queuedEdit ||
+            !capturedChatId || currentDraftId() !== capturedChatId) return false;
+        syncTextOnlyDomToEditorBeforeDraftSave(capturedEditor);
+        const saved = await flushSaveDraftAndWaitForIdle(capturedEditor, capturedChatId, {
+            suppressQueuedEditResaves: false,
+        });
+        return saved && editor === capturedEditor && !capturedEditor.isDestroyed &&
+            !queuedEdit && currentDraftId() === capturedChatId;
+    }
+
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
     function handleBeforeUnload() { if (hasContent || hasEmbedContent) flushCurrentEditorDraft(currentChatId); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && (hasContent || hasEmbedContent)) flushCurrentEditorDraft(currentChatId); }

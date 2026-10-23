@@ -21,6 +21,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 RECOVERY_OPERATIONS = {
+    "register_personal_chat_draft",
     "revise_queued_message_ciphertext",
     "commit_queued_message_revision",
     "abort_queued_message_revision",
@@ -117,6 +118,15 @@ class ChatRecoveryProtocolError(RuntimeError):
 class ChatRecoveryService:
     def __init__(self, directus_service: Any) -> None:
         self._directus = directus_service
+
+    async def register_personal_chat_draft(
+        self, *, hashed_user_id: str, chat_id: str, encrypted_chat_key: str, created_at: int,
+    ) -> dict[str, Any]:
+        """Atomically create or confirm an owned immutable-key personal shell."""
+        return await self.execute("register_personal_chat_draft", {
+            "protocol_version": 1, "hashed_user_id": hashed_user_id, "chat_id": chat_id,
+            "encrypted_chat_key": encrypted_chat_key, "created_at": created_at,
+        })
 
     @staticmethod
     def content_commitment(canonical_content: bytes | str) -> str:

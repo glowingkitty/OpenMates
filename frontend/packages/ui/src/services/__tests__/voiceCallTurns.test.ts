@@ -6,9 +6,37 @@ vi.mock('../db', () => ({chatDB:{getMessage:mocks.row,saveMessage:mocks.save,upd
 vi.mock('../chatSyncService', () => ({chatSyncService:{
   get webSocketConnected_FOR_SENDERS_ONLY() { return mocks.connected; }, sendNewMessage:mocks.send, dispatchEvent:mocks.event,
 }}));
-import { sendVoiceCallTurn } from '../voiceCallTurns';
+import { createVoiceCallSendDiagnostics, sendVoiceCallTurn } from '../voiceCallTurns';
 const turn = {callId:'call-1',chatId:'chat-1',turnId:'turn-1',text:'Explain this image',createdAt:1700000000};
 beforeEach(()=>{mocks.identity='owner-1';mocks.epoch=1;mocks.connected=true;mocks.save.mockReset().mockResolvedValue(undefined);mocks.event.mockClear();mocks.updateChat.mockReset().mockResolvedValue(undefined);mocks.send.mockReset().mockResolvedValue(undefined);mocks.row.mockReset().mockResolvedValue({status:'sending'});});
+
+// contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.privacy
+it('records only fixed canonical prerequisite stages for exact voice delivery identities', () => {
+  const events: Array<Record<string, unknown>> = [];
+  const observe = (event: Event) => events.push((event as CustomEvent).detail);
+  window.addEventListener('voiceCallTurnDelivery', observe);
+  try {
+    const message = { chat_id: turn.chatId, message_id: turn.turnId, voice_mode: true,
+      voice_call_id: turn.callId, voice_turn_id: turn.turnId, content: 'PRIVATE text and key' };
+    const diagnostics = createVoiceCallSendDiagnostics(message);
+    diagnostics.enter('predecessor');
+    diagnostics.enter('personal_privacy');
+    diagnostics.enter('PRIVATE stage' as 'sender');
+    diagnostics.failed();
+    expect(events).toEqual([
+      { callId: 'call-1', chatId: 'chat-1', turnId: 'turn-1', phase: 'canonical_prerequisite', reason: 'predecessor' },
+      { callId: 'call-1', chatId: 'chat-1', turnId: 'turn-1', phase: 'canonical_prerequisite', reason: 'personal_privacy' },
+      { callId: 'call-1', chatId: 'chat-1', turnId: 'turn-1', phase: 'canonical_prerequisite_failed', reason: 'personal_privacy' },
+    ]);
+    for (const overrides of [{ voice_mode: false }, { voice_call_id: undefined },
+      { voice_turn_id: 'other-turn' }, { chat_id: 'PRIVATE\ninvalid' }]) {
+      const invalid = createVoiceCallSendDiagnostics({ ...message, ...overrides });
+      invalid.enter('sender'); invalid.failed();
+    }
+    expect(events).toHaveLength(3);
+    expect(JSON.stringify(events)).not.toMatch(/PRIVATE|content|stack|key/);
+  } finally { window.removeEventListener('voiceCallTurnDelivery', observe); }
+});
 describe('canonical call turn adapter',()=>{
   // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.chat.typed-input
   it('uses the ordinary encrypted sender with voice delivery and one canonical source reference',async()=>{
@@ -122,5 +150,30 @@ it('reports only allowlisted error categories and static source locations from s
     mocks.send.mockRejectedValueOnce(exception);
     await expect(sendVoiceCallTurn(turn)).rejects.toBe(exception);
     expect(events.at(-1)?.failure).toEqual({errorClass:'TypeError',httpStatus:503,module:'services/preparedPrivacyForSend.ts',line:178});
+  } finally { window.removeEventListener('voiceCallTurnDelivery', observe); }
+});
+
+// contract-test: supporting surface=gui.web assertions=video-call.privacy,video-call.audio.complete-turn-admission
+it.each([
+  ['Personal privacy receipt does not match this turn', 'privacy_receipt_mismatch'],
+  ['Personal privacy scope changed during freshness check', 'privacy_freshness_changed'],
+])('identifies the exact fixed privacy guard without exporting exception text: %s', async (message, code) => {
+  const events: Array<Record<string, unknown>> = [];
+  const observe = (event: Event) => events.push((event as CustomEvent).detail);
+  window.addEventListener('voiceCallTurnDelivery', observe);
+  try {
+    const error = new Error(message);
+    mocks.send.mockRejectedValueOnce(error);
+    await expect(sendVoiceCallTurn(turn)).rejects.toBe(error);
+    expect(events.at(-1)).toMatchObject({ reason: `canonical_sending:${code}`,
+      failure: { errorClass: 'Error', errorCode: code } });
+    expect(JSON.stringify(events)).not.toContain(message);
+    events.length = 0;
+    const privateError = new Error(`${message}: PRIVATE data`);
+    mocks.send.mockRejectedValueOnce(privateError);
+    await expect(sendVoiceCallTurn(turn)).rejects.toBe(privateError);
+    expect(events.at(-1)).toMatchObject({ reason: 'canonical_sending:operation_failed' });
+    expect((events.at(-1)?.failure as Record<string, unknown>).errorCode).toBeUndefined();
+    expect(JSON.stringify(events)).not.toMatch(/PRIVATE|Personal privacy/);
   } finally { window.removeEventListener('voiceCallTurnDelivery', observe); }
 });

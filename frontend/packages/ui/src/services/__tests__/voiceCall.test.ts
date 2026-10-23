@@ -153,6 +153,7 @@ describe('integrated voice call typed turns', () => {
     Object.values(persistence).forEach((mock) => mock.mockClear());
     Object.values(cues).forEach(mock => mock.mockClear());
     capture.unlock.mockClear();
+    vi.mocked(assistantSpeechController.primeForAutoplay).mockClear();
     privacy.ensure.mockReset().mockResolvedValue(true);
     streaming.supported.mockReset().mockReturnValue(true);
     capture.start.mockReset().mockResolvedValue(undefined);
@@ -245,6 +246,88 @@ describe('integrated voice call typed turns', () => {
     expect(capture.start).toHaveBeenCalledOnce();
     expect(sockets).toHaveLength(1);
     controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner,assistant-speech.playback.autoplay-recovery-visible
+  it('primes shared speech synchronously in Start and the consent gesture without a deferred duplicate', async () => {
+    let accept!: (accepted: boolean) => void;
+    privacy.ensure.mockImplementationOnce(() => new Promise<boolean>(resolve => { accept = resolve; }));
+    const { controller, sockets } = startingController();
+    const pending = controller.start('chat-1');
+    const prime = vi.mocked(assistantSpeechController.primeForAutoplay);
+    expect(prime).toHaveBeenCalledOnce();
+    expect(prime.mock.invocationCallOrder[0]).toBeLessThan(privacy.ensure.mock.invocationCallOrder[0]);
+    expect(capture.start).not.toHaveBeenCalled();
+    expect(persistence.prepare).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(0);
+    const consentGesture = privacy.ensure.mock.calls[0][1];
+    consentGesture();
+    expect(prime).toHaveBeenCalledTimes(2);
+    expect(capture.unlock).toHaveBeenCalledTimes(2);
+    expect(sockets).toHaveLength(0);
+    accept(true);
+    await pending;
+    expect(prime).toHaveBeenCalledTimes(2);
+    expect(sockets).toHaveLength(1);
+    controller.hangup();
+    consentGesture();
+    expect(prime).toHaveBeenCalledTimes(2); // A stale consent callback cannot touch playback.
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.privacy.first-call-warning,video-call.audio.single-owner
+  it('unlocks synchronously but waits for the captured draft before chat registration or transport', async () => {
+    let saved!: (success: boolean) => void;
+    const draftReady = new Promise<boolean>(resolve => { saved = resolve; });
+    const { controller, sockets } = startingController();
+    const pending = controller.start('project-draft', undefined, draftReady);
+    expect(capture.unlock).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    expect(get(controller).status).toBe('connecting');
+    expect(persistence.prepare).not.toHaveBeenCalled();
+    expect(capture.start).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(0);
+    saved(true);
+    await pending;
+    expect(persistence.prepare).toHaveBeenCalledExactlyOnceWith('project-draft', true);
+    expect(sockets).toHaveLength(1);
+    controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.lifecycle.recovery-and-billing,video-call.privacy
+  it.each(['false', 'rejection'])('fails visibly before registration or transport when draft persistence returns %s during consent', async (failure) => {
+    let accept!: (accepted: boolean) => void;
+    privacy.ensure.mockImplementationOnce(() => new Promise<boolean>(resolve => { accept = resolve; }));
+    const { controller, sockets } = startingController();
+    const draftReady = failure === 'false' ? Promise.resolve(false) : Promise.reject(new Error('private draft error'));
+    const pending = controller.start('project-draft', undefined, draftReady);
+    await new Promise(resolve => setTimeout(resolve, 0)); // Rejection is handled while consent remains pending.
+    expect(get(controller).status).toBe('connecting');
+    accept(true);
+    await pending;
+    expect(get(controller)).toMatchObject({ status: 'error', error: 'call_unavailable', chatId: 'project-draft' });
+    expect(persistence.prepare).not.toHaveBeenCalled();
+    expect(capture.start).not.toHaveBeenCalled();
+    expect(capture.stop).toHaveBeenCalled();
+    expect(gates.instances[0].stop).toHaveBeenCalledOnce();
+    expect(sockets).toHaveLength(0);
+    expect(canonical.send).not.toHaveBeenCalled();
+    expect(cues.play).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.typed-input,video-call.lifecycle.recovery-and-billing,video-call.privacy
+  it('ignores a late saved draft after startup was cancelled', async () => {
+    let saved!: (success: boolean) => void;
+    const draftReady = new Promise<boolean>(resolve => { saved = resolve; });
+    const { controller, sockets } = startingController();
+    const pending = controller.start('project-draft', undefined, draftReady);
+    await Promise.resolve();
+    controller.hangup();
+    saved(true);
+    await pending;
+    expect(get(controller).status).toBe('ended');
+    expect(persistence.prepare).not.toHaveBeenCalled();
+    expect(capture.start).not.toHaveBeenCalled();
+    expect(sockets).toHaveLength(0);
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning

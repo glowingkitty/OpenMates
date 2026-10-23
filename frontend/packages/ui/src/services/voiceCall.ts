@@ -60,7 +60,7 @@ export interface VoiceCallState {
   modelName?: string;
 }
 export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
-  start(chatId?: string, onBound?: (chatId: string) => void): Promise<void>;
+  start(chatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void>;
   submitText(chatId: string, text: string): Promise<boolean>;
   setMuted(muted: boolean): void;
   setMinimized(minimized: boolean): void;
@@ -244,7 +244,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
     pending.resolve(accepted);
   }
 
-  async start(existingChatId?: string, onBound?: (chatId: string) => void): Promise<void> {
+  async start(existingChatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void> {
+    // Observe rejection immediately, even while consent is pending or another
+    // call owns startup. Registration must use the captured composer's saved ID.
+    const savedDraft = draftReady?.catch(() => false);
     if (this.state.status === 'connecting' || this.state.status === 'live') return;
     this.closeResources();
     this.cues.stop();
@@ -294,10 +297,15 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // Unlock output in the initiating gesture without requesting microphone
       // permission. Capture and provider connection require the saved profile ack.
       audio.unlock();
+      assistantSpeechController.primeForAutoplay();
       const privacyRequest = new AbortController();
       this.privacyRequest = privacyRequest;
       const accepted = await ensureVoiceCallPrivacyAcknowledgement(privacyRequest.signal, () => {
-        if (current()) { audio.unlock(); this.cues.prepare(); }
+        if (current()) {
+          audio.unlock();
+          assistantSpeechController.primeForAutoplay();
+          this.cues.prepare();
+        }
       });
       if (!current()) return;
       this.privacyRequest = null;
@@ -307,6 +315,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.update({ ...initialVoiceCallState, chatId: existingChatId ?? null });
         return;
       }
+      if (savedDraft && !await savedDraft) throw new VoiceCallStartError('call_unavailable');
+      if (!current()) return;
       const capture = audio.start().catch((error: unknown) => { throw new VoiceCallStartError(microphoneError(error)); });
       const [prepared] = await Promise.all([
         prepareVoiceCallChat(existingChatId, true).catch((error) => {
@@ -319,7 +329,6 @@ export class VoiceCallController implements VoiceCallControllerLike {
       onBound?.(prepared.chatId);
       await assistantSpeechController.stop();
       assistantSpeechController.setCallOwner(prepared.chatId);
-      assistantSpeechController.primeForAutoplay();
       let token = getWebSocketToken();
       if (websocketTokenNeedsRefresh(token)) {
         if (!await checkAuth(undefined, true)) throw new VoiceCallStartError('session_expired');

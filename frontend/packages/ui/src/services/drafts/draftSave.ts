@@ -1685,8 +1685,13 @@ export function flushSaveDraft(
   return saveDraftDebounced.flush();
 }
 
-/** Drain a queued edit's independent draft before replacing its live editor content. */
-export async function flushSaveDraftAndWaitForIdle(editor: Editor, chatId: string): Promise<boolean> {
+/** Wait for this editor's local commit. Queued edits also retire its pending
+ * resaves before replacing content; call preparation keeps autosave active. */
+export async function flushSaveDraftAndWaitForIdle(
+  editor: Editor,
+  chatId: string,
+  options: { suppressQueuedEditResaves?: boolean } = {},
+): Promise<boolean> {
   const authAtStart = get(authStore).isAuthenticated;
   const accountAtStart = get(userProfile).user_id;
   const teamAtStart = get(activeTeamContext);
@@ -1727,6 +1732,7 @@ export async function flushSaveDraftAndWaitForIdle(editor: Editor, chatId: strin
   });
 
   const suppressMatchingResaves = () => {
+    if (options.suppressQueuedEditResaves === false) return;
     for (const activeSave of activeDraftSaves) {
       if (activeSave.editor === editor && activeSave.chatId === chatId) {
         activeSave.suppressResaveForQueuedEdit = true;

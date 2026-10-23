@@ -5,6 +5,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
+const fs = require('node:fs');
+const path = require('node:path');
 const { installObservation, cleanupRealCall, progressivePlaybackMetrics } = require('./verify_voice_call_live_smoke.cjs');
 
 function browserHarness() {
@@ -25,7 +27,7 @@ function browserHarness() {
     constructor() { super(); this.currentTime = 0; this.paused = true; this.ended = false; }
     get src() { return this.source ?? ''; }
     set src(value) { this.source = value; this.currentTime = 0; this.ended = false; this.paused = true; }
-    play() { this.paused = false; return Promise.resolve(); }
+    play() { this.nativePlayCalls = (this.nativePlayCalls ?? 0) + 1; this.paused = false; return Promise.resolve(); }
     finish() { this.ended = true; this.paused = true; this.dispatch('ended'); }
   }
   class Audio extends Media {}
@@ -71,6 +73,47 @@ function browserHarness() {
     playback() { return JSON.parse(JSON.stringify(api.state.playback)); },
     async settle() { await Promise.resolve(); this.frame(); this.frame(); },
   };
+}
+
+test('only the exact known silent autoplay prime is excluded; the same element still proves real MSE playback', async () => {
+  const queue = fs.readFileSync(path.resolve(__dirname, '../frontend/packages/ui/src/services/assistantSpeechQueue.ts'), 'utf8');
+  const silent = queue.match(/const SILENT_AUDIO_DATA_URL = "([^"]+)";/)?.[1];
+  assert.ok(silent, 'Use the actual queue priming constant so source drift cannot broaden the exclusion');
+  const browser = browserHarness(), audio = new browser.Audio();
+  audio.src = silent;
+  await audio.play(); await browser.settle(); audio.currentTime = 0.01; browser.tick(); audio.finish();
+  assert.equal(audio.nativePlayCalls, 1, 'native priming must still execute');
+  assert.equal(browser.api.state.ignoredSilentAutoplayPrimes, 1);
+  assert.equal(browser.playback().length, 0);
+  assert.equal(browser.api.state.events.some(event => event.type === 'media_correlation_failed'), false);
+  browser.socket.receive('assistant_speech_audio', { message_id: 'real-response', segment_id: 'real-segment',
+    kind: 'voice_prose_clause', phase: 'start', attempt_id: 'real-attempt', chunk_index: 0 });
+  browser.socket.receive('assistant_speech_audio', { message_id: 'real-response', segment_id: 'real-segment',
+    kind: 'voice_prose_clause', phase: 'chunk', attempt_id: 'real-attempt', chunk_index: 0 });
+  audio.src = browser.createMediaSourceURL(); browser.waveform('real-segment');
+  await audio.play(); await browser.settle(); audio.currentTime = 0.2; browser.tick(); browser.tick();
+  const progress = browser.playback()[0];
+  assert.equal(progress.sourceKind, 'media_source');
+  assert.equal(progress.kind, 'voice_prose_clause');
+  browser.tick();
+  browser.socket.receive('assistant_speech_audio', { message_id: 'real-response', segment_id: 'real-segment',
+    kind: 'voice_prose_clause', phase: 'end', attempt_id: 'real-attempt', chunk_index: 1 });
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).playbackBeforeSameSegmentProviderEnd, true);
+  audio.currentTime = 1; audio.finish();
+  assert.equal(audio.nativePlayCalls, 2);
+  assert.deepEqual(browser.playback().map(event => event.type), ['first_progress', 'ended']);
+  assert.equal(browser.api.state.events.some(event => event.type === 'media_correlation_failed'), false);
+});
+
+for (const source of ['blob:uncorrelated-real-response', 'data:audio/wav;base64,AAAA']) {
+  test(`uncorrelated audio remains fatal for ${source.startsWith('blob:') ? 'real blob' : 'unknown data'} source`, async () => {
+    const browser = browserHarness(), audio = new browser.Audio();
+    audio.src = source;
+    await audio.play(); await browser.settle(); audio.currentTime = 0.1; browser.tick(); audio.finish();
+    assert.equal(browser.api.state.ignoredSilentAutoplayPrimes, undefined);
+    assert.equal(browser.playback().length, 0);
+    assert.equal(browser.api.state.events.filter(event => event.type === 'media_correlation_failed').length, 1);
+  });
 }
 
 test('reused native Audio resets each source, rejects stale DOM and out-of-order ready, and observes the second response', async () => {

@@ -57,6 +57,10 @@ interface SocketObservation {
   generatedAssetPresent?: boolean;
   generatedAssetId?: string;
   tombstone?: boolean;
+  voiceCallBootstrap?: boolean;
+  snapshotPurpose?: 'prepare'|'send';
+  snapshotSuccess?: boolean;
+  snapshotHasCode?: boolean;
   heardBoundary?: {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number};
   language?: string;
   observedAt?: number;
@@ -111,6 +115,13 @@ interface HeldSpeechEvidence {
 }
 interface CallEvidence {
   turnDelivery?: TurnDeliveryObservation[];
+  inspectDraftAtBootstrap?: (chatId: string) => void;
+  inspectDraftAfterReady?: () => Promise<{exists:boolean;wrappedKeyPresent:boolean;wrappedKeyUnchanged:boolean;
+    encryptedDraftPresent:boolean;messagesVersion:number|null}>;
+  draftDeletionEvents?: Array<{type:string;chatId:string;observedAt:number}>;
+  draftAtBootstrap?: { chatId: string; requestedAt: number; completedAt?: number; readFailed?: boolean;
+    exists?: boolean; personal?: boolean; ownerCompatible?: boolean; wrappedKeyPresent?: boolean;
+    encryptedDraftPresent?: boolean; messagesVersion?: unknown };
   sent: SocketObservation[];
   received: SocketObservation[];
   tracks: MediaStreamTrack[];
@@ -118,8 +129,13 @@ interface CallEvidence {
   boundCaptureTracks?:MediaStreamTrack[];
   readyHeld?: boolean;
   releaseReady?: () => void;
+  bootstrapHeld?: boolean;
+  releaseBootstrap?: () => void;
+  rejectNextBootstrap?: boolean;
+  bootstrapRejectionInjected?: boolean;
   mainSocket?: WebSocket;
   mainSocketId?: number;
+  voiceSocketCount?: number;
   reconnectOnText?: boolean;
   reconnectInjected?: boolean;
   hangupOnCommittedAction?: { callId: string; socketId: number };
@@ -161,7 +177,8 @@ test.afterEach(async ({page},testInfo)=>{
       'preflight_expired','preflight_mismatch','preflight_required','recovery_key_mismatch','message_identity_mismatch',
       'team_chat_scope_mismatch','version_conflict','existing_chat_metadata_forbidden','invalid_chat_turn_admission',
       'inference_commitment_mismatch','privacy_receipt_required','privacy_receipt_invalid','privacy_context_changed',
-      'inference_temporarily_paused','insufficient_credits','unauthorized','forbidden','websocket_receipt_connection_changed']);
+      'inference_temporarily_paused','insufficient_credits','unauthorized','forbidden','websocket_receipt_connection_changed',
+      'invalid_request','already_used','receipt_capacity','unavailable','rate_limited','voice_call_bootstrap_failed']);
     const status=document.querySelector('[data-testid="voice-call-status"]');
     const statusText=document.querySelector('[data-testid="voice-call-status-text"]')?.textContent;
     const transcriptFailure=statusText==='The transcript could not be saved. The call was stopped.'||
@@ -173,7 +190,8 @@ test.afterEach(async ({page},testInfo)=>{
       finalUserTranscripts:state?.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final).length??0,
       errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
       speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
-      historyDurability:state?.historyDurability,callUIstatus,
+      historyDurability:state?.historyDurability,draftAtBootstrap:state?.draftAtBootstrap,
+      draftDeletionEvents:state?.draftDeletionEvents,callUIstatus,
       turnDelivery:state?.turnDelivery?.slice(-48)??[],
       finalTranscriptTurns:state?.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final).slice(-24).map(ids)??[],
       textInputTurns:state?.sent.filter(frame=>frame.type==='text_input').slice(-24).map(ids)??[],
@@ -182,22 +200,31 @@ test.afterEach(async ({page},testInfo)=>{
       admissionEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
         ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
         .filter(frame=>['chat_turn_admit','chat_turn_preflight','chat_turn_preflight_ack','chat_turn_context','chat_turn_context_ack',
-          'chat_message_confirmed','error'].includes(frame.type))
+          'chat_message_confirmed','personal_send_context_snapshot','personal_send_context_snapshot_result','error'].includes(frame.type))
         .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-48).map(frame=>({...ids(frame),direction:frame.direction,
-          status:frame.taskStatus,code:frame.code?(serverCodes.has(frame.code)?frame.code:'other'):undefined})),
+          status:frame.taskStatus,purpose:frame.snapshotPurpose,success:frame.snapshotSuccess,hasCode:frame.snapshotHasCode,
+          code:frame.code?(serverCodes.has(frame.code)?frame.code:'other'):undefined})),
+      bootstrapEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
+        ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
+        .filter(frame=>['voice_call_chat_prepare','encrypted_chat_metadata','encrypted_metadata_stored','start','ready'].includes(frame.type))
+        .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),direction:frame.direction,
+          path:frame.path,voiceCallBootstrap:frame.voiceCallBootstrap,keyCiphertextPresent:(frame.ciphertextLength??0)>0})),
       taskEvents:[...(state?.sent??[]),...(state?.received??[])].filter(frame=>['cancel_ai_task','ai_task_initiated','ai_task_cancel_requested','ai_task_ended','ai_task_completed','ai_task_failed','ai_message_ready','ai_response_storage_confirmed','ai_response_storage_failed'].includes(frame.type))
         .sort((a,b)=>(a.observedAt??0)-(b.observedAt??0)).slice(-24).map(frame=>({...ids(frame),status:frame.taskStatus})),
       finalAssistantEvents:state?.received.filter(frame=>frame.type==='ai_message_update'&&frame.finalChunk).slice(-24).map(frame=>({...ids(frame),final:frame.final,awaitingContinuation:frame.awaitingContinuation,
         interruptedByRevocation:frame.interruptedByRevocation,interruptedBySoftLimit:frame.interruptedBySoftLimit}))??[],
       captureRequests:native?.captureRequests??0,detectorReady:native?.detectorReady??0,
+      bootstrapControl:{held:state?.bootstrapHeld,rejectionInjected:state?.bootstrapRejectionInjected,voiceSockets:state?.voiceSocketCount??0},
+      speechPrimes:native?.speechPrimes??[],
       workersCreated:native?.workersCreated??0,workersTerminated:native?.workersTerminated??0};
   }).catch(()=>({captureFailed:true}));
   await testInfo.attach('voice-call-transport-state',{body:JSON.stringify(diagnostic),contentType:'application/json'});
 });
 
-async function observeRealTransport(page: Page, deferReady = false): Promise<void> {
-  await page.addInitScript(({deferReady}) => {
+async function observeRealTransport(page: Page, deferReady = false, bootstrapControls = false): Promise<void> {
+  await page.addInitScript(({deferReady,bootstrapControls}) => {
     let holdReady=deferReady;
+    let holdBootstrap=bootstrapControls;
     let audioBatch=0;
     let nextAudioBatch=0;
     const evidence={sent:[],received:[],tracks:[]} as CallEvidence;
@@ -217,17 +244,26 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
     };
     Object.assign(window,{__voiceCallEvidence:evidence});
     const phases=new Set(['queued','started','validating','sender_loading','chat_loading','message_saving','chat_refreshing',
-      'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed']);
+      'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed','canonical_prerequisite','canonical_prerequisite_failed']);
     const reasons=new Set(['invalid_turn','scope_changed','disconnected','personal_chat_unavailable','message_row_unavailable',
       'message_failed','message_waiting_for_connection','predecessor_not_saved','message_identity_conflict','turn_already_settled',
       'immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch','version_conflict',
       'inference_commitment_mismatch','client_update_required','operation_failed']);
+    for(const stage of ['sender','predecessor','optimistic_timestamp','model_admission','personal_privacy','fast_admission',
+      'connected_accounts','embed_preparation','saved_history','metadata_and_keys','private_context','history_projection',
+      'embed_storage','preflight_key','preflight_ciphertext','preflight_journal','preflight_serialization','preflight_receipt',
+      'preflight_dispatch','preflight_ack','canonical_dispatch'])reasons.add(stage);
     const errorClasses=new Set(['Error','TypeError','RangeError','SyntaxError','ReferenceError','DOMException','AbortError',
       'OperationError','InvalidStateError','InvalidAccessError','DataError','QuotaExceededError','ConstraintError',
       'TransactionInactiveError','NotFoundError','DataCloneError','NetworkError','PreflightRejectionError','PendingAdmissionCompatibilityError']);
     const errorCodes=new Set(['immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch',
       'version_conflict','inference_commitment_mismatch','client_update_required','durable_preflight_failed','preflight_expired',
-      'preflight_required','team_chat_scope_mismatch','existing_chat_metadata_forbidden','websocket_receipt_connection_changed']);
+      'preflight_required','team_chat_scope_mismatch','existing_chat_metadata_forbidden','websocket_receipt_connection_changed',
+      'privacy_snapshot_invalid','privacy_decryption_failed','privacy_entry_invalid','privacy_entry_missing',
+      'privacy_snapshot_rejected','privacy_connection_changed','privacy_snapshot_timeout','privacy_snapshot_unsent',
+      'privacy_full_owner_changed','privacy_session_expired','privacy_full_unavailable','privacy_full_owner_unavailable',
+      'privacy_owner_unavailable','privacy_owner_changed','privacy_receipt_mismatch','privacy_cache_mismatch',
+      'privacy_policy_unconfirmed','privacy_freshness_changed','privacy_filter_changed']);
     for(const code of errorCodes)reasons.add(code);
     const httpStatuses=new Set([400,401,403,404,408,409,413,422,429,500,502,503,504]);
     const errorModules=new Set(['services/voiceCallTurns.ts','services/chatSyncService.ts','services/sendersChatMessages.ts',
@@ -263,12 +299,15 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
       if(events.length>48)events.splice(0,events.length-48);
     });
     const NativeWebSocket=window.WebSocket;
+    const snapshotPurposes=new Map<string,'prepare'|'send'>();
+    const snapshotCodes=new Set(['invalid_request','already_used','receipt_capacity','unauthorized','unavailable','rate_limited']);
     let nextSocketId=0;
     window.WebSocket=new Proxy(NativeWebSocket,{construct(Target,args){
       const socket:WebSocket=Reflect.construct(Target,args);
       const socketId=++nextSocketId;
       const path=new URL(String(args[0]),location.href).pathname;
       if(path==='/v1/ws') { evidence.mainSocket=socket; evidence.mainSocketId=socketId; }
+      if(path==='/v1/voice-call')evidence.voiceSocketCount=(evidence.voiceSocketCount??0)+1;
       const observe=(data:unknown,sent:boolean)=>{
         if(typeof data!=='string')return;
         let event;try{event=JSON.parse(data);}catch{return;}
@@ -287,6 +326,9 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
           ...(event.type==='start'?{startupAllowanceMs:payload.startup_audio_allowance_ms}:{}),
           ...(event.type==='error'?{code:typeof payload.code==='string'&&/^[a-z_]{1,64}$/.test(payload.code)?payload.code:'unknown',stage:typeof payload.stage==='string'&&/^[a-z_]{1,64}$/.test(payload.stage)?payload.stage:'unknown'}:{}),
           ...(event.type==='mic_audio'?{audioSamples:atob(payload.data).length/2,audioBatch,audioNonzero:/[^\0]/.test(atob(payload.data))}:{}),
+          ...(['encrypted_chat_metadata','voice_call_chat_prepare'].includes(event.type)?{ciphertextLength:typeof payload.encrypted_chat_key==='string'?payload.encrypted_chat_key.length:0,
+            plaintext:'content' in payload||'text' in payload}:{}),
+          ...(['encrypted_metadata_stored','error'].includes(event.type)?{voiceCallBootstrap:payload.voice_call_bootstrap===true}:{}),
           ...(['chat_message_added','chat_system_message_added','call_message_completed'].includes(event.type)?{
             ciphertextLength:typeof message.encrypted_content==='string'?message.encrypted_content.length:0,
             plaintext:'content' in message||'text' in message,voiceMode:message.voice_mode===true,
@@ -312,6 +354,14 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
             sourceVersion:Number.isSafeInteger(payload.source_version)?payload.source_version:undefined,
             executionVersion:Number.isSafeInteger(payload.execution_version)?payload.execution_version:undefined}:{}),
         };
+        if(['personal_send_context_snapshot','personal_send_context_snapshot_result'].includes(event.type)){
+          const purpose=payload.purpose==='prepare'||payload.purpose==='send'?payload.purpose:undefined;
+          if(sent&&frame.requestId&&purpose)snapshotPurposes.set(frame.requestId,purpose);
+          frame.snapshotPurpose=purpose??(frame.requestId?snapshotPurposes.get(frame.requestId):undefined);
+          if(typeof payload.success==='boolean')frame.snapshotSuccess=payload.success;
+          frame.snapshotHasCode=typeof payload.error?.code==='string';
+          if(frame.snapshotHasCode)frame.code=snapshotCodes.has(payload.error.code)?payload.error.code:'other';
+        }
         if(event.type==='assistant_speech_status'&&Array.isArray(payload.segments)){
           for(const segment of payload.segments)(sent?evidence.sent:evidence.received).push({...frame,
             segmentId:safeId(segment.segment_id),speechStatus:taskStatuses.has(segment.status)?segment.status:
@@ -321,28 +371,57 @@ async function observeRealTransport(page: Page, deferReady = false): Promise<voi
             generatedAssetPresent:!!segment.generated_asset_id,generatedAssetId:safeId(segment.generated_asset_id)});
           return;
         }
+        if(sent&&path==='/v1/ws'&&event.type==='voice_call_chat_prepare'&&typeof frame.chatId==='string')
+          evidence.inspectDraftAtBootstrap?.(frame.chatId);
         (sent?evidence.sent:evidence.received).push(frame);
       };
       const originalSend=socket.send.bind(socket);
-      socket.send=data=>{observe(data,true);originalSend(data);};
+      socket.send=data=>{
+        let outgoing=data;
+        if(bootstrapControls&&path==='/v1/ws'&&evidence.rejectNextBootstrap&&typeof data==='string'){
+          let event;try{event=JSON.parse(data);}catch{event=null;}
+          if(event?.type==='voice_call_chat_prepare'){
+            evidence.rejectNextBootstrap=false;evidence.bootstrapRejectionInjected=true;
+            // One malformed real request, rejected by the production schema.
+            // The owner/chat/key remain untouched; no server response is faked.
+            outgoing=JSON.stringify({...event,payload:{...event.payload,invalid_bootstrap_field:true}});
+          }
+        }
+        observe(outgoing,true);originalSend(outgoing);
+      };
       socket.addEventListener('message',event=>{
         if(typeof event.data!=='string')return;
         try{if(path==='/v1/voice-call'&&JSON.parse(event.data).type==='ready'&&holdReady){
           event.stopImmediatePropagation();evidence.readyHeld=true;evidence.releaseReady=()=>{holdReady=false;evidence.readyHeld=false;socket.dispatchEvent(new MessageEvent('message',{data:event.data}));};return;
         }}catch{return;}
+        if(holdBootstrap&&path==='/v1/ws'){
+          let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
+          if(frame?.type==='encrypted_metadata_stored'&&frame.payload?.voice_call_bootstrap===true){
+            // The server has really committed. Delay only its delivery to the
+            // app so the rendered pending-start Cancel remains testable.
+            observe(event.data,false);event.stopImmediatePropagation();evidence.bootstrapHeld=true;
+            evidence.releaseBootstrap=()=>{
+              if(!evidence.bootstrapHeld)return;
+              holdBootstrap=false;evidence.bootstrapHeld=false;
+              socket.dispatchEvent(new MessageEvent('message',{data:event.data}));
+            };
+            return;
+          }
+        }
         observe(event.data,false);
       });
       return socket;
     }});
     const capture=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia=async constraints=>{const stream=await capture(constraints);evidence.tracks.push(...stream.getTracks());return stream;};
-  },{deferReady});
+  },{deferReady,bootstrapControls});
 }
 
 async function evidence(page: Page): Promise<Omit<CallEvidence, 'tracks'>> {
   return page.evaluate(() => {
     const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
-    return { sent: state.sent, received: state.received };
+    return { sent: state.sent, received: state.received, draftAtBootstrap: state.draftAtBootstrap,
+      draftDeletionEvents: state.draftDeletionEvents };
   });
 }
 
@@ -364,7 +443,18 @@ async function waitForSpokenAssistant(page: Page): Promise<void> {
   await waitForCanonicalAssistant(page,userMessageId!);
 }
 
+interface SpeechPrimeObservation {
+  audioId: number;
+  observedAt: number;
+  userActivationActive: boolean;
+  gestureDispatchActive: boolean;
+  gesture: 'start'|'consent'|null;
+  gestureAt: number|null;
+}
 interface NativeVoiceInputEvidence {
+  speechPrimes: SpeechPrimeObservation[];
+  speechAcknowledgementPosts: number[];
+  speechAudioId: (audio: HTMLMediaElement) => number;
   nativeTracks: MediaStreamTrack[];
   outputTracks: MediaStreamTrack[];
   contexts: AudioContext[];
@@ -388,12 +478,41 @@ interface NativeVoiceInputEvidence {
 async function installNativeVoiceInput(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const state: NativeVoiceInputEvidence = {
+      speechPrimes: [], speechAcknowledgementPosts: [], speechAudioId: () => 0,
       nativeTracks: [], outputTracks: [], contexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
       capturedSpeech: false, capturedQuietSamples: 0,
       captureRequests: 0, speechReady: false, playing: false, workersCreated: 0,
       workersTerminated: 0, detectorReady: 0, readyUploadedSamples: 0, error: false, play: () => {},
     };
     Object.assign(window, { __nativeVoiceInput: state });
+    // Observe only the queue's exact public silent grant. Native play and its
+    // promise remain unchanged; actual response playback is proved separately.
+    const silentPrime = 'data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+    const audioIds = new WeakMap<HTMLMediaElement, number>();
+    let nextAudioId = 0;
+    state.speechAudioId = audio => {
+      let id = audioIds.get(audio);
+      if (!id) { id = ++nextAudioId; audioIds.set(audio, id); }
+      return id;
+    };
+    let gesture: { kind: 'start'|'consent'; at: number; event: MouseEvent }|null = null;
+    document.addEventListener('click', event => {
+      if (!event.isTrusted || !(event.target instanceof Element)) return;
+      const start = event.target.closest('[data-testid="voice-call-start"]');
+      const button = event.target.closest('button');
+      const consent = button?.closest('[data-testid="notification"]') && button.textContent?.trim() === 'Continue';
+      if (start || consent) gesture = { kind: start ? 'start' : 'consent', at: performance.now(), event };
+    }, true);
+    const nativePlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function(...args: Parameters<HTMLMediaElement['play']>) {
+      if (this instanceof HTMLAudioElement && this.src === silentPrime) {
+        state.speechPrimes.push({ audioId: state.speechAudioId(this), observedAt: performance.now(),
+          userActivationActive: navigator.userActivation.isActive,
+          gestureDispatchActive: gesture !== null && gesture.event.eventPhase !== Event.NONE,
+          gesture: gesture?.kind ?? null, gestureAt: gesture?.at ?? null });
+      }
+      return nativePlay.apply(this, args);
+    };
     const NativeAudioContext = window.AudioContext;
     window.AudioContext = new Proxy(NativeAudioContext, {
       construct(Target, args) {
@@ -521,7 +640,8 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
 async function nativeVoiceInput(page: Page) {
   return page.evaluate(() => {
     const state = (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput;
-    return { samples: state.samples, sampleRate: state.sampleRate, captureRequests: state.captureRequests,
+    return { speechPrimes: state.speechPrimes, speechAcknowledgementPosts: state.speechAcknowledgementPosts,
+      samples: state.samples, sampleRate: state.sampleRate, captureRequests: state.captureRequests,
       capturedSpeech: state.capturedSpeech, capturedQuietSamples: state.capturedQuietSamples,
       speechReady: state.speechReady, playing: state.playing, error: state.error,
       contexts: state.contexts.map((context) => context.state), localToneStarts: state.localToneStarts,
@@ -534,6 +654,15 @@ async function nativeVoiceInput(page: Page) {
 async function playNativeVoiceFixture(page: Page, short = true): Promise<void> {
   await expect.poll(async () => (await nativeVoiceInput(page)).speechReady).toBe(true);
   await page.evaluate((short) => (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput.play(short), short);
+}
+
+async function assertSpeechAutoplayPrimed(page: Page, before: number, audioId?: number): Promise<void> {
+  const primes = (await nativeVoiceInput(page)).speechPrimes.filter(prime =>
+    prime.observedAt < before && (audioId === undefined || prime.audioId === audioId));
+  expect(primes.length, 'the shared speech element must play its silent grant before asynchronous call setup').toBeGreaterThan(0);
+  expect(primes.some(prime => prime.userActivationActive && prime.gestureDispatchActive && prime.gesture !== null &&
+    prime.gestureAt !== null && prime.gestureAt <= prime.observedAt),
+  'native speech priming must retain activation from a real Start or consent click').toBe(true);
 }
 
 const voiceFrames = (transport: Awaited<ReturnType<typeof evidence>>, type: string) =>
@@ -549,6 +678,36 @@ async function assertVoiceInputCleanup(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence })
     .__voiceCallEvidence.tracks.every((track) => track.readyState === 'ended'))).toBe(true);
   expect((await nativeVoiceInput(page)).error).toBe(false);
+}
+
+/** Cleanup attempts are independent; an inaccessible button must neither strand
+ * a held real ACK nor replace the strict UI assertion that already failed. */
+async function cleanupProjectVoiceDraft(page: Page, testInfo: TestInfo, projectId: string|null,
+  apiOrigin: string|null, primaryFailed: boolean): Promise<void> {
+  const failedStages: string[] = [];
+  try {
+    const hangup = page.locator('[data-testid="voice-call-hangup"]:visible');
+    if (await hangup.count()) await hangup.click({ timeout: 5000 });
+  } catch { failedStages.push('hangup'); }
+  try {
+    await page.evaluate(() => (window as unknown as { __voiceCallEvidence?: CallEvidence })
+      .__voiceCallEvidence?.releaseBootstrap?.());
+  } catch { failedStages.push('bootstrap_release'); }
+  if (projectId && apiOrigin) {
+    try {
+      const status = await page.evaluate(async ({ apiOrigin, projectId }) => (await fetch(
+        `${apiOrigin}/v1/projects/${projectId}?confirmation_project_id=${encodeURIComponent(projectId)}`,
+        { method: 'DELETE', credentials: 'include', signal: AbortSignal.timeout(10_000) })).status,
+      { apiOrigin, projectId });
+      expect(status, 'cleanup retains exact owned Project deletion confirmation').toBeGreaterThanOrEqual(200);
+      expect(status).toBeLessThan(300);
+    } catch { failedStages.push('project_delete'); }
+  }
+  if (failedStages.length) {
+    await testInfo.attach('voice-project-cleanup', { body: JSON.stringify({ failedStages, primaryFailurePreserved: primaryFailed }),
+      contentType: 'application/json' }).catch(() => {});
+    if (!primaryFailed) throw new Error(`Voice Project cleanup failed: ${failedStages.join(', ')}`);
+  }
 }
 
 async function assertSlimCallSurface(page: Page): Promise<void> {
@@ -1001,6 +1160,242 @@ async function sendCameraCallText(page: Page, text: string): Promise<string> {
 }
 
 test.describe('Voice mode through ordinary chat', () => {
+  // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.audio.complete-turn-admission,projects.lifecycle.encrypted-crud
+  test('registers an unsent personal Project chat before opening its voice call',async({page},testInfo)=>{
+    test.setTimeout(120_000);
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    let projectId:string|null=null;let apiOrigin:string|null=null;let primaryFailed=false;
+    try{
+      await page.goto('/projects',{waitUntil:'domcontentloaded'});
+      await expect(page.getByTestId('projects-page')).toBeVisible({timeout:30_000});
+      const created=page.waitForResponse(response=>response.request().method()==='POST'
+        &&new URL(response.url()).pathname==='/v1/projects'&&response.ok());
+      await page.getByTestId('project-input-textarea').fill(`Voice draft startup ${Date.now()}`);
+      await page.getByTestId('project-input-submit').click();
+      await page.getByTestId('project-write-policy-always-ask').check();
+      await page.getByTestId('project-write-policy-confirm').click();
+      const response=await created;
+      // This exact authenticated Personal Project is the only cleanup target.
+      expect(new URL(response.url()).searchParams.has('team_id')).toBe(false);
+      expect(response.request().postDataJSON()).toMatchObject({write_mode:'always_ask'});
+      apiOrigin=new URL(response.url()).origin;
+      projectId=(await response.json()).project.project_id;
+      expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
+      await expect(page.getByTestId('project-workspace-header')).toBeVisible();
+      await page.getByTestId('project-tab-folders').click();
+      await page.getByTestId('project-folder-create-menu-button').click();
+      await page.getByTestId('project-create-chat').click();
+      await expect(page.getByTestId('message-editor')).toBeVisible();
+      // Only focus the existing Project draft; do not type or inject a turn.
+      await page.getByTestId('message-field').click();
+      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
+        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
+      await page.waitForFunction(()=>{
+        const composers=[...document.querySelectorAll('[data-action="message-input"]')].filter(node=>node.getClientRects().length);
+        return composers.length===1&&/^[0-9a-f-]{36}$/i.test(composers[0].getAttribute('data-current-chat-id')??'');
+      });
+      const chatId=await page.locator('[data-action="message-input"]:visible').getAttribute('data-current-chat-id');
+      expect(chatId).toMatch(/^[0-9a-f-]{36}$/i);
+      await testInfo.attach('voice-project-draft-identity',{body:JSON.stringify({draftChatId:chatId}),contentType:'application/json'});
+      // Start explicitly commits a pending welcome draft. Observe its local row
+      // at the native bootstrap send, before forwarding that real request; never
+      // create a row or require the Project mention to autosave before Start.
+      await page.evaluate(async expectedChatId=>{
+        const open=(name:string)=>new Promise<IDBDatabase>((resolve,reject)=>{
+          const request=indexedDB.open(name);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+        });
+        const [chats,user]=await Promise.all([open('chats_db'),open('user_db')]);
+        const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+        state.draftDeletionEvents=[];
+        for(const type of ['chatDeleted','localChatListChanged'])window.addEventListener(type,event=>{
+          const detail=(event as CustomEvent).detail;
+          if(detail?.chat_id!==expectedChatId||(type==='localChatListChanged'&&detail.draftDeleted!==true))return;
+          state.draftDeletionEvents!.push({type,chatId:expectedChatId!,observedAt:performance.now()});
+          if(state.draftDeletionEvents!.length>16)state.draftDeletionEvents!.shift();
+        });
+        state.inspectDraftAtBootstrap=chatId=>{
+          delete state.inspectDraftAtBootstrap;
+          const proof:NonNullable<CallEvidence['draftAtBootstrap']>={chatId,requestedAt:performance.now()};
+          state.draftAtBootstrap=proof;
+          const read=(db:IDBDatabase,store:string,key:IDBValidKey)=>new Promise<Record<string,unknown>|string|undefined>((resolve,reject)=>{
+            const request=db.transaction(store,'readonly').objectStore(store).get(key);
+            request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+          });
+          // Both readonly requests are submitted synchronously before native
+          // WebSocket.send; only their metadata-only result settles later.
+          void Promise.all([read(chats,'chats',chatId),read(user,'user_data','id')]).then(([raw,owner])=>{
+            const row=raw&&typeof raw==='object'?raw:undefined;
+            // Keep the actual wrapped key inside this browser-only closure.
+            // The post-ready read exports equality/availability booleans only.
+            const bootstrapWrappedKey=row?.encrypted_chat_key;
+            state.inspectDraftAfterReady=async()=>{
+              const db=await open('chats_db');
+              try{
+                const raw=await read(db,'chats',chatId);
+                const after=raw&&typeof raw==='object'?raw:undefined;
+                return {exists:after?.chat_id===chatId,
+                  wrappedKeyPresent:typeof after?.encrypted_chat_key==='string'&&!!after.encrypted_chat_key,
+                  wrappedKeyUnchanged:typeof bootstrapWrappedKey==='string'&&after?.encrypted_chat_key===bootstrapWrappedKey,
+                  encryptedDraftPresent:typeof after?.encrypted_draft_md==='string'&&!!after.encrypted_draft_md&&after.encrypted_draft_md!=='null',
+                  messagesVersion:typeof after?.messages_v==='number'&&Number.isSafeInteger(after.messages_v)?after.messages_v:null};
+              }finally{db.close();}
+            };
+            Object.assign(proof,{exists:row?.chat_id===chatId,
+              personal:!!row&&!row.team_id&&row.chat_visibility!=='direct'&&!row.is_incognito&&!row.is_anonymous,
+              ownerCompatible:typeof owner==='string'&&!!owner&&!!row&&(!row.user_id||row.user_id===owner),
+              wrappedKeyPresent:typeof row?.encrypted_chat_key==='string'&&row.encrypted_chat_key.length>0,
+              encryptedDraftPresent:typeof row?.encrypted_draft_md==='string'&&!!row.encrypted_draft_md&&row.encrypted_draft_md!=='null',
+              messagesVersion:Number.isSafeInteger(row?.messages_v)?row?.messages_v:null});
+          },()=>{proof.readFailed=true;}).finally(()=>{
+            proof.completedAt=performance.now();chats.close();user.close();
+          });
+        };
+      },chatId);
+      await expect(page.getByTestId('message-user')).toHaveCount(0);
+      await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+      const before=await evidence(page);
+      expect(voiceFrames(before,'start')).toHaveLength(0);
+      expect(before.sent.filter(frame=>frame.type==='chat_message_added')).toHaveLength(0);
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:45_000});
+      // Same-draft startup must retain its real destination instead of clearing
+      // it as an outgoing navigation draft. No turn has been submitted yet.
+      await expect(page.locator('[data-action="message-input"]:visible')).toHaveAttribute('data-current-chat-id',chatId!);
+      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
+        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
+      const retainedDraft=await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
+        .__voiceCallEvidence.inspectDraftAfterReady?.());
+      expect(retainedDraft).toEqual({exists:true,wrappedKeyPresent:true,wrappedKeyUnchanged:true,
+        encryptedDraftPresent:true,messagesVersion:0});
+      await testInfo.attach('voice-project-draft-retained-after-ready',{body:JSON.stringify({chatId,...retainedDraft}),contentType:'application/json'});
+      const protocol=await evidence(page);
+      expect([...protocol.sent,...protocol.received].filter(frame=>frame.chatId===chatId&&
+        ['delete_chat','chat_deleted','delete_draft','draft_deleted'].includes(frame.type)),
+      'starting the call must not clear or delete its exact destination draft').toHaveLength(0);
+      expect(protocol.draftDeletionEvents,'no local chat deletion or draft-cleared event for the bound destination').toEqual([]);
+      const localDraft=protocol.draftAtBootstrap;
+      expect(localDraft).toMatchObject({chatId,exists:true,personal:true,ownerCompatible:true,
+        wrappedKeyPresent:true,encryptedDraftPresent:true,messagesVersion:0});
+      expect(localDraft?.readFailed).not.toBe(true);
+      await testInfo.attach('voice-project-local-draft',{body:JSON.stringify({draftChatId:chatId,...localDraft}),contentType:'application/json'});
+      const registration=protocol.sent.find(frame=>frame.path==='/v1/ws'&&frame.type==='voice_call_chat_prepare'&&frame.chatId===chatId);
+      const receipt=protocol.received.find(frame=>frame.path==='/v1/ws'&&frame.type==='encrypted_metadata_stored'
+        &&frame.chatId===chatId&&frame.voiceCallBootstrap===true);
+      const starts=voiceFrames(protocol,'start');
+      const ready=protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='ready');
+      // Preserve exact draft ownership when diagnosing a different header/chat
+      // binding or a transport action change. Never record encrypted wrappers.
+      const bootstrap=protocol.sent.filter(frame=>['voice_call_chat_prepare','encrypted_chat_metadata'].includes(frame.type));
+      const acknowledgements=protocol.received.filter(frame=>frame.type==='encrypted_metadata_stored');
+      await testInfo.attach('voice-project-startup-order',{body:JSON.stringify({draftChatId:chatId,localDraft,
+        speechPrimes:(await nativeVoiceInput(page)).speechPrimes,
+        bootstrap:bootstrap.map(frame=>({type:frame.type,path:frame.path,chatId:frame.chatId,at:frame.observedAt,
+          keyCiphertextPresent:(frame.ciphertextLength??0)>0})),
+        acknowledgements:acknowledgements.map(frame=>({path:frame.path,chatId:frame.chatId,at:frame.observedAt,voiceCallBootstrap:frame.voiceCallBootstrap})),
+        starts:starts.map(frame=>({chatId:frame.chatId,at:frame.observedAt})),
+        ready:ready.map(frame=>({callId:frame.callId,at:frame.observedAt}))}),contentType:'application/json'});
+      expect(starts).toHaveLength(1);expect(ready).toHaveLength(1);
+      expect(starts[0].chatId,'the header must start the exact existing Project draft shown by its composer').toBe(chatId);
+      expect(registration).toBeTruthy();expect(receipt).toBeTruthy();
+      await assertSpeechAutoplayPrimed(page,registration!.observedAt!);
+      expect(registration!.ciphertextLength).toBeGreaterThan(0);expect(registration!.plaintext).toBe(false);
+      expect(registration!.messageId).toBeFalsy();
+      expect(ready[0].callId).toBeTruthy();
+      expect(localDraft!.requestedAt).toBeGreaterThanOrEqual(registration!.observedAt!);
+      expect(localDraft!.completedAt).toBeDefined();
+      expect(localDraft!.completedAt!).toBeLessThan(starts[0].observedAt!);
+      expect(registration!.observedAt!).toBeLessThan(receipt!.observedAt!);
+      expect(receipt!.observedAt!).toBeLessThan(starts[0].observedAt!);
+      expect(receipt!.observedAt!).toBeLessThan(ready[0].observedAt!);
+      expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'||frame.type==='text_input')).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final)).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.type==='error'&&frame.path==='/v1/voice-call')).toHaveLength(0);
+      await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+    }catch(error){
+      primaryFailed=true;throw error;
+    }finally{
+      await cleanupProjectVoiceDraft(page,testInfo,projectId,apiOrigin,primaryFailed);
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,projects.lifecycle.encrypted-crud
+  test('keeps Project draft Cancel and error Close visible before a voice session starts',async({page},testInfo)=>{
+    test.setTimeout(120_000);
+    await installNativeVoiceInput(page);await observeRealTransport(page,false,true);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    let projectId:string|null=null;let apiOrigin:string|null=null;let primaryFailed=false;
+    try{
+      await page.goto('/projects',{waitUntil:'domcontentloaded'});
+      await expect(page.getByTestId('projects-page')).toBeVisible({timeout:30_000});
+      const created=page.waitForResponse(response=>response.request().method()==='POST'
+        &&new URL(response.url()).pathname==='/v1/projects'&&response.ok());
+      await page.getByTestId('project-input-textarea').fill(`Voice startup controls ${Date.now()}`);
+      await page.getByTestId('project-input-submit').click();
+      await page.getByTestId('project-write-policy-always-ask').check();
+      await page.getByTestId('project-write-policy-confirm').click();
+      const response=await created;
+      expect(new URL(response.url()).searchParams.has('team_id')).toBe(false);
+      projectId=(await response.json()).project.project_id;apiOrigin=new URL(response.url()).origin;
+      expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
+      await expect(page.getByTestId('project-workspace-header')).toBeVisible();
+      await page.getByTestId('project-tab-folders').click();
+      await page.getByTestId('project-folder-create-menu-button').click();
+      await page.getByTestId('project-create-chat').click();
+      await page.getByTestId('message-field').click();
+      await expect(page.getByTestId('message-editor').locator('[data-type="generic-mention"].mention-project'))
+        .toHaveAttribute('data-mention-syntax',`@project:${projectId}:read`);
+      const composer=page.locator('[data-action="message-input"]:visible');
+      await expect(composer).toHaveAttribute('data-current-chat-id',/^[0-9a-f-]{36}$/i);
+      const chatId=await composer.getAttribute('data-current-chat-id');
+      // The actual Project draft exists in the welcome composer; no chat has
+      // been selected or turn submitted to make controls appear artificially.
+      expect(new URL(page.url()).hash).not.toContain('chat-id=');
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect.poll(()=>page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence})
+        .__voiceCallEvidence.bootstrapHeld===true),{timeout:30_000}).toBe(true);
+      await expect.poll(async()=>(await nativeVoiceInput(page)).captureRequests).toBe(1);
+      const pending=await evidence(page);
+      expect(pending.received.some(frame=>frame.type==='encrypted_metadata_stored'&&frame.chatId===chatId&&frame.voiceCallBootstrap)).toBe(true);
+      expect(voiceFrames(pending,'start')).toHaveLength(0);
+      const bar=page.getByTestId('voice-call-bar');const cancel=page.getByTestId('voice-call-hangup');
+      await expect(bar).toBeVisible();await expect(bar).toHaveAttribute('aria-busy','true');
+      await expect(cancel).toBeVisible();await expect(cancel).toBeEnabled();await expect(cancel).toHaveAccessibleName('Hang up');
+      await cancel.click();await expect(bar).toHaveCount(0);await assertVoiceInputCleanup(page);
+      expect(await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.bootstrapHeld)).toBe(true);
+      await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseBootstrap?.());
+      await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
+      // Retry only this bootstrap with one forbidden protocol field. The real
+      // server must reject it; this test never fabricates an error or success.
+      await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.rejectNextBootstrap=true);
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.path==='/v1/ws'&&frame.type==='error'
+        &&frame.chatId===chatId&&frame.voiceCallBootstrap&&frame.code==='voice_call_bootstrap_failed'),{timeout:30_000}).toBe(true);
+      await expect(page.getByTestId('voice-call-error')).toBeVisible();
+      await expect(page.getByTestId('voice-call-status')).toHaveAttribute('role','alert');
+      await expect(cancel).toBeVisible();await expect(cancel).toBeEnabled();await expect(cancel).toHaveAccessibleName('Close');
+      await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
+      await cancel.click();await expect(bar).toHaveCount(0);
+      await expect(page.getByTestId('voice-call-error')).toHaveCount(0);await assertVoiceInputCleanup(page);
+      const protocol=await evidence(page);
+      expect(protocol.sent.filter(frame=>frame.type==='voice_call_chat_prepare'&&frame.chatId===chatId)).toHaveLength(2);
+      expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'||frame.type==='text_input'||frame.type==='chat_turn_admit')).toHaveLength(0);
+      expect(voiceFrames(protocol,'start')).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='ready')).toHaveLength(0);
+      expect(protocol.received.filter(frame=>frame.type==='ai_task_initiated')).toHaveLength(0);
+      expect(await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.voiceSocketCount??0)).toBe(0);
+      expect(protocol.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final)).toHaveLength(0);
+      expect((await nativeVoiceInput(page)).captureRequests).toBe(2);
+      expect(await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.bootstrapRejectionInjected)).toBe(true);
+      await expect(page.getByTestId('message-user')).toHaveCount(0);await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+      await expect(composer).toHaveAttribute('data-current-chat-id',chatId!);
+    }catch(error){
+      primaryFailed=true;throw error;
+    }finally{
+      await cleanupProjectVoiceDraft(page,testInfo,projectId,apiOrigin,primaryFailed);
+    }
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner
   test('requires a saved voice processing acknowledgement before first capture and remembers it after reload', async ({ page }, testInfo) => {
     test.setTimeout(120_000);
@@ -1018,7 +1413,11 @@ test.describe('Voice mode through ordinary chat', () => {
         const url=new URL(request?.url??String(input),location.href);
         const method=String(init?.method??request?.method??'GET').toUpperCase();
         const acknowledgement=url.pathname==='/v1/settings/voice-processing-ack';
-        if(acknowledgement)events.push(method==='POST'?'ack_post':'ack_get');
+        if(acknowledgement){
+          events.push(method==='POST'?'ack_post':'ack_get');
+          if(method==='POST')(window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence})
+            .__nativeVoiceInput.speechAcknowledgementPosts.push(performance.now());
+        }
         const response=await nativeFetch(input,init);
         if(acknowledgement){
           if(method==='POST'){
@@ -1096,6 +1495,11 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now');
     await expect.poll(async()=>voiceFrames(await evidence(page),'mic_audio').length).toBeGreaterThan(0);
     const accepted=await events();
+    const privacyPriming=await nativeVoiceInput(page);
+    expect(privacyPriming.speechAcknowledgementPosts).toHaveLength(2);
+    await assertSpeechAutoplayPrimed(page,privacyPriming.speechAcknowledgementPosts[0]);
+    await testInfo.attach('voice-consent-speech-prime',{body:JSON.stringify({primes:privacyPriming.speechPrimes,
+      acknowledgementPosts:privacyPriming.speechAcknowledgementPosts}),contentType:'application/json'});
     expect(accepted.filter(event=>event==='ack_post')).toHaveLength(2);
     expect(accepted.filter(event=>event==='ack_saved')).toHaveLength(1);
     expect(accepted.filter(event=>event==='microphone_requested')).toHaveLength(1);
@@ -1139,6 +1543,9 @@ test.describe('Voice mode through ordinary chat', () => {
     expect((await events()).filter(event=>event==='ack_post'||event==='ack_saved')).toHaveLength(0);
     const nextReady=(await evidence(page)).received.find(event=>event.type==='ready'&&event.path==='/v1/voice-call');
     expect(nextReady?.callId).toBeTruthy();expect(nextReady?.callId).not.toBe(firstReady!.callId);
+    const reloadRegistration=(await evidence(page)).sent.find(frame=>frame.type==='voice_call_chat_prepare');
+    expect(reloadRegistration).toBeTruthy();
+    await assertSpeechAutoplayPrimed(page,reloadRegistration!.observedAt!);
     expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
     await page.screenshot({path:testInfo.outputPath('voice-call-first-privacy-phone-post-reload-call.png')});
     await page.getByTestId('voice-call-hangup').click();
@@ -1569,7 +1976,7 @@ test.describe('Voice mode through ordinary chat', () => {
 
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission,video-call.privacy,assistant-speech.playback.live-call-streaming
-  test('carries actual heard-clause progress to the next canonical turn while retaining the complete rich answer',async({page})=>{
+  test('carries actual heard-clause progress to the next canonical turn while retaining the complete rich answer',async({page},testInfo)=>{
     await installVoiceFixtureImageProxy(page);
     test.setTimeout(180_000);
     await page.addInitScript(()=>{
@@ -1635,11 +2042,13 @@ test.describe('Voice mode through ordinary chat', () => {
         &&frame.streamPhase==='end'&&frame.segmentId===browser.__voiceSpeechHeld.segmentId);
     },undefined,{timeout:45_000});
     const progressive=await page.evaluate(()=>{
-      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence;
+        __nativeVoiceInput:NativeVoiceInputEvidence};
       const held=browser.__voiceSpeechHeld;
       const end=browser.__voiceCallEvidence.received.find(frame=>frame.type==='assistant_speech_audio'
         &&frame.streamPhase==='end'&&frame.segmentId===held.segmentId);
-      return {mse:held.sourceMse,beforeProviderEnd:held.beforeProviderEnd,firstProgressAt:held.firstProgressAt,
+      return {audioId:held.audio?browser.__nativeVoiceInput.speechAudioId(held.audio):null,
+        mse:held.sourceMse,beforeProviderEnd:held.beforeProviderEnd,firstProgressAt:held.firstProgressAt,
         providerEndAt:end?.observedAt,sourceUnchanged:held.audio?.src===held.source,
         offsetPreserved:Math.abs((held.audio?.currentTime??0)-held.offset)<0.01,
         paused:held.audio?.paused,playCallsAtHold:held.playCallsAtHold,playCalls:held.playCalls,
@@ -1649,6 +2058,13 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(progressive).toMatchObject({mse:true,beforeProviderEnd:true,sourceUnchanged:true,offsetPreserved:true,paused:true,
       playCallsAtHold:1,playCalls:1,assets:0});
     expect(progressive.firstProgressAt).not.toBeNull();
+    expect(progressive.audioId).not.toBeNull();
+    const speechRegistration=(await evidence(page)).sent.find(frame=>frame.type==='voice_call_chat_prepare');
+    expect(speechRegistration).toBeTruthy();
+    await assertSpeechAutoplayPrimed(page,speechRegistration!.observedAt!,progressive.audioId!);
+    await testInfo.attach('voice-native-speech-prime-and-progress',{body:JSON.stringify({
+      primes:(await nativeVoiceInput(page)).speechPrimes,registrationAt:speechRegistration!.observedAt,progressive,
+    }),contentType:'application/json'});
     expect(progressive.providerEndAt).toBeGreaterThan(progressive.firstProgressAt!);
     await page.evaluate(async()=>{
       const held=(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld;
