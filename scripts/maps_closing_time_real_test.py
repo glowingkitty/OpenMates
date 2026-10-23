@@ -57,13 +57,23 @@ def cli(words: list[str], output: Path, label: str) -> dict:
     return json.loads(result.stdout)
 
 
+def saved_maps_input(parent: dict) -> dict:
+    """Read legacy input or the finished embed's preserved request metadata."""
+    value = parent.get("input")
+    if value is None:
+        value = {key: parent[key] for key in
+                 ("query", "openNow", "openUntil", "openOn", "pageSize", "relevance_criteria")
+                 if key in parent}
+    value = json.loads(value) if isinstance(value, str) else value
+    assert isinstance(value, dict) and value, "Saved maps tool input is missing"
+    return value
+
+
 def check_results(parents: list[dict], places: list[dict], cutoff: datetime) -> list[dict]:
     """Assert actual saved tool arguments and independent provider close timestamps."""
     assert parents, "The assistant did not execute maps.search"
     for parent in parents:
-        value = parent.get("input")
-        value = json.loads(value) if isinstance(value, str) else value
-        assert isinstance(value, dict), "Saved maps tool input is missing"
+        value = saved_maps_input(parent)
         requests = value.get("requests", [value])
         assert isinstance(requests, list) and requests, "Saved maps requests are missing"
         for request in requests:
@@ -202,7 +212,7 @@ def test_maps_closing_time_live() -> None:
             content = embed.get("content") or {}
             queue.extend(ids(content.get("parent_embed_id")))
             if ((embed.get("appId") or content.get("app_id")) == "maps"
-                    and (embed.get("skillId") or content.get("skill_id")) == "search" and content.get("input")):
+                    and (embed.get("skillId") or content.get("skill_id")) == "search" and "embed_ids" in content):
                 parents.append(content)
                 queue.extend(ids(content.get("embed_ids")))
             elif content.get("place_id"):
@@ -210,7 +220,7 @@ def test_maps_closing_time_live() -> None:
         returned_ids = list(dict.fromkeys(ref for parent in parents for ref in ids(parent.get("embed_ids"))))
         assert returned_ids and all(ref in place_records for ref in returned_ids), "Incomplete saved result graph"
         checked = check_results(parents, [place_records[ref] for ref in returned_ids], cutoff)
-        receipt.update(maps_request_inputs=[parent["input"] for parent in parents],
+        receipt.update(maps_request_inputs=[saved_maps_input(parent) for parent in parents],
                        result_count=len(checked), results_in_returned_order=checked,
                        checks={"natural_language_cutoff_propagated": True, "nonempty_results": True,
                                "every_known_close_at_or_after_cutoff": True, "currently_open": True}, status="passed")
