@@ -42,6 +42,10 @@ STORAGE_CAPACITY_SPECS = frozenset({
     "wiki-learning-flow.spec.ts",
 })
 DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct-chat.spec.ts"})
+# Authenticated native CLI/TUI preparation requires a private backend without
+# enabling unrelated AI replay, storage, mail or Workflow fixtures. This trusted
+# harness selector only strengthens network isolation; it grants no execution.
+PRIVATE_BACKEND_SPECS = frozenset({"cli-rust-tui-proof.spec.ts"})
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
@@ -634,6 +638,7 @@ def compose_profile(
     capacity_run_id: str | None = None,
     billing_profile: str | None = None,
     telemetry_proxy: bool = False,
+    private_backend: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     if billing_profile not in (None, "legacy", "logical"):
@@ -657,7 +662,7 @@ def compose_profile(
         raise ValueError("Target profile requires exactly 500 isolated worker slots")
     if workflow_runtime and (workflows or ai_fixtures or object_storage or offline_preview or storage_accountability or detached_docs):
         raise ValueError("Internal Workflow runtime cannot mix with weather or provider/storage profiles")
-    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
+    isolate_backend = private_backend or ai_fixtures or object_storage or offline_preview or mail_capture or storage_accountability or workflow_runtime or telemetry_proxy
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -1441,7 +1446,7 @@ def main():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
         capacity_run_id = (f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
                            if capacity_target or target_smoke else None)
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), voice_camera="voice-call.spec.ts" in selected, object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, workflow_runtime=needs_workflow_core, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)), public_website_newsletter="website-newsletter-delivery.spec.ts" in selected, storage_capacity=storage_capacity, detached_docs="storage-detached-producer.spec.ts" in selected, storage_accountability=storage_accountability, capacity_concurrency=requested_capacity_slots, capacity_target=full_target, capacity_run_id=capacity_run_id, billing_profile=billing_profile, telemetry_proxy="telemetry-proxy-api.spec.ts" in selected, private_backend=bool(PRIVATE_BACKEND_SPECS.intersection(selected)))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
