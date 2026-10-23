@@ -31,7 +31,7 @@ async def test_mercury_correction_preserves_forced_function_contract(monkeypatch
     assert request.reasoning_effort == "low"
     assert request.temperature == 0.5
     assert request.tool_choice["function"]["name"] == "finalize_transcript"
-    assert "de" in request.messages[0]["content"]
+    assert request.messages[0]["content"] == gemini_correction.build_transcript_correction_prompt("de")
     assert request.messages[1]["content"] == 'Raw Transcript:\n"ähm grüne boxen unter 50 euro"'
 
 
