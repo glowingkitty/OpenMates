@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
   import { onMount } from 'svelte';
-  import { fade } from 'svelte/transition';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import { loadExpandedMessageMarkdown } from '../utils/chatMessageExpansion';
@@ -1251,9 +1250,6 @@
    *  thinking section, and truncation controls so their text nodes don't
    *  pollute highlight-anchor capture/resolution. */
   let messageBodyElement = $state<HTMLElement>();
-
-  // State for report button hover
-  let isReportHovered = $state(false);
 
   /**
    * Counter incremented each time ReadOnlyMessage signals that its TipTap editor has
@@ -3788,36 +3784,31 @@
     {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak)}
       <div class="generated-by-container" data-testid="generated-by-container">
         {#if model_name}
-          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
+          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60); flex-basis: {shouldStackMobile ? '100%' : 'auto'};" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
         {/if}
         <button
           type="button"
-          class="copy-message-btn"
+          class="message-action-btn copy-message-btn"
           data-testid="copy-message-button"
           onclick={() => handleCopyMessage(false)}
+          aria-label={$text('chat.copy_message')}
         >
           <span class="clickable-icon icon_copy" aria-hidden="true"></span>
-          <span>{$text('chat.copy_message')}</span>
+          <span class="message-action-text">{$text('chat.copy_message')}</span>
         </button>
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
           </button>
         {/if}
-        <button 
-          class="report-bad-answer-btn" 
-          class:hovered={isReportHovered}
-          onmouseenter={() => isReportHovered = true}
-          onmouseleave={() => isReportHovered = false}
+        <button
+          type="button"
+          class="message-action-btn report-bad-answer-btn"
           onclick={handleReportBadAnswer}
           aria-label={$text('chat.report_bad_answer.button_text')}
         >
-          <div class="clickable-icon icon_thumbsdown"></div>
-          {#if isReportHovered}
-            <span class="report-text" in:fade={{ duration: 150 }}>
-              {$text('chat.report_bad_answer.button_text')}
-            </span>
-          {/if}
+          <span class="clickable-icon icon_thumbsdown" aria-hidden="true"></span>
+          <span class="message-action-text">{$text('chat.report_bad_answer.button_text')}</span>
         </button>
       </div>
     {/if}
@@ -4683,12 +4674,12 @@
     text-align: center;
   }
 
-  .copy-message-btn {
+  .message-action-btn {
     all: unset;
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-2);
-    padding: var(--spacing-1) 0;
+    padding: var(--spacing-1) var(--spacing-3);
     border-radius: var(--radius-2);
     cursor: pointer;
     font-size: var(--font-size-small);
@@ -4697,42 +4688,41 @@
     text-decoration: none;
   }
 
-  .copy-message-btn:focus-visible {
+  .message-action-btn:focus-visible {
     outline: 2px solid var(--color-button-primary);
     outline-offset: 2px;
   }
 
-  .report-bad-answer-btn {
-    all: unset;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-3);
-    cursor: pointer;
-    padding: var(--spacing-1) var(--spacing-3);
-    border-radius: var(--radius-2);
-    transition: all var(--duration-normal) var(--easing-default);
-    color: var(--color-grey-60);
-  }
-
-  .report-bad-answer-btn:hover {
+  .message-action-btn:hover,
+  .message-action-btn:focus-visible {
     background-color: var(--color-grey-20);
     color: var(--color-primary);
   }
 
-  .copy-message-btn .clickable-icon,
-  .report-bad-answer-btn .clickable-icon {
+  .message-action-btn .clickable-icon {
     width: 16px;
     height: 16px;
-    background-color: currentColor;
-  }
-
-  .copy-message-btn .clickable-icon {
+    flex-shrink: 0;
     background: var(--color-grey-60);
   }
 
-  .report-text {
+  .message-action-btn:hover .clickable-icon,
+  .message-action-btn:focus-visible .clickable-icon {
+    background: var(--gradient-primary);
+  }
+
+  .message-action-text {
+    display: none;
     font-size: var(--font-size-xxs);
-    white-space: nowrap;
+    background: var(--gradient-primary);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .message-action-btn:hover .message-action-text,
+  .message-action-btn:focus-visible .message-action-text {
+    display: inline;
   }
 
   /* Note: .mate-message-content.highlighted and @keyframes highlight-animation have been

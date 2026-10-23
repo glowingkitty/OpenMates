@@ -18,7 +18,7 @@ function previewUrl(width: number, theme: string, props: Record<string, unknown>
 }
 
 // contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history,chats.streaming.web-chunk-fade
-test('assistant copy link fits both themes and widths and copies the entire selected response', async ({ page, context }) => {
+test('assistant actions reveal gradient labels on hover and focus and copy the entire selected response', async ({ page, context }) => {
   test.setTimeout(90_000);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -35,9 +35,14 @@ test('assistant copy link fits both themes and widths and copies the entire sele
         await expect(content).toContainText('The final paragraph must be copied too.');
         const footer = canvas.getByTestId('generated-by-container');
         const copy = footer.getByRole('button', { name: 'Copy message', exact: true });
+        const report = footer.getByRole('button', { name: 'Report bad answer', exact: true });
         const model = footer.getByTestId('generated-by');
+        await content.hover();
         await expect(copy).toBeVisible();
+        await expect(report).toBeVisible();
         await expect(copy).toHaveText('Copy message');
+        await expect(copy.locator('.message-action-text')).toBeHidden();
+        await expect(report.locator('.message-action-text')).toBeHidden();
         expect(await model.evaluate(element => element.nextElementSibling?.getAttribute('data-testid'))).toBe('copy-message-button');
 
         const modelStyle = await model.evaluate(element => {
@@ -51,6 +56,11 @@ test('assistant copy link fits both themes and widths and copies the entire sele
         await expect(icon).toBeVisible();
         await expect(icon).toHaveCSS('background-color', modelStyle.color);
         await expect(icon).toHaveCSS('background-image', 'none');
+        const reportIcon = report.locator('.icon_thumbsdown');
+        await expect(reportIcon).toBeVisible();
+        await expect(report).toHaveCSS('color', modelStyle.color);
+        await expect(reportIcon).toHaveCSS('background-color', modelStyle.color);
+        await expect(reportIcon).toHaveCSS('background-image', 'none');
         // Vite may inline the URL; compare the rendered asset's SVG paths.
         const actualCopyPaths = await icon.evaluate(async element => {
           const url = getComputedStyle(element).maskImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
@@ -71,9 +81,30 @@ test('assistant copy link fits both themes and widths and copies the entire sele
         expect(copyBounds.x + copyBounds.width).toBeLessThanOrEqual(footerBounds.x + footerBounds.width + 1);
         expect(await canvas.locator('.chat-message').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 
+        for (const [action, other] of [[copy, report], [report, copy]]) {
+          await test.step(`${await action.getAttribute('aria-label')} hover reveals one gradient label`, async () => {
+            await action.hover();
+            const label = action.locator('.message-action-text');
+            await expect(label).toHaveCount(1);
+            await expect(label).toBeVisible();
+            await expect(label).toHaveCSS('background-image', /linear-gradient/);
+            await expect(label).toHaveCSS('background-clip', 'text');
+            await expect(action.locator('.clickable-icon')).toHaveCSS('background-image', /linear-gradient/);
+            await expect(other.locator('.message-action-text')).toBeHidden();
+            await expect(other.locator('.clickable-icon')).toHaveCSS('background-image', 'none');
+            const bounds = (await action.boundingBox())!;
+            const currentFooterBounds = (await footer.boundingBox())!;
+            expect(bounds.x + bounds.width).toBeLessThanOrEqual(currentFooterBounds.x + currentFooterBounds.width + 1);
+            expect(await canvas.locator('.chat-message').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+          });
+          await content.hover();
+          await expect(action.locator('.message-action-text')).toBeHidden();
+          await expect(action.locator('.clickable-icon')).toHaveCSS('background-color', modelStyle.color);
+          await expect(action.locator('.clickable-icon')).toHaveCSS('background-image', 'none');
+        }
+
         await copy.hover();
         await expect(copy).toHaveCSS('text-decoration-line', 'none');
-        await expect(copy).toHaveCSS('color', modelStyle.color);
         await page.evaluate(() => navigator.clipboard.writeText('previous clipboard contents'));
         await copy.click();
         await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(response);
@@ -91,9 +122,22 @@ test('assistant copy link fits both themes and widths and copies the entire sele
         await expect(copy).toBeFocused();
         await expect(copy).toHaveCSS('outline-style', 'solid');
         await expect(copy).toHaveCSS('text-decoration-line', 'none');
+        await expect(copy.locator('.message-action-text')).toBeVisible();
+        await expect(icon).toHaveCSS('background-image', /linear-gradient/);
         await page.evaluate(() => navigator.clipboard.writeText('replace this partial selection'));
         await copy.press('Enter');
         await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(response);
+        await copy.press('Tab');
+        await expect(report).toBeFocused();
+        await expect(report).toHaveCSS('outline-style', 'solid');
+        await expect(report.locator('.message-action-text')).toBeVisible();
+        await expect(reportIcon).toHaveCSS('background-image', /linear-gradient/);
+        await expect(copy.locator('.message-action-text')).toBeHidden();
+        await report.press('Shift+Tab');
+        await copy.press('Shift+Tab');
+        await expect(model).toBeFocused();
+        await expect(report.locator('.message-action-text')).toBeHidden();
+        await expect(reportIcon).toHaveCSS('background-color', modelStyle.color);
       });
     }
   }

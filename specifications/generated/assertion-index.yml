@@ -72127,7 +72127,7 @@ assertions:
     supporting_tests:
     - &id9108
       path: frontend/apps/web_app/tests/components/chat-message-copy.spec.ts
-      line: 128
+      line: 172
       name: user and active assistant messages do not offer the completed-response
         copy link
       surface: gui.web
@@ -88602,7 +88602,7 @@ assertions:
       surface: gui.web
     - &id11351
       path: frontend/apps/web_app/tests/components/chat-message-copy.spec.ts
-      line: 103
+      line: 147
       name: copy uses readable text without a stored original and respects hidden
         personal data
       surface: gui.web
@@ -92084,8 +92084,8 @@ assertions:
     - &id11812
       path: frontend/apps/web_app/tests/components/chat-message-copy.spec.ts
       line: 21
-      name: assistant copy link fits both themes and widths and copies the entire
-        selected response
+      name: assistant actions reveal gradient labels on hover and focus and copy the
+        entire selected response
       surface: gui.web
     - &id11813
       path: frontend/apps/web_app/tests/components/chat-message-results-width.spec.ts
@@ -97971,12 +97971,12 @@ assertions:
     - &id12603
       path: frontend/apps/web_app/tests/components/chat-message-copy.spec.ts
       line: 21
-      name: assistant copy link fits both themes and widths and copies the entire
-        selected response
+      name: assistant actions reveal gradient labels on hover and focus and copy the
+        entire selected response
       surface: gui.web
     - &id12604
       path: frontend/apps/web_app/tests/components/chat-message-copy.spec.ts
-      line: 103
+      line: 147
       name: copy uses readable text without a stored original and respects hidden
         personal data
       surface: gui.web
