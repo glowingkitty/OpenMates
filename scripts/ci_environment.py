@@ -45,7 +45,10 @@ DIRECT_CHAT_SPECS = frozenset({"teams-direct-chat.spec.ts", "cli-tui-team-direct
 # Authenticated native CLI/TUI preparation requires a private backend without
 # enabling unrelated AI replay, storage, mail or Workflow fixtures. This trusted
 # harness selector only strengthens network isolation; it grants no execution.
-PRIVATE_BACKEND_SPECS = frozenset({"cli-rust-tui-proof.spec.ts"})
+PRIVATE_BACKEND_SPECS = frozenset({
+    "cli-rust-tui-proof.spec.ts",
+    "cli-rust-core-essential.spec.ts",
+})
 ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
 BILLING_STORAGE_PROFILES = {
     "billing-storage-legacy.spec.ts": "legacy",
