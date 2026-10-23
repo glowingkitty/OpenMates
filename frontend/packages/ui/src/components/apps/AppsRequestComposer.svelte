@@ -46,7 +46,7 @@
   {/if}
   <WorkspacePromptComposer surface="projects" {presentation} bind:value
     placeholder={placeholder ?? $text('apps_workspace.request_placeholder')}
-    submitLabel={$text('apps_workspace.submit_request')} submittingLabel={$text('apps_workspace.interpreting_request')}
+    submitLabel={$text(presentation === 'embed' ? 'enter_message.send' : 'apps_workspace.submit_request')} submittingLabel={$text('apps_workspace.interpreting_request')}
     disabled={disabled || transcribing} {submitting}
     testId="apps-request-composer" inputTestId="apps-request-textarea" submitTestId="apps-request-submit" micTestId="apps-request-mic"
     onSubmit={submit} onMicClick={() => { recording = true; }}

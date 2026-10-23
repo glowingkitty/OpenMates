@@ -64,6 +64,7 @@ export async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
+    __openmatesE2ESeedFollowupImage?: () => Promise<{ chatId: string; embedId: string }>;
     __openmatesE2ESeedSavedEmbedMemory?: (input: {
       embedId: string;
       title: string;
@@ -176,6 +177,23 @@ export async function installE2ETestHooks() {
       privatePiiPreserved: Array.isArray(privatePiiMappings)
         && privatePiiMappings[0]?.placeholder === sentinel,
     };
+  };
+
+  testWindow.__openmatesE2ESeedFollowupImage = async () => {
+    const { authStore } = await import('../stores/authState');
+    const { activeChatStore } = await import('../stores/activeChatStore');
+    const { embedStore } = await import('./embedStore');
+    const chatId = activeChatStore.get();
+    if (!get(authStore).isAuthenticated || !chatId || !await chatDB.getChat(chatId)) {
+      throw new Error('Followup fixture requires an existing authenticated test chat');
+    }
+    const embedId = crypto.randomUUID();
+    embedStore.setInMemoryOnly(`embed:${embedId}`, {
+      embed_id: embedId, type: 'app-skill-use', app_id: 'images', skill_id: 'generate', status: 'finished',
+      content: JSON.stringify({ app_id: 'images', skill_id: 'generate', status: 'finished',
+        prompt: 'A mountain at sunset', previewImageUrl: '/images/examples/group1.jpg' }),
+    });
+    return { chatId, embedId };
   };
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {

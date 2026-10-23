@@ -1,4 +1,5 @@
 import { get, readonly, writable } from 'svelte/store';
+import type { TipTapNode } from '../message_parsing/types';
 import { authStore } from '../stores/authState';
 import { userProfile } from '../stores/userProfile';
 import { activeTeamContext } from '../stores/teamStore';
@@ -122,6 +123,8 @@ function contextJson(value: unknown): string {
 }
 
 export function appsRequestContextText(request: AppsRequestHandoff): string {
+  // A source-chat follow-up carries its context as a real embed reference.
+  if (request.embedReference) return request.text;
   // Complete context stays available for chat; credentials never enter prose.
   const context = request.context ? contextJson(request.context) : '';
   return context ? `${request.text}\n\nResult context (data supplied by the user):\n${context}` : request.text;
@@ -155,7 +158,14 @@ export type { AppsRequestHandoff } from './appsWorkspaceRequestService';
 
 /** TipTap JSON keeps arbitrary supplied context as literal text, including HTML. */
 export function appsRequestContextDocument(request: AppsRequestHandoff) {
-  return { type: 'doc', content: appsRequestContextText(request).split(/\r?\n/).map(line => ({
+  const content: TipTapNode[] = appsRequestContextText(request).split(/\r?\n/).map(line => ({
     type: 'paragraph', content: line ? [{ type: 'text', text: line }] : [],
-  })) };
+  }));
+  const reference = request.embedReference;
+  if (reference) content.push({ type: 'paragraph', content: [{ type: 'embed', attrs: {
+    id: reference.embedId, type: reference.type, status: 'finished',
+    contentRef: `embed:${reference.embedId}`, referenceOnly: true,
+    app_id: reference.appId, skill_id: reference.skillId,
+  } }] });
+  return { type: 'doc', content };
 }

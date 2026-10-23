@@ -10,6 +10,7 @@
   import { authStore } from "../../stores/authState";
   import { activeTeamContext } from "../../stores/teamStore";
   import { notificationStore } from "../../stores/notificationStore";
+  import { normalizeEmbedType } from "../../data/embedRegistry.generated";
   import {
     APPS_RESULTS_ACTIONS_CONTEXT,
     runAppsWorkspaceRequest,
@@ -106,9 +107,10 @@
     requestController?.abort();
     const controller = new AbortController();
     requestController = controller;
-    const origin = { result, appId, currentEmbedId };
+    const origin = { result, appId, currentEmbedId, chatId: sourceChat?.chatId };
     const isCurrent = () => alive && !controller.signal.aborted && ownerCurrent()
-      && origin.result === result && origin.appId === appId && origin.currentEmbedId === currentEmbedId;
+      && origin.result === result && origin.appId === appId && origin.currentEmbedId === currentEmbedId
+      && origin.chatId === sourceChat?.chatId;
     submitting = true;
     try {
       const context = {
@@ -119,6 +121,24 @@
       if (actions) {
         const accepted = await actions.onSubmit(value, attachments, context);
         return isCurrent() && accepted !== false;
+      }
+      if (context.chat_id && currentEmbedId) {
+        // Chat corrections are ordinary follow-up turns. Resolve only the node
+        // type here; the original embed stays in the existing encrypted store.
+        const { resolveEmbed } = await import("../../services/embedResolver");
+        const embed = await resolveEmbed(currentEmbedId, { chatId: context.chat_id });
+        if (!isCurrent()) return false;
+        if (!embed?.type) throw new Error("followup_embed_unavailable");
+        const request = {
+          text: value, attachments,
+          context: { chat_id: context.chat_id, embed_id: currentEmbedId },
+          embedReference: { embedId: currentEmbedId, type: normalizeEmbedType(embed.type),
+            appId, skillId: fullscreen.skillId },
+        };
+        // Closing restores the old route; navigate to the source chat afterwards.
+        onClose();
+        await queueAppsWorkspaceChatHandoff(request);
+        return true;
       }
       const response = await runAppsWorkspaceRequest({
         appId,

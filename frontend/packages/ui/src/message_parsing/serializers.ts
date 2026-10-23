@@ -739,6 +739,14 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return "";
 
     default:
+      // Reusing an existing result must preserve its reference even for result
+      // types that have no editable-content serializer. Never inline its data.
+      if (attrs.referenceOnly && attrs.contentRef?.startsWith("embed:")) {
+        const reference = createEmbedReference(attrs.type, attrs.contentRef.slice(6));
+        if (attrs.app_id) reference.app_id = attrs.app_id;
+        if (attrs.skill_id) reference.skill_id = attrs.skill_id;
+        return `\`\`\`json\n${JSON.stringify(reference, null, 2)}\n\`\`\``;
+      }
       // Check if this is a group type that can be handled by a group handler
       if (attrs.type.endsWith("-group")) {
         const groupMarkdown = groupHandlerRegistry.groupToMarkdown(attrs);

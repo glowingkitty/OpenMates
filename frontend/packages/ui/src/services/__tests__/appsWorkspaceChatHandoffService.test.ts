@@ -15,6 +15,24 @@ import { queueAppsWorkspaceChatHandoff, takeAppsWorkspaceChatHandoff, deliverApp
   takeAppsWorkspaceWorkflowHandoff, appsWorkflowInstruction, appsRequestContextDocument, appsRequestContextText, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../appsWorkspaceChatHandoffService';
 beforeEach(() => { authStore.update(state => ({ ...state, isAuthenticated: true })); userProfile.update(profile => ({ ...profile, user_id: 'reset' })); userProfile.update(profile => ({ ...profile, user_id: 'A' })); activeTeamContext.set({ team: null, teamId: null, epoch: 0 }); });
 describe('private Apps handoffs', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction,apps.results.shared-fullscreen
+  it('sends a selected image as a rendered, reference-only node without serializing result metadata', () => {
+    for (const type of ['image', 'app-skill-use', 'events-event']) {
+      const request = { text: '<b>Make the sky brighter</b>\nKeep the mountain',
+        context: { chat_id: 'source-chat', embed_id: 'selected-image',
+          result: { aes_key: 'private-key', title: 'Do not copy raw result context' } },
+        embedReference: { embedId: 'selected-image', type, appId: 'images', skillId: 'generate' } };
+      const doc = appsRequestContextDocument(request);
+      expect(doc.content[0]).toEqual({ type: 'paragraph', content: [{ type: 'text', text: '<b>Make the sky brighter</b>' }] });
+      expect(doc.content[doc.content.length - 1]).toMatchObject({ type: 'paragraph', content: [{ type: 'embed', attrs: {
+        id: 'selected-image', type, contentRef: 'embed:selected-image', referenceOnly: true,
+      } }] });
+      expect(appsRequestContextText(request)).toBe(request.text);
+      expect(JSON.stringify(doc)).not.toContain('private-key');
+      expect(JSON.stringify(doc)).not.toContain('Do not copy raw result context');
+      expect(JSON.stringify(doc)).not.toContain('Result context');
+    }
+  });
   // contract-test: supporting surface=gui.web assertions=apps.requests.natural-language,apps.results.shared-fullscreen
   it('fits large result handoffs into the real workflow text limit while preserving the instruction and search', () => {
     const request = { text: 'Create a weekly garden workflow', context: {
