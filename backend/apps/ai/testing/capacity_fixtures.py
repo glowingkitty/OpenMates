@@ -17,7 +17,7 @@ import os
 SCENARIO = re.compile(
     r"STORAGE_CAPACITY_SCENARIO:(round|tool|child|child_worker|version_create|version_update|"
     r"recovery_embed|recovery_composite|recovery_diff|recovery_checkpoint|recovery_save_failure|"
-    r"recovery_detached_doc|recovery_protocol|search_reuse)(?:\b|$)"
+    r"recovery_detached_doc|recovery_protocol|search_reuse|event_search_reuse)(?:\b|$)"
 )
 
 _VERSION_MARKER = re.compile(r"(?:[a-f0-9]|\[OM_PII_[A-F0-9]{32}\])+")
@@ -188,7 +188,7 @@ def _preprocessing_arguments(scenario: str) -> dict[str, Any]:
         "enable_subchats": scenario in {"child", "recovery_save_failure"},
         "load_app_settings_and_memories": [],
         "relevant_app_skills": (["math-calculate"] if scenario == "tool"
-                                else ["events-search"] if scenario == "recovery_composite"
+                                else ["events-search"] if scenario in {"recovery_composite", "event_search_reuse"}
                                 else ["web-search"] if scenario in {"recovery_protocol", "search_reuse"} else []),
         "relevant_focus_modes": [],
         "relevant_embedded_previews": [],
@@ -355,6 +355,21 @@ def generate_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | 
             "query": "39c3", "conference": "39c3", "provider": "pretalx",
             "past_events": True, "count": 10,
         }]}, google=google, fingerprint=fingerprint))
+    if scenario == "event_search_reuse":
+        if "ALREADY PUBLISHED TO THE USER" in all_text and "Event reuse final answer." in all_text:
+            if names:
+                raise AssertionError("Equivalent event search must finish with tools disabled")
+            return _main_stream(model, "Event reuse closing sentence.")
+        returned = sum(message.get("role") == "tool" for message in _current_turn_tail(messages))
+        if returned > 1:
+            return _main_stream(model, "Duplicate event synthesis should never appear.")
+        if "events-search" not in names:
+            return None
+        request = {"query": "39c3", "conference": "39c3", "provider": "pretalx",
+                   "past_events": True, "count": 10, "id": "initial" if returned == 0 else "new-correlation"}
+        prefix = "Event reuse introduction." if returned == 0 else "Event reuse final answer."
+        return _main_stream(model, prefix + "\n\n", _call(
+            "events-search", {"requests": [request]}, google=google, fingerprint=fingerprint))
     if scenario == "search_reuse":
         if "ALREADY PUBLISHED TO THE USER" in all_text and "Search reuse final answer." in all_text:
             return _main_stream(model, "Search reuse closing sentence.")

@@ -38,7 +38,7 @@ from backend.apps.ai.processing.search_skill_reliability import (
     normalize_json_request_array,
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
-    reuse_completed_web_search_requests, web_search_request_key,
+    reuse_completed_search_requests, search_request_key,
 )
 from backend.apps.ai.processing.model_routing import (
     LOW_TIER, LOW_FALLBACK_MODEL, MERCURY_MODEL, mercury_reasoning_budget,
@@ -7114,7 +7114,7 @@ async def handle_main_processing(
         # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
         # showing the "processing" state to users before skill execution starts
         inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
-        web_search_reuse: Dict[str, tuple[dict, list[dict]]] = {}
+        search_request_reuse: Dict[str, tuple[dict, list[dict]]] = {}
         focus_activation_seen_this_turn = False
 
         # Sync streaming budget counter with execution-phase counter at each iteration start
@@ -7383,9 +7383,9 @@ async def handle_main_processing(
                         log_prefix,
                     )
 
-                    if (app_id, skill_id) == ("web", "search"):
-                        parsed_args, reused = reuse_completed_web_search_requests(parsed_args, completed_skill_calls)
-                        web_search_reuse[tool_call_id] = (parsed_args, reused)
+                    if app_id in {"web", "events"} and skill_id == "search":
+                        parsed_args, reused = reuse_completed_search_requests(app_id, parsed_args, completed_skill_calls)
+                        search_request_reuse[tool_call_id] = (parsed_args, reused)
                         if reused and not parsed_args["requests"]:
                             continue  # No new card, budget use, reservation or provider request.
 
@@ -8336,7 +8336,7 @@ async def handle_main_processing(
                 if (
                     (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
                     or is_legacy_task_runtime_tool_name(parallel_tool_name)
-                    or bool(web_search_reuse.get(parallel_tool_call.tool_call_id, ({}, []))[1])
+                    or bool(search_request_reuse.get(parallel_tool_call.tool_call_id, ({}, []))[1])
                     or parallel_call_hash in completed_skill_calls
                     or parallel_call_hash in parallel_hashes
                 ):
@@ -8661,8 +8661,8 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
-                if tool_call_id in web_search_reuse:
-                    parsed_args, reused = web_search_reuse[tool_call_id]
+                if tool_call_id in search_request_reuse:
+                    parsed_args, reused = search_request_reuse[tool_call_id]
                     if reused and not parsed_args["requests"]:
                         current_message_history.append({
                             "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
@@ -10054,10 +10054,10 @@ async def handle_main_processing(
                             "embed_id": embed_id_for_dedup,
                             "skill_task_id": skill_task_id,
                         }
-                        if (app_id, skill_id) == ("web", "search"):
+                        if app_id in {"web", "events"} and skill_id == "search":
                             placeholders = placeholder_embed_data.get("placeholders", []) if placeholder_embed_data else []
                             for index, request in enumerate(skill_arguments.get("requests", [])):
-                                key = web_search_request_key(skill_arguments, request)
+                                key = search_request_key(app_id, skill_arguments, request)
                                 if key is not None:
                                     completed_skill_calls[key] = {
                                         "embed_id": placeholders[index].get("embed_id") if index < len(placeholders) else embed_id_for_dedup,
@@ -11993,7 +11993,7 @@ async def handle_main_processing(
                     }
                 })
 
-            reused = web_search_reuse.get(tool_call_id, ({}, []))[1]
+            reused = search_request_reuse.get(tool_call_id, ({}, []))[1]
             if reused:
                 tool_result_content_str += "\n\n" + json.dumps({
                     "reused_search_requests": len(reused),
@@ -12010,9 +12010,9 @@ async def handle_main_processing(
             current_message_history.append(tool_response_message)
 
         if tool_calls_for_this_turn and all(
-            call.tool_call_id in web_search_reuse
-            and web_search_reuse[call.tool_call_id][1]
-            and not web_search_reuse[call.tool_call_id][0]["requests"]
+            call.tool_call_id in search_request_reuse
+            and search_request_reuse[call.tool_call_id][1]
+            and not search_request_reuse[call.tool_call_id][0]["requests"]
             for call in tool_calls_for_this_turn
         ):
             force_no_tools = True

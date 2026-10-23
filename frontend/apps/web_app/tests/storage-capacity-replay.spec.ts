@@ -100,6 +100,47 @@ test('fabricated tool protocol recovers without skill-dispatch instructions as o
 	await deleteActiveChat(page, log, screenshot, 'storage-protocol-recovery');
 });
 
+// contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
+test('equivalent event search reuses its card and continues one persisted answer', async ({ page }: { page: any }) => {
+	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');
+	if (!getTestAccount().email) throw new Error('Disposable isolated test account is required.');
+	test.setTimeout(180_000);
+	const log = createSignupLogger('event-search-member-reuse');
+	const screenshot = createStepScreenshotter(log);
+	await installE2EServerContentOverrideGate(page, 'event-search-member-reuse');
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+	await sendMessage(page,
+		'Find the synthetic conference events. STORAGE_CAPACITY_SCENARIO:event_search_reuse <<<TEST_LIVE_MOCK:storage_capacity_v1>>>',
+		log, screenshot, 'event-search-member-reuse');
+	const answer = await waitForAssistantMessage(page, { contains: 'Event reuse closing sentence.' });
+	await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+	await expect(page.getByTestId('stop-processing-button')).toBeHidden();
+	const verifyAnswer = async () => {
+		const current = page.getByTestId('message-assistant');
+		await expect(current).toHaveCount(1);
+		const text = await current.innerText();
+		for (const marker of ['Event reuse introduction.', 'Event reuse final answer.', 'Event reuse closing sentence.']) {
+			expect(text.split(marker).length - 1).toBe(1);
+		}
+		expect(text).not.toContain('Duplicate event synthesis should never appear.');
+		expect(text).not.toMatch(TERMINAL_ERROR);
+		for (const toggle of await current.getByTestId('assistant-activity-toggle').all()) {
+			if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+		}
+		const cards = current.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
+		await expect(cards).toHaveCount(1);
+		await expect(cards).toHaveAttribute('data-status', 'finished');
+		await expect(current.getByTestId('embed-error-banner')).toHaveCount(0);
+	};
+	await verifyAnswer();
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await waitForChatReady(page, log);
+	await expect(page.getByTestId('message-assistant')).toContainText('Event reuse closing sentence.');
+	await verifyAnswer();
+	await deleteActiveChat(page, log, screenshot, 'event-search-member-reuse');
+});
+
 // contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence,issue-reporting.logs.authenticated-capture
 test('reuses a completed search member and captures every report text segment', async ({ page }: { page: any }) => {
 	if (process.env.E2E_STORAGE_CAPACITY !== '1') throw new Error('Isolated signed zero-provider CI profile is required.');

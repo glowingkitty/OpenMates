@@ -3140,43 +3140,96 @@ async def test_jev_mercury_effort_survives_protocol_answer_recovery(monkeypatch)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,chats.rendering.assistant-document-convergence
-@pytest.mark.parametrize("mixed", [False, True])
-async def test_completed_search_member_is_reused_across_batches(monkeypatch, mixed):
-    from backend.apps.ai.processing.search_skill_reliability import web_search_request_key
+@pytest.mark.parametrize("app_id,mode", [
+    (app, mode) for app in ("web", "events") for mode in ("duplicate", "mixed", "refined", "failed")
+] + [("events", mode) for mode in ("expanded", "more", "query")])
+async def test_completed_search_member_is_reused_across_batches(monkeypatch, app_id, mode):
+    from backend.apps.ai.processing.search_skill_reliability import search_request_key
     requests = [{"query": f"synthetic option {index}", "count": 8} for index in range(3)]
-    dispatched = AsyncMock(side_effect=lambda **kwargs: [{"results": [
-        {"id": item.get("id", index+1), "results": []}
-        for index, item in enumerate(kwargs["arguments"]["requests"])
-    ]}])
+    if app_id == "events":
+        requests = [{**item, "location": "Berlin", "start_date": "2027-10-24", "end_date": "2027-10-31"}
+                    for item in requests]
+    outcomes = []
+    def execute(**kwargs):
+        outcomes.append(kwargs)
+        return [{"results": [
+            {"id": item.get("id", index+1), **({"error": "Synthetic provider unavailable"}
+                if mode == "failed" and len(outcomes) == 1 else {"results": []})}
+            for index, item in enumerate(kwargs["arguments"]["requests"])
+        ]}]
+    dispatched = AsyncMock(side_effect=execute)
     monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
     monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
     repeated = [{**requests[0], "id": "different-correlation"}]
-    if mixed:
+    if mode == "mixed":
         repeated.append({"query": "synthetic new option", "count": 8})
+    elif mode == "refined":
+        repeated[0].update({"start_date": "2027-10-28", "count": 5})
+    elif mode == "expanded":
+        repeated[0].update({"start_date": "2027-10-20", "end_date": "2027-11-10"})
+    elif mode == "more":
+        repeated[0]["count"] = 15
+    elif mode == "query":
+        repeated[0]["query"] = "synthetic refined preference"
+    tool_name = f"{app_id}-search"
     output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch,
-        [[{"fake_google_tool_call": "web-search", "arguments": {"requests": requests}, "tool_call_id": "initial-search"}],
-         ["The available evidence supports option one.\n\n", {"fake_google_tool_call": "web-search", "arguments": {"requests": repeated}, "tool_call_id": "repeat-search"}],
+        [[{"fake_google_tool_call": tool_name, "arguments": {"requests": requests}, "tool_call_id": "initial-search"}],
+         ["The available evidence supports option one.\n\n", {"fake_google_tool_call": tool_name, "arguments": {"requests": repeated}, "tool_call_id": "repeat-search"}],
          ["The remaining limitation is availability."]],
-        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search web."}}],
-        discovered_apps_metadata={"web": SimpleNamespace(skills=[SimpleNamespace(
+        generated_tools=[{"type": "function", "function": {"name": tool_name, "description": "Search."}}],
+        discovered_apps_metadata={app_id: SimpleNamespace(skills=[SimpleNamespace(
             id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
             tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
         )], instructions=[], focuses=[])},
-        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"], "complexity": "simple"},
+        preprocessing_overrides={"selected_app_ids": [app_id], "relevant_app_skills": [tool_name], "complexity": "simple"},
     )
-    assert dispatched.await_count == (2 if mixed else 1)
-    if mixed:
+    assert dispatched.await_count == (1 if mode == "duplicate" else 2)
+    if mode == "mixed":
         assert [r['query'] for r in dispatched.await_args_list[1].kwargs['arguments']['requests']] == ['synthetic new option']
-    else:
+    elif mode == "duplicate":
         assert calls[-1]['tools'] is None and calls[-1]['tool_choice'] == 'none'
         assert 'ALREADY PUBLISHED TO THE USER' in str(calls[-1]['message_history'])
+    else:
+        assert dispatched.await_args_list[1].kwargs['arguments']['requests'] == repeated
     assert ''.join(c for c in output if isinstance(c, str)).count('The available evidence supports option one.') == 1
     original = {"requests": requests}
-    first_key = web_search_request_key(original, requests[0])
-    assert first_key == web_search_request_key(original, {**requests[0], 'id': 'new-id'})
-    for option in ({'count': 9}, {'country': 'de'}, {'freshness': 'pd'}, {'relevance_criteria': 'specific preference'}):
-        assert first_key != web_search_request_key(original, {**requests[0], **option})
+    first_key = search_request_key(app_id, original, requests[0])
+    assert first_key == search_request_key(app_id, original, {**requests[0], 'id': 'new-id'})
+    options = ({'count': 9}, {'provider': 'other'}, {'relevance_criteria': 'specific preference'}, {'future_option': True})
+    if app_id == "events":
+        options += ({'start_date': '2027-10-28'}, {'end_date': '2027-10-30'}, {'location': 'Hamburg'},
+                    {'event_type': 'ONLINE'}, {'past_events': True}, {'concert_tags': ['Jazz']})
+    for option in options:
+        assert first_key != search_request_key(app_id, original, {**requests[0], **option})
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_event_search_reuse_does_not_cross_explicit_user_turns(monkeypatch):
+    dispatched = AsyncMock(return_value=[{"results": [{"id": 1, "results": []}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    arguments = {"requests": [{"query": "synthetic conference", "location": "Berlin", "count": 10}]}
+    tool = {"type": "function", "function": {"name": "events-search", "description": "Search events."}}
+    metadata = {"events": SimpleNamespace(skills=[SimpleNamespace(
+        id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None, providers=[],
+        tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+    )], instructions=[], focuses=[])}
+    first_history = [{"role": "user", "content": "Find conference events."}]
+    followup_history = [*first_history, {"role": "assistant", "content": "Previous conference events."},
+                        {"role": "user", "content": "Search again for more results."}]
+    for message_id, history in (("first-turn", first_history), ("followup-turn", followup_history)):
+        await _run_mocked_protocol_guard_main_processor(
+            monkeypatch,
+            [[{"fake_google_tool_call": "events-search", "arguments": arguments}], ["Conference events found."]],
+            generated_tools=[tool], discovered_apps_metadata=metadata,
+            request_overrides={"message_id": message_id, "message_history": history,
+                               "current_user_content": history[-1]["content"]},
+            preprocessing_overrides={"selected_app_ids": ["events"], "relevant_app_skills": ["events-search"], "complexity": "simple"},
+        )
+    assert dispatched.await_count == 2
+    assert all(call.kwargs["arguments"]["requests"] == arguments["requests"]
+               for call in dispatched.await_args_list)
+
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 async def test_guard_log_diagnostics_do_not_include_suppressed_content(monkeypatch, caplog):
