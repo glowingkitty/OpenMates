@@ -9,17 +9,21 @@
       onSubmit: (text: string, attachments: File[]) => void | boolean | Promise<void | boolean> } = $props();
   let input = $state<HTMLInputElement>();
   let recording = $state(false);
+  let recordingSendRequested = false;
   let transcribing = $state(false);
   let error = $state(false);
   let alive = true;
   onDestroy(() => { alive = false; });
+  function closeRecording() { recording = false; recordingSendRequested = false; }
   async function submit(request: string): Promise<boolean> {
     const accepted = await onSubmit(request, [...files]);
     if (!alive || accepted === false) return false;
     files = []; value = ''; return true;
   }
   async function audioRecorded(event: CustomEvent<{ blob: Blob; mimeType: string; realtime?: AudioRealtimeTranscriptionHandle; liveTranscript?: string }>) {
-    recording = false; transcribing = true; error = false;
+    // Snapshot Send before the shared overlay closes and clears its intent.
+    const sendRequested = recordingSendRequested;
+    closeRecording(); transcribing = true; error = false;
     const { blob, mimeType, realtime, liveTranscript } = event.detail;
     try {
       let transcript = liveTranscript ?? '';
@@ -33,6 +37,10 @@
       else files = [...files, new File([blob], 'recording.webm', { type: mimeType })];
     } catch { if (alive) { files = [...files, new File([blob], 'recording.webm', { type: mimeType })]; error = true; } }
     finally { if (alive) transcribing = false; }
+    if (alive && sendRequested && value.trim()) {
+      try { await submit(value.trim()); }
+      catch (error) { console.error('[AppsRequestComposer] Recording send failed:', error); }
+    }
   }
 </script>
 
@@ -49,9 +57,10 @@
     submitLabel={$text(presentation === 'embed' ? 'enter_message.send' : 'apps_workspace.submit_request')} submittingLabel={$text('apps_workspace.interpreting_request')}
     disabled={disabled || transcribing} {submitting}
     testId="apps-request-composer" inputTestId="apps-request-textarea" submitTestId="apps-request-submit" micTestId="apps-request-mic"
-    onSubmit={submit} onMicClick={() => { recording = true; }}
+    onSubmit={submit} onMicClick={() => { recordingSendRequested = false; recording = true; }}
+    recordingSendAction={presentation === 'embed' ? { onRequest: () => { recordingSendRequested = true; } } : undefined}
     fileImport={{ label: $text('apps_workspace.add_files'), testId: 'apps-request-add-files', onClick: () => input?.click() }}
-    {recording} onAudioRecorded={audioRecorded} onRecordingClose={() => recording = false} />
+    {recording} onAudioRecorded={audioRecorded} onRecordingClose={closeRecording} />
   {#if error}<p role="status">{$text('apps_workspace.audio_attached')}</p>{/if}
 </div>
 <style>

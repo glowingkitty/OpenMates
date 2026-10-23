@@ -39,6 +39,7 @@
     recording = false,
     onAudioRecorded,
     onRecordingClose,
+    recordingSendAction,
   }: {
     surface: WorkspaceSurface;
     presentation?: 'workspace' | 'embed';
@@ -59,6 +60,7 @@
     recording?: boolean;
     onAudioRecorded?: (event: CustomEvent<RecordedAudio>) => void | Promise<void>;
     onRecordingClose?: () => void;
+    recordingSendAction?: { onRequest: () => void };
   } = $props();
 
   let textareaElement = $state<HTMLTextAreaElement | null>(null);
@@ -244,6 +246,8 @@
     ></button>
   {#if recording}
     <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
+      allowSend={!!recordingSendAction}
+      on:sendrequested={() => recordingSendAction?.onRequest()}
       correctionContext={surface === 'workflows' ? 'workflow' : undefined}
       on:audiorecorded={(event) => void onAudioRecorded?.(event)}
       on:close={() => onRecordingClose?.()}

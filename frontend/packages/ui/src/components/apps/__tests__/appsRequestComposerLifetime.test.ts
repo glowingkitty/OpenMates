@@ -11,6 +11,9 @@ import AppsRequestComposer from '../AppsRequestComposer.svelte';
 const probe = vi.hoisted(() => ({ props: {} as {
   onAudioRecorded: (event: CustomEvent) => Promise<void>;
   onSubmit: (text: string) => Promise<boolean>;
+  onMicClick: () => void;
+  onRecordingClose: () => void;
+  recordingSendAction?: { onRequest: () => void };
 } }));
 vi.mock('../../workspace/WorkspacePromptComposer.svelte', () => ({
   default: (_anchor: unknown, props: typeof probe.props) => { probe.props = props; },
@@ -70,5 +73,37 @@ describe('Apps composer lifetime', () => {
     expect(await pending).toBe(false);
     expect(value).toBe('New owner draft');
     expect(files).toEqual([newFile]);
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,apps.results.shared-fullscreen
+describe('Fullscreen recording Send', () => {
+  it.each([true, false])('waits for correction and preserves the draft when accepted=%s', async accepted => {
+    const correction = deferred<{ transcript: string }>();
+    let value = 'Keep the mountain.';
+    const attachment = new File(['notes'], 'notes.txt');
+    let files = [attachment];
+    const onSubmit = vi.fn(async () => accepted);
+    const component = mount(AppsRequestComposer, { target: document.createElement('div'), props: {
+      appId: 'images', presentation: 'embed',
+      get value() { return value; }, set value(next) { value = next; },
+      get files() { return files; }, set files(next) { files = next; }, onSubmit,
+    } });
+    flushSync();
+    probe.props.onMicClick();
+    probe.props.recordingSendAction!.onRequest();
+    const pending = probe.props.onAudioRecorded(new CustomEvent('audiorecorded', { detail: {
+      blob: new Blob(['audio']), mimeType: 'audio/webm',
+      realtime: { finish: vi.fn(), correction: correction.promise, transcription: Promise.resolve({ transcript: 'raw words' }) },
+    } }));
+    // RecordAudio closes immediately after handing the audio to its owner.
+    probe.props.onRecordingClose();
+    expect(onSubmit).not.toHaveBeenCalled();
+    correction.resolve({ transcript: 'Make the sky brighter.' });
+    await pending;
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith('Keep the mountain.\nMake the sky brighter.', [attachment]);
+    expect(value).toBe(accepted ? '' : 'Keep the mountain.\nMake the sky brighter.');
+    expect(files).toEqual(accepted ? [] : [attachment]);
+    await unmount(component);
   });
 });
