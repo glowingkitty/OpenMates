@@ -15,6 +15,7 @@ decisions:
 - Load previews and jump sections through the existing encrypted message-window machinery, explicitly allowing pre-compression reads for browsing only.
 - Keep preview state local, bounded and fenced to the current chat and workspace; preserve the visible transcript until a requested section is ready.
 - Store saved-chat bookmark identities in the existing client-encrypted account settings. Device-local and incognito bookmarks retain their existing device/lifetime boundaries; bookmark state never becomes a shared annotation or AI context.
+- Carry the existing opaque settings blob through authenticated session, login and pairing profile hydration so bookmarks survive reopening. Verification challenges and anti-enumeration responses do not receive that ciphertext.
 required_checks:
 - Focused backend catalogue and access tests, and frontend identity, pairing and text-extraction unit tests.
 - Isolated bare component preview proof for mouse, keyboard, touch cancellation, compression treatment and phone/desktop geometry.
