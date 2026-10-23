@@ -10,10 +10,9 @@ import { storageArchiveFetch } from "../config/api";
   import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
   import ChatMessageTimeline from './ChatMessageTimeline.svelte';
-  import MessageBookmarkButton from './MessageBookmarkButton.svelte';
   import { messageBookmarksStore, getMessageBookmarkIds, loadMessageBookmarks, toggleMessageBookmark, clearTransientMessageBookmarks, type BookmarkMode } from '../services/messageBookmarks';
   import { fetchTimelinePage, fetchTimelineSection, type TimelineCursor } from '../services/chatTimeline';
-  import { mergeTimelineEntries, pairTimelineExchange, timelineResponseId, bookmarkedTimelineExchanges, type TimelineEntry, type TimelinePreview } from '../utils/chatTimeline';
+  import { mergeTimelineEntries, pairTimelineExchange, timelineResponseId, buildTimelineExchangeIndex, type TimelineEntry, type TimelinePreview } from '../utils/chatTimeline';
   import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
   import AgentContextMessage from './AgentContextMessage.svelte';
   import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
@@ -812,6 +811,12 @@ import { storageArchiveFetch } from "../config/api";
   let timelineCatalogueLoading = $state(false);
   let timelineCatalogueIncomplete = $state(false);
   let timelineVisibleMessageId = $state<string | null>(null);
+  let timelineHostEl = $state<HTMLDivElement | null>(null);
+  let timelineContentEl = $state<HTMLDivElement | null>(null);
+  let timelineLeft = $state(0);
+  let timelineSafeTop = $state(8);
+  let timelinePinnedId: string | null = null;
+  let timelineNavigating = $state(false);
   let timelineCursor: TimelineCursor | null = null;
   let timelineGeneration = 0;
   let timelineController: AbortController | null = null;
@@ -826,6 +831,8 @@ import { storageArchiveFetch } from "../config/api";
     timelineCursor = null;
     timelineSection = null;
     timelineVisibleMessageId = null;
+    timelinePinnedId = null;
+    timelineNavigating = false;
     timelineCatalogueIncomplete = remote;
     timelineCatalogueLoading = false;
     timelineSections.clear();
@@ -889,32 +896,121 @@ import { storageArchiveFetch } from "../config/api";
     return pairTimelineExchange(await readTimelineSection(entry), entry.message_id, pendingAssistantResponse?.userMessageId);
   }
 
+  function timelineTarget(id: string): HTMLElement | undefined {
+    return [...container.querySelectorAll<HTMLElement>('.message-wrapper[data-message-id]')]
+      .find(node => node.dataset.messageId === id);
+  }
+
+  async function positionTimelineTarget(id: string, scope: string, generation: number): Promise<void> {
+    if (!container) throw new Error('Timeline viewport unavailable');
+    timelineNavigating = true;
+    ensureVirtualMessageRendered(id);
+    await tick();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const deadline = performance.now() + 2400;
+        let stableSince = performance.now(), previousHeight = -1;
+        const align = () => {
+          if (scope !== timelineScopeKey || generation !== timelineGeneration) return reject(new Error('Timeline scope changed'));
+          const target = timelineTarget(id);
+          if (target) {
+            const viewport = container.getBoundingClientRect(), row = target.getBoundingClientRect();
+            const desired = Math.max(0, Math.min(container.scrollHeight - container.clientHeight,
+              container.scrollTop + row.top - viewport.top - 70));
+            const aligned = Math.abs(container.scrollTop - desired) < 2;
+            if (!aligned || previousHeight !== container.scrollHeight) stableSince = performance.now();
+            previousHeight = container.scrollHeight;
+            container.scrollTo({ top: desired, behavior: 'instant' });
+            if (aligned && performance.now() - stableSince >= 120 && row.top < viewport.bottom && row.bottom > viewport.top) return resolve();
+          }
+          if (performance.now() >= deadline) return reject(new Error('Timeline target could not be positioned'));
+          requestAnimationFrame(align);
+        };
+        requestAnimationFrame(align);
+      });
+    } finally {
+      if (scope === timelineScopeKey && generation === timelineGeneration) {
+        timelineNavigating = false;
+        checkIfAtBottomForUI();
+      }
+    }
+  }
+
   async function activateTimelineExchange(entry: TimelineEntry): Promise<void> {
-    const scope = timelineScopeKey;
-    const generation = timelineGeneration;
+    const scope = timelineScopeKey, generation = timelineGeneration;
     const rows = await readTimelineSection(entry);
     if (scope !== timelineScopeKey || generation !== timelineGeneration) throw new Error('Timeline scope changed');
+    const previous = { section: timelineSection, visible: timelineVisibleMessageId, top: container?.scrollTop ?? 0, pin: timelinePinnedId, start: virtualStartIndex, end: virtualEndIndex };
     cancelPendingNewUserMessageScroll();
+    if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     shouldScrollToNewUserMessage = false;
     isSpacerActive = false;
     spacerHeight = 0;
     userHasScrolledAway = true;
+    timelinePinnedId = null;
     timelineSection = rows;
     timelineVisibleMessageId = entry.message_id;
     await tick();
-    if (scope !== timelineScopeKey || generation !== timelineGeneration || !container) throw new Error('Timeline scope changed');
-    restoreHistoryPosition(entry.message_id);
+    try {
+      await positionTimelineTarget(entry.message_id, scope, generation);
+      timelinePinnedId = entry.message_id;
+    } catch (error) {
+      if (scope === timelineScopeKey && generation === timelineGeneration) {
+        timelineSection = previous.section; timelineVisibleMessageId = previous.visible;
+        clampVirtualRange(previous.start, previous.end);
+        await tick(); container.scrollTop = previous.top; timelinePinnedId = previous.pin;
+      }
+      throw error;
+    }
   }
 
   async function leaveTimelineSection(): Promise<void> {
+    const scope = timelineScopeKey, generation = timelineGeneration;
+    timelinePinnedId = null;
     timelineSection = null;
     await tick();
     const latest = displayMessages[displayMessages.length - 1];
     if (latest) {
       timelineVisibleMessageId = latest.id;
-      restoreHistoryPosition(latest.id);
-    }
-    else scrollToBottom();
+      await positionTimelineTarget(latest.id, scope, generation);
+    } else scrollToBottom();
+  }
+
+  // Measure the message lane rather than the full-width header. Only message
+  // padding reserves a narrow rail gutter on phones and split panes.
+  $effect(() => {
+    const host = timelineHostEl, content = timelineContentEl, header = headerWrapperEl;
+    if (!host || !content) return;
+    let frame = 0;
+    const measure = (resize = false) => {
+      const hostRect = host.getBoundingClientRect(), lane = content.getBoundingClientRect();
+      timelineLeft = Math.max(0, lane.left - hostRect.left + parseFloat(getComputedStyle(content).paddingLeft) - 52);
+      const banner = header?.getBoundingClientRect();
+      timelineSafeTop = banner && banner.bottom > hostRect.top && banner.top < hostRect.bottom
+        ? Math.max(8, banner.bottom - hostRect.top + 8) : 8;
+      if (resize && timelinePinnedId && !timelineNavigating) {
+        const target = timelineTarget(timelinePinnedId);
+        if (target) container.scrollTop += target.getBoundingClientRect().top - container.getBoundingClientRect().top - 70;
+      }
+    };
+    const onScroll = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => measure()); };
+    const observer = new ResizeObserver(() => measure(true));
+    observer.observe(host); observer.observe(content); if (header) observer.observe(header);
+    const release = () => releaseTimelinePin();
+    container.addEventListener('scroll', onScroll, { passive: true });
+    container.addEventListener('wheel', release, { passive: true });
+    container.addEventListener('pointerdown', release, { passive: true });
+    container.addEventListener('keydown', releaseTimelinePin);
+    measure();
+    return () => {
+      observer.disconnect(); container.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame);
+      container.removeEventListener('wheel', release); container.removeEventListener('pointerdown', release);
+      container.removeEventListener('keydown', releaseTimelinePin);
+    };
+  });
+
+  function releaseTimelinePin(event?: KeyboardEvent): void {
+    if (!event || ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) timelinePinnedId = null;
   }
 
   // Whether the user has toggled "Show earlier messages" to see messages before the compression summary.
@@ -1545,9 +1641,9 @@ import { storageArchiveFetch } from "../config/api";
     void $messageBookmarksStore; void $userProfile.encrypted_settings;
     return currentChatId ? getMessageBookmarkIds(currentChatId, bookmarkMode) : new Set<string>();
   });
-  const bookmarkedExchanges = $derived(bookmarkedTimelineExchanges(timelineAllEntries, bookmarkedIds));
-  let timelineUserEntries = $derived(timelineAllEntries.filter(entry => entry.role === 'user')
-    .map(entry => ({ ...entry, bookmarked: bookmarkedExchanges.has(entry.message_id) })));
+  const timelineIndex = $derived(buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
+  const timelineUserEntries = $derived(timelineIndex.entries);
+  const timelineEnabled = $derived(timelineIndex.answeredCount >= 2);
   $effect(() => {
     const chatId = currentChatId, mode = bookmarkMode;
     void timelineScopeKey; void $userProfile.encrypted_settings; void $messageBookmarksStore.localRevision;
@@ -1559,7 +1655,7 @@ import { storageArchiveFetch } from "../config/api";
   });
   function toggleBookmark(messageId: string): Promise<void> {
     if (!currentChatId) return Promise.reject(new Error('Bookmark chat unavailable'));
-    return toggleMessageBookmark(currentChatId, messageId, bookmarkMode);
+    return toggleMessageBookmark(currentChatId, messageId, bookmarkMode, timelineIndex.legacyAliases.get(messageId) ?? []);
   }
   let timelineCurrentId = $derived.by(() => {
     const index = timelineAllEntries.findIndex(entry => entry.message_id === timelineVisibleMessageId);
@@ -2687,6 +2783,7 @@ import { storageArchiveFetch } from "../config/api";
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
+    timelinePinnedId = null;
     if (container) {
       container.scrollTo({
         top: 0,
@@ -2698,6 +2795,8 @@ import { storageArchiveFetch } from "../config/api";
   }
   
   export function scrollToBottom(smooth = false) {
+    if (timelineSection !== null) { void leaveTimelineSection(); return; }
+    timelinePinnedId = null;
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
@@ -2756,7 +2855,7 @@ import { storageArchiveFetch } from "../config/api";
   // This ensures smooth scrolling without blocking the main thread
   function handleScroll() {
     // Don't track scroll position during restoration
-    if (isRestoringScroll) return;
+    if (isRestoringScroll || timelineNavigating || timelinePinnedId) return;
 
     updateVirtualRangeAroundScroll();
 
@@ -2807,7 +2906,7 @@ import { storageArchiveFetch } from "../config/api";
   function checkIfAtBottomForUI() {
     if (!container) return;
     
-    const isAtBottomLocal = 
+    const isAtBottomLocal = timelineSection === null &&
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     
     // Check if scrolled to the very top (within 50px threshold)
@@ -2852,7 +2951,7 @@ import { storageArchiveFetch } from "../config/api";
 
   // Check if user has scrolled to bottom (mark as read)
   function checkIfScrolledToBottom() {
-    if (!container) return;
+    if (!container || timelineSection !== null) return;
     
     const isAtBottom = 
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
@@ -3019,6 +3118,7 @@ import { storageArchiveFetch } from "../config/api";
       return;
     }
 
+    if (timelineNavigating || timelinePinnedId) return;
     updateVirtualRangeAroundScroll();
     if (virtualEndIndex <= virtualStartIndex) {
       clampVirtualRange(0, VIRTUALIZATION_MIN_RENDERED_MESSAGES);
@@ -3047,21 +3147,21 @@ import { storageArchiveFetch } from "../config/api";
     - Messages are aligned to the top for ChatGPT-style behavior.
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
-<div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
-{#if !disablePointerEvents && (timelineUserEntries.length > 0 || timelineCatalogueIncomplete)}
+<div class="chat-history-wrapper" bind:this={timelineHostEl} class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
+{#if !disablePointerEvents && timelineEnabled}
   <ChatMessageTimeline entries={timelineUserEntries} contextKey={timelineScopeKey}
-    {bookmarkedIds} onToggleBookmark={toggleBookmark}
+    answeredCount={timelineIndex.answeredCount} railLeft={timelineLeft} safeTop={timelineSafeTop}
+    bookmarkedIds={timelineIndex.assistantBookmarks} onToggleBookmark={toggleBookmark}
     compressionBoundary={latestCompressionCheckpoint?.compressed_up_to_timestamp ?? null}
     currentId={timelineCurrentId} catalogueLoading={timelineCatalogueLoading} catalogueIncomplete={timelineCatalogueIncomplete}
-    historical={timelineSection !== null} onPreview={previewTimelineExchange} onActivate={activateTimelineExchange}
-    onLoadEarlier={() => void readTimelineCatalogue()} onLatest={() => void leaveTimelineSection()} />
+    onPreview={previewTimelineExchange} onActivate={activateTimelineExchange}
+    onLoadEarlier={() => void readTimelineCatalogue()} />
 {/if}
 <div 
     class="chat-history-container"
-    class:has-timeline={timelineUserEntries.length > 0}
     class:has-call-strip={!!voiceCallBridge}
     data-testid="chat-history-container"
-    data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage ? 'busy' : 'ready'}
+    data-scroll-state={timelineNavigating || isRestoringScroll || isScrolling || shouldScrollToNewUserMessage ? 'busy' : 'ready'}
     class:empty={displayMessages.length === 0}
     class:is-at-top={isAtTop}
     bind:this={container}
@@ -3124,7 +3224,7 @@ import { storageArchiveFetch } from "../config/api";
     <WebhookPendingBanner />
 
     {#if showMessages}
-        <div class="chat-history-content" 
+        <div class="chat-history-content" bind:this={timelineContentEl} class:has-timeline={timelineEnabled}
              data-testid="chat-history-content"
               class:has-messages={displayMessages.length > 0}
               class:has-header={showChatHeader}
@@ -3203,7 +3303,6 @@ import { storageArchiveFetch } from "../config/api";
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
                 <div class="message-wrapper {msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
-                      class:bookmarkable={msg.role === 'user' || msg.role === 'assistant'}
                       class:target-message={$messageHighlightStore === msg.id}
                       class:forgotten-message={isForgottenMessage(msg)}
                       class:compression-boundary-wrapper={showForgottenMessages && isCompressionSummaryMessage(msg)}
@@ -3271,6 +3370,9 @@ import { storageArchiveFetch } from "../config/api";
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
+                        bookmarkAction={msg.role === 'assistant' ? {
+                          active: timelineIndex.assistantBookmarks.has(msg.id), onToggle: () => toggleBookmark(msg.id)
+                        } : undefined}
                         onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent && (canSpeakMessage?.(msg.id) ?? true)
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
@@ -3286,11 +3388,6 @@ import { storageArchiveFetch } from "../config/api";
                             }
                           : undefined}
                     />
-                    {#if msg.role === 'user' || msg.role === 'assistant'}
-                      <div class="message-bookmark-action" class:saved={bookmarkedIds.has(msg.id)}>
-                        <MessageBookmarkButton active={bookmarkedIds.has(msg.id)} onToggle={() => toggleBookmark(msg.id)} />
-                      </div>
-                    {/if}
                     {/if}
 
                 </div>
@@ -3500,13 +3597,6 @@ import { storageArchiveFetch } from "../config/api";
     );
   }
 
-  .chat-history-container.has-timeline { padding-left: 48px; }
-  .message-bookmark-action { display: flex; justify-content: flex-end; opacity: 0; }
-  .message-wrapper.bookmarkable { flex-direction: column; align-items: stretch; }
-  .message-bookmark-action.saved, .message-wrapper:hover .message-bookmark-action,
-  .message-wrapper:focus-within .message-bookmark-action { opacity: 1; }
-  @media (pointer: coarse) { .message-bookmark-action { opacity: 1; } }
-
   .debug-history-header-row {
     display: flex;
     justify-content: space-between;
@@ -3637,6 +3727,10 @@ import { storageArchiveFetch } from "../config/api";
     padding-inline: clamp(0px, calc((100cqw - 730px) / 3), 90px);
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
+  }
+
+  .chat-history-content.has-messages.has-timeline {
+    padding-inline-start: max(52px, clamp(0px, calc((100cqw - 730px) / 3), 90px));
   }
 
   /* When the header banner is showing, push messages below the banner.

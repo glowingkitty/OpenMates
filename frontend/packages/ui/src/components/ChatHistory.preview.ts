@@ -56,7 +56,7 @@ export const variants = {
       message_id: `timeline-history-${index}`, chat_id: 'preview-timeline-history', role: index % 2 ? 'assistant' : 'user',
       created_at: timestamp + index, status: 'synced',
       user_message_id: index % 2 ? `timeline-history-${index - 1}` : undefined,
-      content: `${index % 2 ? 'Response' : 'Question'} ${Math.floor(index / 2)}: project budget and train tickets.`,
+      content: `${index % 2 ? 'Response' : 'Question'} ${Math.floor(index / 2)}: project budget and train tickets.` + (index % 2 && index % 7 === 1 ? '\n\n' + 'A detailed fictional explanation of the venue and travel budget.\n\n'.repeat(18) : ''),
     })), compressionCheckpoints: [{ id: 'timeline-history-checkpoint', chat_id: 'preview-timeline-history',
       summary: 'Earlier planning turns were summarized.', compressed_up_to_timestamp: timestamp + 1499,
       compressed_up_to_message_id: 'timeline-history-1499', compressed_message_count: 1500, created_at: timestamp + 1500 }] },

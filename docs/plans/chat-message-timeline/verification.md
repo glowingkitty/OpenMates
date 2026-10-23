@@ -1,34 +1,30 @@
 # Chat message timeline verification
 
-Specification: `feature.chat-message-timeline@1`, approved fingerprint
-`3128cb74c78927919831b54aeb6fa86f22c4319f1e3a5849eb7fc64c9c1031a7`.
+Corrected Specification: `feature.chat-message-timeline@1`, approved fingerprint
+`59878f46bed8fd9bb1d40d0e29f534109a8e00c675b957a53f69d0da719bf632`.
+The user approved compact, scrollable marks beside the message column and
+assistant-only bookmarks using the existing delayed tooltip UI.
 
 | Required check | Result | Evidence |
 | --- | --- | --- |
-| Bounded catalogue discovery, access guards, identity pairing and text previews | Passed | 16 Python catalogue cases, 22 Directus operation cases and 12 frontend unit cases |
-| Compact desktop/phone previews, keyboard navigation, touch cancellation and stable selection | Passed | Nine isolated component cases, [run 39954348153](https://github.com/glowingkitty/OpenMates/actions/runs/39954348153), source `81ddb6c430b9537b8f9985832175796625afbf21`; desktop and phone captures reviewed |
-| Unloaded compressed history, failure preservation and return to latest | Passed | Real encrypted 10,000-exchange browser flow, [run 39959606508](https://github.com/glowingkitty/OpenMates/actions/runs/39959606508), source `39588296085b47949f5a8b5dd1377825c7bd38d8` |
-| Private yellow bookmarks, encrypted reload and failed-save retry | Passed | Same browser flow plus component and service cases; 51 session, 33 focused login and eight pairing cases verify profile hydration and access boundaries |
-| Deployed laptop and phone review | Layout reviewed; network smoke requires scope decision | Feature commit `1ea7a958108cbe2931a4e2415971d273bb0b600b`; matching frontend ready, coordinated runtime operation `docker-d93d1592` completed with all services healthy |
+| Exchange counting, pairing, preview extraction and legacy bookmark compatibility | Passed | 14 focused frontend unit cases |
+| Svelte, TypeScript, design tokens, YAML and whitespace | Passed | Scoped session lint and `git diff --check` |
+| Short/dense/wide/phone layouts, header boundary, touch and fixed assistant actions | Passed | 11 isolated component cases, no retries; [run 39996744577](https://github.com/glowingkitty/OpenMates/actions/runs/39996744577), source `87fe11b02ce79502007f7fe2823e81cd26f41f7b`; wide/phone header and corrected report-icon frames reviewed |
+| Real encrypted 10,000-exchange history, compression, private persistence and retry | Passed | Real encrypted 10,000-exchange flow, no retries; [run 39998390045](https://github.com/glowingkitty/OpenMates/actions/runs/39998390045), same source; preview, old section and latest frames reviewed |
+| Scoped dev deployment and reviewed laptop/phone screenshots | Pending | Run after isolated verification |
 
-The compact preview contains one truncated question line and up to three muted
-response lines. The rail is at the active chat's far-left edge. Active bookmark
-icons and their exchange marks are yellow; the reviewed dense-history fixture
-keeps a bookmarked exchange visible outside the ordinary overview sample.
+Retained baseline protection checks passed before this presentation correction:
+16 Python catalogue cases, 22 Directus cases, and 92 focused authentication
+hydration/access cases. This correction preserves the bounded catalogue,
+selected-section access/encryption paths and opaque account-settings hydration.
+No inference or compression behavior changes are included.
 
-Bookmark reload required carrying the existing opaque account settings through
-verified session, login and pairing profile hydration. Verification challenges
-and anti-enumeration responses continue to omit the ciphertext. No settings
-decryption or message plaintext was added to the backend.
+The earlier far-left implementation's public-example smoke reported an unrelated
+signed-out `/v1/projects/focus/current` request returning 401. That result remains
+recorded under `test-results/visual-smoke/b026-timeline-20261023/`; it is not proof
+of this corrected implementation. No unrelated Project-focus repair is included.
 
-Deployed screenshots are retained under
-`test-results/visual-smoke/b026-timeline-20261023/`. The timeline and composer
-render correctly at both widths. The full-page smoke reports an existing
-signed-out request to `/v1/projects/focus/current` returning 401 in the public
-example chat. Approval is pending on including that unrelated guard repair or
-accepting the warning outside this feature's scope.
-
-The broader local authentication endpoint suite also reported eight unrelated
-environment/fixture failures: missing `cbor2` and a stale session-refresh mock.
-The relevant focused authentication checks listed above pass; those unrelated
-tests and product behavior were not changed.
+The reviewed component captures show the complete header inside the viewport,
+with the compact rail below it and beside the message lane. The report control
+retains its existing thumbs-down orientation. Desktop tooltip checks assert
+fixed control positions, while the phone checks retain 44-pixel touch controls.

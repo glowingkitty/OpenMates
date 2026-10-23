@@ -16,7 +16,7 @@ export type TimelineFixture = {
 export function createTimelineFixture(apiUrl: string, home: string): TimelineFixture {
   if (process.env.OPENMATES_CI_ISOLATED !== '1') throw new Error('Timeline fixture requires isolated CI');
   const sdk = path.join(repositoryRoot, 'frontend/packages/openmates-cli/dist/index.js');
-  const source = `
+  const source = String.raw`
     const {pathToFileURL}=require('node:url');
     const {randomUUID,randomBytes,createHash,webcrypto}=require('node:crypto');
     (async()=>{
@@ -43,7 +43,7 @@ export function createTimelineFixture(apiUrl: string, home: string): TimelineFix
           messages.push({id,client_message_id:id,chat_id:chatId,hashed_user_id:hashedOwner,
             role,created_at:created,updated_at:created,...(role==='assistant'?{user_message_id:userId}:{}),
             encrypted_sender_name:await encrypt(role==='user'?'You':'OpenMates',key),
-            encrypted_content:await encrypt((role==='user'?'Question ':'Response ')+i+': project budget and train tickets.',key)});
+            encrypted_content:await encrypt((role==='user'?'Question ':'Response ')+i+': project budget and train tickets.'+(role==='assistant'&&i<80&&i%7===0?'\n\n'+'A detailed fictional venue and train budget.\n\n'.repeat(18):''),key)});
         }
       }
       const checkpoints=[];

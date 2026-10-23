@@ -1,6 +1,7 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { test, expect } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { scrollChatHistoryToStart } from '../helpers/chat-scroll';
 
 test.use({ hasTouch: true });
 
@@ -9,7 +10,7 @@ async function activations(page: import('@playwright/test').Page) {
 }
 
 // contract-test: direct surface=gui.web assertions=chat-message-timeline.bookmarks,chat-message-timeline.accessible-layout
-test('a bookmark outside the dense overview sample stays yellow and can be selected and toggled without jumping', async ({ page }, info) => {
+test('a bookmark in a dense scrollable stack stays yellow and can be selected and toggled without jumping', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/dev/preview/ChatMessageTimelineUpdatingPreviewHarness?variant=bookmarks&theme=dark&background=%23171717&width=1280&chrome=0');
   await waitForComponentPreview(page);
@@ -76,6 +77,8 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test.describe('desktop mouse preview', () => {
+  test.use({ hasTouch: false });
 // contract-test: direct surface=gui.web assertions=chat-message-timeline.preview-and-activate,chat-message-timeline.compression-history,chat-message-timeline.accessible-layout
 test('desktop hover previews both messages without jumping, then click activates the selected exchange', async ({ page }, info) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -83,7 +86,7 @@ test('desktop hover previews both messages without jumping, then click activates
   await waitForComponentPreview(page);
   const rail = page.getByTestId('timeline-rail');
   const box = (await rail.boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.1);
+  await page.mouse.move(box.x + box.width / 2, box.y + 30);
   const preview = page.getByTestId('timeline-preview');
   await expect(preview.getByTestId('timeline-user-preview')).toContainText('Question 2');
   await expect(preview.getByTestId('timeline-response-preview')).toContainText('answer to question 2');
@@ -98,11 +101,17 @@ test('desktop hover previews both messages without jumping, then click activates
   expect(await page.getByTestId('timeline-response-preview').evaluate(node =>
     node.clientHeight <= parseFloat(getComputedStyle(node).lineHeight) * 3 + 1)).toBe(true);
   await expect(preview.locator('strong')).toHaveCount(0);
+  await expect(rail.locator('button')).toHaveCount(0);
+  const markStyle = await rail.locator('.timeline-mark.selected').evaluate(node => ({ scale: getComputedStyle(node).scale, transform: getComputedStyle(node).transform }));
+  expect(markStyle.transform).toBe('none');
+  expect(['none', '1']).toContain(markStyle.scale);
   expect((await preview.boundingBox())!.height).toBeLessThan(170);
   await page.screenshot({ path: info.outputPath('timeline-desktop-hover.png') });
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.1);
+  await page.mouse.click(box.x + box.width / 2, box.y + 30);
   await expect.poll(() => activations(page)).toEqual(['timeline-user-2']);
   await expect(preview).toHaveCount(0);
+});
+
 });
 
 // contract-test: direct surface=gui.web assertions=chat-message-timeline.accessible-layout,chat-message-timeline.preview-and-activate
@@ -125,6 +134,9 @@ test('keyboard reaches individual entries in a ten-thousand-exchange rail with r
   await rail.press('Escape');
   await expect(page.getByTestId('timeline-preview')).toHaveCount(0);
   expect(await activations(page)).toEqual([]);
+  const beforeScroll = await rail.evaluate(node => node.scrollTop);
+  await rail.hover(); await page.mouse.wheel(0, -240);
+  await expect.poll(() => rail.evaluate(node => node.scrollTop)).toBeLessThan(beforeScroll);
   await rail.press('Home');
   await rail.press('Enter');
   await expect.poll(() => activations(page)).toEqual(['timeline-user-0']);
@@ -142,7 +154,7 @@ test('phone hold-and-slide keeps the preview clear of the finger and commits onc
   await expect(page.getByTestId('timeline-user-preview')).toBeVisible();
   expect(await activations(page)).toEqual([]);
   await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: box.y + box.height * 0.2, id: 1 }] });
-  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 5:');
+  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 4:');
   const preview = (await page.getByTestId('timeline-preview').boundingBox())!;
   expect(preview.x).toBeGreaterThan(x + 40);
   expect(preview.x + preview.width).toBeLessThanOrEqual(390);
@@ -151,14 +163,36 @@ test('phone hold-and-slide keeps the preview clear of the finger and commits onc
   await expect(page.getByTestId('timeline-before-compression')).toBeVisible();
   await page.screenshot({ path: info.outputPath('timeline-phone-scrubbing.png') });
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect.poll(() => activations(page)).toEqual(['timeline-user-5']);
+  await expect.poll(() => activations(page)).toEqual(['timeline-user-4']);
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: box.y + box.height * 0.5, id: 2 }] });
   await expect(page.getByTestId('timeline-user-preview')).toBeVisible();
   await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
   await expect(page.getByTestId('timeline-preview')).toHaveCount(0);
-  expect(await activations(page)).toEqual(['timeline-user-5']);
+  expect(await activations(page)).toEqual(['timeline-user-4']);
   await page.touchscreen.tap(x, box.y + box.height * 0.5);
-  await expect.poll(() => activations(page)).toEqual(['timeline-user-5', 'timeline-user-12']);
+  await expect.poll(() => activations(page)).toEqual(['timeline-user-4', 'timeline-user-10']);
+  await session.detach();
+});
+
+// contract-test: direct surface=gui.web assertions=chat-message-timeline.touch-scrubbing,chat-message-timeline.full-history-loading
+test('held touch at the stack edge scrolls to individual offscreen marks and releases at the previewed identity', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dev/preview/ChatMessageTimeline?variant=dense&theme=dark&width=390&chrome=0');
+  await waitForComponentPreview(page);
+  const rail = page.getByTestId('timeline-rail');
+  await rail.focus(); await rail.press('Home'); await rail.press('Escape');
+  const box = (await rail.boundingBox())!, x = box.x + box.width / 2;
+  const session = await page.context().newCDPSession(page);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: box.y + box.height / 2, id: 1 }] });
+  await expect(page.getByTestId('timeline-user-preview')).toBeVisible();
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: box.y + box.height - 1, id: 1 }] });
+  await expect.poll(() => rail.evaluate(node => node.scrollTop)).toBeGreaterThan(240);
+  // Freeze the edge scroll in the middle before comparing release to its preview.
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: box.y + box.height / 2, id: 1 }] });
+  await expect(page.getByTestId('timeline-user-preview')).toBeVisible();
+  const selected = await page.getByTestId('timeline-preview').getAttribute('data-message-id');
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect.poll(() => activations(page)).toEqual([selected]);
   await session.detach();
 });
 
@@ -191,12 +225,12 @@ test('catalogue growth preserves the previewed exchange through touch release an
   const x = box.x + box.width / 2;
   const session = await page.context().newCDPSession(page);
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: box.y + box.height * 0.2, id: 1 }] });
-  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 5:');
+  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 4:');
   await page.evaluate(() => window.dispatchEvent(new Event('preview:timeline-prepend')));
   await expect(rail).toHaveAttribute('data-count', '48');
-  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 5:');
+  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 4:');
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await expect.poll(() => activations(page)).toEqual(['timeline-user-5']);
+  await expect.poll(() => activations(page)).toEqual(['timeline-user-4']);
   await session.detach();
 
   await page.mouse.move(x, box.y + box.height * 0.4);
@@ -206,7 +240,7 @@ test('catalogue growth preserves the previewed exchange through touch release an
   await expect(rail).toHaveAttribute('data-count', '72');
   await page.mouse.down();
   await page.mouse.up();
-  await expect.poll(() => activations(page)).toEqual(['timeline-user-5', selected]);
+  await expect.poll(() => activations(page)).toEqual(['timeline-user-4', selected]);
 });
 
 // contract-test: direct surface=gui.web assertions=chat-message-timeline.access-and-lifecycle
@@ -221,48 +255,114 @@ test('preview text follows the chat PII visibility setting', async ({ page }) =>
   }
 });
 
-// contract-test: direct surface=gui.web assertions=chat-message-timeline.full-history-loading,chat-message-timeline.compression-history,chat-message-timeline.preview-and-activate
-test('real ChatHistory opens a non-rendered compressed exchange and returns to its latest virtualized window', async ({ page }, info) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+// contract-test: direct surface=gui.web assertions=chat-message-timeline.full-history-loading,chat-message-timeline.compression-history,chat-message-timeline.preview-and-activate,chat-message-timeline.accessible-layout,chat-message-timeline.bookmarks
+test('real history positions compact marks beside the column and reliably opens non-rendered long exchanges', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1920, height: 900 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dev/preview/ChatHistory?variant=timelineHistory&theme=light&width=1024&chrome=0');
+  await page.goto('/dev/preview/ChatHistoryTimelinePreviewHarness?theme=dark&background=%23171717&width=1920&chrome=0');
   await waitForComponentPreview(page);
-  const first = page.locator('[data-testid="message-user"][data-message-id="timeline-history-0"]');
-  await expect(first).toHaveCount(0);
   const rail = page.getByTestId('timeline-rail');
+  const viewport = page.getByTestId('chat-history-container');
   await expect(rail).toHaveAttribute('data-count', '1000');
-  expect((await rail.boundingBox())!.x).toBeCloseTo((await page.getByTestId('chat-history-container').boundingBox())!.x, 1);
-  await rail.focus();
-  await rail.press('Home');
-  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 0:');
-  await expect(page.getByTestId('timeline-response-preview')).toContainText('Response 0:');
-  await rail.press('Enter');
-  await expect(first).toBeVisible();
-  await expect(first).toContainText('Question 0:');
-  await expect(first).toHaveAttribute('data-forgotten', 'true');
-  expect(await page.locator('.message-wrapper').count()).toBeLessThan(180);
-  const geometry = await first.evaluate(node => {
-    const viewport = node.closest('[data-testid="chat-history-container"]')!.getBoundingClientRect();
-    const row = node.getBoundingClientRect();
-    return { visible: row.top >= viewport.top && row.top < viewport.bottom };
+  expect((await rail.boundingBox())!.height).toBe(240);
+  const lane = await page.getByTestId('chat-history-content').evaluate(node => {
+    const box = node.getBoundingClientRect();
+    return box.left + parseFloat(getComputedStyle(node).paddingLeft);
   });
-  expect(geometry.visible).toBe(true);
-  const questionBookmark = first.getByTestId('message-bookmark-button');
-  await questionBookmark.click();
-  await expect(questionBookmark).toHaveAttribute('aria-pressed', 'true');
-  const yellow = rail.locator('.timeline-mark.bookmarked[data-message-id="timeline-history-0"]');
-  await expect(yellow).toHaveCount(1);
-  const replyBookmark = page.locator('.message-wrapper[data-message-id="timeline-history-1"]').getByTestId('message-bookmark-button');
-  await replyBookmark.click();
-  await questionBookmark.click();
-  await expect(questionBookmark).toHaveAttribute('aria-pressed', 'false');
-  await expect(yellow).toHaveCount(1); // Reply alone keeps its question's mark yellow.
-  await replyBookmark.click();
-  await expect(rail.locator('.timeline-mark.bookmarked')).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath('timeline-history-compressed-jump.png') });
-  await page.getByTestId('timeline-latest').click();
-  await expect(page.getByTestId('timeline-latest')).toHaveCount(0);
-  await expect(page.locator('[data-message-id="timeline-history-1999"]')).toBeVisible();
+  const box = (await rail.boundingBox())!;
+  expect(box.x + box.width).toBeCloseTo(lane - 8, 0);
+  expect(box.x).toBeGreaterThan((await viewport.boundingBox())!.x + 250);
+  await expect(rail.locator('button')).toHaveCount(0);
+  for (const index of [0, 8, 15]) {
+    await rail.focus(); await rail.press('Home');
+    for (let step = 0; step < index; step++) await rail.press('ArrowDown');
+    await expect(page.getByTestId('timeline-user-preview')).toContainText(`Question ${index}:`);
+    await rail.press('Enter');
+    await expect(page.getByTestId('timeline-preview')).toHaveCount(0);
+    const target = page.locator(`.message-wrapper[data-message-id="timeline-history-${index * 2}"]`);
+    await expect(target).toBeVisible();
+    await expect(target).toHaveAttribute('data-forgotten', 'true');
+    await expect.poll(() => target.evaluate(node => node.getBoundingClientRect().top - node.closest('.chat-history-container')!.getBoundingClientRect().top)).toBeCloseTo(70, 0);
+    expect(await page.locator('.message-wrapper').count()).toBeLessThan(180);
+  }
+  const user = page.locator('.message-wrapper.user');
+  await expect(user.getByTestId('message-bookmark-button')).toHaveCount(0);
+  const reply = page.locator('.message-wrapper.assistant[data-message-id="timeline-history-31"]').getByTestId('message-bookmark-button');
+  await reply.click();
+  await expect(reply).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: info.outputPath('timeline-wide-long-exact-jump.png') });
+  await page.evaluate(() => window.dispatchEvent(new Event('preview:history-latest')));
+  await expect(page.locator('[data-testid="message-assistant"][data-message-id="timeline-history-1999"]')).toBeVisible();
   await expect(rail).toHaveAttribute('aria-valuenow', '1000');
-  await expect(first).toHaveCount(0);
+  await scrollChatHistoryToStart(page, info);
+  await expect(page.locator('.chat-header-wrapper')).toBeInViewport({ ratio: 1 });
+  await expect.poll(async () => {
+    const banner = (await page.locator('.chat-header-wrapper').boundingBox())!;
+    return (await rail.boundingBox())!.y >= banner.y + banner.height + 7;
+  }).toBe(true);
+  const banner = (await page.locator('.chat-header-wrapper').boundingBox())!;
+  expect(banner.x).toBeLessThanOrEqual((await viewport.boundingBox())!.x + 1);
+  await page.screenshot({ path: info.outputPath('timeline-wide-header-boundary.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await scrollChatHistoryToStart(page, info);
+  await expect(rail).toBeVisible();
+  await expect(page.locator('.chat-header-wrapper')).toBeInViewport({ ratio: 1 });
+  expect((await rail.boundingBox())!.x - (await viewport.boundingBox())!.x).toBeLessThan(30);
+  const headerPhone = (await page.locator('.chat-header-wrapper').boundingBox())!;
+  expect((await rail.boundingBox())!.y).toBeGreaterThanOrEqual(headerPhone.y + headerPhone.height);
+  await page.screenshot({ path: info.outputPath('timeline-phone-header-boundary.png') });
+});
+
+test.describe('compact follow-up and fixed assistant actions', () => {
+  test.use({ hasTouch: false });
+  // contract-test: direct surface=gui.web assertions=chat-message-timeline.visibility-and-spacing,chat-message-timeline.assistant-message-actions,chat-message-timeline.bookmarks,chat-message-timeline.accessible-layout
+  test('the second answer fades in two marks and assistant icons use shared tooltips without expanding', async ({ page }, info) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/dev/preview/ChatHistoryTimelinePreviewHarness?variant=short&theme=dark&background=%23171717&width=1280&chrome=0');
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('timeline-rail')).toHaveCount(0);
+    await expect(page.locator('.message-wrapper.user').getByTestId('message-bookmark-button')).toHaveCount(0);
+    await page.evaluate(() => window.dispatchEvent(new Event('preview:history-follow-up')));
+    const rail = page.getByTestId('timeline-rail');
+    await expect(rail).toBeVisible();
+    expect((await rail.boundingBox())!.height).toBe(24);
+    expect(await rail.evaluate(node => getComputedStyle(node).animationName)).toMatch(/(?:^|-)timeline-appear$/);
+    const marks = await rail.locator('.timeline-mark').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().top));
+    expect(marks[1] - marks[0]).toBe(12);
+    const row = page.locator('.message-wrapper.assistant').last();
+    await row.scrollIntoViewIfNeeded();
+    const copy = row.locator('.copy-message-btn'), report = row.locator('.report-bad-answer-btn');
+    const bookmark = row.getByTestId('message-bookmark-button');
+    await expect(copy).toBeVisible(); await expect(report).toBeVisible(); await expect(bookmark).toBeVisible();
+    const reportDirection = await report.locator('.icon_thumbsdown').evaluate(node => {
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform);
+      return { x: matrix.a, y: matrix.d };
+    });
+    expect(reportDirection).toEqual({ x: -1, y: -1 });
+    await expect(row.locator('.message-action-text')).toHaveCount(0);
+    const initial = (await report.boundingBox())!;
+    const gray = await bookmark.evaluate(node => getComputedStyle(node).color);
+    expect(await bookmark.locator('svg').evaluate(node => getComputedStyle(node).fill)).toBe(gray);
+    await bookmark.hover();
+    expect(await bookmark.evaluate(node => getComputedStyle(node).color)).not.toBe(gray);
+    await page.mouse.move(1200, 50);
+    for (const button of [copy, bookmark, report]) {
+      const before = (await button.boundingBox())!;
+      await button.hover();
+      await expect(page.locator('.tooltip')).toBeVisible();
+      await expect(page.locator('.tooltip')).toContainText((await button.getAttribute('aria-label'))!);
+      const after = (await button.boundingBox())!;
+      expect(after.width).toBeCloseTo(before.width, 1);
+      expect(after.height).toBeCloseTo(before.height, 1);
+      expect((await report.boundingBox())!.x).toBeCloseTo(initial.x, 1);
+      await page.mouse.move(1200, 50);
+      await expect(page.locator('.tooltip')).toHaveCount(0);
+    }
+    await bookmark.click();
+    await expect(bookmark).toHaveAttribute('aria-pressed', 'true');
+    expect(await bookmark.evaluate(node => getComputedStyle(node).color)).not.toBe(gray);
+    expect(await bookmark.locator('svg').evaluate(node => getComputedStyle(node).filter)).toContain('drop-shadow');
+    await expect(rail.locator('.timeline-mark.bookmarked')).toHaveCount(1);
+    await page.screenshot({ path: info.outputPath('timeline-two-marks-assistant-actions.png') });
+  });
 });

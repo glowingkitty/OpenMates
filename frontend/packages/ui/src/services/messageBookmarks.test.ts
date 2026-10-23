@@ -117,3 +117,14 @@ it('fails closed on unreadable settings and preserves an unrelated concurrent pr
   expect(mocks.fetch).not.toHaveBeenCalled();
   expect(get(profile).encrypted_settings).toBe('new-preferences');
 });
+
+// contract-test: supporting surface=gui.web assertions=chat-message-timeline.bookmarks
+it('removes a legacy question alias through its assistant and only saves the assistant on rebookmark', async () => {
+  plaintext.set('legacy', JSON.stringify({ theme: 'dark', message_bookmarks: { version: 1, chats: { chat: ['question'] } } }));
+  profile.update(value => ({ ...value, encrypted_settings: 'legacy' }));
+  await toggleMessageBookmark('chat', 'answer', 'account', ['question']);
+  expect([...getMessageBookmarkIds('chat', 'account')]).toEqual([]);
+  await toggleMessageBookmark('chat', 'answer', 'account', ['question']);
+  expect([...getMessageBookmarkIds('chat', 'account')]).toEqual(['answer']);
+  expect(JSON.parse(plaintext.get(get(profile).encrypted_settings!)!).theme).toBe('dark');
+});

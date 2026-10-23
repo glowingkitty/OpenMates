@@ -1,18 +1,27 @@
 schema_version: 1
 specification: feature.chat-message-timeline@1
+visibility_and_spacing:
+- id: first-answer-and-follow-up
+  given: Alice has one question and one assistant answer containing several tool and activity steps.
+  when: She reads that first answer, then sends a follow-up and receives another assistant response.
+  then: The first exchange has no timeline. After the second response appears, two evenly spaced marks fade in as a small stack roughly 24 pixels tall.
+- id: grow-to-a-scrollable-stack
+  given: Alice has a conversation with many answered follow-up questions.
+  when: More exchanges arrive and she scrolls the marks toward the earlier questions.
+  then: Mark spacing stays constant. The stack grows to a compact cap around 240 pixels, then scrolls internally through the remaining marks instead of stretching them apart or dropping older exchanges.
 preview_and_activate:
 - id: hover-an-earlier-exchange
   given: Alice is reading the latest answer in a saved trip-planning chat with several earlier questions and answers.
   when: She hovers the mark for her question about train tickets, then clicks it.
-  then: Hover widens that mark and shows her question as one highlighted, ellipsis-truncated line above at most three muted answer lines, without speaker or exchange-count labels and without moving the transcript. Clicking scrolls to the train-ticket question.
+  then: Hover smoothly widens that neutral mark and increases its opacity without scaling the rail or adding an orange highlight. The preview shows her question as one highlighted, ellipsis-truncated line above at most three muted answer lines, without speaker or exchange-count labels and without moving the transcript. Clicking scrolls to the train-ticket question.
 - id: pending-answer-and-empty-chat
-  given: Alice's newest question is still waiting for an answer, and she can also open a new empty chat.
+  given: Alice's chat has two answered exchanges and a newest question still waiting for an answer; she can also open a new empty chat.
   when: She previews the newest question, then opens the empty chat.
   then: The preview identifies the pending answer rather than showing the previous answer. The empty chat has no timeline or leftover preview.
 touch_scrubbing:
 - id: hold-slide-and-release-on-phone
   given: Alice opens a long conversation on a phone and holds a finger on its left-hand timeline.
-  when: She slides upward through older exchanges and releases on the question about the project budget.
+  when: She slides upward and holds near the stack edge to continue through older marks, then releases on the question about the project budget.
   then: The preview follows the selected exchange beside and clear of her finger. Release loads and scrolls to the budget question once.
 - id: cancel-and-scroll-normally
   given: Alice is previewing an exchange with a held finger and the operating system cancels that pointer gesture.
@@ -22,9 +31,9 @@ full_history_loading:
 - id: target-outside-cache-and-dom
   given: A conversation contains ten thousand exchanges, while Alice's browser has loaded only its newest message window and renders only part of that window.
   when: Alice finds an exchange near the start through the timeline and activates it.
-  then: The earlier exchange remains addressable; the browser loads only the needed bounded section, displays the matching question and available answer and scrolls to that question. Alice can subsequently return to the latest messages.
+  then: The evenly spaced stack scrolls to reveal the older mark without grouping or removing exchanges. The browser loads only the needed bounded section, displays the matching question and answer and aligns that exact question in the viewport. The existing latest-message control returns Alice to the recent transcript.
 - id: unavailable-history-can-retry
-  given: Alice is reading a cached recent section while an older exchange is not cached and the network is unavailable.
+  given: Alice has scrolled through long answers in a cached recent section while an older exchange is not cached and the network is unavailable.
   when: She selects that older exchange, then retries after reconnecting.
   then: The first attempt clearly reports that the content is unavailable and preserves her readable section. Retry loads and opens the exact selected exchange rather than an adjacent question.
 compression_history:
@@ -49,17 +58,26 @@ accessible_layout:
 - id: keyboard-with-sidebar-closed
   given: Alice uses a desktop keyboard with the sidebar closed and reduced motion enabled.
   when: She focuses the timeline, moves with arrow keys and Home or End, dismisses a preview with Escape and activates another exchange with Enter or Space.
-  then: The rail stays at the far-left edge of the active chat rather than following its centered message column. Focus and exchange labels identify each selection; preview dismissal does not navigate, activation reaches the selected question and selection remains clear without animated widening or scrolling.
+  then: The compact rail sits immediately outside the message column while the full-width header and centered column keep their normal alignment. Focus and exchange labels identify each selection; dismissal does not navigate, activation reaches the exact question and reduced motion keeps the transitions immediate.
 - id: narrow-touch-preview-in-both-themes
   given: Alice opens a chat on a narrow phone and also uses the chat beside another panel on a laptop, in light or dark theme.
-  when: She holds near the bottom of the timeline and previews a long question and answer.
-  then: The bounded preview stays inside the chat and clear of her finger, its text remains readable and the composer and chat controls remain reachable without horizontal page overflow.
+  when: She scrolls until the header appears, then holds near the bottom of the timeline and previews a long question and answer.
+  then: The marks stay below the visible header and above the composer while remaining centered when space permits. The preview stays beside the compact stack, inside the chat and clear of her finger. The rail shows only marks, without extra buttons or a visible scrollbar; the page has no horizontal overflow.
 bookmarks:
-- id: save-an-old-question-and-find-it-again
-  given: Alice is previewing her project-budget question near the start of a ten-thousand-exchange chat, before two compression points.
-  when: She activates the bookmark beside the question, then reopens the conversation on another signed-in device.
-  then: Bookmarking leaves the transcript in place. Her bookmark icon glows yellow and its timeline mark is yellow, making the retained exchange findable again. The saved bookmark is private to Alice, and the assistant's memory has not changed.
+- id: retain-an-old-bookmark-through-the-assistant-response
+  given: Alice previously bookmarked her project-budget question in the earlier UI; its assistant answer is retained before two compression points in a long chat.
+  when: She opens that exchange in the corrected UI and later removes its bookmark from the assistant action row or response preview.
+  then: The saved selection is represented by a yellow assistant bookmark and exchange mark, with no user-message bookmark button. Removal clears the legacy selection and yellow state without moving the transcript or changing AI memory. Her private saved choice also remains available after reopening on another signed-in device.
 - id: bookmark-a-response-and-remove-the-last-bookmark
   given: Alice has bookmarked an assistant response in a Team chat and no other message in that exchange is bookmarked.
   when: She removes the bookmark using that response's bookmark control, or retries after a failed save.
   then: A failed save keeps the previous yellow saved state until retry succeeds. Successful removal clears the control's yellow glow and the exchange's yellow timeline mark. Other Team members' bookmark choices and the shared transcript remain unchanged.
+assistant_message_actions:
+- id: fixed-action-row-and-delayed-tooltips
+  given: Alice reads an assistant answer with copy, bookmark and report-bad-answer icons in its action row.
+  when: She briefly hovers each icon in turn, or focuses it with the keyboard.
+  then: The icon dimensions and neighboring text stay in place. After the normal delay, the same tooltip UI used by Share chat and More identifies the action; no label expands sideways in the row. Copy and report retain their existing actions.
+- id: assistant-only-filled-bookmark
+  given: Alice can see her own message and an assistant response on a phone or laptop.
+  when: She finds the filled gray bookmark beside the assistant's copy and report icons, hovers it on the laptop and activates it.
+  then: Only the assistant has a bookmark control. Hover changes the icon color; a saved bookmark glows yellow and colors the associated timeline mark yellow. There is no separate bookmark row beneath either message.

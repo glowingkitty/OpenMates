@@ -50,7 +50,10 @@ test('cold ten-thousand-exchange history persists private bookmarks and loads th
     await openChatAfterContextSync(page, fixture.chatId, info);
     const rail = page.getByTestId('timeline-rail');
     await expect(rail).toHaveAttribute('data-count', '10000', { timeout: 90_000 });
-    expect((await rail.boundingBox())!.x).toBeCloseTo((await page.getByTestId('active-chat-container').boundingBox())!.x, 1);
+    const laneLeft = await page.getByTestId('chat-history-content').evaluate(node => node.getBoundingClientRect().left + parseFloat(getComputedStyle(node).paddingLeft));
+    expect((await rail.boundingBox())!.x + (await rail.boundingBox())!.width).toBeCloseTo(laneLeft - 8, 0);
+    expect((await rail.boundingBox())!.height).toBe(240);
+    await expect(rail.locator('button')).toHaveCount(0);
     const firstId = String(fixture.messages[0].client_message_id);
     const first = page.locator(`[data-testid="message-user"][data-message-id="${firstId}"]`);
     await expect(first).toHaveCount(0);
@@ -126,8 +129,11 @@ test('cold ten-thousand-exchange history persists private bookmarks and loads th
       } else await route.continue();
     };
     await page.route('**/messages/window?**', failOneSection);
-    const box = (await rail.boundingBox())!;
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.25);
+    await rail.focus();
+    await rail.press('Home');
+    await rail.press('PageDown');
+    await rail.press('PageDown');
+    await rail.press('Enter');
     await expect(page.getByTestId('timeline-preview')).toContainText('This section couldn’t be loaded.');
     expect(failed).toBe(true);
     await expect(first).toBeVisible();
@@ -136,8 +142,10 @@ test('cold ten-thousand-exchange history persists private bookmarks and loads th
     const retryId = sectionRequests[sectionRequests.length - 1].searchParams.get('anchor_message_id')!;
     await expect(page.locator(`[data-testid="message-user"][data-message-id="${retryId}"]`)).toBeVisible();
     await expect(page.getByTestId('timeline-preview')).toHaveCount(0);
-    await page.getByTestId('timeline-latest').click();
-    await expect(page.getByTestId('timeline-latest')).toHaveCount(0);
+    const target = page.locator(`.message-wrapper[data-message-id="${retryId}"]`);
+    await expect.poll(() => target.evaluate(node => node.getBoundingClientRect().top - node.closest('.chat-history-container')!.getBoundingClientRect().top)).toBeCloseTo(70, 0);
+    await expect(page.locator('.message-wrapper.user').getByTestId('message-bookmark-button')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Scroll to bottom', exact: true }).click();
     const latestId = String(fixture.messages[fixture.messages.length - 1].client_message_id);
     await expect(page.locator(`[data-message-id="${latestId}"]`)).toBeVisible();
     await expect(rail).toHaveAttribute('aria-valuenow', '10000');

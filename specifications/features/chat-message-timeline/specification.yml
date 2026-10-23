@@ -6,12 +6,13 @@ title: Chat Message Timeline
 summary: A compact web-chat timeline previews and opens exchanges throughout the retained conversation, including unloaded and pre-compression history, using mouse, keyboard or touch.
 scope:
   includes:
-  - A timeline along the left edge of the active web chat on desktop, tablet and phone.
+  - A compact scrollable timeline beside the chat message column on desktop, tablet and phone.
   - Chronological user-message and assistant-response exchange previews and navigation.
   - Retained history outside the current message window or rendered DOM, including messages before compression.
   - Existing authorized personal, Team, shared, example and device-local web-chat reading contexts.
   - Bounded history discovery and selected-section loading under the existing reading and encryption boundaries.
-  - Private message bookmarks with yellow bookmark controls and associated timeline marks.
+  - Private assistant-message bookmarks with yellow bookmark controls and associated timeline marks.
+  - Consistent assistant copy, bookmark and report actions using the existing delayed tooltip UI.
   excludes:
   - Changes to AI context selection, compression, inference, message retention or deletion.
   - Native Apple or terminal timeline controls and new developer API or SDK capabilities.
@@ -21,17 +22,21 @@ scope:
   - feature.chat-navigation owns navigation between persisted chats and Project folders, rather than exchange navigation inside one conversation.
   - This separate web presentation contract defines the timeline without changing either existing contract's cross-client semantics or access rules.
 assertions:
+- id: chat-message-timeline.visibility-and-spacing
+  type: behavior
+  must: An empty chat or a chat with only one answered user-started exchange shows no timeline, even when the answer contains multiple tool or activity steps. The timeline appears after a follow-up has an associated second assistant response, using a short opacity fade. Marks have fixed, even spacing; two marks form a small stack roughly 24 pixels tall, and additional marks grow the stack to a cap around 240 pixels rather than spreading across the full viewport height. The stack adapts to the visible space below the header. Reduced motion uses an immediate visibility change.
+  depends_on: [examples.visibility_and_spacing]
 - id: chat-message-timeline.preview-and-activate
   type: behavior
-  must: The active web chat offers a compact chronological rail of horizontal marks for user-started exchanges, oldest first. Hovering or keyboard-focusing an exchange widens and emphasizes its mark and shows a compact nearby preview with one visually highlighted, single-line user-message heading, truncated with an ellipsis when needed, followed by up to three lines of its associated assistant response in a more muted color. Speaker labels and exchange-count headings do not take space in the preview. Previewing alone preserves transcript scroll position. Clicking or explicitly activating the exchange opens its user-message section. Missing or pending responses are represented truthfully; an unrelated response is never paired with the user message. An empty conversation has no timeline.
+  must: The timeline presents chronological user-started exchanges, oldest first. Hover or keyboard focus smoothly widens the selected mark and increases its opacity using a neutral color; the rail does not scale or use orange highlighting. The adjacent compact preview shows one highlighted user-message line with an ellipsis when needed, followed by up to three muted lines of its associated assistant response, without speaker or exchange-count headings. Previewing preserves transcript position. Clicking, tapping or explicitly activating a mark reliably loads and scrolls to that exact question, including after prior scrolling, header changes or long answer rendering. Pending or unavailable responses remain truthful and never use an unrelated answer.
   depends_on: [examples.preview_and_activate]
 - id: chat-message-timeline.touch-scrubbing
   type: behavior
-  must: A touch-and-hold on the timeline starts preview scrubbing. Moving the held finger vertically updates the selected exchange and preview; releasing commits one jump to that exchange, loading its section if needed. A direct tap activates its exchange. Touch previews sit beside and clear of the finger, adjust vertically when needed, and remain inside the available chat viewport. Cancellation dismisses scrubbing without navigation. Gestures outside the timeline retain ordinary transcript scrolling, text selection and existing controls.
+  must: Touch-and-hold starts preview scrubbing; moving vertically selects the corresponding evenly spaced mark and updates the preview. Near a scrollable stack edge, holding or sliding continues through older or newer marks without a history cutoff. Release commits one jump to the previewed exchange, loading its section if needed. A direct tap activates its own mark; cancellation dismisses without navigation. The preview stays beside and clear of the finger inside the chat viewport. Gestures outside the rail retain ordinary scrolling and text selection.
   depends_on: [examples.touch_scrubbing]
 - id: chat-message-timeline.full-history-loading
   type: behavior
-  must: The timeline covers the complete retained conversation available to the viewer independently of the loaded message window and DOM. Discovery, previews and navigation use bounded operations and do not require fetching, decrypting or rendering the full transcript. Dense histories keep individual exchanges addressable rather than silently discarding older entries. Selecting an unloaded exchange loads a bounded section containing the selected user message and its available response, then renders and scrolls to the stable selected message identity. Loading and unavailable states are visible; a failure preserves the current readable section and offers retry rather than jumping to a different exchange. Ordinary navigation onward and back to the latest messages remains available.
+  must: All retained exchanges available to the viewer remain individually addressable independently of the loaded message window and DOM. The stack grows to a compact height cap, then scrolls internally through evenly spaced marks; it does not group exchanges or discard older marks. Wheel or trackpad scrolling, keyboard navigation and touch scrubbing can reach offscreen marks while discovery, rendering and selected-section reads remain bounded. An unloaded target loads a bounded section containing the exact question and its available answer, then aligns the selected question in the readable viewport. A failed load or navigation preserves the previous readable section and offers retry. The existing chat latest-message control returns from historical browsing to the newest messages.
   depends_on: [examples.full_history_loading]
 - id: chat-message-timeline.compression-history
   type: behavior
@@ -43,12 +48,16 @@ assertions:
   depends_on: [examples.access_and_lifecycle]
 - id: chat-message-timeline.accessible-layout
   type: behavior
-  must: The timeline sits at the far-left edge of the active chat area, independently of the centered message column, with its preview opening to the right. The timeline and previews remain operable with the sidebar closed, at narrow phone and regular desktop widths, in light and dark themes and with reduced motion. Marks have accessible exchange labels and visible focus; keyboard users can move among exchanges with arrow keys and Home or End, activate with Enter or Space and dismiss a preview with Escape without navigating. Touch hit areas remain usable while the marks stay visually compact. Preview placement preserves text readability and access to the composer and chat controls, stays within the active chat area and avoids horizontal page overflow. Reduced motion preserves all selection feedback without animated widening or scrolling.
+  must: On wide layouts the compact stack sits immediately outside the left edge of the centered message column, using that column rather than the distant panel edge as its horizontal anchor. The header retains its full width and the message column retains its existing centering and maximum width. On narrow layouts the rail uses the available message-side gutter while preserving the header and composer. Vertically the stack prefers the center of the visible chat area and is clamped below the visible header and above the composer; scrolling the header into view never makes marks overlap it. The rail contains only marks, with no extra buttons, heading or visible scrollbar. Loading, retry and latest-message controls use the preview or existing chat UI. Keyboard users can navigate individual exchanges with arrows, Home and End, activate with Enter or Space and dismiss with Escape. Phone and wide-screen layouts work in both themes without horizontal overflow. Reduced motion preserves selection and navigation without animated appearance, widening or scrolling.
   depends_on: [examples.accessible_layout]
 - id: chat-message-timeline.bookmarks
   type: behavior
-  must: A viewer can bookmark or unbookmark an individual user or assistant message from the chat, and can bookmark the initial user message from its timeline preview. An active bookmark control is yellow with a visible yellow glow. An exchange's timeline mark is yellow whenever its user message or an associated response is bookmarked, including retained pre-compression and currently unloaded history; dense histories keep bookmarked exchanges findable without rendering the transcript. Removing the last bookmark in an exchange removes that yellow mark. Bookmarking does not navigate, change message content or AI memory, or start inference. Saved-chat bookmarks are private to the viewer's account, stored with the existing client-encrypted account settings and available when reopening the chat on another signed-in device. Device-local bookmarks follow the chat's existing device and retention boundaries. A failed save preserves the previous saved state and offers a retry. Bookmarks do not become shared chat annotations or plaintext server metadata, and changing account or workspace cannot show another viewer's bookmark state.
+  must: A viewer can bookmark an assistant response from its assistant-message action row or from the preview of its exchange; a preview without an assistant response has no bookmark action. User messages have no bookmark button. An inactive bookmark is a filled gray icon and changes color on hover; an active bookmark glows yellow and its exchange mark is yellow, including unloaded and retained pre-compression history. Removing the bookmark clears its yellow state. Previously saved question bookmarks remain represented through their associated assistant response when available, and unbookmarking that response clears the legacy selection too. Bookmarking does not navigate or change messages, AI memory or inference. Saved-chat bookmarks remain private client-encrypted account settings available when reopening on another signed-in device. Device-local retention, failed-save preservation and retry, sharing boundaries and account/workspace isolation remain enforced.
   depends_on: [examples.bookmarks]
+- id: chat-message-timeline.assistant-message-actions
+  type: behavior
+  must: Assistant messages place copy, bookmark and report-bad-answer icons together in the existing message action row. Bookmark controls are not rendered in separate message rows or on user messages. The icons retain fixed dimensions and spacing during hover and focus; no inline label expands beside them. Copy, report and bookmark use the same delayed tooltip UI as the chat share and more buttons, with accessible labels and normal touch behavior. The bookmark shape is filled gray by default, changes color on hover and remains yellow with a visible glow when active. Existing copy and report behavior remains available.
+  depends_on: [examples.assistant_message_actions]
 applies_to:
   rest_api:
     required: false
@@ -68,6 +77,7 @@ applies_to:
 examples:
   file: examples.yml
   required_groups:
+  - visibility_and_spacing
   - preview_and_activate
   - touch_scrubbing
   - full_history_loading
@@ -75,3 +85,4 @@ examples:
   - access_and_lifecycle
   - accessible_layout
   - bookmarks
+  - assistant_message_actions

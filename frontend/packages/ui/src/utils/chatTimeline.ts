@@ -3,22 +3,46 @@ import type { Message } from '../types/chat';
 import MarkdownIt from 'markdown-it';
 import { voiceTranscriptDisplayText } from './voiceTranscriptDisplay';
 
-export type TimelineEntry = Pick<Message, 'message_id' | 'created_at' | 'role' | 'user_message_id'> & { bookmarked?: boolean };
+export type TimelineEntry = Pick<Message, 'message_id' | 'created_at' | 'role' | 'user_message_id'> & { bookmarked?: boolean; response_id?: string };
 export type TimelinePreview = { user: Message; assistant: Message | null; pending: boolean };
 const markdown = new MarkdownIt({ html: false, linkify: false });
 
 /** Associate private bookmarks without loading any message bodies. */
 export function bookmarkedTimelineExchanges(entries: TimelineEntry[], bookmarks: ReadonlySet<string>): Set<string> {
-  const users = new Set(entries.filter(entry => entry.role === 'user').map(entry => entry.message_id));
+  return buildTimelineExchangeIndex(entries, bookmarks).bookmarkedExchanges;
+}
+
+/** One exchange per question, irrespective of internal activity/tool rows. */
+export function buildTimelineExchangeIndex(entries: TimelineEntry[], bookmarks: ReadonlySet<string>) {
+  const questions = entries.filter(entry => entry.role === 'user');
+  const users = new Set(questions.map(entry => entry.message_id));
+  const explicit = new Map<string, string>();
+  const legacy = new Map<string, string>();
+  const assistantUsers = new Map<string, string>();
   const result = new Set<string>();
+  const assistantBookmarks = new Set<string>();
+  const legacyAliases = new Map<string, string[]>();
   let previousUser: string | null = null;
   for (const entry of entries) {
     if (entry.role === 'user') previousUser = entry.message_id;
-    const target = entry.role === 'user' ? entry.message_id
-      : entry.role === 'assistant' ? entry.user_message_id || previousUser : null;
-    if (target && users.has(target) && bookmarks.has(entry.message_id)) result.add(target);
+    if (entry.role !== 'assistant') continue;
+    const target = entry.user_message_id || previousUser;
+    if (!target || !users.has(target)) continue;
+    assistantUsers.set(entry.message_id, target);
+    const responses = entry.user_message_id ? explicit : legacy;
+    if (!responses.has(target)) responses.set(target, entry.message_id);
+    if (bookmarks.has(entry.message_id)) { result.add(target); assistantBookmarks.add(entry.message_id); }
   }
-  return result;
+  const exchanges = questions.map(question => {
+    const responseId = explicit.get(question.message_id) ?? legacy.get(question.message_id);
+    if (responseId) {
+      legacyAliases.set(responseId, [question.message_id]);
+      if (bookmarks.has(question.message_id)) { result.add(question.message_id); assistantBookmarks.add(responseId); }
+    }
+    return { ...question, response_id: responseId, bookmarked: result.has(question.message_id) };
+  });
+  return { entries: exchanges, answeredCount: explicit.size + [...legacy.keys()].filter(id => !explicit.has(id)).length,
+    assistantBookmarks, legacyAliases, assistantUsers, bookmarkedExchanges: result };
 }
 
 export function mergeTimelineEntries(...pages: TimelineEntry[][]): TimelineEntry[] {

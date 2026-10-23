@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../types/chat';
-import { mergeTimelineEntries, pairTimelineExchange, timelinePreviewText, timelineResponseId, bookmarkedTimelineExchanges } from './chatTimeline';
+import { mergeTimelineEntries, pairTimelineExchange, timelinePreviewText, timelineResponseId, bookmarkedTimelineExchanges, buildTimelineExchangeIndex } from './chatTimeline';
 
 const row = (id: string, role: Message['role'], content = '', userId?: string): Message => ({
   message_id: id, chat_id: 'test-chat', created_at: 100, status: 'synced', role, content, user_message_id: userId,
@@ -64,4 +64,16 @@ it('extracts readable authored text without attachment metadata or markup', () =
     { type: 'embed', attrs: { embed_id: 'private-embed', url: 'private-url' } },
   ] } as unknown as string;
   expect(timelinePreviewText(message)).toBe('A readable question');
+});
+
+// contract-test: supporting surface=gui.web assertions=chat-message-timeline.visibility-and-spacing,chat-message-timeline.bookmarks
+it('counts answered questions once and maps legacy question bookmarks to the canonical assistant', () => {
+  const entries = [row('q1', 'user'), row('tool', 'system'), row('a1', 'assistant', '', 'q1'),
+    row('a2', 'assistant', '', 'q1'), row('q2', 'user')];
+  const index = buildTimelineExchangeIndex(entries, new Set(['q1']));
+  expect(index.answeredCount).toBe(1);
+  expect([...index.assistantBookmarks]).toEqual(['a1']);
+  expect(index.legacyAliases.get('a1')).toEqual(['q1']);
+  expect(index.entries[0].response_id).toBe('a1');
+  expect(buildTimelineExchangeIndex([...entries, row('a3', 'assistant', '', 'q2')], new Set()).answeredCount).toBe(2);
 });

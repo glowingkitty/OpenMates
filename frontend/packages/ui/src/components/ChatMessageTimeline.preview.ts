@@ -4,7 +4,7 @@ import { piiVisibilityStore } from '../stores/piiVisibilityStore';
 
 export const layout = 'fill';
 const entries: TimelineEntry[] = Array.from({ length: 24 }, (_, index) => ({
-  message_id: `timeline-user-${index}`, created_at: 1788870532 + index * 10, role: 'user',
+  response_id: `timeline-assistant-${index}`, message_id: `timeline-user-${index}`, created_at: 1788870532 + index * 10, role: 'user',
 }));
 const message = (entry: TimelineEntry, assistant: boolean): Message => ({
   ...entry, chat_id: 'preview-timeline', status: 'synced', role: assistant ? 'assistant' : 'user',
@@ -24,18 +24,20 @@ const piiPreview = async (entry: TimelineEntry) => ({
     pii_mappings: [{ placeholder: '[EMAIL_1_com]', original: 'alex@example.test', type: 'EMAIL' }] },
   assistant: null, pending: false,
 });
-const props = { entries, contextKey: 'preview-timeline', compressionBoundary: entries[11].created_at,
-  currentId: entries[18].message_id, catalogueLoading: false, catalogueIncomplete: false, historical: false,
+const props = { entries, answeredCount: 24, bookmarkedIds: new Set<string>(), onToggleBookmark: async () => {}, contextKey: 'preview-timeline', compressionBoundary: entries[11].created_at,
+  currentId: entries[0].message_id, catalogueLoading: false, catalogueIncomplete: false,
   onPreview: async (entry: TimelineEntry) => ({ user: message(entry, false), assistant: message(entry, true), pending: false }),
-  onActivate, onLoadEarlier: () => {}, onLatest: () => {},
+  onActivate, onLoadEarlier: () => {},
 };
 export default props;
 export const variants = {
   piiHidden: { ...props, onPreview: piiPreview },
   piiRevealed: { ...props, onPreview: piiPreview },
-  empty: { ...props, entries: [] },
-  dense: { ...props, entries: Array.from({ length: 10000 }, (_, index) => ({
-    message_id: `timeline-user-${index}`, created_at: 1788870532 + index * 10, role: 'user',
+  empty: { ...props, entries: [], answeredCount: 0 },
+  single: { ...props, entries: entries.slice(0, 1), answeredCount: 1 },
+  two: { ...props, entries: entries.slice(0, 2), answeredCount: 2, currentId: entries[1].message_id },
+  dense: { ...props, answeredCount: 10000, currentId: 'timeline-user-9999', entries: Array.from({ length: 10000 }, (_, index) => ({
+    response_id: `timeline-assistant-${index}`, message_id: `timeline-user-${index}`, created_at: 1788870532 + index * 10, role: 'user',
   })) },
   pending: { ...props, onPreview: async (entry: TimelineEntry) => ({ user: message(entry, false), assistant: null, pending: true }) },
   unavailable: { ...props, onPreview: async () => { throw new Error('Fictional offline section'); },

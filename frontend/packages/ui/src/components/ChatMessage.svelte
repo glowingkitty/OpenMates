@@ -3,6 +3,8 @@
   import { onMount } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
+  import MessageBookmarkButton from './MessageBookmarkButton.svelte';
+  import { tooltip } from '../actions/tooltip';
   import { loadExpandedMessageMarkdown } from '../utils/chatMessageExpansion';
   import DemoMessageContent from './DemoMessageContent.svelte';
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
@@ -165,6 +167,7 @@
     isForgottenMessage = false,
     onSpeak = undefined,
     queueActions = undefined,
+    bookmarkAction = undefined,
   }: {
     role?: MessageRole;
     category?: string;
@@ -215,6 +218,7 @@
     /** True when this message is readable history outside the active compressed context. */
     isForgottenMessage?: boolean;
     onSpeak?: () => void;
+    bookmarkAction?: { active: boolean; onToggle: () => Promise<void> };
     /** Present only while this user message is waiting for assistant work. */
     queueActions?: {
       mode: 'follow_up' | 'steer';
@@ -3847,7 +3851,7 @@
     {#if role === 'assistant' && responseActive && model_name}
       <div class="generated-by-container active-attribution" data-testid="generated-by-container"><span class="generated-by" data-testid="using-model">{$text('chat.using_model', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</span></div>
     {/if}
-    {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak)}
+    {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak || bookmarkAction)}
       <div class="generated-by-container" data-testid="generated-by-container">
         {#if model_name}
           <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60); flex-basis: {shouldStackMobile ? '100%' : 'auto'};" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
@@ -3858,10 +3862,13 @@
           data-testid="copy-message-button"
           onclick={() => handleCopyMessage(false)}
           aria-label={$text('chat.copy_message')}
+          use:tooltip
         >
           <span class="clickable-icon icon_copy" aria-hidden="true"></span>
-          <span class="message-action-text">{$text('chat.copy_message')}</span>
         </button>
+        {#if bookmarkAction}
+          <MessageBookmarkButton active={bookmarkAction.active} onToggle={bookmarkAction.onToggle} />
+        {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
@@ -3872,9 +3879,9 @@
           class="message-action-btn report-bad-answer-btn"
           onclick={handleReportBadAnswer}
           aria-label={$text('chat.report_bad_answer.button_text')}
+          use:tooltip
         >
           <span class="clickable-icon icon_thumbsdown" aria-hidden="true"></span>
-          <span class="message-action-text">{$text('chat.report_bad_answer.button_text')}</span>
         </button>
       </div>
     {/if}
@@ -4664,7 +4671,7 @@
 
   .generated-by-cost:hover,
   .generated-by-cost:focus-visible {
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     text-decoration: underline;
   }
 
@@ -4707,7 +4714,7 @@
   .assistant-speech-action:hover,
   .assistant-speech-action:focus-visible {
     max-width: 180px;
-    color: var(--color-primary);
+    color: var(--color-primary-start);
   }
 
   .assistant-speech-action:focus-visible {
@@ -4745,7 +4752,14 @@
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-2);
-    padding: var(--spacing-1) var(--spacing-3);
+    justify-content: center;
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    padding: var(--spacing-1);
+    scale: 1;
+    transform: none;
     border-radius: var(--radius-2);
     cursor: pointer;
     font-size: var(--font-size-small);
@@ -4762,10 +4776,11 @@
   .message-action-btn:hover,
   .message-action-btn:focus-visible {
     background-color: var(--color-grey-20);
-    color: var(--color-primary);
+    color: var(--color-primary-start);
   }
 
   .message-action-btn .clickable-icon {
+    scale: 1;
     width: 16px;
     height: 16px;
     flex-shrink: 0;
@@ -4777,19 +4792,8 @@
     background: var(--gradient-primary);
   }
 
-  .message-action-text {
-    display: none;
-    font-size: var(--font-size-xxs);
-    background: var(--gradient-primary);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-
-  .message-action-btn:hover .message-action-text,
-  .message-action-btn:focus-visible .message-action-text {
-    display: inline;
-  }
+  .message-action-btn:is(:hover, :active, :focus) { scale: 1; transform: none; }
+  @media (pointer: coarse) { .message-action-btn { width: 44px; height: 44px; } }
 
   /* Note: .mate-message-content.highlighted and @keyframes highlight-animation have been
    * removed. Clicking a search result now highlights the matched text (mark.search-match-active)
@@ -4907,7 +4911,7 @@
   }
 
   .embed-error-link {
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     cursor: pointer;
     text-decoration: underline;
     text-decoration-style: dotted;
@@ -4985,7 +4989,7 @@
   .hide-full-message-btn {
     background: none;
     border: none;
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     cursor: pointer;
     font-size: 0.9em;
     text-decoration: underline;

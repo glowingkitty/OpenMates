@@ -98,8 +98,13 @@ export async function loadMessageBookmarks(chatId: string, mode: BookmarkMode): 
   try { await promise; } finally { if (pending?.promise === promise) pending = null; }
 }
 
-export function toggleMessageBookmark(chatId: string, messageId: string, mode: BookmarkMode): Promise<void> {
-  if (!identity(chatId) || !identity(messageId)) return Promise.reject(new Error('Bookmark identity unavailable'));
+export function toggleMessageBookmark(chatId: string, messageId: string, mode: BookmarkMode, legacyIds: readonly string[] = []): Promise<void> {
+  if (!identity(chatId) || !identity(messageId) || legacyIds.length > 2 || !legacyIds.every(identity)) return Promise.reject(new Error('Bookmark identity unavailable'));
+  const aliases = new Set([messageId, ...legacyIds]);
+  const toggle = (ids: Set<string>): void => {
+    if ([...aliases].some(id => ids.has(id))) aliases.forEach(id => ids.delete(id));
+    else ids.add(messageId);
+  };
   const account = owner(), epoch = getWorkspaceCacheEpoch();
   const key = `${mode}:${account ?? 'guest'}:${epoch}`;
   const operation = (queues.get(key) ?? Promise.resolve()).then(async () => {
@@ -108,7 +113,7 @@ export function toggleMessageBookmark(chatId: string, messageId: string, mode: B
     if (getWorkspaceCacheEpoch() !== epoch || owner() !== account) throw new Error('Bookmark scope changed');
     if (mode !== 'account') {
       const ids = getMessageBookmarkIds(chatId, mode);
-      if (ids.has(messageId)) ids.delete(messageId); else ids.add(messageId);
+      toggle(ids);
       if (ids.size > 10000) throw new Error('Bookmark limit reached');
       if (mode === 'device') localStorage.setItem(DEVICE_PREFIX + chatId, JSON.stringify([...ids]));
       local.set(localKey(chatId, mode), ids); changed(); return;
@@ -118,7 +123,7 @@ export function toggleMessageBookmark(chatId: string, messageId: string, mode: B
     const value = await settings(ciphertext);
     const bookmarks = decode(value[SETTINGS_KEY]);
     const ids = new Set(bookmarks.get(chatId) ?? []);
-    if (ids.has(messageId)) ids.delete(messageId); else ids.add(messageId);
+    toggle(ids);
     if (ids.size) bookmarks.set(chatId, ids); else bookmarks.delete(chatId);
     if ([...bookmarks.values()].reduce((total, saved) => total + saved.size, 0) > 10000) throw new Error('Bookmark limit reached');
     value[SETTINGS_KEY] = { version: 1, chats: Object.fromEntries([...bookmarks].map(([chat, saved]) => [chat, [...saved]])) };
