@@ -7,6 +7,33 @@ interface PartialEmbedCacheFixture {
   childId: string;
   ownerId: string;
   cachedChildIds: string[];
+  omitParent?: boolean;
+}
+
+/** Keep a fixture row missing across window hydration as well as WebSocket sync. */
+export async function omitFixtureEmbedWindowRows(page: Page,
+  getScope: () => { chatId: string; embedIds: string[] } | undefined,
+): Promise<Array<{ path: string; status: number; omitted: string[] }>> {
+  if (process.env.GITHUB_ACTIONS !== 'true' || process.env.CI_TEST_MODE !== 'e2e') {
+    throw new Error('Encrypted window fixtures require a disposable isolated CI account');
+  }
+  const observations: Array<{ path: string; status: number; omitted: string[] }> = [];
+  await page.route('**/v1/embeds/chats/*/window*', async route => {
+    const scope = getScope(), pathname = new URL(route.request().url()).pathname;
+    if (!scope || pathname !== `/v1/embeds/chats/${scope.chatId}/window`) { await route.fallback(); return; }
+    const response = await route.fetch();
+    const body = await response.json();
+    if (body.chat_id !== scope.chatId || !Array.isArray(body.embeds)) {
+      throw new Error(`Encrypted fixture window has an invalid source: HTTP ${response.status()}`);
+    }
+    const omitted = body.embeds.filter((row: { embed_id: string }) => scope.embedIds.includes(row.embed_id))
+      .map((row: { embed_id: string }) => row.embed_id);
+    observations.push({ path: pathname, status: response.status(), omitted });
+    // Preserve real ciphertext, wrappers and cursor progression for all other rows.
+    await route.fulfill({ response, json: { ...body,
+      embeds: body.embeds.filter((row: { embed_id: string }) => !scope.embedIds.includes(row.embed_id)) } });
+  });
+  return observations;
 }
 
 /** Establish a partial historical cache from real owned ciphertext, independent of sync page order. */
@@ -14,7 +41,7 @@ export async function seedPartialEncryptedEmbedCache(page: Page, fixture: Partia
   if (process.env.GITHUB_ACTIONS !== 'true' || process.env.CI_TEST_MODE !== 'e2e') {
     throw new Error('Encrypted cache fixtures require a disposable isolated CI account');
   }
-  const state = await page.evaluate(async ({ apiUrl, chatId, embedId, childId, ownerId, cachedChildIds }) => {
+  const state = await page.evaluate(async ({ apiUrl, chatId, embedId, childId, ownerId, cachedChildIds, omitParent }) => {
     const hash = async (value: string) => Array.from(new Uint8Array(
       await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)),
     )).map(byte => byte.toString(16).padStart(2, '0')).join('');
@@ -69,13 +96,17 @@ export async function seedPartialEncryptedEmbedCache(page: Page, fixture: Partia
           contentRef: `embed:${id}`, type: 'app-skill-use', createdAt: row.created_at, updatedAt: row.updated_at });
         for (const key of keys.values()) transaction.objectStore('embed_keys').put(key);
         transaction.objectStore('embeds').delete(`embed:${childId}`);
+        if (omitParent) {
+          transaction.objectStore('embeds').delete(`embed:${embedId}`);
+          for (const id of keys.keys()) transaction.objectStore('embed_keys').delete(id);
+        }
         transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
         transaction.onabort = () => reject(transaction.error);
       });
     } finally { db.close(); }
-    return { parent: rows.has(embedId), cached: rows.size - 1, target: rows.has(childId) };
+    return { parent: !omitParent && rows.has(embedId), cached: rows.size - 1, target: rows.has(childId) };
   }, fixture);
   expect(state, 'owned encrypted historical cache fixture').toEqual({
-    parent: true, cached: fixture.cachedChildIds.length, target: false,
+    parent: !fixture.omitParent, cached: fixture.cachedChildIds.length, target: false,
   });
 }

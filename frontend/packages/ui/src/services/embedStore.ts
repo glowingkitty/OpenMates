@@ -263,6 +263,8 @@ export class EmbedStore {
   private readonly childRepairAttempts = new Map<string, number>();
   private readonly childRepairInFlight = new Map<string, Promise<void>>();
   private readonly refRepairInFlight = new Map<string, Promise<string | null>>();
+  private readonly refWindowRepairs = new Map<string, Promise<string[]>>();
+  private readonly refWindowAttempts = new Map<string, number>();
   private uploadedFileCandidates: UploadedFileSearchCandidate[] | null = null;
   private uploadedFileCandidatesPromise: Promise<UploadedFileSearchCandidate[]> | null = null;
   private uploadedFileSearchGeneration = 0;
@@ -4054,6 +4056,92 @@ export class EmbedStore {
     }
   }
 
+  /** Discover absent roots as well as children in a partially synced Personal chat. */
+  private async recoverMissingRefCandidates(chatId: string, hashedChatId: string): Promise<string[]> {
+    const { capturePersonalEmbedReadScope, personalEmbedReadOperationKey,
+      runPersonalEmbedReadOperation, assertPersonalEmbedReadScope } = await import('./personalEmbedReadOperation');
+    const { activeChatStore } = await import('../stores/activeChatStore');
+    const { getApiEndpoint, storageArchiveFetch } = await import('../config/api');
+    // This read covers a chat window; the chat UUID supplies its stable operation identity.
+    const scope = capturePersonalEmbedReadScope(chatId, chatId);
+    if (!scope || scope.activeChatId !== chatId) return [];
+    const chat = await chatDB.getChat(chatId);
+    assertPersonalEmbedReadScope(scope);
+    if (!chat || chat.team_id || chat.is_shared_by_others) return [];
+    const key = personalEmbedReadOperationKey(scope);
+    const pending = this.refWindowRepairs.get(key);
+    if (pending) return pending;
+    const lastAttempt = this.refWindowAttempts.get(key);
+    if (lastAttempt !== undefined && Date.now() - lastAttempt < 10_000) return [];
+    if (this.refWindowAttempts.size >= 500) this.refWindowAttempts.delete(this.refWindowAttempts.keys().next().value!);
+    this.refWindowAttempts.set(key, Date.now());
+    const candidates: string[] = [];
+    const repair = runPersonalEmbedReadOperation(scope, async (assertPending, signal) => {
+      const guard = () => {
+        assertPending();
+        if (activeChatStore.get() !== chatId) throw new Error('Embed ref discovery scope changed');
+      };
+      const ownerHash = await computeSHA256(scope.ownerId);
+      const canonical = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      const params = new URLSearchParams();
+      // Server pages contain at most 30 ciphertext rows. Bound work independently
+      // of chat size, coalesce concurrent links, and retain only canonical storage.
+      for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
+        guard();
+        const response = await storageArchiveFetch(getApiEndpoint(
+          `/v1/embeds/chats/${encodeURIComponent(chatId)}/window?${params}`,
+        ), { credentials: 'include', signal });
+        guard();
+        if (!response.ok) throw new Error(`Embed ref window failed (${response.status})`);
+        const page = await response.json();
+        guard();
+        if (page.chat_id !== chatId || !Array.isArray(page.embeds) || page.embeds.length > 30
+          || !Array.isArray(page.embed_keys) || page.embed_keys_has_more_after || page.oversized_embed_key_id) {
+          throw new Error('Embed ref window is incomplete or outside its source chat');
+        }
+        const rows = page.embeds.filter((row: Record<string, unknown>) =>
+          typeof row.embed_id === 'string' && canonical.test(row.embed_id)
+          && row.hashed_chat_id === hashedChatId && row.hashed_user_id === ownerHash
+          && !row.hashed_team_id && row.status === 'finished' && row.encryption_mode !== 'vault'
+          && typeof row.encrypted_content === 'string'
+          && (!row.parent_embed_id || (typeof row.parent_embed_id === 'string' && canonical.test(row.parent_embed_id))));
+        const wrapperHashes = new Set(await Promise.all(rows.flatMap((row: Record<string, unknown>) =>
+          [row.embed_id, row.parent_embed_id].filter((id): id is string => typeof id === 'string').map(computeSHA256))));
+        const keys = page.embed_keys.filter((entry: EmbedKeyEntry & { hashed_team_id?: string; hashed_project_id?: string }) =>
+          wrapperHashes.has(entry.hashed_embed_id) && entry.hashed_user_id === ownerHash
+          && !entry.hashed_team_id && !entry.hashed_project_id && !!entry.encrypted_embed_key
+          && ((entry.key_type === 'master' && !entry.hashed_chat_id)
+            || (entry.key_type === 'chat' && entry.hashed_chat_id === hashedChatId)));
+        guard();
+        await this.storeEmbedKeys(keys, guard);
+        for (const row of rows) {
+          guard();
+          await this.putEncrypted(`embed:${row.embed_id}`, row,
+            (row.encrypted_type ? 'app-skill-use' : row.embed_type || 'app-skill-use') as EmbedType,
+            undefined, undefined, { writeGuard: guard, skipMetadataExtraction: true });
+          candidates.push(row.embed_id);
+        }
+        if (!page.has_more_before) break;
+        // An oversized row can be skipped while continuing discovery of other results.
+        const cursor = page.oversized_embed_cursor ?? page.start_cursor;
+        if (!cursor || !Number.isSafeInteger(cursor.created_at) || typeof cursor.id !== 'string'
+          || !cursor.id || params.get('before_id') === cursor.id) {
+          throw new Error('Embed ref window cursor did not advance');
+        }
+        params.set('before_created_at', String(cursor.created_at));
+        params.set('before_id', cursor.id);
+      }
+    }).then(() => candidates).catch(() => {
+      // Earlier pages are already guarded canonical writes. An unavailable
+      // continuation must not hide them; changed owners/navigation still fail closed.
+      assertPersonalEmbedReadScope(scope);
+      return candidates;
+    });
+    this.refWindowRepairs.set(key, repair);
+    try { return await repair; }
+    finally { if (this.refWindowRepairs.get(key) === repair) this.refWindowRepairs.delete(key); }
+  }
+
   private async resolveByRefDeepUncached(embedRef: string, chatId: string | null): Promise<string | null> {
     const indexedEmbedId = this.resolveByRef(embedRef);
     if (indexedEmbedId) return indexedEmbedId;
@@ -4111,6 +4199,18 @@ export class EmbedStore {
       }
       const chatResult = await tryCandidates(Array.from(chatCandidates), hashedChatId);
       if (chatResult) return chatResult;
+      // A synced message can refer to a result whose entire root group falls
+      // outside the local embed window. Child-only repair cannot discover it.
+      try {
+        const discovered = await this.recoverMissingRefCandidates(chatId, hashedChatId);
+        // Existing ciphertext may only become readable after discovery supplies
+        // missing wrappers. Its earlier failed decryption is no longer decisive.
+        for (const candidate of discovered) checkedCandidates.delete(candidate);
+        const recovered = await tryCandidates(discovered, hashedChatId);
+        if (recovered) return recovered;
+      } catch {
+        // Expired auth/navigation or an unavailable page must not resolve a ref.
+      }
     }
 
     const candidates = new Set<string>(

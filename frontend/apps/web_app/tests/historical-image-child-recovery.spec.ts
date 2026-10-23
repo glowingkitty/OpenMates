@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /** Repairs historical image/event children through exact scoped ciphertext reads, without inference. */
 export {};
-import { seedPartialEncryptedEmbedCache } from './helpers/encrypted-embed-cache';
+import { omitFixtureEmbedWindowRows, seedPartialEncryptedEmbedCache } from './helpers/encrypted-embed-cache';
 
 const { test, expect } = require('./console-monitor');
 const { execFileSync } = require('node:child_process');
@@ -135,6 +135,8 @@ test('historical Personal image ref recovers only missing encrypted children and
   test.skip(!getTestAccount().email, 'Isolated account required');
   const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('historical-image-child');
   let seed: Seed | undefined;
+  const windowOmissions = await omitFixtureEmbedWindowRows(page, () => seed
+    ? { chatId: seed.chatId, embedIds: [seed.childId] } : undefined);
   let syncCompleted = 0;
   const reads: { path: string; status: number; cipher: boolean; parent: string | null }[] = [];
   let readGeneration = 0;
@@ -251,6 +253,7 @@ test('historical Personal image ref recovers only missing encrypted children and
     }, { apiUrl, ...seed });
     expect(negative).toEqual([404, 404, 401]);
   } finally {
+    await testInfo.attach('historical-image-window-omissions', { body: Buffer.from(JSON.stringify(windowOmissions)), contentType: 'application/json' });
     await testInfo.attach('historical-child-read-diagnostics', { body: Buffer.from(JSON.stringify(diagnostics, null, 2)), contentType: 'application/json' });
     await cdp.detach();
     try { if (seed) {
@@ -260,8 +263,10 @@ test('historical Personal image ref recovers only missing encrypted children and
   }
 });
 
+for (const missingParent of [false, true]) {
 // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence,auth.session.authoritative-enforcement
-test('historical event link recovers after 55 cached results without opening its parent search', async ({ page }: { page: any }, testInfo: any) => {
+test(missingParent ? 'historical event link discovers its absent encrypted parent group and child'
+  : 'historical event link recovers after 55 cached results without opening its parent search', async ({ page }: { page: any }, testInfo: any) => {
   test.slow(); test.setTimeout(300_000);
   test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.CI_TEST_MODE !== 'e2e',
     'Requires disposable isolated paired browser and CLI backend');
@@ -270,12 +275,21 @@ test('historical event link recovers after 55 cached results without opening its
   let seed: Seed | undefined;
   let syncCompleted = 0;
   const reads: { status: number; cipher: boolean; parent: string | null }[] = [];
+  const windows: { status: number; parent: boolean; child: boolean }[] = [];
+  let holdWindowRecovery = false;
   let releaseRecovery!: () => void;
   const recoveryGate = new Promise<void>(resolve => { releaseRecovery = resolve; });
+  await page.route('**/v1/embeds/chats/*/window*', async (route: any) => {
+    if (missingParent && holdWindowRecovery && seed
+      && new URL(route.request().url()).pathname === `/v1/embeds/chats/${seed.chatId}/window`) await recoveryGate;
+    await route.continue();
+  });
+  const windowOmissions = await omitFixtureEmbedWindowRows(page, () => seed && !missingParent
+    ? { chatId: seed.chatId, embedIds: [seed.childId] } : undefined);
   // Cold ref indexing can start before a user clicks. Hold only the fixture's
   // actual ciphertext read until the partial-cache precondition is observed.
   await page.route('**/v1/embeds/chats/*/embeds/*', async (route: any) => {
-    if (seed && new URL(route.request().url()).pathname === `/v1/embeds/chats/${seed.chatId}/embeds/${seed.childId}`) {
+    if (!missingParent && seed && new URL(route.request().url()).pathname === `/v1/embeds/chats/${seed.chatId}/embeds/${seed.childId}`) {
       await recoveryGate;
     }
     await route.continue();
@@ -289,16 +303,23 @@ test('historical event link recovers after 55 cached results without opening its
       try { frame = JSON.parse(message); } catch { socket.send(message); return; }
       const omit = (payload: any) => {
         if (!payload || typeof payload !== 'object') return;
-        if (Array.isArray(payload.embeds)) payload.embeds = payload.embeds.filter((row: any) => row.embed_id !== seed!.childId);
+        if (Array.isArray(payload.embeds)) payload.embeds = payload.embeds.filter((row: any) =>
+          row.embed_id !== seed!.childId && (!missingParent || row.embed_id !== seed!.embedId));
         if (Array.isArray(payload.chats)) payload.chats.forEach(omit);
       };
-      if (frame.type === 'send_embed_data' && frame.payload?.embed_id === seed.childId) return;
+      if (frame.type === 'send_embed_data' && (frame.payload?.embed_id === seed.childId
+        || (missingParent && frame.payload?.embed_id === seed.embedId))) return;
       if (frame.type === 'phased_sync_complete') syncCompleted++;
       omit(frame.payload);
       socket.send(JSON.stringify(frame));
     });
   });
   page.on('response', async (response: any) => {
+    if (seed && new URL(response.url()).pathname === `/v1/embeds/chats/${seed.chatId}/window`) {
+      const body = await response.json().catch(() => null);
+      windows.push({ status: response.status(), parent: body?.embeds?.some((row: any) => row.embed_id === seed!.embedId) ?? false,
+        child: body?.embeds?.some((row: any) => row.embed_id === seed!.childId) ?? false });
+    }
     if (!seed || new URL(response.url()).pathname !== `/v1/embeds/chats/${seed.chatId}/embeds/${seed.childId}`) return;
     const body = await response.json().catch(() => null);
     reads.push({ status: response.status(), cipher: typeof body?.embed?.encrypted_content === 'string',
@@ -309,12 +330,14 @@ test('historical event link recovers after 55 cached results without opening its
     await page.getByTestId('icon-button-close').click();
     seed = seedViaPairedCli(apiUrl, home, 'event', 55);
     await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/#chat-id=${seed.chatId}`, { waitUntil: 'domcontentloaded' });
-    await seedPartialEncryptedEmbedCache(page, { apiUrl, ...seed });
+    await seedPartialEncryptedEmbedCache(page, { apiUrl, ...seed, omitParent: missingParent });
+    windows.length = 0;
+    holdWindowRecovery = true;
     const beforeReload = syncCompleted;
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect.poll(() => syncCompleted, { timeout: 60_000 }).toBeGreaterThan(beforeReload);
-    // The real encrypted parent and 55 earlier children are local; only the
-    // referenced last child is omitted from sync, as in a partial historical cache.
+    // Model both partial-cache shapes: cached children with a present root,
+    // and cached children whose entire root group is absent (UN369).
     await expect.poll(() => page.evaluate(async ({ embedId, childId, cachedChildIds }) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open('chats_db');
@@ -329,7 +352,7 @@ test('historical event link recovers after 55 cached results without opening its
         return { parent: present.has(embedId), cached: cachedChildIds.filter(id => present.has(id)).length,
           target: present.has(childId) };
       } finally { db.close(); }
-    }, seed), { timeout: 60_000 }).toEqual({ parent: true, cached: 55, target: false });
+    }, seed), { timeout: 60_000 }).toEqual({ parent: !missingParent, cached: seed.cachedChildIds.length, target: false });
     const link = page.getByRole('link', { name: 'Freelance Barcamp Berlin', exact: true });
     await expect(link).toBeVisible();
     await link.click();
@@ -337,20 +360,28 @@ test('historical event link recovers after 55 cached results without opening its
     await expect(page.getByTestId('event-description')).toHaveText('Recovered encrypted event details', { timeout: 60_000 });
     await expect(page.getByTestId('event-organizer-card')).toContainText('Historical event fixture');
     await expect(page.getByTestId('external-provider-cta')).toHaveText('Register on Luma');
-    await expect.poll(() => reads.filter(row => row.status === 200 && row.cipher && row.parent === seed!.embedId).length).toBe(1);
+    if (missingParent) {
+      await expect.poll(() => windows.some(row => row.status === 200 && row.parent)
+        && windows.some(row => row.status === 200 && row.child)).toBe(true);
+    } else {
+      await expect.poll(() => reads.filter(row => row.status === 200 && row.cipher && row.parent === seed!.embedId).length).toBe(1);
+    }
     // Reload the persisted encrypted child and open the same inline result again.
     await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}/#chat-id=${seed.chatId}`, { waitUntil: 'domcontentloaded' });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(link).toBeVisible({ timeout: 30_000 });
     await link.click();
     await expect(page.getByTestId('event-description')).toHaveText('Recovered encrypted event details', { timeout: 30_000 });
-    expect(reads.filter(row => row.status === 200)).toHaveLength(1);
+    expect(reads.filter(row => row.status === 200)).toHaveLength(missingParent ? 0 : 1);
   } finally {
     releaseRecovery();
     await testInfo.attach('historical-event-child-reads', { body: Buffer.from(JSON.stringify(reads)), contentType: 'application/json' });
+    await testInfo.attach('historical-event-windows', { body: Buffer.from(JSON.stringify(windows)), contentType: 'application/json' });
+    await testInfo.attach('historical-event-window-omissions', { body: Buffer.from(JSON.stringify(windowOmissions)), contentType: 'application/json' });
     try { if (seed) {
       const deletion = await runWorkflowCli(apiUrl, home, ['chats', 'delete', seed.chatId, '--yes'], 15_000);
       expect(deletion.code, deletion.stderr).toBe(0);
     } } finally { removeWorkflowCliHome(home); }
   }
 });
+}
