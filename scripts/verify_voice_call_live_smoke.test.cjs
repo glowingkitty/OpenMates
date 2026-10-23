@@ -50,7 +50,12 @@ function browserHarness() {
     },
     querySelectorAll(selector) { return selector.includes('notification') ? this.notifications : []; },
   };
-  const window = { WebSocket: Socket, addEventListener() {} };
+  const refreshResponses = [];
+  const window = { WebSocket: Socket, addEventListener() {}, fetch: async () => {
+    const next = refreshResponses.shift();
+    if (!next) throw new Error('Unexpected native fetch in observer regression');
+    return { ok: next.ok, json: async () => next.body };
+  } };
   const sandbox = { window, document, navigator: { mediaDevices: { getUserMedia: async () => {} } },
     HTMLMediaElement: Media, HTMLAudioElement: Audio, MediaSource, URL: BrowserURL, Promise, location: { href: 'https://app.dev.openmates.org/' },
     performance: { now: () => time }, MutationObserver: class { observe() {} },
@@ -65,7 +70,14 @@ function browserHarness() {
   return { Audio, api, socket, voice, document, context,
     createMediaSourceURL: () => BrowserURL.createObjectURL(new MediaSource()),
     waveform(value) { waveform = value; },
-    tick() { time += 50; for (const callback of [...timers.values()]) callback(); },
+    tick(milliseconds = 50) { time += milliseconds; for (const callback of [...timers.values()]) callback(); },
+    async refresh(chat, messagesVersion, { bodyChat = chat, ok = true, origin = 'https://api.dev.openmates.org' } = {}) {
+      refreshResponses.push({ ok, body: { chat_id: bodyChat, messages_v: messagesVersion,
+        messages: [{ encrypted_content: 'PRIVATE_REFRESH_CIPHERTEXT' }] } });
+      const response = await window.fetch(`${origin}/v1/chats/${chat}/messages/window?limit=1&respect_compression_boundary=false`,
+        { credentials: 'include', cache: 'no-store' });
+      return response.json();
+    },
     frame() { time += 16; for (const callback of frames.splice(0)) callback(); },
     ready(segment, message, kind) { socket.receive('assistant_speech_status', {
       message_id: message, segment_id: segment, status: 'ready', kind,
@@ -257,4 +269,206 @@ test('known revision conflict protocol outcome and static toast are retained wit
   toast.document.notifications = [{ textContent: 'Server error: call_message_revision_conflict' }]; toast.tick();
   assert.equal(toast.api.state.revisionConflict, true);
   assert.equal(JSON.stringify(toast.api.snapshot()).includes('Server error:'), false);
+});
+
+
+const recoveryScope = { job: 'private-job-id', chat: 'private-chat-id', message: 'private-assistant-id' };
+function sendRecovery(browser, requestId, expectedVersion, scope = recoveryScope, socket = browser.socket) {
+  socket.send(JSON.stringify({ type: 'recovery_job_persist', payload: {
+    job_id: scope.job, request_id: requestId, expected_messages_v: expectedVersion,
+    lease_token: 'PRIVATE_LEASE_TOKEN', encrypted_assistant_message: {
+      chat_id: scope.chat, client_message_id: scope.message, encrypted_content: 'PRIVATE_MESSAGE_CIPHERTEXT',
+      content: 'PRIVATE_TRANSCRIPT_CANARY',
+    },
+  } }));
+}
+function conflictRecovery(browser, requestId = 'persist-first', scope = recoveryScope) {
+  sendRecovery(browser, requestId, 5, scope);
+  browser.socket.receive('error', { code: 'version_conflict', job_id: scope.job, request_id: requestId,
+    message: 'PRIVATE_ERROR_BODY' });
+}
+function acknowledgeRecovery(browser, extra = {}, socket = browser.socket) {
+  socket.receive('recovery_job_persisted', { job_id: recoveryScope.job, request_id: 'persist-retry',
+    state: 'TERMINAL', committed_messages_v: 5, ...extra });
+}
+
+test('completion CAS permits only the real same-chat refresh, exact retry and matching terminal ACK; receipt stays pseudonymous', async () => {
+  const browser = browserHarness(); conflictRecovery(browser);
+  assert.equal(browser.api.snapshot().revisionConflict, false);
+  assert.equal(browser.api.snapshot().recoveryPending, 1);
+  assert.ok(browser.api.state.events.find(event => event.type === 'error').recoveryConflictId);
+  await browser.refresh(recoveryScope.chat, 4);
+  sendRecovery(browser, 'persist-retry', 4); acknowledgeRecovery(browser);
+  const receipt = browser.api.snapshot();
+  assert.equal(receipt.revisionConflict, false); assert.equal(receipt.recoveryPending, 0);
+  assert.equal(receipt.recoveryConflicts[0].status, 'resolved');
+  assert.equal(receipt.recoveryConflicts[0].expectedVersion, 5);
+  assert.equal(receipt.recoveryConflicts[0].refreshVersion, 4);
+  assert.equal(receipt.recoveryConflicts[0].retryExpectedVersion, 4);
+  assert.equal(receipt.recoveryConflicts[0].committedVersion, 5);
+  assert.equal(receipt.events.filter(event => event.type === 'recovery_chat_version_refresh').length, 2);
+  const serialized = JSON.stringify(receipt);
+  for (const value of [...Object.values(recoveryScope), 'persist-first', 'persist-retry', 'PRIVATE_LEASE_TOKEN',
+    'PRIVATE_MESSAGE_CIPHERTEXT', 'PRIVATE_REFRESH_CIPHERTEXT', 'PRIVATE_TRANSCRIPT_CANARY', 'PRIVATE_ERROR_BODY']) {
+    assert.equal(serialized.includes(value), false, `Private marker must not leave the observer: ${value}`);
+  }
+});
+
+for (const mismatch of ['unscoped', 'wrong_job', 'wrong_request', 'wrong_socket']) {
+  test(`version conflict remains fatal for ${mismatch}`, () => {
+    const browser = browserHarness();
+    if (mismatch !== 'unscoped') sendRecovery(browser, 'persist-first', 5);
+    const socket = mismatch === 'wrong_socket' ? new browser.context.window.WebSocket('wss://api.dev.openmates.org/v1/ws') : browser.socket;
+    socket.receive('error', { code: 'version_conflict', job_id: mismatch === 'wrong_job' ? 'other-job' : recoveryScope.job,
+      request_id: mismatch === 'wrong_request' ? 'unknown-request' : 'persist-first' });
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+  });
+}
+
+for (const mismatch of ['missing_refresh', 'wrong_chat', 'wrong_message', 'wrong_version', 'wrong_socket']) {
+  test(`completion retry cannot recover with ${mismatch}`, async () => {
+    const browser = browserHarness(); conflictRecovery(browser);
+    if (mismatch !== 'missing_refresh') await browser.refresh(recoveryScope.chat, 4);
+    const scope = { ...recoveryScope, ...(mismatch === 'wrong_chat' ? { chat: 'other-chat' } : {}),
+      ...(mismatch === 'wrong_message' ? { message: 'other-message' } : {}) };
+    const socket = mismatch === 'wrong_socket' ? new browser.context.window.WebSocket('wss://api.dev.openmates.org/v1/ws') : browser.socket;
+    sendRecovery(browser, 'persist-retry', mismatch === 'wrong_version' ? 6 : 4, scope, socket);
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+    assert.equal(browser.api.snapshot().recoveryPending, 1);
+  });
+}
+
+for (const badRefresh of ['wrong_owner_chat', 'boolean_version', 'failed_read', 'wrong_origin']) {
+  test(`completion refresh cannot invent authority from ${badRefresh}`, async () => {
+    const browser = browserHarness(); conflictRecovery(browser);
+    await browser.refresh(recoveryScope.chat, badRefresh === 'boolean_version' ? true : 4, {
+      bodyChat: badRefresh === 'wrong_owner_chat' ? 'other-chat' : recoveryScope.chat,
+      ok: badRefresh !== 'failed_read', origin: badRefresh === 'wrong_origin' ? 'https://untrusted.example' : 'https://api.dev.openmates.org',
+    });
+    sendRecovery(browser, 'persist-retry', 4);
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+  });
+}
+
+for (const badAck of ['old_request', 'wrong_request', 'wrong_job', 'wrong_socket', 'wrong_type', 'wrong_state', 'missing_version']) {
+  test(`completion conflict remains fatal for ${badAck} ACK`, async () => {
+    const browser = browserHarness(); conflictRecovery(browser);
+    await browser.refresh(recoveryScope.chat, 4); sendRecovery(browser, 'persist-retry', 4);
+    const extra = badAck === 'old_request' ? { request_id: 'persist-first' }
+      : badAck === 'wrong_request' ? { request_id: 'unknown-request' }
+      : badAck === 'wrong_job' ? { job_id: 'other-job' }
+      : badAck === 'wrong_state' ? { state: 'AVAILABLE' }
+      : badAck === 'missing_version' ? { committed_messages_v: undefined } : {};
+    if (badAck === 'wrong_type') browser.socket.receive('recovery_output_persisted', {
+      record_id: recoveryScope.job, request_id: 'persist-retry', state: 'ACKNOWLEDGED', committed_messages_v: 5 });
+    else acknowledgeRecovery(browser, extra, badAck === 'wrong_socket'
+      ? new browser.context.window.WebSocket('wss://api.dev.openmates.org/v1/ws') : browser.socket);
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+  });
+}
+
+test('unresolved completion conflict expires after the bounded callback/refresh/retry window', () => {
+  const browser = browserHarness(); conflictRecovery(browser);
+  browser.tick(29999); assert.equal(browser.api.snapshot().revisionConflict, false);
+  browser.tick(2); assert.equal(browser.api.snapshot().revisionConflict, true);
+  assert.equal(browser.api.snapshot().recoveryConflicts[0].status, 'failed');
+  assert.equal(browser.api.snapshot().recoveryPending, 1);
+});
+
+test('a second conflicting retry cannot become a handled completion CAS', async () => {
+  const browser = browserHarness(); conflictRecovery(browser);
+  await browser.refresh(recoveryScope.chat, 4); sendRecovery(browser, 'persist-retry', 4);
+  browser.socket.receive('error', { code: 'version_conflict', job_id: recoveryScope.job, request_id: 'persist-retry' });
+  assert.equal(browser.api.snapshot().revisionConflict, true);
+});
+
+test('visible revision or error notification is fatal even after matching recovery; notification bodies never persist', async () => {
+  for (const revision of [false, true]) {
+    const browser = browserHarness(); conflictRecovery(browser);
+    await browser.refresh(recoveryScope.chat, 4); sendRecovery(browser, 'persist-retry', 4); acknowledgeRecovery(browser);
+    browser.document.notifications = [{ textContent: revision ? 'version_conflict PRIVATE_NOTIFICATION' : 'PRIVATE_NOTIFICATION',
+      classList: { contains: name => !revision && name === 'notification-error' } }];
+    const receipt = browser.api.snapshot();
+    assert.equal(!!receipt.revisionConflict || !!receipt.uiErrorNotification, true);
+    assert.equal(JSON.stringify(receipt).includes('PRIVATE_NOTIFICATION'), false);
+  }
+});
+
+test('output/summary CAS conflicts retain operation/record correlation but stay fatal without a proven supported recovery path', () => {
+  for (const type of ['recovery_output_persist_message', 'recovery_output_persist_summary']) {
+    const browser = browserHarness();
+    browser.socket.send(JSON.stringify({ type, payload: { record_id: 'private-record', request_id: 'output-request',
+      encrypted_summary: 'PRIVATE_SUMMARY', expected_metadata_v: 3 } }));
+    browser.socket.receive('error', { code: 'version_conflict', job_id: 'private-record', request_id: 'output-request' });
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+    assert.ok(browser.api.snapshot().recoveryRequests[0].recordId);
+    assert.equal(JSON.stringify(browser.api.snapshot()).includes('PRIVATE_SUMMARY'), false);
+  }
+});
+
+test('metadata jobs require exact job/chat/task/stage/key-version terminal authority and never hide a conflict', () => {
+  const job = { job_id: 'metadata-job', chat_id: 'metadata-chat', task_id: 'metadata-task', stage: 'initial', chat_key_version: 1 };
+  const browser = browserHarness(); browser.socket.receive('metadata_jobs_available', { jobs: [job] });
+  assert.equal(browser.api.snapshot().metadataPending, 1);
+  browser.socket.send(JSON.stringify({ type: 'metadata_job_claim', payload: { job_id: job.job_id, request_id: 'metadata-claim' } }));
+  browser.socket.receive('metadata_job_claimed', { ...job, request_id: 'metadata-claim', state: 'AVAILABLE' });
+  assert.equal(browser.api.snapshot().metadataPending, 1);
+  browser.socket.send(JSON.stringify({ type: 'metadata_job_persist', payload: { job_id: job.job_id, request_id: 'metadata-persist',
+    wrapped_chat_key: 'PRIVATE_METADATA_KEY', encrypted_metadata: { encrypted_title: 'PRIVATE_METADATA_CIPHERTEXT' } } }));
+  browser.socket.receive('metadata_job_persisted', { ...job, request_id: 'metadata-persist', state: 'TERMINAL',
+    versions: { metadata_v: 1, title_v: 1 }, encrypted_metadata: { encrypted_title: 'PRIVATE_METADATA_CIPHERTEXT' } });
+  assert.equal(browser.api.snapshot().metadataPending, 0); assert.equal(browser.api.snapshot().revisionConflict, false);
+  assert.equal(JSON.stringify(browser.api.snapshot()).includes('PRIVATE_METADATA'), false);
+  const failed = browserHarness(); failed.socket.receive('metadata_jobs_available', { jobs: [job] });
+  failed.socket.send(JSON.stringify({ type: 'metadata_job_persist', payload: { job_id: job.job_id, request_id: 'metadata-persist' } }));
+  failed.socket.receive('error', { code: 'version_conflict', job_id: job.job_id, request_id: 'metadata-persist' });
+  assert.equal(failed.api.snapshot().revisionConflict, true); assert.equal(failed.api.snapshot().metadataPending, 1);
+});
+
+
+test('an ordinary observed completion persist also requires a terminal receipt before final success', () => {
+  const browser = browserHarness(); sendRecovery(browser, 'persist-retry', 4);
+  assert.equal(browser.api.snapshot().recoveryPending, 1);
+  acknowledgeRecovery(browser);
+  assert.equal(browser.api.snapshot().recoveryPending, 0);
+  assert.equal(browser.api.snapshot().revisionConflict, false);
+});
+
+for (const invalid of ['wrong_chat', 'wrong_task', 'wrong_key_version', 'wrong_stage', 'not_terminal', 'missing_versions', 'invalid_ciphertext_fields']) {
+  test(`metadata ${invalid} ACK cannot satisfy final terminal proof`, () => {
+    const browser = browserHarness();
+    const job = { job_id: 'metadata-job', chat_id: 'metadata-chat', task_id: 'metadata-task', stage: 'initial', chat_key_version: 1 };
+    browser.socket.receive('metadata_jobs_available', { jobs: [job] });
+    browser.socket.send(JSON.stringify({ type: 'metadata_job_persist', payload: { job_id: job.job_id, request_id: 'metadata-persist' } }));
+    const receipt = { ...job, request_id: 'metadata-persist', state: 'TERMINAL',
+      versions: { metadata_v: 1, title_v: 1 }, encrypted_metadata: { encrypted_title: 'PRIVATE_METADATA_CIPHERTEXT' } };
+    if (invalid === 'wrong_chat') receipt.chat_id = 'other-chat';
+    if (invalid === 'wrong_task') receipt.task_id = 'other-task';
+    if (invalid === 'wrong_key_version') receipt.chat_key_version = 2;
+    if (invalid === 'wrong_stage') receipt.stage = 'postprocessing';
+    if (invalid === 'not_terminal') receipt.state = 'AVAILABLE';
+    if (invalid === 'missing_versions') delete receipt.versions;
+    if (invalid === 'invalid_ciphertext_fields') receipt.encrypted_metadata = { arbitrary: 'PRIVATE_METADATA_CIPHERTEXT' };
+    browser.socket.receive('metadata_job_persisted', receipt);
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+    assert.equal(browser.api.snapshot().metadataPending, 1);
+  });
+}
+
+
+test('malformed terminal states fail closed without throwing from the real socket observer', async () => {
+  for (const state of [true, {}, undefined]) {
+    const browser = browserHarness(); conflictRecovery(browser);
+    await browser.refresh(recoveryScope.chat, 4); sendRecovery(browser, 'persist-retry', 4);
+    assert.doesNotThrow(() => acknowledgeRecovery(browser, { state }));
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+  }
+});
+
+test('malformed metadata discovery cannot disappear from terminal proof', () => {
+  for (const payload of [{ jobs: [null] }, { jobs: {} }]) {
+    const browser = browserHarness();
+    assert.doesNotThrow(() => browser.socket.receive('metadata_jobs_available', payload));
+    assert.equal(browser.api.snapshot().revisionConflict, true);
+  }
 });

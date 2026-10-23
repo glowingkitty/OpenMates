@@ -2882,7 +2882,7 @@ class ChatDatabase {
 
   async storeAppSettingsMemoriesEntries(
     entries: appSettingsMemoriesOps.AppSettingsMemoriesEntry[],
-  ): Promise<void> {
+  ): Promise<appSettingsMemoriesOps.AppSettingsMemoriesApplyOutcome> {
     return appSettingsMemoriesOps.storeAppSettingsMemoriesEntries(
       this,
       entries,

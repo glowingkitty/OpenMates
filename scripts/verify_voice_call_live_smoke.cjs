@@ -26,6 +26,10 @@
  * receipt contains timings and anonymous identities, never conversation text.
  * Native HTMLAudioElement currentTime advancement proves browser playback;
  * provider 'ready' alone never counts. No physical speaker loopback is tested.
+ * A completion CAS is handled only after its same-socket, exact-owner version
+ * refresh, one matching retry and authoritative terminal ACK within 30 seconds.
+ * UI errors and every other/unresolved revision conflict remain fatal. Every
+ * observed metadata job must also have an exact terminal receipt before passing.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -107,9 +111,189 @@ function installObservation({ inputs }) {
   const now = () => performance.now();
   const word = value => typeof value === 'string' && /^[a-z_]{1,64}$/.test(value) ? value : undefined;
   const add = event => { if (state.events.length < 5000) state.events.push({ atMs: now(), ...event }); };
+  // Only a completion CAS with the exact refresh/retry/terminal receipt can
+  // recover. Other conflicts (including metadata/output CAS) remain fatal.
+  state.recoveryRequests = []; state.recoveryConflicts = []; state.metadataJobs = [];
+  const requests = new Map(), conflicts = new Map(), metadataJobs = new Map();
+  let nextSocket = 0, mainSocketId = null, mainApiOrigin = null, nextRefresh = 0;
+  const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+  const version = value => Number.isSafeInteger(value) && value >= 0;
+  const fatalRecovery = code => { state.revisionConflict = true; state.recoveryFailureCode ??= code; };
+  const expireRecovery = () => {
+    for (const conflict of conflicts.values()) if (conflict.view.status === 'pending' && now() > conflict.deadline) {
+      conflict.view.status = 'failed'; fatalRecovery('recovery_conflict_unresolved');
+    }
+  };
+  const operations = {
+    recovery_job_claim: ['claim_completion', 'recovery_job_claimed'],
+    recovery_job_persist: ['persist_terminal', 'recovery_job_persisted'],
+    recovery_output_get: ['refresh_output', 'recovery_output_ready'],
+    recovery_output_persist_message: ['persist_output_message', 'recovery_output_persisted'],
+    recovery_output_persist_summary: ['persist_output_summary', 'recovery_output_summary_persisted'],
+    metadata_job_claim: ['claim_metadata', 'metadata_job_claimed'],
+    metadata_job_persist: ['persist_metadata', 'metadata_job_persisted'],
+  };
+  const recoveryAcks = new Set(Object.values(operations).map(value => value[1]));
+  const observeRecovery = (type, payload, direction, socketId) => {
+    expireRecovery();
+    if (direction === 'received' && type === 'metadata_jobs_available') {
+      if (!Array.isArray(payload.jobs) || payload.jobs.length > 100) { fatalRecovery('metadata_job_scope_unavailable'); return {}; }
+      for (const job of payload.jobs) {
+        if (!job || typeof job !== 'object' || Array.isArray(job) || !validId(job.job_id) || !validId(job.chat_id) || !validId(job.task_id)
+          || !['initial', 'postprocessing'].includes(job.stage) || !version(job.chat_key_version)) {
+          fatalRecovery('metadata_job_scope_unavailable'); continue;
+        }
+        const prior = metadataJobs.get(job.job_id);
+        if (prior && (prior.chat !== job.chat_id || prior.task !== job.task_id || prior.stage !== job.stage
+          || prior.keyVersion !== job.chat_key_version)) { fatalRecovery('metadata_job_scope_changed'); continue; }
+        if (!prior) {
+          const view = { jobId: id(job.job_id), chatId: id(job.chat_id), taskId: id(job.task_id),
+            stage: job.stage, keyVersion: job.chat_key_version, terminal: false };
+          metadataJobs.set(job.job_id, { chat: job.chat_id, task: job.task_id, stage: job.stage,
+            keyVersion: job.chat_key_version, view }); state.metadataJobs.push(view);
+        }
+      }
+    }
+    if (direction === 'sent' && operations[type]) {
+      const [operation, ack] = operations[type];
+      const message = payload.encrypted_assistant_message ?? payload.encrypted_user_message;
+      const job = payload.job_id ?? payload.record_id;
+      const metadata = metadataJobs.get(job);
+      const chat = message?.chat_id ?? metadata?.chat;
+      const view = { requestId: id(payload.request_id), jobId: id(payload.job_id), recordId: id(payload.record_id),
+        chatId: id(chat), messageId: id(message?.client_message_id), operation, atMs: now(), socketId,
+        expectedVersion: version(payload.expected_messages_v) ? payload.expected_messages_v
+          : version(payload.expected_metadata_v) ? payload.expected_metadata_v : undefined, acknowledged: false };
+      if (!validId(payload.request_id) || !validId(job) || requests.has(payload.request_id) || requests.size >= 256) {
+        fatalRecovery('recovery_request_identity_invalid'); return {};
+      }
+      const request = { job, chat, message: message?.client_message_id, type, ack, socketId, view };
+      requests.set(payload.request_id, request); state.recoveryRequests.push(view);
+      const pending = [...conflicts.values()].filter(item => item.view.status === 'pending' && item.request.job === job);
+      for (const conflict of pending) {
+        if (conflict.retry || type !== 'recovery_job_persist' || request.type !== conflict.request.type
+          || request.socketId !== conflict.request.socketId || request.socketId !== mainSocketId || request.chat !== conflict.request.chat
+          || request.message !== conflict.request.message || !conflict.refresh
+          || view.expectedVersion !== conflict.refresh.version) {
+          fatalRecovery('recovery_retry_scope_mismatch'); continue;
+        }
+        conflict.retry = payload.request_id; conflict.view.retryRequestId = view.requestId;
+        conflict.view.retryExpectedVersion = view.expectedVersion;
+      }
+      return { ...view };
+    }
+    if (direction === 'received' && type === 'error' && payload.code === 'version_conflict') {
+      const request = requests.get(payload.request_id);
+      if (!request || request.socketId !== socketId || socketId !== mainSocketId || request.type !== 'recovery_job_persist'
+        || payload.job_id !== request.job || !validId(request.chat) || !validId(request.message)
+        || !version(request.view.expectedVersion)
+        || [...conflicts.values()].some(item => item.request.job === request.job)) {
+        fatalRecovery('recovery_conflict_unscoped'); return {};
+      }
+      const view = { conflictId: id(payload.request_id), jobId: id(request.job), chatId: id(request.chat),
+        messageId: id(request.message), operation: 'persist_terminal', requestId: request.view.requestId,
+        expectedVersion: request.view.expectedVersion, atMs: now(), status: 'pending' };
+      conflicts.set(payload.request_id, { request, view, deadline: now() + 30000 }); state.recoveryConflicts.push(view);
+      return { recoveryConflictId: view.conflictId, ...view };
+    }
+    if (direction === 'received' && recoveryAcks.has(type)) {
+      const request = requests.get(payload.request_id);
+      const identity = payload.job_id ?? payload.record_id;
+      const related = [...conflicts.values()].find(item => item.request.job === identity);
+      const fields = { requestId: id(payload.request_id), jobId: id(payload.job_id), recordId: id(payload.record_id),
+        chatId: id(payload.chat_id ?? payload.target_chat_id), operation: request?.view.operation, state: typeof payload.state === 'string' ? word(payload.state.toLowerCase()) : undefined,
+        committedVersion: version(payload.committed_messages_v) ? payload.committed_messages_v
+          : version(payload.committed_metadata_v) ? payload.committed_metadata_v : undefined,
+        metadataVersion: version(payload.versions?.metadata_v) ? payload.versions.metadata_v : undefined,
+        titleVersion: version(payload.versions?.title_v) ? payload.versions.title_v : undefined,
+        taskId: id(payload.task_id), stage: ['initial', 'postprocessing'].includes(payload.stage) ? payload.stage : undefined,
+        keyVersion: version(payload.chat_key_version) ? payload.chat_key_version : undefined };
+      if (!request || request.ack !== type || request.job !== identity || request.socketId !== socketId || socketId !== mainSocketId) {
+        if (request || related || type.startsWith('metadata_job_') || type === 'recovery_job_persisted'
+          && [...conflicts.values()].some(item => item.view.status === 'pending')) fatalRecovery('recovery_ack_identity_mismatch');
+        return fields;
+      }
+      request.view.acknowledged = true;
+      if (type === 'recovery_job_persisted') {
+        const valid = payload.state === 'TERMINAL' && version(payload.committed_messages_v)
+          && payload.committed_messages_v >= request.view.expectedVersion
+          && (payload.chat_id === undefined || payload.chat_id === request.chat);
+        if (!valid) fatalRecovery('recovery_ack_not_terminal');
+        if (related) {
+          if (!valid || related.view.status !== 'pending' || related.retry !== payload.request_id || !related.refresh) {
+            fatalRecovery('recovery_ack_wrong_retry');
+          } else {
+            related.view.status = 'resolved'; related.view.resolvedAtMs = now();
+            related.view.committedVersion = payload.committed_messages_v;
+          }
+        }
+      }
+      if (type === 'recovery_output_persisted' || type === 'recovery_output_summary_persisted') {
+        const committed = type === 'recovery_output_persisted' ? payload.committed_messages_v : payload.committed_metadata_v;
+        if (payload.state !== 'ACKNOWLEDGED' || !version(committed)) fatalRecovery('recovery_output_ack_not_terminal');
+      }
+      if (type.startsWith('metadata_job_')) {
+        const metadata = metadataJobs.get(identity);
+        const matches = metadata && payload.chat_id === metadata.chat && payload.task_id === metadata.task
+          && payload.stage === metadata.stage && payload.chat_key_version === metadata.keyVersion;
+        if (!matches) fatalRecovery('metadata_ack_scope_mismatch');
+        else if (payload.state === 'TERMINAL') {
+          if (type === 'metadata_job_persisted' && (!version(payload.versions?.metadata_v)
+            || !version(payload.versions?.title_v) || !payload.encrypted_metadata
+            || typeof payload.encrypted_metadata !== 'object' || Array.isArray(payload.encrypted_metadata)
+            || !Object.keys(payload.encrypted_metadata).length
+            || Object.entries(payload.encrypted_metadata).some(([field, value]) =>
+              !['encrypted_title', 'encrypted_chat_summary', 'encrypted_category', 'encrypted_icon'].includes(field)
+              || typeof value !== 'string' || !value))) fatalRecovery('metadata_ack_not_authoritative');
+          else { metadata.view.terminal = true; metadata.view.terminalAtMs = now(); }
+        } else if (type === 'metadata_job_persisted') fatalRecovery('metadata_ack_not_terminal');
+      }
+      return fields;
+    }
+    return {};
+  };
+  // The completion retry refresh is a real first-party authorized HTTP read.
+  // Inspect only identity/version from the JSON actually consumed by the app.
+  if (typeof window.fetch === 'function') {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = new URL(typeof input === 'string' || input instanceof URL ? String(input) : input.url, location.href);
+      const match = /^\/v1\/chats\/([A-Za-z0-9_-]+)\/messages\/window$/.exec(url.pathname);
+      const candidates = match && url.origin === mainApiOrigin && String(init?.method ?? input?.method ?? 'GET').toUpperCase() === 'GET'
+        && init?.credentials === 'include' && init?.cache === 'no-store' && [...url.searchParams.keys()].length === 2
+        && url.searchParams.get('limit') === '1'
+        && url.searchParams.get('respect_compression_boundary') === 'false'
+        ? [...conflicts.values()].filter(item => item.view.status === 'pending' && item.request.chat === match[1]) : [];
+      const conflict = candidates.length === 1 ? candidates[0] : null;
+      const refreshId = conflict ? `refresh-${++nextRefresh}` : null;
+      if (candidates.length > 1) fatalRecovery('recovery_refresh_ambiguous');
+      if (conflict) add({ type: 'recovery_chat_version_refresh', direction: 'sent', operation: 'refresh_chat_version',
+        refreshId, jobId: conflict.view.jobId, chatId: conflict.view.chatId });
+      const response = await nativeFetch(input, init);
+      if (conflict) {
+        const json = response.json.bind(response);
+        response.json = async () => {
+          const body = await json(); expireRecovery();
+          if (!response.ok || body?.chat_id !== conflict.request.chat || !version(body?.messages_v)
+            || conflict.view.status !== 'pending' || mainSocketId !== conflict.request.socketId) {
+            fatalRecovery('recovery_refresh_not_authoritative');
+          } else {
+            conflict.refresh = { version: body.messages_v, refreshId };
+            conflict.view.refreshId = refreshId; conflict.view.refreshVersion = body.messages_v;
+          }
+          add({ type: 'recovery_chat_version_refresh', direction: 'received', operation: 'refresh_chat_version',
+            refreshId, jobId: conflict.view.jobId, chatId: conflict.view.chatId,
+            successful: response.ok && body?.chat_id === conflict.request.chat && version(body?.messages_v),
+            messagesVersion: version(body?.messages_v) ? body.messages_v : undefined });
+          return body;
+        };
+      }
+      return response;
+    };
+  }
   const interesting = new Set(['start', 'ready', 'transcript', 'chat_message_added', 'chat_message_confirmed',
     'assistant_speech_status', 'assistant_speech_audio', 'ai_message_update', 'audio.interrupted', 'stop', 'ended', 'error',
-    'ai_task_failed', 'ai_task_completed', 'cancel_ai_task', 'ai_task_cancel_requested', 'hangup', 'call_message_confirmed']);
+    'ai_task_failed', 'ai_task_completed', 'cancel_ai_task', 'ai_task_cancel_requested', 'hangup', 'call_message_confirmed', 'metadata_jobs_available', ...Object.keys(operations), ...recoveryAcks]);
   const segments = new Map(), streamSegments = new Map(), mediaSourceUrls = new Set();
   const createObjectURL = URL.createObjectURL;
   if (createObjectURL) URL.createObjectURL = function (object) {
@@ -121,6 +305,8 @@ function installObservation({ inputs }) {
   window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
     const socket = Reflect.construct(Target, args);
     const pathname = new URL(String(args[0]), location.href).pathname;
+    const socketId = ++nextSocket;
+    if (pathname === '/v1/ws') { mainSocketId = socketId; mainApiOrigin = new URL(String(args[0])).origin.replace(/^ws/, 'http'); }
     if (!['/v1/voice-call', '/v1/ws'].includes(pathname)) return socket;
     const observe = (data, direction) => {
       if (typeof data !== 'string') return;
@@ -131,12 +317,16 @@ function installObservation({ inputs }) {
         // Intent is established only by the real successful outgoing UI frame.
         state.expectedHangup = state.hangupRequested && !state.unexpectedEnd;
       }
-      if (['version_conflict', 'call_message_revision_conflict', 'revision_conflict'].includes(payload.code)
-        || ['version_conflict', 'call_message_revision_conflict', 'revision_conflict'].includes(payload.outcome)) state.revisionConflict = true;
+      const recovery = pathname === '/v1/ws' ? observeRecovery(event.type, payload, direction, socketId) : {};
+      if ((['version_conflict', 'call_message_revision_conflict', 'revision_conflict'].includes(payload.code)
+        || ['version_conflict', 'call_message_revision_conflict', 'revision_conflict'].includes(payload.outcome))
+        && !recovery.recoveryConflictId) state.revisionConflict = true;
       if (direction === 'sent' && event.type === 'mic_audio') { state.microphoneFrames++; return; }
       if (!interesting.has(event.type)) return;
       const message = payload.message ?? payload;
-      const frame = { direction, path: pathname, type: event.type,
+      const frame = { direction, path: pathname, type: event.type, socketId,
+        jobId: id(payload.job_id), recordId: id(payload.record_id), requestId: id(payload.request_id),
+        chatId: id(payload.chat_id ?? message.chat_id), operation: requests.get(payload.request_id)?.view.operation, ...recovery,
         messageId: id(payload.message_id ?? message.message_id), userMessageId: id(payload.user_message_id),
         assistantMessageId: id(payload.assistant_message_id), callId: id(payload.call_id ?? payload.voice_call_id),
         turnId: id(payload.turn_id), role: ['user', 'assistant'].includes(message.role) ? message.role : undefined };
@@ -324,25 +514,36 @@ function installObservation({ inputs }) {
     if (!style.isConnected) document.documentElement.prepend(style);
   };
   new MutationObserver(mount).observe(document, { childList: true, subtree: true }); mount();
-  setInterval(() => {
+  const inspectUi = () => {
+    expireRecovery();
     const bar = document.querySelector('[data-testid="voice-call-bar"]');
     if (bar && bar.getAttribute('aria-busy') === 'false') state.callSeen = true;
     if (state.callSeen && !state.expectedHangup && (!bar || document.querySelector('[data-testid="voice-call-error"]'))) state.unexpectedEnd = true;
     // Only known static failure text is inspected; arbitrary notification text
     // never leaves the page. Protocol conflict codes are observed above too.
-    if ([...document.querySelectorAll('[data-testid="notification"]')].some(node =>
+    const notifications = [...document.querySelectorAll('[data-testid="notification"]')];
+    if (notifications.some(node => node.classList?.contains('notification-error'))) state.uiErrorNotification = true;
+    if (notifications.some(node =>
       /call_message_revision_conflict|version_conflict|revision_conflict|revision conflict/i.test(node.textContent ?? ''))) state.revisionConflict = true;
-  }, 100);
+  };
+  setInterval(inspectUi, 100);
   window.__voiceLiveSmoke = {
     state, playInput: index => playInput(index),
     stage: value => { state.stage = value; },
-    snapshot: () => ({ ...state, snapshotMs: now(), activeMedia: [...media].filter(audio => !audio.paused && !audio.ended).length,
+    snapshot: () => { inspectUi(); return ({ ...state, snapshotMs: now(),
+      recoveryPending: new Set([
+        ...[...conflicts.values()].filter(item => item.view.status !== 'resolved').map(item => item.request.job),
+        ...[...requests.entries()].filter(([requestId, request]) =>
+          ['recovery_job_persist', 'recovery_output_persist_message', 'recovery_output_persist_summary'].includes(request.type)
+          && !request.view.acknowledged && !conflicts.has(requestId)).map(([, request]) => request.job),
+      ]).size,
+      metadataPending: state.metadataJobs.filter(item => !item.terminal).length, activeMedia: [...media].filter(audio => !audio.paused && !audio.ended).length,
       callActive: !!document.querySelector('[data-testid="voice-call-bar"]'),
       callError: !!document.querySelector('[data-testid="voice-call-error"]'),
       playerStatus: word(document.querySelector('[data-testid="assistant-speech-player"]')?.getAttribute('data-status')),
       userRowIds: [...document.querySelectorAll('[data-testid="message-user"]')].map(row => id(row.getAttribute('data-message-id'))),
       assistantRowIds: [...document.querySelectorAll('[data-testid="message-assistant"]')].map(row => id(row.getAttribute('data-message-id'))),
-    }),
+    }); },
   };
 }
 
@@ -437,7 +638,8 @@ async function main() {
       const state = await snapshot();
       check(permitEnded || !state.unexpectedEnd, 'unexpected_call_end');
       check(!state.revisionConflict, 'revision_conflict_observed');
-      check(!state.events.some(event => event.type === 'error' || event.type === 'socket_error' || event.type === 'media_error'
+      check(!state.uiErrorNotification, 'ui_error_notification_observed');
+      check(!state.events.some(event => event.type === 'error' && !event.recoveryConflictId || event.type === 'socket_error' || event.type === 'media_error'
         || event.type === 'media_correlation_failed' || event.type === 'ai_task_failed'
         || event.type === 'assistant_speech_audio' && event.phase === 'error'), 'transport_or_media_error');
       if (predicate(state)) return state;
@@ -564,7 +766,11 @@ async function main() {
     }
     await stageTo('same_call_minimum_duration');
     await wait(state => state.snapshotMs - ready.atMs >= args['min-call-ms'], args['min-call-ms'] + 10000, 'minimum_call_duration_timeout');
+    await stageTo('recovery_terminal_receipts');
+    await wait(state => state.recoveryPending === 0 && state.metadataPending === 0, 30000, 'recovery_terminal_receipt_timeout');
     let state = await snapshot(); assertTurns(state, 2);
+    check(state.recoveryConflicts.every(item => item.status === 'resolved') && state.metadataJobs.every(item => item.terminal),
+      'unresolved_recovery_or_metadata_job');
     if (args['require-progressive']) {
       check(!state.events.some(event => event.type === 'assistant_speech_status'
         && event.kind === 'voice_prose_clause' && event.generatedAssetPresent), 'live_call_published_generated_audio_asset');
@@ -605,6 +811,10 @@ async function main() {
         }
       }
       result.cleanupObservation = await snapshot().catch(() => ({ unavailable: true }));
+      if (result.status === 'passed' && (result.cleanupObservation.revisionConflict || result.cleanupObservation.uiErrorNotification
+        || result.cleanupObservation.recoveryPending !== 0 || result.cleanupObservation.metadataPending !== 0)) {
+        result.status = 'failed'; result.failureStage = 'cleanup'; result.failureCode = 'unresolved_recovery_or_ui_error';
+      }
       const video = page.video();
       await page.close().catch(() => {});
       if (video) result.videoFile = path.basename(await video.path().catch(() => 'unavailable'));

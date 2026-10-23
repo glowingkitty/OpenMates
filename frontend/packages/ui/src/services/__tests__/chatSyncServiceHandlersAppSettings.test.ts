@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 
 const mocks = vi.hoisted(() => ({
+  workspace: { identity: 'owner-a' as string | null },
+  memoryStore: { loadEntries: vi.fn(async () => undefined) },
   chatDB: {
+    storeAppSettingsMemoriesEntries: vi.fn(),
     getMessage: vi.fn(),
     getAppSettingsMemoriesEntriesByAppAndType: vi.fn(),
     getChat: vi.fn(),
@@ -58,6 +61,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../encryption/MetadataEncryptor", () => ({ decryptWithMasterKey: mocks.privateMemories.decrypt }));
+vi.mock("../workspaceQueryCache", () => ({ getWorkspaceCacheIdentity: () => mocks.workspace.identity }));
+vi.mock("../../stores/appSettingsMemoriesStore", () => ({ appSettingsMemoriesStore: mocks.memoryStore }));
 vi.mock("../chatSyncServiceSenders", () => ({ sendAppSettingsMemoriesConfirmedImpl: mocks.privateMemories.send }));
 vi.mock("../../stores/appSettingsMemoriesPermissionStore", () => ({ appSettingsMemoriesPermissionStore: {
   subscribe: (run: (value: unknown) => void) => { run({ currentRequest: mocks.permission.request }); return () => {}; },
@@ -133,6 +138,7 @@ import {
   handleWorkflowChatDeliveryAcknowledgedImpl,
   notifyCommittedWorkflowDelivery,
   handlePendingAIResponseImpl,
+  handleAppSettingsMemoriesSyncReadyImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import {
   handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl, resetRecoveryLifecycleImpl,
@@ -142,6 +148,42 @@ import { clearRecoveryFinalTimestamps, recordRecoveryFinalTimestamp } from "../r
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe('app memories sync no-op proof', () => {
+  beforeEach(() => { resetHoistedMocks(); mocks.workspace.identity = 'owner-a'; mocks.memoryStore.loadEntries.mockResolvedValue(undefined); });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each([
+    [{ applied: 0, complete: true }, true],
+    [{ applied: 1, complete: true }, false],
+    [{ applied: 0, complete: false }, false],
+    [undefined, false],
+  ])('announces no-op only from the committed complete merge outcome %j', async (outcome, expected) => {
+    mocks.chatDB.storeAppSettingsMemoriesEntries.mockResolvedValue(outcome);
+    const event = vi.fn();
+    window.addEventListener('appSettingsMemoriesSyncReady', event);
+    try {
+      await handleAppSettingsMemoriesSyncReadyImpl({} as ChatSynchronizationService, { entries: [], entry_count: 0 });
+      expect(event).toHaveBeenCalledOnce();
+      expect(event.mock.calls[0][0].detail.privacy_snapshot_unchanged).toBe(expected);
+    } finally { window.removeEventListener('appSettingsMemoriesSyncReady', event); }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.preprocessing.prepared-privacy
+  it.each(['owner', 'deletion'])('does not certify a no-op across %s uncertainty', async uncertainty => {
+    mocks.chatDB.storeAppSettingsMemoriesEntries.mockImplementation(async () => {
+      if (uncertainty === 'owner') mocks.workspace.identity = 'owner-b';
+      return { applied: 0, complete: true };
+    });
+    const event = vi.fn();
+    window.addEventListener('appSettingsMemoriesSyncReady', event);
+    try {
+      const payload = { entries: [], entry_count: 0, ...(uncertainty === 'deletion' ? { deleted_ids: ['removed'] } : {}) };
+      await handleAppSettingsMemoriesSyncReadyImpl({} as ChatSynchronizationService, payload);
+      expect(event.mock.calls[0][0].detail.privacy_snapshot_unchanged).toBe(false);
+    } finally { window.removeEventListener('appSettingsMemoriesSyncReady', event); }
+  });
 });
 
 describe("handleWorkflowChatDeliveriesAvailableImpl", () => {

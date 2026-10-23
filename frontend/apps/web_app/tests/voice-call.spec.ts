@@ -129,6 +129,12 @@ interface CallEvidence {
   tracks: MediaStreamTrack[];
   decryptChatContent?: (value: string, rawKey: ArrayBuffer) => Promise<string>;
   boundCaptureTracks?:MediaStreamTrack[];
+  memoryBatch?: {socketId:number;entryCount:number;observedAt:number};
+  replayMemoryBatch?: () => void;
+  holdPrivacySnapshot?: boolean;
+  privacySnapshotHeld?: {socketId:number;requestId:string;success:boolean;heldAt:number;releasedAt?:number};
+  releasePrivacySnapshot?: () => void;
+  privacyNoopReplay?: {socketId:number;entryCount:number;replayedAt:number;producerAt?:number;producerUnchanged?:boolean};
   holdSpeechResponse?: {chatId:string;previousMessageId:string};
   heldSpeechAudio?: {count:number;messageId:string;phases:string[];releasedAt?:number};
   releaseSpeechAudio?: () => void;
@@ -196,7 +202,8 @@ test.afterEach(async ({page},testInfo)=>{
       errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
       speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
       historyDurability:state?.historyDurability,draftAtBootstrap:state?.draftAtBootstrap,
-      draftDeletionEvents:state?.draftDeletionEvents,heldSpeechAudio:state?.heldSpeechAudio,callUIstatus,
+      draftDeletionEvents:state?.draftDeletionEvents,heldSpeechAudio:state?.heldSpeechAudio,
+      memoryBatch:state?.memoryBatch,privacySnapshotHeld:state?.privacySnapshotHeld,privacyNoopReplay:state?.privacyNoopReplay,callUIstatus,
       turnDelivery:state?.turnDelivery?.slice(-48)??[],
       finalTranscriptTurns:state?.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final).slice(-24).map(ids)??[],
       textInputTurns:state?.sent.filter(frame=>frame.type==='text_input').slice(-24).map(ids)??[],
@@ -248,6 +255,13 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
         { name: 'AES-GCM', iv: encrypted.slice(header, header + 12) }, key, encrypted.slice(header + 12)));
     };
     Object.assign(window,{__voiceCallEvidence:evidence});
+    window.addEventListener('appSettingsMemoriesSyncReady',event=>{
+      const replay=evidence.privacyNoopReplay;
+      const detail=(event as CustomEvent).detail;
+      if(!replay||replay.producerAt!==undefined||replay.socketId!==evidence.mainSocketId||detail?.entry_count!==replay.entryCount)return;
+      // This is the production producer's event, never a test-generated flag.
+      replay.producerAt=performance.now();replay.producerUnchanged=detail.privacy_snapshot_unchanged===true;
+    });
     const phases=new Set(['queued','started','validating','sender_loading','chat_loading','message_saving','chat_refreshing',
       'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed','canonical_prerequisite','canonical_prerequisite_failed']);
     const reasons=new Set(['invalid_turn','scope_changed','disconnected','personal_chat_unavailable','message_row_unavailable',
@@ -313,6 +327,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       const path=new URL(String(args[0]),location.href).pathname;
       if(path==='/v1/ws') { evidence.mainSocket=socket; evidence.mainSocketId=socketId; }
       if(path==='/v1/voice-call')evidence.voiceSocketCount=(evidence.voiceSocketCount??0)+1;
+      let privacyHoldRequestId:string|null=null;
       const observe=(data:unknown,sent:boolean)=>{
         if(typeof data!=='string')return;
         let event;try{event=JSON.parse(data);}catch{return;}
@@ -361,7 +376,10 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
         };
         if(['personal_send_context_snapshot','personal_send_context_snapshot_result'].includes(event.type)){
           const purpose=payload.purpose==='prepare'||payload.purpose==='send'?payload.purpose:undefined;
-          if(sent&&frame.requestId&&purpose)snapshotPurposes.set(frame.requestId,purpose);
+          if(sent&&frame.requestId&&purpose){
+            snapshotPurposes.set(frame.requestId,purpose);
+            if(purpose==='send'&&evidence.holdPrivacySnapshot&&privacyHoldRequestId===null)privacyHoldRequestId=frame.requestId;
+          }
           frame.snapshotPurpose=purpose??(frame.requestId?snapshotPurposes.get(frame.requestId):undefined);
           if(typeof payload.success==='boolean')frame.snapshotSuccess=payload.success;
           frame.snapshotHasCode=typeof payload.error?.code==='string';
@@ -397,6 +415,36 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       const heldSpeechEvents:MessageEvent[]=[];
       socket.addEventListener('message',event=>{
         if(typeof event.data!=='string')return;
+        if(path==='/v1/ws'){
+          let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
+          const payload=frame?.payload;
+          if(frame?.type==='app_settings_memories_sync_ready'&&Array.isArray(payload?.entries)
+            &&Number.isSafeInteger(payload.entry_count)&&payload.entry_count===payload.entries.length){
+            // Ciphertext and versions remain only in this actual socket closure.
+            // Replaying the exact authenticated batch exercises the real DB apply
+            // outcome and producer; no server authority or no-op flag is invented.
+            const original=event;
+            evidence.memoryBatch={socketId,entryCount:payload.entry_count,observedAt:performance.now()};
+            evidence.replayMemoryBatch=()=>{
+              if(evidence.mainSocket!==socket)throw new Error('Memory replay connection changed');
+              evidence.privacyNoopReplay={socketId,entryCount:payload.entry_count,replayedAt:performance.now()};
+              socket.dispatchEvent(new MessageEvent('message',{data:original.data}));
+            };
+          }
+          if(frame?.type==='personal_send_context_snapshot_result'&&evidence.holdPrivacySnapshot
+            &&privacyHoldRequestId!==null&&payload?.request_id===privacyHoldRequestId){
+            event.stopImmediatePropagation();
+            const held={socketId,requestId:privacyHoldRequestId,success:payload.success===true,heldAt:performance.now()};
+            evidence.privacySnapshotHeld=held;
+            evidence.releasePrivacySnapshot=()=>{
+              delete evidence.holdPrivacySnapshot;privacyHoldRequestId=null;
+              if(evidence.privacySnapshotHeld?.releasedAt!==undefined)return;
+              evidence.privacySnapshotHeld!.releasedAt=performance.now();
+              socket.dispatchEvent(new MessageEvent('message',{data:event.data}));
+            };
+            return;
+          }
+        }
         if(path==='/v1/ws'&&evidence.holdSpeechResponse){
           let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
           const payload=frame?.payload;
@@ -2003,7 +2051,7 @@ test.describe('Voice mode through ordinary chat', () => {
   });
 
 
-  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission,video-call.privacy,assistant-speech.playback.live-call-streaming
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.spoken-rich-response,video-call.audio.complete-turn-admission,video-call.privacy,assistant-speech.playback.live-call-streaming,ai-model-routing.preprocessing.prepared-privacy
   test('carries actual heard-clause progress to the next canonical turn while retaining the complete rich answer',async({page},testInfo)=>{
     await installVoiceFixtureImageProxy(page);
     test.setTimeout(180_000);
@@ -2121,19 +2169,57 @@ test.describe('Voice mode through ordinary chat', () => {
       const voice=browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'&&frame.kind==='voice_prose_clause'&&frame.streamPhase==='chunk'&&frame.segmentId===active);
       return voice&&active===held.segmentId&&held.audio?.src===held.source&&!held.audio.paused&&!held.audio.ended&&held.audio.currentTime>held.offset;
     },undefined,{timeout:10_000,polling:'raf'});
+    // Phase3 always supplies a genuine authenticated batch, including an empty
+    // batch for an empty account. Require that real source; never fabricate one.
+    await page.waitForFunction(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return !!state.memoryBatch&&state.memoryBatch.socketId===state.mainSocketId&&typeof state.replayMemoryBatch==='function';
+    },undefined,{timeout:10_000});
     const before=voiceFrames(await evidence(page),'text_input').length;
     const previousMessageId=await page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getAttribute('data-message-id');
     expect(previousMessageId).toBeTruthy();
     const boundChatId=voiceFrames(await evidence(page),'start')[0].chatId!;
     await page.evaluate(({chatId,previousMessageId})=>{
-      (window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.holdSpeechResponse={chatId,previousMessageId};
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      state.holdSpeechResponse={chatId,previousMessageId};state.holdPrivacySnapshot=true;
     },{chatId:boundChatId,previousMessageId:previousMessageId!});
     try{
     await page.getByTestId('composer-send-button').click();
     await expect.poll(async()=>voiceFrames(await evidence(page),'text_input').length).toBe(before+1);
     const nextId=voiceFrames(await evidence(page),'text_input').at(-1)!.messageId!;
+    await page.waitForFunction(()=>!!(window as unknown as {__voiceCallEvidence:CallEvidence})
+      .__voiceCallEvidence.privacySnapshotHeld,undefined,{timeout:10_000});
+    const privacyHeld=await page.evaluate(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return {held:state.privacySnapshotHeld,sameConnection:state.privacySnapshotHeld?.socketId===state.mainSocketId};
+    });
+    expect(privacyHeld.held?.success).toBe(true);expect(privacyHeld.sameConnection).toBe(true);
+    expect(privacyHeld.held?.releasedAt).toBeUndefined();
+    await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.replayMemoryBatch!());
+    await page.waitForFunction(()=>{
+      const replay=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.privacyNoopReplay;
+      return replay?.producerAt!==undefined;
+    },undefined,{timeout:5000});
+    const privacyNoop=await page.evaluate(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return {held:state.privacySnapshotHeld,replay:state.privacyNoopReplay};
+    });
+    expect(privacyNoop.replay?.producerUnchanged,'the genuine unchanged batch must emit the production no-write proof').toBe(true);
+    expect(privacyNoop.held?.releasedAt).toBeUndefined();
+    expect(privacyNoop.replay!.replayedAt).toBeGreaterThanOrEqual(privacyNoop.held!.heldAt);
+    expect(privacyNoop.replay!.producerAt!).toBeGreaterThanOrEqual(privacyNoop.replay!.replayedAt);
+    await testInfo.attach('voice-privacy-noop-during-fresh-send',{body:JSON.stringify(privacyNoop),contentType:'application/json'});
+    await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releasePrivacySnapshot!());
     await expect.poll(async()=>(await evidence(page)).sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)?.heardBoundary,{timeout:45_000}).toBeTruthy();
     const protocol=await evidence(page);
+    const privacyOrder=await page.evaluate(() => {
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      return {producerAt:state.privacyNoopReplay?.producerAt,releasedAt:state.privacySnapshotHeld?.releasedAt};
+    });
+    expect(privacyOrder.releasedAt).toBeDefined();
+    expect(privacyOrder.producerAt!).toBeLessThanOrEqual(privacyOrder.releasedAt!);
+    expect(protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.observedAt!)
+      .toBeGreaterThan(privacyOrder.releasedAt!);
     const boundary=protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.heardBoundary!;
     const prior=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
     await expect(prior).toHaveCount(1);
@@ -2206,6 +2292,7 @@ test.describe('Voice mode through ordinary chat', () => {
     }finally{
       await page.evaluate(()=>{
         const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+        delete state.holdPrivacySnapshot;state.releasePrivacySnapshot?.();
         delete state.holdSpeechResponse;state.releaseSpeechAudio?.();
       }).catch(()=>{});
     }

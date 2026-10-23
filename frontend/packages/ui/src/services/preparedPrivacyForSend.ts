@@ -61,8 +61,21 @@ function installMutationObservers(): void {
   installed = true;
   // Lazy installation avoids the aggregate store / chat sender import cycle.
   authStore.subscribe(state => { if (!state.isAuthenticated) invalidatePreparedPrivacy(); });
-  personalDataStore.subscribe(invalidatePreparedPrivacy);
-  personalDataStore.settings.subscribe(invalidatePreparedPrivacy);
+  // Storage reloads publish new arrays/objects even when policy is unchanged.
+  // Compare detection inputs, retaining entry order because overlapping matches
+  // may depend on it. Labels and storage timestamps do not affect detection.
+  let entriesRevision: string | undefined;
+  personalDataStore.subscribe(entries => {
+    const revision = JSON.stringify(entries.map(entry => [entry.id, entry.enabled,
+      entry.textToHide, entry.replaceWith, Object.values(entry.addressLines ?? {})]));
+    if (entriesRevision !== revision) { entriesRevision = revision; invalidatePreparedPrivacy(); }
+  });
+  let settingsRevision: string | undefined;
+  personalDataStore.settings.subscribe(settings => {
+    const revision = JSON.stringify([settings.masterEnabled,
+      Object.entries(settings.categories).sort(([a], [b]) => a.localeCompare(b))]);
+    if (settingsRevision !== revision) { settingsRevision = revision; invalidatePreparedPrivacy(); }
+  });
   let profileRevision: string | undefined;
   userProfile.subscribe(profile => {
     const revision = JSON.stringify([profile.user_id, profile.encrypted_settings]);
@@ -80,7 +93,11 @@ webSocketService.on('server_capabilities', (payload: { capabilities?: string[] }
   if (warmRequested) warmPersonalPrivacyForSend();
 });
 if (typeof window !== 'undefined') {
-  window.addEventListener('appSettingsMemoriesSyncReady', invalidatePreparedPrivacy);
+  window.addEventListener('appSettingsMemoriesSyncReady', event => {
+    if ((event as CustomEvent<{ privacy_snapshot_unchanged?: boolean }>).detail?.privacy_snapshot_unchanged !== true) {
+      invalidatePreparedPrivacy();
+    }
+  });
 }
 
 function scope(): string | null {
