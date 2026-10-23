@@ -1827,6 +1827,36 @@ async def _async_delete_user_account(
             directus_service=directus_service,
             user_id_hash=user_id_hash,
         )
+        from backend.core.api.app.services.account_content_deletion_service import (
+            delete_account_personal_speech,
+        )
+        # Speech uploads must be purged (or have durable regional purge authority)
+        # before the generic account cascade removes their upload_files references.
+        speech_storage = None
+        speech_secrets = None
+
+        async def delete_speech_file(file_key: str) -> None:
+            nonlocal speech_storage, speech_secrets
+            if speech_storage is None:
+                from backend.core.api.app.services.s3.service import S3UploadService
+                from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+                speech_secrets = SecretsManager()
+                await speech_secrets.initialize()
+                speech_storage = S3UploadService(
+                    secrets_manager=speech_secrets, directus_service=directus_service,
+                )
+                await speech_storage.initialize(configure_buckets=False)
+            await speech_storage.delete_file(bucket_key="chatfiles", file_key=file_key)
+
+        try:
+            await delete_account_personal_speech(
+                directus_service=directus_service, user_id=user_id,
+                user_id_hash=user_id_hash, delete_file=delete_speech_file,
+            )
+        finally:
+            if speech_secrets is not None:
+                await speech_secrets.close()
         eligible_embed_rows = await load_account_deletable_embed_rows(
             directus_service=directus_service,
             user_id_hash=user_id_hash,

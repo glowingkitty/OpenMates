@@ -601,8 +601,10 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "kind",
     "language",
     "voice_call_id",
+    "source_version",
+    "execution_version",
 )
-SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
+SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error", "sealed"}
 SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
 MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
@@ -1211,6 +1213,19 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                 # The 'data' field from cache_service.subscribe_to_channel is already a dict if it was JSON
                 redis_payload = message["data"]
                 redis_channel_name = message.get("channel", "") # e.g., "chat_stream::some_chat_id"
+
+                if redis_payload.get("type") == "assistant_speech_audio":
+                    # Internal transient bytes: authenticated exact live-call
+                    # session only. Never use active-chat/public/sync routing or
+                    # the content-free assistant_speech_status whitelist below.
+                    from backend.shared.python_utils.assistant_speech_audio import route_assistant_speech_audio
+                    audio_route = await route_assistant_speech_audio(
+                        envelope=redis_payload, channel=redis_channel_name,
+                        manager=manager, cache=cache_service,
+                    )
+                    if audio_route != "delivered":
+                        logger.debug("AI Stream Listener: Speech audio not delivered category=%s", audio_route)
+                    continue
                 
                 # Validate payload structure (basic check)
                 if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
@@ -1324,6 +1339,13 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             if field in speech_payload
                         },
                     }
+                    if event_type == "assistant_speech_status" and speech_payload.get("status") == "sealed":
+                        from backend.shared.python_utils.assistant_speech_audio import validate_assistant_speech_sealed_segments
+                        try:
+                            client_payload["segments"] = validate_assistant_speech_sealed_segments(speech_payload)
+                        except ValueError:
+                            logger.warning("AI Stream Listener: Invalid sealed speech membership")
+                            continue
                     owner_id = owner_ids[0]
                     call_id = speech_payload.get("voice_call_id")
                     call_session = None

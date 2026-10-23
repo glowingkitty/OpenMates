@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 8
-status: draft
+version: 9
+status: approved
 title: Assistant Response Speech
 summary: >
   Let authenticated users hear a nonblocking prerecorded acknowledgement,
@@ -393,8 +393,8 @@ assertions:
     depends_on: [models.MateVoiceProfile, examples.voxtral_versioned_voices]
   - id: assistant-speech.segmentation.one-file-per-segment
     type: invariant
-    must: Every immutable speakable prose paragraph, app-use announcement, or structured non-prose summary has one stable segment ID, one Mistral generation request, and exactly one independently encrypted private S3 audio object; a message-level combined audio object is forbidden.
-    depends_on: [models.SpeechManifest, models.SpeechSegment, examples.voxtral_encrypted_paragraphs]
+    must: Outside live voice calls, every immutable speakable prose paragraph, app-use announcement, or structured non-prose summary has one stable segment ID, one Mistral generation request, and exactly one independently encrypted private S3 audio object; a message-level combined audio object is forbidden. Live-call speech has no stored audio object and follows the ephemeral live-call exception below.
+    depends_on: [models.SpeechManifest, models.SpeechSegment, examples.live_call_streaming]
   - id: assistant-speech.segmentation.immutable-source
     type: invariant
     must: Automatic generation begins only for an immutable speech segment whose source hash and message revision are fixed; later authoritative text or voice-profile changes invalidate only affected segment files and never leave mismatched audio presented as current.
@@ -423,8 +423,12 @@ assertions:
     depends_on: [models.SpeechSegment.kind, models.SpeechSegment.playback_class, examples.processing]
   - id: assistant-speech.execution.first-segment-progressive
     type: behavior
-    must: Playback starts only after the current segment is fully generated, encrypted, stored, and ready, but does not wait for the complete response or later paragraph files; web playback uses 1.25 times source speed with pitch preservation, waits visibly for the next ordered segment, automatically continues when it becomes ready, and never relays partial provider audio bytes to the client.
+    must: Outside an active voice call, playback starts only after the current segment is fully generated, encrypted, stored, and ready, without waiting for the complete response or later paragraph files, and partial provider audio is never relayed to the client. Active voice-call prose may use the progressive playback exception below. Web playback retains 1.25 times source speed with pitch preservation, visible ordered waiting, and automatic continuation.
     depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue]
+  - id: assistant-speech.playback.live-call-streaming
+    type: behavior
+    must: During an authenticated active web voice call, a supported browser immediately plays approved immutable prose and waiting confirmations as Mistral returns audio; playback never waits for provider completion, file creation or storage. Only the owning call receives bounded transient audio in clause and chunk order. Call speech is never persisted, uploaded, logged, cached for replay or converted into a generated audio embed; the normal encrypted conversation text and rich message content remain authoritative, with only minimal content-free operational and billing metadata. Missing chunks, provider failure, hangup, interruption, invalidation or loss of call ownership stop playback and reject late audio; an incomplete stream never counts as fully heard and never silently starts a second synthesis. Successful completed synthesis contributes its exact submitted character count once to existing billing. If the user later presses Speak on the stored text, that separate action generates and caches audio normally and subsequent manual replay reuses that cache. Normal automatic model routing, rich embeds and independent message listening remain intact.
+    depends_on: [models.SpeechSegment, models.PlaybackQueue, examples.live_call_streaming]
   - id: assistant-speech.execution.web-paragraph-demand
     type: invariant
     must: For web voice-message replies, Auto speak response, and manual Speak, registering all immutable paragraph identities and chapter labels makes no Mistral request for later paragraphs. The first needed paragraph is requested alone. During playback, only the immediate next missing paragraph is requested once when the current paragraph has at most six seconds of audible playback left; the following paragraph waits until playback progresses through its predecessor. Selecting an unready chapter requests that chapter immediately. A paragraph with a matching ready encrypted audio file is replayed without a new Mistral request or charge, and stopping before the threshold leaves later paragraphs unrequested and uncharged.

@@ -23,6 +23,8 @@ SAFE_RESULT_FIELDS = ("segment_id", "sequence", "request_sequence", "status", "g
 ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
 ASSISTANT_SPEECH_INELIGIBLE_STATUSES = {"cancelled", "deleted", "invalidated"}
 HISTORICAL_SPEECH_VOICE_PROFILE = {"key": "george", "version": 2}
+# This in-process marker cannot be supplied by an untrusted JSON request.
+_VERIFIED_VOICE_SOURCE = object()
 
 
 async def handle_assistant_speech_request(
@@ -255,6 +257,7 @@ async def handle_assistant_speech_event(
             "filter[assistant_message_id][_eq]": assistant_message_id,
             "filter[source_version][_eq]": source_version,
             "filter[kind][_eq]": segment["kind"],
+            "filter[manifest_id][_eq]": hashlib.sha256(f"{chat_id}:{assistant_message_id}".encode()).hexdigest(),
         }
         excluded = excluded_segment_ids or set()
 
@@ -393,8 +396,10 @@ async def handle_assistant_speech_event(
                     "kind": str(segment["kind"]),
                     "source_hash": source_hash,
                     "speakable_text": text,
-                    "voice_profile_key": HISTORICAL_SPEECH_VOICE_PROFILE["key"],
-                    "voice_profile_version": HISTORICAL_SPEECH_VOICE_PROFILE["version"],
+                    "voice_profile_key": segment["voice_profile_key"] if segment.get("_verified_voice_source") is _VERIFIED_VOICE_SOURCE else HISTORICAL_SPEECH_VOICE_PROFILE["key"],
+                    "voice_profile_version": segment["voice_profile_version"] if segment.get("_verified_voice_source") is _VERIFIED_VOICE_SOURCE else HISTORICAL_SPEECH_VOICE_PROFILE["version"],
+                    **({key: segment[key] for key in ("live_mock_mode", "live_mock_group", "live_mock_required") if segment.get(key)}
+                       if segment.get("_verified_voice_source") is _VERIFIED_VOICE_SOURCE else {}),
                     "dispatch_status": "registered" if defer_after_first and request_sequence != first_sequence else "queued",
                 })
                 continue
@@ -448,7 +453,8 @@ async def handle_assistant_speech_event(
                 chat_id=str(kwargs["chat_id"]),
                 assistant_message_id=str(kwargs["assistant_message_id"]),
                 source_version=source_version,
-                voice_profile=HISTORICAL_SPEECH_VOICE_PROFILE,
+                voice_profile={"key": historical_segments[0]["voice_profile_key"],
+                               "version": historical_segments[0]["voice_profile_version"]},
                 segments=historical_segments,
             )
             dispatch_ids = set(manifest["dispatch_segment_ids"])
@@ -581,7 +587,7 @@ async def handle_assistant_speech_event(
 async def resolve_registered_voice_segments(directus: Any, *, user_id: str, chat_id: str,
         assistant_message_id: str, segments: list[Mapping[str, object]],
         source_markdown: object, action: str) -> list[Mapping[str, object]] | None:
-    """Recover canonical clauses from transient client text without creating new assets.
+    """Authorize a separate manual cache from a call's registered source hashes.
 
     The owner/message/version query and server HMAC comparison are authoritative;
     client Markdown is only a candidate source and is never stored or echoed.
@@ -591,6 +597,7 @@ async def resolve_registered_voice_segments(directus: Any, *, user_id: str, chat
         "filter[user_id][_eq]": user_id, "filter[chat_id][_eq]": chat_id,
         "filter[assistant_message_id][_eq]": assistant_message_id,
         "filter[kind][_eq]": "voice_prose_clause",
+        "filter[manifest_id][_neq]": hashlib.sha256(f"{chat_id}:{assistant_message_id}".encode()).hexdigest(),
         "sort": "sequence", "limit": MAX_VOICE_REPLAY_CLAUSES + 1,
     }, no_cache=True)
     if not rows:
@@ -614,15 +621,21 @@ async def resolve_registered_voice_segments(directus: Any, *, user_id: str, chat
     for row in rows:
         if int(row.get("sequence", -1)) < 0 or row.get("status") in {"deleted", "invalidated"}:
             continue
-        if action == "generate" and str(row["segment_id"]) not in requested_ids:
+        sequence = int(row["sequence"])
+        manual_id = hashlib.sha256(f"{chat_id}:{assistant_message_id}:{version}:{sequence}:{row['source_hash']}".encode()).hexdigest()
+        if action == "generate" and manual_id not in requested_ids:
             continue
         choices = candidates.get(str(row["source_hash"]))
         if not choices:
             raise ValueError("Canonical voice source does not match registered clauses")
         text = choices.pop(0)
-        resolved.append({"segment_id": row["segment_id"], "sequence": int(row["sequence"]),
+        resolved.append({"segment_id": manual_id, "sequence": sequence,
             "source_version": version, "kind": "voice_prose_clause",
-            "source_hash": row["source_hash"], "speakable_text": text})
+            "source_hash": row["source_hash"], "speakable_text": text,
+            "voice_profile_key": row.get("voice_profile_key") or HISTORICAL_SPEECH_VOICE_PROFILE["key"],
+            "voice_profile_version": row.get("voice_profile_version") or HISTORICAL_SPEECH_VOICE_PROFILE["version"],
+            **{key: row[key] for key in ("live_mock_mode", "live_mock_group", "live_mock_required") if row.get(key)},
+            "_verified_voice_source": _VERIFIED_VOICE_SOURCE})
     if not resolved or len(resolved) > MAX_VOICE_REPLAY_CLAUSES or (
         action == "generate" and {str(row["segment_id"]) for row in resolved} != requested_ids
     ):

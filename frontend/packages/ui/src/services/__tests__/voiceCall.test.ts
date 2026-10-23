@@ -10,6 +10,8 @@ const canonical = vi.hoisted(() => ({ send: vi.fn(async (_turn: unknown) => true
 vi.mock('../voiceCallTurns', () => ({ sendVoiceCallTurn: canonical.send, reportVoiceCallTurnDelivery: vi.fn() }));
 const privacy = vi.hoisted(() => ({ ensure: vi.fn(async (_signal:AbortSignal, _gesture:()=>void) => true) }));
 vi.mock('../voiceCallPrivacy', () => ({ ensureVoiceCallPrivacyAcknowledgement: privacy.ensure }));
+const streaming = vi.hoisted(() => ({ supported: vi.fn(() => true) }));
+vi.mock('../assistantSpeechStream', () => ({ supportsAssistantSpeechStream: streaming.supported }));
 const cues = vi.hoisted(() => ({ prepare: vi.fn(), play: vi.fn(), stop: vi.fn() }));
 vi.mock('../voiceCallCues', () => ({ VoiceCallCuePlayer: class {
   prepare = cues.prepare; play = cues.play; stop = cues.stop;
@@ -152,6 +154,7 @@ describe('integrated voice call typed turns', () => {
     Object.values(cues).forEach(mock => mock.mockClear());
     capture.unlock.mockClear();
     privacy.ensure.mockReset().mockResolvedValue(true);
+    streaming.supported.mockReset().mockReturnValue(true);
     capture.start.mockReset().mockResolvedValue(undefined);
     capture.stop.mockClear();
     capture.mic.mockClear();
@@ -181,6 +184,50 @@ describe('integrated voice call typed turns', () => {
     vi.stubGlobal('WebSocket', Socket);
     return { controller: new VoiceCallController(), sockets };
   }
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.lifecycle.recovery-and-billing,video-call.privacy
+  it('rejects unsupported live speech before microphone, socket, context preparation, or canonical work', async () => {
+    streaming.supported.mockReturnValue(false);
+    const { controller, sockets } = startingController();
+    await controller.start('chat-1');
+    expect(get(controller)).toMatchObject({ status: 'error', chatId: 'chat-1', error: 'call_unavailable', callId: null });
+    expect(capture.start).not.toHaveBeenCalled();
+    expect(capture.unlock).not.toHaveBeenCalled();
+    expect(capture.frames).toHaveLength(0);
+    expect(gates.instances).toHaveLength(0);
+    expect(sockets).toHaveLength(0);
+    expect(privacy.ensure).not.toHaveBeenCalled();
+    expect(persistence.prepare).not.toHaveBeenCalled();
+    expect(persistence.lifecycle).not.toHaveBeenCalled();
+    expect(canonical.send).not.toHaveBeenCalled();
+    expect(cues.prepare).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.provider.boundary,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing
+  it.each([undefined, 'full_file_v0'])('rejects a mismatched server output handshake %s before mic upload or live admission', async (transport) => {
+    const { controller, sockets } = startingController();
+    await controller.start('chat-1');
+    const socket = sockets[0];
+    const gate = gates.instances[0];
+    socket.onopen!();
+    expect(JSON.parse(socket.send.mock.calls[0][0])).toMatchObject({
+      type: 'start', speech_output_transport: 'mp3_stream_v1',
+    });
+    capture.frames[0](btoa('\0\0'.repeat(160)));
+    gate.callbacks.onAudio('connecting-audio-must-stay-local');
+    socket.onmessage!({ data: JSON.stringify({ type: 'ready', call_id: 'old-server-call', speech_output_transport: transport }) });
+    gate.callbacks.onAudio('late-audio-must-not-upload');
+    expect(get(controller)).toMatchObject({ status: 'error', error: 'call_unavailable', callId: null });
+    expect(gate.setLive).not.toHaveBeenCalled();
+    expect(gate.start).not.toHaveBeenCalled();
+    expect(gate.stop).toHaveBeenCalledOnce();
+    expect(capture.stop).toHaveBeenCalled();
+    expect(socket.close).toHaveBeenCalledOnce();
+    expect(socket.send.mock.calls.map(([frame]) => JSON.parse(frame).type)).toEqual(['start']);
+    expect(canonical.send).not.toHaveBeenCalled();
+    expect(persistence.lifecycle).not.toHaveBeenCalled();
+    expect(cues.play).not.toHaveBeenCalled();
+  });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy.first-call-warning,video-call.audio.single-owner
   it('waits for the saved first-call acknowledgement before microphone capture or provider socket', async () => {
@@ -247,8 +294,8 @@ describe('integrated voice call typed turns', () => {
     expect(cues.play).not.toHaveBeenCalled();
     await pending;
     const harness=controller as unknown as Harness;
-    harness.handleMessage({type:'ready',call_id:'call-1'});
-    harness.handleMessage({type:'ready',call_id:'provider-rollover'});
+    harness.handleMessage({type:'ready',speech_output_transport:'mp3_stream_v1',call_id:'call-1'});
+    harness.handleMessage({type:'ready',speech_output_transport:'mp3_stream_v1',call_id:'provider-rollover'});
     expect(cues.play.mock.calls).toEqual([['connected']]);
     // Automatic VAD idle/resume and provider activity must remain silent.
     gates.instances[gates.instances.length - 1]!.callbacks.onState({inputIdle:true,userSpeaking:false});
@@ -269,7 +316,7 @@ describe('integrated voice call typed turns', () => {
     const {controller}=startingController();
     await controller.start('chat-1');
     const harness=controller as unknown as Harness;
-    harness.handleMessage({type:'ready',call_id:'call-1'});
+    harness.handleMessage({type:'ready',speech_output_transport:'mp3_stream_v1',call_id:'call-1'});
     if(terminal==='hangup') controller.hangup();
     else harness.handleMessage({type:terminal});
     harness.handleMessage({type:'ended'});
@@ -317,7 +364,7 @@ describe('integrated voice call typed turns', () => {
     await controller.start('chat-1');
     vi.advanceTimersByTime(2000);
     expect(get(controller).activeElapsedSeconds).toBe(0);
-    sockets[0].onmessage!({data:JSON.stringify({type:'ready',call_id:'call-1'})});
+    sockets[0].onmessage!({data:JSON.stringify({type:'ready',speech_output_transport:'mp3_stream_v1',call_id:'call-1'})});
     vi.advanceTimersByTime(2250);
     expect(get(controller).activeElapsedSeconds).toBe(2);
     const receive = (input_listening:boolean,processing:boolean) => sockets[0].onmessage!({data:JSON.stringify({type:'billing_activity',call_id:'call-1',input_listening,processing})});
@@ -341,8 +388,8 @@ describe('integrated voice call typed turns', () => {
     controller.hangup();
     expect(persistence.lifecycle).not.toHaveBeenCalled();
     await controller.start('chat-1');
-    sockets[1].onmessage!({data:JSON.stringify({type:'ready',call_id:'call-2'})});
-    sockets[1].onmessage!({data:JSON.stringify({type:'ready',call_id:'call-2'})});
+    sockets[1].onmessage!({data:JSON.stringify({type:'ready',speech_output_transport:'mp3_stream_v1',call_id:'call-2'})});
+    sockets[1].onmessage!({data:JSON.stringify({type:'ready',speech_output_transport:'mp3_stream_v1',call_id:'call-2'})});
     controller.hangup();
     controller.hangup();
     expect(persistence.lifecycle.mock.calls.map(([event]) => event)).toEqual([
@@ -364,12 +411,12 @@ describe('integrated voice call typed turns', () => {
     sockets[0].onopen!();
     expect(sockets[0].send).toHaveBeenCalledOnce();
     expect(JSON.parse(sockets[0].send.mock.calls[0][0])).toMatchObject({
-      type: 'start', chat_id: 'chat-1', startup_audio_allowance_ms: 10_000,
+      type: 'start', chat_id: 'chat-1', startup_audio_allowance_ms: 10_000, speech_output_transport: 'mp3_stream_v1',
     });
     sockets[0].send.mockClear();
     // A detector may remain cold indefinitely; readiness still completes now.
     gate.start.mockReturnValue(new Promise(() => {}));
-    sockets[0].onmessage!({ data: JSON.stringify({ type: 'ready', call_id: 'call-1' }) });
+    sockets[0].onmessage!({ data: JSON.stringify({ type: 'ready', speech_output_transport: 'mp3_stream_v1', call_id: 'call-1' }) });
     expect(get(controller)).toMatchObject({ status: 'live', inputIdle: false, muted: false });
     expect(gate.setLive).toHaveBeenCalledExactlyOnceWith(true);
     expect(gate.start).toHaveBeenCalledOnce();
@@ -394,7 +441,7 @@ describe('integrated voice call typed turns', () => {
     controller.setMuted(true);
     expect(capture.mic).toHaveBeenLastCalledWith(false);
     expect(gate.setMuted).toHaveBeenCalledExactlyOnceWith(true);
-    sockets[0].onmessage!({ data: JSON.stringify({ type: 'ready', call_id: 'call-1' }) });
+    sockets[0].onmessage!({ data: JSON.stringify({ type: 'ready', speech_output_transport: 'mp3_stream_v1', call_id: 'call-1' }) });
     gate.callbacks.onAudio('must-not-send');
     expect(sockets[0].send).not.toHaveBeenCalled();
     expect(get(controller).muted).toBe(true);

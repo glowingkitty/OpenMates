@@ -2270,7 +2270,6 @@ class ChatMethods:
         await self._cleanup_assistant_speech(chat_id, assistant_message_id=assistant_message_id)
 
     async def _cleanup_assistant_speech(self, chat_id: str, *, assistant_message_id: str | None = None) -> None:
-        from backend.apps.audio.assistant_speech.persistence import tombstone_speech_assets
         from backend.core.api.app.tasks.celery_config import app
 
         params: Dict[str, Any] = {
@@ -2280,24 +2279,41 @@ class ChatMethods:
         }
         if assistant_message_id:
             params["filter[assistant_message_id][_eq]"] = assistant_message_id
-        manifests = await self.directus_service.get_items("assistant_speech_manifests", params=params, no_cache=True)
-        for manifest in manifests or []:
-            user_id = manifest.get("user_id")
-            message_id = manifest.get("assistant_message_id")
-            if not user_id or not message_id:
-                continue
-            changed = await tombstone_speech_assets(
-                self.directus_service,
-                user_id=str(user_id),
-                chat_id=chat_id,
-                assistant_message_id=str(message_id),
+        identities = set()
+        # Segments remain discoverable even if an interrupted publication has no
+        # manifest. Empty manifests still need cleanup after cancellation.
+        for collection in ("assistant_speech_manifests", "assistant_speech_segments"):
+            rows = await self.directus_service.get_items(collection, params=params, no_cache=True, raise_on_error=True)
+            if not isinstance(rows, list):
+                raise RuntimeError("Assistant speech cleanup inventory unavailable")
+            for row in rows:
+                user_id, message_id = row.get("user_id"), row.get("assistant_message_id")
+                if not user_id or not message_id:
+                    raise RuntimeError("Assistant speech cleanup owner identity unavailable")
+                identities.add((str(user_id), str(message_id)))
+        for user_id, message_id in sorted(identities):
+            # Do not gate dispatch on a status change: broker failure can leave
+            # cancelled rows that the next deletion attempt must dispatch again.
+            rows = await self.directus_service.get_items(
+                "assistant_speech_segments", params={
+                    "filter[user_id][_eq]": user_id, "filter[chat_id][_eq]": chat_id,
+                    "filter[assistant_message_id][_eq]": message_id, "limit": -1,
+                }, no_cache=True, raise_on_error=True,
             )
-            if changed:
-                app.send_task(
-                    "apps.audio.tasks.assistant_speech_delete",
-                    kwargs={"arguments": {"user_id": str(user_id), "chat_id": chat_id, "assistant_message_id": str(message_id)}},
-                    queue="app_music",
-                )
+            if not isinstance(rows, list):
+                raise RuntimeError("Assistant speech cancellation inventory unavailable")
+            for row in rows:
+                if row.get("status") != "cancelled":
+                    row_id = row.get("id") or row.get("segment_id")
+                    if not row_id or not await self.directus_service.update_item(
+                        "assistant_speech_segments", str(row_id), {"status": "cancelled"},
+                    ):
+                        raise RuntimeError("Assistant speech cancellation failed")
+            app.send_task(
+                "apps.audio.tasks.assistant_speech_delete",
+                kwargs={"arguments": {"user_id": user_id, "chat_id": chat_id, "assistant_message_id": message_id}},
+                queue="app_music",
+            )
 
     async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
         """

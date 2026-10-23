@@ -18,27 +18,30 @@ from backend.shared.python_utils.storage_availability import initialize_task_sto
 logger = logging.getLogger(__name__)
 
 
-@app.task(bind=True, name="apps.audio.tasks.assistant_speech_delete", base=BaseServiceTask, queue="app_music")
+@app.task(bind=True, name="apps.audio.tasks.assistant_speech_delete", base=BaseServiceTask, queue="app_music", autoretry_for=(Exception,), retry_backoff=30, retry_jitter=False, max_retries=5, acks_late=True, reject_on_worker_lost=True)
 def assistant_speech_delete_task(self: BaseServiceTask, arguments: dict[str, Any]) -> None:
     """Delete all generated files and metadata for one owner-scoped response."""
     asyncio.run(_async_delete_assistant_speech(self, arguments))
 
 
 async def _async_delete_assistant_speech(task: BaseServiceTask, arguments: dict[str, Any]) -> None:
-    await task.initialize_core_services()
-    s3 = await initialize_task_storage(task)
 
     async def delete_asset(segment: dict[str, object]) -> None:
-        asset_id = segment.get("generated_asset_id") or segment.get("pending_generated_asset_id")
-        if not asset_id:
-            return
-        await cleanup_generated_speech_asset(
-            task._directus_service,
-            str(asset_id),
-            delete_file=lambda file_key: s3.delete_file(bucket_key="chatfiles", file_key=file_key),
-        )
+        asset_ids = {segment.get("generated_asset_id"), segment.get("pending_generated_asset_id")} - {None, ""}
+        for asset_id in asset_ids:
+            await cleanup_generated_speech_asset(
+                task._directus_service,
+                str(asset_id),
+                delete_file=lambda file_key: s3.delete_file(bucket_key="chatfiles", file_key=file_key),
+                fallback_file_key=(
+                    f"{arguments['user_id']}/assistant_speech/{asset_id}/original.mp3"
+                    if asset_id == segment.get("pending_generated_asset_id") else None
+                ),
+            )
 
     try:
+        await task.initialize_core_services()
+        s3 = await initialize_task_storage(task)
         await delete_speech_assets(
             task._directus_service,
             user_id=str(arguments["user_id"]),

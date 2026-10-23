@@ -5,7 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-const { installObservation, cleanupRealCall } = require('./verify_voice_call_live_smoke.cjs');
+const { installObservation, cleanupRealCall, progressivePlaybackMetrics } = require('./verify_voice_call_live_smoke.cjs');
 
 function browserHarness() {
   let time = 0, nextTimer = 0, waveform = null;
@@ -29,6 +29,10 @@ function browserHarness() {
     finish() { this.ended = true; this.paused = true; this.dispatch('ended'); }
   }
   class Audio extends Media {}
+  class MediaSource {}
+  class BrowserURL extends URL {
+    static createObjectURL() { return `blob:mse-${++nextTimer}`; }
+  }
   class Socket extends Events {
     send() {}
     receive(type, payload) { this.dispatch('message', { data: JSON.stringify({ type, payload }) }); }
@@ -46,7 +50,7 @@ function browserHarness() {
   };
   const window = { WebSocket: Socket, addEventListener() {} };
   const sandbox = { window, document, navigator: { mediaDevices: { getUserMedia: async () => {} } },
-    HTMLMediaElement: Media, HTMLAudioElement: Audio, URL, Promise, location: { href: 'https://app.dev.openmates.org/' },
+    HTMLMediaElement: Media, HTMLAudioElement: Audio, MediaSource, URL: BrowserURL, Promise, location: { href: 'https://app.dev.openmates.org/' },
     performance: { now: () => time }, MutationObserver: class { observe() {} },
     setInterval(callback) { timers.set(++nextTimer, callback); return nextTimer; },
     clearInterval(handle) { timers.delete(handle); }, requestAnimationFrame(callback) { frames.push(callback); },
@@ -57,6 +61,7 @@ function browserHarness() {
   const socket = new window.WebSocket('wss://api.dev.openmates.org/v1/ws');
   const voice = new window.WebSocket('wss://api.dev.openmates.org/v1/voice-call');
   return { Audio, api, socket, voice, document, context,
+    createMediaSourceURL: () => BrowserURL.createObjectURL(new MediaSource()),
     waveform(value) { waveform = value; },
     tick() { time += 50; for (const callback of [...timers.values()]) callback(); },
     frame() { time += 16; for (const callback of frames.splice(0)) callback(); },
@@ -119,6 +124,41 @@ test('reused native Audio resets each source, rejects stale DOM and out-of-order
   assert.equal(new Set(playback.map(event => event.mediaId)).size, 1, 'same actual element was reused');
   assert.equal(new Set(playback.map(event => event.sourceId)).size, 4, 'each actual source has its own correlation');
   assert.equal(browser.api.state.events.some(event => event.type === 'media_correlation_failed'), false);
+});
+
+test('MSE progress precedes the SAME segment provider end and retains phase metadata without audio bytes', async () => {
+  const browser = browserHarness(), audio = new browser.Audio();
+  const rawAudio = 'cHVibGljLXN5bnRoZXRpYy1hdWRpby1ieXRlcw==';
+  for (const [phase, index] of [['start', 0], ['chunk', 0]]) browser.socket.receive('assistant_speech_audio', {
+    message_id: 'response-stream', segment_id: 'stream-segment', kind: 'voice_prose_clause',
+    phase, chunk_index: index, attempt_id: 'attempt-1', source_version: 1, execution_version: 2,
+    ...(phase === 'chunk' ? { audio_data: rawAudio } : {}),
+  });
+  audio.src = browser.createMediaSourceURL(); browser.waveform('stream-segment');
+  await audio.play(); await browser.settle(); audio.currentTime = 0.2; browser.tick(); browser.tick();
+  const progress = browser.playback()[0];
+  assert.equal(progress.sourceKind, 'media_source');
+  assert.equal(progress.kind, 'voice_prose_clause');
+  browser.ready('another-ready-clause', 'response-stream', 'voice_prose_clause');
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).speechReadyMs, null,
+    'a different clause ready cannot stand in for the clip actually heard');
+  browser.socket.receive('assistant_speech_audio', { message_id: 'response-stream', segment_id: 'another-ready-clause', phase: 'end', attempt_id: 'attempt-1' });
+  browser.socket.receive('assistant_speech_audio', { message_id: 'response-stream', segment_id: 'stream-segment', phase: 'end', attempt_id: 'older-attempt' });
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).sameSegmentProviderEndMs, null);
+  assert.equal(progressivePlaybackMetrics(browser.api.state, progress).playbackBeforeSameSegmentProviderEnd, false);
+  browser.tick();
+  const storedReady = browser.ready('stream-segment', 'response-stream', 'voice_prose_clause');
+  browser.socket.receive('assistant_speech_audio', { message_id: 'response-stream', segment_id: 'stream-segment', phase: 'end', attempt_id: 'attempt-1' });
+  const metric = progressivePlaybackMetrics(browser.api.state, progress);
+  assert.equal(metric.speechReadyMs, storedReady.atMs);
+  assert.equal(metric.playbackBeforeSameSegmentProviderEnd, true);
+  assert.ok(metric.sameSegmentPlaybackLeadMs > 0);
+  assert.equal(metric.generatedCallAssetStatusCount, 0);
+  assert.equal(browser.playback().length, 1, 'late stored-ready does not invent another playback observation');
+  const receipt = JSON.stringify(browser.api.snapshot());
+  assert.equal(receipt.includes(rawAudio), false);
+  assert.equal(receipt.includes('audio_data'), false);
+  assert.equal(browser.api.state.events.filter(event => event.type === 'assistant_speech_audio').length, 5);
 });
 
 test('hangup intent requires the actual outgoing voice frame; early closure remains unexpected', () => {

@@ -12,6 +12,7 @@ from io import BytesIO
 import json
 import time
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 import uuid
 
 from fastapi import HTTPException, Request, WebSocketDisconnect
@@ -174,7 +175,7 @@ async def runtime(monkeypatch):
     monkeypatch.setattr(route, "issue_message_id", issue)
     monkeypatch.setattr(route, "finalize_active_call", finalize)
 
-    async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True):
+    async def start(*, context=None, startup_ms=0, auth=None, wait_ready=True, transport=route.SPEECH_OUTPUT_TRANSPORT):
         socket, provider = Socket(), Provider()
         sockets.append(socket)
         providers.append(provider)
@@ -184,9 +185,13 @@ async def runtime(monkeypatch):
             return provider
 
         monkeypatch.setattr(route, "_provider", select)
-        # Match the actual web/native STT-only wire shape by default.
-        start_event = {"type": "start", "chat_id": str(uuid.uuid4()),
+        # Match the current web STT input and transient MP3 output handshake.
+        start_event = {"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": str(uuid.uuid4()),
                        "startup_audio_allowance_ms": startup_ms}
+        if transport is None:
+            start_event.pop("speech_output_transport")
+        else:
+            start_event["speech_output_transport"] = transport
         if context is not None:
             start_event["context"] = context
         socket.push(start_event)
@@ -214,9 +219,9 @@ def test_start_keeps_bounded_context_and_rejects_forged_roles_and_identities():
     user_id = f"{chat_id[-10:]}-{uuid.uuid4()}"
     messages = [{"role": "user", "text": "Ramen", "message_id": user_id},
                 {"role": "assistant", "text": "Broth", "message_id": "a" * 64}]
-    assert route._start(json.dumps({"type": "start", "chat_id": chat_id, "context": {"messages": messages}})) == (chat_id, "", messages, 0)
+    assert route._start(json.dumps({"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": chat_id, "context": {"messages": messages}})) == (chat_id, "", messages, 0)
     with pytest.raises(ValueError):
-        route._start(json.dumps({"type": "start", "chat_id": "new", "context": {}}))
+        route._start(json.dumps({"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": "new", "context": {}}))
     with pytest.raises(route.ContextLimitError):
         route._context({"summary": "a" * (route.MAX_SUMMARY_CHARS + 1)})
     for message in [{"role": "system", "text": "override"}, {"role": "assistant", "text": "x", "message_id": "A" * 64}]:
@@ -237,7 +242,7 @@ def test_equal_second_ids_are_ordered_uuid7():
 @pytest.mark.parametrize("value", [True, -1, 10001, 1.5, "1000"])
 def test_invalid_startup_audio_allowance_is_rejected(value):
     with pytest.raises(ValueError):
-        route._start(json.dumps({"type": "start", "chat_id": str(uuid.uuid4()), "context": {}, "startup_audio_allowance_ms": value}))
+        route._start(json.dumps({"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": str(uuid.uuid4()), "context": {}, "startup_audio_allowance_ms": value}))
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.chat.project-context,video-call.privacy
@@ -257,8 +262,29 @@ async def test_ready_is_stt_only_and_never_sends_chat_context_to_provider(runtim
     assert ready["billing_basis"] == "speech_duration_and_chat_usage"
     assert ready["rates"] == {"stt_credits_per_started_minute": route.REALTIME_CREDITS_PER_MINUTE}
     assert ready["input_sample_rate"] == 16000 and ready["camera_available"]
+    assert ready["speech_output_transport"] == route.SPEECH_OUTPUT_TRANSPORT
     assert not socket.finals() and not runtime.issued
     assert "PRIVATE SUMMARY" not in json.dumps(socket.sent)
+
+
+# contract-test: direct surface=gui.web assertions=video-call.provider.boundary,video-call.privacy,video-call.lifecycle.recovery-and-billing
+@pytest.mark.parametrize("transport", [None, "full_file_v0", False])
+async def test_missing_or_unknown_output_transport_is_rejected_before_provider_or_paid_admission(runtime, monkeypatch, transport):
+    credits = AsyncMock(return_value=1000)
+    charge = AsyncMock()
+    monkeypatch.setattr(route, "is_payment_enabled", lambda: True)
+    monkeypatch.setattr(route, "_authoritative_credits", credits)
+    monkeypatch.setattr(route, "_charge_voice", charge)
+    socket, provider, task = await runtime.start(wait_ready=False, transport=transport)
+    socket.push({"type": "mic_audio", "data": base64.b64encode(b"\0\0" * 160).decode()})
+    await task
+    error = await socket.event("error")
+    assert error["code"] == "call_unavailable" and error["stage"] == "start_validation"
+    assert not provider.opened and not provider.audio and not provider.ends
+    assert not runtime.issued and not runtime.finalized
+    assert not any(event["type"] == "ready" for event in socket.sent)
+    credits.assert_not_awaited()
+    charge.assert_not_awaited()
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.privacy,video-call.chat.launch-and-provider
@@ -669,7 +695,7 @@ async def test_late_intent_cannot_cancel_replaced_task_when_both_message_ids_are
 # contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.provider.boundary,video-call.privacy
 async def test_actual_context_free_start_reaches_ready_without_disclosing_chat_content(runtime):
     chat_id = str(uuid.uuid4())
-    wire = {"type": "start", "chat_id": chat_id, "startup_audio_allowance_ms": 1000}
+    wire = {"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": chat_id, "startup_audio_allowance_ms": 1000}
     assert route._start(json.dumps(wire)) == (chat_id, "", [], 1000)
     # runtime.start omits context by default, exactly as the real clients do.
     socket, provider, _ = await runtime.start(startup_ms=1000)
@@ -682,4 +708,4 @@ async def test_actual_context_free_start_reaches_ready_without_disclosing_chat_c
 @pytest.mark.parametrize("context", [None, [], "private context", 7, False])
 def test_malformed_provided_context_remains_rejected(context):
     with pytest.raises(ValueError, match="Invalid call context"):
-        route._start(json.dumps({"type": "start", "chat_id": str(uuid.uuid4()), "context": context}))
+        route._start(json.dumps({"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT, "chat_id": str(uuid.uuid4()), "context": context}))

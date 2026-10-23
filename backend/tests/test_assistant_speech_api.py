@@ -6,6 +6,7 @@
 #
 
 import pytest
+import hashlib
 from pathlib import Path
 
 from backend.core.api.app.routes.handlers.websocket_handlers.assistant_speech_handler import (
@@ -439,7 +440,7 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
             if collection == "messages":
                 return [{"role": "assistant"}]
             if collection == "assistant_speech_segments":
-                if params["filter[kind][_eq]"] == "app_use_announcement":
+                if params["filter[kind][_eq]"] in {"app_use_announcement", "voice_prose_clause"}:
                     return []
                 assert params["filter[source_hash][_eq]"] == segment["source_hash"]
                 return [segment] if params["filter[sequence][_eq]"] == 0 else []
@@ -666,6 +667,8 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
             if collection == "assistant_speech_segments":
                 if params["filter[kind][_eq]"] == "app_use_announcement":
                     return [{"segment_id": "app-use", "sequence": 0}]
+                if params["filter[kind][_eq]"] == "voice_prose_clause":
+                    return []
                 assert params["filter[source_hash][_eq]"] == segment["source_hash"]
                 return [row for row in (segment, repeated_segment) if row["sequence"] == params["filter[sequence][_eq]"]]
             return []
@@ -744,7 +747,8 @@ async def test_event_replay_falls_back_to_content_identity_after_repeated_search
         {"segment_id": "prose", "source_version": 1, "sequence": 3, "kind": "prose_paragraph", "source_hash": _speech_source_identity(prose_text), "status": "ready", "generated_asset_id": "asset-prose"},
     ]
     for row in rows:
-        row.update({"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1"})
+        row.update({"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1",
+                    "manifest_id": hashlib.sha256(b"chat-1:message-1").hexdigest()})
     sent: list[dict[str, object]] = []
     dispatched: list[object] = []
 
@@ -826,6 +830,7 @@ async def test_event_requeues_known_localized_summary_with_canonical_text_and_ha
     row = {
         "id": "row-1",
         "segment_id": "news-summary",
+        "manifest_id": hashlib.sha256(b"chat-1:message-1").hexdigest(),
         "user_id": "owner-1",
         "chat_id": "chat-1",
         "assistant_message_id": "message-1",
@@ -1034,11 +1039,11 @@ async def test_shared_message_deletion_tombstones_and_enqueues_speech_cleanup(mo
     from backend.core.api.app.services.directus.chat_methods import ChatMethods
     from backend.core.api.app.tasks.celery_config import app
 
-    segments = [{"id": "speech-row", "segment_id": "segment-1", "status": "generating"}]
+    segments = [{"id": "speech-row", "segment_id": "segment-1", "status": "generating", "user_id": "owner-1", "assistant_message_id": "message-1"}]
     dispatched: list[tuple[str, dict[str, object], str]] = []
 
     class Directus:
-        async def get_items(self, collection, *, params, no_cache=False):
+        async def get_items(self, collection, *, params, no_cache=False, raise_on_error=False):
             if collection == "assistant_speech_manifests":
                 return [{"user_id": "owner-1", "assistant_message_id": "message-1"}]
             if collection == "assistant_speech_segments":
@@ -1049,6 +1054,7 @@ async def test_shared_message_deletion_tombstones_and_enqueues_speech_cleanup(mo
 
         async def update_item(self, _collection, _row_id, patch):
             segments[0].update(patch)
+            return {"success": True}
 
         async def delete_item(self, **_kwargs):
             return True

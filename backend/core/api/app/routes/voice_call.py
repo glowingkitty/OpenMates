@@ -60,6 +60,7 @@ MAX_TEXT_IDENTITIES = 2048
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 PROCESSING_ACK_FIELD = "voice_processing_ack_v2_at"
 PROCESSING_ACK_VERSION = 2
+SPEECH_OUTPUT_TRANSPORT = "mp3_stream_v1"
 
 def _timestamp() -> int:
     return int(time.time())
@@ -186,6 +187,8 @@ def _start(message: str) -> tuple[str, str, list[dict[str, Any]], int]:
     event = json.loads(message)
     if not isinstance(event, dict) or event.get("type") != "start":
         raise ValueError("Call start required")
+    if event.get("speech_output_transport") != SPEECH_OUTPUT_TRANSPORT:
+        raise ValueError("Unsupported speech output transport")
     startup_audio_allowance_ms = event.get("startup_audio_allowance_ms", 0)
     if (isinstance(startup_audio_allowance_ms, bool)
             or not isinstance(startup_audio_allowance_ms, int)
@@ -618,6 +621,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         stage = "active"
         started = last_auth_check = time.monotonic()
         await send({"type": "ready", "call_id": call_id, "provider": "mistral", "model": provider.model,
+                    "speech_output_transport": SPEECH_OUTPUT_TRANSPORT,
                     "input_sample_rate": 16000, "output_sample_rate": 24000,
                     "billing_basis": "speech_duration_and_chat_usage",
                     "rates": {"stt_credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE},

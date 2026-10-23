@@ -450,7 +450,13 @@ class ConnectionManager:
                 )
                 return True
             except Exception as e: # Catch any exception during send
-                if _is_closed_ws_error(e):
+                if isinstance(message, dict) and message.get("type") == "assistant_speech_audio":
+                    log_send_failure = logger.debug if _is_closed_ws_error(e) else logger.error
+                    log_send_failure(
+                        "WebSocket send failed category=transient_speech_audio exception_type=%s",
+                        type(e).__name__, extra=_ws_error_metadata(e),
+                    )
+                elif _is_closed_ws_error(e):
                     logger.debug(
                         f"Send raced with close for {user_id}/{device_fingerprint_hash} "
                         f"(ws_id: {id(websocket)}): {e}. Disconnecting.",

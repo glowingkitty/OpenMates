@@ -7,6 +7,7 @@ import { checkAuth } from '../stores/authSessionActions';
 import { authStore } from '../stores/authStore';
 import { websocketTokenNeedsRefresh } from './audioRealtimeTranscription';
 import { assistantSpeechController } from './assistantSpeechController';
+import { supportsAssistantSpeechStream } from './assistantSpeechStream';
 import { prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages';
 import { reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
 import { setActiveVoiceCallId } from './voiceCallOwnership';
@@ -82,6 +83,7 @@ const NUMBER_FIELDS: (keyof VoiceCallUsage)[] = [
   'elapsed_seconds', 'credits_accrued', 'credits_charged', 'audio_credits',
   'stt_duration_seconds',
 ];
+const SPEECH_OUTPUT_TRANSPORT = 'mp3_stream_v1';
 
 function microphoneError(error: unknown): string {
   const name = error instanceof Error ? error.name : '';
@@ -246,6 +248,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
     if (this.state.status === 'connecting' || this.state.status === 'live') return;
     this.closeResources();
     this.cues.stop();
+    if (!supportsAssistantSpeechStream()) {
+      this.update({ ...initialVoiceCallState, status: 'error', chatId: existingChatId ?? null, error: 'call_unavailable' });
+      return;
+    }
     this.cues.prepare();
     this.turnWrites.clear();
     this.turnAdmission = Promise.resolve();
@@ -328,7 +334,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
       this.socket = socket;
       socket.onopen = () => {
         if (generation !== this.generation) return;
-        this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000 });
+        this.send({ type: 'start', chat_id: prepared.chatId, startup_audio_allowance_ms: 10_000,
+          speech_output_transport: SPEECH_OUTPUT_TRANSPORT });
       };
       socket.onmessage = (event: MessageEvent<string>) => {
         if (generation !== this.generation) return;
@@ -351,6 +358,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     switch (message.type) {
       case 'ready': {
         if (this.state.status !== 'connecting' || typeof message.call_id !== 'string') return;
+        if (message.speech_output_transport !== SPEECH_OUTPUT_TRANSPORT) { this.fail('call_unavailable'); return; }
         this.startedAt = performance.now();
         this.clockUpdatedAt = this.startedAt;
         this.activeMillis = 0;

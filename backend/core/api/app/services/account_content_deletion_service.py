@@ -1,6 +1,7 @@
 """Delete personal account content without removing Team-owned resources."""
 
 import hashlib
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from backend.core.api.app.services.scoped_directus_pagination import read_complete_scoped_records
@@ -80,3 +81,57 @@ async def delete_account_personal_content(
             if not await directus_service.bulk_delete_items(collection, ids[start:start + 20]):
                 raise RuntimeError(f"Failed to delete account {collection} rows")
     return {collection: len(ids) for collection, ids in identities.items()}
+
+
+async def delete_account_personal_speech(
+    *, directus_service: Any, user_id: str, user_id_hash: str,
+    delete_file: Callable[[str], Awaitable[None]],
+) -> None:
+    """Clean speech after account fencing, before upload or owner rows vanish.
+
+    The caller already holds the account's personal chat deletion fences. Team
+    chats remain outside this scope, even when they retain the creator's hash.
+    """
+    from backend.apps.audio.assistant_speech.persistence import (
+        cleanup_generated_speech_asset, delete_speech_assets,
+    )
+
+    chats = await read_complete_scoped_records(
+        directus_service, "chats", admin_required=True,
+        params={"fields": "id,storage_state", "filter[hashed_user_id][_eq]": user_id_hash,
+                "filter[hashed_team_id][_null]": True},
+    )
+    identities: set[tuple[str, str]] = set()
+    # Cancel all executions before touching any objects. The second cleanup
+    # read captures pending asset identities published before cancellation.
+    for chat in chats:
+        if chat.get("storage_state") != "deleting":
+            raise RuntimeError("Account speech cleanup requires chat deletion fences")
+        for collection in ("assistant_speech_segments", "assistant_speech_manifests"):
+            rows = await read_complete_scoped_records(
+                directus_service, collection, admin_required=True,
+                params={"filter[chat_id][_eq]": chat["id"], "filter[user_id][_eq]": user_id},
+            )
+            for row in rows:
+                message_id = row.get("assistant_message_id")
+                if not message_id:
+                    raise RuntimeError("Account speech cleanup message identity unavailable")
+                identities.add((chat["id"], str(message_id)))
+                if collection == "assistant_speech_segments" and row.get("status") != "cancelled":
+                    if not await directus_service.update_item(collection, row["id"], {"status": "cancelled"}):
+                        raise RuntimeError("Account speech cancellation failed")
+
+    async def delete_asset(segment: dict[str, object]) -> None:
+        asset_ids = {segment.get("generated_asset_id"), segment.get("pending_generated_asset_id")} - {None, ""}
+        for asset_id in asset_ids:
+            await cleanup_generated_speech_asset(
+                directus_service, str(asset_id), delete_file=delete_file,
+                fallback_file_key=(f"{user_id}/assistant_speech/{asset_id}/original.mp3"
+                                   if asset_id == segment.get("pending_generated_asset_id") else None),
+            )
+
+    for chat_id, message_id in sorted(identities):
+        await delete_speech_assets(
+            directus_service, user_id=user_id, chat_id=chat_id,
+            assistant_message_id=message_id, delete_asset=delete_asset,
+        )

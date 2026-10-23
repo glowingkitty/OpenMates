@@ -13,7 +13,9 @@
  *   --output-dir /private/voice-smoke-run
  *
  * Optional: --silence-ms 45000 --min-call-ms 60000 --turn-timeout-ms 300000
- *           --latency-limit-ms N --headed
+ *           --latency-limit-ms N --require-progressive --headed
+ * --require-progressive requires native MSE playback before that same provider
+ * attempt ends and rejects generated audio asset publication for live clauses.
  * No .env/shared account lookup, model selection, mocked endpoints, synthetic
  * server events, text injection, assistant-text assertion, tracing, HAR or PCM
  * persistence. Inputs must themselves contain no model-routing instructions.
@@ -38,7 +40,7 @@ function argumentsForRun() {
   for (let i = 2; i < process.argv.length; i++) {
     const name = process.argv[i].replace(/^--/, '');
     check(process.argv[i].startsWith('--') && !(name in args), 'invalid_arguments');
-    if (name === 'headed') { args.headed = true; continue; }
+    if (name === 'headed' || name === 'require-progressive') { args[name] = true; continue; }
     check(known.has(name) && process.argv[i + 1] && !process.argv[i + 1].startsWith('--'), 'invalid_arguments');
     args[name] = process.argv[++i];
   }
@@ -106,9 +108,15 @@ function installObservation({ inputs }) {
   const word = value => typeof value === 'string' && /^[a-z_]{1,64}$/.test(value) ? value : undefined;
   const add = event => { if (state.events.length < 5000) state.events.push({ atMs: now(), ...event }); };
   const interesting = new Set(['start', 'ready', 'transcript', 'chat_message_added', 'chat_message_confirmed',
-    'assistant_speech_status', 'ai_message_update', 'audio.interrupted', 'stop', 'ended', 'error',
+    'assistant_speech_status', 'assistant_speech_audio', 'ai_message_update', 'audio.interrupted', 'stop', 'ended', 'error',
     'ai_task_failed', 'ai_task_completed', 'cancel_ai_task', 'ai_task_cancel_requested', 'hangup', 'call_message_confirmed']);
-  const segments = new Map();
+  const segments = new Map(), streamSegments = new Map(), mediaSourceUrls = new Set();
+  const createObjectURL = URL.createObjectURL;
+  if (createObjectURL) URL.createObjectURL = function (object) {
+    const url = createObjectURL.call(this, object);
+    if (typeof MediaSource !== 'undefined' && object instanceof MediaSource) mediaSourceUrls.add(url);
+    return url;
+  };
   const NativeSocket = window.WebSocket;
   window.WebSocket = new Proxy(NativeSocket, { construct(Target, args) {
     const socket = Reflect.construct(Target, args);
@@ -140,11 +148,22 @@ function installObservation({ inputs }) {
       });
       if (event.type === 'ai_message_update') frame.final = payload.is_final_chunk === true && !payload.awaiting_async_skill_continuation;
       if (event.type === 'error') Object.assign(frame, { code: word(payload.code) ?? 'unknown', stage: word(payload.stage) });
+      if (event.type === 'assistant_speech_audio') {
+        const item = { ...frame, segmentId: id(payload.segment_id), kind: word(payload.kind),
+          phase: ['start', 'chunk', 'end', 'error'].includes(payload.phase) ? payload.phase : undefined,
+          attemptId: id(payload.attempt_id), chunkIndex: Number.isSafeInteger(payload.chunk_index) ? payload.chunk_index : undefined,
+          sourceVersion: Number.isSafeInteger(payload.source_version) ? payload.source_version : undefined,
+          executionVersion: Number.isSafeInteger(payload.execution_version) ? payload.execution_version : undefined,
+          sequence: Number.isSafeInteger(payload.sequence) ? payload.sequence : undefined };
+        // Never copy, decode or persist audio_data, URLs, transcripts or keys.
+        if (item.segmentId && item.phase === 'start') streamSegments.set(item.segmentId, item);
+        add(item); return;
+      }
       if (event.type === 'assistant_speech_status') {
         const statuses = Array.isArray(payload.segments) ? payload.segments : [payload];
         for (const status of statuses) {
           const item = { ...frame, segmentId: id(status.segment_id), speechStatus: word(status.status ?? payload.status),
-            kind: word(status.kind ?? payload.kind) };
+            kind: word(status.kind ?? payload.kind), generatedAssetPresent: !!status.generated_asset_id };
           if (item.segmentId) segments.set(item.segmentId, { ...segments.get(item.segmentId),
             ...Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined)) });
           add(item);
@@ -184,9 +203,10 @@ function installObservation({ inputs }) {
         // preceding clip's segment to the new source, even if time has advanced.
         if (!generation.binding && generation.domSettled) {
           const raw = document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
-          const activeId = id(raw), segment = segments.get(activeId);
+          const activeId = id(raw), segment = { ...streamSegments.get(activeId), ...segments.get(activeId) };
           if (generation.candidate !== activeId) generation.candidate = activeId;
-          else if (segment?.speechStatus === 'ready' && audio.src.startsWith('blob:')
+          else if ((segment.speechStatus === 'ready' || mediaSourceUrls.has(audio.src) && streamSegments.has(activeId))
+            && audio.src.startsWith('blob:')
             && (!generation.sourceChanged || activeId !== generation.previousSegmentId)) {
             const known = observation.sourceSegments.get(generation.source);
             if (!known || known === activeId) {
@@ -199,13 +219,15 @@ function installObservation({ inputs }) {
         if (binding && generation.firstProgress && !generation.reported) {
           state.playback.push({ ...generation.firstProgress, type: 'first_progress', mediaId: observation.mediaId,
             generation: generation.ordinal, sourceId: id(generation.source), segmentId: binding.segmentId,
-            messageId: binding.messageId, kind: binding.kind });
+            messageId: binding.messageId, kind: binding.kind, attemptId: binding.attemptId,
+            sourceKind: mediaSourceUrls.has(generation.source) ? 'media_source' : 'stored_blob' });
           generation.reported = true;
         }
         if (ended) {
           if (binding) state.playback.push({ atMs: now(), type: 'ended', mediaId: observation.mediaId,
             generation: generation.ordinal, segmentId: binding.segmentId, messageId: binding.messageId,
-            sourceId: id(generation.source), kind: binding.kind, currentTimeSeconds: current, progressed: !!generation.reported });
+            sourceId: id(generation.source), kind: binding.kind, currentTimeSeconds: current, progressed: !!generation.reported,
+            sourceKind: mediaSourceUrls.has(generation.source) ? 'media_source' : 'stored_blob' });
           else add({ type: 'media_correlation_failed', mediaId: observation.mediaId, generation: generation.ordinal });
           generation.ended = true;
           clearInterval(observation.interval); observation.interval = null;
@@ -332,6 +354,27 @@ async function cleanupRealCall(page, snapshot) {
   }, null, { timeout: 10000 });
 }
 
+function progressivePlaybackMetrics(state, firstAudio) {
+  const sameSegment = state.events.filter(event => event.segmentId === firstAudio.segmentId
+    && event.messageId === firstAudio.messageId
+    && (event.type !== 'assistant_speech_audio' || !firstAudio.attemptId || event.attemptId === firstAudio.attemptId));
+  const ready = sameSegment.find(event => event.type === 'assistant_speech_status' && event.speechStatus === 'ready');
+  const chunk = sameSegment.find(event => event.type === 'assistant_speech_audio' && event.phase === 'chunk');
+  const end = sameSegment.find(event => event.type === 'assistant_speech_audio' && event.phase === 'end');
+  return {
+    firstActualPlaybackSegmentId: firstAudio.segmentId,
+    firstActualPlaybackSourceKind: firstAudio.sourceKind,
+    speechReadyMs: ready?.atMs ?? null,
+    sameSegmentFirstAudioChunkMs: chunk?.atMs ?? null,
+    sameSegmentProviderEndMs: end?.atMs ?? null,
+    playbackBeforeSameSegmentProviderEnd: !!end && !!chunk && firstAudio.sourceKind === 'media_source'
+      && chunk.atMs <= firstAudio.atMs && firstAudio.atMs < end.atMs,
+    sameSegmentPlaybackLeadMs: end ? end.atMs - firstAudio.atMs : null,
+    generatedCallAssetStatusCount: state.events.filter(event => event.type === 'assistant_speech_status'
+      && event.messageId === firstAudio.messageId && event.generatedAssetPresent).length,
+  };
+}
+
 async function login(page, origin, credentials) {
   await page.goto(origin, { waitUntil: 'load' });
   const open = page.locator('[data-testid="banner-signup-button"]:visible,[data-testid="header-login-signup-btn"]:visible').first();
@@ -371,7 +414,8 @@ async function main() {
   const result = { schemaVersion: 1, startedUtc: new Date().toISOString(), status: 'running',
     realInference: true, automaticRoutingRequired: true, videoContent: 'actual_app_ui_with_auth_input_masking',
     configuration: { silenceMs: args['silence-ms'], minCallMs: args['min-call-ms'],
-      turnTimeoutMs: args['turn-timeout-ms'], firstAudioLimitMs: args['latency-limit-ms'] }, turns: [] };
+      turnTimeoutMs: args['turn-timeout-ms'], firstAudioLimitMs: args['latency-limit-ms'],
+      requireProgressive: args['require-progressive'] === true }, turns: [] };
   let browser, context, page, stage = 'launch';
   let interrupted = false;
   const onSignal = () => { interrupted = true; };
@@ -386,7 +430,8 @@ async function main() {
       check(permitEnded || !state.unexpectedEnd, 'unexpected_call_end');
       check(!state.revisionConflict, 'revision_conflict_observed');
       check(!state.events.some(event => event.type === 'error' || event.type === 'socket_error' || event.type === 'media_error'
-        || event.type === 'media_correlation_failed' || event.type === 'ai_task_failed'), 'transport_or_media_error');
+        || event.type === 'media_correlation_failed' || event.type === 'ai_task_failed'
+        || event.type === 'assistant_speech_audio' && event.phase === 'error'), 'transport_or_media_error');
       if (predicate(state)) return state;
       await page.waitForTimeout(200);
     }
@@ -472,10 +517,11 @@ async function main() {
       const done = state.events.find(event => event.type === 'ai_message_update' && event.final && event.userMessageId === transcript.messageId);
       const firstAudio = state.playback.find(event => event.type === 'first_progress' && event.messageId === done.messageId && event.kind === 'voice_prose_clause');
       const firstAnySpeech = state.playback.find(event => event.type === 'first_progress' && event.messageId === done.messageId);
-      const speech = state.events.filter(event => event.type === 'assistant_speech_status' && event.messageId === done.messageId && event.kind === 'voice_prose_clause');
+      const speech = state.events.filter(event => event.type === 'assistant_speech_status' && event.messageId === done.messageId
+        && event.segmentId === firstAudio.segmentId && event.kind === 'voice_prose_clause');
       Object.assign(turn, { assistantMessageId: done.messageId, canonicalResponseCompleteMs: done.atMs,
         speechQueuedMs: speech.find(event => event.speechStatus === 'queued')?.atMs ?? null,
-        speechReadyMs: speech.find(event => event.speechStatus === 'ready')?.atMs ?? null,
+        ...progressivePlaybackMetrics(state, firstAudio),
         firstActualPlaybackMs: firstAudio.atMs,
         firstActualPlaybackKind: 'voice_prose_clause',
         firstAnySpeechPlaybackMs: firstAnySpeech?.atMs ?? null,
@@ -485,8 +531,15 @@ async function main() {
         playbackEndedMs: state.playback.filter(event => event.type === 'ended' && event.messageId === done.messageId).at(-1)?.atMs ?? null,
       });
       check(turn.finalTranscriptToFirstAudioMs >= 0 && turn.canonicalSendToFirstAudioMs >= 0, 'playback_turn_correlation_invalid');
-      check(turn.speechQueuedMs !== null && turn.speechReadyMs !== null && turn.playbackEndedMs !== null,
+      const streamed = state.events.some(event => event.type === 'assistant_speech_audio'
+        && event.segmentId === firstAudio.segmentId && event.phase === 'start');
+      check(turn.speechQueuedMs !== null && (streamed ? turn.sameSegmentProviderEndMs !== null : turn.speechReadyMs !== null)
+        && turn.playbackEndedMs !== null,
         'missing_speech_generation_or_playback_end_evidence');
+      if (args['require-progressive']) {
+        check(turn.playbackBeforeSameSegmentProviderEnd, 'actual_playback_did_not_precede_same_segment_provider_end');
+        check(turn.generatedCallAssetStatusCount === 0, 'live_call_published_generated_audio_asset');
+      }
       assertTurns(state, ordinal);
       if (ordinal === 1) {
         await stageTo('same_call_45_seconds_quiet_after_completed_playback');
@@ -504,6 +557,13 @@ async function main() {
     await stageTo('same_call_minimum_duration');
     await wait(state => state.snapshotMs - ready.atMs >= args['min-call-ms'], args['min-call-ms'] + 10000, 'minimum_call_duration_timeout');
     let state = await snapshot(); assertTurns(state, 2);
+    if (args['require-progressive']) {
+      check(!state.events.some(event => event.type === 'assistant_speech_status'
+        && event.kind === 'voice_prose_clause' && event.generatedAssetPresent), 'live_call_published_generated_audio_asset');
+      const playedSegments = state.playback.filter(event => event.type === 'first_progress' && event.kind === 'voice_prose_clause')
+        .map(event => event.segmentId);
+      check(new Set(playedSegments).size === playedSegments.length, 'live_call_clause_played_more_than_once');
+    }
     check(state.microphoneFrames > 0, 'no_real_microphone_upload_frames');
     check(!state.nativeErrors, 'browser_native_error_observed');
     check(state.userRowIds.length === 2 && new Set(state.userRowIds).size === 2
@@ -555,7 +615,7 @@ async function main() {
   if (result.status !== 'passed') process.exitCode = 1;
 }
 
-module.exports = { installObservation, cleanupRealCall };
+module.exports = { installObservation, cleanupRealCall, progressivePlaybackMetrics };
 if (require.main === module) main().catch(error => {
   console.error(/^[a-z][a-z0-9_-]{1,100}$/.test(error.message) ? error.message : 'voice_smoke_setup_failed');
   process.exitCode = 1;

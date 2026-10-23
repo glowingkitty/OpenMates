@@ -472,6 +472,8 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
                     "sequence": 0,
                     "chat_id": "chat-1",
                     "message_id": "message-1",
+                    "source_version": 1,
+                    "execution_version": 1,
                 },
             },
         ),
@@ -595,7 +597,7 @@ async def test_delete_tombstones_records_before_asset_cleanup() -> None:
     events: list[str] = []
 
     class Directus:
-        async def get_items(self, collection: str, *, params: dict[str, object], no_cache: bool):
+        async def get_items(self, collection: str, *, params: dict[str, object], no_cache: bool, raise_on_error: bool = False):
             if collection == "assistant_speech_segments":
                 return records
             return []
@@ -603,6 +605,7 @@ async def test_delete_tombstones_records_before_asset_cleanup() -> None:
         async def update_item(self, _collection: str, _row_id: str, data: dict[str, object]):
             events.append(str(data["status"]))
             records[0].update(data)
+            return {"success": True}
 
         async def delete_item(self, _collection: str, _row_id: str):
             events.append("delete")
@@ -715,7 +718,7 @@ async def test_cancellation_storage_compensation_deletes_upload_before_tombstone
     deleted: list[str] = []
 
     class Directus:
-        async def get_items(self, _collection, *, params, no_cache):
+        async def get_items(self, _collection, *, params, no_cache, raise_on_error=False):
             assert params["filter[embed_id][_eq]"] == "segment-1"
             return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "private/audio"}}}]
 
@@ -821,13 +824,21 @@ async def test_cancellation_after_storage_deletes_the_new_upload_before_worker_e
     deleted: list[str] = []
 
     class Directus:
-        async def get_items(self, collection, *, params, no_cache):
+        async def get_items(self, collection, *, params, no_cache, raise_on_error=False):
             if collection == "assistant_speech_segments":
                 return [record]
             return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "private/audio"}}}]
 
+        async def update_item_if_version(self, _collection, _row_id, patch, expected_version, **kwargs):
+            assert expected_version == int(record.get("execution_version") or 0)
+            if any(record.get(key) != value for key, value in kwargs.get("extra_filters", {}).items()):
+                return None
+            record.update(patch)
+            return dict(record)
+
         async def update_item(self, _collection, _row_id, patch):
             record.update(patch)
+            return {"success": True}
 
         async def delete_item(self, collection, row_id):
             deleted.append(f"{collection}:{row_id}")
@@ -881,7 +892,8 @@ async def test_cancellation_after_storage_deletes_the_new_upload_before_worker_e
     )
 
     assert result == {"segment_id": "segment-1", "status": "cancelled"}
-    assert deleted == ["chatfiles:private/audio", "upload_files:upload-1"]
+    assert deleted[0].startswith("chatfiles:owner-1/assistant_speech/") and deleted[0].endswith("/original.mp3")
+    assert deleted[1:] == ["chatfiles:private/audio", "upload_files:upload-1"]
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.lifecycle.disable-delete-invalidate
@@ -923,7 +935,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     deleted: list[str] = []
 
     class Directus:
-        async def get_items(self, collection, *, params, no_cache):
+        async def get_items(self, collection, *, params, no_cache, raise_on_error=False):
             if collection == "assistant_speech_segments":
                 return [record]
             return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "private/audio"}}}]
@@ -933,7 +945,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
                 assert kwargs["extra_filters"] == {"status": "generating", "lease_id": record["lease_id"]}
                 record["status"] = "cancelled"
                 return None
-            assert expected_version == 0
+            assert expected_version == int(record.get("execution_version") or 0)
             record.update(patch)
             return record
 
@@ -942,6 +954,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
 
         async def update_item(self, _collection, _row_id, patch):
             record.update(patch)
+            return {"success": True}
 
     class Storage:
         async def delete_file(self, *, bucket_key, file_key):
@@ -991,7 +1004,8 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     )
 
     assert result == {"segment_id": "segment-1", "status": "cancelled"}
-    assert deleted == ["chatfiles:private/audio", "upload_files:upload-1"]
+    assert deleted[0].startswith("chatfiles:owner-1/assistant_speech/") and deleted[0].endswith("/original.mp3")
+    assert deleted[1:] == ["chatfiles:private/audio", "upload_files:upload-1"]
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.lifecycle.disable-delete-invalidate,assistant-speech.billing.segment-success-once

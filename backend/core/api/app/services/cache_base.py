@@ -335,11 +335,17 @@ class CacheServiceBase:
             await client.publish(channel, message)
             return True
         except Exception as e:
-            logger.error(f"Cache PUBLISH error for channel '{channel}': {str(e)}")
+            if isinstance(event_data, dict) and event_data.get("type") == "assistant_speech_audio":
+                logger.error("Cache PUBLISH failed category=transient_speech_audio exception_type=%s", type(e).__name__)
+            else:
+                logger.error(f"Cache PUBLISH error for channel '{channel}': {str(e)}")
             return False
 
     async def subscribe_to_channel(self, channel_pattern: str):
         """Subscribe to a Redis channel pattern and yield messages."""
+        # Transport/parse exceptions can contain a raw Redis command or message
+        # before its event type is available. Protect this whole mixed channel.
+        transient_chat_stream = channel_pattern.startswith("chat_stream::")
         while True:
             client = await self.client
             if not client:
@@ -381,11 +387,14 @@ class CacheServiceBase:
                             payload_to_yield = {"channel": channel, "data": parsed_data}
                             yield payload_to_yield
                         except json.JSONDecodeError as e_json:
-                            logger.error(
-                                f"Failed to parse JSON from message on channel '{channel}' "
-                                f"(data_summary={_safe_cache_payload_summary(data)}). Error: {e_json}",
-                                exc_info=True,
-                            )
+                            if transient_chat_stream:
+                                logger.error("Cache subscription failed category=chat_stream_json exception_type=%s", type(e_json).__name__)
+                            else:
+                                logger.error(
+                                    f"Failed to parse JSON from message on channel '{channel}' "
+                                    f"(data_summary={_safe_cache_payload_summary(data)}). Error: {e_json}",
+                                    exc_info=True,
+                                )
                             # Optionally yield an error message
                             yield {"channel": channel, "data": data, "error": "json_decode_error"}
 
@@ -398,11 +407,17 @@ class CacheServiceBase:
                 logger.debug(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
                 raise # Re-raise for the main lifespan handler to catch
             except redis_exceptions.ConnectionError as e:
-                logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
+                if transient_chat_stream:
+                    logger.error("Cache subscription failed category=chat_stream_connection exception_type=%s", type(e).__name__)
+                else:
+                    logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
                 self._client = None
                 self._connection_error = True
             except Exception as e:
-                logger.error(f"Error in Redis PubSub listener for pattern '{channel_pattern}': {e}", exc_info=True)
+                if transient_chat_stream:
+                    logger.error("Cache subscription failed category=chat_stream_listener exception_type=%s", type(e).__name__)
+                else:
+                    logger.error(f"Error in Redis PubSub listener for pattern '{channel_pattern}': {e}", exc_info=True)
             finally:
                 logger.debug(f"Unsubscribing from Redis channel pattern: {channel_pattern}")
                 if pubsub:
@@ -410,7 +425,10 @@ class CacheServiceBase:
                         await pubsub.punsubscribe(channel_pattern)
                         await pubsub.close() # Ensure the pubsub connection is closed
                     except Exception as e_close:
-                        logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")
+                        if transient_chat_stream:
+                            logger.error("Cache subscription failed category=chat_stream_close exception_type=%s", type(e_close).__name__)
+                        else:
+                            logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")
 
             await asyncio.sleep(self._PUBSUB_RECONNECT_DELAY_SECONDS)
 

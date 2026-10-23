@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@8
+specification: feature.assistant-response-speech@9
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -342,3 +342,15 @@ voxtral_cumulative_mistral_price:
     given: Mistral successfully generates paragraphs containing 120 and 280 characters for one assistant message.
     when: The two encrypted files become ready and a billing retry runs.
     then: The first paragraph charges two credits and the second adds four, for six total. Retry and replay add no duplicate charge; the usage is attributed to Mistral and Voxtral TTS 3.
+
+live_call_streaming:
+  - id: hear-call-speech-while-provider-is-generating
+    assertion_ids: [assistant-speech.playback.live-call-streaming, assistant-speech.execution.first-segment-progressive]
+    given: A listener is in an active voice call in a browser supporting streamed MP3. The assistant produces an approved complete prose clause alongside ordinary chat text and image previews.
+    when: Mistral begins returning audio and is still generating the rest of that clause.
+    then: The listener immediately hears the arriving audio in order, only on the owning call. No audio file, generated audio embed, upload or replay cache is created. The encrypted conversation text and normal rich content are saved, and the completed synthesis is billed once.
+  - id: manual-speak-after-an-ephemeral-call
+    assertion_ids: [assistant-speech.playback.live-call-streaming]
+    given: A voice call has ended and its assistant text remains in the chat; none of the call's spoken audio was stored.
+    when: The user later presses Speak on that assistant message, then presses Speak again after listening.
+    then: The first explicit Speak action generates and caches encrypted audio through normal message playback. The next manual replay reuses that cache without another synthesis or charge. An interrupted or failed live stream never silently regenerates, resumes from a nonexistent stored file or marks unheard speech complete.

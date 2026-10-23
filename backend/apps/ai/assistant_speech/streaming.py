@@ -169,9 +169,10 @@ class ImmutableSpeechBoundaryTracker:
         source_version = int(self._metadata["source_version"])
         chat_id = str(self._metadata["chat_id"])
         assistant_message_id = str(self._metadata["assistant_message_id"])
-        segment_id = hashlib.sha256(
-            f"{chat_id}:{assistant_message_id}:{source_version}:{sequence}:{source_hash}".encode("utf-8"),
-        ).hexdigest()
+        identity = f"{chat_id}:{assistant_message_id}:{source_version}:{sequence}:{source_hash}"
+        if self._voice_mode:
+            identity += f":voice-call:{self._metadata.get('voice_call_id') or 'voice'}"
+        segment_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()
         return {
             **self._metadata,
             "segment_id": segment_id,
@@ -199,10 +200,16 @@ class ImmutableSpeechBoundaryTracker:
         task.add_done_callback(lambda completed: _consume_detached_exception(completed, sequence, self._report_status))
 
     async def _finalize_after_dispatch(self) -> None:
-        await asyncio.gather(*tuple(self._pending_tasks), return_exceptions=True)
+        handoffs = await asyncio.gather(*tuple(self._pending_tasks), return_exceptions=True)
         await self._finalize_speech({
             **self._metadata,
+            "handoff_failed": any(isinstance(result, BaseException) for result in handoffs),
             "segment_ids": [segment["segment_id"] for segment in self._dispatched.values()],
+            "segments": [
+                {field: segment[field] for field in ("segment_id", "sequence", "kind", "source_version")}
+                for segment in sorted(self._dispatched.values(), key=lambda item: item["sequence"])
+                if segment["kind"] == "voice_prose_clause"
+            ],
         })
 
     async def wait_for_handoff(self) -> None:

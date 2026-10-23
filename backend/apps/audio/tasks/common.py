@@ -220,7 +220,11 @@ async def store_generated_audio_asset(
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     unique_id = uuid.uuid4().hex[:8]
     extension = extension_for_mime(mime_type)
-    s3_key = f"{user_id}/{timestamp}_{unique_id}_{skill_id}_original.{extension}"
+    s3_key = (
+        f"{user_id}/assistant_speech/{embed_id}/original.{extension}"
+        if app_id == "assistant_response_speech"
+        else f"{user_id}/{timestamp}_{unique_id}_{skill_id}_original.{extension}"
+    )
     await task._s3_service.upload_file(
         bucket_key="chatfiles",
         file_key=s3_key,

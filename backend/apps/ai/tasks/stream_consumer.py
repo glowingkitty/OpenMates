@@ -319,6 +319,7 @@ async def _dispatch_automatic_assistant_speech_segment(
         source_version=int(segment["source_version"]),
         voice_profile=voice_profile,
         segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if lazy_dispatch and int(segment["sequence"]) > 0 else "queued"}],
+        voice_call_id=str(segment["voice_call_id"]) if segment.get("voice_call_id") else None,
     )
     if not auto_speak:
         return
@@ -351,6 +352,7 @@ async def _dispatch_automatic_assistant_speech_segment(
                 "status": "queued" if should_dispatch else "registered",
                 "sequence": int(segment["sequence"]),
                 "kind": str(segment["kind"]),
+                "source_version": int(segment["source_version"]),
                 **({"language": str(segment.get("language") or "")} if segment.get("voice_mode") else {}),
                 **({"voice_call_id": str(segment["voice_call_id"])} if segment.get("voice_call_id") else {}),
             },
@@ -373,7 +375,9 @@ async def _invalidate_automatic_assistant_speech_segment(
 
 
 async def _seal_automatic_assistant_speech_manifest(
-    *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object]
+    *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object],
+    cache_service: Optional[CacheService] = None, redis_channel_name: str = "",
+    user_id_hash: str = "", log_prefix: str = "",
 ) -> None:
     """Seal final membership after detached segment persistence has completed."""
     if directus_service is None:
@@ -386,8 +390,31 @@ async def _seal_automatic_assistant_speech_manifest(
         source_version=int(metadata["source_version"]),
         voice_key=str(voice_profile["key"]),
         voice_version=int(voice_profile["version"]),
+        voice_call_id=str(metadata["voice_call_id"]) if metadata.get("voice_call_id") else None,
     )
-    if await seal_speech_manifest(directus_service, manifest_id):
+    try:
+        sealed = await seal_speech_manifest(directus_service, manifest_id)
+    except Exception as exc:
+        logger.warning("Assistant speech final membership unavailable category=%s", type(exc).__name__)
+        sealed = False
+    handoff_failed = metadata.get("handoff_failed") is True
+    if metadata.get("voice_call_id"):
+        from backend.shared.python_utils.assistant_speech_audio import LIVE_HANDOFF_ERROR, validate_assistant_speech_sealed_segments
+
+        payload = {
+            "status": "sealed", "voice_call_id": str(metadata["voice_call_id"]),
+            "source_version": int(metadata["source_version"]),
+            "segments": metadata.get("segments", []),
+            **({"error": LIVE_HANDOFF_ERROR} if handoff_failed or not sealed else {}),
+        }
+        validate_assistant_speech_sealed_segments(payload)
+        await _publish_to_redis(
+            cache_service, redis_channel_name,
+            {"type": "assistant_speech_status", "chat_id": str(metadata["chat_id"]),
+             "message_id": str(metadata["assistant_message_id"]), "user_id_hash": user_id_hash,
+             "payload": payload}, log_prefix, "assistant speech sealed membership",
+        )
+    if sealed:
         celery_config.app.send_task(
             "apps.audio.tasks.assistant_speech_billing",
             kwargs={"arguments": {"manifest_id": manifest_id}},
@@ -6474,6 +6501,8 @@ async def _consume_main_processing_stream(
                     metadata=metadata,
                     directus_service=directus_service,
                     voice_profile=voice_profile,
+                    cache_service=cache_service, redis_channel_name=redis_channel_name,
+                    user_id_hash=request_data.user_id_hash, log_prefix=log_prefix,
                 ),
                 sequence_offset=1 if app_use_announcement else 0,
             )

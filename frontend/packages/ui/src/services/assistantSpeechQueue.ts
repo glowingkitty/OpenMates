@@ -1,4 +1,5 @@
 import type { VoiceHeardBoundary } from '../types/chat';
+import type { AssistantSpeechStreamSource } from './assistantSpeechStream';
 // assistantSpeechQueue.ts
 // Owns browser playback for one assistant response at a time.
 // Accepts only ready/generating segment metadata from its caller.
@@ -56,6 +57,7 @@ export interface AssistantSpeechWaveformRegion {
 
 interface SpeechAudio {
   addEventListener(event: "ended" | "error" | "waiting" | "playing" | "timeupdate", listener: () => void): void;
+  removeEventListener?(event: string, listener: () => void): void;
   pause(): void;
   play(): Promise<void>;
   src?: string;
@@ -111,9 +113,18 @@ export class AssistantSpeechQueue {
   private autoplayPending = true;
   private playGeneration = 0;
   private complete = false;
+  private liveResponseFailed = false;
   private pendingCue: SpeechAudio | null = null;
   private explicitSelectionPending = false;
   private readonly requestedSegmentIds = new Set<string>();
+  private readonly streams = new Map<string, {
+    source: AssistantSpeechStreamSource;
+    failed: boolean;
+    ended: boolean;
+    offset: number;
+  }>();
+  private audioSourceGeneration = 0;
+  private detachAudioEvents: (() => void) | null = null;
   private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
   private readonly onNeedSegment?: (segment: AssistantSpeechSegment) => void;
 
@@ -133,13 +144,14 @@ export class AssistantSpeechQueue {
   get playbackBoundary(): VoiceHeardBoundary | null {
     const responseId = this.state.responseId;
     if (!responseId || responseId.length > 128) return null;
-    const active = this.currentAudio && this.activeSegment?.kind === 'voice_prose_clause'
+    const retainedOffset = this.state.activeSegmentId ? this.streams.get(this.state.activeSegmentId)?.offset ?? 0 : 0;
+    const active = (this.currentAudio || retainedOffset > 0) && this.activeSegment?.kind === 'voice_prose_clause'
       && this.activeSegment.playbackClass === 'replayable' ? this.activeSegment : null;
     const activeSequence = active && Number.isSafeInteger(active.sequence) && active.sequence >= 0 && active.sequence <= 65_535
       ? active.sequence : null;
     const completed = [...this.heardVoiceSequences].sort((a, b) => a - b);
     if (!completed.length && activeSequence === null) return null;
-    const seconds = activeSequence !== null ? this.currentAudio?.currentTime ?? 0 : 0;
+    const seconds = activeSequence !== null ? this.currentAudio?.currentTime ?? retainedOffset : 0;
     return { assistant_message_id: responseId, completed_sequences: completed,
       active_sequence: activeSequence,
       active_offset_ms: Number.isFinite(seconds) ? Math.min(3_600_000, Math.max(0, Math.floor(seconds * 1000))) : 0 };
@@ -198,8 +210,10 @@ export class AssistantSpeechQueue {
       AssistantSpeechQueue.activeQueue.stop();
     }
     this.stopCurrentAudio();
+    this.disposeStreams();
     this.autoplayPending = true;
     this.complete = false;
+    this.liveResponseFailed = false;
     this.segments.clear();
     this.completedSegmentIds.clear();
     this.heardVoiceSequences.clear();
@@ -215,16 +229,32 @@ export class AssistantSpeechQueue {
   }
 
   upsertSegment(segment: AssistantSpeechSegment): void {
-    if (!this.state.responseId || this.state.status === "stopped") {
+    if (!this.state.responseId || this.state.status === "stopped" || this.liveResponseFailed) {
       return;
     }
     const previous = this.segments.get(segment.id);
+    const stream = this.streams.get(segment.id);
+    if (stream) {
+      if (segment.status === "failed" && !stream.failed && !stream.ended) {
+        stream.source.fail();
+        return;
+      }
+      if (stream.failed) {
+        segment = { ...segment, status: "failed", audioUrl: undefined };
+      } else {
+        segment = { ...segment, status: "ready", audioUrl: stream.ended ? undefined : stream.source.url };
+      }
+    }
     // Late queued acknowledgements must not erase already resolved ready audio.
-    if (previous?.status === "ready" && segment.status === "generating") return;
+    if (previous?.status === "ready" && segment.status === "generating" && !stream) return;
     if (previous?.status === "ready" && segment.status === "ready" && !segment.audioUrl) {
       segment = { ...segment, audioUrl: previous.audioUrl, waveform: previous.waveform };
     }
     this.segments.set(segment.id, segment);
+    if (stream?.ended && this.completedSegmentIds.has(segment.id)) {
+      this.onStateChange?.({ ...this.state });
+      return;
+    }
     // Delayed confirmations are optional: useful speech wins as soon as ready,
     // and a failed confirmation must never fail the canonical response track.
     const realReady = segment.sequence >= 0 && segment.playbackClass === "replayable" && segment.status === "ready";
@@ -232,7 +262,11 @@ export class AssistantSpeechQueue {
     const waitingFailed = segment.sequence === -1 && segment.kind === "waiting_confirmation" && segment.status === "failed";
     const skipped = this.orderedSegments.filter((item) => item.sequence === -1 && item.kind === "waiting_confirmation"
       && (realReady || waitingFailed || lateWaiting));
-    for (const item of skipped) this.completedSegmentIds.add(item.id);
+    for (const item of skipped) {
+      this.completedSegmentIds.add(item.id);
+      const skippedStream = this.streams.get(item.id);
+      if (skippedStream) { skippedStream.ended = true; skippedStream.source.dispose(); }
+    }
     if (skipped.some((item) => item.id === this.state.activeSegmentId || item.id === this.pendingSegmentId)) {
       this.stopCurrentAudio();
       this.pendingSegmentId = null;
@@ -290,6 +324,65 @@ export class AssistantSpeechQueue {
     await this.resume();
   }
 
+  /** Attach only after status has established the segment's canonical ordering. */
+  attachStream(segmentId: string, source: AssistantSpeechStreamSource): boolean {
+    const segment = this.segments.get(segmentId);
+    if (!segment || !["voice_prose_clause", "waiting_confirmation"].includes(segment.kind ?? "") || this.state.status === "stopped" || this.liveResponseFailed
+      || this.completedSegmentIds.has(segmentId) || this.streams.has(segmentId)
+      || (segment.status === "ready" && segment.audioUrl)) return false;
+    this.streams.set(segmentId, { source, failed: false, ended: false, offset: 0 });
+    this.upsertSegment({ ...segment, status: "ready", audioUrl: source.url });
+    return true;
+  }
+
+  failStream(segmentId: string, source: AssistantSpeechStreamSource): void {
+    const stream = this.streams.get(segmentId);
+    const segment = this.segments.get(segmentId);
+    if (!stream || stream.source !== source || stream.failed || stream.ended || !segment) return;
+    stream.failed = true;
+    const active = this.state.activeSegmentId === segmentId;
+    if (active) {
+      const seconds = this.currentAudio?.currentTime ?? stream.offset;
+      stream.offset = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+      this.stopCurrentAudio();
+    }
+    source.dispose();
+    this.upsertSegment({ ...segment, status: "failed", audioUrl: undefined });
+  }
+
+  disposeStreams(): void {
+    for (const stream of this.streams.values()) stream.source.dispose();
+    this.streams.clear();
+  }
+
+  invalidateSegment(segmentId: string): void {
+    const stream = this.streams.get(segmentId);
+    if (this.state.activeSegmentId === segmentId) this.stopCurrentAudio();
+    stream?.source.dispose();
+    this.streams.delete(segmentId);
+    const segment = this.segments.get(segmentId);
+    if (segment) this.segments.set(segmentId, { ...segment, status: "failed", audioUrl: undefined });
+    if (this.state.activeSegmentId === segmentId) {
+      this.setState({ ...this.state, status: "failed" });
+    }
+  }
+
+  retireSegmentVersion(segmentId: string): void {
+    const stream = this.streams.get(segmentId);
+    const segment = this.segments.get(segmentId);
+    if (this.state.activeSegmentId === segmentId) {
+      this.stopCurrentAudio();
+      this.setState({ ...this.state, status: this.autoplayPending ? "waiting_for_segment" : "paused" });
+    }
+    stream?.source.dispose();
+    this.streams.delete(segmentId);
+    this.completedSegmentIds.delete(segmentId);
+    if (segment) {
+      this.heardVoiceSequences.delete(segment.sequence);
+      this.segments.set(segmentId, { ...segment, status: "generating", audioUrl: undefined });
+    }
+  }
+
   /** Preserve iOS Safari's user-activation grant while generated audio is pending. */
   primeForAutoplay(): void {
     if (this.playbackAudio) return;
@@ -314,12 +407,20 @@ export class AssistantSpeechQueue {
   }
 
   async resume(): Promise<void> {
-    if (!this.state.responseId || this.state.status === "stopped") {
+    if (!this.state.responseId || this.state.status === "stopped" || this.liveResponseFailed) {
       return;
     }
     this.autoplayPending = true;
+    if (this.streams.size && this.orderedSegments.every((segment) => this.completedSegmentIds.has(segment.id))) {
+      // Live call sources are consumed once and disposed. Replaying saved text
+      // is a separate manual Speak request, never an implicit regeneration.
+      this.setState({ ...this.state, status: "completed" });
+      return;
+    }
     if (this.state.status === "completed") {
-      this.completedSegmentIds.clear();
+      for (const segmentId of this.completedSegmentIds) {
+        if (!this.streams.has(segmentId)) this.completedSegmentIds.delete(segmentId);
+      }
       this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
     }
     if (this.state.activeSegmentId && this.completedSegmentIds.has(this.state.activeSegmentId)) {
@@ -333,10 +434,61 @@ export class AssistantSpeechQueue {
   }
 
   markComplete(): void {
+    if (this.liveResponseFailed) return;
     this.complete = true;
-    if (this.state.status === "waiting_for_more" && this.orderedSegments.every((segment) => this.completedSegmentIds.has(segment.id))) {
+    if (this.state.status !== "stopped" && !this.currentAudio && this.orderedSegments.every((segment) => this.completedSegmentIds.has(segment.id))) {
       this.setState({ ...this.state, status: "completed" });
     }
+  }
+
+  /** Final server membership is authoritative even when queued events are late. */
+  sealLiveSegments(members: AssistantSpeechSegment[], failed = false): void {
+    if (failed) {
+      this.failLiveResponse();
+      for (const segment of members) {
+        if (!this.completedSegmentIds.has(segment.id)) this.segments.set(segment.id, {
+          ...this.segments.get(segment.id), ...segment, status: "failed", audioUrl: undefined,
+        });
+      }
+      this.setState({ ...this.state, status: "failed" });
+      return;
+    }
+    if (this.liveResponseFailed) return;
+    const ids = new Set(members.map((segment) => segment.id));
+    for (const segment of this.orderedSegments) {
+      if (segment.kind !== "voice_prose_clause" || ids.has(segment.id)) continue;
+      if (this.state.activeSegmentId === segment.id) {
+        this.stopCurrentAudio();
+        this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
+      }
+      this.streams.get(segment.id)?.source.dispose();
+      this.streams.delete(segment.id);
+      this.segments.delete(segment.id);
+      this.completedSegmentIds.delete(segment.id);
+      this.heardVoiceSequences.delete(segment.sequence);
+      this.requestedSegmentIds.delete(segment.id);
+    }
+    for (const segment of members) this.upsertSegment(segment);
+    this.markComplete();
+  }
+
+  private failLiveResponse(): void {
+    this.liveResponseFailed = true;
+    this.autoplayPending = false;
+    const activeId = this.state.activeSegmentId;
+    const activeStream = activeId ? this.streams.get(activeId) : undefined;
+    if (activeStream && this.currentAudio) {
+      const seconds = this.currentAudio.currentTime ?? 0;
+      activeStream.offset = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+    }
+    this.stopCurrentAudio();
+    for (const [id, stream] of this.streams) {
+      if (!stream.ended) stream.failed = true;
+      stream.source.dispose();
+      const segment = this.segments.get(id);
+      if (segment && !this.completedSegmentIds.has(id)) this.segments.set(id, { ...segment, status: "failed", audioUrl: undefined });
+    }
+    this.setState({ ...this.state, status: "failed" });
   }
 
   fail(): void {
@@ -348,6 +500,7 @@ export class AssistantSpeechQueue {
   stop(): void {
     this.autoplayPending = false;
     this.stopCurrentAudio();
+    this.disposeStreams();
     this.stopPendingCue();
     this.explicitSelectionPending = false;
     this.setState({ ...this.state, status: "stopped" });
@@ -365,8 +518,15 @@ export class AssistantSpeechQueue {
   }
 
   async selectSegment(segmentId: string): Promise<void> {
+    if (this.liveResponseFailed) return;
     const segment = this.segments.get(segmentId);
     if (!segment) {
+      return;
+    }
+    if (this.streams.get(segmentId)?.ended) {
+      if (this.orderedSegments.every((item) => this.completedSegmentIds.has(item.id))) {
+        this.setState({ ...this.state, status: "completed" });
+      }
       return;
     }
     this.stopCurrentAudio();
@@ -421,6 +581,9 @@ export class AssistantSpeechQueue {
     ) {
       return;
     }
+    if (firstSegment.kind === "voice_prose_clause" && firstSegment.sequence > 0
+      && !this.orderedSegments.some((segment) => segment.kind === "voice_prose_clause"
+        && segment.sequence === firstSegment.sequence - 1 && this.completedSegmentIds.has(segment.id))) return;
     this.setState({ ...this.state, activeSegmentId: firstSegment.id });
     if (firstSegment.status === "failed") {
       this.setState({ ...this.state, status: "failed" });
@@ -452,7 +615,7 @@ export class AssistantSpeechQueue {
     if (!segment || segment.status !== "ready" || !segment.audioUrl) {
       this.setState({ ...this.state, status: "waiting_for_segment" });
       if (segment && this.autoplayPending) {
-        this.needSegment(segment);
+        if (!this.streams.get(segment.id)?.failed) this.needSegment(segment);
         this.startPendingCue();
       }
       return;
@@ -479,6 +642,8 @@ export class AssistantSpeechQueue {
         return;
       }
       console.error("[AssistantSpeechQueue] Audio playback failed:", error);
+      const stream = this.streams.get(segment.id);
+      if (stream && !stream.failed && !stream.ended) { stream.source.fail(); return; }
       this.setState({ ...this.state, status: "failed" });
     }
   }
@@ -489,44 +654,57 @@ export class AssistantSpeechQueue {
       audio = this.audioFactory(segment.audioUrl!);
       this.playbackAudio = audio;
       this.playbackAudioUrl = segment.audioUrl!;
-      this.bindPlaybackAudioEvents(audio);
     } else if (this.playbackAudioUrl !== segment.audioUrl) {
       audio.src = segment.audioUrl!;
-      audio.load?.();
       this.playbackAudioUrl = segment.audioUrl!;
+      audio.load?.();
     }
     audio.playbackRate = ASSISTANT_SPEECH_PLAYBACK_RATE;
     audio.preservesPitch = true;
     audio.webkitPreservesPitch = true;
+    this.bindPlaybackAudioEvents(audio);
     return audio;
   }
 
   private bindPlaybackAudioEvents(audio: SpeechAudio): void {
-    audio.addEventListener("ended", () => {
+    this.detachAudioEvents?.();
+    const sourceGeneration = ++this.audioSourceGeneration;
+    const listeners: { event: string; listener: () => void }[] = [];
+    const listen = (event: Parameters<SpeechAudio["addEventListener"]>[0], callback: () => void) => {
+      const listener = () => { if (sourceGeneration === this.audioSourceGeneration) callback(); };
+      audio.addEventListener(event, listener);
+      listeners.push({ event, listener });
+    };
+    this.detachAudioEvents = () => {
+      for (const { event, listener } of listeners) audio.removeEventListener?.(event, listener);
+    };
+    listen("ended", () => {
       const segmentId = this.state.activeSegmentId;
       if (segmentId) this.handleSegmentEnded(segmentId, audio);
     });
-    audio.addEventListener("error", () => {
+    listen("error", () => {
       const segmentId = this.state.activeSegmentId;
       if (!segmentId || !this.isCurrentAudio(segmentId, audio)) return;
+      const stream = this.streams.get(segmentId);
+      if (stream && !stream.failed && !stream.ended) { stream.source.fail(); return; }
       console.error("[AssistantSpeechQueue] Audio element reported a playback error");
       this.stopCurrentAudio();
       this.setState({ ...this.state, status: "failed" });
     });
-    audio.addEventListener("waiting", () => {
+    listen("waiting", () => {
       const segmentId = this.state.activeSegmentId;
       if (segmentId && this.isCurrentAudio(segmentId, audio) && this.autoplayPending) {
         this.setState({ ...this.state, status: "waiting_for_segment" });
       }
     });
-    audio.addEventListener("playing", () => {
+    listen("playing", () => {
       const segment = this.activeSegment;
       if (segment && this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
         this.setState({ ...this.state, status: "playing" });
         this.maybePrefetchNext(segment, audio);
       }
     });
-    audio.addEventListener("timeupdate", () => {
+    listen("timeupdate", () => {
       const segment = this.activeSegment;
       if (segment) this.maybePrefetchNext(segment, audio);
     });
@@ -535,6 +713,15 @@ export class AssistantSpeechQueue {
   private handleSegmentEnded(segmentId: string, audio: SpeechAudio): void {
     if (this.state.activeSegmentId !== segmentId || this.currentAudio !== audio) {
       return;
+    }
+    const stream = this.streams.get(segmentId);
+    if (stream && !stream.failed && !stream.ended) {
+      if (!stream.source.complete) { stream.source.fail(); return; }
+      stream.ended = true;
+      stream.source.dispose();
+      const segment = this.segments.get(segmentId);
+      if (segment) this.segments.set(segmentId, { ...segment,
+        audioUrl: undefined, status: "ready" });
     }
     this.completedSegmentIds.add(segmentId);
     const ended = this.segments.get(segmentId);
@@ -551,6 +738,12 @@ export class AssistantSpeechQueue {
     const activeIndex = segments.findIndex((segment) => segment.id === segmentId);
     const nextSegment = segments[activeIndex + 1];
     this.currentAudio = null;
+    if (ended?.kind === "voice_prose_clause" && nextSegment?.kind === "voice_prose_clause"
+      && nextSegment.sequence !== ended.sequence + 1) {
+      this.pendingSegmentId = null;
+      this.setState({ ...this.state, status: "waiting_for_more" });
+      return;
+    }
     if (!nextSegment && this.complete) {
       this.setState({ ...this.state, status: "completed" });
       return;
@@ -582,6 +775,16 @@ export class AssistantSpeechQueue {
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
+    }
+    if (this.playbackAudio && [...this.streams.values()].some((stream) => stream.source.url === this.playbackAudioUrl)) {
+      // Detach MediaSource as well as revoking its URL so stopped calls release
+      // the browser's coded-frame buffer while retaining the shared element.
+      this.audioSourceGeneration += 1;
+      this.detachAudioEvents?.();
+      this.detachAudioEvents = null;
+      this.playbackAudio.src = "";
+      this.playbackAudioUrl = null;
+      this.playbackAudio.load?.();
     }
   }
 
