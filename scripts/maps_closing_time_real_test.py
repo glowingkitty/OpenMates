@@ -167,6 +167,7 @@ def test_maps_closing_time_live() -> None:
     try:
         project = cli(["projects", "create", f"Maps cutoff proof {uuid.uuid4().hex[:8]}",
                        "--write-policy", "always_ask", "--personal"], args.output, "project")
+        project = project.get("project", project)
         project_id = project.get("projectId") or project.get("project_id") or project.get("id")
         assert isinstance(project_id, str) and UUID.fullmatch(project_id), "Disposable Project ID missing"
         slug = "maps-cutoff-" + uuid.uuid4().hex[:10]
