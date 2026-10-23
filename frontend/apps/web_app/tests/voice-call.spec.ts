@@ -112,6 +112,8 @@ interface HeldSpeechEvidence {
   audio:HTMLAudioElement|null; segmentId:string|null; source:string|null; offset:number;
   firstProgressAt:number|null; playCallsAtHold:number; playCalls:number;
   sourceMse:boolean; beforeProviderEnd:boolean; sequence:number|null;
+  nativeErrors:Array<{code:number;observedAt:number}>;
+  handoffProgress?:{messageId:string;segmentId:string;audioId:number;observedAt:number;currentTime:number};
 }
 interface CallEvidence {
   turnDelivery?: TurnDeliveryObservation[];
@@ -127,6 +129,9 @@ interface CallEvidence {
   tracks: MediaStreamTrack[];
   decryptChatContent?: (value: string, rawKey: ArrayBuffer) => Promise<string>;
   boundCaptureTracks?:MediaStreamTrack[];
+  holdSpeechResponse?: {chatId:string;previousMessageId:string};
+  heldSpeechAudio?: {count:number;messageId:string;phases:string[];releasedAt?:number};
+  releaseSpeechAudio?: () => void;
   readyHeld?: boolean;
   releaseReady?: () => void;
   bootstrapHeld?: boolean;
@@ -191,7 +196,7 @@ test.afterEach(async ({page},testInfo)=>{
       errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
       speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({kind:frame.kind,status:frame.speechStatus,language:frame.language}))??[],
       historyDurability:state?.historyDurability,draftAtBootstrap:state?.draftAtBootstrap,
-      draftDeletionEvents:state?.draftDeletionEvents,callUIstatus,
+      draftDeletionEvents:state?.draftDeletionEvents,heldSpeechAudio:state?.heldSpeechAudio,callUIstatus,
       turnDelivery:state?.turnDelivery?.slice(-48)??[],
       finalTranscriptTurns:state?.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final).slice(-24).map(ids)??[],
       textInputTurns:state?.sent.filter(frame=>frame.type==='text_input').slice(-24).map(ids)??[],
@@ -389,8 +394,31 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
         }
         observe(outgoing,true);originalSend(outgoing);
       };
+      const heldSpeechEvents:MessageEvent[]=[];
       socket.addEventListener('message',event=>{
         if(typeof event.data!=='string')return;
+        if(path==='/v1/ws'&&evidence.holdSpeechResponse){
+          let frame;try{frame=JSON.parse(event.data);}catch{frame=null;}
+          const payload=frame?.payload;
+          const gate=evidence.holdSpeechResponse;
+          if(frame?.type==='assistant_speech_audio'&&payload?.chat_id===gate.chatId&&
+            typeof payload.message_id==='string'&&payload.message_id!==gate.previousMessageId){
+            // Retain only genuine provider frames in this browser closure.
+            // Status/canonical frames pass through. Release replays identical
+            // native message events FIFO, without exposing bytes to evidence.
+            event.stopImmediatePropagation();heldSpeechEvents.push(event);
+            const held:NonNullable<CallEvidence['heldSpeechAudio']>=evidence.heldSpeechAudio??{count:0,messageId:payload.message_id,phases:[]};
+            held.count++;
+            if(['start','chunk','end','error'].includes(payload.phase)&&!held.phases.includes(payload.phase))held.phases.push(payload.phase);
+            evidence.heldSpeechAudio=held;
+            evidence.releaseSpeechAudio=()=>{
+              delete evidence.holdSpeechResponse;
+              if(held.releasedAt===undefined)held.releasedAt=performance.now();
+              for(const original of heldSpeechEvents.splice(0))socket.dispatchEvent(new MessageEvent('message',{data:original.data}));
+            };
+            return;
+          }
+        }
         try{if(path==='/v1/voice-call'&&JSON.parse(event.data).type==='ready'&&holdReady){
           event.stopImmediatePropagation();evidence.readyHeld=true;evidence.releaseReady=()=>{holdReady=false;evidence.readyHeld=false;socket.dispatchEvent(new MessageEvent('message',{data:event.data}));};return;
         }}catch{return;}
@@ -1982,7 +2010,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.addInitScript(()=>{
       const audio=new Set<HTMLMediaElement>();
       const held:HeldSpeechEvidence={audio:null,segmentId:null,source:null,offset:0,firstProgressAt:null,
-        playCallsAtHold:0,playCalls:0,sourceMse:false,beforeProviderEnd:false,sequence:null};
+        playCallsAtHold:0,playCalls:0,sourceMse:false,beforeProviderEnd:false,sequence:null,nativeErrors:[]};
       const mseUrls=new Set<string>();
       const createObjectURL=URL.createObjectURL.bind(URL);
       URL.createObjectURL=object=>{
@@ -1999,7 +2027,22 @@ test.describe('Voice mode through ordinary chat', () => {
         if(held.audio===this)held.playCalls++;
         if(!audio.has(this)) {
           audio.add(this);
+          this.addEventListener('error',()=>{
+            held.nativeErrors.push({code:this.error?.code??0,observedAt:performance.now()});
+          });
+          let lastSource=this.src;let lastTime=0;
           this.addEventListener('timeupdate',()=>{
+            if(lastSource!==this.src){lastSource=this.src;lastTime=0;}
+            const advancing=this.currentTime>lastTime+0.001;lastTime=this.currentTime;
+            if(held.audio===this&&this.src!==held.source&&mseUrls.has(this.src)&&!this.paused&&!this.ended&&advancing){
+              const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
+              const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
+              const next=evidence?.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='chunk'
+                &&frame.kind==='voice_prose_clause'&&frame.segmentId===active&&frame.messageId===evidence.heldSpeechAudio?.messageId);
+              if(next?.messageId&&active&&!held.handoffProgress)held.handoffProgress={messageId:next.messageId,segmentId:active,
+                audioId:(window as unknown as {__nativeVoiceInput:NativeVoiceInputEvidence}).__nativeVoiceInput.speechAudioId(this),
+                observedAt:performance.now(),currentTime:this.currentTime};
+            }
             if(held.audio||!(this instanceof HTMLAudioElement)||!mseUrls.has(this.src)||this.paused||this.ended||this.currentTime<=0)return;
             const active=document.querySelector('[data-testid="assistant-speech-waveform"]')?.getAttribute('data-segment-id');
             const evidence=(window as unknown as {__voiceCallEvidence?:CallEvidence}).__voiceCallEvidence;
@@ -2079,6 +2122,13 @@ test.describe('Voice mode through ordinary chat', () => {
       return voice&&active===held.segmentId&&held.audio?.src===held.source&&!held.audio.paused&&!held.audio.ended&&held.audio.currentTime>held.offset;
     },undefined,{timeout:10_000,polling:'raf'});
     const before=voiceFrames(await evidence(page),'text_input').length;
+    const previousMessageId=await page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getAttribute('data-message-id');
+    expect(previousMessageId).toBeTruthy();
+    const boundChatId=voiceFrames(await evidence(page),'start')[0].chatId!;
+    await page.evaluate(({chatId,previousMessageId})=>{
+      (window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.holdSpeechResponse={chatId,previousMessageId};
+    },{chatId:boundChatId,previousMessageId:previousMessageId!});
+    try{
     await page.getByTestId('composer-send-button').click();
     await expect.poll(async()=>voiceFrames(await evidence(page),'text_input').length).toBe(before+1);
     const nextId=voiceFrames(await evidence(page),'text_input').at(-1)!.messageId!;
@@ -2110,9 +2160,55 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(prior.getByRole('heading',{name:'Results',exact:true})).toBeVisible();
     await expect(prior.getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
     await expect(prior.locator('[data-testid="embed-preview"]')).not.toHaveCount(0);
+    await page.waitForFunction(()=>{
+      const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+      const next=state.heldSpeechAudio;
+      return !!next&&next.count>0&&state.received.some(frame=>frame.type==='assistant_speech_status'
+        &&frame.messageId===next.messageId&&frame.speechStatus==='queued');
+    },undefined,{timeout:45_000});
+    const handoff=await page.evaluate(async()=>{
+      // Let native load/error tasks settle while genuine next audio stays held.
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
+      const audio=browser.__voiceSpeechHeld.audio!;
+      return {held:browser.__voiceCallEvidence.heldSpeechAudio,hasSourceAttribute:audio.hasAttribute('src'),
+        networkEmpty:audio.networkState===HTMLMediaElement.NETWORK_EMPTY,errorCode:audio.error?.code??null,
+        nativeErrors:browser.__voiceSpeechHeld.nativeErrors,
+        nextStreamDelivered:browser.__voiceCallEvidence.received.some(frame=>frame.type==='assistant_speech_audio'
+          &&frame.messageId===browser.__voiceCallEvidence.heldSpeechAudio?.messageId)};
+    });
+    expect(handoff.held!.count).toBeGreaterThan(0);
+    expect(handoff).toMatchObject({hasSourceAttribute:false,networkEmpty:true,errorCode:null,nativeErrors:[],nextStreamDelivered:false});
+    await testInfo.attach('voice-native-response-handoff',{body:JSON.stringify(handoff),contentType:'application/json'});
+    await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releaseSpeechAudio!());
+    await page.waitForFunction(()=>{
+      const browser=window as unknown as {__voiceCallEvidence:CallEvidence;__voiceSpeechHeld:HeldSpeechEvidence};
+      return browser.__voiceSpeechHeld.handoffProgress?.messageId===browser.__voiceCallEvidence.heldSpeechAudio?.messageId
+        &&!!browser.__voiceSpeechHeld.handoffProgress;
+    },undefined,{timeout:30_000,polling:'raf'});
+    const secondPlayback=await page.evaluate(()=>{
+      const browser=window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence;__voiceCallEvidence:CallEvidence};
+      const held=browser.__voiceSpeechHeld;const state=browser.__voiceCallEvidence;
+      return {progress:held.handoffProgress,nativeErrors:held.nativeErrors,releasedAt:state.heldSpeechAudio?.releasedAt,
+        streamStartAt:state.received.find(frame=>frame.type==='assistant_speech_audio'&&frame.streamPhase==='start'
+          &&frame.segmentId===held.handoffProgress?.segmentId&&frame.messageId===held.handoffProgress?.messageId)?.observedAt};
+    });
+    expect(secondPlayback.progress!.audioId).toBe(progressive.audioId);
+    expect(secondPlayback.progress!.currentTime).toBeGreaterThan(0);expect(secondPlayback.nativeErrors).toEqual([]);
+    expect(secondPlayback.releasedAt).toBeDefined();expect(secondPlayback.streamStartAt).toBeDefined();
+    expect(secondPlayback.streamStartAt!).toBeGreaterThanOrEqual(secondPlayback.releasedAt!);
+    expect(secondPlayback.progress!.observedAt).toBeGreaterThan(secondPlayback.streamStartAt!);
+    await testInfo.attach('voice-native-second-response-progress',{body:JSON.stringify(secondPlayback),contentType:'application/json'});
     await waitForCanonicalAssistant(page,nextId);
     await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+followup})).toHaveCount(1);
     await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+    expect(await page.evaluate(()=>(window as unknown as {__voiceSpeechHeld:HeldSpeechEvidence}).__voiceSpeechHeld.nativeErrors)).toEqual([]);
+    }finally{
+      await page.evaluate(()=>{
+        const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
+        delete state.holdSpeechResponse;state.releaseSpeechAudio?.();
+      }).catch(()=>{});
+    }
   });
 
 });

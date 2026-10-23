@@ -28,13 +28,24 @@ export class TestSpeechAudio {
   readonly listeners = new Map<string, Set<() => void>>();
   currentTime = 0;
   duration = Number.NaN;
-  private source: string;
-  get src() { return this.source; }
+  private source: string | null;
+  error: { code: number } | null = null;
+  get src() { return this.source ?? ""; }
   set src(value: string) { this.source = value; this.currentTime = 0; }
+  getAttribute(name: string) { return name === "src" ? this.source : null; }
+  removeAttribute(name: string) { if (name === "src") this.source = null; }
   playbackRate = 1;
   pause = vi.fn();
   play = vi.fn(async () => undefined);
-  load = vi.fn();
+  load = vi.fn(() => {
+    this.error = null;
+    this.currentTime = 0;
+    // HTML resource selection treats a present empty src as a failed source.
+    // An absent src instead leaves the element with no selected resource.
+    if (this.source === "") {
+      queueMicrotask(() => { this.error = { code: 4 }; this.emit("error"); });
+    }
+  });
   constructor(url: string) { this.source = url; TestSpeechAudio.instances.push(this); }
   addEventListener(event: string, listener: () => void) {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());

@@ -60,6 +60,7 @@ interface SpeechAudio {
   removeEventListener?(event: string, listener: () => void): void;
   pause(): void;
   play(): Promise<void>;
+  removeAttribute(name: "src"): void;
   src?: string;
   currentTime?: number;
   duration?: number;
@@ -804,7 +805,7 @@ export class AssistantSpeechQueue {
       this.audioSourceGeneration += 1;
       this.detachAudioEvents?.();
       this.detachAudioEvents = null;
-      this.playbackAudio.src = "";
+      this.playbackAudio.removeAttribute("src");
       this.playbackAudioUrl = null;
       this.playbackAudio.load?.();
     }

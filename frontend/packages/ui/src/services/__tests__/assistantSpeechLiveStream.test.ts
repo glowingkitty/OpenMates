@@ -79,6 +79,51 @@ it("completes monotonically when a durable seal arrives after native playback an
   await controller.close();
 });
 
+// contract-test: direct surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.single-owner,video-call.audio.intentional-interruption,video-call.privacy
+it("removes the completed source between responses without inducing a native source error and reuses the element for the next stream", async () => {
+  const controller = await controllerForCall();
+  const first = { segment_id: "a".repeat(64), sequence: 0 };
+  await status(first);
+  const firstMedia = await beginAudio(first);
+  const player = TestSpeechAudio.instances[0];
+  const staleError = [...player.listeners.get("error")!][0];
+  const nativeError = vi.fn();
+  player.addEventListener("error", nativeError);
+  audio({ ...first, phase: "end", chunk_index: 1 });
+  firstMedia.buffer.flush();
+  await seal([sealedMember(first.segment_id, 0)]);
+  player.emit("ended");
+  expect(get(controller.player).status).toBe("completed");
+
+  const next = { message_id: "next-message", segment_id: "b".repeat(64), sequence: 0 };
+  controller.registerSource("chat", next.message_id, "A second live response.");
+  await status(next); // New queued status precedes its provider's audio start.
+  expect(player.getAttribute("src")).toBeNull();
+  expect(player.load).toHaveBeenCalledOnce();
+  expect(player.error).toBeNull();
+  expect(nativeError).not.toHaveBeenCalled();
+  expect(get(controller.player).status).toBe("waiting_for_segment");
+  expect(TestSpeechAudio.instances).toHaveLength(1);
+  const nextMedia = await beginAudio(next);
+  expect(player.src).toBe("blob:live-2");
+  expect(get(controller.player).status).toBe("playing");
+  staleError(); // A detached source callback cannot fail this new source.
+  expect(get(controller.player).status).toBe("playing");
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([]);
+  audio({ ...next, phase: "end", chunk_index: 1 });
+  nextMedia.buffer.flush();
+  await seal([sealedMember(next.segment_id, 0)], { message_id: next.message_id });
+  player.emit("ended");
+  expect(get(controller.player).status).toBe("completed");
+  expect(controller.playbackBoundary?.completed_sequences).toEqual([0]);
+  expect(nativeError).not.toHaveBeenCalled();
+  expect(TestSpeechAudio.instances).toHaveLength(1);
+  expect(mocks.resolve).not.toHaveBeenCalled();
+  expect(mocks.decrypt).not.toHaveBeenCalled();
+  expect(mocks.send.mock.calls.every(([type, payload]) => type === "assistant_speech" && payload.action === "cancel")).toBe(true);
+  await controller.close();
+});
+
 // contract-test: direct surface=gui.web assertions=assistant-speech.playback.live-call-streaming,video-call.audio.intentional-interruption,video-call.privacy
 it("keeps a buffering live source held through provider end, seal and late status without another play", async () => {
   const controller = await controllerForCall();

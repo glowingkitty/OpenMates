@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable
 
 # No English fallback: an unsupported language stays quiet. These are delivery
@@ -26,10 +27,14 @@ WAITING_PHRASES = {
 
 class DelayedVoiceWaiting:
     def __init__(self, *, language: str, response_ready: Callable[[], bool],
-                 dispatch: Callable[[str], None], delay_seconds: float = 1.5) -> None:
+                 dispatch: Callable[[str], None], delay_seconds: float = 1.5,
+                 started_at: float | None = None) -> None:
         self._phrase = WAITING_PHRASES.get(language.lower().replace("_", "-").split("-")[0])
         self._response_ready = response_ready
         self._dispatch = dispatch
+        # Only the caller's same-process worker clock may supply this budget.
+        # No timer or speech task exists before this validated consumer boundary.
+        self._deadline = None if started_at is None else started_at + delay_seconds
         self._delay = delay_seconds
         self._task: asyncio.Task[None] | None = None
 
@@ -38,7 +43,8 @@ class DelayedVoiceWaiting:
             self._task = asyncio.create_task(self._wait())
 
     async def _wait(self) -> None:
-        await asyncio.sleep(self._delay)
+        remaining = self._delay if self._deadline is None else max(0.0, self._deadline - time.monotonic())
+        await asyncio.sleep(remaining)
         if not self._response_ready():
             self._dispatch(self._phrase)
 

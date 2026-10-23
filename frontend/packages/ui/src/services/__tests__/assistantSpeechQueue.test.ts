@@ -24,11 +24,11 @@ class FakeAudio {
   preservesPitch = false;
   webkitPreservesPitch = false;
   loop = false;
-  private _src: string;
+  private _src: string | null;
 
   constructor(src: string) { this._src = src; }
 
-  get src() { return this._src; }
+  get src() { return this._src ?? ""; }
   set src(value: string) {
     this._src = value;
     // Assertions in this suite are per source. Production deliberately reuses
@@ -38,6 +38,10 @@ class FakeAudio {
   }
 
   load() {}
+
+  removeAttribute(name: string) {
+    if (name === "src") this._src = null;
+  }
 
   addEventListener(event: string, listener: AudioListener) {
     this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener]);

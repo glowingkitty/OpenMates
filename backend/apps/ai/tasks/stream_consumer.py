@@ -6200,6 +6200,7 @@ async def _consume_main_processing_stream(
     skill_config_dict: Optional[Dict[str, Any]] = None,
     completion_timing: Optional[AICompletionTiming] = None,
     before_first_chunk_publish: Optional[Callable[[], Awaitable[None]]] = None,
+    voice_waiting_started_at: float | None = None,
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -6511,6 +6512,7 @@ async def _consume_main_processing_stream(
 
                 voice_waiting = DelayedVoiceWaiting(
                     language=speech_language,
+                    started_at=voice_waiting_started_at,
                     response_ready=lambda: speech_tracker.has_response_segments,
                     dispatch=lambda text: speech_tracker.dispatch_projected_segment(
                         sequence=-1, kind="waiting_confirmation", speakable_text=text,

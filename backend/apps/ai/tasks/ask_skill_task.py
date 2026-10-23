@@ -2658,6 +2658,9 @@ async def _async_process_ai_skill_ask_task(
     Initializes services and performs the main processing steps.
     Returns a dictionary with processing results and status flags.
     """
+    # Worker-local elapsed budget only; waiting speech still starts at the
+    # existing validated consumer boundary, never during preprocessing.
+    voice_waiting_started_at = time.monotonic()
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
     from backend.apps.ai.processing.stage_one_handoff import request_fingerprint, load_stage_one
     routing_fingerprint = (request_fingerprint(request_data.model_dump(mode="json"), skill_config.model_dump(mode="json"))
@@ -4205,6 +4208,7 @@ async def _async_process_ai_skill_ask_task(
                         user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
                         skill_config_dict=skill_config_dict,
                         completion_timing=completion_timing,
+                        voice_waiting_started_at=voice_waiting_started_at,
                         before_first_chunk_publish=(publish_initial_metadata_after_seal
                             if initial_metadata_task and not early_metadata_task else None),
                     )
