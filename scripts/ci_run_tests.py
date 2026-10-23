@@ -29,6 +29,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from ci_web_performance import PERFORMANCE_SPECS, collect as collect_web_performance, performance_environment
+from ci_web_search_diagnostics import capture_scope as web_search_capture_scope
 
 from ci_environment import (COMPOSE_PATH, SOURCE, browser_account_count, browser_account_slots,
                             compose, require_runner, has_team_storage_billing_schema)
@@ -1516,21 +1517,24 @@ def run_e2e(
                 accountability_cleanup_error = None
                 accountability_retention_error = None
                 try:
-                    result = subprocess.run(
-                        [
-                            *playwright_command(),
-                            "test",
-                            "tests/" + name,
-                            "--workers=1",
-                            "--reporter=json",
-                            "--output",
-                            f"test-results/ci-{index}",
-                            *playwright_case_args(case_title),
-                        ],
-                        cwd=WEB,
-                        env=env,
-                        timeout=1200,
-                    )
+                    with web_search_capture_scope(
+                        name, ROOT, index, enabled=not (component or artifact or visual_smoke),
+                    ) as web_search_capture:
+                        result = subprocess.run(
+                            [
+                                *playwright_command(),
+                                "test",
+                                "tests/" + name,
+                                "--workers=1",
+                                "--reporter=json",
+                                "--output",
+                                f"test-results/ci-{index}",
+                                *playwright_case_args(case_title),
+                            ],
+                            cwd=WEB,
+                            env=env,
+                            timeout=1200,
+                        )
                 finally:
                     if name == ACCOUNTABILITY_SPEC:
                         try:
@@ -1572,6 +1576,10 @@ def run_e2e(
                     }
                 )
                 spec_result = results[-1]
+                if web_search_capture is not None:
+                    spec_result["web_search_diagnostics"] = web_search_capture.summarize(
+                        report, WEB / "test-results" / f"ci-{index}",
+                    )
                 if accountability_cleanup_error:
                     results.append({"suite": "storage-accountability-cleanup", "exit_code": 1,
                                     "failure": accountability_cleanup_error})
