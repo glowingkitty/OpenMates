@@ -73,14 +73,17 @@ async def test_provider_safety_mime_and_requested_storage_format_remain_distinct
     task, pipeline, index, send_child = prepare_producer(monkeypatch, image_bytes)
     result = await producer._async_generate_image(task, "images", "generate", {
         "prompt": "A small green botanical study", "user_id": "unit-owner",
-        "embed_id": "unit-image", "full_model_reference": "google/unit-image-model",
+        "embed_id": "11111111-1111-4111-8111-111111111111", "full_model_reference": "google/unit-image-model",
         "output_filetype": requested_format, "external_request": True,
     })
     assert pipeline.validate_output.await_args.kwargs["image_bytes"] == image_bytes
     assert pipeline.validate_output.await_args.kwargs["mime_type"] == provider_mime
     indexed = index.await_args.kwargs
     assert indexed["content_type"] == stored_mime
-    assert indexed["original_filename"].endswith(f".{requested_format}")
+    assert indexed["original_filename"] == result["filename"] == send_child.await_args.kwargs["content"]["filename"]
+    assert result["filename"] == f"a-small-green-botanical-study-11111111.{requested_format}"
+    assert result["provider"] == send_child.await_args.kwargs["content"]["provider"] == "Google"
+    assert generated_media_graph.media_completion_result(result)["filename"] == result["filename"]
     original = indexed["files_metadata"]["original"]
     assert original["format"] == requested_format
     assert original["mime_type"] == stored_mime
@@ -106,7 +109,7 @@ async def test_invalid_provider_raster_never_reaches_billing_or_storage(monkeypa
     with pytest.raises(ValueError, match="unsupported raster"):
         await producer._async_generate_image(task, "images", "generate", {
             "prompt": "A small green botanical study", "user_id": "unit-owner",
-            "embed_id": "unit-image", "full_model_reference": "google/unit-image-model",
+            "embed_id": "11111111-1111-4111-8111-111111111111", "full_model_reference": "google/unit-image-model",
             "media_batch": True,
         })
     pipeline.validate_output.assert_not_awaited()
@@ -141,7 +144,7 @@ async def test_requested_jpeg_composites_alpha_and_palette_transparency_on_white
     task, pipeline, index, _ = prepare_producer(monkeypatch, provider_bytes)
     result = await producer._async_generate_image(task, "images", "generate", {
         "prompt": "A small green botanical study", "user_id": "unit-owner",
-        "embed_id": "unit-image", "full_model_reference": "google/unit-image-model",
+        "embed_id": "11111111-1111-4111-8111-111111111111", "full_model_reference": "google/unit-image-model",
         "output_filetype": "jpg", "external_request": True,
     })
     assert pipeline.validate_output.await_args.kwargs["image_bytes"] == provider_bytes
@@ -150,3 +153,23 @@ async def test_requested_jpeg_composites_alpha_and_palette_transparency_on_white
     with Image.open(BytesIO(decrypted_original(task, index.await_args.kwargs))) as stored_image:
         assert stored_image.format == "JPEG"
         assert stored_image.convert("RGB").getpixel((4, 4)) == (255, 255, 255)
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.media.parent-children-and-attribution
+@pytest.mark.asyncio
+async def test_svg_names_and_provider_match_child_result_index_and_completion(monkeypatch):
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="green"/></svg>'
+    task, _, index, send_child = prepare_producer(monkeypatch, b"unused")
+    monkeypatch.setattr(producer, "generate_vector_recraft", AsyncMock(return_value=svg))
+    result = await producer._async_generate_image(task, "images", "generate", {
+        "prompt": "Sunflower botanical illustration", "user_id": "unit-owner",
+        "embed_id": "11111111-1111-4111-8111-111111111111",
+        "full_model_reference": "google/unit-image-model", "output_filetype": "svg",
+        "external_request": True,
+    })
+    child = send_child.await_args.kwargs["content"]
+    assert result["filename"] == child["filename"] == index.await_args.kwargs["original_filename"] == "sunflower-botanical-illustration-11111111.svg"
+    assert result["provider"] == child["provider"] == "Recraft"
+    assert generated_media_graph.media_completion_result(result)["filename"] == result["filename"]
+    assert result["embed_ref"] == "generated-images-111111111111"
+    producer.generate_image_google.assert_not_awaited()

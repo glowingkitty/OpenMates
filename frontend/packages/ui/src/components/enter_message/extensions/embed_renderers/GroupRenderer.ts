@@ -2293,6 +2293,7 @@ export class GroupRenderer implements EmbedRenderer {
             id: embedId,
             prompt: decodedContent?.prompt || embedData?.prompt || "",
             model: decodedContent?.model || embedData?.model || "",
+            provider: decodedContent?.provider || embedData?.provider || "",
             s3BaseUrl:
               decodedContent?.s3_base_url || embedData?.s3_base_url || "",
             files: decodedContent?.files || embedData?.files || undefined,

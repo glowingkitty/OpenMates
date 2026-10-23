@@ -22,7 +22,8 @@
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
-  import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { imageGenerationAttribution } from './imageGenerationMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
   
@@ -36,6 +37,7 @@
     status?: string;
     prompt?: string;
     model?: string;
+    provider?: string;
     aspect_ratio?: string;
     generated_at?: string;
     s3_base_url?: string;
@@ -63,6 +65,7 @@
     prompt?: string;
     /** Model ID used for generation (e.g., "flux-schnell", "gemini-3-pro-image-preview") */
     model?: string;
+    provider?: string;
     /** S3 base URL for image files */
     s3BaseUrl?: string;
     /** Files metadata from embed content */
@@ -92,6 +95,7 @@
     skillId: skillIdProp = 'generate',
     prompt: promptProp,
     model: modelProp,
+    provider: providerProp,
     s3BaseUrl: s3BaseUrlProp,
     files: filesProp,
     aesKey: aesKeyProp,
@@ -108,6 +112,7 @@
   // Local reactive state — updated via handleEmbedDataUpdated callback
   let localPrompt = $state<string | undefined>(undefined);
   let localModel = $state<string | undefined>(undefined);
+  let localProvider = $state<string | undefined>(undefined);
   let localS3BaseUrl = $state<string | undefined>(undefined);
   let localFiles = $state<ImageEmbedData['files'] | undefined>(undefined);
   let localAesKey = $state<string | undefined>(undefined);
@@ -166,6 +171,7 @@
     if (!storeResolved) {
       localPrompt = promptProp;
       localModel = modelProp;
+      localProvider = providerProp;
       localS3BaseUrl = s3BaseUrlProp;
       localFiles = filesProp;
       localAesKey = aesKeyProp;
@@ -192,7 +198,7 @@
   let inputEmbedIds = $derived(localInputEmbedIds);
   
   // Human-readable model name resolved from model ID via frontend metadata
-  let modelDisplayName = $derived(model ? getModelDisplayName(model) : undefined);
+  let modelDisplayName = $derived(imageGenerationAttribution(model, localProvider));
   
   // Model metadata for icon display
   let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
@@ -300,6 +306,7 @@
       
       if (content.prompt) localPrompt = content.prompt;
       if (content.model) localModel = content.model;
+      if (content.provider) localProvider = content.provider;
       if (content.s3_base_url) localS3BaseUrl = content.s3_base_url;
       if (content.files) localFiles = content.files;
       if (content.aes_key) localAesKey = content.aes_key;

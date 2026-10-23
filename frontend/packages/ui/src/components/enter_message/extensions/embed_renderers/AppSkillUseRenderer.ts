@@ -4060,6 +4060,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           skillId: imageSkillId as "generate" | "generate_draft",
           prompt,
           model,
+          provider: decodedContent?.provider || "",
           s3BaseUrl,
           files,
           aesKey,

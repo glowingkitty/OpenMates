@@ -2011,3 +2011,21 @@ def test_recovery_assistant_thinking_is_owner_sealed(monkeypatch, is_child, with
         assert payload["has_thinking"] is True
     else:
         assert not any(name.startswith("thinking_") or name == "has_thinking" for name in payload)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_generated_finished_refs_survive_cache_miss_while_invented_refs_are_stripped():
+    from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
+
+    ref = "generated-images-111111111111"
+    outputs = [{"app_id": "images", "skill_id": "generate", "status": "finished",
+                "embed_id": "11111111-1111-4111-8111-111111111111", "embed_ref": ref}]
+    missing_graph = SimpleNamespace(get=AsyncMock(return_value=None))
+    answer = f"[!](embed:{ref}) and [Invented](embed:generated-images-madeup)"
+    result = asyncio.run(stream_consumer._strip_invalid_inline_embed_links(
+        aggregated_response=answer, tool_calls_info=[{"embed_id": outputs[0]["embed_id"]}],
+        cache_service=SimpleNamespace(), directus_service=None, encryption_service=SimpleNamespace(),
+        user_vault_key_id="owner-key", embed_graph=missing_graph,
+        known_valid_refs=set(authenticated_generated_outputs(outputs)),
+    ))
+    assert result == f"[!](embed:{ref}) and Invented"

@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import time
+import uuid
 from pathlib import PurePath
 from typing import Any, Mapping, Optional
 
@@ -22,7 +23,9 @@ MAX_HYDRATED_ARTIFACT_CHARS = 32_000
 _SAFE_EMBED_ID = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
 _UPLOAD_REF_SUFFIX = re.compile(r"^(?P<name>.+)-[0-9a-f]{8}-[0-9a-f-]{12,}$", re.IGNORECASE)
 _CLI_UPLOAD_REF = re.compile(r"^[a-z0-9-]{1,40}-[a-f0-9]{6}$")
+_HISTORY_EMBED_FENCE = re.compile(r"```json\s*\n(.*?)\n```", re.DOTALL)
 _INLINE_EMBED_REF = re.compile(r"\(embed:([^\s)#]+)(?:#[^)]*)?\)", re.IGNORECASE)
+_GENERATED_IMAGE_REF = re.compile(r"^generated-images-([0-9a-f]{12})$", re.IGNORECASE)
 _UUID_PREFIX_IN_REF = re.compile(r"(?:^|-)([0-9a-f]{8})(?:-|$)", re.IGNORECASE)
 _DEICTIC_ARTIFACT_REQUEST = re.compile(
     r"\b(?:attach(?:ed|ment)?|upload(?:ed)?|file|document|artifact|image|photo|pdf)\b",
@@ -134,6 +137,15 @@ async def recover_inline_upload_artifacts(
         if not isinstance(content, str):
             continue
         inline_refs.extend(match.group(1) for match in _INLINE_EMBED_REF.finditer(content))
+        for fence in _HISTORY_EMBED_FENCE.finditer(content):
+            try:
+                descriptor = json.loads(fence.group(1))
+            except (ValueError, TypeError):
+                continue
+            if isinstance(descriptor, dict) and descriptor.get("type") == "app_skill_use":
+                embed_id = descriptor.get("embed_id")
+                if isinstance(embed_id, str):
+                    inline_refs.append(embed_id)
     if not inline_refs:
         return {}
 
@@ -150,11 +162,16 @@ async def recover_inline_upload_artifacts(
     ]
     recovered: dict[str, str] = {}
     for artifact_ref in inline_refs:
-        prefix_match = _UUID_PREFIX_IN_REF.search(artifact_ref)
+        if artifact_ref in safe_ids:
+            recovered[artifact_ref] = artifact_ref
+            continue
+        generated_match = _GENERATED_IMAGE_REF.fullmatch(artifact_ref)
+        prefix_match = generated_match or _UUID_PREFIX_IN_REF.search(artifact_ref)
         if not prefix_match:
             continue
         prefix = prefix_match.group(1).casefold()
-        matches = [embed_id for embed_id in safe_ids if embed_id.casefold().startswith(prefix)]
+        matches = [embed_id for embed_id in safe_ids
+                   if (embed_id.replace("-", "") if generated_match else embed_id).casefold().startswith(prefix)]
         if len(matches) == 1:
             recovered[artifact_ref] = matches[0]
     return sanitize_artifact_index(recovered)
@@ -214,7 +231,9 @@ async def enrich_historical_image_aliases(
     filenames: dict[str, set[str]] = {}
     unresolved_refs: list[str] = []
     # Newest references first; overflow remains unresolved and can veto aliases.
-    for position, (embed_id, refs) in enumerate(reversed(list(refs_by_id.items()))):
+    pending = list(reversed(list(refs_by_id.items())))
+    queued_ids = set(refs_by_id)
+    for position, (embed_id, refs) in enumerate(pending):
         if position >= MAX_IMAGE_ALIAS_EMBEDS:
             unresolved_refs.extend(refs)
             continue
@@ -276,12 +295,36 @@ async def enrich_historical_image_aliases(
             if not isinstance(content, dict):
                 unresolved_refs.extend(refs)
                 continue
+            # A terminal generated-image parent is an authenticated manifest,
+            # including when a saved answer has lost every inline child link.
+            # Discover only its explicit children; each child must independently
+            # pass the owner, expiry, decryption and image-content checks above.
+            if (not fresh_upload and content.get("app_id") == "images"
+                    and content.get("skill_id") in {"generate", "generate_draft", "vectorize"}
+                    and content.get("status") == "finished"
+                    and isinstance(content.get("embed_ids"), list)):
+                for child_id in content["embed_ids"][:MAX_IMAGE_ALIAS_EMBEDS]:
+                    try:
+                        child_id = str(uuid.UUID(child_id))
+                    except (ValueError, TypeError, AttributeError):
+                        continue
+                    if child_id not in queued_ids and len(pending) < MAX_IMAGE_ALIAS_EMBEDS:
+                        child_ref = f"generated-images-{child_id.replace('-', '')[:12]}"
+                        pending.append((child_id, [child_ref]))
+                        queued_ids.add(child_id)
+                continue
             if not fresh_upload and (
-                content.get("app_id") != "images" or content.get("skill_id") != "upload"
-                or content.get("type") != "image"
+                content.get("app_id") != "images"
+                or content.get("skill_id") not in {"upload", "generate", "generate_draft", "vectorize"}
+                or content.get("type") not in {"image", "generated_image"}
             ):
                 continue
             filename = content.get("filename")
+            if not filename and not fresh_upload and content.get("skill_id") != "upload":
+                original = (content.get("files") or {}).get("original") or {}
+                extension = original.get("format") or content.get("output_filetype")
+                if extension in {"svg", "png", "jpg", "jpeg", "webp"}:
+                    filename = f"openmates_generated_image_{embed_id[:8]}.{extension}"
             if (
                 not isinstance(filename, str)
                 or filename != filename.strip()
@@ -289,6 +332,9 @@ async def enrich_historical_image_aliases(
             ):
                 unresolved_refs.extend(refs)
                 continue
+            for artifact_ref in refs:
+                if artifact_ref not in index and len(index) < MAX_ARTIFACT_REFERENCES:
+                    index[artifact_ref] = embed_id
             filenames.setdefault(filename, set()).add(embed_id)
         except Exception as exc:
             logger.warning("Historical image alias metadata unavailable (%s)", type(exc).__name__)

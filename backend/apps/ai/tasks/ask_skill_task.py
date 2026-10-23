@@ -2518,6 +2518,7 @@ async def _prepare_artifact_context(
         current_index=current_artifact_index,
         persist=not request_data.is_incognito and not request_data.is_external,
     ) or None
+    ledger_artifact_index = dict(request_data.embed_file_path_index or {})
     try:
         request_data.embed_file_path_index = await asyncio.wait_for(
             enrich_historical_image_aliases(
@@ -2533,6 +2534,21 @@ async def _prepare_artifact_context(
         ) or None
     except asyncio.TimeoutError:
         logger.warning("[Task ID: %s] Historical image alias metadata timed out; retaining canonical refs", task_id)
+    if (request_data.embed_file_path_index != ledger_artifact_index
+            and request_data.embed_file_path_index
+            and not request_data.is_incognito and not request_data.is_external):
+        try:
+            await asyncio.wait_for(
+                load_and_merge_artifact_ledger(
+                    cache_service=cache_service, encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    user_id_hash=request_data.user_id_hash, chat_id=request_data.chat_id,
+                    current_index=request_data.embed_file_path_index,
+                ), timeout=5.0,
+            )
+        except Exception as exc:
+            logger.warning("[Task ID: %s] Historical image alias ledger refresh unavailable (%s)",
+                           task_id, type(exc).__name__)
     request_data.historical_artifact_context = None
     if request_data.embed_file_path_index and user_vault_key_id:
         try:

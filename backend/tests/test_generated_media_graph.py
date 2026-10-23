@@ -277,3 +277,32 @@ def test_authored_media_markdown_uses_one_visible_card_and_preserves_untrusted_t
         assert finalize_trusted_inline_refs(protected, [row]) == protected
     failed = {**row, "status": "failed"}
     assert finalize_trusted_inline_refs(f"![Sunflower]({ref})", [failed]) == f"![Sunflower]({ref})"
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
+@pytest.mark.parametrize("extension", ["svg", "png", "jpg", "webp"])
+def test_generated_image_filename_is_safe_unique_and_available_in_completion(extension):
+    from backend.shared.python_utils.generated_media_graph import generated_image_filename, media_completion_result
+
+    first = generated_image_filename("../ Sunflower / botanical illustration!", "11111111-1111-4111-8111-111111111111", extension)
+    second = generated_image_filename("../ Sunflower / botanical illustration!", "22222222-2222-4222-8222-222222222222", extension)
+    assert first == f"sunflower-botanical-illustration-11111111.{extension}"
+    assert second != first
+    assert media_completion_result({"filename": first, "provider": "Recraft", "aes_key": "secret"}) == {
+        "filename": first, "provider": "Recraft",
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+def test_generated_authority_requires_exact_finished_canonical_uuid_pair():
+    from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
+
+    child_id = "11111111-1111-4111-8111-111111111111"
+    ref = "generated-images-111111111111"
+    row = {"app_id": "images", "skill_id": "generate", "status": "finished", "embed_id": child_id, "embed_ref": ref}
+    assert authenticated_generated_outputs([row]) == {ref: row}
+    uppercase = {**row, "embed_id": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "embed_ref": "generated-images-aaaaaaaaaaaa"}
+    assert authenticated_generated_outputs([uppercase])[uppercase["embed_ref"]]["embed_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    for changes in ({"status": "failed"}, {"embed_id": "invalid"}, {"app_id": "unknown"},
+                    {"embed_ref": "generated-images-invented"}, {"embed_id": "22222222-2222-4222-8222-222222222222"}):
+        assert authenticated_generated_outputs([{**row, **changes}]) == {}

@@ -23,7 +23,8 @@
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
   import { generateImageFilename, embedPngMetadata } from './imageDownloadUtils';
-  import { modelsMetadata } from '../../../data/modelsMetadata';
+  import { getModelByNameOrId } from '../../../utils/modelDisplayName';
+  import { imageGenerationAttribution, imageGenerationFilename } from './imageGenerationMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
@@ -93,6 +94,8 @@
   let ed = $derived(data.embedData);
   let prompt = $derived(typeof dc.prompt === 'string' ? dc.prompt : undefined);
   let model = $derived(typeof dc.model === 'string' ? dc.model : undefined);
+  let provider = $derived(typeof dc.provider === 'string' ? dc.provider : undefined);
+  let filename = $derived(imageGenerationFilename(dc, embedId));
   let aspectRatio = $derived(typeof dc.aspect_ratio === 'string' ? dc.aspect_ratio : undefined);
   let s3BaseUrl = $derived(typeof dc.s3_base_url === 'string' ? dc.s3_base_url : undefined);
   let files = $derived((typeof dc.files === 'object' && dc.files !== null) ? dc.files as ImageFiles : undefined);
@@ -127,14 +130,9 @@
   
   const skillIconName = 'ai';
 
-  // Header title: truncated prompt (max 80 chars), fallback to skill name
-  let embedHeaderTitle = $derived.by(() => {
-    const name = skillIdProp === 'generate_draft'
-      ? $text('embeds.image_generate_draft')
-      : $text('common.generate');
-    if (!prompt) return name;
-    return prompt.length > 80 ? prompt.slice(0, 79) + '\u2026' : prompt;
-  });
+  // The header and download use the same saved asset name.
+  let embedHeaderTitle = $derived(filename || (skillIdProp === 'generate_draft'
+    ? $text('embeds.image_generate_draft') : $text('common.generate')));
 
   // Header subtitle: skill display name (doubles as "Generated image" label)
   let embedHeaderSubtitle = $derived(
@@ -143,19 +141,9 @@
       : $text('common.generate')
   );
   
-  // Look up full model metadata (name, logo) from modelsMetadata registry
-  let modelMetadata = $derived(
-    model ? modelsMetadata.find(m => m.id === model) : undefined
-  );
-  
-  // Display name: prefer metadata name, fallback to extracting last segment of model ID
-  let modelDisplayName = $derived.by(() => {
-    if (modelMetadata?.name) return modelMetadata.name;
-    if (!model) return '';
-    const parts = model.split('/');
-    return parts[parts.length - 1] || model;
-  });
-  
+  let modelMetadata = $derived(model ? getModelByNameOrId(model) : undefined);
+  let modelDisplayName = $derived(imageGenerationAttribution(model, provider));
+
   // Provider icon URL resolved from metadata logo_svg field
   let providerIconUrl = $derived(
     modelMetadata?.logo_svg ? getProviderIconUrl(modelMetadata.logo_svg) : undefined
@@ -357,13 +345,13 @@
       }
       
       // Generate a human-readable filename from the prompt
-      const filename = generateImageFilename(prompt, ext);
+      const downloadFilename = filename || generateImageFilename(prompt, ext);
       
       // Create download link
       const url = URL.createObjectURL(downloadBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = downloadFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -421,8 +409,8 @@
       new Uint8Array(ab).set(metadataBytes);
       resultBlob = new Blob([ab], { type: 'image/png' });
     }
-    const filename = generateImageFilename(prompt, ext);
-    return { blob: resultBlob, filename };
+    const downloadFilename = filename || generateImageFilename(prompt, ext);
+    return { blob: resultBlob, filename: downloadFilename };
   }
 
   /**
@@ -443,7 +431,7 @@
 </script>
 
 <ResultEmbedFullscreen
-  result={{ prompt, model, aspect_ratio: aspectRatio, generated_at: generatedAt }}
+  result={{ filename, prompt, model, provider, aspect_ratio: aspectRatio, generated_at: generatedAt }}
   mediaLayout="immersive"
   appId="images"
   skillId={skillIdProp}

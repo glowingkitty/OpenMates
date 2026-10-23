@@ -172,6 +172,17 @@ function generatedMediaPreview(fixture: typeof mediaMusic, source: string, strea
     original_message: { chat_id: fixture.chat_id, created_at: 1, role: 'assistant', content: markdown } };
 }
 
+const lostImagePreview = generatedMediaPreview(mediaImage, imageSource);
+const lostImageParent = mediaImage.embeds.find(embed => !embed.parent_embed_id)!;
+const retainedImageInvocation = { type: 'paragraph', content: [{ type: 'embed', attrs: {
+  type: 'app-skill-use', id: lostImageParent.embed_id, contentRef: `embed:${lostImageParent.embed_id}`,
+  app_id: 'images', skill_id: 'generate', status: 'finished',
+} }] };
+const lostImageContent = { type: 'doc', content: [retainedImageInvocation,
+  { type: 'paragraph', content: [{ type: 'text', text: 'The saved illustration follows.' }] },
+  { type: 'paragraph', content: [{ type: 'text', text: '!' }] },
+] };
+
 /** Named variants for different message types and states */
 export const variants = {
   speechAvailable: {
@@ -190,6 +201,7 @@ export const variants = {
   generatedMusic: generatedMediaPreview(mediaMusic, musicSource),
   generatedAudio: generatedMediaPreview(mediaAudio, audioSource),
   generatedImage: generatedMediaPreview(mediaImage, imageSource),
+  generatedImageLostReferences: { ...lostImagePreview, content: lostImageContent },
   generatedMusicStreaming: generatedMediaPreview(mediaMusic, musicSource, true),
   voiceUserSending: {
     ...defaultProps, content: 'Spoken words', status: 'sending' as const,

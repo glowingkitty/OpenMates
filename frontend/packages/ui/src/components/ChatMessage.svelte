@@ -8,6 +8,9 @@
   import AssistantActivityGroup from './AssistantActivityGroup.svelte';
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
+  import { lostImageParents, recoverGeneratedImageDocument } from '../message_parsing/generatedImageRecovery';
+  import type { AssistantDocument } from '../message_parsing/assistantActivityRuns';
+  import { activeTeamId } from '../stores/teamStore';
   import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import ChatContextMenu from './chats/ChatContextMenu.svelte';
@@ -229,7 +232,40 @@
   });
   
   // State for thinking section expansion
-  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(content) : null);
+  // Keep source identity intact when props contain a plain saved document.
+  let recoveredImageSource = $state.raw<unknown>(null);
+  let recoveredImageDocument = $state<AssistantDocument | null>(null);
+  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(
+    recoveredImageSource === content ? recoveredImageDocument ?? content : content,
+  ) : null);
+
+  $effect(() => {
+    const source = content;
+    const chatId = original_message?.chat_id;
+    // Discard abandoned reads when the account, Team, message, or source changes.
+    void $userProfile.user_id;
+    void $activeTeamId;
+    void _embedUpdateTimestamp;
+    recoveredImageSource = null;
+    recoveredImageDocument = null;
+    if (role !== 'assistant' || responseActive || !chatId || !lostImageParents(source).length) return;
+    let cancelled = false;
+    async function recover() {
+      const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+      if (cancelled) return;
+      const recovered = await recoverGeneratedImageDocument(source as AssistantDocument, async (id) => {
+        if (cancelled) return null;
+        const parent = await resolveEmbed(id, { chatId });
+        return parent ? decodeToonContent(parent.content) : null;
+      });
+      if (!cancelled) {
+        recoveredImageSource = source;
+        recoveredImageDocument = recovered;
+      }
+    }
+    void recover().catch((error) => console.warn('[ChatMessage] Generated image recovery unavailable:', error));
+    return () => { cancelled = true; };
+  });
   const hasSkillActivity = $derived(activityRuns?.some((run) => run.kind === 'skills') ?? false);
   const firstSkillActivityId = $derived(activityRuns?.find((run) => run.kind === 'skills')?.id);
   const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);

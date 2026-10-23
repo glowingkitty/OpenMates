@@ -640,6 +640,7 @@ const imageGenerateResolver: PreviewResolver = async ({
       skillId: skillId as "generate" | "generate_draft",
       prompt: decodedContent.prompt || "",
       model: decodedContent.model || embedData.model || "",
+      provider: decodedContent.provider || embedData.provider || "",
       s3BaseUrl: decodedContent.s3_base_url || embedData.s3_base_url || "",
       files: decodedContent.files || embedData.files || undefined,
       aesKey: decodedContent.aes_key || embedData.aes_key || "",

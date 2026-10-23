@@ -410,3 +410,86 @@ async def test_unverifiable_competitor_removes_preexisting_bare_filename_alias(i
         "server_embed_0001": _image_record("cloth.png"), "server_embed_0002": invalid,
     })
     assert result == {first: "server_embed_0001", second: "server_embed_0002"}
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.parent-children-and-attribution
+@pytest.mark.asyncio
+@pytest.mark.parametrize("filename", [None, "sunflower-11111111.svg"])
+async def test_generated_image_filename_alias_recovers_only_authorized_child(filename):
+    from toon_format import encode
+
+    embed_id = "11111111-1111-4111-8111-111111111111"
+    ref = "generated-images-111111111111"
+    content = {"app_id": "images", "skill_id": "generate", "type": "generated_image",
+               "files": {"original": {"format": "svg"}}, "output_filetype": "png"}
+    if filename:
+        content["filename"] = filename
+    record = {"hashed_user_id": "owner-hash", "encrypted_content": "encrypted:" + encode(content)}
+    expected_name = filename or "openmates_generated_image_11111111.svg"
+    aliases, *_ = await _image_aliases({ref: embed_id}, {embed_id: record})
+    assert aliases == {ref: embed_id, expected_name: embed_id}
+    foreign, *_ = await _image_aliases({ref: embed_id}, {embed_id: {**record, "hashed_user_id": "foreign"}})
+    assert foreign == {ref: embed_id}
+
+    redis = FakeRedis()
+    kwargs = dict(cache_service=FakeCache(redis), encryption_service=FakeEncryption(), user_vault_key_id="vault-key",
+                  user_id_hash="owner-hash", chat_id="chat")
+    await load_and_merge_artifact_ledger(**kwargs, current_index=aliases)
+    assert await load_and_merge_artifact_ledger(**kwargs, current_index={}) == aliases
+    assert await load_and_merge_artifact_ledger(**{**kwargs, "chat_id": "other"}, current_index={}) == {}
+    assert await load_and_merge_artifact_ledger(**{**kwargs, "user_id_hash": "foreign"}, current_index={}) == {}
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results
+@pytest.mark.asyncio
+async def test_generated_image_uuid12_ref_recovers_only_chat_scoped_child():
+    embed_id = "11111111-1111-4111-8111-111111111111"
+    ref = "generated-images-111111111111"
+
+    async def get_ids(chat_id):
+        return [embed_id] if chat_id == "chat" else []
+
+    kwargs = dict(cache_service=SimpleNamespace(get_chat_embed_ids=get_ids),
+                  message_history=[{"content": f"[!](embed:{ref})"}])
+    assert await recover_inline_upload_artifacts(**kwargs, chat_id="chat") == {ref: embed_id}
+    assert await recover_inline_upload_artifacts(**kwargs, chat_id="foreign") == {}
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.media.visible-assistant-results,app-skills.media.parent-children-and-attribution
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", [None, "foreign_parent", "foreign_child", "unrelated_parent", "failed_parent"])
+async def test_parent_only_saved_history_recovers_generated_child_filename(invalid):
+    from toon_format import encode
+
+    parent_id = "22222222-2222-4222-8222-222222222222"
+    child_id = "11111111-1111-4111-8111-111111111111"
+    ref = "generated-images-111111111111"
+    filename = "openmates_generated_image_11111111.svg"
+    parent = {"app_id": "images", "skill_id": "generate", "status": "finished", "embed_ids": [child_id]}
+    child = {"app_id": "images", "skill_id": "generate", "type": "generated_image", "output_filetype": "svg"}
+    if invalid == "unrelated_parent":
+        parent["app_id"] = "code"
+    if invalid == "failed_parent":
+        parent["status"] = "error"
+
+    async def get_ids(chat_id):
+        return [parent_id, child_id] if chat_id == "chat" else []
+
+    history = [{"content": '```json\n' + json.dumps({"type": "app_skill_use", "embed_id": parent_id}) + '\n```\n!'}]
+    current = await recover_inline_upload_artifacts(cache_service=SimpleNamespace(get_chat_embed_ids=get_ids),
+                                                   chat_id="chat", message_history=history)
+    assert current == {parent_id: parent_id}
+    assert await recover_inline_upload_artifacts(cache_service=SimpleNamespace(get_chat_embed_ids=get_ids),
+                                                chat_id="foreign", message_history=history) == {}
+    records = {
+        parent_id: {"hashed_user_id": "foreign" if invalid == "foreign_parent" else "owner-hash",
+                    "encrypted_content": "encrypted:" + encode(parent)},
+        child_id: {"hashed_user_id": "foreign" if invalid == "foreign_child" else "owner-hash",
+                   "encrypted_content": "encrypted:" + encode(child)},
+    }
+    aliases, calls, *_ = await _image_aliases(current, records)
+    if invalid is None:
+        assert aliases == {parent_id: parent_id, ref: child_id, filename: child_id}
+        assert calls == [parent_id, child_id]
+    else:
+        assert aliases == current

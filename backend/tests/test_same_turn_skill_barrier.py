@@ -375,6 +375,7 @@ async def test_restored_media_completion_carries_authored_parent_and_child_alias
         return {"async_tool_completion": {"status": "finished", "results": [{
             "status": "finished", "embed_ref": child_ref, "child_embed_id": child_id,
             "parent_embed_ref": parent_ref, "parent_embed_id": parent_id,
+            "filename": "sunflower-018f6666.svg",
         }]}}
 
     monkeypatch.setitem(sys.modules, "backend.shared.python_utils.recent_work_summary_client",
@@ -392,6 +393,8 @@ async def test_restored_media_completion_carries_authored_parent_and_child_alias
     assert json.loads(history[1]["content"])["results"][0]["parent_embed_ref"] == parent_ref
     assert checkpoint["generated_embed_refs"] == [child_ref, parent_ref]
     assert checkpoint["generated_embed_aliases"] == {child_ref: [child_id], parent_ref: [parent_id]}
+    assert checkpoint["authored_inline_outputs"][0]["filename"] == "sunflower-018f6666.svg"
+    assert "filename" not in checkpoint["authored_inline_outputs"][1]
     answer = f"[Image](embed:{child_id.replace('-', '')}) and [Set](embed:{parent_id})"
     assert barrier.ensure_generated_refs(
         answer, checkpoint["generated_embed_refs"], checkpoint["generated_embed_aliases"],

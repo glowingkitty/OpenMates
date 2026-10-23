@@ -392,9 +392,14 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
                     if alias not in known:
                         known.append(alias)
                 if aliases.get(ref):
+                    result = next((row for row in payload.get("results", [])
+                                   if isinstance(row, dict) and row.get("status") == "finished"
+                                   and row.get("embed_ref") == ref
+                                   and (row.get("child_embed_id") or row.get("embed_id")) == aliases[ref][0]), {})
                     authored_inline_outputs.append({
                         "app_id": job["app_id"], "skill_id": job["skill_id"],
                         "embed_ref": ref, "embed_id": aliases[ref][0], "status": "finished",
+                        **({"filename": result["filename"]} if isinstance(result.get("filename"), str) else {}),
                     })
         by_call.setdefault(str(job["tool_call_id"]), []).append(payload)
     checkpoint["generated_embed_refs"] = generated_refs

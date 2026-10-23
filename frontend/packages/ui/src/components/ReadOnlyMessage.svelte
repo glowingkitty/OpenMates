@@ -1141,6 +1141,8 @@
     }
 
     $effect(() => {
+        // Track content even before the lazily initialized editor exists.
+        const currentContent = content;
         // Include $locale in the effect to trigger re-processing on language change
         const currentLocale = $locale || 'en';
         const localeChanged = currentLocale !== previousLocale;
@@ -1158,9 +1160,9 @@
             previousLocale = currentLocale;
         }
         
-        if (editor && content) {
+        if (editor && currentContent) {
             // ChatHistory owns stream coalescing; apply each canonical document immediately.
-            const newProcessedContent = processContent(content);
+            const newProcessedContent = processContent(currentContent);
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
@@ -1171,7 +1173,7 @@
 
                 applyContentUpdate(newProcessedContent, isStreaming);
             }
-        } else if (editor && !content) {
+        } else if (editor && !currentContent) {
             // Handle case where content becomes null/undefined after editor initialization
             editor.commands.clearContent(false);
         }

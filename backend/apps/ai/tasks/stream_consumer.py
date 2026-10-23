@@ -10809,7 +10809,9 @@ async def _consume_main_processing_stream(
                 isinstance(call, dict) and (call.get("app_id"), call.get("skill_id")) == ("web", "search")
                 for call in (tool_calls_info or [])
             )
-            known_refs = authored_web_refs | (parent_source_refs or set())
+            from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
+            generated_outputs = authenticated_generated_outputs(authored_inline_outputs)
+            known_refs = authored_web_refs | set(generated_outputs) | (parent_source_refs or set())
             ref_validated_response = await _strip_invalid_inline_embed_links(
                 aggregated_response=aggregated_response,
                 tool_calls_info=tool_calls_info,
@@ -10827,6 +10829,27 @@ async def _consume_main_processing_stream(
             if request_data.is_sub_chat and (web_search_performed or parent_source_refs is not None):
                 child_source_refs = authored_web_refs | validated_inline_refs
                 child_source_bindings = authored_web_bindings
+            if generated_outputs:
+                try:
+                    from backend.apps.ai.processing.artifact_ledger import load_and_merge_artifact_ledger
+                    generated_index = {}
+                    for ref, output in generated_outputs.items():
+                        generated_index[ref] = output["embed_id"]
+                        filename = output.get("filename")
+                        if isinstance(filename, str):
+                            generated_index[filename] = output["embed_id"]
+                    request_data.embed_file_path_index = await asyncio.wait_for(
+                        load_and_merge_artifact_ledger(
+                            cache_service=cache_service, encryption_service=encryption_service,
+                            user_vault_key_id=user_vault_key_id,
+                            user_id_hash=request_data.user_id_hash, chat_id=request_data.chat_id,
+                            current_index={**(request_data.embed_file_path_index or {}), **generated_index},
+                            persist=not request_data.is_incognito and not request_data.is_external,
+                        ), timeout=5.0,
+                    ) or None
+                except Exception as ledger_error:
+                    logger.warning("%s Generated image continuity metadata unavailable: %s",
+                                   log_prefix, type(ledger_error).__name__)
             if ref_validated_response != aggregated_response:
                 native_presentation_steps.append({"kind": "strip_invalid_links", "refs": sorted(validated_inline_refs)})
                 aggregated_response = ref_validated_response
