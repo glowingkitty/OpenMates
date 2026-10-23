@@ -28,6 +28,8 @@ import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from ci_web_performance import PERFORMANCE_SPECS, collect as collect_web_performance, performance_environment
+
 from ci_environment import (COMPOSE_PATH, SOURCE, browser_account_count, browser_account_slots,
                             compose, require_runner, has_team_storage_billing_schema)
 try:
@@ -1406,6 +1408,14 @@ def run_e2e(
         try:
             if child is not None:
                 (wait_component_web if component else wait_web)(child)
+            performance_metadata = {}
+            if child is not None and not component and PERFORMANCE_SPECS.intersection(specs):
+                performance_metadata = collect_web_performance(
+                    ROOT, RESULTS, pinned_node(),
+                    source=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+                    harness=os.environ.get("CI_HARNESS_COMMIT", ""),
+                    run_id=os.environ.get("GITHUB_RUN_ID", ""),
+                )
             if visual_smoke:
                 from ci_visual_smoke import capture
                 results.extend(capture(specs, WEB, RESULTS))
@@ -1418,7 +1428,8 @@ def run_e2e(
                 first_identity_index = identity_index
                 identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
-                env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
+                env = performance_environment(os.environ, name, performance_metadata)
+                env["PLAYWRIGHT_TEST_API_URL"] = API
                 recovery_epoch_receipt = None
                 if not (component or artifact):
                     profile = json.loads(COMPOSE_PATH.read_text())

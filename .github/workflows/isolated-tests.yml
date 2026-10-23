@@ -538,6 +538,8 @@ jobs:
             subject/test-results/ci-environment.json
             subject/test-results/ci-startup-phases.json
             subject/test-results/ci-artifacts.json
+            subject/test-results/ci-web-production-inventory.json
+            subject/test-results/ci-web-performance-binding.json
             subject/test-results/ci-runtime-images.json
             subject/test-results/ci-results.json
             subject/test-results/ci-node-runtime.json
