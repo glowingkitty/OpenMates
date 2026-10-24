@@ -2,7 +2,7 @@ schema_version: 2
 profile: concise
 id: chat-message-timeline
 title: Chat Message Timeline
-status: verified
+status: implementing
 goal: Reproduce the chat-history overview in OpenMates with hover previews and touch-and-hold scrubbing, including very long chats and messages before compression.
 specifications:
 - feature.chat-message-timeline@1
@@ -11,6 +11,7 @@ scope:
 - Existing personal, Team, shared, example and device-local reading permissions and PII visibility.
 - Compact scrollable marks beside the message column, header-safe positioning and precise exchange navigation.
 - One-line question previews and assistant-only private bookmarks integrated with copy/report actions and shared tooltips.
+- Full-width narrow transcripts with a matching toolbar toggle and persistent, fading gray timeline pill overlay; preserve the accepted wide-screen rail.
 decisions:
 - Discover message identities with a keyset-paginated catalogue that never sends message bodies. Hot storage uses a fixed metadata projection in the existing internal SQL cursor reader, because Directus item filters reject inequalities on string IDs. Legacy cold storage uses the existing bounded archive reader, without hydrating a whole transcript or changing the archive format.
 - Load previews and jump sections through the existing encrypted message-window machinery, explicitly allowing pre-compression reads for browsing only.
@@ -22,6 +23,7 @@ decisions:
 - Await exact anchor placement before completing a jump. Reuse the chat's latest-message control instead of adding rail buttons.
 - New bookmark writes target assistant IDs; represent legacy question bookmarks through the associated response and clear those aliases on an intentional unbookmark.
 required_checks:
+- Focused mobile and narrow-pane proof of full transcript width, toolbar disclosure, persistent touch navigation, theme surfaces, fade transitions, keyboard and reduced motion.
 - Focused backend catalogue and access tests, and frontend identity, pairing and text-extraction unit tests.
 - Isolated bare component preview proof for mouse, keyboard, touch cancellation, compression treatment and phone/desktop geometry.
 - Isolated browser proof that an unloaded section is fetched and reached, including compressed history and retry behavior.

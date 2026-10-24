@@ -10,6 +10,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import ChatTimelineToggle from './ChatTimelineToggle.svelte';
     import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
     import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
     import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
@@ -2936,6 +2937,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Create a reference for the ChatHistory component using $state
     let chatHistoryRef = $state<ChatHistoryRef | null>(null);
+    let timelineOverlayOpen = $state(false);
+    let timelineAvailable = $state(false);
+    let timelineNarrow = $state(false);
+    const timelinePanelId = $props.id();
+
     // Create a reference for the MessageInput component using $state
     let messageInputFieldRef = $state<MessageInputFieldRef | null>(null);
     let queuedActionBusyMessageId = $state<string | null>(null);
@@ -14221,6 +14227,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         </div>
                     {/if}
 
+                  {#snippet timelineNavigation()}
+                    {#if !showWelcome && timelineAvailable && timelineNarrow}
+                      <ChatTimelineToggle open={timelineOverlayOpen} controls={timelinePanelId}
+                        onToggle={() => timelineOverlayOpen = !timelineOverlayOpen} />
+                    {/if}
+                  {/snippet}
                   {#snippet report()}
                     <div
                       class="new-chat-button-wrapper"
@@ -14385,6 +14397,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             hasPriorityAction={showChatPIIAction}
                             actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
                             {report} {share} {priorityAction} {actions} {close}
+                            navigationAction={timelineNavigation}
                         />
 
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
@@ -15132,6 +15145,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
+                          bind:timelineOverlayOpen
+                          {timelinePanelId}
+                          on:timelineStateChange={(event) => { timelineAvailable = event.detail.available; timelineNarrow = event.detail.narrow; }}
                           disablePointerEvents={showWelcome}
                           voiceCallBridge={showVoiceCallBarHere && !showWelcome
                               ? { controls: boundCallControls, onStickyChange: (stuck) => { voiceCallStripStuck = stuck; } }

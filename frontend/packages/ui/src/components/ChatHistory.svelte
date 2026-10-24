@@ -815,6 +815,7 @@ import { storageArchiveFetch } from "../config/api";
   let timelineContentEl = $state<HTMLDivElement | null>(null);
   let timelineLeft = $state(0);
   let timelineSafeTop = $state(8);
+  let timelineNarrow = $state(true);
   let timelinePinnedId: string | null = null;
   let timelineNavigating = $state(false);
   let timelineCursor: TimelineCursor | null = null;
@@ -976,14 +977,15 @@ import { storageArchiveFetch } from "../config/api";
     } else scrollToBottom();
   }
 
-  // Measure the message lane rather than the full-width header. Only message
-  // padding reserves a narrow rail gutter on phones and split panes.
+  // Measure the pane itself so phones and narrow split panes share disclosure.
+  // The wide rail remains beside the message lane; narrow rails overlay it.
   $effect(() => {
     const host = timelineHostEl, content = timelineContentEl, header = headerWrapperEl;
     if (!host || !content) return;
     let frame = 0;
     const measure = (resize = false) => {
       const hostRect = host.getBoundingClientRect(), lane = content.getBoundingClientRect();
+      timelineNarrow = host.clientWidth <= 730;
       timelineLeft = Math.max(0, lane.left - hostRect.left + parseFloat(getComputedStyle(content).paddingLeft) - 52);
       const banner = header?.getBoundingClientRect();
       timelineSafeTop = banner && banner.bottom > hostRect.top && banner.top < hostRect.bottom
@@ -1541,8 +1543,12 @@ import { storageArchiveFetch } from "../config/api";
     queuedActionErrors = {},
     canAnnotate = true,
     voiceCallBridge = undefined,
+    timelineOverlayOpen = $bindable(false),
+    timelinePanelId = undefined,
   }: {
     disablePointerEvents?: boolean;
+    timelineOverlayOpen?: boolean;
+    timelinePanelId?: string;
     voiceCallBridge?: { controls: Snippet<[boolean]>; onStickyChange: (stuck: boolean) => void };
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
@@ -1644,6 +1650,14 @@ import { storageArchiveFetch } from "../config/api";
   const timelineIndex = $derived(buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
   const timelineUserEntries = $derived(timelineIndex.entries);
   const timelineEnabled = $derived(timelineIndex.answeredCount >= 2);
+  $effect(() => {
+    void timelineScopeKey; void timelineNarrow; void timelineEnabled; void disablePointerEvents;
+    timelineOverlayOpen = false;
+  });
+  $effect(() => {
+    void timelineScopeKey;
+    dispatch('timelineStateChange', { available: timelineEnabled && !disablePointerEvents, narrow: timelineNarrow });
+  });
   $effect(() => {
     const chatId = currentChatId, mode = bookmarkMode;
     void timelineScopeKey; void $userProfile.encrypted_settings; void $messageBookmarksStore.localRevision;
@@ -3150,7 +3164,8 @@ import { storageArchiveFetch } from "../config/api";
 <div class="chat-history-wrapper" bind:this={timelineHostEl} class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
 {#if !disablePointerEvents && timelineEnabled}
   <ChatMessageTimeline entries={timelineUserEntries} contextKey={timelineScopeKey}
-    answeredCount={timelineIndex.answeredCount} railLeft={timelineLeft} safeTop={timelineSafeTop}
+    answeredCount={timelineIndex.answeredCount} railLeft={timelineNarrow ? 8 : timelineLeft} safeTop={timelineSafeTop}
+    id={timelinePanelId} pill={timelineNarrow} open={!timelineNarrow || timelineOverlayOpen}
     bookmarkedIds={timelineIndex.assistantBookmarks} onToggleBookmark={toggleBookmark}
     compressionBoundary={latestCompressionCheckpoint?.compressed_up_to_timestamp ?? null}
     currentId={timelineCurrentId} catalogueLoading={timelineCatalogueLoading} catalogueIncomplete={timelineCatalogueIncomplete}
@@ -3744,7 +3759,8 @@ import { storageArchiveFetch } from "../config/api";
   }
 
   @container chat-history (max-width: 730px) {
-    .chat-history-content.has-messages {
+    .chat-history-content.has-messages,
+    .chat-history-content.has-messages.has-timeline {
       padding-top: calc(70px + var(--assistant-speech-overlay-reserve, 0px));
       padding-inline: 0;
     }

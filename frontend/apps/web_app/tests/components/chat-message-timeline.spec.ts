@@ -305,6 +305,8 @@ test('real history positions compact marks beside the column and reliably opens 
   await page.screenshot({ path: info.outputPath('timeline-wide-header-boundary.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   await scrollChatHistoryToStart(page, info);
+  await expect(rail).toHaveCount(0);
+  await page.getByTestId('chat-timeline-toggle').tap();
   await expect(rail).toBeVisible();
   await expect(page.locator('.chat-header-wrapper')).toBeInViewport({ ratio: 1 });
   expect((await rail.boundingBox())!.x - (await viewport.boundingBox())!.x).toBeLessThan(30);
@@ -365,4 +367,131 @@ test.describe('compact follow-up and fixed assistant actions', () => {
     await expect(rail.locator('.timeline-mark.bookmarked')).toHaveCount(1);
     await page.screenshot({ path: info.outputPath('timeline-two-marks-assistant-actions.png') });
   });
+});
+
+// contract-test: direct surface=gui.web assertions=chat-message-timeline.narrow-layout-disclosure,chat-message-timeline.visibility-and-spacing,chat-message-timeline.touch-scrubbing,chat-message-timeline.accessible-layout
+test('phone disclosure preserves full-width messages and keeps the pill open after touch navigation and outside scrolling', async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dev/preview/ChatHistoryTimelinePreviewHarness?variant=short&theme=dark&background=%23171717&width=390&chrome=0');
+  await waitForComponentPreview(page);
+  const toggle = page.getByTestId('chat-timeline-toggle');
+  const rail = page.getByTestId('timeline-rail');
+  const viewport = page.getByTestId('chat-history-container');
+  await expect(page.locator('.message-wrapper.assistant')).toHaveCount(1);
+  await expect(toggle).toHaveCount(0);
+  const lane = page.getByTestId('chat-history-content');
+  expect(await lane.evaluate(node => parseFloat(getComputedStyle(node).paddingLeft))).toBe(0);
+  await page.evaluate(() => window.dispatchEvent(new Event('preview:history-follow-up')));
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toHaveCount(0);
+  await expect(toggle.locator('svg path')).toHaveCount(3);
+  expect(await toggle.locator('svg path').evaluateAll(nodes => nodes.map(node => (node as SVGPathElement).getTotalLength()))).toEqual([12, 18, 12]);
+  expect(await toggle.evaluate(node => getComputedStyle(node).opacity)).toBe('1');
+  const metrics = () => lane.evaluate(node => ({
+    width: node.getBoundingClientRect().width,
+    padding: getComputedStyle(node).paddingLeft,
+    rows: Array.from(node.querySelectorAll('.message-wrapper')).map(row => ({ width: row.getBoundingClientRect().width, height: row.getBoundingClientRect().height })),
+    scroll: node.closest('.chat-history-container')!.scrollTop,
+  }));
+  await expect(viewport).toHaveAttribute('data-scroll-state', 'ready');
+  const closed = await metrics();
+  await page.screenshot({ path: info.outputPath('timeline-mobile-full-width-closed.png') });
+  await toggle.tap();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(rail).toBeVisible();
+  await expect.poll(() => toggle.evaluate(node => getComputedStyle(node).opacity)).toBe('0.5');
+  expect(await metrics()).toEqual(closed);
+  const surface = page.locator('.timeline-surface.pill');
+  const surfaceStyle = await surface.evaluate(node => {
+    const style = getComputedStyle(node);
+    return { background: style.backgroundColor, shadow: style.boxShadow, radius: parseFloat(style.borderTopLeftRadius), width: node.getBoundingClientRect().width };
+  });
+  expect(surfaceStyle.background).not.toBe('rgba(0, 0, 0, 0)');
+  expect(surfaceStyle.shadow).not.toBe('none');
+  expect(surfaceStyle.radius).toBeGreaterThanOrEqual(surfaceStyle.width / 2);
+  const railBox = (await rail.boundingBox())!;
+  const x = railBox.x + railBox.width / 2;
+  const session = await page.context().newCDPSession(page);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: railBox.y + 6, id: 1 }] });
+  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 0:');
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: railBox.y + 18, id: 1 }] });
+  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 1:');
+  expect((await page.getByTestId('timeline-preview').boundingBox())!.x).toBeGreaterThan(x + 40);
+  await page.screenshot({ path: info.outputPath('timeline-mobile-pill-scrubbing.png') });
+  const target = page.locator('.message-wrapper[data-message-id="timeline-history-2"]');
+  await expect(target).toHaveCount(0); // Previewing does not load the selected transcript section.
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page.getByTestId('timeline-preview')).toHaveCount(0);
+  await expect(target).toBeInViewport();
+  await expect(rail).toHaveAttribute('aria-valuenow', '2');
+  // This short final exchange reaches the bottom boundary rather than a 70px top alignment.
+  await expect.poll(() => viewport.evaluate(node => node.scrollHeight - node.clientHeight - node.scrollTop)).toBeCloseTo(0, 0);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(rail).toBeVisible();
+  await page.touchscreen.tap(300, 300);
+  await expect(rail).toBeVisible();
+  await page.mouse.move(300, 600);
+  const previousScroll = await viewport.evaluate(node => node.scrollTop);
+  await page.mouse.wheel(0, -180);
+  await expect.poll(() => viewport.evaluate(node => node.scrollTop)).toBeCloseTo(Math.max(0, previousScroll - 180), 0);
+  await expect(rail).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const beforeClose = await metrics();
+  // Observe real outro frames instead of sleeping for an assumed animation duration.
+  await page.evaluate(() => {
+    const state = window as unknown as { timelineFadeFrames: number[] };
+    state.timelineFadeFrames = [];
+    const sample = () => {
+      const surface = document.querySelector('.timeline-surface');
+      if (!surface) return;
+      state.timelineFadeFrames.push(Number(getComputedStyle(surface).opacity));
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  await toggle.tap();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toHaveCount(0);
+  await expect.poll(() => toggle.evaluate(node => getComputedStyle(node).opacity)).toBe('1');
+  expect(await page.evaluate(() => (window as unknown as { timelineFadeFrames: number[] }).timelineFadeFrames.some(opacity => opacity > 0 && opacity < 1))).toBe(true);
+  expect(await metrics()).toEqual(beforeClose);
+  await session.detach();
+});
+
+// contract-test: direct surface=gui.web assertions=chat-message-timeline.narrow-layout-disclosure,chat-message-timeline.access-and-lifecycle,chat-message-timeline.accessible-layout
+test('a narrow laptop pane uses the light pill and accessible toggle while wide mode retains the bare rail', async ({ page }, info) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/dev/preview/ChatHistoryTimelinePreviewHarness?theme=light&background=%23dbeafe&width=1280&props=%7B%22paneWidth%22%3A500%7D&chrome=0');
+  await waitForComponentPreview(page);
+  const toggle = page.getByTestId('chat-timeline-toggle');
+  const rail = page.getByTestId('timeline-rail');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toHaveCount(0);
+  expect(await page.getByTestId('chat-history-content').evaluate(node => getComputedStyle(node).paddingLeft)).toBe('0px');
+  await toggle.focus(); await toggle.press('Enter');
+  await expect(rail).toBeVisible();
+  expect(await toggle.getAttribute('aria-controls')).toBe(await page.getByTestId('chat-message-timeline').getAttribute('id'));
+  expect(await toggle.evaluate(node => getComputedStyle(node).transitionDuration)).toBe('0s');
+  await rail.focus(); await rail.press('Home');
+  await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 0:');
+  await rail.press('Escape');
+  await expect(page.getByTestId('timeline-preview')).toHaveCount(0);
+  await expect(rail).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(await page.locator('.timeline-surface.pill').evaluate(node => getComputedStyle(node).opacity)).toBe('1');
+  await page.screenshot({ path: info.outputPath('timeline-narrow-pane-light-pill.png') });
+  await toggle.focus(); await toggle.press('Space');
+  await expect(rail).toHaveCount(0);
+  await toggle.press('Enter');
+  await expect(rail).toBeVisible();
+  await expect(rail.locator('.timeline-mark.current')).toHaveCount(1);
+  // A genuine pane resize clears disclosure state and does not alter desktop presentation.
+  await page.locator('.chat-side').evaluate(node => (node as HTMLElement).style.width = '1100px');
+  await expect(toggle).toHaveCount(0);
+  await expect(rail).toBeVisible();
+  await expect(page.locator('.timeline-surface.pill')).toHaveCount(0);
+  await page.locator('.chat-side').evaluate(node => (node as HTMLElement).style.width = '500px');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(rail).toHaveCount(0);
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, untrack } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { text } from '@repo/ui';
   import { piiVisibilityStore } from '../stores/piiVisibilityStore';
   import { restorePIIInText } from './enter_message/services/piiDetectionService';
@@ -7,9 +8,11 @@
   import MessageBookmarkButton from './MessageBookmarkButton.svelte';
 
   let { entries, answeredCount, contextKey, compressionBoundary, currentId, railLeft = 0, safeTop = 8,
-    catalogueLoading, catalogueIncomplete, onPreview, onActivate, onLoadEarlier, bookmarkedIds, onToggleBookmark }: {
+    catalogueLoading, catalogueIncomplete, onPreview, onActivate, onLoadEarlier, bookmarkedIds, onToggleBookmark,
+    id = undefined, pill = false, open = true }: {
     entries: TimelineEntry[]; answeredCount: number; contextKey: string; compressionBoundary: number | null;
     currentId: string | null; railLeft?: number; safeTop?: number;
+    id?: string; pill?: boolean; open?: boolean;
     catalogueLoading: boolean; catalogueIncomplete: boolean;
     onPreview: (entry: TimelineEntry) => Promise<TimelinePreview>;
     onActivate: (entry: TimelineEntry) => Promise<void>;
@@ -46,15 +49,17 @@
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
   let previousEntries: TimelineEntry[] = [];
+  let previousRail: HTMLDivElement | undefined;
   let previousScope = '';
   let previousCurrent: string | null = null;
 
   const selectedIndex = $derived(entries.findIndex(entry => entry.message_id === selectedId));
   const selected = $derived(selectedIndex >= 0 ? entries[selectedIndex] : null);
   const currentIndex = $derived(entries.findIndex(entry => entry.message_id === currentId));
-  const railHeight = $derived(Math.min(240, entries.length * PITCH, Math.floor(Math.max(0, height - safeTop - 8) / PITCH) * PITCH));
-  const visible = $derived(answeredCount >= 2 && railHeight >= 24);
-  const railTop = $derived(Math.max(safeTop, (height - railHeight) / 2));
+  const pillPadding = $derived(pill ? 12 : 0);
+  const railHeight = $derived(Math.min(240, entries.length * PITCH, Math.floor(Math.max(0, height - safeTop - 8 - pillPadding * 2) / PITCH) * PITCH));
+  const visible = $derived(open && answeredCount >= 2 && railHeight >= 24);
+  const railTop = $derived(Math.max(safeTop + pillPadding, (height - railHeight) / 2));
   const marks = $derived.by(() => {
     const start = Math.max(0, Math.floor(scrollTop / PITCH) - 2);
     const end = Math.min(entries.length, Math.ceil((scrollTop + railHeight) / PITCH) + 2);
@@ -87,13 +92,13 @@
   }
   function cancel(): void { stopAutoScroll(); pointerId = null; held = false; scrollGesture = false; dismiss(); }
 
-  $effect.pre(() => { void contextKey; cancel(); committing = false; ignoreClick = false; });
+  $effect.pre(() => { void contextKey; void open; cancel(); committing = false; ignoreClick = false; });
   $effect(() => {
     const list = entries, scope = contextKey, current = currentId;
     void railHeight;
     if (!rail || !visible) return;
     untrack(() => {
-      if (scope !== previousScope || previousEntries.length === 0) {
+      if (rail !== previousRail || scope !== previousScope || previousEntries.length === 0) {
         setScroll(Math.max(0, list.findIndex(entry => entry.message_id === current) * PITCH - railHeight / 2));
       } else {
         // Preserve the row under the pointer as catalogue pages prepend history.
@@ -103,7 +108,7 @@
         if (next >= 0) setScroll(rail!.scrollTop + (next - index) * PITCH);
       }
       if (current !== previousCurrent && selectedId === null && pointerId === null) reveal(list.findIndex(entry => entry.message_id === current));
-      previousEntries = list; previousScope = scope; previousCurrent = current;
+      previousRail = rail; previousEntries = list; previousScope = scope; previousCurrent = current;
     });
   });
   $effect(() => {
@@ -220,10 +225,14 @@
   }
 </script>
 
-<div class="timeline-overlay" bind:this={host} data-testid="chat-message-timeline">
+<div {id} class="timeline-overlay" bind:this={host} data-testid="chat-message-timeline">
   {#if visible}
+    <div class="timeline-surface" class:pill inert={!open}
+      style:left={`${railLeft}px`} style:top={`${railTop - pillPadding}px`}
+      style:height={`${railHeight + pillPadding * 2}px`} style:padding-block={`${pillPadding}px`}
+      transition:fade={{ duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160 }}>
     <div class="timeline-rail" bind:this={rail} role="slider" tabindex="0"
-      style:left={`${railLeft}px`} style:top={`${railTop}px`} style:height={`${railHeight}px`}
+      style:height={`${railHeight}px`}
       aria-label={$text('chat.timeline.navigation')} aria-orientation="vertical" aria-busy={catalogueLoading || committing}
       aria-valuemin={1} aria-valuemax={entries.length} aria-valuenow={Math.max(1, (selectedIndex >= 0 ? selectedIndex : currentIndex) + 1)}
       aria-valuetext={`${$text('chat.timeline.exchange')} ${Math.max(1, (selectedIndex >= 0 ? selectedIndex : currentIndex) + 1)} / ${entries.length}`}
@@ -241,6 +250,7 @@
             style:top={`${mark.index * PITCH + 5}px`}></span>
         {/each}
       </div>
+    </div>
     </div>
   {/if}
   {#if visible && selected}
@@ -275,9 +285,16 @@
 
 <style>
   .timeline-overlay { position: absolute; inset: 0; pointer-events: none; z-index: var(--z-index-dropdown, 100); }
-  .timeline-rail { position: absolute; width: 44px; margin: 0; padding: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; overflow-anchor: none; touch-action: none; user-select: none; -webkit-user-select: none; pointer-events: auto; cursor: pointer; border-radius: var(--radius-2); animation: timeline-appear var(--duration-fast, 160ms) ease-out both; }
+  .timeline-surface { position: absolute; width: 44px; box-sizing: border-box; }
+  .timeline-surface.pill { background: var(--color-grey-20); border: 1px solid var(--color-grey-30); border-radius: var(--radius-full); box-shadow: var(--shadow-lg); }
+  .timeline-surface[inert] { pointer-events: none; }
+  .timeline-surface[inert] .timeline-rail { pointer-events: none; }
+  .timeline-rail { position: relative; width: 44px; margin: 0; padding: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; overflow-anchor: none; touch-action: none; user-select: none; -webkit-user-select: none; pointer-events: auto; cursor: pointer; border-radius: var(--radius-2); animation: timeline-appear var(--duration-fast, 160ms) ease-out both; }
+  .pill .timeline-rail { animation: none; }
   .timeline-rail::-webkit-scrollbar { display: none; }
   .timeline-rail:focus-visible { outline: 1px solid var(--color-font-tertiary); outline-offset: 2px; }
+  .pill .timeline-rail:focus-visible { outline: none; }
+  .pill:has(.timeline-rail:focus-visible) { outline: 1px solid var(--color-font-tertiary); outline-offset: 2px; }
   .timeline-track { position: relative; width: 100%; pointer-events: none; }
   .timeline-mark { position: absolute; left: var(--spacing-6); width: var(--spacing-6); height: 2px; border-radius: 2px; background: var(--color-font-primary); opacity: 0.35; transition: width var(--duration-fast, 160ms), opacity var(--duration-fast, 160ms); }
   .timeline-mark.compressed { opacity: 0.2; }

@@ -4,7 +4,7 @@ visibility_and_spacing:
 - id: first-answer-and-follow-up
   given: Alice has one question and one assistant answer containing several tool and activity steps.
   when: She reads that first answer, then sends a follow-up and receives another assistant response.
-  then: The first exchange has no timeline. After the second response appears, two evenly spaced marks fade in as a small stack roughly 24 pixels tall.
+  then: The first exchange has no timeline or timeline toggle. After the second response appears, two evenly spaced marks fade in as a roughly 24-pixel stack on a wide layout. On a phone the toolbar toggle appears, with the marks hidden until Alice opens it.
 - id: grow-to-a-scrollable-stack
   given: Alice has a conversation with many answered follow-up questions.
   when: More exchanges arrive and she scrolls the marks toward the earlier questions.
@@ -20,9 +20,9 @@ preview_and_activate:
   then: The preview identifies the pending answer rather than showing the previous answer. The empty chat has no timeline or leftover preview.
 touch_scrubbing:
 - id: hold-slide-and-release-on-phone
-  given: Alice opens a long conversation on a phone and holds a finger on its left-hand timeline.
+  given: Alice opens a long conversation on a phone, reveals the timeline with its toolbar toggle and holds a finger on the marks.
   when: She slides upward and holds near the stack edge to continue through older marks, then releases on the question about the project budget.
-  then: The preview follows the selected exchange beside and clear of her finger. Release loads and scrolls to the budget question once.
+  then: The preview follows the selected exchange beside and clear of her finger. Release loads and scrolls to the budget question once, while the timeline pill remains open.
 - id: cancel-and-scroll-normally
   given: Alice is previewing an exchange with a held finger and the operating system cancels that pointer gesture.
   when: She returns to the chat and swipes in the ordinary transcript area.
@@ -61,8 +61,17 @@ accessible_layout:
   then: The compact rail sits immediately outside the message column while the full-width header and centered column keep their normal alignment. Focus and exchange labels identify each selection; dismissal does not navigate, activation reaches the exact question and reduced motion keeps the transitions immediate.
 - id: narrow-touch-preview-in-both-themes
   given: Alice opens a chat on a narrow phone and also uses the chat beside another panel on a laptop, in light or dark theme.
-  when: She scrolls until the header appears, then holds near the bottom of the timeline and previews a long question and answer.
-  then: The marks stay below the visible header and above the composer while remaining centered when space permits. The preview stays beside the compact stack, inside the chat and clear of her finger. The rail shows only marks, without extra buttons or a visible scrollbar; the page has no horizontal overflow.
+  when: She opens the timeline from the toolbar, scrolls until the header appears, then holds near the bottom of the marks and previews a long question and answer.
+  then: The gray pill overlays the left side of the full-width transcript without narrowing or rewrapping it. The marks stay below the visible header and above the composer while remaining centered when space permits. The preview stays beside the stack, inside the chat and clear of her finger. The pill contains only marks, without extra buttons or a visible scrollbar; the page has no horizontal overflow.
+narrow_layout_disclosure:
+- id: phone-toggle-and-persistent-overlay
+  given: Alice reads a phone chat with several answered exchanges. The full-width transcript has no visible timeline marks and its three-line toolbar button is fully opaque.
+  when: She taps that button, scrubs to an old exchange, releases to navigate, scrolls the transcript and taps outside the timeline. She then taps the same button again.
+  then: The first tap fades in a gray shadowed vertical pill over the left side of the chat and reduces the button opacity. The pill stays open during navigation, scrolling and outside taps. The second tap fades it out and restores full button opacity. Neither toggle changes the transcript width, line wrapping or scroll position.
+- id: wide-layout-and-accessible-toggle
+  given: Alice reads the same conversation in a wide chat pane, then in a narrow pane with reduced motion enabled.
+  when: She uses the timeline controls with the keyboard and dismisses a preview with Escape.
+  then: The wide pane keeps its existing rail beside the message column, without a disclosure button or pill. The narrow pane offers an accessibly labelled toolbar toggle whose expanded state matches the overlay. Its opacity changes are immediate with reduced motion, and Escape dismisses only the preview while the open pill remains visible.
 bookmarks:
 - id: retain-an-old-bookmark-through-the-assistant-response
   given: Alice previously bookmarked her project-budget question in the earlier UI; its assistant answer is retained before two compression points in a long chat.

@@ -4,7 +4,7 @@ import { createTimelineFixture, persistTimelineFixture, type TimelineFixture } f
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createWorkflowCliHome, loginWorkflowCliViaPair, removeWorkflowCliHome, workflowApiUrl } = require('./helpers/workflow-cli-e2e-helpers');
 
-// contract-test: direct surface=gui.web assertions=chat-message-timeline.full-history-loading,chat-message-timeline.compression-history,chat-message-timeline.access-and-lifecycle,chat-message-timeline.preview-and-activate,chat-message-timeline.bookmarks,chat-message-timeline.accessible-layout
+// contract-test: direct surface=gui.web assertions=chat-message-timeline.full-history-loading,chat-message-timeline.compression-history,chat-message-timeline.access-and-lifecycle,chat-message-timeline.preview-and-activate,chat-message-timeline.bookmarks,chat-message-timeline.accessible-layout,chat-message-timeline.narrow-layout-disclosure
 test('cold ten-thousand-exchange history persists private bookmarks and loads the exact compressed section with retry', async ({ page, playwright }, info) => {
   test.setTimeout(480_000);
   const home = createWorkflowCliHome('message-timeline');
@@ -149,6 +149,38 @@ test('cold ten-thousand-exchange history persists private bookmarks and loads th
     const latestId = String(fixture.messages[fixture.messages.length - 1].client_message_id);
     await expect(page.locator(`[data-message-id="${latestId}"]`)).toBeVisible();
     await expect(rail).toHaveAttribute('aria-valuenow', '10000');
+    // The actual active-chat toolbar discloses a persistent overlay on narrow panes.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const toggle = page.getByTestId('chat-timeline-toggle');
+    const viewport = page.getByTestId('chat-history-container');
+    const lane = page.getByTestId('chat-history-content');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(rail).toHaveCount(0);
+    expect(await lane.evaluate(node => getComputedStyle(node).paddingLeft)).toBe('0px');
+    const narrowWidth = await lane.evaluate(node => node.getBoundingClientRect().width);
+    await page.screenshot({ path: info.outputPath('timeline-real-mobile-closed.png') });
+    await toggle.click();
+    await expect(rail).toHaveAttribute('data-count', '10000');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(() => toggle.evaluate(node => getComputedStyle(node).opacity)).toBe('0.5');
+    expect(await lane.evaluate(node => node.getBoundingClientRect().width)).toBe(narrowWidth);
+    await rail.focus(); await rail.press('Home');
+    for (let step = 0; step < 4; step++) await rail.press('PageDown');
+    await expect(page.getByTestId('timeline-user-preview')).toContainText('Question 80:');
+    const mobileId = String(fixture.messages[160].client_message_id);
+    const mobileTarget = page.locator(`.message-wrapper[data-message-id="${mobileId}"]`);
+    await expect(mobileTarget).toHaveCount(0);
+    await rail.press('Enter');
+    await expect(mobileTarget).toBeVisible();
+    await expect.poll(() => mobileTarget.evaluate(node => node.getBoundingClientRect().top - node.closest('.chat-history-container')!.getBoundingClientRect().top)).toBeCloseTo(70, 0);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.timeline-surface.pill')).toBeVisible();
+    await page.screenshot({ path: info.outputPath('timeline-real-mobile-loaded-section.png') });
+    const beforeClose = await viewport.evaluate(node => ({ scroll: node.scrollTop, width: node.clientWidth }));
+    await toggle.click();
+    await expect(rail).toHaveCount(0);
+    await expect.poll(() => toggle.evaluate(node => getComputedStyle(node).opacity)).toBe('1');
+    expect(await viewport.evaluate(node => ({ scroll: node.scrollTop, width: node.clientWidth }))).toEqual(beforeClose);
     expect(persistTimelineFixture(fixture, 'snapshot')).toEqual(before);
     expect(outgoingTypes.filter(type => /^(send_chat_message|new_chat_message|chat_message_added|message_send|compress_chat|store_chat_compression_checkpoint)$/.test(type))).toEqual([]);
     await page.screenshot({ path: info.outputPath('timeline-back-latest.png') });

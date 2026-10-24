@@ -454,7 +454,7 @@ specifications:
     version: 1
     status: draft
     path: features/chat-message-timeline
-    fingerprint: 59878f46bed8fd9bb1d40d0e29f534109a8e00c675b957a53f69d0da719bf632
+    fingerprint: a073425ba3eab4f310c1504392473c63337aa81a7f04b5ab81b6e89696b34649
     required_applies_to:
     - gui.web
   feature.chat-navigation:
@@ -6302,7 +6302,7 @@ assertions:
     specification: feature.chat-message-timeline@1
     specification_id: feature.chat-message-timeline
     type: behavior
-    fingerprint: 8efd9d9fc10581c918b1eecff87b708e6c038827fba34456d9be781ce3b59c24
+    fingerprint: e2061bb1ddc170dde5057792ff29140c3ec6b80a965b6e2a5fbf2a61212daed2
     required_applies_to:
     - gui.web
   chat-message-timeline.preview-and-activate:
@@ -6316,7 +6316,7 @@ assertions:
     specification: feature.chat-message-timeline@1
     specification_id: feature.chat-message-timeline
     type: behavior
-    fingerprint: 138272e53f37d392bef38cf9fc00d46c0acc21c1e8478998081c1eaf717a11bf
+    fingerprint: 7792870a95be05143d5d4ccb9892bfe4a009139beb99da8dd8b96eba19e1f426
     required_applies_to:
     - gui.web
   chat-message-timeline.full-history-loading:
@@ -6344,7 +6344,14 @@ assertions:
     specification: feature.chat-message-timeline@1
     specification_id: feature.chat-message-timeline
     type: behavior
-    fingerprint: adcdef2000823c404ff06c13f6899e1bd1b5dfbeaf6983ac7ba3b3f75fd2ebc5
+    fingerprint: f78355b7b4a0115a835d63bbe713fd1f26fc90b54bf968bd35c3328e6655f3ea
+    required_applies_to:
+    - gui.web
+  chat-message-timeline.narrow-layout-disclosure:
+    specification: feature.chat-message-timeline@1
+    specification_id: feature.chat-message-timeline
+    type: behavior
+    fingerprint: 0da3451c74b85e56c085578fee551464ae6f5d164d18cabc95bdf03fd0c70b68
     required_applies_to:
     - gui.web
   chat-message-timeline.bookmarks:

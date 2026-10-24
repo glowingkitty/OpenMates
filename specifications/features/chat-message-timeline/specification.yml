@@ -6,7 +6,7 @@ title: Chat Message Timeline
 summary: A compact web-chat timeline previews and opens exchanges throughout the retained conversation, including unloaded and pre-compression history, using mouse, keyboard or touch.
 scope:
   includes:
-  - A compact scrollable timeline beside the chat message column on desktop, tablet and phone.
+  - A compact scrollable timeline beside the message column on wide layouts and in an explicitly toggled overlay on narrow layouts.
   - Chronological user-message and assistant-response exchange previews and navigation.
   - Retained history outside the current message window or rendered DOM, including messages before compression.
   - Existing authorized personal, Team, shared, example and device-local web-chat reading contexts.
@@ -24,7 +24,7 @@ scope:
 assertions:
 - id: chat-message-timeline.visibility-and-spacing
   type: behavior
-  must: An empty chat or a chat with only one answered user-started exchange shows no timeline, even when the answer contains multiple tool or activity steps. The timeline appears after a follow-up has an associated second assistant response, using a short opacity fade. Marks have fixed, even spacing; two marks form a small stack roughly 24 pixels tall, and additional marks grow the stack to a cap around 240 pixels rather than spreading across the full viewport height. The stack adapts to the visible space below the header. Reduced motion uses an immediate visibility change.
+  must: An empty chat or a chat with only one answered user-started exchange shows no timeline, even when the answer contains multiple tool or activity steps. Timeline navigation becomes available after a follow-up has an associated second assistant response. On wide layouts the marks appear with a short opacity fade; on narrow layouts a toolbar toggle becomes available and the marks remain hidden until opened. Marks have fixed, even spacing; two marks form a small stack roughly 24 pixels tall, and additional marks grow the stack to a cap around 240 pixels rather than spreading across the full viewport height. The stack adapts to the visible space below the header. Reduced motion uses an immediate visibility change.
   depends_on: [examples.visibility_and_spacing]
 - id: chat-message-timeline.preview-and-activate
   type: behavior
@@ -32,7 +32,7 @@ assertions:
   depends_on: [examples.preview_and_activate]
 - id: chat-message-timeline.touch-scrubbing
   type: behavior
-  must: Touch-and-hold starts preview scrubbing; moving vertically selects the corresponding evenly spaced mark and updates the preview. Near a scrollable stack edge, holding or sliding continues through older or newer marks without a history cutoff. Release commits one jump to the previewed exchange, loading its section if needed. A direct tap activates its own mark; cancellation dismisses without navigation. The preview stays beside and clear of the finger inside the chat viewport. Gestures outside the rail retain ordinary scrolling and text selection.
+  must: Once the timeline is visible, touch-and-hold starts preview scrubbing; moving vertically selects the corresponding evenly spaced mark and updates the preview. Near a scrollable stack edge, holding or sliding continues through older or newer marks without a history cutoff. Release commits one jump to the previewed exchange, loading its section if needed. On narrow layouts this does not close the timeline overlay. A direct tap activates its own mark; cancellation dismisses without navigation. The preview stays beside and clear of the finger inside the chat viewport. Gestures outside the rail retain ordinary scrolling and text selection.
   depends_on: [examples.touch_scrubbing]
 - id: chat-message-timeline.full-history-loading
   type: behavior
@@ -48,8 +48,12 @@ assertions:
   depends_on: [examples.access_and_lifecycle]
 - id: chat-message-timeline.accessible-layout
   type: behavior
-  must: On wide layouts the compact stack sits immediately outside the left edge of the centered message column, using that column rather than the distant panel edge as its horizontal anchor. The header retains its full width and the message column retains its existing centering and maximum width. On narrow layouts the rail uses the available message-side gutter while preserving the header and composer. Vertically the stack prefers the center of the visible chat area and is clamped below the visible header and above the composer; scrolling the header into view never makes marks overlap it. The rail contains only marks, with no extra buttons, heading or visible scrollbar. Loading, retry and latest-message controls use the preview or existing chat UI. Keyboard users can navigate individual exchanges with arrows, Home and End, activate with Enter or Space and dismiss with Escape. Phone and wide-screen layouts work in both themes without horizontal overflow. Reduced motion preserves selection and navigation without animated appearance, widening or scrolling.
+  must: On wide layouts the compact stack sits immediately outside the left edge of the centered message column, using that column rather than the distant panel edge as its horizontal anchor. The header retains its full width and the message column retains its existing centering and maximum width. On narrow layouts the transcript keeps its ordinary full available width, whether the timeline is closed or open. The timeline overlays the transcript rather than reserving message space, while preserving the header and composer. Vertically the stack prefers the center of the visible chat area and is clamped below the visible header and above the composer; scrolling the header into view never makes marks overlap it. The rail contains only marks, with no extra buttons, heading or visible scrollbar. Loading, retry and latest-message controls use the preview or existing chat UI. Keyboard users can navigate individual exchanges with arrows, Home and End, activate with Enter or Space and dismiss with Escape. Phone and wide-screen layouts work in both themes without horizontal overflow. Reduced motion preserves selection and navigation without animated appearance, widening or scrolling.
   depends_on: [examples.accessible_layout]
+- id: chat-message-timeline.narrow-layout-disclosure
+  type: behavior
+  must: Narrow chat layouts expose a top-toolbar timeline toggle when the chat has at least two answered exchanges. It matches the existing chat toolbar buttons and uses three horizontal lines with a longer middle line. Initially the toggle is fully opaque and the timeline is hidden. Activating it reveals the existing timeline marks in a gray vertical pill with a drop shadow, over the left side of the transcript, and smoothly reduces the toggle opacity. The overlay remains open through previewing, touch scrubbing, exchange activation, transcript scrolling and taps outside it. Activating the same toggle again smoothly fades the overlay out and restores the button opacity. Opening or closing it does not change transcript width, wrapping or scroll position. Existing chat, account and workspace lifecycle clearing continues to apply. The toggle has an accessible label and expanded state; Escape dismisses a preview without closing the pill. Reduced motion makes opacity changes immediate. Wide layouts keep their existing automatic rail without this toggle or pill.
+  depends_on: [examples.narrow_layout_disclosure]
 - id: chat-message-timeline.bookmarks
   type: behavior
   must: A viewer can bookmark an assistant response from its assistant-message action row or from the preview of its exchange; a preview without an assistant response has no bookmark action. User messages have no bookmark button. An inactive bookmark is a filled gray icon and changes color on hover; an active bookmark glows yellow and its exchange mark is yellow, including unloaded and retained pre-compression history. Removing the bookmark clears its yellow state. Previously saved question bookmarks remain represented through their associated assistant response when available, and unbookmarking that response clears the legacy selection too. Bookmarking does not navigate or change messages, AI memory or inference. Saved-chat bookmarks remain private client-encrypted account settings available when reopening on another signed-in device. Device-local retention, failed-save preservation and retry, sharing boundaries and account/workspace isolation remain enforced.
@@ -84,5 +88,6 @@ examples:
   - compression_history
   - access_and_lifecycle
   - accessible_layout
+  - narrow_layout_disclosure
   - bookmarks
   - assistant_message_actions
