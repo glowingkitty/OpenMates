@@ -428,7 +428,7 @@ def provision_startup_sync_chats(account: dict) -> None:
     if result.returncode:
         raise RuntimeError("Fresh encrypted startup chat provisioning failed; no shared-account fallback")
     summary = json.loads(result.stdout)
-    if (summary.get("chats") != 22 or summary.get("messages") != 32
+    if (summary.get("chats") != 23 or summary.get("messages") != 33
             or summary.get("persisted_null_messages_v_count") != 1):
         raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape or legacy version")
     print("Startup sync fixture: " + json.dumps(summary, sort_keys=True), flush=True)
