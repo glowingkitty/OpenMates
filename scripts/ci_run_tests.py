@@ -2295,7 +2295,7 @@ def main():
     try:
         if case_title and mode != "e2e":
             raise ValueError("Case filter requires E2E mode")
-        if mode not in ("pytest", "backend-probe"):
+        if mode not in ("pytest", "backend-probe", "sdk-lockfiles"):
             verify_pinned_node_runtime()
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
@@ -2311,6 +2311,10 @@ def main():
                     results=results,
                     **({"case_title": case_title} if case_title else {}),
                 )
+        elif mode == "sdk-lockfiles":
+            reject_inherited_accounts()
+            from ci_sdk_lockfiles import run
+            run(ROOT, results)
         elif mode == "sdk-conformance":
             reject_inherited_accounts()
             verify_shared_dev_rejected()

@@ -375,7 +375,7 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("prepare", "backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance"):
+        if mode not in ("prepare", "backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance", "sdk-lockfiles"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("component", "e2e", "artifact")
@@ -421,6 +421,8 @@ class Queue:
         if case_title and (mode != "e2e" or len(specs) != 1
                            or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
             raise ValueError("Case filter requires the exact recovery spec and approved test title")
+        if mode == "sdk-lockfiles" and specs != ["sdk-lockfiles"]:
+            raise ValueError("SDK lock preparation requires its exact unprepared target")
         if mode == "sdk-conformance" and specs != ["sdk-conformance"]:
             raise ValueError("SDK conformance requires its exact unprepared target")
         if mode == "pytest":
@@ -438,10 +440,13 @@ class Queue:
             except ModuleNotFoundError:
                 from ci_visual_smoke import validate_targets
             validate_targets(specs)
+        if mode == "sdk-lockfiles":
+            if specs != ["sdk-lockfiles"] or preparation or runtime_seed_job or capacity_configuration or case_title:
+                raise ValueError("SDK lock preparation requires its exact unprepared target")
         if mode == "sdk-conformance":
             if specs != ["sdk-conformance"] or preparation or runtime_seed_job or capacity_configuration:
                 raise ValueError("SDK conformance requires its exact unprepared target")
-        for spec in ([] if mode in ("visual-smoke", "pytest", "sdk-conformance") else specs):
+        for spec in ([] if mode in ("visual-smoke", "pytest", "sdk-conformance", "sdk-lockfiles") else specs):
             if mode == "vitest":
                 allowed = bool(
                     re.fullmatch(r"frontend/(?:packages/ui|apps/web_app)/src/[A-Za-z0-9_./-]+\.test\.tsx?", spec)
@@ -911,6 +916,8 @@ def enqueue_submission(
         raise ValueError("Prepared builds require an E2E/visual source root")
     if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
         raise ValueError("Runtime seed requires --no-prepared-builds for E2E and backend-probe only")
+    if mode == "sdk-lockfiles" and (specs != ["sdk-lockfiles"] or prepared_builds or runtime_seed_job or capacity_configuration or case_title):
+        raise ValueError("SDK lock preparation requires its exact unprepared target")
     if mode == "sdk-conformance" and specs != ["sdk-conformance"]:
         raise ValueError("SDK conformance requires its exact unprepared target")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
@@ -1023,7 +1030,7 @@ def main():
     submit.add_argument("--spec", "--test-target", action="append", default=[])
     submit.add_argument("--keep-queued-generations", action="store_true", help="Retain older matching queued checks instead of superseding them")
     submit.add_argument("--preview-url", action="append", default=[])
-    submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance"], default="e2e")
+    submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke", "sdk-conformance", "sdk-lockfiles"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument("--runtime-seed-job", default="", help="Exact successful same-session runtime seed; backend-probe or E2E with --no-prepared-builds")
     submit.add_argument("--case-title", default="", help="Exact approved recovery case title")
@@ -1125,7 +1132,7 @@ def main():
             candidate,
             source_root=root,
             supersede=not args.keep_queued_generations,
-            prepared_builds=args.prepared_builds and args.mode not in {"backend-probe", "sdk-conformance"},
+            prepared_builds=args.prepared_builds and args.mode not in {"backend-probe", "sdk-conformance", "sdk-lockfiles"},
             capacity_configuration=capacity_configuration,
             case_title=args.case_title,
             runtime_seed_job=args.runtime_seed_job,

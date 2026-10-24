@@ -224,6 +224,66 @@ def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
 
 
 
+def valid_sdk_lockfiles_receipt(report, receipt, job, harness, *, expected_inputs, expected_tree, outputs):
+    """Independently bind the preparation outputs; never credit conformance."""
+    try:
+        from scripts.ci_sdk_lockfiles import LOCKS, ORIGINAL_LOCKS, STAGES, commands, lock_metadata
+    except ModuleNotFoundError:
+        from ci_sdk_lockfiles import LOCKS, ORIGINAL_LOCKS, STAGES, commands, lock_metadata
+    receipt_keys = {"schemaVersion", "runtime_profile", "status", "code", "conformanceProof", "releaseProof",
+                    "publication", "services", "cleanupVerified", "sourceHeld", "source_commit", "source_tree",
+                    "harness_commit", "run_id", "inputs", "inputSetSha256", "originalLocks", "generatedLocks", "steps"}
+    if (not isinstance(receipt, dict) or set(receipt) != receipt_keys or job.get("mode") != "sdk-lockfiles"
+            or json.loads(job["specs"]) != ["sdk-lockfiles"]
+            or any(job.get(key) for key in ("preparation_id", "prepared_run_id", "runtime_seed", "capacity_configuration", "case_title"))
+            or report.get("runtime_profile") != "sdk-lockfiles"
+            or report.get("results") != [{"suite": "sdk-lockfiles", "exit_code": 0, "failure_code": None}]
+            or receipt.get("schemaVersion") != 1 or receipt.get("status") != "passed" or receipt.get("code") is not None
+            or receipt.get("runtime_profile") != "sdk-lockfiles"
+            or receipt.get("source_commit") != job["source"] or receipt.get("source_tree") != expected_tree
+            or receipt.get("harness_commit") != harness or str(receipt.get("run_id")) != str(job["run_id"])
+            or receipt.get("conformanceProof") is not False or receipt.get("releaseProof") is not False
+            or receipt.get("publication") is not False or receipt.get("services") != {}
+            or receipt.get("cleanupVerified") is not True or receipt.get("sourceHeld") is not True
+            or not expected_inputs or receipt.get("inputs") != expected_inputs
+            or receipt.get("inputSetSha256") != hashlib.sha256(json.dumps(expected_inputs, sort_keys=True).encode()).hexdigest()
+            or not all(name in expected_inputs for name in ORIGINAL_LOCKS) or LOCKS[-1] in expected_inputs
+            or receipt.get("originalLocks") != {name: expected_inputs.get(name) for name in LOCKS}
+            or set(outputs) != set(LOCKS)):
+        return False
+    try:
+        metadata = {name: lock_metadata(data) for name, data in outputs.items()}
+    except (ValueError, RuntimeError, TypeError):
+        return False
+    if receipt.get("generatedLocks") != metadata:
+        return False
+    steps = receipt.get("steps")
+    expected_commands = [["rustup", "toolchain", "install", "1.98.1", "--profile", "minimal"], *commands()]
+    if (not isinstance(steps, list) or len(steps) != 5
+            or any(not isinstance(row, dict) for row in steps)
+            or [row.get("stage") for row in steps] != ["rust-toolchain", *STAGES]):
+        return False
+    for index, (row, argv) in enumerate(zip(steps, expected_commands)):
+        command = row.get("command")
+        if (set(row) != {"stage", "status", "started", "returncode", "terminatedReturncode", "elapsedSeconds", "command"}
+                or row.get("status") != "passed" or row.get("started") is not True
+                or type(row.get("returncode")) is not int or row["returncode"] != 0
+                or type(row.get("terminatedReturncode")) is not int or row["terminatedReturncode"] != 0
+                or type(row.get("elapsedSeconds")) not in (int, float)
+                or not math.isfinite(row["elapsedSeconds"]) or not 0 <= row["elapsedSeconds"] <= (306 if index == 0 else 186)
+                or not isinstance(command, dict)
+                or set(command) != {"tool", "argvSha256", "executableSha256", "executableBytes", "executableKind", "admission", "entryPackage"}
+                or command.get("tool") != ("rustup" if index == 0 else "cargo")
+                or command.get("admission") != "strict-owner-mode" or command.get("entryPackage") is not None
+                or command.get("argvSha256") != hashlib.sha256(json.dumps(argv, separators=(",", ":")).encode()).hexdigest()
+                or not isinstance(command.get("executableSha256"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", command["executableSha256"])
+                or type(command.get("executableBytes")) is not int or not 0 < command["executableBytes"] <= 256 * 1024**2
+                or command.get("executableKind") not in {"elf", "script", "regular"}):
+            return False
+    return True
+
+
 def valid_sdk_conformance_receipt(report: dict, sdk: dict, job: dict, harness: str, *, trust: dict, expected_inputs: dict) -> bool:
     """Require the exact reviewed plan, immutable candidate inputs and every stage."""
     try:
@@ -500,6 +560,24 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
                     report, environment_data, job,
                     expected_harness_commit=expected_harness_commit):
                 raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
+        if job["state"] == "success" and job.get("mode") == "sdk-lockfiles":
+            try:
+                from scripts.ci_sdk_lockfiles import LOCKS, source_inputs_from_git
+            except ModuleNotFoundError:
+                from ci_sdk_lockfiles import LOCKS, source_inputs_from_git
+            receipts = list(extracted.rglob("ci-sdk-lockfiles.json"))
+            lock_receipt = json.loads(receipts[0].read_text()) if len(receipts) == 1 else {}
+            roots = [path for path in extracted.rglob("sdk-lockfiles") if path.is_dir()]
+            lock_outputs = {}
+            if len(roots) == 1:
+                inventory = {path.relative_to(roots[0]).as_posix(): path for path in roots[0].rglob("*") if path.is_file()}
+                if set(inventory) == set(LOCKS):
+                    lock_outputs = {name: path.read_bytes() for name, path in inventory.items()}
+            expected_tree = subprocess.check_output(["git", "rev-parse", job["source"] + "^{tree}"], cwd=root, text=True, timeout=15).strip()
+            if not valid_sdk_lockfiles_receipt(report, lock_receipt, job, expected_harness_commit,
+                    expected_inputs=source_inputs_from_git(root, job["source"]), expected_tree=expected_tree,
+                    outputs=lock_outputs):
+                raise RuntimeError("SDK lock preparation lacks exact source/output/command/cleanup evidence")
         if job["state"] == "success" and job.get("mode") == "sdk-conformance":
             sdk_paths = list(extracted.rglob("ci-sdk-conformance.json"))
             sdk_data = json.loads(sdk_paths[0].read_text()) if len(sdk_paths) == 1 else {}
