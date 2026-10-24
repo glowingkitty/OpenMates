@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -225,7 +226,11 @@ def inert_run(monkeypatch, tmp_path):
     monkeypatch.setattr(runner, "check_egress", lambda: None)
     monkeypatch.setattr(runner, "run_owned_command", command)
     monkeypatch.setattr(runner.subprocess, "check_output", read)
-    monkeypatch.setenv("GITHUB_RUN_ID", "inert-selfhost")
+    monkeypatch.setenv("GITHUB_RUN_ID", "1234")
+    started = time.monotonic()
+    monkeypatch.setenv("CI_SELFHOST_STARTED_MONOTONIC", str(started))
+    monkeypatch.setenv("CI_SELFHOST_WORK_DEADLINE_MONOTONIC", str(started + runner.SELFHOST_WORK_SECONDS))
+    monkeypatch.setenv("CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC", str(started + runner.SELFHOST_CLEANUP_SECONDS))
 
     def execute():
         declared = env if options["native"] else {key: env[key] for key in ("SOURCE_INSTALL_PATH", "IMAGE_INSTALL_PATH")}
@@ -472,3 +477,164 @@ def test_unverified_owned_process_shutdown_retains_private_state_and_refuses_cla
     assert "owned-processes" in receipt(f)["errors"]
     assert f.profile.exists() and (f.output / "ci-private").exists()
     assert not Path(f.runner.NATIVE_SOURCE_INSTALL_PATH).exists()
+
+
+@pytest.mark.parametrize("change", [
+    {"CI_SELFHOST_STARTED_MONOTONIC": "nan"},
+    {"CI_SELFHOST_WORK_DEADLINE_MONOTONIC": "inf"},
+    {"CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC": "0"},
+    {"CI_SELFHOST_WORK_DEADLINE_MONOTONIC": "not-a-clock"},
+])
+def test_selfhost_clock_refuses_missing_nonfinite_or_extended_windows(monkeypatch, change):
+    runner = module(monkeypatch)
+    started = time.monotonic() - 1
+    environment = {"CI_SELFHOST_STARTED_MONOTONIC": str(started),
+                   "CI_SELFHOST_WORK_DEADLINE_MONOTONIC": str(started + 6300),
+                   "CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC": str(started + 7020)}
+    budget = runner.SelfhostBudget(environment)
+    assert budget.timeout(3000) == 3000
+    assert budget.timeout(180, cleanup=True) == 180
+    with pytest.raises(runner.SelfhostDeadline):
+        runner.SelfhostBudget({})
+    with pytest.raises(runner.SelfhostDeadline):
+        runner.SelfhostBudget({**environment, **change})
+    with pytest.raises(runner.SelfhostDeadline):
+        runner.SelfhostBudget({**environment, "CI_SELFHOST_WORK_DEADLINE_MONOTONIC": str(started + 6301)})
+
+
+def expired_work_clock(monkeypatch, runner):
+    started = time.monotonic() - runner.SELFHOST_WORK_SECONDS - 1
+    monkeypatch.setenv("CI_SELFHOST_STARTED_MONOTONIC", str(started))
+    monkeypatch.setenv("CI_SELFHOST_WORK_DEADLINE_MONOTONIC", str(started + runner.SELFHOST_WORK_SECONDS))
+    monkeypatch.setenv("CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC", str(started + runner.SELFHOST_CLEANUP_SECONDS))
+
+
+def test_exhausted_work_never_spawns_or_credits_cached_browser_report_but_cleans_all_owned(inert_run, monkeypatch):
+    f = inert_run
+    expired_work_clock(monkeypatch, f.runner)
+    results = f.execute()
+    assert not any(call[0] == "bash" for call in f.calls)
+    assert len([call for call in f.calls if "--path" in call]) == 3
+    assert results[0]["exit_code"] == 1 and results[0]["coverage_complete"] is False
+    progress = json.loads((f.output / "ci-selfhost-steps.json").read_text())
+    assert progress[0]["phase"] == "not_started"
+    assert progress[0]["error"] == "work_deadline_exhausted"
+    assert progress[0]["source_commit"] == "a" * 40 and progress[0]["run_id"] == "1234"
+    assert receipt(f)["private_account_files_removed"] is True
+    assert not f.profile.exists() and not (f.output / "ci-private").exists()
+
+
+def test_progress_is_persisted_before_child_and_closed_again_after_completion(inert_run, monkeypatch, capsys):
+    f = inert_run
+    original = f.runner.run_owned_command
+    observations = []
+    def command(args, **kwargs):
+        if args[0] == "bash":
+            steps = json.loads((f.output / "ci-selfhost-steps.json").read_text())
+            observations.append(steps[-1])
+            assert steps[-1]["phase"] == "started"
+            assert "exit_code" not in steps[-1]
+            assert steps[-1]["source_commit"] == "a" * 40
+            assert steps[-1]["step"] == "Unrecognized installer step"
+        return original(args, **kwargs)
+    monkeypatch.setattr(f.runner, "run_owned_command", command)
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    f.execute()
+    steps = json.loads((f.output / "ci-selfhost-steps.json").read_text())
+    assert len(observations) == 3 and len(steps) == 6
+    assert [row["step_index"] for row in steps[3:]] == [128, 129, 130]
+    assert all(row["phase"] == "completed" and row["exit_code"] == 0 for row in steps)
+    assert all(row["completed_elapsed_ms"] >= row["started_elapsed_ms"] for row in steps)
+    assert "b" * 40 not in (f.output / "ci-selfhost-steps.json").read_text()
+    assert all(json.loads(line)["phase"] in {"started", "completed"} for line in capsys.readouterr().out.splitlines())
+
+
+def test_real_inert_work_timeout_reaps_owned_child_before_finalization(monkeypatch, tmp_path):
+    runner = module(monkeypatch)
+    monkeypatch.setattr(runner, "OWNED_TERM_SECONDS", 0.05)
+    monkeypatch.setattr(runner, "OWNED_KILL_SECONDS", 0.2)
+    started = time.monotonic() - runner.SELFHOST_WORK_SECONDS + runner.SHUTDOWN_RESERVE_SECONDS + 0.2
+    budget = runner.SelfhostBudget({"CI_SELFHOST_STARTED_MONOTONIC": str(started),
+        "CI_SELFHOST_WORK_DEADLINE_MONOTONIC": str(started + runner.SELFHOST_WORK_SECONDS),
+        "CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC": str(started + runner.SELFHOST_CLEANUP_SECONDS)})
+    log = tmp_path / "owned.log"
+    with log.open("wb") as output:
+        with pytest.raises(subprocess.TimeoutExpired):
+            runner.run_owned_command([sys.executable, "-c", "import os,signal;print(os.getpid(),flush=True);signal.pause()"],
+                cwd=tmp_path, env={"PATH": os.defpath}, stdout=output, timeout=budget.timeout(runner.STEP_SECONDS))
+    pid = int(log.read_text())
+    assert not Path(f"/proc/{pid}").exists()
+    assert budget.timeout(180, cleanup=True) == 180
+
+
+def test_expired_cleanup_retains_private_state_and_honest_unknown_claim(inert_run, monkeypatch):
+    f = inert_run
+    started = time.monotonic() - f.runner.SELFHOST_CLEANUP_SECONDS - 1
+    monkeypatch.setenv("CI_SELFHOST_STARTED_MONOTONIC", str(started))
+    monkeypatch.setenv("CI_SELFHOST_WORK_DEADLINE_MONOTONIC", str(started + f.runner.SELFHOST_WORK_SECONDS))
+    monkeypatch.setenv("CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC", str(started + f.runner.SELFHOST_CLEANUP_SECONDS))
+    with pytest.raises(RuntimeError, match="cleanup incomplete"):
+        f.execute()
+    assert receipt(f)["private_account_files_removed"] is False
+    assert receipt(f)["containers_remaining"] == "unknown"
+    assert receipt(f)["volumes_remaining"] == "unknown"
+    assert f.profile.exists() and (f.output / "ci-private").exists()
+
+
+def test_progress_write_failure_never_skips_supported_owned_cleanup(inert_run, monkeypatch):
+    f = inert_run
+    def unavailable(*_args):
+        raise OSError("inert progress path unavailable")
+    monkeypatch.setattr(f.runner, "record_steps", unavailable)
+    with pytest.raises(RuntimeError, match="cleanup incomplete"):
+        f.execute()
+    assert len([call for call in f.calls if "--path" in call]) == 3
+    assert "progress-receipt" in receipt(f)["errors"]
+    assert receipt(f)["private_account_files_removed"] is True
+    assert not f.profile.exists() and not (f.output / "ci-private").exists()
+
+
+def test_graceful_exhaustion_produces_failed_actual_subject_receipt(inert_run, monkeypatch):
+    f = inert_run
+    expired_work_clock(monkeypatch, f.runner)
+    f.execute()  # Create the inert workflow, then run the real outer producer.
+    from scripts import ci_run_tests as producer
+    monkeypatch.setattr(producer, "ROOT", f.source)
+    monkeypatch.setattr(producer, "RESULTS", f.output)
+    monkeypatch.setattr(producer, "require_runner", lambda: None)
+    monkeypatch.setattr(producer, "verify_pinned_node_runtime", lambda: None)
+    monkeypatch.setattr(producer, "reject_inherited_accounts", lambda: None)
+    monkeypatch.setattr(producer, "configure_proof_dimensions", lambda: None)
+    monkeypatch.setitem(sys.modules, "ci_selfhost", f.runner)
+    monkeypatch.setenv("CI_TEST_MODE", "selfhost")
+    monkeypatch.setenv("GITHUB_SHA", "b" * 40)
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "c" * 40)
+    assert producer.main() == 1
+    report = json.loads((f.output / "ci-results.json").read_text())
+    assert report["source_commit"] == "a" * 40  # Observed git result, not requested env.
+    assert report["run_id"] == "1234" and report["success"] is False
+    assert report["results"][0]["coverage_complete"] is False
+
+
+def test_outer_selfhost_clock_and_receipt_retention_do_not_change_other_mode_budgets():
+    import yaml
+    root = Path(__file__).resolve().parents[2]
+    job = yaml.safe_load((root / ".github/workflows/isolated-tests.yml").read_text())["jobs"]["test"]
+    assert "inputs.mode == 'selfhost' && 120" in job["timeout-minutes"]
+    assert "&& 2880" in job["timeout-minutes"] and "'backend-probe' && 12 || 60" in job["timeout-minutes"]
+    clock = job["steps"][0]
+    assert clock["if"] == "inputs.mode == 'selfhost'" and clock["working-directory"] == "${{ github.workspace }}"
+    assert "started + 6300" in clock["run"] and "started + 7020" in clock["run"]
+    sdk = next(step for step in job["steps"] if step.get("name") == "Start bounded SDK conformance clock")
+    assert "started + 2700" in sdk["run"]
+    upload = next(step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v4")
+    assert "subject/test-results/ci-selfhost-steps.json" in upload["with"]["path"]
+    expected = {f"selfhost-chat-readiness-{mode}-{phase}.json"
+                for mode in ["source", "image"] for phase in ["volume-absent", "fresh", "restart"]}
+    expected.update(f"selfhost-chat-readiness-preserve-{epoch}-{phase}.json"
+                    for epoch in [0, 1] for phase in ["before", "restart", "update"])
+    expected.add("selfhost-chat-readiness-restored-ready.json")
+    actual = {Path(line).name for line in upload["with"]["path"].splitlines()
+              if "selfhost-chat-readiness-" in line}
+    assert actual == expected
+    assert not any("*" in name for name in actual)

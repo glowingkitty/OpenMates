@@ -84,7 +84,7 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || fromJSON('["ubuntu-latest"]') }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -110,6 +110,18 @@ jobs:
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
+      - name: Start bounded self-host clock
+        if: inputs.mode == 'selfhost'
+        working-directory: ${{ github.workspace }}
+        run: |
+          python3 - <<'PYSELFHOST'
+          import os, time
+          started = time.monotonic()
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'CI_SELFHOST_STARTED_MONOTONIC={started}\n')
+              output.write(f'CI_SELFHOST_WORK_DEADLINE_MONOTONIC={started + 6300}\n')
+              output.write(f'CI_SELFHOST_CLEANUP_DEADLINE_MONOTONIC={started + 7020}\n')
+          PYSELFHOST
       - name: Start bounded SDK conformance clock
         if: inputs.mode == 'sdk-conformance'
         working-directory: ${{ github.workspace }}
@@ -572,6 +584,19 @@ jobs:
             subject/test-results/ci-codex.json
             subject/test-results/ci-cleanup.json
             subject/test-results/ci-selfhost-steps.json
+            subject/test-results/selfhost-chat-readiness-source-volume-absent.json
+            subject/test-results/selfhost-chat-readiness-image-volume-absent.json
+            subject/test-results/selfhost-chat-readiness-source-fresh.json
+            subject/test-results/selfhost-chat-readiness-source-restart.json
+            subject/test-results/selfhost-chat-readiness-image-fresh.json
+            subject/test-results/selfhost-chat-readiness-image-restart.json
+            subject/test-results/selfhost-chat-readiness-preserve-0-before.json
+            subject/test-results/selfhost-chat-readiness-preserve-0-restart.json
+            subject/test-results/selfhost-chat-readiness-preserve-0-update.json
+            subject/test-results/selfhost-chat-readiness-preserve-1-before.json
+            subject/test-results/selfhost-chat-readiness-preserve-1-restart.json
+            subject/test-results/selfhost-chat-readiness-preserve-1-update.json
+            subject/test-results/selfhost-chat-readiness-restored-ready.json
             subject/test-results/ci-sdk-conformance.json
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
