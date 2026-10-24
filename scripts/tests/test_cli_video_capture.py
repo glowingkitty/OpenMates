@@ -761,3 +761,125 @@ def test_only_fixed_synthetic_tui_fixtures_are_admitted(tmp_path: Path, name: st
                  ["node", str(fixture), "--extra"], ["python3", str(fixture)]):
         with pytest.raises(module.CliCaptureError, match="requires"):
             module._validate_argv(argv)
+
+
+def native_paint(rows: list[str]) -> str:
+    return '\x1b[?2026h' + ''.join(f'\x1b[{i+1};1H\x1b[38;2;255;255;255m{row}' for i, row in enumerate(rows)) + '\x1b[?2026l'
+
+
+def test_native_cell_diffs_preserve_geometry_and_click_targets() -> None:
+    module = load_module()
+    initial = native_paint(['Chats Tasks'.ljust(30), 'A界B'.ljust(29), 'unchanged'.ljust(30), ' '.ljust(30), 'status'.ljust(30)])
+    diff = '\x1b[?2026h\x1b[2;2Hé \x1b[5;1HSelection mode\x1b[?2026l'
+    rows, width, height = module._latest_screen(initial + diff)
+    assert (width, height) == (30, 5)
+    assert rows[0].startswith('Chats Tasks')
+    assert rows[1].startswith('Aé B')
+    assert rows[2].startswith('unchanged')
+    assert module.resolve_click_cell(initial + diff, {'text': 'Tasks'}) == (1, 9, 30, 5)
+    assert module.input_step_ready(initial + diff, 'Selection mode')
+    assert not module.input_step_ready(initial + diff, 'missing')
+
+
+def test_native_resize_clear_discards_previous_geometry_and_incomplete_paint() -> None:
+    module = load_module()
+    large = native_paint(['Old marker'.ljust(40)] + [' '.ljust(40)] * 6)
+    small = '\x1b[2J' + native_paint(['New marker'.ljust(20)] + [' '.ljust(20)] * 4)
+    pending = '\x1b[?2026h\x1b[1;1Hnot committed'
+    rows, width, height = module._latest_screen(large + small + pending)
+    assert (width, height) == (20, 5)
+    assert rows[0].startswith('New marker')
+    assert not module.input_step_ready(large + small, 'Old marker')
+    assert not module.input_step_ready(large + small + pending, 'not committed')
+
+
+def test_native_cell_erase_and_combining_characters() -> None:
+    module = load_module()
+    initial = native_paint(['Cafe\u0301 visible'.ljust(31)] + [' '.ljust(30)] * 4)
+    erase = '\x1b[?2026h\x1b[1;6H\x1b[Kdone\x1b[?2026l'
+    rows, width, height = module._latest_screen(initial + erase)
+    assert (width, height) == (30, 5)
+    assert rows[0].startswith('Cafe\u0301 done')
+    assert 'visible' not in rows[0]
+
+
+def test_native_cell_geometry_preserves_joined_emoji_and_modifier() -> None:
+    module = load_module()
+    initial = native_paint(['👩‍💻 Tasks' + ' ' * 22, '👋🏽' + ' ' * 28] + [' ' * 30] * 3)
+    rows, width, height = module._latest_screen(initial)
+    assert (width, height) == (30, 5)
+    assert rows[0].startswith('👩‍💻 Tasks')
+    assert rows[1].startswith('👋🏽')
+    assert module._cell_width(rows[0]) == 30
+    assert module.resolve_click_cell(initial, {'text': 'Tasks'}) == (1, 6, 30, 5)
+
+
+@pytest.mark.parametrize('column', [1, 2])
+def test_native_overwriting_either_wide_cell_preserves_click_geometry(column: int) -> None:
+    module = load_module()
+    initial = native_paint(['界 Tasks' + ' ' * 22] + [' ' * 30] * 4)
+    update = f'\x1b[?2026h\x1b[1;{column}HA\x1b[?2026l'
+    rows, width, height = module._latest_screen(initial + update)
+    assert (width, height) == (30, 5)
+    assert module._cell_width(rows[0]) == 30
+    assert rows[0].startswith('A  Tasks' if column == 1 else ' A Tasks')
+    assert module.resolve_click_cell(initial + update, {'text': 'Tasks'}) == (1, 6, 30, 5)
+
+
+def test_native_wide_write_clears_both_overlapping_glyph_spans() -> None:
+    module = load_module()
+    initial = native_paint(['界界 Tasks' + ' ' * 20] + [' ' * 30] * 4)
+    update = '\x1b[?2026h\x1b[1;2H語\x1b[?2026l'
+    rows, width, height = module._latest_screen(initial + update)
+    assert (width, height) == (30, 5)
+    assert rows[0].startswith(' 語  Tasks')
+    assert module._cell_width(rows[0]) == 30
+    assert module.resolve_click_cell(initial + update, {'text': 'Tasks'}) == (1, 8, 30, 5)
+
+
+@pytest.mark.parametrize('mode,column', [('0', 2), ('1', 1)])
+def test_native_line_erase_clears_the_entire_touched_wide_glyph(mode: str, column: int) -> None:
+    module = load_module()
+    initial = native_paint(['界 Tasks' + ' ' * 22] + [' ' * 30] * 4)
+    update = f'\x1b[?2026h\x1b[1;{column}H\x1b[{mode}K\x1b[?2026l'
+    rows, width, height = module._latest_screen(initial + update)
+    assert (width, height) == (30, 5)
+    assert module._cell_width(rows[0]) == 30
+    assert '界' not in rows[0]
+    assert module.input_step_ready(initial + update, 'Tasks') is (mode == '1')
+
+
+@pytest.mark.parametrize('mode,cursor', [('', '1;1'), ('0', '1;1'), ('1', '5;30')])
+def test_native_display_erase_removes_old_readiness(mode: str, cursor: str) -> None:
+    module = load_module()
+    initial = native_paint(['Tasks'.ljust(30)] + [' ' * 30] * 4)
+    update = f'\x1b[?2026h\x1b[{cursor}H\x1b[{mode}J\x1b[?2026l'
+    rows, width, height = module._latest_screen(initial + update)
+    assert (width, height) == (30, 5)
+    assert all(row == ' ' * 30 for row in rows)
+    assert not module.input_step_ready(initial + update, 'Tasks')
+
+
+@pytest.mark.parametrize('mode,cursor,remaining', [('0', '2;1', 'Earlier'), ('1', '2;30', 'Later')])
+def test_native_display_erase_respects_cursor_and_direction(mode: str, cursor: str, remaining: str) -> None:
+    module = load_module()
+    initial = native_paint(['Earlier'.ljust(30), 'Tasks'.ljust(30), 'Later'.ljust(30)] + [' ' * 30] * 2)
+    update = f'\x1b[?2026h\x1b[{cursor}H\x1b[{mode}J\x1b[?2026l'
+    assert not module.input_step_ready(initial + update, 'Tasks')
+    assert module.input_step_ready(initial + update, remaining)
+    assert not module.input_step_ready(initial + update, 'Later' if remaining == 'Earlier' else 'Earlier')
+
+
+@pytest.mark.parametrize('erase', ['\x1b[J', '\x1b[0J', '\x1b[1J', '\x1b[2J'])
+def test_native_unsynchronized_erase_cannot_reuse_old_readiness(erase: str) -> None:
+    module = load_module()
+    initial = native_paint(['Tasks'.ljust(30)] + [' ' * 30] * 4)
+    assert not module.input_step_ready(initial + erase, 'Tasks')
+
+
+@pytest.mark.parametrize('erase', ['\x1b[3J', '\x1b[3K', '\x1b[1;2J'])
+def test_native_unsupported_erase_fails_closed(erase: str) -> None:
+    module = load_module()
+    initial = native_paint(['Tasks'.ljust(30)] + [' ' * 30] * 4)
+    update = '\x1b[?2026h' + erase + '\x1b[?2026l'
+    assert not module.input_step_ready(initial + update, 'Tasks')
