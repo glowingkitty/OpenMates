@@ -69,10 +69,11 @@ specifications:
     version: 2
     status: draft
     path: architecture/storage-lifecycle
-    fingerprint: e20bc98298dd532b7723ed79211c9c1f5c7d67d257dd2c0206cdcf3944514f97
+    fingerprint: a35f57bd2f422f3cbad533d92705b706f98059301246679d4a739f256028737e
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -89,9 +90,10 @@ specifications:
     version: 1
     status: approved
     path: architecture/sync
-    fingerprint: 3b0204824a9c59a247d19c930ad8edd08b29605f7f8a34dd111bfc4407e5d694
+    fingerprint: 3ddbd967acb751d867a8fd3c11dadb71ea19314dfc7ca9a585f454ad68ce5008
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   architecture.test-orchestration:
@@ -730,7 +732,7 @@ specifications:
     version: 1
     status: draft
     path: features/terminal-ui
-    fingerprint: 85b9e144892ebf4519f7d558f5100c09548f8eb53b1276a2b5860225b074261c
+    fingerprint: c3501a1dc8a2465d7a270236acfd377a003a35f152e3390d78a70cb3855904fd
     required_applies_to:
     - cli
   feature.video-call:
@@ -790,10 +792,11 @@ specifications:
     version: 1
     status: draft
     path: surfaces/cli
-    fingerprint: 01586c11cb0f81cf0cd7545d5294ce52e26ddb4f2e916b62e37f739d5833cfb8
+    fingerprint: c9c6e7e7b1e156b298d8b0e493a36acd63846dc2a8dc664358e6facf012e1d51
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -801,12 +804,15 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: a197b59d5b56ef8ba6fcb2f2ef68ecb9d5d440a9254b19784966d544765f0f3c
+    fingerprint: c988305f550b6d25d5c2c3ecfcb98d9fb836d8ad4881d9e3d0124c3a3a71b239
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
 assertions:
   ai-request-observability.propagation.complete:
     specification: architecture.ai-request-observability@1
@@ -1598,6 +1604,19 @@ assertions:
     fingerprint: b6b12a31c596be6b9c78157f07b62923bd19937e3088b84a34a159091af2078b
     required_applies_to:
     - cli
+  storage.client.shared-policy-existing-adapters:
+    specification: architecture.storage-lifecycle@2
+    specification_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 4aae64b7d49aa19bc38f603fd63b99450c890238d0e6b166f6903394c71810c4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   storage.regions.configurable-redundancy:
     specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
@@ -1606,6 +1625,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1618,6 +1638,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1630,6 +1651,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1642,6 +1664,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1654,6 +1677,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1666,6 +1690,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1678,6 +1703,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1690,6 +1716,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1702,6 +1729,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1714,6 +1742,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1726,6 +1755,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1738,6 +1768,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1750,6 +1781,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1762,6 +1794,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1774,6 +1807,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1786,6 +1820,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1798,6 +1833,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1810,6 +1846,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1822,6 +1859,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1834,6 +1872,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1846,6 +1885,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1858,6 +1898,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1870,6 +1911,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1882,6 +1924,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1894,6 +1937,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1906,6 +1950,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1918,6 +1963,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1926,10 +1972,11 @@ assertions:
     specification: architecture.storage-lifecycle@2
     specification_id: architecture.storage-lifecycle
     type: parity
-    fingerprint: 9bc3e8866382b43d412dbc0419fb6f659669ba20a3c5e17e9909674ff406e8ea
+    fingerprint: 8e7962c3d175e66ed41932b19662b9ef5a497ff952f27276eb4e8d82ed1f82bb
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -1982,13 +2029,24 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+  sync.client.shared-rust-policy:
+    specification: architecture.sync@1
+    specification_id: architecture.sync
+    type: parity
+    fingerprint: a8e3c2c23c685abb57f4829e381a4f64b6cc14d01fd175d4b6d53a3526a44042
+    required_applies_to:
+    - cli
+    - sdks.rust
+    - gui.web
+    - gui.apple
   sync.access.first-party-authenticated:
     specification: architecture.sync@1
     specification_id: architecture.sync
     type: security
-    fingerprint: 682c7f2b26f3e760ed8377cb9e1329421abfd2de7c119ea3568371437fe7be57
+    fingerprint: ebd1daed1d821929f7358579fa719ca1e3fff4e660f6dac110f3588dc0b26d4a
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.status.startup-window-ready:
@@ -1998,6 +2056,7 @@ assertions:
     fingerprint: a29274e804955b224af252b5c1daa40337fa1f1273aa578f4287dcb6379eb069
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.status.incomplete-window-rewarms:
@@ -2007,6 +2066,7 @@ assertions:
     fingerprint: b6fd245f9207764f826cfd19e43f08558f0a3d850fef0f415024c032fa718a73
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.startup.bounded-phases:
@@ -2016,6 +2076,7 @@ assertions:
     fingerprint: 9efb77458dc59cd1f0bb7650d4f1b83a22841c9eea56d32240f878f6aee405a6
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.phase2.metadata-only:
@@ -2025,6 +2086,7 @@ assertions:
     fingerprint: de8486de66300e9410205ca6894da2f2f355d3959688f372d22f4a01380ebd67
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.phase2.drafts.authoritative-encrypted:
@@ -2034,6 +2096,7 @@ assertions:
     fingerprint: 1496901c68917178cbb62cfe4497ba7c9e8f7ce4b502a3d735f3c9f77b0596ef
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.deletion.partial-window-not-authoritative:
@@ -2043,15 +2106,17 @@ assertions:
     fingerprint: 7a204bd151ee6f64bd7edf555cb814d19b54e5fa140e96ee4e620e33b2fa5052
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   sync.surface.semantic-parity:
     specification: architecture.sync@1
     specification_id: architecture.sync
     type: parity
-    fingerprint: f201926300cdb5cc1d8b55d531acc6e694faf7848e152e6670b143eaf7b1dc66
+    fingerprint: 5b87e5d34a036bd2de9978dbccb78cf71ebcc02d4dde70ff650f2cddf69bb524
     required_applies_to:
     - cli
+    - sdks.rust
     - gui.web
     - gui.apple
   test-orchestration.daily.critical-first-broad-continues:
@@ -9710,6 +9775,13 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  terminal-ui.native-shared-client:
+    specification: feature.terminal-ui@1
+    specification_id: feature.terminal-ui
+    type: parity
+    fingerprint: daad5c66270df6aaff55ab3396e472e15b6ec59843c708891c3b69dd507567af
+    required_applies_to:
+    - cli
   terminal-pointer.visible-action-parity:
     specification: feature.terminal-ui@1
     specification_id: feature.terminal-ui
@@ -11127,6 +11199,66 @@ assertions:
     fingerprint: 89ada967b78aa559ece89d5d79d50ae76030c2c0d39fe8cfd909e9d362edf9d4
     required_applies_to:
     - gui.web
+  cli.runtime.native-rust:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: parity
+    fingerprint: eaff93350a0b0ffff6ce5b446fb7130593adf6021a4fdd87207dc3d2ab115d4e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.distribution.cargo-prereleases:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: behavior
+    fingerprint: c94a1edafd02e459f94d1f4ba5c3fd8a13cd49cffd6aea78873e1e916b75fa34
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.validation.linux-mac-windows-waiver:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: parity
+    fingerprint: bf057507f5d5c6ae806c441a4685c3225e8c3df7680ade089ab29fa5f398da10
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.migration.complete-compatible:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: parity
+    fingerprint: 5939797161f31b750205bb666d5f57fc136e3dc3ce490b7007110183f596b0b1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.migration.transition-acceptance:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: behavior
+    fingerprint: 30dfe1fc087b6d54733a928e852fce15e66c48a1b75b896feffcee4aa99696c8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   cli.slugs.encrypted-stable:
     specification: surface.cli@1
     specification_id: surface.cli
@@ -11135,6 +11267,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11146,6 +11279,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11157,6 +11291,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11164,10 +11299,11 @@ assertions:
     specification: surface.cli@1
     specification_id: surface.cli
     type: parity
-    fingerprint: c18dba4712ac514b6e505d1f582618b4d4d5f2a19292d2651de0d2240aa8b94d
+    fingerprint: 646fa985c60c3ee21b695dbd30037dc4af9a1b3a010ae63d601d76632705a171
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11175,10 +11311,11 @@ assertions:
     specification: surface.cli@1
     specification_id: surface.cli
     type: parity
-    fingerprint: 9b2259a5ed2da9c1c86e5257d31c6def298d1258247eef55c9633078392d0b13
+    fingerprint: 8ab082fe657350323b933773f46489922bfad15fc31d94722902727c3e379a3a
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11186,10 +11323,11 @@ assertions:
     specification: surface.cli@1
     specification_id: surface.cli
     type: security
-    fingerprint: 54939755047461e450eb6ee611096e77317427b0757c866d68e77ab8aaf47031
+    fingerprint: 321cf724925d43cd2481ac241a9ecea7e4338398a4c7867df030242badff8029
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11197,10 +11335,11 @@ assertions:
     specification: surface.cli@1
     specification_id: surface.cli
     type: behavior
-    fingerprint: b071ede4a458a9d0f7867d2e027e7d21722e4a161243f9ed4969b76cbbb4e70f
+    fingerprint: 290932233c788e527a313aab6ee87a58f73a163d5e9e509125f647a8e400acc1
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11212,6 +11351,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11223,6 +11363,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11234,6 +11375,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11245,6 +11387,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11256,6 +11399,7 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
@@ -11267,19 +11411,101 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
     - gui.web
+  sdk.library.explicit-headless:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: parity
+    fingerprint: 78f5e7147baad47be262eb72e4f39267b252754046dbc64b804a9564e41d5c1a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  sdk.client.thin-platform-boundary:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: parity
+    fingerprint: 3c44078a00df76481c7f1e493a4741d366207cf927f1aaf69f56e6bcb724dd4a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  sdk.migration.ordered-client-rollout:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: invariant
+    fingerprint: ca03d9ba266610a664f76f3958bfd18067aba90ffc7fd1263f07dd4f969de039
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  sdk.web.before-after-performance:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: behavior
+    fingerprint: 07669ea25a158a0413532fdbad626763e36749f766d764ac5a04914134c61717
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  sdk.distribution.separate-rust-crate:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: parity
+    fingerprint: 5120e667e4b1fa57c525a1987e5c145cfedd1b80fc0b46b256ab70bedf329d7b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  sdk.parity.executable-release-gate:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: parity
+    fingerprint: 1452c6e30db3c436174bc8b14ccda2e67f9835571458c20ceef4b9a011c6b6d0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.auth.approved-api-key-device:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: security
-    fingerprint: 046414b583b541bc02e2f979cf0d019f747da0e275a053e5720234304dfacdc5
+    fingerprint: 45db2d9b1bcb7840262ebf0b0581fafcc8cd5684cc9ad21ff8f3c6b6f40dcc72
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.encryption.local-only:
     specification: surface.sdk@1
     specification_id: surface.sdk
@@ -11288,28 +11514,37 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.auth.credential-separation:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: security
-    fingerprint: 961e6a99722f98c7ff03cc03d8473ca1d6c90e766963383fcc081bc0f6a930a6
+    fingerprint: 7284685ec1554b83e97bfaf7cb97de8796d9de9f1267dda81c6508310fc97ab5
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.auth.limited-resource-keys:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: security
-    fingerprint: 54ee06ea572dcaa5ff370b33b2e7f219b5a7ddb91d30e6b3fa490ad0b886a2cd
+    fingerprint: 920b91920ebf305e09e8518d5aaa6e9a6dd221b2fa590f07e8e1288977c4e6d7
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.auth.legacy-key-migration:
     specification: surface.sdk@1
     specification_id: surface.sdk
@@ -11318,28 +11553,37 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.surface.semantic-parity:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: parity
-    fingerprint: 0b8fa2adb4f9df458f9fb7126681348f8b6a3d52e97e30e732c5d45bd0f5667e
+    fingerprint: 8119623afb44ff612c51ad4c0421590961f5d156eb42fcafb5fd7859d351b951
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.anonymous.execution:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: security
-    fingerprint: 1ed7d11cd7a29a049b554a9d545004a8da55184380980ad93464a64acff08c4b
+    fingerprint: a4616ae2aa786317b2cac24d47060c6d72fbbf19c97ec13acbf0c18411039007
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   sdk.anonymous.signup-required:
     specification: surface.sdk@1
     specification_id: surface.sdk
@@ -11348,8 +11592,11 @@ assertions:
     required_applies_to:
     - rest_api
     - cli
+    - sdks.rust
     - sdks.npm
     - sdks.pip
+    - gui.web
+    - gui.apple
   rules.definition.guide-format:
     specification: feature.rules@1
     specification_id: feature.rules

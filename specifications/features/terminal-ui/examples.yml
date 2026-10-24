@@ -1,5 +1,12 @@
 schema_version: 1
 specification: feature.terminal-ui@1
+
+native_runtime:
+  - id: standalone-shared-client
+    assertion_ids: [terminal-ui.native-shared-client]
+    given: Node and Python are unavailable to the native executable.
+    when: A user opens the TUI and performs supported authenticated encrypted workflows.
+    then: Rust handles rendering and interaction while the shared headless Rust SDK supplies reusable client behavior; existing terminal and privacy/security contracts continue to apply.
 visible_actions:
 - id: click-workspace-card-and-project-tab
   assertion_ids:

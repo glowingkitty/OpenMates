@@ -97,3 +97,9 @@ Return a single JSON code block followed by a one-sentence recommendation. Nothi
 ```
 
 **Recommendation line** (one sentence after the JSON): `Recommend fixing group <id> first because <reason>.`
+
+For the shared Rust client rollout, verified essential native auth, encrypted chat,
+streaming/cancel, persistence and sync/reconnect/recovery admit immediate browser/
+WASM integration. Exhaustive CLI command/app parity remains required separately;
+do not turn unrelated missing commands into a web prerequisite. Preserve focused
+shared-behavior coverage and the explicit retirement gate in `.claude/rules/cli-sdk.md`.

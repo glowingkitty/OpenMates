@@ -11,6 +11,19 @@ Frontend: Svelte/TypeScript, `frontend/apps/web_app`, `frontend/packages/ui`.
 Backend: Python/FastAPI, `backend/apps`, `backend/core`, `backend/shared`.
 Read relevant source/tests, reuse utilities and keep patches focused.
 
+Client architecture: shared Rust owns reusable headless operations, crypto, auth,
+storage policy, sync/reconnect/recovery; CLI/TUI is native Rust, web and Apple keep
+thin UI/platform adapters. Load `.claude/rules/cli-sdk.md` for client/SDK work.
+Keep direct Rust/npm/Python SDKs and executable conformance synchronized. Prove
+essential auth, encrypted chat, streaming/cancel, persistence and sync/recovery in
+the entirely Rust CLI/TUI, then begin browser/WASM integration immediately; full
+CLI/app parity remains required separately off the web critical path. Verify web
+before Apple. Offer verified Rust alongside the installed npm CLI early for daily
+testing; preserve its command, old code and existing stores/data until full parity/
+security proof and explicit agent plus user retirement acceptance. Backend Rust
+work follows completed clients and cleanup. The rule records distribution and the
+Linux/Mac acceptance requirements with the explicit Windows testing waiver.
+
 ## Workspace and deployment
 
 Read-only work needs no session. Reuse supplied workspaces/bindings, including in

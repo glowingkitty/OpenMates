@@ -7,6 +7,7 @@ summary: The terminal UI follows the OpenMates web app across workspaces, rich c
   pointer and keyboard navigation, fullscreen actions and responsive settings.
 scope:
   includes:
+  - A native Rust TUI in the same application as the complete Rust CLI, using the shared headless Rust SDK without Node, TypeScript or Python application delegation.
   - Left-click or tap activation in terminals that emit supported mouse reports, including over SSH.
   - Visible workspace navigation, sidebar entries, cards, tabs, workflow nodes and runs, embed and wiki
     links, and existing form and question controls.
@@ -41,6 +42,10 @@ scope:
   - feature.chat-navigation supplies navigation guidance but currently marks CLI parity as not required
     and does not define terminal click handling.
 assertions:
+- id: terminal-ui.native-shared-client
+  type: parity
+  must: The TUI and complete CLI are one native Rust application using the same headless Rust SDK for auth, crypto, API/WebSocket, streaming and recovery. Terminal rendering and interaction stay outside that SDK. Preserve the existing terminal behavior and security contracts; retain npm CLI/TUI source until verified feature/security parity and explicit agent plus user acceptance.
+  depends_on: [examples.native_runtime]
 - id: terminal-pointer.visible-action-parity
   type: behavior
   surfaces:

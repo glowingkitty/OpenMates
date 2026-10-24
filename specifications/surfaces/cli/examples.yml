@@ -1,6 +1,34 @@
 schema_version: 1
 specification: surface.cli@1
 
+native_migration:
+  - id: complete-native-command-path
+    assertion_ids: [cli.runtime.native-rust, cli.migration.complete-compatible]
+    given: A supported script invokes a CLI command or the user starts the TUI with Node and Python absent from PATH.
+    when: The installed Rust application authenticates, performs encrypted operations, streams, cancels, or manages a self-host instance.
+    then: Application functionality and reusable storage/sync/reconnect/recovery policy execute in Rust with thin explicit platform adapters; the existing flags, output and exit contracts are preserved and self-host setup is exercised in isolated GitHub CI.
+  - id: transition-and-joint-retirement
+    assertion_ids: [cli.migration.transition-acceptance]
+    given: Essential Rust auth, encrypted chat, streaming/cancellation, persistence and sync/reconnect/recovery are verified, but app and command parity remains unfinished.
+    when: Development exposes the verified Rust binary through a separate command or installation path for daily testing and begins browser/WASM integration.
+    then: Browser work starts immediately without waiting for exhaustive CLI parity; the installed npm command and old source remain available until full parity/security proof and explicit agent plus user retirement acceptance. Original TypeScript benchmark inputs remain reproducible with renderer and full-application results labeled separately.
+
+native_distribution:
+  - id: install-an-explicit-development-prerelease
+    given: A developer wants the published development CLI rather than stable and a Rust application separately needs the SDK.
+    when: They use cargo install for the application crate with an explicit prerelease version and select the separate library crate as a dependency.
+    then: The requested development version is installed and reported truthfully; neither a GitHub prebuilt executable nor an npm/Python CLI fallback is required, and the SDK remains independently reusable.
+
+native_platform_validation:
+  - id: real-dev-and-coordinated-mac-proof
+    given: A native replacement candidate is ready for acceptance on Linux and macOS.
+    when: The actual dev installation is exercised and the Mac check runs through an explicit coordinated Mac-chat handoff or an admitted typed apple_remote operation.
+    then: Those results and existing isolated GitHub product/self-host CI must pass; no additional CPU-architecture matrix is imposed by this migration.
+  - id: windows-waiver-does-not-waive-selfhost
+    given: Windows tests have been explicitly waived and no Windows build receipt exists, while required native self-host CI has failed.
+    when: Replacement readiness is reported.
+    then: Windows is labeled untested with its build/support gaps explicit; the missing Windows test is not a new gate, but self-host readiness remains failed and no Windows support claim is inferred.
+
 encrypted_slugs:
   - id: workflow-create-stores-encrypted-slug
     input: {surface: cli, object_type: workflow, title: Daily weather reminder, requested_slug: omitted}

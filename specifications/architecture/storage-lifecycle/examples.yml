@@ -1,6 +1,18 @@
 schema_version: 1
 specification: architecture.storage-lifecycle@2
 
+client_persistence_adapters:
+  - id: browser-and-apple-keep-existing-data
+    assertion_ids: [storage.client.shared-policy-existing-adapters, storage.surface.semantic-parity]
+    given: A user has encrypted local chats in browser IndexedDB and Apple SwiftData, including an older archived chat and pending recovery state.
+    when: The application adopts shared Rust client policy through thin persistence adapters.
+    then: Existing stores and data remain readable under the same owner and encryption boundaries; archive reads and recovery preserve their server authority, and no SQLite or OPFS conversion or cache reset is required.
+  - id: logout-and-owner-boundaries-survive-adapter-change
+    assertion_ids: [storage.client.shared-policy-existing-adapters, storage.surface.semantic-parity]
+    given: A user logs out while a local save is pending, then signs into another account on the migrated client.
+    when: A delayed write or recovery result from the previous account arrives.
+    then: Shared Rust and the explicit adapter preserve durable logout/deletion fences and account partitioning, so old data is not restored or shown to the new account; unrelated retained data is not discarded to simplify migration.
+
 region_replication:
   - id: active-write-survives-replica-outage
     given: {configured_regions: [nbg1, fsn1, hel1], active_write_region: nbg1, fsn1_health: unavailable, hel1_health: healthy}
