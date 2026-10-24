@@ -1259,7 +1259,7 @@
     "tests/sdk-conformance/inventory.py": "cc45743acff5e562f31342fc484f902b4cfdb6794b59600eb9b5142b383b2afe",
     "tests/sdk-conformance/npm-inventory.mjs": "a42b4cc17da66a4299d8fb637a4c547f60448cec0c8ab348ac3fb31bd3a21700",
     "tests/sdk-conformance/project_create_server.py": "aac3bf7b3073d4fce6b5e58dad4c373d3762ef84b3a7a57a8b12522a05471410",
-    "tests/sdk-conformance/recovery_server.py": "5539e6eba0dc03bcfdfd209070bc1a6d962b3cc479abddef924aac5c5bac5304",
+    "tests/sdk-conformance/recovery_server.py": "5b6355ef2970619df7014fb6d4e8817b91efa52a0c6386982b6a7c5be6bcf743",
     "tests/sdk-conformance/runners/essential-session.mjs": "911f58a80d89ddeae62e7ab9884fbf2e907ee886418386ba5e2bc90ed7e08b4d",
     "tests/sdk-conformance/runners/essential_session.py": "a7b360dbced02be4ab28f1a786a5a06bb25e6d447d4d27daa786b6a50cb64a2d",
     "tests/sdk-conformance/runners/npm.mjs": "ea395f5af689c2ae5c187b5beb3172994921695a0da826e78921266c3492f191",
@@ -1298,6 +1298,7 @@
     "tests/sdk-conformance/session_work_server.py": "667bba84ac3ba4d373d748e2e04241cb60ffb32e24fd318c2869939127728c19",
     "tests/sdk-conformance/test_essential_session_server.py": "e186f43fb6febea7696dc468ca32b972398a2f690f9662710df7a238e302eb2a",
     "tests/sdk-conformance/test_inventory.py": "24c1b2aea691dbac6dd434ebe831c87e3290e8b8e3208a65cc45ff02bedc6cb3",
+    "tests/sdk-conformance/test_recovery_server.py": "b65606083a8967b8abe1148469bf581fc7e6c32e7637cfb08ca3febebc3029ad",
     "tests/sdk-conformance/test_session_auth.py": "6a2f30b865ffd5598b290e39920b76f017fa72b25a49d3c5970a514d6fedbc28",
     "tests/sdk-conformance/test_session_plans_workflows.py": "c1c6a06474e50189ec65c93946e7bf56c854357c486f6f1d77239e60a26a89a1",
     "tests/sdk-conformance/test_session_project_sources.py": "ff7cdb512b2cd42f15f1008eace869527a01b46ebd7e40b73b1fd637f9dea2b1",
@@ -1306,6 +1307,14 @@
     "tests/sdk-conformance/test_session_work.py": "e6598a1f71ab731239ea45878d0a5e7a5026acd208f4dd875e24144afb9f0630",
     "tests/sdk-conformance/test_work_return_server.py": "9c20301f66acfd54612e28a57d9956c14947c10d5fcd3567ee0a390210d3f985",
     "tests/sdk-conformance/work_return_server.py": "0b853e5047f79ea57f433796e069464dcf0a57e6a5038c315bf523d3c6a3da23"
+  },
+  "proposedRecoveryFixtureCorrection": {
+    "baseSource": "fbaff6293a42ac41916951bba030b05fafced6e6",
+    "programs": {
+      "tests/sdk-conformance/recovery_server.py": "5b6355ef2970619df7014fb6d4e8817b91efa52a0c6386982b6a7c5be6bcf743",
+      "tests/sdk-conformance/test_recovery_server.py": "b65606083a8967b8abe1148469bf581fc7e6c32e7637cfb08ca3febebc3029ad"
+    },
+    "scope": "canonical required nullable category/model_name in sealed main payload; no SDK changes"
   },
   "reviewedSource": "c6504bc4912c91971ae7e8b66cac0474e9eebab7",
   "schemaVersion": 1
