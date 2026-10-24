@@ -609,6 +609,8 @@ jobs:
             subject/test-results/ci-codex.json
             subject/test-results/ci-cleanup.json
             subject/test-results/ci-selfhost-steps.json
+            subject/test-results/ci-selfhost-scope.json
+            subject/test-results/ci-selfhost-update-progress.json
             subject/test-results/selfhost-chat-readiness-source-volume-absent.json
             subject/test-results/selfhost-chat-readiness-image-volume-absent.json
             subject/test-results/selfhost-chat-readiness-source-fresh.json

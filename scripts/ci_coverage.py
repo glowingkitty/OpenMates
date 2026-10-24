@@ -81,7 +81,7 @@ COMPONENT_MARKER = "// playwright-account: not_required reason=isolated_componen
 
 
 def execution_mode(spec: str, source_text: str = "") -> str:
-    if spec == "selfhost-smoke.spec.ts":
+    if spec in ("selfhost-smoke.spec.ts", "selfhost-source", "selfhost-image", "selfhost-legacy"):
         return "selfhost"
     if COMPONENT_MARKER in source_text:
         return "component"
@@ -101,7 +101,7 @@ def partition(specs: list[str], manifest: dict | None = None) -> tuple[list[str]
     supported = []
     held = {}
     for spec in specs:
-        if spec in CORE_SPECS or spec in ARTIFACT_SPECS or mapped.get(spec, {}).get("execution") in ("e2e", "selfhost"):
+        if spec in ("selfhost-source", "selfhost-image", "selfhost-legacy") or spec in CORE_SPECS or spec in ARTIFACT_SPECS or mapped.get(spec, {}).get("execution") in ("e2e", "selfhost"):
             supported.append(spec)
         else:
             held[spec] = HOLD_REASONS.get(

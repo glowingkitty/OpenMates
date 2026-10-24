@@ -190,7 +190,7 @@ def _terminate_owned(child, owner):
             time.sleep(0.02)
 
 
-def run_owned_command(command, *, cwd, env, stdout, timeout):
+def run_owned_command(command, *, cwd, env, stdout, timeout, on_tick=None):
     if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
         raise OwnedProcessCleanupError("Owned subprocess PID handles unavailable")
     libc = ctypes.CDLL(None, use_errno=True)
@@ -206,7 +206,11 @@ def run_owned_command(command, *, cwd, env, stdout, timeout):
             raise OwnedProcessCleanupError("Owned subprocess session unavailable")
         try:
             deadline = time.monotonic() + timeout
+            next_tick = 0
             while os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None:
+                if on_tick and time.monotonic() >= next_tick:
+                    on_tick()
+                    next_tick = time.monotonic() + 2
                 if time.monotonic() >= deadline:
                     raise subprocess.TimeoutExpired(command, timeout)
                 time.sleep(0.02)
@@ -332,7 +336,34 @@ def capture_environment(source: Path, commit: str, workflow_hash: str, destinati
     }, indent=2))
 
 
-def run(source: Path, results: list):
+def retain_update_progress(output, budget):
+    from ci_selfhost_contract import sanitize_journal
+    path = Path(INSTALL_PATHS[1]) / ".openmates/core-update-status.json"
+    receipt = {"available": False, "observed_elapsed_ms": budget.elapsed_ms()}
+    try:
+        for directory in (Path(INSTALL_PATHS[1]), path.parent):
+            if not stat.S_ISDIR(directory.lstat().st_mode):
+                raise ValueError("invalid journal directory")
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            info = os.fstat(descriptor)
+            if stat.S_ISREG(info.st_mode) and info.st_size <= 131072:
+                value = sanitize_journal(json.loads(os.read(descriptor, 131073)), budget.elapsed_ms())
+                if value:
+                    receipt = {"available": True, **value}
+        finally:
+            os.close(descriptor)
+    except (OSError, ValueError, TypeError):
+        pass
+    destination = output / "ci-selfhost-update-progress.json"
+    rows = json.loads(destination.read_text()) if destination.is_file() else []
+    if len(rows) < 128 and (not rows or any(rows[-1].get(key) != receipt.get(key)
+                                          for key in ("available", "stage", "status"))):
+        rows.append(receipt)
+        record_steps(destination, rows)
+
+
+def run(source: Path, results: list, target=None):
     require_runner()
     budget = SelfhostBudget(os.environ)
     check_egress()
@@ -342,13 +373,23 @@ def run(source: Path, results: list):
     run_id = os.environ["GITHUB_RUN_ID"]
     if not re.fullmatch(r"[0-9a-f]{40}", commit) or not re.fullmatch(r"[1-9][0-9]{0,20}", run_id):
         raise RuntimeError("Self-host observed subject identity invalid")
-    workflow_path = source / ".github/workflows/selfhost-smoke.yml"
+    from ci_selfhost_contract import RECIPE, identity, recipe_steps, validate_targets
+    if target is not None:
+        validate_targets([target])
+    workflow_path = source / (RECIPE if target else ".github/workflows/selfhost-smoke.yml")
     workflow_bytes = workflow_path.read_bytes()
     workflow = yaml.safe_load(workflow_bytes)["jobs"]["install-smoke"]
     if workflow["runs-on"] != "ubuntu-latest":
         raise RuntimeError("Installer contract must use GitHub-hosted Ubuntu")
     if len(workflow["steps"]) > MAX_WORKFLOW_STEPS:
         raise RuntimeError("Installer workflow step bound exceeded")
+    scope_identity = None
+    selected_steps = workflow["steps"]
+    if target:
+        selected_steps = recipe_steps(selected_steps, target)
+        tree = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=source, text=True).strip()
+        scope_identity = identity(commit, tree, hashlib.sha256(workflow_bytes).hexdigest(),
+                                  os.environ.get("CI_HARNESS_COMMIT"))
     output = source / "test-results"
     private = output / "ci-private"
     env = {**os.environ, "GITHUB_WORKSPACE": str(source), "GITHUB_SHA": commit}
@@ -362,7 +403,7 @@ def run(source: Path, results: list):
     exhausted = False
     owned_processes_removed = True
     try:
-        for index, step in enumerate(workflow["steps"]):
+        for index, step in enumerate(selected_steps):
             if "uses" in step:
                 if step["uses"] not in EXPECTED_SETUP_ACTIONS:
                     raise RuntimeError("New installer setup action needs harness support")
@@ -372,7 +413,7 @@ def run(source: Path, results: list):
             if failed and step.get("if") != "always()":
                 continue
             name = step.get("name", "unnamed")
-            progress = {"step": name if name in STEP_NAMES else "Unrecognized installer step",
+            progress = {"id": step.get("id"), "step": name if name in STEP_NAMES else "Unrecognized installer step",
                         "step_index": index, "phase": "started", "source_commit": commit,
                         "run_id": run_id, "started_elapsed_ms": budget.elapsed_ms()}
             step_env = dict(env)
@@ -397,7 +438,8 @@ def run(source: Path, results: list):
             with (private / "installer.log").open("a") as log:
                 try:
                     result = run_owned_command(["bash", "-eo", "pipefail", "-c", command], cwd=cwd, env=step_env,
-                                               stdout=log, timeout=timeout)
+                                               stdout=log, timeout=timeout,
+                                               on_tick=(lambda: retain_update_progress(output, budget)) if target else None)
                     status = {"exit_code": result.returncode}
                 except OwnedProcessCleanupError:
                     owned_processes_removed = False
@@ -412,6 +454,11 @@ def run(source: Path, results: list):
             if name == "Check backend and web Docker containers" and not failed:
                 capture_environment(source, commit, hashlib.sha256(workflow_bytes).hexdigest(), output / "ci-environment.json", native=native, budget=budget)
     finally:
+        if target:
+            try:
+                retain_update_progress(output, budget)
+            except (OSError, ValueError, TypeError):
+                pass  # Diagnostic failure cannot prevent owned cleanup.
         # The original always() cleanup may mask errors; verify the actual result.
         # Retry cleanup through the supported CLI if an earlier step raised.
         cleanup_failures = []
@@ -493,6 +540,23 @@ def run(source: Path, results: list):
     stats = json.loads(report.read_text()).get("stats", {}) if report.is_file() else {}
     if report.is_file():
         shutil.copyfile(report, output / "ci-spec-selfhost.json")
+    if target:
+        browser_stats = {key: stats.get(key, 0) for key in ("expected", "unexpected", "flaky", "skipped")}
+        required = [row for row in steps if row.get("id")]
+        complete = (not failed and not exhausted
+                    and all(row.get("phase") == "completed" and row.get("exit_code") == 0 for row in required)
+                    and (target != "selfhost-image" or browser_stats == {
+                        "expected": 4, "unexpected": 0, "flaky": 0, "skipped": 0}))
+        receipt = {**scope_identity, "run_id": run_id, "target": target, "coverage_scope": "recipe-target",
+                   "browser_coverage_scope": "full-spec" if target == "selfhost-image" else "none",
+                   "coverage_complete": False, "steps": required, "stats": browser_stats,
+                   "exit_code": int(not complete)}
+        cleanup = json.loads((output / "ci-cleanup.json").read_text())
+        receipt["cleanup"] = {key: cleanup[key] for key in (
+            "containers_remaining", "volumes_remaining", "private_account_files_removed", "errors")}
+        (output / "ci-selfhost-scope.json").write_text(json.dumps(receipt))
+        results.append({"suite": target, **receipt})
+        return
     complete = (not failed and not exhausted and bool(stats.get("expected", 0) + stats.get("unexpected", 0))
                 and not stats.get("skipped", 0))
     results.append({"spec": "selfhost-smoke.spec.ts", "stats": stats, "coverage_complete": complete,

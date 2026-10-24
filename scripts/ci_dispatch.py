@@ -319,9 +319,20 @@ def run(argv: list[str]) -> int:
         }
         for mode in ("component", "e2e", "artifact", "selfhost"):
             selected = [spec for spec in specs if modes[spec] == mode]
+            if mode == "selfhost" and selected:
+                from scripts.ci_selfhost_contract import source_activation
+                def read_subject_file(path):
+                    try:
+                        return subprocess.check_output(["git", "show", source + ":" + path],
+                            cwd=canonical, stderr=subprocess.DEVNULL, timeout=15)
+                    except subprocess.CalledProcessError:
+                        raise FileNotFoundError(path) from None
+                activation = source_activation(read_subject_file)
+                print("Self-host activation: " + activation["status"], file=sys.stderr)
+                selected = activation["targets"]
             batches = (
                 [[spec] for spec in selected]
-                if mode in ("component", "e2e")
+                if mode in ("component", "e2e", "selfhost")
                 else runtime_batches(selected, NON_E2E_BATCH_SIZE)
             )
             for batch in batches:

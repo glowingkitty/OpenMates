@@ -29,6 +29,24 @@ MAX_EXPANDED = 512 * 1024**2
 DOWNLOAD_SECONDS = 60
 
 
+def valid_selfhost_result(report, job, root, expected_harness_commit):
+    try:
+        from scripts.ci_selfhost_contract import RECIPE, identity, validate_result
+    except ModuleNotFoundError:
+        from ci_selfhost_contract import RECIPE, identity, validate_result
+    import hashlib
+    try:
+        tree = subprocess.check_output(["git", "rev-parse", job["source"] + "^{tree}"],
+                                       cwd=root, text=True, timeout=15).strip()
+        recipe = subprocess.check_output(["git", "show", job["source"] + ":" + RECIPE],
+                                         cwd=root, timeout=15)
+        expected = identity(job["source"], tree, hashlib.sha256(recipe).hexdigest(),
+                            expected_harness_commit)
+        return validate_result(report, job, expected)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+
+
 def green_e2e_source_and_egress_verified(
     environment: dict, job: dict, *, expected_harness_commit: str | None = None,
 ) -> bool:
@@ -577,7 +595,15 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
     destination = root / "test-results/ci-runs" / job["id"]
     receipt = destination / "receipt.json"
     if receipt.is_file():
-        return attach_visual_evidence(attach_cleanup(json.loads(receipt.read_text()), job, destination), destination)
+        cached = json.loads(receipt.read_text())
+        if (job.get("state") == "success" and job.get("mode") == "selfhost"
+                and json.loads(job["specs"]) != ["selfhost-smoke.spec.ts"]):
+            expected_harness = job.get("preparation_harness_commit") or github.request(
+                f"repos/{github.repo}/actions/runs/{job['run_id']}")["head_sha"]
+            if (cached.get("coverage_scope") != "recipe-target"
+                    or not valid_selfhost_result(cached.get("report", {}), job, root, expected_harness)):
+                raise RuntimeError("Cached self-host scope lacks exact complete recipe evidence")
+        return attach_visual_evidence(attach_cleanup(cached, job, destination), destination)
     if not job["run_id"] or job["state"] not in ("success", "failure", "cancelled"):
         raise RuntimeError("CI job has no terminal result yet")
     run = github.request(f"repos/{github.repo}/actions/runs/{job['run_id']}")
@@ -659,6 +685,10 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "CI harness or requested proof profile identity mismatch"
             )
+        if (job["state"] == "success" and job.get("mode") == "selfhost"
+                and json.loads(job["specs"]) != ["selfhost-smoke.spec.ts"]):
+            if not valid_selfhost_result(report, job, root, expected_harness_commit):
+                raise RuntimeError("Self-host scope lacks exact complete recipe evidence")
         if job["state"] == "success" and job.get("mode") in ("component", "e2e", "visual-smoke"):
             if not green_e2e_source_and_egress_verified(
                     environment_data, job, expected_harness_commit=expected_harness_commit,
@@ -764,7 +794,9 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             "mode": job["mode"],
             "selected_specs": json.loads(job["specs"]),
             "selected_case_title": job.get("case_title") or "",
-            "coverage_scope": "single-case" if job.get("case_title") else "full-spec",
+            "coverage_scope": ("recipe-target" if job.get("mode") == "selfhost"
+                and json.loads(job["specs"]) != ["selfhost-smoke.spec.ts"]
+                else "single-case" if job.get("case_title") else "full-spec"),
             "harness_commit": expected_harness_commit,
             "runner_jobs": [
                 {

@@ -2327,7 +2327,12 @@ def main():
         elif mode == "selfhost":
             reject_inherited_accounts()
             from ci_selfhost import run
-            run(ROOT, results)
+            from ci_selfhost_contract import validate_targets
+            selection = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+            if selection == ["selfhost-smoke.spec.ts"]:
+                run(ROOT, results)
+            else:
+                run(ROOT, results, target=validate_targets(selection))
         elif mode == "codex":
             result = subprocess.run([pinned_node(), str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
             receipt = json.loads((RESULTS / "ci-codex.json").read_text())
@@ -2494,7 +2499,9 @@ def main():
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         "runtime_profile": mode,
         "case_title": case_title,
-        "coverage_scope": "single-case" if case_title else "full-spec",
+        "coverage_scope": ("recipe-target" if mode == "selfhost"
+            and json.loads(os.environ.get("CI_SPECS_JSON", "[]")) != ["selfhost-smoke.spec.ts"]
+            else "single-case" if case_title else "full-spec"),
         "artifact_shared_dev_rejected": mode == "artifact" and not error,
         "proof_dimensions": proof_dimensions,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),

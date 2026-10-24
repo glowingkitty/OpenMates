@@ -451,7 +451,7 @@ class Queue:
         if mode == "sdk-conformance":
             if specs != ["sdk-conformance"] or preparation or runtime_seed_job or capacity_configuration:
                 raise ValueError("SDK conformance requires its exact unprepared target")
-        for spec in ([] if mode in ("visual-smoke", "pytest", "sdk-conformance", "sdk-lockfiles", "rust-wasm") else specs):
+        for spec in ([] if mode in ("visual-smoke", "pytest", "sdk-conformance", "sdk-lockfiles", "rust-wasm", "selfhost") else specs):
             if mode == "vitest":
                 allowed = bool(
                     re.fullmatch(r"frontend/(?:packages/ui|apps/web_app)/src/[A-Za-z0-9_./-]+\.test\.tsx?", spec)
@@ -466,7 +466,11 @@ class Queue:
         if mode == "backend-probe" and specs != ["cli-recovery-discovery.spec.ts"]:
             raise ValueError("Backend probe requires the exact recovery fixture selector")
         if mode == "selfhost" and specs != ["selfhost-smoke.spec.ts"]:
-            raise ValueError("Installer runtime requires exactly its original smoke spec")
+            try:
+                from scripts.ci_selfhost_contract import validate_targets
+            except ModuleNotFoundError:
+                from ci_selfhost_contract import validate_targets
+            validate_targets(specs)
         if mode == "e2e":
             try:
                 from scripts.ci_coverage import validate_runtime_batch
@@ -928,11 +932,11 @@ def enqueue_submission(
     if mode == "sdk-conformance" and specs != ["sdk-conformance"]:
         raise ValueError("SDK conformance requires its exact unprepared target")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
-    if mode in ("component", "e2e") and not selections:
+    if mode in ("component", "e2e", "selfhost") and not selections:
         raise ValueError("Browser requests require explicit specs")
     batches = (
         [[spec] for spec in selections]
-        if mode in ("component", "e2e")
+        if mode in ("component", "e2e", "selfhost")
         else [selections]
     )
     preparation = None
@@ -1089,7 +1093,7 @@ def main():
             _, held = partition_source_specs(args.spec, args.source, root)
             if held:
                 raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
-        if args.mode in ("component", "e2e", "artifact", "selfhost"):
+        if args.mode in ("component", "e2e", "artifact"):
             try:
                 from scripts.ci_coverage import execution_mode
             except ModuleNotFoundError:
